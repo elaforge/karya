@@ -120,6 +120,15 @@ external:
     . using tscore, especially standalone
 
 UNSORTED
+  - space starting a new play instead of stopping is annoying
+    Because I can't stop a sample from playing without starting a new play.
+  - for break, how to set a bpm?
+    . Should I just set the bpm I think it is instead of inferred?
+    . Yes, but if I want to go into 3s I'd want eg bpm=(* (bpm) 1.5)
+  - is there a repl cmd to get instrument doc?
+    . call doc is in LBlock
+    . I could put in LInst.doc
+    . But I would need to move Browser.info_of to a common spot.
   - im still has the bug where deleting a track won't delete the files?
     . No it does, but leaves empty directories.
     . Maybe GC can clear out a directory with no ###.wav?
@@ -148,7 +157,10 @@ UNSORTED
     . Or what if I draw the envelope in there?
     . It's EventTrack::Body::draw_waveforms amplitude_scale, from max_peak
     . Other programs don't do this, they just display directly?
+  - global StrictData:
+    . Mark lazy fields with ~?  It'll be non-records too!
   OverloadedRecordDot:
+    . It's awkward to do in UiConfig because I already have lenses there.
     - in Cmd?
   - repl: can I turn off type error context:
     . In the expression:

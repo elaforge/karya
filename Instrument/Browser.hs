@@ -18,29 +18,22 @@
     Some parts of the instrument db may be generated offline, by
     "Instrument.MakeDb".
 -}
-module Instrument.Browser where
+module Instrument.Browser (main) where
 import qualified Control.Concurrent as Concurrent
 import qualified Control.Concurrent.STM as STM
 import qualified Control.Exception as Exception
 import qualified Control.Monad.State as State
 
-import qualified Data.Char as Char
 import qualified Data.Map as Map
-import qualified Data.Set as Set
 import qualified Data.Text as Text
 import qualified Data.Text.IO as Text.IO
-import qualified Data.Text.Lazy as Lazy
 
 import qualified System.Console.GetOpt as GetOpt
 import qualified System.Environment
 import qualified System.Exit
 
-import qualified Text.Printf as Printf
-
-import qualified Util.Doc as Doc
 import qualified Util.Fltk as Fltk
 import qualified Util.FltkUtil as FltkUtil
-import qualified Util.Format as Format
 import qualified Util.Lists as Lists
 import qualified Util.Network as Network
 
@@ -49,21 +42,12 @@ import qualified App.LoadInstruments as LoadInstruments
 import qualified App.Path as Path
 import qualified App.ReplProtocol as ReplProtocol
 
-import qualified Cmd.CallDoc as CallDoc
 import qualified Cmd.Cmd as Cmd
-import qualified Derive.Derive as Derive
-import qualified Derive.ScoreT as ScoreT
 import qualified Instrument.BrowserC as BrowserC
-import qualified Instrument.Common as Common
 import qualified Instrument.Inst as Inst
+import qualified Instrument.InstDoc as InstDoc
 import qualified Instrument.InstT as InstT
 import qualified Instrument.Search as Search
-import qualified Instrument.Tag as Tag
-
-import qualified Perform.Im.Patch as Im.Patch
-import qualified Perform.Midi.Control as Control
-import qualified Perform.Midi.Patch as Patch
-import qualified Perform.Sc.Patch as Sc.Patch
 
 import           Global
 
@@ -151,179 +135,8 @@ show_info chan win db qualified = Fltk.action chan $ BrowserC.set_info win info
         let InstT.Qualified synth_name inst_name = qualified
         synth <- Inst.lookup_synth synth_name (db_db db)
         inst <- Map.lookup inst_name (Inst.synth_insts synth)
-        let synth_doc = Inst.synth_doc synth <> " -- "
-                <> Inst.backend_name (Inst.inst_backend inst)
-        return $ info_of synth_name inst_name synth_doc inst tags
+        return $ InstDoc.info_of qualified synth inst tags
     tags = fromMaybe [] $ Search.tags_of (db_index db) qualified
-
-info_of :: InstT.SynthName -> InstT.Name -> Text -> Cmd.Inst
-    -> [Tag.Tag] -> Text
-info_of synth_name name synth_doc (Inst.Inst backend common) tags =
-    synth_name <> " -- " <> (if Text.null name then "*" else name) <> " -- "
-        <> synth_doc <> "\n\n" <> body
-    where
-    body = format_fields $ common_fields tags common ++ backend_fields
-    backend_fields = case backend of
-        Inst.Dummy msg -> [("dummy msg", msg)]
-        Inst.Midi inst -> midi_fields name inst
-        Inst.Im patch -> im_patch_fields patch
-        Inst.Sc patch -> sc_patch_fields patch
-
-common_fields :: [Tag.Tag] -> Common.Common Cmd.InstrumentCode -> [(Text, Text)]
-common_fields tags common =
-    [ ("Environ", if env == mempty then "" else pretty env)
-    , ("Flags", Text.intercalate ", " $ map showt $ Set.toList flags)
-    , ("Call map", if Map.null call_map then "" else pretty call_map)
-    -- code
-    , ("Cmds", show_cmds code)
-    , ("Note generators", show_calls CallDoc.GeneratorCall gen)
-    , ("Note transformers", show_calls CallDoc.TransformerCall trans)
-    , ("Track calls", show_calls CallDoc.TrackCall track)
-    , ("Val calls", show_calls CallDoc.ValCall val)
-    -- info
-    , ("Doc", doc)
-    , ("Tags", show_tags tags)
-    -- TODO lost the patch_file field
-    ]
-    where
-    Derive.Scopes gen trans track val = Cmd.inst_calls code
-    show_calls ctype = show_call_bindings . CallDoc.entries ctype
-        . CallDoc.call_map_to_entries . CallDoc.call_map_doc
-    Common.Common
-        { common_code = code
-        , common_environ = env
-        , common_doc = Doc.Doc doc
-        , common_flags = flags
-        , common_call_map = call_map
-        } = common
-
-midi_fields :: InstT.Name -> Patch.Patch -> [(Text, Text)]
-midi_fields name patch =
-    -- important properties
-    [ ("Flags", Text.intercalate ", " $ map showt $ Set.toList $
-        fromMaybe mempty flags)
-    , ("Controls", show_control_map control_map)
-    , ("Control defaults", pretty control_defaults)
-    -- implementation details
-    , ("Attribute map", show_attribute_map attr_map)
-    , ("Mode map", show_mode_map mode_map)
-    , ("Pitchbend range", pretty pb_range)
-    , ("Decay", if decay == Nothing then "" else pretty decay)
-    , ("Scale", maybe "" pretty scale)
-    , ("Initialization", show_initialize initialize)
-    , ("Original name", if name == orig_name then "" else showt orig_name)
-    ]
-    where
-    Patch.Patch
-        { patch_name = orig_name
-        , patch_control_map = control_map
-        , patch_initialize = initialize
-        , patch_attribute_map = attr_map
-        , patch_mode_map = mode_map
-        , patch_defaults = settings
-        } = patch
-    Patch.Settings flags scale decay pb_range control_defaults = settings
-
-im_patch_fields :: Im.Patch.Patch -> [(Text, Text)]
-im_patch_fields (Im.Patch.Patch controls attr_map elements) =
-    [ ("Attributes", Text.intercalate ", " $ map pretty $
-        Common.mapped_attributes attr_map)
-    , ("Controls", Text.unlines
-        [ pretty control <> "\t" <> doc
-        | (control, doc) <- Map.toAscList controls
-        ])
-    , ("Elements", Text.unwords (Set.toList elements))
-    ]
-
-sc_patch_fields :: Sc.Patch.Patch -> [(Text, Text)]
-sc_patch_fields (Sc.Patch.Patch _name _filename controls) =
-    [ ("Controls", Text.unlines
-        [ pretty control <> "\t" <> showt id
-        | (control, id) <- Map.toAscList controls
-        ])
-    ]
-
-format_fields :: [(Text, Text)] -> Text
-format_fields = Text.unlines . filter (not . Text.null) . map field
-
-field :: (Text, Text) -> Text
-field (title, raw_text)
-    | Text.null text = ""
-    | Text.length text < 40 && not ("\n" `Text.isInfixOf` text) =
-        title <> ": " <> text <> "\n"
-    | otherwise = "\t" <> title <> ":\n" <> text <> "\n"
-    where text = Text.strip raw_text
-
-show_attribute_map :: Patch.AttributeMap -> Text
-show_attribute_map (Common.AttributeMap table) =
-    Text.unlines $ map fmt (Lists.sortOn (low_key . snd) table)
-    where
-    attrs = map (prettys . fst) table
-    longest = fromMaybe 0 $ Lists.maximum (map length attrs)
-    -- If this instrument uses a keymap, it's easier to read the attribute map
-    -- if I put it in keymap order.
-    low_key (_, Just (Patch.UnpitchedKeymap k)) = Just k
-    low_key (_, Just (Patch.PitchedKeymap k _ _)) = Just k
-    low_key (_, Nothing) = Nothing
-    fmt (attrs, (keyswitches, maybe_keymap)) =
-        -- Still not quite right for lining up columns.
-        txt (Printf.printf "%-*s\t" longest (prettys attrs))
-            <> pretty keyswitches <> maybe "" ((" "<>) . pretty) maybe_keymap
-
-show_mode_map :: Patch.ModeMap -> Text
-show_mode_map (Patch.ModeMap table) = Text.unlines
-    [ key <> ": " <> Text.intercalate ", "
-        [ pretty val <> "=" <> pretty ks
-        | (val, ks) <- Map.toList modes
-        ] <> " [default: " <> pretty deflt <> "]"
-    | (key, (deflt, modes)) <- Map.toAscList table
-    ]
-
-show_control_map :: Control.ControlMap -> Text
-show_control_map cmap =
-    Text.intercalate ", " [ScoreT.control_name cont <> " (" <> showt num <> ")"
-        | (cont, num) <- Map.toList cmap]
-
-show_cmds :: Cmd.InstrumentCode -> Text
-show_cmds code = Text.unlines $ concat
-    [ map show_handler (Cmd.inst_cmds code)
-    , maybe [] (const ["[custom thru]"]) $ Cmd.inst_thru code
-    ]
-
-show_handler :: Cmd.Handler m -> Text
-show_handler = \case
-    Cmd.Handler (Just note_entry) cmd ->
-        Cmd.cmd_name cmd <> ": " <> case note_entry of
-            Cmd.WithoutOctave m -> list $ Map.elems m
-            Cmd.WithOctave m -> list $ concatMap Map.elems $ Map.elems m
-        where
-        list xs = "["
-            <> Text.unwords (Lists.unique (filter (not . Text.null) xs))
-            <> "]"
-    Cmd.Handler Nothing cmd -> Cmd.cmd_name cmd
-    Cmd.Keymap keymap -> pretty $ map Cmd.cmd_name $ Map.elems keymap
-
-show_call_bindings :: [CallDoc.CallBindings] -> Text
-show_call_bindings = Lazy.toStrict . Format.render "\t" 10000
-    . Format.paragraphs . map (CallDoc.call_bindings_text False)
-    -- Let fltk do the wrapping.  Of course it doesn't know how the indentation
-    -- works, so wrapped lines don't get indented, but it doesn't look that
-    -- bad.
-
-show_tags :: [(Text, Text)] -> Text
-show_tags tags =
-    Text.unwords [quote k <> "=" <> quote v | (k, v) <- Lists.sortOn fst tags]
-
-show_initialize :: Patch.InitializePatch -> Text
-show_initialize = \case
-    Patch.NoInitialization -> ""
-    Patch.InitializeMessage msg -> "Message: " <> msg
-    Patch.InitializeMidi msgs -> Text.unlines (map pretty msgs)
-
-quote :: Text -> Text
-quote s
-    | Text.any Char.isSpace s = "\"" <> s <> "\""
-    | otherwise = s
 
 -- | Send the chosen instrument to the sequencer.  This will send
 -- @change_instrument \"synth/inst\"@ to the REPL port.
