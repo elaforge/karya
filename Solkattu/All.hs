@@ -25,6 +25,7 @@ import qualified Solkattu.Score.Mridangam2022
 import qualified Solkattu.Score.Mridangam2023
 import qualified Solkattu.Score.Mridangam2024
 import qualified Solkattu.Score.Mridangam2025
+import qualified Solkattu.Score.Mridangam2026
 import qualified Solkattu.Score.MridangamBali
 import qualified Solkattu.Score.MridangamMohra
 import qualified Solkattu.Score.MridangamRohan
@@ -200,6 +201,7 @@ scores = map Korvai.inferMetadataS
     , setLocation ("Solkattu.Score.Mridangam2025",128,"yella_sequence") $ Single Solkattu.Score.Mridangam2025.yella_sequence
     , setLocation ("Solkattu.Score.Mridangam2025",175,"s_sketch") $ Single Solkattu.Score.Mridangam2025.s_sketch
     , setLocation ("Solkattu.Score.Mridangam2025",187,"trichy_reverse") $ Single Solkattu.Score.Mridangam2025.trichy_reverse
+    , setLocation ("Solkattu.Score.Mridangam2026",10,"c_tadin") $ Single Solkattu.Score.Mridangam2026.c_tadin
     , setLocation ("Solkattu.Score.MridangamBali",10,"legong_mridangam") $ Single Solkattu.Score.MridangamBali.legong_mridangam
     , setLocation ("Solkattu.Score.MridangamMohra",13,"rohan_mohra1") $ Single Solkattu.Score.MridangamMohra.rohan_mohra1
     , setLocation ("Solkattu.Score.MridangamRohan",19,"kanda_tani") $ Solkattu.Score.MridangamRohan.kanda_tani
