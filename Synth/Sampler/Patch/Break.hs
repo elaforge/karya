@@ -172,22 +172,24 @@ c_break :: BPM -> Map Beat Frame -> Beat -> Maybe Frame
 c_break naturalBpm beatMap perMeasure mbFrame =
     Derive.generator Module.instrument "break" mempty doc $
     Sig.call ((,,,,,)
-        <$> maybe (Left <$> beat_arg) (pure . Right) mbFrame
+        <$> maybe (Left <$> beatArg) (pure . Right) mbFrame
         <*> Sig.defaulted "pre" (Typecheck.score 0)
             "Move note start back by this much, along with the offset."
         <*> Sig.defaulted "pitch" (0 :: Double) "Pitch offset."
         <*> Sig.defaulted "pitch-shift" (0 :: Double)
             "Pitch offset, not affecting time."
-        <*> Sig.defaulted "bpm" naturalBpm "Set BPM."
+        <*> Sig.defaulted "bpm" (Nothing :: Maybe BPM)
+            "Set BPM. If Nothing, infer from the tempo."
         <*> Sig.defaulted "bpm-mode" Pitch
             "How to adjust bpm, by changing pitch, or stretching time."
-    ) $ \(beatOrFrame, Typecheck.DefaultScore pre, pitch, pitchShift, bpm,
+    ) $ \(beatOrFrame, Typecheck.DefaultScore pre, pitch, pitchShift, mbBpm,
         bpmMode) ->
     Sub.inverting $ \args -> do
         frame <- either (lookupBeat beatMap) return beatOrFrame
         let (start, dur) = Args.extent args
         pre <- Call.score_duration start pre
         rpre <- Call.real_duration start pre
+        bpm <- maybe ((*60) <$> Derive.get_tempo (Args.start args)) pure mbBpm
         let (bpmPitch, bpmStretch) = adjustBpm naturalBpm bpm bpmMode
         withControl Control.sampleStartOffset
                 (fromIntegral frame - fromIntegral (AUtil.toFrames rpre)) $
@@ -196,7 +198,7 @@ c_break naturalBpm beatMap perMeasure mbFrame =
             withControl Control.samplePitchShift pitchShift $
             Derive.place (start - pre) (dur + pre) Call.note
     where
-    beat_arg = Sig.required "beat" "Offset measure.beat. This abuses\
+    beatArg = Sig.required "beat" "Offset measure.beat. This abuses\
         \ decimal notation: 4 -> (1, 4), 4.1 -> (4, 1), 4.15 -> (4, 1.5)."
     doc = "Play a sample at a certain offset."
     lookupBeat beatMap beatFraction =
