@@ -35,6 +35,7 @@ module Derive.Deriver.Lib (
     , with_instrument_alias, with_instrument_aliases
     , instrument_exists
     , get_instrument, lookup_instrument
+    , get_tempo
 
     -- ** control
     , lookup_signal
@@ -597,6 +598,12 @@ lookup_instrument inst = do
     let real_inst = Map.findWithDefault inst inst aliases
     lookup_inst <- gets $ state_lookup_instrument . state_constant
     return (real_inst, lookup_inst real_inst)
+
+-- | Get instantaneous tempo at the given time.
+get_tempo :: ScoreTime -> Deriver Double
+get_tempo t = do
+    warp <- Internal.get_warp
+    pure $ Warp.tempo_at warp t
 
 
 -- ** control

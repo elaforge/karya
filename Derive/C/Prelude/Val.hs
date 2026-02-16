@@ -52,6 +52,7 @@ library = Library.vals
     , ("next-event", c_next_event)
     , ("bpm", c_bpm)
     , ("env", c_env)
+    , ("tempo", c_tempo)
     , ("ts", c_timestep)
     , ("ts/", c_timestep_reciprocal)
     , ("1/", c_reciprocal)
@@ -130,8 +131,14 @@ c_next_event = val_call "next-event" Tags.next
 
 c_bpm :: Derive.ValCall
 c_bpm = val_call "bpm" mempty "Convert bpm to tempo.  This is just (/60)."
-    $ Sig.call (Sig.required "bpm" "")
-    $ \bpm _args -> return $ (bpm :: Double) / 60
+    $ Sig.call (Sig.defaulted "bpm" (Nothing :: Maybe Double) "")
+    $ \mb_bpm args -> case mb_bpm of
+        Just bpm -> pure $ (bpm :: Double) / 60
+        Nothing -> (*60) <$> Derive.get_tempo (Args.start args)
+
+c_tempo :: Derive.ValCall
+c_tempo = val_call "tempo" mempty "Get tempo at this point."
+    $ Sig.call0 $ \args -> Derive.get_tempo (Args.start args)
 
 c_env :: Derive.ValCall
 c_env = val_call "env" mempty

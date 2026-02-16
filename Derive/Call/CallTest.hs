@@ -114,12 +114,17 @@ lookup_map calls = Derive.CallMap
 
 -- | Run a val call, and return what it returned.
 run_val :: Maybe Text -> Text -> (Maybe DeriveT.Val, [Text])
-run_val transform call =
+run_val = run_val_tracks "" [] 0
+
+-- | 'run_val' with more knobs.
+run_val_tracks :: Text -> [UiTest.TrackSpec] -> ScoreTime -> Maybe Text -> Text
+    -> (Maybe DeriveT.Val, [Text])
+run_val_tracks title tracks at transform call =
     extract $ DeriveTest.derive_tracks_setup
-        (with_note_generator "capture" c_capture) ""
-        [(">", [(0, 1, maybe "" (<> " | ") transform
-            <> "capture (" <> call <> ")")])]
+        (with_note_generator "capture" c_capture) title
+        (tracks ++ [(">", [(at, 0, event)])])
     where
+    event = maybe "" (<> " | ") transform <> "capture (" <> call <> ")"
     extract = first (Monad.join . Lists.head) . DeriveTest.extract
         (Env.lookup "capture" . Score.event_environ)
     c_capture :: Derive.Generator Derive.Note

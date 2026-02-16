@@ -122,9 +122,27 @@ external:
 UNSORTED
   - space starting a new play instead of stopping is annoying
     Because I can't stop a sample from playing without starting a new play.
-  - for break, how to set a bpm?
+    Could I get it back if I track thru state and stop on that?
+    . That means it must currently set to point when wanting to stop thru?
+    . Yes it does.  Maybe a better fix is to have an extra stop for thru.
+  - break: how to set a bpm?
     . Should I just set the bpm I think it is instead of inferred?
     . Yes, but if I want to go into 3s I'd want eg bpm=(* (bpm) 1.5)
+    . I can use this to make it adjust to the ambient bpm
+  - break: flatten tempo with srate adjustments
+    . If I set break-bpm=_, then infer from the environment.
+    . I could also adjust based on the bpm of this section of the BeatMap.
+    . bpm is the derivative of the current tempo.  I could try to figure it
+      out with sampling, or I could try to propagate directly from tempo.
+      Since it's coming from the integral, can I just remember what it was?
+    . There is EnvKey.tempo, but it's only set by tempo=, not by tempo track.
+    if I remember it:
+      . Has to be d_tempo I think?  Tempo.with_signal would have to save the
+        signal, which is possible.  But there are details like shift and
+        stretch?
+    if I get the derivative:
+      . Have to take samples.  But I can do it easily, just look for segment.
+        Just have to make a decision about discontinuities.
   * is there a repl cmd to get instrument doc?
     . call doc is in LBlock
     . I could put in LInst.doc

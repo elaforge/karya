@@ -34,6 +34,20 @@ test_env = do
     equal (run (Just "x = 42") "env x str")
         (Nothing, ["env \"x\" expected Str but got Signal"])
 
+test_tempo :: Test
+test_tempo = do
+    let run = CallTest.run_val_tracks
+    equal (run "" [("tempo", [(0, 0, "1")])] 1 Nothing "tempo")
+        (Just (DeriveT.num 1), [])
+    equal (run "" [("tempo", [(0, 0, "2")])] 1 Nothing "tempo")
+        (Just (DeriveT.num 2), [])
+    equal (run "tempo=.5" [] 1 Nothing "tempo")
+        (Just (DeriveT.num 0.5), [])
+    equal (run "" [("tempo", [(0, 0, "1"), (1, 0, "3")])] 1 Nothing "tempo")
+        (Just (DeriveT.num 3), [])
+    equal (run "" [("tempo", [(0, 0, "bpm 90")])] 1 Nothing "bpm")
+        (Just (DeriveT.num 90), [])
+
 test_prev_next_val :: Test
 test_prev_next_val = do
     let runc control = DeriveTest.extract (DeriveTest.e_control "c") $

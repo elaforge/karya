@@ -2,11 +2,13 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
+{-# LANGUAGE StrictData #-}
 -- | Functions for the 'Warp'.
 module Derive.Warp (
     Warp, Linear(..), is_linear, is_identity, warp, unwarp
     , identity, from_signal, compose
     , shift, stretch
+    , tempo_at
     -- * utils
     , unwarp_signal
     -- * compose_hybrid
@@ -14,13 +16,14 @@ module Derive.Warp (
 ) where
 import qualified Control.DeepSeq as DeepSeq
 
-import qualified Ui.ScoreTime as ScoreTime
 import qualified Perform.RealTime as RealTime
-import Perform.RealTime (to_score)
+import           Perform.RealTime (to_score)
 import qualified Perform.Signal as Signal
 
-import Global
-import Types
+import qualified Ui.ScoreTime as ScoreTime
+
+import           Global
+import           Types
 
 
 {- | The 'Warp' keeps track of the ScoreTime -> RealTime function, as well
@@ -52,13 +55,13 @@ import Types
 data Warp = WarpFunction !Function | WarpLinear !Linear
 
 data Function = Function {
-    _warp :: !(ScoreTime -> RealTime)
-    , _unwarp :: !(RealTime -> ScoreTime)
+    _warp :: ScoreTime -> RealTime
+    , _unwarp :: RealTime -> ScoreTime
     -- -- | For debugging.  TODO keep all of them?  Or is it a memory leak?
     -- , _signal :: !Signal.Warp
     }
 
-data Linear = Linear { _shift :: !RealTime, _stretch :: !RealTime }
+data Linear = Linear { _shift :: RealTime, _stretch :: RealTime }
     deriving (Show)
 
 instance Show Warp where show = prettys
@@ -167,6 +170,20 @@ stretch factor (WarpLinear linear) = WarpLinear $ Linear
     , _stretch = to_real factor * _stretch linear
     }
 
+-- | Tempo is the reciprocal of the derivative of the warp.
+tempo_at :: Warp -> ScoreTime -> Double
+tempo_at w t = case is_linear w of
+    Just (Linear { _stretch }) -> 1 / RealTime.to_seconds _stretch
+    Nothing -> 1 / ((r1 - r0) / (t1 - t0))
+        where
+        r0 = RealTime.to_seconds $ warp w t
+        r1 = RealTime.to_seconds $ warp w (t + ScoreTime.from_double eta)
+        t0 = ScoreTime.to_double t
+        t1 = t0 + eta
+        -- This is arbitrary, but affects the minimum resolution of tempo
+        -- changes it will notice.
+        eta = 0.0125
+
 -- * utils
 
 unwarp_signal :: Warp -> Signal.Control -> Signal.Display
@@ -188,7 +205,7 @@ compose_hybrid _ _ = identity
 -- composition.  The idea is that it's normal composition until the second
 -- signal has a slope of zero.  Normally this would be a discontinuity, but
 -- is special cased to force the output to a 1\/1 line.  In effect, it's as
--- if the flat segment were whatever slope is necessary to to generate a slope
+-- if the flat segment has whatever slope is necessary to to generate a slope
 -- of 1 when composed with the first signal.
 compose_hybrid :: Warp -> Warp -> Warp
 compose_hybrid f g = Signal $ run initial $ Vector.generateM (length g) gen
