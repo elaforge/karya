@@ -2,6 +2,7 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
+{-# LANGUAGE StrictData #-}
 -- | High level binding to faust dsps, treated as audio effect processors.
 module Synth.Faust.Effect (
     Patch, EffectT(..)
@@ -29,13 +30,13 @@ import           Global
 
 -- TODO this has to be initialized to be consistent with the sampler
 data Config = Config {
-    _blockSize :: !Audio.Frames
+    _blockSize :: Audio.Frames
     -- | This is _blockSize / _controlsPerBlock
-    , _controlSize :: !Audio.Frames
+    , _controlSize :: Audio.Frames
     -- | This is _blockSize / _controlSize
-    , _controlsPerBlock :: !Audio.Frames
+    , _controlsPerBlock :: Audio.Frames
     -- | Force an end if the signal hasn't gone to zero before this.
-    , _maxDecay :: !Audio.Frames
+    , _maxDecay :: Audio.Frames
     } deriving (Show)
 
 -- TODO duplicated with Faust.Render.Config

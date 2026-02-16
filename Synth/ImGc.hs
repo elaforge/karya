@@ -2,6 +2,7 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
+{-# LANGUAGE StrictData #-}
 {- | Delete audio checkpoints with no symlinks, and those over a certain age.
     This means they correspond to some older score state, so I can delete them
     and loading a new score will still likely hit the cache.
@@ -37,10 +38,10 @@ import           Global
 
 
 data Stats = Stats {
-    _instruments :: !(Set Text)
-    , _deletedFiles :: !Int
-    , _deletedBytes :: !Bytes
-    , _remaining :: !Bytes
+    _instruments :: Set Text
+    , _deletedFiles :: Int
+    , _deletedBytes :: Bytes
+    , _remaining :: Bytes
     } deriving (Show)
 
 type Bytes = Int

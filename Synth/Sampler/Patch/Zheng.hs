@@ -1,6 +1,7 @@
 -- Copyright 2019 Evan Laforge
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
+{-# LANGUAGE StrictData #-}
 module Synth.Sampler.Patch.Zheng where
 import qualified Data.Char as Char
 import qualified Data.Map as Map
@@ -187,10 +188,10 @@ inferEnd note nexts = case mapMaybe dampedAt (note : nexts) of
 -- * make samples
 
 data Sample = Sample {
-    _key :: !Midi.Key
-    , _articulation :: !Articulation
-    , _variation :: !Util.Variation
-    , _maxVelocity :: !MaxVelocity
+    _key :: Midi.Key
+    , _articulation :: Articulation
+    , _variation :: Util.Variation
+    , _maxVelocity :: MaxVelocity
     } deriving (Show)
 
 type MaxVelocity = Int

@@ -159,9 +159,16 @@ UNSORTED
     . Other programs don't do this, they just display directly?
   - global StrictData:
     . Mark lazy fields with ~?  It'll be non-records too!
+    * Synth
+    - Ui
+    - Derive
+    - Perform
+    - Instrument
+    - Solkattu
   OverloadedRecordDot:
     . It's awkward to do in UiConfig because I already have lenses there.
     - in Cmd?
+    - convert Synth first?
   - repl: can I turn off type error context:
     . In the expression:
       In an equation for `_compileParsedExpr':

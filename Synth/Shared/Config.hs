@@ -5,6 +5,7 @@
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE StrictData #-}
 -- | Shared config to coordinate between the sequencer and im subsystems.
 module Synth.Shared.Config where
 import qualified Data.Aeson as Aeson
@@ -81,9 +82,9 @@ config appDir = Config
 data Synth = Synth {
     -- | This should uniquely determine the synth, since it becomes the notes
     -- filename.
-    synthName :: !FilePath
+    synthName :: FilePath
     -- | Path to the binary.  Don't run a binary if it's empty.
-    , binary :: !FilePath
+    , binary :: FilePath
     } deriving (Eq, Show)
 
 type SynthName = Text
@@ -264,10 +265,10 @@ listDir = fmap (fromMaybe []) . Exceptions.ignoreEnoent
 -- * progress
 
 data Message = Message {
-    _blockId :: !Id.BlockId
-    , _trackIds :: !(Set Id.TrackId)
-    , _instrument :: !ScoreT.Instrument
-    , _payload :: !Payload
+    _blockId :: Id.BlockId
+    , _trackIds :: Set Id.TrackId
+    , _instrument :: ScoreT.Instrument
+    , _payload :: Payload
     } deriving (Show, Generics.Generic)
 
 instance Aeson.ToJSON Message where
@@ -275,14 +276,14 @@ instance Aeson.ToJSON Message where
 instance Aeson.FromJSON Message
 
 data Payload =
-    RenderingRange !RealTime !RealTime
+    RenderingRange RealTime RealTime
     -- | Completed waveforms.
-    | WaveformsCompleted ![ChunkNum]
-    | Warn !Stack.Stack !Text
+    | WaveformsCompleted [ChunkNum]
+    | Warn Stack.Stack Text
     -- | A failure will cause karya to log the msg and mark the track as
     -- incomplete.  It should be fatal, so don't do any 'emitMessage'
     -- afterwards.
-    | Failure !Text
+    | Failure Text
     deriving (Show, Generics.Generic)
 
 instance Aeson.ToJSON Payload where

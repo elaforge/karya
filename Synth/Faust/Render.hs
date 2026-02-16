@@ -3,6 +3,7 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE StrictData #-}
 {-# LANGUAGE TypeApplications #-}
 -- | Render FAUST instruments.
 module Synth.Faust.Render where
@@ -123,15 +124,15 @@ toSpan note = Checkpoint.Span
 -- Since _controlSize and _controlsPerBlock overlap, this isn't in normal
 -- form.
 data Config = Config {
-    _chunkSize :: !Audio.Frames
-    , _blockSize :: !Audio.Frames
+    _chunkSize :: Audio.Frames
+    , _blockSize :: Audio.Frames
     -- | This is _blockSize / _controlsPerBlock
-    , _controlSize :: !Audio.Frames
+    , _controlSize :: Audio.Frames
     -- | This is _blockSize / _controlSize
-    , _controlsPerBlock :: !Audio.Frames
+    , _controlsPerBlock :: Audio.Frames
     -- | Force an end if the signal hasn't gone to zero before this.
-    , _maxDecay :: !Audio.Frames
-    , _emitProgress :: !Bool
+    , _maxDecay :: Audio.Frames
+    , _emitProgress :: Bool
     } deriving (Show)
 
 {-

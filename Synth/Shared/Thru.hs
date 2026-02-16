@@ -2,6 +2,7 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
+{-# LANGUAGE StrictData #-}
 -- | This has the protocol to talk to a running play_cache and tell it to play
 -- samples in realtime.  This is for the audio preview aka "MIDI thru" feature
 -- for im.  Since each im patch may respond in its own way to a Note, this
@@ -35,20 +36,20 @@ data Message = Plays [Play] | Stop
     deriving (Show)
 
 data Note = Note {
-    _pitch :: !Pitch.NoteNumber
-    , _velocity :: !Double
-    , _attributes :: !Attrs.Attributes
-    , _startOffset :: !Int
+    _pitch :: Pitch.NoteNumber
+    , _velocity :: Double
+    , _attributes :: Attrs.Attributes
+    , _startOffset :: Int
     } deriving (Show)
 
 type Error = Text
 type Frames = Int
 
 data Play = Play {
-    _sample :: !FilePath
-    , _offset :: !Frames
-    , _ratio :: !Double
-    , _volume :: !Double
+    _sample :: FilePath
+    , _offset :: Frames
+    , _ratio :: Double
+    , _volume :: Double
     } deriving (Eq, Show)
 
 send :: Message -> IO ()

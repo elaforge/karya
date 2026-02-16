@@ -2,6 +2,7 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
+{-# LANGUAGE StrictData #-}
 -- | Offline sampler.
 module Synth.Sampler.SamplerIm (main) where
 import qualified Control.Concurrent.Async as Async
@@ -186,8 +187,8 @@ parseBy str = fromMaybe (error ("not a By: " <> str)) (Read.readMaybe str)
 data Flag =
     Quality Resample.Quality
     | Debug
-    | DumpRange !RealTime !RealTime
-    | DumpTracks !(Set Id.TrackId)
+    | DumpRange RealTime RealTime
+    | DumpTracks (Set Id.TrackId)
     | Progress
     deriving (Eq, Show)
 

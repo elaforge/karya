@@ -2,6 +2,7 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
+{-# LANGUAGE StrictData #-}
 -- | Utilities for Balinese instruments.
 module Synth.Sampler.Patch.Lib.Bali where
 import qualified Data.Char as Char
@@ -31,7 +32,7 @@ import qualified Synth.Shared.Signal as Signal
 import           Global
 
 
-data Pitch = Pitch !Pitch.Octave !PitchClass
+data Pitch = Pitch Pitch.Octave PitchClass
     deriving (Eq, Ord, Show)
 
 instance Pretty Pitch where

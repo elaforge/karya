@@ -2,6 +2,7 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
+{-# LANGUAGE StrictData #-}
 -- | Low level binding to faust dsps, specialized for ones that process
 -- audio, rather than generating it.
 module Synth.Faust.EffectC (
@@ -34,10 +35,10 @@ import           Global
 
 
 data EffectT ptr cptr = EffectT {
-    _name :: !Text
-    , _doc :: !Text
-    , _controls :: !(Map Control.Control (cptr, Text))
-    , _ptr :: !ptr
+    _name :: Text
+    , _doc :: Text
+    , _controls :: Map Control.Control (cptr, Text)
+    , _ptr :: ptr
     } deriving (Show)
 
 -- | A patch can be used to create 'Effect's.

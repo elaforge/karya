@@ -2,6 +2,7 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
+{-# LANGUAGE StrictData #-}
 -- | The 'Note' type and support.
 module Synth.Shared.Note where
 import qualified Crypto.Hash.MD5 as MD5
@@ -31,24 +32,24 @@ import           Synth.Types
 -- | IR for im.  These are the inputs for im synthesizers.
 data Note = Note {
     -- | Map this note to one of the synthesizer's patches.
-    patch :: !PatchName
+    patch :: PatchName
     -- | Unique name for this particular instantiation of the patch.
-    , instrument :: !ScoreT.Instrument
+    , instrument :: ScoreT.Instrument
     -- | Display render progress on this track.
     --
     -- Previously, I inferred the track from the instrument, but that runs into
     -- trouble when there isn't a 1:1 mapping from track to instrument.
-    , trackId :: !(Maybe Id.TrackId)
+    , trackId :: Maybe Id.TrackId
     -- | Address this note to a particular element within the patch.  What it
     -- is depends on the instrument.  For instance, it might the a particular
     -- string on a pipa.  The difference from 'attributes' is that each element
     -- is mutually exclusive.
-    , element :: !Element
-    , start :: !RealTime
-    , duration :: !RealTime
+    , element :: Element
+    , start :: RealTime
+    , duration :: RealTime
     -- | E.g. envelope, pitch, lpf.
-    , controls :: !(Map Control.Control Signal.Signal)
-    , attributes :: !Attrs.Attributes
+    , controls :: Map Control.Control Signal.Signal
+    , attributes :: Attrs.Attributes
     -- | The stack of the score event that generated this Note.  For errors.
     , stack :: Stack.Stack
     } deriving (Eq, Show)

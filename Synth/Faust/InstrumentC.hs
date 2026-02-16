@@ -2,6 +2,7 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
+{-# LANGUAGE StrictData #-}
 -- | Low level binding to faust dsps, specialized for ones that generate audio.
 module Synth.Faust.InstrumentC (
     PatchT(..), Patch, Instrument
@@ -35,19 +36,19 @@ import           Global
 
 
 data PatchT ptr cptr = Patch {
-    _name :: !Text
-    , _doc :: !Text
+    _name :: Text
+    , _doc :: Text
     -- | Corresponds to 'Instrument.Common.Triggered' flag.
-    , _impulseGate :: !Bool
-    , _elementFrom :: !(Maybe Text)
+    , _impulseGate :: Bool
+    , _elementFrom :: Maybe Text
     -- | An allocated Instrument has pointers to set control values, but a
     -- Patch doesn't.
-    , _controls :: !(Map Control (cptr, ControlConfig))
+    , _controls :: Map Control (cptr, ControlConfig)
     -- | Inputs are positional, so it's important to preserve their order.
     -- TODO: Inputs should also have an Element.
-    , _inputControls :: ![(Control.Control, ControlConfig)]
-    , _outputs :: !Int
-    , _ptr :: !ptr
+    , _inputControls :: [(Control.Control, ControlConfig)]
+    , _outputs :: Int
+    , _ptr :: ptr
     } deriving (Show)
 
 -- | A patch can be used to create 'Instrument's.
@@ -57,8 +58,8 @@ type Patch = PatchT PatchC.PatchP ()
 type Instrument = PatchT PatchC.InstrumentP (Ptr Float)
 
 data ControlConfig = ControlConfig {
-    _constant :: !Bool
-    , _description :: !Text
+    _constant :: Bool
+    , _description :: Text
     } deriving (Eq, Show)
 
 instance Pretty ControlConfig where

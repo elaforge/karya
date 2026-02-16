@@ -2,6 +2,7 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
+{-# LANGUAGE StrictData #-}
 module Synth.Sampler.Sample where
 import qualified Data.ByteString as ByteString
 import qualified Data.Map as Map
@@ -29,17 +30,18 @@ type SamplePath = FilePath
 -- | Low level representation of a note.  This corresponds to a single sample
 -- played.
 data Note = Note {
-    start :: !Audio.Frames
+    start :: Audio.Frames
     -- | This is the actual duration of the sample at the given 'ratios', not
     -- the requested 'Note.duration'.
     -- TODO maybe move 'duration' to Sample then.
-    , duration :: !Audio.Frames
+    , duration :: Audio.Frames
     , effectControls :: Map Control.Control Signal.Signal
     , sample :: Sample
     -- | Hash of (start, duration, effectControls, sample).  Putting it here
     -- means I can memoize its creation but also that changing Note will make
     -- it out of sync.
-    , hash :: Note.Hash
+    -- TODO not sure if it needs to be lazy
+    , hash :: ~Note.Hash
     } deriving (Show)
 
 end :: Note -> Audio.Frames
@@ -68,22 +70,22 @@ makeHash start dur effectControls sample = mconcat $
 data Sample = Sample {
     -- | This is initially relative to 'Patch._rootDir', and will have the root
     -- dir prepended before rendering.
-    filename :: !SamplePath
+    filename :: SamplePath
     -- | Sample start offset.
-    , offset :: !Audio.Frames
+    , offset :: Audio.Frames
     -- | The sample ends when it runs out of samples, or when envelope ends
     -- on 0.  The units are defined by 'AUtil.dbToLinear': 0 = -96dB, 1 = 0dB.
-    , envelope :: !Signal.Signal
-    , pan :: !Signal.Signal
+    , envelope :: Signal.Signal
+    , pan :: Signal.Signal
     -- | Sample rate conversion ratio.  This controls the pitch.
-    , ratios :: !Signal.Signal
-    , stretch :: !Stretch
+    , ratios :: Signal.Signal
+    , stretch :: Stretch
     } deriving (Show)
 
 data Stretch = Stretch {
-    stretchMode :: !StretchMode
-    , timeRatio :: !Signal.Y
-    , pitchRatio :: !Signal.Y
+    stretchMode :: StretchMode
+    , timeRatio :: Signal.Y
+    , pitchRatio :: Signal.Y
     } deriving (Show)
 
 -- | This maps to [Rubberband.Option].  It's indirect to avoid a dependency on

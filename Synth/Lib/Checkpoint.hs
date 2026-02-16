@@ -3,6 +3,7 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 {-# LANGUAGE CPP #-}
+{-# LANGUAGE StrictData #-}
 -- | Functions to do incremental render.  It hashes 'Note.Note's to skip
 -- rerendering when possible.
 module Synth.Lib.Checkpoint (

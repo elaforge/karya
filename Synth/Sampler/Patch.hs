@@ -2,6 +2,7 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
+{-# LANGUAGE StrictData #-}
 module Synth.Sampler.Patch where
 import qualified Control.Monad.Except as Except
 import qualified Control.Monad.Identity as Identity
@@ -32,8 +33,8 @@ db rootDir patches = Db
 
 data Db = Db {
     -- | Base directory for patches.  Samples are in '_rootDir' / '_dir'.
-    _rootDir :: !FilePath
-    , _patches :: !(Map Note.PatchName Patch)
+    _rootDir :: FilePath
+    , _patches :: Map Note.PatchName Patch
     }
 
 lookupPatch :: Note.PatchName -> [Patch] -> Maybe Patch
@@ -47,7 +48,7 @@ data Patch = Patch {
     -- | Find a sample.
     , _convert :: Note.Note -> ConvertM Sample.Sample
     , _preprocess :: [Note.Note] -> [Note.Note]
-    , _effect :: !(Maybe EffectConfig)
+    , _effect :: Maybe EffectConfig
     -- | Karya configuration.
     --
     -- Putting code here means that the sampler has to link in a large portion
@@ -139,7 +140,7 @@ data EffectConfig = EffectConfig {
     -- | Map event controls to effect controls.  So if the effect exports
     -- "effect-feedback" and we want to refer to it as "depth", then
     -- ("depth", "effect-feedback").
-    , _toEffectControl :: !(Map Control.Control Control.Control)
+    , _toEffectControl :: Map Control.Control Control.Control
     } deriving (Show)
 
 effect :: Text -> EffectConfig

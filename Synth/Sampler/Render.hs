@@ -2,7 +2,9 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
-{-# LANGUAGE TypeApplications, DataKinds #-}
+{-# LANGUAGE DataKinds #-}
+{-# LANGUAGE StrictData #-}
+{-# LANGUAGE TypeApplications #-}
 -- | Render 'Sample.Note's down to audio.
 module Synth.Sampler.Render where
 import qualified Control.Exception as Exception
@@ -47,12 +49,12 @@ import           Synth.Types
 
 
 data Config = Config {
-    _quality :: !Resample.Quality
-    , _chunkSize :: !Audio.Frames
-    , _blockSize :: !Audio.Frames
-    , _controlsPerBlock :: !Audio.Frames
+    _quality :: Resample.Quality
+    , _chunkSize :: Audio.Frames
+    , _blockSize :: Audio.Frames
+    , _controlsPerBlock :: Audio.Frames
     -- | Optionally suppress structured progress messages, used by karya.
-    , _emitProgress :: !Bool
+    , _emitProgress :: Bool
     }
 
 type Error = Text
@@ -68,8 +70,8 @@ defaultConfig quality = Config
 
 -- | An instrument level faust processor.
 data InstrumentEffect = InstrumentEffect {
-    _effectPatch :: !Effect.Patch
-    , _effectConfig :: !Patch.EffectConfig
+    _effectPatch :: Effect.Patch
+    , _effectConfig :: Patch.EffectConfig
     }
 
 -- TODO lots of this is duplicated with Faust.Render.write, factor out the
@@ -137,11 +139,11 @@ toSpan note = Checkpoint.Span
 
 -- | A currently playing sample.
 data Playing = Playing {
-    _noteHash :: !Note.Hash
+    _noteHash :: Note.Hash
     -- | Get the current state of the resample.  NOTE [audio-state]
     , _getState :: IO PlayState
-    , _audio :: !AUtil.Audio
-    , _noteRange :: !(Audio.Frames, Audio.Frames)
+    , _audio :: AUtil.Audio
+    , _noteRange :: (Audio.Frames, Audio.Frames)
     }
 
 instance Pretty Playing where
