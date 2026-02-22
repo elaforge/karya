@@ -741,7 +741,10 @@ configure = do
             , case mode of
                 Debug -> []
                 Opt -> ["-O"]
-                Test -> ["-fhpc"]
+                -- ghci is very annoynig with hpc, it does a hard crash
+                -- when it notices the tix file is out of date, and there's no
+                -- way to disable trying to write coverage.
+                Test -> [] -- ["-fhpc"]
                 Profile -> ["-O", "-prof"]
                     -- I use manual SCCs for accuracy, but auto ones can be
                     -- useful to figure out where to put manual ones.

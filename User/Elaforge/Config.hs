@@ -47,12 +47,12 @@ load_static_config = do
     instrument_db <- LoadInstruments.load app_dir
     midi <- get_midi_config instrument_db
     return $ StaticConfig.StaticConfig
-        { instrument_db = instrument_db
-        , global_cmds = global_cmds
+        { instrument_db
+        , global_cmds
         , builtins = C.All.builtins
         , setup_cmd = parse_args
         , post_setup_cmd = if keycaps then SyncKeycaps.open else return ()
-        , midi = midi
+        , midi
         , highlight_colors = Config.highlight_colors
         , im_play_direct = False
         }

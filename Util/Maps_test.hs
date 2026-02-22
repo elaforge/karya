@@ -27,3 +27,15 @@ test_lookupClosest = do
     equal (map (f (Map.fromList [(1, 'a'), (5, 'b')])) [0..6])
         (map Just "aaaabbb")
     equal (map (f (Map.fromList [(1, 'a')])) [0..2]) (map Just "aaa")
+
+test_lookupAround :: Test
+test_lookupAround = do
+    let f k m = Maps.lookupAround k (Map.fromList m)
+    equal (f 0 [(0, 'a')]) Nothing
+    equal [f k [(0, 'a'), (1, 'b'), (2, 'c')] | k <- [-1 .. 3]] $ map Just
+        [ ((0, 'a'), (1, 'b'))
+        , ((0, 'a'), (1, 'b'))
+        , ((1, 'b'), (2, 'c'))
+        , ((1, 'b'), (2, 'c'))
+        , ((1, 'b'), (2, 'c'))
+        ]

@@ -71,9 +71,12 @@ gc :: FilePath -> IO Stats
 gc root = do
     now <- Time.getCurrentTime
     foldMapM (check now) $ Files.walk (const True) root
+    -- Deleted instruments will leave empty directories.  I could clear them
+    -- with a depth-first walk, and then just remove every directory, but it
+    -- seems not worth it.
     where
     check now (dir, fnames)
-        | FilePath.takeFileName dir /= "checkpoint" = return mempty
+        | FilePath.takeFileName dir /= checkpointDir = return mempty
         | otherwise = do
             garbage <- Set.fromList <$> findGarbage now dir fnames
             deleted <- fmap Num.sum $
@@ -95,8 +98,11 @@ find root = do
     S.filter (/=mempty) $ S.mapM (check now) $ Files.walk (const True) root
     where
     check now (dir, fnames)
-        | FilePath.takeFileName dir /= "checkpoint" = return mempty
+        | FilePath.takeFileName dir /= checkpointDir = return mempty
         | otherwise = Set.fromList <$> liftIO (findGarbage now dir fnames)
+
+checkpointDir :: FilePath
+checkpointDir = "checkpoint"
 
 -- | Any file with a ###.wav symlink is alive, or with the same prefix.
 -- So 000.wav -> checkpoint/000.hash.hash.wav, and also

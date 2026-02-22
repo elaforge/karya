@@ -75,8 +75,8 @@ test_subblock_placement = do
     equal (run (Derive.at 1)) ([(2, 2), (4, 2)], [])
     equal (run (Derive.at (-1))) ([(0, 2), (2, 2)], [])
     equal (run (Derive.stretch 2)) ([(2, 4), (6, 4)], [])
-    equal (run (Derive.stretch 2 .Derive.at (-1))) ([(0, 4), (4, 4)], [])
-    equal (run (Derive.at 1 . Derive.stretch 2 .Derive.at (-1)))
+    equal (run (Derive.stretch 2 . Derive.at (-1))) ([(0, 4), (4, 4)], [])
+    equal (run (Derive.at 1 . Derive.stretch 2 . Derive.at (-1)))
         ([(1, 4), (5, 4)], [])
 
 test_block_call_overrides_other_calls :: Test

@@ -125,11 +125,20 @@ UNSORTED
     Could I get it back if I track thru state and stop on that?
     . That means it must currently set to point when wanting to stop thru?
     . Yes it does.  Maybe a better fix is to have an extra stop for thru.
+    . But do I know when that's happening?  cmd_context_stop just sends
+      all_notes_off.  Do I track when thru is playing?
+    . This doesn't apply to MIDI so much because I do key up -> NoteOff
+      Can I do the same for im?
   * break: how to set a bpm?
     . Should I just set the bpm I think it is instead of inferred?
     . Yes, but if I want to go into 3s I'd want eg bpm=(* (bpm) 1.5)
     . I can use this to make it adjust to the ambient bpm
   - break: adjust bpm based on position in beat map
+    . It doesn't work in practice, because I'm playing more than one landmork.
+      So the first one will be accurate, but the rest will be off by however
+      much it's off from tempo.
+    . I would have to pre-warp the sample to flatten out the tempo.  I could
+      do this as a preproc step.
   * break: flatten tempo with srate adjustments
     . If I set break-bpm=_, then infer from the environment.
     . bpm is the derivative of the current tempo.  I could try to figure it
@@ -147,7 +156,7 @@ UNSORTED
     . call doc is in LBlock
     . I could put in LInst.doc
     . But I would need to move Browser.info_of to a common spot.
-  - im still has the bug where deleting a track won't delete the files?
+  / im still has the bug where deleting a track won't delete the files?
     . No it does, but leaves empty directories.
     . Maybe GC can clear out a directory with no ###.wav?
   - how to use self streaming?
@@ -185,14 +194,23 @@ UNSORTED
     - Solkattu
   OverloadedRecordDot:
     . It's awkward to do in UiConfig because I already have lenses there.
-    - in Cmd?
-    - convert Synth first?
+    . It shortens access due since I can remove the module qualification.
+      Then I could further shorten by removing the type prefix but we still
+      can't handle name conflicts well.  I can add NoFieldSelectors and commit
+      entirely to dots, but it can't update conflicts.
+    . The _ prefix is maybe no longer useful, because if I have a local
+      variable that conflicts, I can use dots.
+    . This disableds x.y for mappend, which is no good in Solkattu.  So
+      I think I still need LANGUAGE pragmas.
+    - ask claude to convert to use dots everywhere?
   - repl: can I turn off type error context:
     . In the expression:
       In an equation for `_compileParsedExpr':
     . It's just ReplGhc stuff.
     . Or maybe just ad-hoc filter it out.
   - osx: how to disable that "reopen windows" feature?
+    defaults write -app "Application Name" NSQuitAlwaysKeepsWindows -bool false
+    defaults write -app /Applications/tastyworks.app NSQuitAlwaysKeepsWindows -bool false
   * bug: floating_insert called but no open input:  (4o)
     Happens in kbd entry.
     . TrackTile::floating_insert(const char *text) when no floating_input.
@@ -219,9 +237,6 @@ UNSORTED
         a better name.
     - What is Kompiang's tuning, an I put that in?
       . Like saba, but a little lower.
-    - im playback seems to be cutting off the starts again
-    - No thru for im kendang pasang
-      Known issue: refactor thru:
     + "-" stroke is too quiet to hear, or gone.
       I think from unsaved branch
       Yes, but why do I need replaceSoft?  What is soft otherwise?
@@ -234,6 +249,9 @@ UNSORTED
     - waveform display seems broken?
       Seems to inconsistently miss strokes?
       They come back when adding a new track, gone again on next update.
+  - im playback seems to be cutting off the starts again
+  - No thru for im kendang pasang
+    Known issue: refactor thru:
   - LInst.add_im "k" "sampler/kendang-bali-pasang"
     Cmd/Repl/LInst.hs:260 - switched non-dummy alloc
       sampler/kendang-bali-pasang (音) to dummy
@@ -252,6 +270,12 @@ UNSORTED
       . What is the difference?
       . ask claude? what would it take to port @App/Main.hs to use
         @Util/Fltk.hs like @Instrument/Browser.hs does?
+      . Thinks it's hard.  And there's no guarentee it helps.
+    . Difference is seq makes windows in response to events, while others
+      directly create a window.  But to fltk, doesn't it all look like
+      window create calls?
+    ? What's the different sequence between test_block creating a window and
+      Responder doing so?
   + bug: ghci GHC.Linker.Loader.dynLoadObjs: Loading temp shared object failed
     During interactive linking, GHCi couldn't find the following symbol:
       dlopen(/var/folders/gm/7n_pzqns7_dd93srd5n4l_2c0000gn/T/ghc74955_0/libghc_20.dylib, 0x0005): symbol not found in flat namespace '_SolkattuziDslziMridangam_closed_closure'
@@ -6912,7 +6936,10 @@ solkattu:
         . In fact this might be the source of rendering oddities?  Because
           if I notate in su it tends to render that way since normalizeSpeed
           only expands, doesn't contract?
-    html:
+    html: Html:
+      - If I like text output better:
+        https://github.com/buildkite/terminal-to-html
+        . Seems to be black background and only white text.
       * legend is hardcoded for mridangam only
       - rendering has gotten very slow, why?
         . Having entirely separate renders for each abstraction level can't be

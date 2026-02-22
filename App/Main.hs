@@ -135,6 +135,7 @@ main = initialize $ \midi_interface repl_socket -> do
     --     midi_thru remap_rmsg thru_chan write_midi
 
     loopback_chan <- STM.newTChanIO
+    -- Messages from the outside world to the event loop.
     msg_chan <- STM.newTChanIO
     get_msg <- Responder.create_msg_reader
         (remap_read_message (StaticConfig.rdev_map midi))

@@ -11,6 +11,7 @@ module Util.Maps (
     , split2, split3
     , within
     , lookupClosest
+    , lookupAround
     , invert
     , multimap
     , unique, unique2
@@ -19,7 +20,7 @@ module Util.Maps (
     , uniqueUnion, uniqueUnions
     , mappend, mconcat
 ) where
-import           Prelude hiding (min, max, mappend, mconcat)
+import           Prelude hiding (mappend, mconcat)
 import           Control.Arrow (first)
 import qualified Data.Either as Either
 import qualified Data.List as List
@@ -74,6 +75,19 @@ lookupClosest key m = case (Map.lookupLT key m, Map.lookupGE key m) of
     (Nothing, Just kv) -> Just kv
     (Just kv, Nothing) -> Just kv
     (Nothing, Nothing) -> Nothing
+
+-- | Find entries around the key.  If it's out of range, get the minimum or
+-- maximum entries.
+lookupAround :: Ord k => k -> Map k a -> Maybe ((k, a), (k, a))
+lookupAround k m = case Map.splitLookup k m of
+    (_, Just a, above) | Just kb <- Map.lookupMin above -> Just ((k, a), kb)
+    (below, Just b, _) | Just ka <- Map.lookupMax below -> Just (ka, (k, b))
+    (below, Nothing, above)
+        | Just ka <- Map.lookupMax below, Just kb <- Map.lookupMin above ->
+            Just (ka, kb)
+        | ka : kb : _ <- Map.toAscList above -> Just (ka, kb)
+        | kb : ka : _ <- Map.toDescList below -> Just (ka, kb)
+    _ -> Nothing
 
 invert :: Ord a => Map k a -> Map a k
 invert = Map.fromList . map (\(x, y) -> (y, x)) . Map.assocs

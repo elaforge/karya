@@ -275,6 +275,7 @@ minDyn = 0.5
 findFrame :: Map Beat Frame -> Beat -> Maybe Frame
 findFrame beats beat = case at of
     Just frame -> Just frame
+    -- No annotation at this beat, interpolate to find a Frame for it.
     Nothing -> case (Map.lookupMax below, Map.lookupMin above) of
         (Just (beat0, frame0), Just (beat1, frame1)) -> Just $
             round $ Num.scale (Num.i2d frame0) (Num.i2d frame1) $
