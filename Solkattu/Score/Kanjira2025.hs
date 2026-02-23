@@ -5,6 +5,7 @@ module Solkattu.Score.Kanjira2025 where
 import           Prelude hiding ((.))
 
 import qualified Solkattu.Score.Mridangam2013 as Mridangam2013
+import qualified Solkattu.Tala as Tala
 
 import           Solkattu.Dsl.Mridangam
 
@@ -57,6 +58,14 @@ dinnaginna2 = date 2025 9 20 $ ganesh $ korvaiV adi
     theme = g $ su "tktko_tko_k_tktk"
     me = g $ su "tktk"
 
+e_kanjira :: Korvai
+e_kanjira = exercise $ date 2025 6 25 $ korvaiV Tala.any_beats
+    [ "okokkook"
+    , u.k.o.u.k.k.t.k.t.k.o.u.k.o.o.k
+    ]
+    where
+    u = hv o
+
 {-
 e_kanjira :: Korvai
 e_kanjira = exercise $ date 2025 6 25 $ korvaiV Tala.any_beats mempty
@@ -69,7 +78,7 @@ e_kanjira = exercise $ date 2025 6 25 $ korvaiV Tala.any_beats mempty
     -- repeated strokes move slightly up and in
     , dhom.ka.dhom.ka.ka.dhom.dhom.ka
     , dhom.ka.dhom.dhom.ka.ka.ta.dit.ta.dit.dhom.dhom.ka.dhom.dhom.ka
-    --   ^            ^                             ^
+    --^            ^                             ^
     ]
     -- TODO can't do hv on sollus!
 

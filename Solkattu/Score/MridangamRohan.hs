@@ -588,6 +588,12 @@ adi_tirmanams = rohan $ tirmanam $ date 2026 1 10 $ korvaiV adi
     , join "o_" (map (tri o) (reduceToL 1 1 ("pktk".su "kt"))) . o
     ]
 
+rupaka_tirmanams :: Korvai
+rupaka_tirmanams = rohan $ tirmanam $ date 2026 1 10 $ korvaiV Tala.rupaka_fast
+    [ nadai 3 $ __M (3*5) . tri "N_k" "kkook"
+    , __D 5 . "k___" . tri2 "Dk" "DkDk" (r2 "D_k_D_k")
+    ]
+
 adi_mohra :: Korvai
 adi_mohra = rohan $ date 2026 1 10 $ korvaiV adi
     -- TODO I think these are mohra schemas, but how to complete them?
@@ -676,6 +682,11 @@ misra_3_eddupu = rohan $ date 2026 1 10 $ korvaiV Tala.misra_chapu
     , tri "D___" p6 . sd "pp_D_"
     . tri "D___" ("k_".p6) . sd (r2 "pp_D_")
     . tri "D___" ("k_k_".p6) . sd (r3 "pp_D_") . __D 3
+    ]
+
+misra_tirmanams :: Korvai
+misra_tirmanams = rohan $ date 2026 1 10 $ korvaiV Tala.misra_chapu
+    [ reduceTo 4 2 ("t_k_kooko_k_o___") . tri "N___N___" (r3 p6)
     ]
 
 -- * util

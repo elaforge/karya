@@ -51,10 +51,11 @@ import qualified Solkattu.Score.Tabla2025
 
 scores :: [Korvai.Score]
 scores = map Korvai.inferMetadataS
-    [ setLocation ("Solkattu.Score.Kanjira2025",12,"e_sarvalaghu") $ Single Solkattu.Score.Kanjira2025.e_sarvalaghu
-    , setLocation ("Solkattu.Score.Kanjira2025",19,"ta_dit_takadin") $ Single Solkattu.Score.Kanjira2025.ta_dit_takadin
-    , setLocation ("Solkattu.Score.Kanjira2025",37,"dinnaginna1") $ Single Solkattu.Score.Kanjira2025.dinnaginna1
-    , setLocation ("Solkattu.Score.Kanjira2025",45,"dinnaginna2") $ Single Solkattu.Score.Kanjira2025.dinnaginna2
+    [ setLocation ("Solkattu.Score.Kanjira2025",13,"e_sarvalaghu") $ Single Solkattu.Score.Kanjira2025.e_sarvalaghu
+    , setLocation ("Solkattu.Score.Kanjira2025",20,"ta_dit_takadin") $ Single Solkattu.Score.Kanjira2025.ta_dit_takadin
+    , setLocation ("Solkattu.Score.Kanjira2025",38,"dinnaginna1") $ Single Solkattu.Score.Kanjira2025.dinnaginna1
+    , setLocation ("Solkattu.Score.Kanjira2025",46,"dinnaginna2") $ Single Solkattu.Score.Kanjira2025.dinnaginna2
+    , setLocation ("Solkattu.Score.Kanjira2025",61,"e_kanjira") $ Single Solkattu.Score.Kanjira2025.e_kanjira
     , setLocation ("Solkattu.Score.KendangPasang",48,"bapang_saba_angsels") $ Single Solkattu.Score.KendangPasang.bapang_saba_angsels
     , setLocation ("Solkattu.Score.KendangPasang",64,"bapang_saba_middle") $ Single Solkattu.Score.KendangPasang.bapang_saba_middle
     , setLocation ("Solkattu.Score.KendangPasang",84,"bapang_saba_accel") $ Single Solkattu.Score.KendangPasang.bapang_saba_accel
@@ -240,13 +241,15 @@ scores = map Korvai.inferMetadataS
     , setLocation ("Solkattu.Score.MridangamRohan",519,"adi_6_eddupu") $ Single Solkattu.Score.MridangamRohan.adi_6_eddupu
     , setLocation ("Solkattu.Score.MridangamRohan",530,"adi_chatusra") $ Single Solkattu.Score.MridangamRohan.adi_chatusra
     , setLocation ("Solkattu.Score.MridangamRohan",578,"adi_tirmanams") $ Single Solkattu.Score.MridangamRohan.adi_tirmanams
-    , setLocation ("Solkattu.Score.MridangamRohan",591,"adi_mohra") $ Single Solkattu.Score.MridangamRohan.adi_mohra
-    , setLocation ("Solkattu.Score.MridangamRohan",604,"adi_tisra") $ Single Solkattu.Score.MridangamRohan.adi_tisra
-    , setLocation ("Solkattu.Score.MridangamRohan",634,"tisra_sequence") $ Single Solkattu.Score.MridangamRohan.tisra_sequence
-    , setLocation ("Solkattu.Score.MridangamRohan",645,"adi_kanda") $ Single Solkattu.Score.MridangamRohan.adi_kanda
-    , setLocation ("Solkattu.Score.MridangamRohan",657,"adi_misra") $ Single Solkattu.Score.MridangamRohan.adi_misra
-    , setLocation ("Solkattu.Score.MridangamRohan",665,"kanda_chapu") $ Single Solkattu.Score.MridangamRohan.kanda_chapu
-    , setLocation ("Solkattu.Score.MridangamRohan",672,"misra_3_eddupu") $ Single Solkattu.Score.MridangamRohan.misra_3_eddupu
+    , setLocation ("Solkattu.Score.MridangamRohan",591,"rupaka_tirmanams") $ Single Solkattu.Score.MridangamRohan.rupaka_tirmanams
+    , setLocation ("Solkattu.Score.MridangamRohan",597,"adi_mohra") $ Single Solkattu.Score.MridangamRohan.adi_mohra
+    , setLocation ("Solkattu.Score.MridangamRohan",610,"adi_tisra") $ Single Solkattu.Score.MridangamRohan.adi_tisra
+    , setLocation ("Solkattu.Score.MridangamRohan",640,"tisra_sequence") $ Single Solkattu.Score.MridangamRohan.tisra_sequence
+    , setLocation ("Solkattu.Score.MridangamRohan",651,"adi_kanda") $ Single Solkattu.Score.MridangamRohan.adi_kanda
+    , setLocation ("Solkattu.Score.MridangamRohan",663,"adi_misra") $ Single Solkattu.Score.MridangamRohan.adi_misra
+    , setLocation ("Solkattu.Score.MridangamRohan",671,"kanda_chapu") $ Single Solkattu.Score.MridangamRohan.kanda_chapu
+    , setLocation ("Solkattu.Score.MridangamRohan",678,"misra_3_eddupu") $ Single Solkattu.Score.MridangamRohan.misra_3_eddupu
+    , setLocation ("Solkattu.Score.MridangamRohan",687,"misra_tirmanams") $ Single Solkattu.Score.MridangamRohan.misra_tirmanams
     , setLocation ("Solkattu.Score.MridangamSarva",14,"e_kita") $ Single Solkattu.Score.MridangamSarva.e_kita
     , setLocation ("Solkattu.Score.MridangamSarva",27,"kizh1") $ Single Solkattu.Score.MridangamSarva.kizh1
     , setLocation ("Solkattu.Score.MridangamSarva",32,"kizh2") $ Single Solkattu.Score.MridangamSarva.kizh2
