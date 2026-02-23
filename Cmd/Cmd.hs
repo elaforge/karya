@@ -3,6 +3,7 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 {-# LANGUAGE DeriveFunctor #-}
+{-# LANGUAGE StrictData #-}
 {-# LANGUAGE ViewPatterns #-}
 {- | Core CmdT monad that cmds run in.
 
@@ -129,8 +130,8 @@ import           Types
 -- just Msg -> Status, but it's also wrapped up in some documentation,
 -- so cmds can be introspected.
 data Handler m =
-    Keymap !(Keymap m)
-    | Handler !(Maybe (NoteEntryMap KeycapsT.KeyDoc)) !(NamedCmd m)
+    Keymap (Keymap m)
+    | Handler (Maybe (NoteEntryMap KeycapsT.KeyDoc)) (NamedCmd m)
 type HandlerId = Handler CmdId
 
 handler :: Text -> (Msg.Msg -> m Status) -> Handler m
@@ -161,8 +162,8 @@ mods_down = Set.fromList <$> fmap (filter is_mod . Map.keys) keys_down
 
 -- | Pair a Cmd with a Doc that can be used for logging, undo, etc.
 data NamedCmd m = NamedCmd {
-    cmd_name :: !Text
-    , cmd_call :: !(Msg.Msg -> m Status)
+    cmd_name :: Text
+    , cmd_call :: Msg.Msg -> m Status
     }
 
 -- | NoteEntry might depend on base octave, and might have different
@@ -181,7 +182,7 @@ note_entry_lookup octave char = \case
 
 type Keymap m = Map KeySpec (NamedCmd m)
 
-data KeySpec = KeySpec !(Set Modifier) !Bindable
+data KeySpec = KeySpec (Set Modifier) Bindable
     deriving (Eq, Ord, Show)
 
 data Bindable =
@@ -289,9 +290,9 @@ data Status =
     -- | Stop further cmd processing, \"consuming\" the Msg.
     | Done
     -- | Hack to control import dependencies, see "Cmd.PlayC".
-    | Play !PlayArgs
+    | Play PlayArgs
     -- | Open a FloatingInput box.
-    | FloatingInput !FloatingInput
+    | FloatingInput FloatingInput
     -- | Pack it up and go home.
     | Quit
     deriving (Show)
@@ -311,19 +312,19 @@ merge_status s1 s2 = if prio s1 >= prio s2 then s1 else s2
 -- | Arguments for 'Cmd.PlayC.play'.  This is a special return value to trigger
 -- a play, see "Cmd.PlayC" for details.
 data PlayArgs = PlayArgs {
-    play_sync :: !(Maybe SyncConfig)
+    play_sync :: Maybe SyncConfig
     -- | Description of what is being played for logging.
-    , play_name :: !Text
-    , play_midi :: !Midi.Perform.MidiEvents
-    , play_sc :: !Sc.Note.PlayNotes
-    , play_inv_tempo :: !(Maybe Transport.InverseTempoFunction)
-    , play_repeat_at :: !(Maybe RealTime)
+    , play_name :: Text
+    , play_midi :: Midi.Perform.MidiEvents
+    , play_sc :: Sc.Note.PlayNotes
+    , play_inv_tempo :: Maybe Transport.InverseTempoFunction
+    , play_repeat_at :: Maybe RealTime
     -- | Since im playback is done by the VST, I don't directly control it as I
     -- do with the MIDI player, effectively all the sound is "in the decay." So
     -- I have an explicit end, and the MIDI thread will pretend it's still
     -- playing until it crosses this boundary.
-    , play_im_end :: !(Maybe RealTime)
-    , play_im_direct :: !(Maybe PlayDirectArgs)
+    , play_im_end :: Maybe RealTime
+    , play_im_direct :: Maybe PlayDirectArgs
     }
 instance Show PlayArgs where show _ = "((PlayArgs))"
 
@@ -338,9 +339,9 @@ data PlayDirectArgs = PlayDirectArgs {
 data FloatingInput =
     -- | Open a new floating text input.
     -- View, track, pos, (select start, select end).
-    FloatingOpen !ViewId !TrackNum !ScoreTime !Text !(Int, Int)
+    FloatingOpen ViewId TrackNum ScoreTime Text (Int, Int)
     -- | Insert the given text into an already open edit box.
-    | FloatingInsert !Text
+    | FloatingInsert Text
     deriving (Show)
 
 -- | Cmds can run in either Identity or IO, but are generally returned in IO,
@@ -469,9 +470,9 @@ data Thru =
     -- | Send MIDI thru.  You can give it a timestamp, but it should be 0 for
     -- thru, which will cause it to go straight to the front of the queue.  Use
     -- 'midi' for normal midi thru.
-    MidiThru !Midi.Interface.Message
-    | ImThru !Thru.Message
-    | OscThru ![OSC.OSC]
+    MidiThru Midi.Interface.Message
+    | ImThru Thru.Message
+    | OscThru [OSC.OSC]
     deriving (Show)
 
 midi_thru :: Midi.WriteDevice -> Midi.Message -> Thru
@@ -550,74 +551,74 @@ require_right fmt_err = either (throw . fmt_err) return
     or a less clever but simpler and easier way like @Map Name Dynamic@.
 -}
 data State = State {
-    state_config :: !Config
+    state_config :: Config
     -- | If set, the current 'Ui.State' was loaded from this file.
     -- This is so save can keep saving to the same file.
-    , state_save_file :: !(Maybe (Writable, SaveFile))
-    , state_saved :: !Saved
-    , state_ky_cache :: !(Maybe KyCache)
+    , state_save_file :: Maybe (Writable, SaveFile)
+    , state_saved :: Saved
+    , state_ky_cache :: Maybe KyCache
     -- | Omit the usual derive delay for these blocks, and trigger a derive.
     -- This is set by integration, which modifies a block in response to
     -- another block being derived.  Blocks set to derive immediately are also
     -- considered to have block damage, if they didn't already.  This is
     -- cleared after every cmd.
-    , state_derive_immediately :: !(Set BlockId)
+    , state_derive_immediately :: Set BlockId
     -- | History.
-    , state_history :: !History
-    , state_history_config :: !HistoryConfig
-    , state_history_collect :: !HistoryCollect
-    , state_selection_history :: !SelectionHistory
+    , state_history :: History
+    , state_history_config :: HistoryConfig
+    , state_history_collect :: HistoryCollect
+    , state_selection_history :: SelectionHistory
 
     -- | Map of keys held down.  Maintained by cmd_record_keys and accessed
     -- with 'keys_down'.
     -- The key is the modifier stripped of extraneous info, like mousedown
     -- position.  The value has complete info.
-    , state_keys_down :: !(Map Modifier Modifier)
+    , state_keys_down :: Map Modifier Modifier
     -- | The block and track that have focus.  Commands that address
     -- a particular block or track will address these.
-    , state_focused_view :: !(Maybe ViewId)
+    , state_focused_view :: Maybe ViewId
     -- | This contains a Rect for each screen.  The first one is the default
     -- one, if a default is needed, though normally views should show up next
     -- to other views.
-    , state_screens :: ![Rect.Rect]
+    , state_screens :: [Rect.Rect]
     -- | Just indicates that the keycaps window is open.  The window is global,
     -- stored in "Ui.PtrMap", so I don't need to store it here.
-    , state_keycaps :: !(Maybe KeycapsState)
-    , state_keycaps_update :: !(Maybe KeycapsUpdate)
+    , state_keycaps :: Maybe KeycapsState
+    , state_keycaps_update :: Maybe KeycapsUpdate
 
     -- | This is similar to 'Ui.Block.view_status', except that it's global
     -- instead of per-view.  So changes are logged with a special prefix so
     -- logview can catch them.  Really I only need this map to suppress log
     -- spam.
-    , state_global_status :: !(Map Text Text)
-    , state_play :: !PlayState
-    , state_hooks :: !Hooks
+    , state_global_status :: Map Text Text
+    , state_play :: PlayState
+    , state_hooks :: Hooks
 
     -- External device tracking.
     -- | MIDI state of WriteDevices.
-    , state_wdev_state :: !WriteDeviceState
+    , state_wdev_state :: WriteDeviceState
 
     -- | MIDI state of ReadDevices, including configuration like pitch bend
     -- range.
-    , state_rdev_state :: !InputNote.ReadDeviceState
-    , state_edit :: !EditState
+    , state_rdev_state :: InputNote.ReadDeviceState
+    , state_edit :: EditState
     -- | The status return for this Cmd.  This is used only by the REPL, since
     -- non-REPL cmds simply return Status as their return value.  REPL cmds
     -- can't do that because they commonly use the return value to return
     -- an interesting String back to the REPL.
-    , state_repl_status :: !Status
+    , state_repl_status :: Status
     -- | Enable various debug printing to stdout.
-    , state_debug :: !Bool
+    , state_debug :: Bool
     } deriving (Show)
 
-data SaveFile = SaveState !Path.Canonical | SaveRepo !Path.Canonical
+data SaveFile = SaveState Path.Canonical | SaveRepo Path.Canonical
     deriving (Show, Eq)
 data Writable = ReadWrite | ReadOnly deriving (Show, Eq)
 
 -- | This tracks how much the score has been saved to disk.
 data Saved = Saved {
-    _saved_state :: !SavedState
-    , _editor_open :: !Bool
+    _saved_state :: SavedState
+    , _editor_open :: Bool
     } deriving (Eq, Show)
 
 -- True if state is synced to disk, either because it was just saved and
@@ -671,16 +672,16 @@ score_path state = case state_save_file state of
 -- | A loaded and parsed ky file, or an error string.  This also has the files
 -- loaded and their timestamps, to detect when one has changed.
 data KyCache =
-    KyCache !(Either Text (Derive.Builtins, Derive.InstrumentAliases))
-        !Fingerprint
+    KyCache (Either Text (Derive.Builtins, Derive.InstrumentAliases))
+        Fingerprint
     -- | This disables the cache mechanism.  Tests use this to avoid having
     -- to set SaveFile.
-    | PermanentKy !(Derive.Builtins, Derive.InstrumentAliases)
+    | PermanentKy (Derive.Builtins, Derive.InstrumentAliases)
     deriving (Show)
 
 -- | Keep track of loaded files and a fingerprint for their contents.  This is
 -- used to detect when they should be reloaded.
-data Fingerprint = Fingerprint ![FilePath] !Int
+data Fingerprint = Fingerprint [FilePath] Int
     deriving (Eq, Show)
 
 instance Semigroup Fingerprint where
@@ -751,28 +752,28 @@ reinit_state present cstate = cstate
 -- the "App.StaticConfig".
 data Config = Config {
     -- | App root, initialized from 'Config.get_app_dir'.
-    config_app_dir :: !Path.AppDir
-    , config_save_dir :: !Path.Canonical
-    , config_midi_interface :: !Midi.Interface.Interface
+    config_app_dir :: Path.AppDir
+    , config_save_dir :: Path.Canonical
+    , config_midi_interface :: Midi.Interface.Interface
     -- | Search path for local definition files, from 'Config.definition_path'.
-    , config_ky_paths :: ![FilePath]
+    , config_ky_paths :: [FilePath]
     -- | Reroute MIDI inputs and outputs.  These come from
     -- 'App.StaticConfig.rdev_map' and 'App.StaticConfig.wdev_map' and probably
     -- shouldn't be changed at runtime.
-    , config_rdev_map :: !(Map Midi.ReadDevice Midi.ReadDevice)
+    , config_rdev_map :: Map Midi.ReadDevice Midi.ReadDevice
     -- | WriteDevices can be score-specific, though, so another map is kept in
     -- 'Ui.State', which may override the one here.
-    , config_wdev_map :: !(Map Midi.WriteDevice Midi.WriteDevice)
-    , config_instrument_db :: !InstrumentDb
+    , config_wdev_map :: Map Midi.WriteDevice Midi.WriteDevice
+    , config_instrument_db :: InstrumentDb
     -- | Library of calls for the deriver.
-    , config_builtins :: !Derive.Builtins
-    , config_highlight_colors :: !(Map Color.Highlight Color.Color)
-    , config_im :: !Shared.Config.Config
+    , config_builtins :: Derive.Builtins
+    , config_highlight_colors :: Map Color.Highlight Color.Color
+    , config_im :: Shared.Config.Config
     -- | If True, play im audio directly instead of via the play_cache VST.
     -- This means you don't need a DAW, but if you have MIDI instruments
     -- they probably won't be very in sync.
     , config_im_play_direct :: Bool
-    , config_git_user :: !SaveGitT.User
+    , config_git_user :: SaveGitT.User
     } deriving (Show)
 
 -- | Get a midi writer that takes the 'config_wdev_map' into account.
@@ -813,45 +814,45 @@ data PlayState = PlayState {
     -- where play gets stuck on, that makes me think with the concurrency I'm
     -- going to wind up with overlapping anyway, so I may as well handle it
     -- when I see it.
-    state_play_control :: ![Transport.PlayControl]
+    state_play_control :: [Transport.PlayControl]
     -- | When changes are made to a block, its performance will be
     -- recalculated in the background.  When the Performance is forced, it will
     -- replace the existing performance in 'state_performance', if any.  This
     -- means there will be a window in which the performance is out of date,
     -- but this is better than hanging the responder every time it touches an
     -- insufficiently lazy part of the performance.
-    , state_performance :: !(Map BlockId Performance)
+    , state_performance :: Map BlockId Performance
     -- | However, some cmds, like play, want the most up to date performance
     -- even if they have to wait for it.  This map will be updated
     -- immediately.
-    , state_current_performance :: !(Map BlockId Performance)
+    , state_current_performance :: Map BlockId Performance
     -- | Keep track of current thread working on each performance.  If a
     -- new performance is needed before the old one is complete, it can be
     -- killed off.
-    , state_performance_threads :: !(Map BlockId Thread)
+    , state_performance_threads :: Map BlockId Thread
     -- | Some play commands start playing from a short distance before the
     -- cursor.
-    , state_play_step :: !TimeStep.TimeStep
+    , state_play_step :: TimeStep.TimeStep
     -- | Contain a StepState if step play is active.  Managed in
     -- "Cmd.StepPlay".
-    , state_step :: !(Maybe StepState)
+    , state_step :: Maybe StepState
     -- | Globally speed up or slow down performance.  It mutiplies the
     -- timestamps by the reciprocal of this amount, so 2 will play double
     -- speed, and 0.5 will play half speed.
     , state_play_multiplier :: RealTime
     -- | If set, synchronize with a DAW when the selection is set, and on play
     -- and stop.
-    , state_sync :: !(Maybe SyncConfig)
+    , state_sync :: Maybe SyncConfig
     -- | Track im progress as updated by 'Msg.ImRenderingRange'.  This is
     -- ultimately displayed on the GUI, but I keep track here so I can take
     -- minimum and maximum when multiple instruments live on one track.
-    , state_im_progress :: !(Map BlockId (Map TrackId
-        (Map ScoreT.Instrument (RealTime, RealTime))))
-    , state_previous_play :: !(Maybe PlayCmd)
+    , state_im_progress :: Map BlockId
+        (Map TrackId (Map ScoreT.Instrument (RealTime, RealTime)))
+    , state_previous_play :: Maybe PlayCmd
     } deriving (Show)
 
 -- | Wrapper around CmdId PlayArgs to make it Showable.
-data PlayCmd = PlayCmd !Text !(CmdId PlayArgs)
+data PlayCmd = PlayCmd Text (CmdId PlayArgs)
 instance Show PlayCmd where
     show (PlayCmd name _) = "PlayCmd " <> show name
 
@@ -902,16 +903,16 @@ data StepState = StepState {
     -- - constant
     -- | Keep track of the view step play was started in, so I know where to
     -- display the selection.
-    step_view_id :: !ViewId
+    step_view_id :: ViewId
     -- | If step play only applies to a few tracks, list them.  If null,
     -- step play applies to all tracks.
     , step_tracknums :: [TrackNum]
 
     -- - modified
     -- | MIDI states before the step play position, in descending order.
-    , step_before :: ![(ScoreTime, Midi.State.State)]
+    , step_before :: [(ScoreTime, Midi.State.State)]
     -- | MIDI states after the step play position, in asceding order.
-    , step_after :: ![(ScoreTime, Midi.State.State)]
+    , step_after :: [(ScoreTime, Midi.State.State)]
     } deriving (Show)
 
 -- | Configure synchronization.  MMC is used to set the play position and MTC
@@ -920,9 +921,9 @@ data StepState = StepState {
 -- MMC has start and stop msgs, but they seem useless, since they're sysexes,
 -- which are not delivered precisely.
 data SyncConfig = SyncConfig {
-    sync_device :: !Midi.WriteDevice
+    sync_device :: Midi.WriteDevice
     -- | Send MMC to this device.
-    , sync_device_id :: !Mmc.DeviceId
+    , sync_device_id :: Mmc.DeviceId
     -- | If true, send MTC on the 'sync_device'.  If this is set, MMC play and
     -- stop will be omitted, since the presence of MTC should be enough to get
     -- the DAW started, provided it's in external sync mode.
@@ -931,8 +932,8 @@ data SyncConfig = SyncConfig {
     -- hardware devices take time to spin up.  That's unnecessary in software,
     -- so in Cubase you can set \"lock frames\" to 2, and in Reaper you can set
     -- \"synchronize by seeking ahead\" to 67ms.
-    , sync_mtc :: !Bool
-    , sync_frame_rate :: !Midi.FrameRate
+    , sync_mtc :: Bool
+    , sync_frame_rate :: Midi.FrameRate
     } deriving (Show)
 
 instance Pretty SyncConfig where
@@ -969,9 +970,9 @@ instance Monoid Hooks where
 -- | Editing state, modified in the course of editing.
 data EditState = EditState {
     -- | Edit mode enables various commands that write to tracks.
-    state_edit_mode :: !EditMode
+    state_edit_mode :: EditMode
     -- | True if the floating input edit is open.
-    , state_floating_input :: !Bool
+    , state_floating_input :: Bool
     -- | Whether or not to advance the insertion point after a note is
     -- entered.
     , state_advance :: Bool
@@ -988,26 +989,26 @@ data EditState = EditState {
     -- created.
     , state_record_velocity :: Bool
     -- | Use the alphanumeric keys to enter notes in addition to midi input.
-    , state_kbd_entry :: !Bool
+    , state_kbd_entry :: Bool
     -- | Default time step for cursor movement.
-    , state_time_step :: !TimeStep.TimeStep
+    , state_time_step :: TimeStep.TimeStep
     -- | Used for note duration.  It's separate from 'state_time_step' to
     -- allow for tracker-style note entry where newly entered notes extend to
     -- the next note or the end of the block.
-    , state_note_duration :: !TimeStep.TimeStep
+    , state_note_duration :: TimeStep.TimeStep
     -- | If this is Negative, create notes with negative durations.
-    , state_note_orientation :: !Types.Orientation
+    , state_note_orientation :: Types.Orientation
     -- | New notes get this text by default.  This way, you can enter a series
     -- of notes with the same attributes, or whatever.
-    , state_note_text :: !Text
+    , state_note_text :: Text
     -- | Transpose note entry on the keyboard by this many octaves.  It's by
     -- octave instead of scale degree since scales may have different numbers
     -- of notes per octave.
-    , state_kbd_entry_octave :: !Pitch.Octave
-    , state_recorded_actions :: !RecordedActions
-    , state_instrument_attributes :: !(Map ScoreT.Instrument Attrs.Attributes)
+    , state_kbd_entry_octave :: Pitch.Octave
+    , state_recorded_actions :: RecordedActions
+    , state_instrument_attributes :: Map ScoreT.Instrument Attrs.Attributes
     -- | See 'set_edit_box'.
-    , state_edit_box :: !(Block.Box, Block.Box)
+    , state_edit_box :: (Block.Box, Block.Box)
     } deriving (Eq, Show)
 
 initial_edit_state :: EditState
@@ -1044,8 +1045,8 @@ type RecordedActions = Map Char Action
 data Action =
     -- | If a duration is given, the event has that duration, otherwise
     -- it gets the current time step.
-    InsertEvent !(Maybe TrackTime) !Text
-    | ReplaceText !Text | PrependText !Text | AppendText !Text
+    InsertEvent (Maybe TrackTime) Text
+    | ReplaceText Text | PrependText Text | AppendText Text
     deriving (Show, Eq)
 
 instance Pretty Action where
@@ -1061,30 +1062,30 @@ instance Pretty Action where
 data WriteDeviceState = WriteDeviceState {
     -- Used by Cmd.MidiThru:
     -- | NoteId currently playing in each Addr.  An Addr may have >1 NoteId.
-    wdev_note_addr :: !(Map InputNote.NoteId Patch.Addr)
+    wdev_note_addr :: Map InputNote.NoteId Patch.Addr
     -- | The note id is not guaranteed to have any relationship to the key,
     -- so the MIDI NoteOff needs to know what key the MIDI NoteOn used.
-    , wdev_note_key :: !(Map InputNote.NoteId Midi.Key)
+    , wdev_note_key :: Map InputNote.NoteId Midi.Key
     -- | Map an addr to a number that increases when it's assigned a note.
     -- This is used along with 'wdev_serial' to implement addr round-robin.
-    , wdev_addr_serial :: !(Map Patch.Addr Serial)
+    , wdev_addr_serial :: Map Patch.Addr Serial
     -- | Next serial number for 'wdev_addr_serial'.
-    , wdev_serial :: !Serial
+    , wdev_serial :: Serial
     -- | Last NoteId seen.  This is needed to emit controls (rather than just
     -- mapping them from MIDI input) because otherwise there's no way to know
     -- to which note they should be assigned.
-    , wdev_last_note_id :: !(Maybe InputNote.NoteId)
+    , wdev_last_note_id :: Maybe InputNote.NoteId
 
     -- Used by Cmd.PitchTrack:
     -- | NoteIds being entered into which pitch tracks.  When entering a chord,
     -- a PitchChange uses this to know which pitch track to update.
-    , wdev_pitch_track :: !(Map InputNote.NoteId (BlockId, TrackNum))
+    , wdev_pitch_track :: Map InputNote.NoteId (BlockId, TrackNum)
 
     -- Used by no one, yet:  (TODO should someone use this?)
     -- | Remember the current patch of each addr.  More than one patch or
     -- keyswitch can share the same addr, so I need to keep track which one is
     -- active to minimize switches.
-    , wdev_addr_inst :: !(Map Patch.Addr Midi.Types.Patch)
+    , wdev_addr_inst :: Map Patch.Addr Midi.Types.Patch
     } deriving (Eq, Show)
 
 type Serial = Int
@@ -1118,14 +1119,14 @@ perf_closest_warp = TrackWarp.closest_warp . perf_warps
 --
 -- This has to be in Cmd.Cmd for circular import reasons.
 data InstrumentCode = InstrumentCode {
-    inst_calls :: !Derive.InstrumentCalls
-    , inst_postproc :: !InstrumentPostproc
-    , inst_cmds :: ![HandlerId]
+    inst_calls :: Derive.InstrumentCalls
+    , inst_postproc :: InstrumentPostproc
+    , inst_cmds :: [HandlerId]
     -- | An optional specialized cmd to write Thru.  This is separate from
     -- 'inst_cmds' so it can be run wherever the instrument needs special thru,
     -- not just in the instrument's note track.  This way custom thru works in
     -- the pitch track too.
-    , inst_thru :: !(Maybe ThruFunction)
+    , inst_thru :: Maybe ThruFunction
     }
 
 type ThruFunction =
@@ -1183,16 +1184,16 @@ type Inst = Inst.Inst InstrumentCode
 
 -- | Ghosts of state past, present, and future.
 data History = History {
-    hist_past :: ![HistoryEntry]
+    hist_past :: [HistoryEntry]
     -- | The present is actually the immediate past.  When you undo, the
     -- undo itself is actually in the future of the state you want to undo.
     -- So another way of looking at it is that you undo from the past to
     -- a point further in the past.  But since you always require a \"recent
     -- past\" to exist, it's more convenient to break it out and call it the
     -- \"present\".  Isn't time travel confusing?
-    , hist_present :: !HistoryEntry
-    , hist_future :: ![HistoryEntry]
-    , hist_last_cmd :: !(Maybe LastCmd)
+    , hist_present :: HistoryEntry
+    , hist_future :: [HistoryEntry]
+    , hist_last_cmd :: Maybe LastCmd
     } deriving (Show)
 
 initial_history :: HistoryEntry -> History
@@ -1212,11 +1213,11 @@ data LastCmd =
 
 data HistoryConfig = HistoryConfig {
     -- | Keep this many previous history entries in memory.
-    hist_keep :: !Int
+    hist_keep :: Int
     -- | Checkpoints are saved relative to the state at the next checkpoint.
     -- So it's important to keep the commit of that checkpoint up to date,
     -- otherwise the state and the checkpoints will get out of sync.
-    , hist_last_commit :: !(Maybe GitT.Commit)
+    , hist_last_commit :: Maybe GitT.Commit
     } deriving (Show)
 
 empty_history_config :: HistoryConfig
@@ -1228,13 +1229,13 @@ data HistoryCollect = HistoryCollect {
     -- Hopefully each cmd has at least one name, since this makes the history
     -- more readable.  There can be more than one name if the history records
     -- several cmds or if one cmd calls another.
-    state_cmd_names :: ![Text]
+    state_cmd_names :: [Text]
     -- | Suppress history record until the EditMode changes from the given one.
     -- This is a bit of a hack so that every keystroke in a raw edit isn't
     -- recorded separately.
-    , state_suppress_edit :: !(Maybe EditMode)
+    , state_suppress_edit :: Maybe EditMode
     -- | The Git.Commit in the SaveHistory should definitely be Nothing.
-    , state_suppressed :: !(Maybe SaveGitT.SaveHistory)
+    , state_suppressed :: Maybe SaveGitT.SaveHistory
     } deriving (Show)
 
 empty_history_collect :: HistoryCollect
@@ -1245,7 +1246,7 @@ empty_history_collect = HistoryCollect
     }
 
 data HistoryEntry = HistoryEntry {
-    hist_state :: !Ui.State
+    hist_state :: Ui.State
     -- | Since track event updates are not caught by diff but recorded by
     -- Ui.State, I have to save those too, or else an undo or redo will miss
     -- the event changes.  TODO ugly, can I avoid this?
@@ -1255,12 +1256,12 @@ data HistoryEntry = HistoryEntry {
     -- HistoryEntry is in the future, the updates take it to the past, which
     -- are the updated emitted by the cmd.  So don't be confused if it looks
     -- like a HistoryEntry has the wrong updates.
-    , hist_damage :: !Update.UiDamage
+    , hist_damage :: Update.UiDamage
     -- | Cmds involved creating this entry.
-    , hist_names :: ![Text]
+    , hist_names :: [Text]
     -- | The Commit where this entry was saved.  Nothing if the entry is
     -- unsaved.
-    , hist_commit :: !(Maybe GitT.Commit)
+    , hist_commit :: Maybe GitT.Commit
     } deriving (Show)
 
 empty_history_entry :: Ui.State -> HistoryEntry
@@ -1477,10 +1478,10 @@ set_status key val = do
 -- 'get_lookup_instrument'.  This merges compiled-in and runtime instrument
 -- data.
 data ResolvedInstrument = ResolvedInstrument {
-    inst_instrument :: !Inst
-    , inst_qualified :: !InstT.Qualified
-    , inst_common_config :: !Common.Config
-    , inst_backend :: !Backend
+    inst_instrument :: Inst
+    , inst_qualified :: InstT.Qualified
+    , inst_common_config :: Common.Config
+    , inst_backend :: Backend
     } deriving (Show)
 
 inst_synth :: ResolvedInstrument -> InstT.SynthName
@@ -1501,10 +1502,10 @@ instance Pretty ResolvedInstrument where
 -- | This merges the compiled-id 'Inst.Backend' and the per-score
 -- 'UiConfig.Backend'.
 data Backend =
-    Midi !Midi.Patch.Patch !Midi.Patch.Config
-    | Im !Im.Patch.Patch
-    | Sc !Sc.Patch.Patch
-    | Dummy !Text
+    Midi Midi.Patch.Patch Midi.Patch.Config
+    | Im Im.Patch.Patch
+    | Sc Sc.Patch.Patch
+    | Dummy Text
     deriving (Show)
 
 instance Pretty Backend where
@@ -1629,17 +1630,18 @@ resolve_instrument db alloc = do
     -- don't lose the attrs entirely.
     merge_call_map backend =
         Inst.common#Common.call_map %= (<> attr_calls (inst_attrs backend))
-    attr_calls attrs = Map.fromList
-        [ (attr, Expr.Symbol $ ShowVal.show_val attr)
-        | attr <- attrs, attr /= mempty
-        ]
-    inst_attrs = \case
-        Midi patch _ ->
-            Common.mapped_attributes $ Midi.Patch.patch_attribute_map patch
-        Im patch ->
-            Common.mapped_attributes $ Im.Patch.patch_attribute_map patch
-        Sc _patch -> mempty -- TODO attrs for sc?
-        Dummy {} -> mempty
+        where
+        attr_calls attrs = Map.fromList
+            [ (attr, Expr.Symbol $ ShowVal.show_val attr)
+            | attr <- attrs, attr /= mempty
+            ]
+        inst_attrs = \case
+            Midi patch _ ->
+                Common.mapped_attributes $ Midi.Patch.patch_attribute_map patch
+            Im patch ->
+                Common.mapped_attributes $ Im.Patch.patch_attribute_map patch
+            Sc _patch -> mempty -- TODO attrs for sc?
+            Dummy {} -> mempty
 
 -- ** lookup qualified name
 
