@@ -17,6 +17,7 @@ import qualified Control.Exception as Exception
 
 import qualified Foreign
 import qualified Foreign.C as C
+import qualified System.IO.Unsafe as Unsafe
 
 import qualified Util.FFI as FFI
 import qualified Util.Log as Log
@@ -58,6 +59,13 @@ event_loop :: Channel -> QuitRequest -> STM.TChan UiMsg.UiMsg -> IO ()
 event_loop ui_chan quit_request msg_chan = do
     finalizer <- c_make_free_fun_ptr FFI.freeFunPtr
     c_initialize finalizer
+    -- An apparent fltk regression means that if I call Fl::wait() before
+    -- making a window, when I do make the window the app won't get focus
+    -- automatically.  This works around by waiting until there is something
+    -- in ui_chan before handling the contents, and only then going into
+    -- fltk_event_loop.  This started happening in OSX 15.7.
+    MVar.withMVar initialized $ \_ -> pure ()
+    handle_actions ui_chan
     while_ (fmap not (MVar.isEmptyMVar quit_request)) $
         fltk_event_loop ui_chan msg_chan
 
@@ -73,7 +81,13 @@ foreign import ccall "wrapper"
 send_action :: Channel -> Text -> Fltk () -> IO ()
 send_action ui_chan description act = do
     MVar.modifyMVar_ ui_chan $ return . ((act, description) :)
-    awake
+    MVar.tryPutMVar initialized () >>= \case
+        True -> pure ()
+        False -> awake
+
+{-# NOINLINE initialized #-}
+initialized :: MVar.MVar ()
+initialized = Unsafe.unsafePerformIO MVar.newEmptyMVar
 
 {- NOTE [ui-loop-timing]
     Enable GUI timing by incrementing Timing::level in fltk/util.h.

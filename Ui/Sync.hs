@@ -93,7 +93,8 @@ sync ui_chan track_signals set_style state updates = do
         Right (actions, _, _) -> do
             Trace.trace "sync.sync_actions"
             unless (null actions) $
-                Fltk.send_action ui_chan ("sync " <> showt (length actions))
+                Fltk.send_action ui_chan
+                    ("sync actions: " <> showt (length actions))
                     (sequence_ actions)
             Trace.trace "sync.send"
             return Nothing

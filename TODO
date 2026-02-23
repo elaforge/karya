@@ -120,6 +120,8 @@ external:
     . using tscore, especially standalone
 
 UNSORTED
+  - keycaps=True will stop the initial block from getting focus.
+    . Even KeycapWindow tries to not accept focus!
   - space starting a new play instead of stopping is annoying
     Because I can't stop a sample from playing without starting a new play.
     Could I get it back if I track thru state and stop on that?
@@ -202,6 +204,7 @@ UNSORTED
       variable that conflicts, I can use dots.
     . This disableds x.y for mappend, which is no good in Solkattu.  So
       I think I still need LANGUAGE pragmas.
+    . Unless I want to NoRecordDot on them, but it seems complicated.
     - ask claude to convert to use dots everywhere?
   - repl: can I turn off type error context:
     . In the expression:
@@ -261,7 +264,7 @@ UNSORTED
     . Would it make sense to replace pasang instruments with simply a flat
       instrument that acts like it?
       . But I would want to do score integrate to split into wadon and lanang?
-  - why does seq window not come to front?
+  * why does seq window not come to front?
     . test_block does, browser and logview do.
     . what could possibly be different?
     - Can I strip it down to just display the block?
@@ -276,6 +279,45 @@ UNSORTED
       window create calls?
     ? What's the different sequence between test_block creating a window and
       Responder doing so?
+    . keycaps window comes to the front, what's the difference?
+      interface.cc keycaps_create()
+        KeycapsWindow *window = new KeycapsWindow(x, y, w, h, "", layout);
+        window->show();
+      vs.
+        BlockWindow *view = new BlockWindow(x, y, w, h, strdup(label), *config);
+        view->show();
+    . What if I simplify BlockWindow down to the minimum?
+    . Clicking keycaps brings block to the front.  This implies it's something
+      in the window manager.  It doesn't think the app is in front? But why is
+      block window special?
+    . It's because of set_flag(Fl_Window::NON_MODAL); which works but seems
+      not generally suitable.
+    . The difference is that logview and browser become the frontmost app when
+      run, but not seq.
+    . Works with direct BlockC call.  Move towards real:
+      * Use event loop.
+      * Add initialize stuff.
+      - Make block via sync.
+      - Make block via diff.
+    . Making a block directly before event_loop fixes it!
+      So what is the difference?
+    . Putting handle_actions before wait fixes it.
+    . But I still have to put something in, so it's like the block create
+      needs o come first?
+    . Maybe it happens if wait is called before actions.
+    . I want to not call wait() until there's been at least one action.
+      I can't block on the Channel since it's MVar [].  I don't want to
+      loop and Thread.delay because I want to be notified as soon as something
+      is in there.  If I have an empty MVar then I have to check
+      MVar.isEmptyMVar on every put.
+    . And I can't do that, because then I get a race, it's empty while
+      handle_actions is going on.
+    . Actually I want a one-off switch.  I could handle in C, if no windows
+      created yet, then don't Fl::wait(), but just sleep.  But I'd need to
+      be woken by awake().  I can do this more easily in haskell, with a
+      global.
+  - What is Fl::wait() doing that makes the app not get focus?
+    . Reproduce.
   + bug: ghci GHC.Linker.Loader.dynLoadObjs: Loading temp shared object failed
     During interactive linking, GHCi couldn't find the following symbol:
       dlopen(/var/folders/gm/7n_pzqns7_dd93srd5n4l_2c0000gn/T/ghc74955_0/libghc_20.dylib, 0x0005): symbol not found in flat namespace '_SolkattuziDslziMridangam_closed_closure'

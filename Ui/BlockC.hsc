@@ -110,7 +110,7 @@ fltk :: Pretty args => String -> args -> IO a -> Fltk a
 fltk name args action = do
     when debug $
         liftIO $ putStrLn $ name <> " " <> prettys args
-    Fltk.fltk  $ annotate name action
+    Fltk.fltk $ annotate name action
 
 -- | Annotate thrown exceptions with a provenance.
 annotate :: String -> IO a -> IO a
