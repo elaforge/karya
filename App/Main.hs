@@ -122,7 +122,7 @@ main = initialize $ \midi_interface repl_socket -> do
     print_devices open_read rdevs wdevs
         (StaticConfig.rdev_map midi) (StaticConfig.wdev_map midi)
 
-    setup_cmd <- fmap (<* StaticConfig.post_setup_cmd static_config) $
+    setup_cmd <- fmap (<* StaticConfig.get_post_setup_cmd static_config) $
         either errorIO return . StaticConfig.setup_cmd static_config
             =<< System.Environment.getArgs
 

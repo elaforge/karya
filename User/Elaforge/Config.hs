@@ -24,7 +24,6 @@ import qualified Cmd.Load.Mod as Load.Mod
 import qualified Cmd.Load.ModSexpr as ModSexpr
 import qualified Cmd.Load.ModT as ModT
 import qualified Cmd.Msg as Msg
-import qualified Cmd.SyncKeycaps as SyncKeycaps
 
 import qualified Derive.C.All as C.All
 import qualified Derive.ScoreT as ScoreT
@@ -39,7 +38,10 @@ import           Global
 
 
 keycaps :: Bool
-keycaps = False
+keycaps = True
+
+im_play_direct :: Bool
+im_play_direct = False
 
 load_static_config :: IO StaticConfig.StaticConfig
 load_static_config = do
@@ -51,10 +53,11 @@ load_static_config = do
         , global_cmds
         , builtins = C.All.builtins
         , setup_cmd = parse_args
-        , post_setup_cmd = if keycaps then SyncKeycaps.open else return ()
+        , post_setup_cmd = pure ()
         , midi
         , highlight_colors = Config.highlight_colors
-        , im_play_direct = False
+        , im_play_direct
+        , keycaps
         }
 
 parse_args :: [String] -> Either Text (Cmd.CmdT IO Cmd.Status)

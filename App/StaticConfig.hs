@@ -4,7 +4,16 @@
 
 -- | 'StaticConfig' is an app-level configuration hook.  The idea is that
 -- the local configuration can use it to override things.
-module App.StaticConfig where
+module App.StaticConfig (
+    StaticConfig(..)
+    , empty
+    , get_post_setup_cmd
+    , Midi(..)
+    , empty_midi
+    , make_rdev_map, make_wdev_map
+    , make_read_devices
+    , cmd_config
+) where
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 
@@ -13,6 +22,7 @@ import qualified App.Path as Path
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Msg as Msg
 import qualified Cmd.SaveGitT as SaveGitT
+import qualified Cmd.SyncKeycaps as SyncKeycaps
 
 import qualified Derive.Derive as Derive
 import qualified Instrument.Inst as Inst
@@ -44,8 +54,8 @@ data StaticConfig = StaticConfig {
     , post_setup_cmd :: Cmd.CmdT IO ()
     , midi :: Midi
     , highlight_colors :: Map Color.Highlight Color.Color
-    -- | See 'Cmd.config_im_play_direct'.
-    , im_play_direct :: Bool
+    , im_play_direct :: Bool -- ^ See 'Cmd.config_im_play_direct'.
+    , keycaps :: Bool -- ^ Start with keycaps info window open.
     }
 
 empty :: StaticConfig
@@ -54,11 +64,17 @@ empty = StaticConfig
     , global_cmds = []
     , builtins = mempty
     , setup_cmd = const (Left "StaticConfig.setup_cmd not configured")
-    , post_setup_cmd = return ()
+    , post_setup_cmd = pure ()
     , midi = empty_midi
     , highlight_colors = mempty
     , im_play_direct = False
+    , keycaps = True
     }
+
+get_post_setup_cmd :: StaticConfig -> Cmd.CmdT IO ()
+get_post_setup_cmd config = do
+    post_setup_cmd config
+    when (keycaps config) SyncKeycaps.open
 
 data Midi = Midi {
     -- | Reroute the hardware level read and write devices.  This way,
