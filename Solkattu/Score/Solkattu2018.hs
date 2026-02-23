@@ -110,8 +110,7 @@ yt_mannargudi2 = source "Mannargudi Easwaran" $
 yt_pmi1 :: Korvai
 yt_pmi1 = source "Palakkad Mani Iyer" $
         recording "https://www.youtube.com/watch?v=J2xgcBY4cXg" "3:50-4:40" $
-        date 2018 1 12 $
-        korvaiS Tala.triputa_tala mridangam $
+        date 2018 1 12 $ korvaiS Tala.triputa mridangam $
     [ __.__.sar1.sar2.__.na.na.din.__
         . __. theme1 . din.__.na.na
         . din.__7 . sar3 . __.__. theme1.din.__.na.na.din.__

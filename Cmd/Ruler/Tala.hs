@@ -8,7 +8,7 @@
     can be easily turned into a 'Ruler.Ruler' via 'ruler' if needed.
 
     E.g., 3 avartanams of adi talam chatusra nadai followed by 4 avartanams of
-    tisra nadai: @make_meter [Ruler adi_tala 1 3 4 1, Ruler adi_tala 2 4 3 1]@
+    tisra nadai: @make_meter [Ruler adi 1 3 4 1, Ruler adi 2 4 3 1]@
 -}
 module Cmd.Ruler.Tala (
     Sections, Avartanams, Nadai
@@ -16,10 +16,9 @@ module Cmd.Ruler.Tala (
     , simple
     , make, make_until
     , tala_to_meter
-    , adi, adi3, adi6
+    , adi4, adi3, adi6
     , config
-    , adi_tala, dhruva_tala, matya_tala, rupaka_tala, jhampa_tala, triputa_tala
-    , ata_tala, eka_tala
+    , adi, dhruva, matya, rupaka, jhampa, triputa, ata, eka
     , misra_chapu, kanda_chapu, rupaka_fast
 ) where
 import qualified Data.Set as Set
@@ -27,9 +26,8 @@ import qualified Data.Set as Set
 import qualified Cmd.Ruler.RulerUtil as RulerUtil
 import qualified Solkattu.Tala as Tala
 import           Solkattu.Tala
-    (Tala(..), adi_tala, ata_tala, dhruva_tala, eka_tala, jhampa_tala,
-     kanda_chapu, matya_tala, misra_chapu, rupaka_fast, rupaka_tala,
-     triputa_tala)
+    (Tala(..), adi, ata, dhruva, eka, jhampa, kanda_chapu, matya, misra_chapu,
+     rupaka, rupaka_fast, triputa)
 import qualified Ui.Meter.Make as Make
 import qualified Ui.Meter.Meter as Meter
 import           Ui.Meter.Meter (AbstractMeter(..))
@@ -62,15 +60,15 @@ make_until tala nadai avartanam_dur end =
     where avartanams = ceiling (end / avartanam_dur)
 
 -- | 4 avartanams of everyone's favorite talam.
-adi :: Avartanams -> Meter.Meter
-adi = simple adi_tala 4
+adi4 :: Avartanams -> Meter.Meter
+adi4 = simple Tala.adi 4
 
 -- | 'adi' but in tisram.
 adi3 :: Avartanams -> Meter.Meter
-adi3 = simple adi_tala 3
+adi3 = simple Tala.adi 3
 
 adi6 :: Avartanams -> Meter.Meter
-adi6 = simple adi_tala 6
+adi6 = simple Tala.adi 6
 
 -- * implementation
 

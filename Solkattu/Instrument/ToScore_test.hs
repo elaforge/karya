@@ -41,4 +41,4 @@ realize smap = fst . expect_right . head . Korvai.realize Korvai.IMridangam
     . korvai smap
 
 korvai :: G.StrokeMap Mridangam.Stroke -> G.Sequence -> G.Korvai
-korvai smap = G.korvaiS1 Tala.adi_tala (G.makeMridangam smap)
+korvai smap = G.korvaiS1 Tala.adi (G.makeMridangam smap)

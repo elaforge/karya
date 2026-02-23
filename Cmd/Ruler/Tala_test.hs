@@ -16,7 +16,7 @@ test_make_ruler :: Test
 test_make_ruler = do
     let make zoom = UiTest.meter_marklist zoom
     -- TODO used to be at zoom 20, now is at 200
-    equal (map snd $ make 200 (Tala.adi 1)) $
+    equal (map snd $ make 200 (Tala.adi4 1)) $
         Text.words "1 .1 .2 .3 .X .O .X .O 2"
     equal (map snd $ UiTest.meter_marklist 400 (Tala.adi3 1)) $
         List.intercalate ["..2", "..3"] $ map (:[]) $

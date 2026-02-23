@@ -371,8 +371,8 @@ meter_adi nadai
         , meter_step = 1
         , meter_negative = False
         , meter_ui =
-            ( Tala.config Tala.adi_tala
-            , Meter.MSection 4 1 (Tala.tala_to_meter Tala.adi_tala nadai)
+            ( Tala.config Tala.adi
+            , Meter.MSection 4 1 (Tala.tala_to_meter Tala.adi nadai)
             )
         }
     | otherwise = Nothing

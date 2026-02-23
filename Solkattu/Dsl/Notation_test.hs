@@ -93,8 +93,7 @@ realizeKorvai strokes = realize . makeKorvai strokes
 
 makeKorvai :: G.StrokeMap Mridangam.Stroke -> G.Sequence -> G.Korvai
 makeKorvai strokes seq = korvai
-    where
-    korvai = G.korvaiS1 Tala.adi_tala (G.makeMridangam0 strokes) seq
+    where korvai = G.korvaiS1 Tala.adi (G.makeMridangam0 strokes) seq
 
 realize :: G.Korvai -> Either Text [(Text, S.Duration)]
 realize = extract . head . Korvai.realize Korvai.IMridangam

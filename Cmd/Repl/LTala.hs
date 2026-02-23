@@ -30,7 +30,7 @@ chatusram_to_tisram = do
     let dur = (end - start) * (2/3)
     LRuler.local $ LRuler.modify_selected $
         LRuler.replace_range start (start + dur) $
-        Meter.meter_sections (Tala.make_until Tala.adi_tala 3 1 dur)
+        Meter.meter_sections (Tala.make_until Tala.adi 3 1 dur)
     -- Delete final 1/3.
     Edit.delete_block_time block_id (start + dur) (end - (start+dur))
 
@@ -39,4 +39,4 @@ chatusram_to_tisram = do
 chatis :: Tala.Avartanams -> Tala.Nadai -> Meter.Meter
 chatis avartanams nadai =
     -- TODO I think originally the 6/8 was akshara dur, not avartanam dur
-    Tala.make Tala.adi_tala nadai (6/8) avartanams 1
+    Tala.make Tala.adi nadai (6/8) avartanams 1

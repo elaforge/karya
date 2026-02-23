@@ -13,10 +13,9 @@ module Solkattu.Tala (
     , tala_name
     , Anga(..)
     -- * talas
-    , dhruva, matya, rupaka, jhampa, triputa, ata, eka
-    , dhruva_tala, matya_tala, rupaka_tala, jhampa_tala, triputa_tala, ata_tala
-    , eka_tala
-    , adi_tala
+    , dhruva_anga, matya_anga, rupaka_anga, jhampa_anga, triputa_anga
+    , ata_anga, eka_anga
+    , dhruva, matya, rupaka, jhampa, triputa, ata, eka, adi
     , misra_chapu
     , kanda_chapu
     , rupaka_fast
@@ -69,7 +68,7 @@ instance Pretty Tala where pretty = showt
 
 tala_name :: Tala -> Text
 tala_name tala
-    | tala == adi_tala = "adi"
+    | tala == adi = "adi"
     | _angas tala == [I] = showt (_jati tala) <> " beats"
     | _jati tala == 0 = _name tala -- chapu talams don't have jati
     | otherwise = Text.unwords
@@ -94,28 +93,28 @@ instance Pretty Anga where pretty = showt
 
 type Jati = Int
 
-dhruva, matya, rupaka, jhampa, triputa, ata, eka :: [Anga]
-dhruva = [I, O, I, I]
-matya = [I, O, I]
-rupaka = [O, I]
-jhampa = [I, U, O]
-triputa = [I, O, O]
-ata = [I, I, O, O]
-eka = [I]
+dhruva_anga, matya_anga, rupaka_anga, jhampa_anga, triputa_anga, ata_anga,
+    eka_anga :: [Anga]
+dhruva_anga = [I, O, I, I]
+matya_anga = [I, O, I]
+rupaka_anga = [O, I]
+jhampa_anga = [I, U, O]
+triputa_anga = [I, O, O]
+ata_anga = [I, I, O, O]
+eka_anga = [I]
 
 -- | Talas with default jati.
-dhruva_tala, matya_tala, rupaka_tala, jhampa_tala, triputa_tala, ata_tala,
-    eka_tala :: Tala
-dhruva_tala = Tala "dhruva" dhruva 4
-matya_tala = Tala "matya" matya 4
-rupaka_tala = Tala "rupaka" rupaka 4
-jhampa_tala = Tala "jhampa" jhampa 7
-triputa_tala = Tala "triputa" triputa 3
-ata_tala = Tala "ata" ata 5
-eka_tala = Tala "eka" eka 4
+dhruva, matya, rupaka, jhampa, triputa, ata, eka :: Tala
+dhruva = Tala "dhruva" dhruva_anga 4
+matya = Tala "matya" matya_anga 4
+rupaka = Tala "rupaka" rupaka_anga 4
+jhampa = Tala "jhampa" jhampa_anga 7
+triputa = Tala "triputa" triputa_anga 3
+ata = Tala "ata" ata_anga 5
+eka = Tala "eka" eka_anga 4
 
-adi_tala :: Tala
-adi_tala = Tala "adi" triputa 4 -- chatusra jati triputa tala
+adi :: Tala
+adi = Tala "adi" triputa_anga 4 -- chatusra jati triputa tala
 
 misra_chapu :: Tala
 misra_chapu = Tala "misra chapu" [Wave 1, Wave 2, Clap 2, Clap 2] 0

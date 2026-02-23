@@ -25,7 +25,7 @@ test_realize :: Test
 test_realize = do
     let f = fmap (first extract) . head
             . Korvai.realize Korvai.IMridangam
-            . korvai [] (Tala.Tala "eka" Tala.eka 2) . (:[])
+            . korvai [] (Tala.Tala "eka" Tala.eka_anga 2) . (:[])
         extract notes =
             [ pretty tempo <> ":" <> pretty stroke
             | (tempo, stroke) <- S.tempoNotes notes
@@ -46,7 +46,7 @@ test_realizeTechnique :: Test
 test_realizeTechnique = do
     let f strokes = fmap extract . head
             . Korvai.realize Korvai.IMridangam
-            . korvai strokes Tala.adi_tala . (:[])
+            . korvai strokes Tala.adi . (:[])
         extract = Text.unwords . map pretty . S.flattenedNotes . fst
     let strokes1 =
             [ (takatakadinna, mconcat [k, t, k, o, o, k])

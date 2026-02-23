@@ -310,7 +310,7 @@ rupaka_tani = tani
     ]
 
 rupaka1 :: Korvai
-rupaka1 = korvaiS Tala.rupaka_tala $
+rupaka1 = korvaiS Tala.rupaka $
     [ __D 3 . su (r4 "upkto_")
     . "A_ok koNN _oNk D_D_ noD_ nook"
     . "A_ok kook okk_ D_D_ noD_ nook"
@@ -326,7 +326,7 @@ rupaka1 = korvaiS Tala.rupaka_tala $
     k_t_k_kt_kno = su (g "k_t_k_kt_kno")
 
 rupaka_korvai1 :: Korvai
-rupaka_korvai1 = korvaiS Tala.rupaka_tala
+rupaka_korvai1 = korvaiS Tala.rupaka
     [ reduce theme . tri123 "D__" (su p6)
     , reduce theme2 . tri123 "DD_" (su p6)
     , reduce theme3 . trin "DDD" (su p6) (su (p6.p6)) (su (r6 (g "kto")))
@@ -338,7 +338,7 @@ rupaka_korvai1 = korvaiS Tala.rupaka_tala
     theme3 = "PXP".su p6.od.od.od
 
 rupaka2 :: Korvai
-rupaka2 = korvaiS Tala.rupaka_tala $
+rupaka2 = korvaiS Tala.rupaka $
     [ "k___ ____" . su "nkook___ N___nkoo" . "k_Nk _Nk_" --
     , "N_D_ nkn_ d___ __d_ nkn_ d___" --
     . "N_D_ nkn_ d___ __".p&d."_ nkn_ d_nk"
@@ -364,12 +364,12 @@ rupaka2 = korvaiS Tala.rupaka_tala $
     ]
 
 rupaka_korvai3 :: Korvai
-rupaka_korvai3 = korvaiS Tala.rupaka_tala $ map (nadai 6) $
+rupaka_korvai3 = korvaiS Tala.rupaka $ map (nadai 6) $
     [ r3 theme . r3 p5 . r3 theme . r3 p6 . r3 theme . r3 p7 ]
     where theme = g "k__ktknpuookooko__"
 
 rupaka_farans :: Korvai
-rupaka_farans = korvaiS Tala.rupaka_tala $ map su
+rupaka_farans = korvaiS Tala.rupaka $ map su
     [ "d_____n_ ktpkd___ __n_ktpk d_____n_ ktpkD_D_ __N_ktpk" --
     . "D_____np ktpkd___ __npktpk d_____np ktpkD_D_ __N_ktpk"
     . r3 (g "Tkoktknpktpk") . "N_pk".nakatiku
@@ -381,12 +381,12 @@ rupaka_farans = korvaiS Tala.rupaka_tala $ map su
     ]
 
 rupaka_mohra :: Korvai
-rupaka_mohra = mohra $ korvaiS1 Tala.rupaka_tala $ Mohra.make su Mohra.A3
+rupaka_mohra = mohra $ korvaiS1 Tala.rupaka $ Mohra.make su Mohra.A3
     ("N_pk".nakatiku, "oktpu___", "N_pk".nakatiku)
     ( "o_k_N__ko_k_N___", "pu_ko___", r3 "pu_ko_k_")
 
 rupaka_mohra_korvai :: Korvai
-rupaka_mohra_korvai = korvai Tala.rupaka_tala $
+rupaka_mohra_korvai = korvai Tala.rupaka $
     [ x2 $ s $ reduce3 2 ø theme . r3 ("PPP_".p5)
     , s $ reduce3 2 ø theme . r3 (su "oktpu___".p5)
     , s $ r2 "NkNNdk" . r4 "Nd_"

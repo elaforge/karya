@@ -340,7 +340,7 @@ checkAlignment smap talaAksharas startOn endOn =
 -- * util
 
 adiAksharas :: Tala.Akshara
-adiAksharas = Tala.tala_aksharas Tala.adi_tala
+adiAksharas = Tala.tala_aksharas Tala.adi
 
 eWords :: Pretty b => Either a [b] -> Either a Text
 eWords = fmap (Text.unwords . map pretty)

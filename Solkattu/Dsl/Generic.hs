@@ -65,8 +65,7 @@ import qualified Solkattu.S as S
 import           Solkattu.S (Duration, Matra, Nadai)
 import qualified Solkattu.Solkattu as Solkattu
 import           Solkattu.Solkattu (durationOf, throw)
-import qualified Solkattu.Tala as Tala
-import           Solkattu.Tala (Akshara)
+import           Solkattu.Tala (Akshara, adi, beats)
 
 import           Global
 import           Solkattu.Dsl.Metadata
@@ -200,15 +199,6 @@ p666 sep = trin sep (pat 6) (pat 6) (pat 6)
 p567 sep = trin sep (pat 5) (pat 6) (pat 7)
 p765 sep = trin sep (pat 7) (pat 6) (pat 5)
 
-
--- * talam
-
--- | For a fragment which fits a certain number of beats.
-beats :: Akshara -> Tala.Tala
-beats = Tala.beats
-
-adi :: Tala.Tala
-adi = Tala.adi_tala
 
 -- * conveniences
 

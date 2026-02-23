@@ -118,7 +118,7 @@ test_format_patterns = do
 
 test_format_space :: Test
 test_format_space = do
-    let run = fmap (eFormat . format 80 adiTala . fst) . kRealize Tala.adi_tala
+    let run = fmap (eFormat . format 80 adiTala . fst) . kRealize Tala.adi
     equal (run (G.__M 4)) $ Right "‗   ‗"
     equal (run (G.restD 1)) $ Right "‗   ‗"
 
@@ -126,7 +126,7 @@ test_format_sarva :: Test
 test_format_sarva = do
     let run abstract =
             fmap (eFormat . formatAbstraction abstract 80 adiTala . fst)
-            . kRealize Tala.adi_tala
+            . kRealize Tala.adi
     equal (run mempty (G.sarvaM G.ta 5)) (Right "k k k k k")
     equal (run (Format.abstract Solkattu.GSarva) (G.sarvaM G.ta 5))
         (Right "==========")
@@ -360,7 +360,7 @@ test_formatNadaiChange = do
                 (stripAnsi . formatAbstraction mempty 50 (Talas.Carnatic tala)))
             . kRealize tala
     let sequence = G.su (G.__ <> G.repeat 5 G.p7) <> G.nadai 6 (G.r3 G.p7)
-    let (out, warnings) = expect_right $ f Tala.adi_tala sequence
+    let (out, warnings) = expect_right $ f Tala.adi sequence
     equal_fmt Text.unlines (Text.lines out)
         [ "0:4     1       2       3       |"
         , "_k_t_knok t knok_t_knok t knok_t"
@@ -472,14 +472,14 @@ realizeP :: Maybe (Realize.PatternMap M.Stroke)
 realizeP pmap smap = fmap Format.mapGroups
     . Realize.formatError . fst
     . Realize.realize_ pattern (Realize.realizeSollu smap)
-        (Tala.tala_aksharas Tala.adi_tala)
+        (Tala.tala_aksharas Tala.adi)
     . S.flatten . S.toList
     . fmap (fmap Realize.stroke)
     where
     pattern = Realize.realizePattern $ fromMaybe M.defaultPatterns pmap
 
 adiTala :: Talas.Tala
-adiTala = Talas.Carnatic Tala.adi_tala
+adiTala = Talas.Carnatic Tala.adi
 
 formatLines :: Format.Abstraction -> Int
     -> Int -> Talas.Tala -> [Format.Flat M.Stroke]

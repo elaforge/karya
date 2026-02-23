@@ -128,7 +128,7 @@ test_dropEndWhile = do
     equal (f [n 1, n 0, nadai 2 [n 0, n 0]]) [n 1]
 
 adiAksharas :: Tala.Akshara
-adiAksharas = Tala.tala_aksharas Tala.adi_tala
+adiAksharas = Tala.tala_aksharas Tala.adi
 
 normalizeSpeed :: S.HasMatras a => Tala.Akshara -> [Flat g a]
     -> [Flat g (S.State, S.Stroke a)]

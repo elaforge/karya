@@ -42,7 +42,7 @@ toSpace "" = " "
 toSpace s = s
 
 korvai :: Korvai.Sequence -> Korvai.Korvai
-korvai = Korvai.korvai Tala.adi_tala (G.makeMridangam [])
+korvai = Korvai.korvai Tala.adi (G.makeMridangam [])
     . Korvai.inferSections . (:[])
 
 render :: Format.Abstraction -> Korvai.Korvai -> Text
