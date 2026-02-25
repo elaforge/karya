@@ -121,7 +121,8 @@ external:
 
 UNSORTED
   - keycaps=True will stop the initial block from getting focus.
-    . Even KeycapWindow tries to not accept focus!
+    . Even though KeycapWindow tries to not accept focus!
+    . Who has it then?
   - space starting a new play instead of stopping is annoying
     Because I can't stop a sample from playing without starting a new play.
     Could I get it back if I track thru state and stop on that?
@@ -140,7 +141,8 @@ UNSORTED
       So the first one will be accurate, but the rest will be off by however
       much it's off from tempo.
     . I would have to pre-warp the sample to flatten out the tempo.  I could
-      do this as a preproc step.
+      do this as a preproc step.  I probably want to make the transitions
+      a bit smooth, which of course will affect the ratio a little bit.
   * break: flatten tempo with srate adjustments
     . If I set break-bpm=_, then infer from the environment.
     . bpm is the derivative of the current tempo.  I could try to figure it
@@ -205,6 +207,8 @@ UNSORTED
     . This disableds x.y for mappend, which is no good in Solkattu.  So
       I think I still need LANGUAGE pragmas.
     . Unless I want to NoRecordDot on them, but it seems complicated.
+    . On the other hand, adding the pragma everywhere is enough overhead to
+      discourage use.
     - ask claude to convert to use dots everywhere?
   - repl: can I turn off type error context:
     . In the expression:
@@ -316,8 +320,17 @@ UNSORTED
       created yet, then don't Fl::wait(), but just sleep.  But I'd need to
       be woken by awake().  I can do this more easily in haskell, with a
       global.
-  - What is Fl::wait() doing that makes the app not get focus?
-    . Reproduce.
+  + What is Fl::wait() doing that makes the app not get focus?
+    . Just calling wait() first doesn't reproduce.  Maybe it's wait in main
+      thread and an awake() in another?
+    . main:
+        . Fl::lock()
+        for (;;)
+          Fl::wait()
+          run actions from queue
+      responder:
+        . put action in queue
+        . Fl::awake()
   + bug: ghci GHC.Linker.Loader.dynLoadObjs: Loading temp shared object failed
     During interactive linking, GHCi couldn't find the following symbol:
       dlopen(/var/folders/gm/7n_pzqns7_dd93srd5n4l_2c0000gn/T/ghc74955_0/libghc_20.dylib, 0x0005): symbol not found in flat namespace '_SolkattuziDslziMridangam_closed_closure'

@@ -41,7 +41,7 @@ ui_wait()
 void
 ui_awake()
 {
-    Fl::awake((void*) 0);
+    Fl::awake();
 }
 
 int

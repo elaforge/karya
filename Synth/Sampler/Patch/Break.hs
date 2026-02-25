@@ -22,6 +22,7 @@ import qualified Data.Text.IO as Text.IO
 
 import qualified Util.Doc as Doc
 import qualified Util.Lists as Lists
+import qualified Util.Maps as Maps
 import qualified Util.Num as Num
 
 import qualified Cmd.Cmd as Cmd
@@ -186,6 +187,11 @@ c_break naturalBpm beatMap perMeasure mbFrame =
         bpmMode) ->
     Sub.inverting $ \args -> do
         frame <- either (lookupBeat beatMap) return beatOrFrame
+        -- TODO: the theory was to unwarp irregular beats but this just makes
+        -- it worse.  I would have to extend the curve into the future.  At
+        -- this point I should probably just pre-warp the sample to straighten
+        -- out the beats.
+        -- let naturalBpm = inferBpmAt frameMap frame
         let (start, dur) = Args.extent args
         pre <- Call.score_duration start pre
         rpre <- Call.real_duration start pre
@@ -210,6 +216,7 @@ c_break naturalBpm beatMap perMeasure mbFrame =
         where
         (measure, beat) = decodeBeat beatFraction
         b = max 0 (fromIntegral (measure-1)) * perMeasure + beat
+    -- frameMap = Maps.invert beatMap
 
 withControl :: Control.Control -> Signal.Y -> Derive.Deriver a
     -> Derive.Deriver a
@@ -321,6 +328,13 @@ makeBeatMap break = Map.fromList
 
 -- * bpm
 
+-- t0 = inferBpmAt (Maps.invert (makeBeatMap medeski))
+
+inferBpmAt :: Map Frame Beat -> Frame -> BPM
+inferBpmAt frameMap frame = case Maps.lookupAround frame frameMap of
+    Just ((f0, b0), (f1, b1)) -> beatsToBpm (b0, f0) (b1, f1)
+    Nothing -> 60
+
 -- | For use from ghci.
 _printBpms :: IO ()
 _printBpms = forM_ allBreaks $ \break -> do
@@ -352,19 +366,19 @@ centralMean bpms = mean $ filter (not . outlier) bpms
     low = minimum bpms
     high = maximum bpms
 
-beatToBpm :: Double -> BPM
-beatToBpm beat = 1 / beat * 60
-
 -- | Guess bpms based on the distance between each named position.
 breakBpms :: Break -> [BPM]
-breakBpms break = map guess . pairs . Map.toAscList . makeBeatMap $ break
+breakBpms break =
+    map ((/ ratioAdjust) . uncurry beatsToBpm) . pairs . Map.toAscList
+        . makeBeatMap $ break
     where
-    guess ((beat0, frame0), (beat1, frame1)) = (60/) $
-        (fromIntegral (frame1 - frame0) / realToFrac (beat1 - beat0))
-            / fromIntegral Config.samplingRate
-            * ratioAdjust
     ratioAdjust = Sample.relativePitchToRatio break.pitchAdjust
     pairs xs = zip xs (drop 1 xs)
+
+beatsToBpm :: (Beat, Frame) -> (Beat, Frame) -> BPM
+beatsToBpm (beat0, frame0) (beat1, frame1) =
+    (60/) $ (fromIntegral (frame1 - frame0) / realToFrac (beat1 - beat0))
+        / fromIntegral Config.samplingRate
 
 data Break = Break {
     name :: Text
