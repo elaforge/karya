@@ -125,6 +125,8 @@ UNSORTED
     . Who has it then?
   - space starting a new play instead of stopping is annoying
     Because I can't stop a sample from playing without starting a new play.
+  - can I make im stop a little smoother?
+  * why not have key up stop the sample like with midi?
     Could I get it back if I track thru state and stop on that?
     . That means it must currently set to point when wanting to stop thru?
     . Yes it does.  Maybe a better fix is to have an extra stop for thru.
@@ -132,6 +134,19 @@ UNSORTED
       all_notes_off.  Do I track when thru is playing?
     . This doesn't apply to MIDI so much because I do key up -> NoteOff
       Can I do the same for im?
+    . How does im thru work?
+      Must be from Cmd.InstrumentCode -> ThruFunction -> Thru
+      Could send Thru.Stop, ok how to do it on key up then?
+      Cmd.inst_thru -> MidiThru.for_instrument
+      Custom thru function should send Thru.Stop on NoteOff.
+      But it it only has global stop, there's no way to stop individual
+      samples.
+    . Whence the thru function?  Patch.Util.thru
+      But by then it's type ThruFunction = [Note] -> Either Error Message
+      Where did the InputNote.Input go?
+      type ThruFunction =
+          Scale.Scale -> Attrs.Attributes -> InputNote.Input -> CmdId [Thru]
+    . It's ImInst.thru
   * break: how to set a bpm?
     . Should I just set the bpm I think it is instead of inferred?
     . Yes, but if I want to go into 3s I'd want eg bpm=(* (bpm) 1.5)

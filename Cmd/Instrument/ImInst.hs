@@ -124,12 +124,15 @@ thru thru_f = MidiInst.thru convert
     where
     convert scale attrs input = do
         inst <- Cmd.abort_unless =<< EditUtil.lookup_instrument
+        -- I drop InputNote.NodeId for both of these, because im doesn't
+        -- support multiple notes yet.
         MidiThru.convert_input inst scale input >>= \case
             InputNote.NoteOn _ pitch velocity ->
                 case thru_f [Thru.Note pitch velocity attrs 0] of
                     Left err -> Cmd.throw err
-                    Right msg -> return [Cmd.ImThru msg]
-            _ -> return []
+                    Right msg -> pure [Cmd.ImThru msg]
+            InputNote.NoteOff _ _ -> pure [Cmd.ImThru Thru.Stop]
+            _ -> pure []
 
 add_flag :: Common.Flag -> Patch -> Patch
 add_flag flag = common#Common.flags %= Set.insert flag
