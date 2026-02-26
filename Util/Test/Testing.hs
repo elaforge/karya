@@ -526,8 +526,9 @@ pshow val = s `DeepSeq.deepseq` s
 -- | Get a tmp dir, which will be unique for each test run.
 tmp_dir :: String -> IO FilePath
 tmp_dir prefix = do
-    Directory.createDirectoryIfMissing True tmp_base_dir
-    dir <- Temp.mkdtemp $ tmp_base_dir </> prefix ++ "-"
+    base_dir <- Directory.makeAbsolute tmp_base_dir
+    Directory.createDirectoryIfMissing True base_dir
+    dir <- Temp.mkdtemp $ base_dir </> prefix ++ "-"
     putStrLn $ "** tmp dir: " ++ dir
     return dir
 
