@@ -9,11 +9,13 @@
 -- I used to have a separate Absolute path, but the conversions get awkward.
 module App.Path (
     AppDir(..), get_app_dir
-    , Relative, relative, (</>)
+    , Relative, relative, unrelative, (</>)
     , to_absolute
     -- * Canonical
     , Canonical, make_canonical, canonical, to_path
     , drop_prefix
+    -- * FilePath
+    , in_dir
 ) where
 import qualified Data.List as List
 import qualified Data.String as String
@@ -43,6 +45,9 @@ relative path
         error $ "so-called relative path no so relative: " <> path
     | otherwise = Relative path
 
+unrelative :: Relative -> FilePath
+unrelative (Relative path) = path
+
 (</>) :: Relative -> Relative -> Relative
 Relative a </> Relative b = Relative (a FilePath.</> b)
 
@@ -71,3 +76,10 @@ to_path (Canonical path) = path
 drop_prefix :: Canonical -> Canonical -> FilePath
 drop_prefix (Canonical prefix) (Canonical path) =
     dropWhile (=='/') $ fst $ Lists.dropPrefix prefix path
+
+-- * FilePath
+
+in_dir :: FilePath -> FilePath -> Bool
+in_dir path dir =
+    (if "/" `List.isSuffixOf` dir then dir else dir <> "/")
+        `List.isPrefixOf` path

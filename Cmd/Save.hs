@@ -21,7 +21,7 @@ module Cmd.Save (
     , read_state, read_state_, write_state
     , write_current_state
     -- ** path
-    , get_state_path, state_path_for_repo, infer_state_path
+    , get_state_path, state_path_for_repo
     -- * git
     , save_git, save_git_as, load_git, revert
     , get_git_path
@@ -176,23 +176,30 @@ condM ((condition, result) : rest) consequent =
 
 -- * expand path
 
--- | Expand `-delimited macros to make a filepath.
+-- | Expand `-delimited macros to make a FilePath.  Also make it relative to
+-- Config.save_dir if it isn't already.
+--
+-- TODO: These are relative to app_dir but I don't use Path.Relative yet.
 expand_filename :: FilePath -> Cmd.CmdT IO FilePath
-expand_filename = fmap untxt . Texts.mapDelimitedM False '`' expand . txt
+expand_filename =
+    fmap (prefix . untxt) . Texts.mapDelimitedM False '`' expand . txt
     where
     expand text = case lookup text filename_macros of
         Just get -> get
         Nothing -> Cmd.throw $ "unknown macro " <> showt text
             <> ", known macros are: "
             <> Text.intercalate ", " (map fst filename_macros)
+    prefix path
+        -- I have the habit of putting on "save/" manually.
+        | path `Path.in_dir` Path.unrelative Config.save_dir = path
+        | path `Path.in_dir` "save" = path
+        | otherwise = Path.unrelative Config.save_dir </> path
 
 filename_macros :: [(Text, Cmd.CmdT IO Text)]
 filename_macros =
     [ ("y-m-d", liftIO date)
-    , ("d", do
-        dir <- Cmd.require "`d` requires a save dir"
-            =<< Cmd.gets Cmd.state_save_dir
-        return $ txt dir)
+    , ("d", fmap txt $ Cmd.require "`d` requires a save dir"
+        =<< Cmd.gets Cmd.state_save_dir)
     ]
 
 date :: IO Text
@@ -278,13 +285,6 @@ make_state_path (Cmd.SaveRepo repo) = state_path_for_repo (Path.to_path repo)
 -- state, or when switching from SaveRepo to SaveState.
 state_path_for_repo :: SaveGit.Repo -> FilePath
 state_path_for_repo repo = FilePath.replaceExtension repo ".state"
-
--- | Figure out a path for a save state based on the namespace.
-infer_state_path :: Id.Namespace -> Cmd.State -> FilePath
-infer_state_path ns state =
-    Cmd.to_absolute state Config.save_dir
-        </> untxt (Id.un_namespace ns)
-        </> default_state
 
 default_state :: FilePath
 default_state = "save.state"
@@ -385,7 +385,7 @@ make_git_path ns state = case Cmd.state_save_file state of
     Just (_, Cmd.SaveRepo repo) -> Path.to_path repo
 
 default_git :: FilePath
-default_git = "save" ++ SaveGit.git_suffix
+default_git = "save" <> SaveGit.git_suffix
 
 -- * config
 

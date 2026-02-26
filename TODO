@@ -120,6 +120,7 @@ external:
     . using tscore, especially standalone
 
 UNSORTED
+  * have save files be relative to "data/save" dir.
   - keycaps=True will stop the initial block from getting focus.
     . Even though KeycapWindow tries to not accept focus!
     . Who has it then?

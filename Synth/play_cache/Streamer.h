@@ -58,7 +58,8 @@ private:
     std::atomic<bool> thread_quit;
     // Goes to true when the Audio has run out of data.
     std::atomic<bool> audio_done;
-    // Set to true to have the stream_thread reload mix.
+    // Set to true to have the stream_thread reload mix.  This makes read()
+    // return 0s so it's safe to reset the ringbuffer.
     std::atomic<bool> restarting;
     jack_ringbuffer_t *ring;
     // ring needs more data.
