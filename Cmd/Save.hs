@@ -14,7 +14,7 @@ module Cmd.Save (
     -- * quit
     soft_quit, hard_quit
     -- * universal
-    , save, load, load_force, read, read_, load_template
+    , save, save_as, load, load_force, read, read_, load_template
     , infer_save_type
     -- * state
     , save_state, save_state_as, load_state
@@ -98,6 +98,12 @@ save = Cmd.gets Cmd.state_save_file >>= \case
     -- read only, this should throw an exception.
     Just (_, Cmd.SaveRepo repo) -> save_git_as (Path.to_path repo)
     Just (_, Cmd.SaveState fn) -> save_state_as (Path.to_path fn)
+
+save_as :: FilePath -> Cmd.CmdT IO ()
+save_as path = Cmd.gets Cmd.state_save_file >>= \case
+    Nothing -> save_git_as path
+    Just (_, Cmd.SaveRepo _) -> save_git_as path
+    Just (_, Cmd.SaveState _) -> save_state_as path
 
 -- | Like 'read', but replace the current state and set 'Cmd.state_save_file'.
 load :: FilePath -> Cmd.CmdT IO ()

@@ -203,6 +203,9 @@ show_history = do
 save :: Cmd.CmdL ()
 save = Save.save
 
+save_as :: FilePath -> Cmd.CmdL ()
+save_as = Save.save_as
+
 -- | Save to the default filename and switch to saving plain states.
 save_state :: Cmd.CmdL ()
 save_state = Save.save_state

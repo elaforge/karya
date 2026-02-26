@@ -182,6 +182,13 @@ UNSORTED
     . I would have to pre-warp the sample to flatten out the tempo.  I could
       do this as a preproc step.  I probably want to make the transitions
       a bit smooth, which of course will affect the ratio a little bit.
+  - bottom up tempo adjustment
+    . For break, it would be cooler to adjust the tempo instead, but I don't
+      really have a framework for that.
+    . I'd also like to have tempo propagate from blocks, maybe I could have
+      a general purpose collect tempo type thing.
+    . It would have to be a pre-eval type thing, for a bottom-up type eval.
+      I already have something like this with the "logical duration" thing.
   * break: flatten tempo with srate adjustments
     . If I set break-bpm=_, then infer from the environment.
     . bpm is the derivative of the current tempo.  I could try to figure it
