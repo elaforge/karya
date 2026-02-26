@@ -123,9 +123,33 @@ UNSORTED
   - keycaps=True will stop the initial block from getting focus.
     . Even though KeycapWindow tries to not accept focus!
     . Who has it then?
+      fltk/Block.cc:972 Window FL_FOCUS <null>
+      fltk/Block.cc:972 Window FL_SHOW <11BlockWindow focused>
+      fltk/Block.cc:972 Window FL_FOCUS <11BlockWindow focused>
+      fltk/Block.cc:972 Window FL_UNFOCUS <13KeycapsWindow focused>
+      fltk/Keycaps.cc:159 Keycaps FL_SHOW <13KeycapsWindow focused>
+      fltk/Keycaps.cc:159 Keycaps FL_SHOW <13KeycapsWindow focused>
+      fltk/Block.cc:972 Window FL_LEAVE <13KeycapsWindow focused>
+    . So even though it return false with FL_FOCUS, it gets focus anyway.
+      I think this is all fltk?  What is it doing exactly?
+  * when I save under a different name, im cache state gets confused
+    . Either rename the underlying directory, or correctly regenerate.
+    . What does it currently do:
+      im/cache/test/im/untitled/
+      save_state_as - no change in im/cache
+      save_state_as -> set_save_file -> clears Cmd state
+    . What must I reset for im cache?
   - space starting a new play instead of stopping is annoying
     Because I can't stop a sample from playing without starting a new play.
   - can I make im stop a little smoother?
+    . Message.stop = true -> streamer->stop() -> ResampleStreamer::stop()
+    . It would need to go into a stopping state which continues to stream but
+      drops volume.
+    . Maybe can do it when restarting = true.  Or not, that's just a time
+      where read() returns 0 so it can update pointers.
+      Instead of this->restart(), stopping.store(true)
+      When in this state, scale down volume by some fraction on each sample.
+    . It looks pretty complicated, maybe not worth it.
   * why not have key up stop the sample like with midi?
     Could I get it back if I track thru state and stop on that?
     . That means it must currently set to point when wanting to stop thru?

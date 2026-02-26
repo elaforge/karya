@@ -486,6 +486,9 @@ set_save_file save_file direction = do
             , Cmd.state_history_config = (Cmd.state_history_config state)
                 { Cmd.hist_last_commit = maybe_commit }
             }
+        -- This is not needed for the MIDI backend, but if there is im cache,
+        -- I need to trigger it to regenerate under the new name.
+        Cmd.invalidate_performances
     -- This is called both when saving and loading, so it's a good place to
     -- mark that the state is synced to disk.
     Cmd.modify $ \st -> st
