@@ -59,7 +59,7 @@ Panner::Panner(VstHostCallback host_callback) :
         // should be is_synth=true.
         unique_id, version, initial_delay, false),
     volume(1), pan(0),
-    volume_param(1), volume_cc(7), pan_cc(10),
+    volume_cc(7), pan_cc(10), volume_param(1),
     log(log_filename, std::ios::app)
 {
     LOG("started");

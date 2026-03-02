@@ -224,6 +224,7 @@ ResampleStreamer::initialize()
 MixStreamer::MixStreamer(
         int max_voices, std::ostream &log, int channels, int sample_rate,
         int max_frames)
+    : fading(false), fade_remaining(0)
 {
     for (int i = 0; i < max_voices; i++) {
         std::unique_ptr<ResampleStreamer> p(
@@ -247,11 +248,23 @@ MixStreamer::start(int voice, const std::string &fname, int64_t offset,
 
 
 void
+MixStreamer::stop_fade()
+{
+    if (voices.size() == 0)
+        return;
+    if (!fading) {
+        fade_remaining = fade_sec * voices[0]->sample_rate;
+        fading = true;
+    }
+}
+
+void
 MixStreamer::stop()
 {
     for (auto &streamer : voices) {
         streamer->stop();
     }
+    fading = false;
 }
 
 
@@ -278,19 +291,37 @@ MixStreamer::read(int channels, Frames frames, float **out)
     buffer.resize(frames * channels);
     std::fill(buffer.begin(), buffer.end(), 0);
     bool done = true;
-    int voice = 0;
-    for (const auto &audio : voices) {
+    for (int voice = 0; voice < voices.size(); voice++) {
+        const auto &audio = voices[voice];
         float *s_buffer;
         if (!audio->read(channels, frames, &s_buffer)) {
-            if (volumes[voice] != 1) {
-                for (int i = 0; i < channels * frames; i++) {
-                    s_buffer[i] *= volumes[voice];
+            float volume = volumes[voice];
+            const float fade_dur = fade_sec * audio->sample_rate;
+            if (volume != 1 || fading) {
+                const Frames remaining = fade_remaining.load();
+                for (Frames frame = 0; frame < frames; frame++) {
+                    float fade = 1;
+                    if (fading) {
+                        fade = static_cast<float>(
+                            remaining - std::min(remaining, frame)) / fade_dur;
+                    }
+                    for (Frames c = 0; c < channels; c++) {
+                        s_buffer[frame * channels + c] *= volume * fade;
+                    }
                 }
             }
             mix(channels, frames, buffer.data(), s_buffer);
             done = false;
         }
-        voice++;
+    }
+    if (fading) {
+        if (fade_remaining > 0) {
+            fade_remaining -= std::min(fade_remaining.load(), frames);
+        } else {
+            fading = false;
+            for (auto &audio : voices)
+                audio->stop();
+        }
     }
     *out = buffer.data();
     return done;

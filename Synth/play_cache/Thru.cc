@@ -204,14 +204,13 @@ Thru::loop()
         Message message(accept(log, socket_fd));
         if (message.stop) {
             LOG("stop");
-            streamer->stop();
+            streamer->stop_fade();
         } else {
             for (const Play &play : message.plays) {
                 LOG("play: " << play.sample << " offset: " << play.offset
                     << " ratio:" << play.ratio << " vol:" << play.volume);
             }
-            // Stop old notes.
-            streamer->stop();
+            streamer->stop(); // Stop old notes.
             int voice = 0;
             for (const Play &play : message.plays) {
                 streamer->start(

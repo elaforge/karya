@@ -142,7 +142,7 @@ UNSORTED
     . What must I reset for im cache?
   - space starting a new play instead of stopping is annoying
     Because I can't stop a sample from playing without starting a new play.
-  - can I make im stop a little smoother?
+  * can I make im stop a little smoother?
     . Message.stop = true -> streamer->stop() -> ResampleStreamer::stop()
     . It would need to go into a stopping state which continues to stream but
       drops volume.

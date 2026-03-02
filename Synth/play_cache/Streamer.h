@@ -119,6 +119,7 @@ public:
         int max_frames);
     void start(int voice, const std::string &fname, int64_t offset,
         double ratio, float volume);
+    void stop_fade();
     void stop();
 
     // Return true if the read is done, and there are no samples in 'out'.
@@ -128,4 +129,7 @@ private:
     std::vector<std::unique_ptr<ResampleStreamer>> voices;
     std::vector<float> volumes;
     std::vector<float> buffer;
+    std::atomic<bool> fading;
+    std::atomic<Frames> fade_remaining;
+    static constexpr float fade_sec = 0.1;
 };
