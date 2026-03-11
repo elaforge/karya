@@ -3,6 +3,7 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 {-# LANGUAGE DeriveDataTypeable #-}
+{-# LANGUAGE StrictData #-}
 {- | This has Score.Event, which is the main output of the deriver.
 
     The events here are generated from UI Events, and will eventually be
@@ -78,27 +79,27 @@ import           Types
 -- * Event
 
 data Event = Event {
-    event_start :: !RealTime
-    , event_duration :: !RealTime
+    event_start :: RealTime
+    , event_duration :: RealTime
     -- | This is the text of the call that created the event.  It's basically
     -- just for debugging.
-    , event_text :: !Text
+    , event_text :: Text
     -- | If the event is integrated back to a Ui.Event, use this text.  This is
     -- so calls can explicitly set how they would like their events to be
     -- integrated.  Otherwise, Integrate.Convert will try to infer something.
-    , event_integrate :: !Text
-    , event_pitch :: !PSignal.PSignal
+    , event_integrate :: Text
+    , event_pitch :: PSignal.PSignal
     -- | Keep track of where this event originally came from.  That way, if an
     -- error or warning is emitted concerning this event, its position on the
     -- UI can be highlighted.
-    , event_stack :: !Stack.Stack
-    , event_highlight :: !Color.Highlight
-    , event_instrument :: !ScoreT.Instrument
-    , event_environ :: !DeriveT.Environ
+    , event_stack :: Stack.Stack
+    , event_highlight :: Color.Highlight
+    , event_instrument :: ScoreT.Instrument
+    , event_environ :: DeriveT.Environ
     -- | Flags have their own field rather than being in 'event_environ', this
     -- emphasizes that they're meant to be used by calls and not from the
     -- score.
-    , event_flags :: !Flags.Flags
+    , event_flags :: Flags.Flags
     -- | This has arguments passed from a call that applies an attribute to one
     -- which is meant to later realize the attribute.  This happens when a call
     -- needs to be configured at the track level, but also needs some
@@ -110,10 +111,10 @@ data Event = Event {
     -- I couldn't think of a type safe way to do this, but Dynamic should be
     -- safe enough if you use a shared type declaration in both writer and
     -- reader.
-    , event_delayed_args :: !(Map Text Dynamic.Dynamic)
+    , event_delayed_args :: Map Text Dynamic.Dynamic
     -- | Keep track of interesting things that have happened to this event.
     -- Postproc transforms that alter it should prefix a note.
-    , event_logs :: ![Log.Msg]
+    , event_logs :: [Log.Msg]
     } deriving (Show, Typeable.Typeable)
 
 -- | Format an event in a way suitable for including inline in log messages.
