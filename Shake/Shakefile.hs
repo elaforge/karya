@@ -1471,7 +1471,10 @@ runTestsBinary prefix fn = prefix `List.isPrefixOf` fn
 generateTestHs :: FilePath -> FilePath -> Shake.Action ()
 generateTestHs suffix fn = do
     -- build/test/RunTests-A.B.Xyz.hs -> A/B/Xyz_test.hs
-    let testName = drop 1 $ dropWhile (/='-') $ FilePath.dropExtension fn
+    -- let testName = drop 1 $ dropWhile (/='-') $ FilePath.dropExtension fn
+    testName <- if fn == runTests <> ".hs" then pure ""
+        else liftIO $ dropPrefixError (runTests <> "-")
+            =<< dropSuffixError ".hs" fn
     tests <- if null testName
         then filter wantsTest <$> Util.findHs ('*' : suffix ++ ".hs") "."
         else return [moduleToPath testName ++ suffix ++ ".hs"]
@@ -2066,11 +2069,21 @@ dropPrefix pref str
     | pref `List.isPrefixOf` str = Just $ drop (length pref) str
     | otherwise = Nothing
 
+dropPrefixError :: String -> String -> IO String
+dropPrefixError pref str =
+    maybe (Util.errorIO $ "didn't start with " <> show pref <> ": " <> show str)
+        pure (dropPrefix pref str)
+
 dropSuffix :: String -> String -> Maybe String
 dropSuffix str suf
     | suf `List.isSuffixOf` str =
         Just $ reverse $ drop (length suf) (reverse str)
     | otherwise = Nothing
+
+dropSuffixError :: String -> String -> IO String
+dropSuffixError str suf =
+    maybe (Util.errorIO $ "didn't end with " <> show suf <> ": " <> show str)
+        pure (dropSuffix suf str)
 
 nameExt :: FilePath -> String -> FilePath
 nameExt fn = FilePath.replaceExtension (FilePath.takeFileName fn)
