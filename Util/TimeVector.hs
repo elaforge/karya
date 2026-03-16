@@ -2,6 +2,7 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
+{-# LANGUAGE CPP #-}
 {- | Generic functions over vectors of 'Sample's.
 
     The samples should be sorted, though this is currently not enforced by
@@ -39,6 +40,9 @@ module Util.TimeVector (
     , x_at, y_at
 
     , module Data.Vector.Generic
+#ifdef TESTING
+    , module Util.TimeVector
+#endif
 ) where
 import           Prelude hiding (head, last, take)
 import qualified Control.Monad.State.Strict as State
@@ -274,10 +278,16 @@ x_at x0 y0 x1 y1 y
     | otherwise = Just $
         double_to_x (y - y0) / (double_to_x (y1 - y0) / (x1 - x0)) + x0
 
+-- Switch from linear to binary search for vectors longer than this.
+-- I have no idea what the real value is, this is just a random guess.
+-- TODO unfortunately it seems to have no effect.  Should I revert this?
+bsearch_threshold  :: Int
+bsearch_threshold = 16
+
 -- | Binary search for the highest index of the given X.  So the next value is
--- guaranteed to be >X, if it exists.  Return -1 if @x@ is before
--- the first element.  'RealTime.eta' is added to @x@, so a sample that's
--- almost the same will still be considered a match.
+-- guaranteed to be >X, if it exists.  Return -1 if @x@ is before the first
+-- element.  'RealTime.eta' is added to @x@, so a sample that's almost the same
+-- will still be considered a match.
 {-# SPECIALIZE highest_index :: X -> Unboxed -> Int #-}
 {-# SPECIALIZE highest_index :: X -> Boxed y -> Int #-}
 {-# INLINEABLE highest_index #-}
@@ -285,7 +295,9 @@ highest_index :: V.Vector v (Sample y) => X -> v (Sample y) -> Int
 highest_index x vec
     | V.null vec = -1
     | otherwise = i - 1
-    where i = bsearch_above (x + RealTime.eta) vec
+    where
+    i = (if V.length vec >= bsearch_threshold then bsearch_above
+        else linear_search_above) (x + RealTime.eta) vec
 
 -- | Search for the last index <x, or -1 if the first sample is already >x.
 {-# SPECIALIZE index_below :: X -> Unboxed -> Int #-}
@@ -296,7 +308,9 @@ index_below x vec
         Just (Sample x1 _) | x1 == x -> 0
         _ -> -1
     | otherwise = i - 1
-    where i = bsearch_below x vec
+    where
+    i = (if V.length vec >= bsearch_threshold then bsearch_below
+        else linear_search_below) x vec
 
 -- | Binary search for the index of the first element that is >x, or one past
 -- the end of the vector.
@@ -312,8 +326,15 @@ bsearch_above x vec = go 0 (V.length vec)
         | otherwise = go low mid
         where mid = (low + high) `div` 2
 
+{-# SPECIALIZE linear_search_above :: X -> Unboxed -> Int #-}
+{-# SPECIALIZE linear_search_above :: X -> Boxed y -> Int #-}
+{-# INLINEABLE linear_search_above #-}
+linear_search_above :: V.Vector v (Sample y) => X -> v (Sample y) -> Int
+linear_search_above x vec =
+    fromMaybe (V.length vec) $ V.findIndex ((x <) . sx) vec
+
 -- | Binary search for the index of the first element ==x, or the last one <x.
--- So it will be <=x, or one past the end of the vector.  If you ues it with
+-- So it will be <=x, or one past the end of the vector.  If you use it with
 -- take, it's everything <x.
 {-# SPECIALIZE bsearch_below :: X -> Unboxed -> Int #-}
 {-# SPECIALIZE bsearch_below :: X -> Boxed y -> Int #-}
@@ -326,3 +347,10 @@ bsearch_below x vec = go 0 (V.length vec)
         | x <= sx (V.unsafeIndex vec mid) = go low mid
         | otherwise = go (mid+1) high
         where mid = (low + high) `div` 2
+
+{-# SPECIALIZE linear_search_below :: X -> Unboxed -> Int #-}
+{-# SPECIALIZE linear_search_below :: X -> Boxed y -> Int #-}
+{-# INLINEABLE linear_search_below #-}
+linear_search_below :: V.Vector v (Sample y) => X -> v (Sample y) -> Int
+linear_search_below x vec =
+    fromMaybe (V.length vec) $ V.findIndex ((x <=) . sx) vec

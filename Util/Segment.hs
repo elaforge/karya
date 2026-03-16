@@ -208,9 +208,6 @@ beginning = -RealTime.larger
 from_vector :: v (Sample y) -> Signal v y
 from_vector = Signal 0
 
-singleton :: V.Vector v (Sample y) => X -> y -> Signal v y
-singleton x y = Signal 0 (V.singleton (Sample x y))
-
 signal :: V.Vector v (Sample y) => X -> v (Sample y) -> Signal v y
 signal offset v
     | V.null v = empty
