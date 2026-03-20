@@ -99,7 +99,10 @@ def main():
             rts = [
                 # time profiling
                 '-s{}.gc'.format(basename), # emit runtime summary
-                '-p', # emit .prof file
+
+                # Sadly these are mutually exclusive, ghc can't write both.
+                # '-p', # emit .prof file
+                "-pj", # emit .prof in json
 
                 # heap profiling
                 '-L42', # field length for cost center names in heap profile
@@ -114,19 +117,21 @@ def main():
                 tee_to=stem + '.stdout')
 
             for suf in 'gc hp aux tix stdout prof'.split():
+                dest = f'{stem}.{suf}'
+                if suf == 'prof' and '-pj' in rts:
+                    dest = dest + '.json'
                 try:
-                    os.rename(f'{basename}.{suf}', f'{stem}.{suf}')
+                    os.rename(f'{basename}.{suf}', dest)
                 except FileNotFoundError:
                     pass
             if os.path.exists(f'{stem}.hp'):
                 system(f'hp2ps -b -c < {stem}.hp > {stem}.ps')
                 # TODO if ghostscript is installed, there is a ps2pdf, but
                 # OS X preview can do the convert itself.
-            run_if_exists(['ghc-prof-flamegraph', stem + '.prof',
-                '--output', stem + '.flame.svg'])
             run_if_exists(['hp2html', stem + '.hp'])
             run_if_exists(['profiterole', stem + '.prof'])
             summarize(stem)
+            print('wrote to', stem)
 
 
 def next_num(dir):
@@ -142,8 +147,11 @@ def next_num(dir):
 
 def summarize(stem):
     """Write .gc and .prof summary to a diffable .summary file."""
-    gc = parse_gc(stem)
+    if not os.path.exists(stem + '.prof'):
+        print("can't make .summary, no .prof file, it's probably json")
+        return
     ccs = parse_prof(stem + '.prof')
+    gc = parse_gc(stem)
     with open(stem + '.summary', 'w') as fp:
         for k, v in sorted(gc.items()):
             fp.write(f'{k}: {v:.2f}\n')
@@ -152,18 +160,30 @@ def summarize(stem):
             fp.write(cc + '\n')
 
 def parse_prof(fname):
+    """Reduce the top costs lists to something more diffable."""
     lines = open(fname)
     for line in lines:
         if line.startswith('COST CENTRE'):
             break
     ccs = []
-    for line in lines:
+    for i, line in enumerate(lines):
         if re.search(r'^ +individual', line):
             break
         words = line.split()
         if not words:
             continue
-        [cc, module, src, time, alloc] = words
+        # Pretty stupid parsing.  In theory the json output would be better, in
+        # practice I don't want to bother right now.  Also it's heavily nested,
+        # so jq won't parse it.
+        if words[2:5] == ['<no', 'location', 'info>']:
+            words[2:5] = ['?']
+        try:
+            [cc, module, src, time, alloc] = words
+        except ValueError as exc:
+            print(exc)
+            print(i, words)
+            continue
+
         ccs.append(' '.join(
             # len('Derive.Deriver.Internal.with_stack_region') + 4
             # len('User.Elaforge.Instrument.Vsl') + 4
