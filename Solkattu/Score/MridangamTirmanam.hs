@@ -147,14 +147,35 @@ tir_misc = tirmanam $ date 2023 3 10 $ korvaiS adi
 
 tir_elaforge :: Korvai
 tir_elaforge = tirmanam $ elaforge $ korvaiV adi
-    [ __D 2.5 . trin "v_" (r3 "Nd_") (r2 "Nd_") "Nd_" . v
+    [ __D 6.25 . triAAB "D__kko" (r3 "Dk_") (r3 "D_k") -- r3 tir_sikkil
+    , __D 6 . su (triAAB "u___" "k_kto_k_k_kto_k_t_k_kto_" (r4 "k_kto_"))
+    , __D 2.5 . trin "v_" (r3 "Nd_") (r2 "Nd_") "Nd_" . v
     -- , __D 5.25 . su (trin "v_" (r3 "Nd_") (r2 "Nd_") "Nd_" . v)
     , __D 2 . tri123 "D_o" (su "N_ktok") . od
     , __D 2 . tri123 "D_o" (su p6) . od
+    , __D 3 . su (r3 "k_D___" . r3 "k_D__" . r3 "kD_")
+    , __D 3 . tri (od.__7) (k.o)
     , __D 4 . tri "D_" "Dnpk"
     , __D 4 . __ . tri (su "u_pkno") "NN_" . u
     , __D 5 . tri "D__" "ko"
     ]
+
+tir_sikkil :: Korvai
+tir_sikkil = tirmanam $ korvaiV adi
+    -- Sikkil Sisters, Dinamani Vamsa - Hari Kamboji - Adi, 3:54
+    [ __D 4 . trin "d__kko" (r4 "Dk_") (r4 (su "D__k__")) (r4 "D_k")
+    -- Or a variation, gradually move k back:
+    , __D 4 . tri "d__kko" ("Dk_"."Dk_".su "D__k__"."D_k")
+    -- The actual one sounds like the k moves sort of randomly.
+    , __D 2 . tri123 "D_o" (g "Dk_")
+    -- "Bhajare - Abheri - Adi", 15:22
+    , __ . triAAB "D__" (tri "D_" "kkoDk") (tri "D_" "X_oDk")
+    ]
+    -- To be totally even, have to go to tisram:
+    -- d  .  k  .  _  .  |
+    -- d  .    k.  _  .  |
+    -- d  .     .k _  .  |
+    -- d  .  _  .  k  .  |
 
 rohan_end :: Korvai
 rohan_end = rohan $ date 2025 2 8 $ korvaiV adi
@@ -172,4 +193,11 @@ reentry = date 2025 9 13 $ elaforge $ korvaiV adi
 tir_transcribe :: Korvai
 tir_transcribe = date 2026 2 5 $ tirmanam $ korvaiV adi
     [ __M 3 . su (prefixes ["pk_", "pkpk_", "pkpkpk_"] (r3 "N_kD_"))
+    ]
+
+tir_vanajakshi :: Korvai
+tir_vanajakshi = date 2026 4 21 $ tirmanam $ korvaiV adi
+    -- 12 beats, aka 6 rendekalai
+    [ __D 4 . (tri123 (o&u.__6) (su "U_U___ktkto_") . "U")
+        `replaceEnd` "U__U__U" -- alternate end
     ]

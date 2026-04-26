@@ -12,7 +12,7 @@ import           Solkattu.Dsl.Mridangam
 
 
 e_kita :: Korvai
-e_kita = exercise $
+e_kita = exercise $ rohan $
     comment "start slow, gradually increase speed, focus on clarity" $
     korvaiV adi $ map seq pkon
     where
@@ -142,71 +142,21 @@ ndn_sarva = elaforge $ sarvalaghu $ korvaiV adi
     , r4 ".ndn" & o . r4 ".ndn" & "__oo_o_oo_o_oo_o" -- kendang sunda pattern
     ]
 
-rohan_sollus_end :: Korvai
-rohan_sollus_end = rohan $ sollu $ korvaiV adi
-    [ __D 3.25 . su "okooko".o . __D 3 . su "otootoo"       -- 75
-    , __D 2.5 . "otkn".kttk.od . __D 2.25 . "ktkn".kttk.od  -- 75
-    , __D 7 . su "_upknook"                                 -- 75
-    , __D 7 . su "nkktkktk"                                 -- 60
-    , __D (6 + 6/8) . su "_np nnoD_ onn"                    -- 60
-    , __D 2.5 . su (__ . tri od "npk") . od.__n 10 . su (r3 "npkD") -- 75
-    , __D 4 . su ("oo_o_oo_" . r2 "___o_oo_" . "o_oo_o_o").od -- 75
-    , __D 5 . su ("o___" . r2 (g "ktktpktp") . "ktkt")      -- 85
-    , __D 5 . su "pu_ko_k_ pu_ko_k_ n_pu_ko_"               -- 75
-    , __D 3 . "ktkt" . "ktkn".kttk."Tk" . "tkoo".kttk."Tk"  -- 60
-    , __D 3 . "ktkp" . "ktkn".kttk."Tk" . su "n_ktpkT_k_n_ktpk" -- 60
-        . "otkn".kttk.od .__ . __D 6
-    , let kttk = "kt" in __D 5.5                            -- 60
-        . su ("ktkp ktk" . r2 (n.kttk."Tk") . n.kttk
-        . "oktn".kttk).od.__5 . __D 6
-    , __D 4 . su ("N___koD_" . "N_k_kpko" . "D_N_k_ko" . "D_N_k_kp") -- 70
-    , __D 2 . su "o_k_on,nok N_D_k_" . __D 2 . su "on,npk on,npk N_k_" -- 70
-    , __D 4 . su ("o_t_k_N_ktpkoktk" . "nookN_D_k_N_ktpk")  -- 85
-    , __D 6 . su ("puko" . r4 "Uko")                        -- 75
-    , __D 6 . su "kt_kk_ktkk_oN_k_".od                      -- 75
-        -- do with 3x: Nk_, N_k_, N__k_
-    , __D 6 . su ("N_kNkNNk" . "NNkNkNNk")                  -- 60
-    , __D 6 . su ("ookTkpnn" . "ppkTkonn")                  -- 60
-        -- dhere for kTk
-    , __D 4 . su ("o_k_okTko_N_ktpk" . "n_k_okTko_N_ktpk")  -- 75
-    , __D 4 . "otkNkdpn" . "ptkNkdpn"                       -- 120
-    , __D 6 . "Nkdpnoto"
-    ]
-    where
-    kttk = su "ktpk"
-    -- for kt, keep thumb tucked in
-
-sollu_variations :: Korvai
-sollu_variations = sollu $ korvaiV adi
-    [ su $ r4 theme
-        . r2 (g "Nkdpn ptkNkdpn") . r2 (g "Nkdpn") . tri "d__" "Nk"
-        . od.__8.nakatiku
-    , su $ theme . r2 (g "Nkdpn ptkNkdpn") . r2 (g "Nkdpn") . tri "d__" "Nk"
-        . od
-    -- , __D 6 . su "kt_kk_ktkk_oN_k_".od
-    ]
-    where
-    theme = g "otkNkdpn ptkNkdpn"
-
 rohan_dholak :: Korvai
 rohan_dholak = rohan $ sarvalaghu $ comment "dholak style" $ korvaiV adi
     [ su $ r2 (rh1 & "o_o_o_" . rh1 & "__p_o")
         . r2 (r2 rh1 & ("o_p_o_".p'."___o_o"))
     , r2 (r2 rh2 & "o_/_o__o") . r2 (r2 rh2 & "o/o/o__o")
+    , r4 "/__Nd_nd"
     ]
     where
     rh1 = "n__kt_k_"
     rh2 = "kdnk"
 
 sarva_variations :: Korvai
-sarva_variations = korvaiV adi
+sarva_variations = elaforge $ sarvalaghu $ korvaiV adi
     [ r2 $ "n_ddn_ddn_ddn" . su "_,^,d_"
     , r2 $ su $ r3 "npkdpkdp" . "n_pkdpd_"
-    ]
-
-misc_sollus :: Korvai
-misc_sollus = date 2025 12 12 $ korvaiV adi
-    [ __D 5 . "pn_no_" . "pknno_D"
     ]
 
 -- * adi melkalam
@@ -222,20 +172,6 @@ mel2 = sarvalaghu $ sudhindra $ korvaiS1 adi $ su $
     where yjyj = y.j.y.j
 
 -- reduce with kir2 and kir5
-
-dinna_kitataka :: Korvai
-dinna_kitataka = exercise $ sudhindra $ korvaiV adi $
-    map (sarvaSam adi) patterns
-    where
-    patterns = map su
-        [ repeat 4 dinna
-        , repeat 2 (od.__.dinna).dinna
-        , repeat 2 (o.k.dinna) . dinna
-        , repeat 2 (o.t.k.n.kttk) . dinna
-        , tri (o.k) dinna
-        ]
-    kttk = su (k.t.o.k)
-    dinna = o.n.kttk
 
 farans :: Korvai
 farans = sudhindra $ faran $ korvaiV adi $
@@ -348,14 +284,42 @@ c_24_10_23 = sarvalaghu $ date 2024 10 23 $ korvaiV Tala.misra_chapu
 
 -- * mine
 
-c_chatusram1 :: Korvai
-c_chatusram1 = elaforge $ sarvalaghu $ korvaiV adi
+s_chatusram1 :: Korvai
+s_chatusram1 = elaforge $ sarvalaghu $ korvaiV adi
     [ "D,nd,nN," . "D,nd,nN".su "ok" . "D,nd,nN," . su "D_n_n_pn_ld_pn_l"
     , "D,nd,d".su "n,n,"."Dnnonn".su "nook"."D,nd,nN,".su "N_N_N_pn_ld_pn_l"
     ]
 
-c_kandam1 :: Korvai
-c_kandam1 = elaforge $ date 2023 3 10 $ sarvalaghu $ korvaiV adi $ map (nadai 5)
+s_d_nd_dn_variations :: Korvai
+s_d_nd_dn_variations = elaforge $ date 2026 4 22 $ sarvalaghu $ korvaiV adi
+    [ "o/o/" & "d_nd_dnk" . su "d_p,^,d_pkd_n_k_"
+        . su "d_p,^,d_p,^,d_k_" . su "d_p,^,d_pkd_^,^,"
+    , "o/o/" & "d_nd_dnk" . su "d_p,^,d_pktkn,p,"
+        . "o/o/" & su "d_dn_kd_k_d_n_k_" . su "d_p,^,d_p,^,^,^,"
+    ]
+
+sketch_sarva :: Korvai
+sketch_sarva = elaforge $ sarvalaghu $ korvaiV adi
+    [ r3 "pkdn" . su "odpkd_n_" . r2 ("pkdn" . su "pnpkd_n_")
+    , "dpknpnd__" . "pkpnook" . "N_N_Nd_N_Nd_Nd_k"
+    . "pkN_Nd_N_Nd__Nd_" . "N_N_Nd_N_Nd_Nd_k"
+    ]
+
+c_26_01_27 :: Korvai
+c_26_01_27 = elaforge $ date 2026 1 27 $ sarvalaghu $ korvaiV adi
+    [ r3 "nd.nd.n." . su "p,^,d_". "nd.n."
+    , r3 "nd.nd.n." . su "p,^,d_p,". "d.n."
+    , r2 "nd.nd.n." . "nd.nd" . su "p,^,d_p,^,d_p,"."d.n."
+    ]
+
+c_misc_improv :: Korvai
+c_misc_improv = elaforge $ date 2026 4 25 $ sarvalaghu $ korvaiV adi
+    [ "d_nd_k_d__k_d___" . "d_nd_ndn_nd_dn_n"
+    , "d_nd_k_d_k_d_kk_" . "d_n_nd_n_nd_dn_n"
+    ]
+
+s_kandam1 :: Korvai
+s_kandam1 = elaforge $ date 2023 3 10 $ sarvalaghu $ korvaiV adi $ map (nadai 5)
     [ r3 "d,dn," . su "d_pkd_n_,_" . su (r2 "d_pkd_n_pk" . "d_pkd_n,^,"
         . "dpkd_pn_pk")
     , su $ r2 $ r3 "dpkd_pn_pk" . "d_".nakatiku
@@ -365,8 +329,8 @@ c_kandam1 = elaforge $ date 2023 3 10 $ sarvalaghu $ korvaiV adi $ map (nadai 5)
     . r2 "dlNN," .su "d_pkD_N_,_" . su "d,p,D_N,n,"
     ]
 
-c_kandam_tisram :: Korvai
-c_kandam_tisram = elaforge $ date 2023 3 10 $ sarvalaghu $ korvaiS1 adi $
+s_kandam_tisram :: Korvai
+s_kandam_tisram = elaforge $ date 2023 3 10 $ sarvalaghu $ korvaiS1 adi $
     r3 "dlNN," . su "d_pkD_N_,_"  . su "d,^,d,n,^,"
     . su (g "k_p_n_ktpkptok")
 
@@ -374,11 +338,10 @@ c_kandam_tisram = elaforge $ date 2023 3 10 $ sarvalaghu $ korvaiS1 adi $
 
 c_18_05_25 :: Korvai
 c_18_05_25 = sarvalaghu $ date 2018 5 25 $ ganesh $ korvaiS1 Tala.misra_chapu $
-    sd $
-      o .k.on.on.od.__.on.k.od.k.on.on.od.__
-    . on.k.on.on.od.__.on.k.od.k.on.on.od.__
-    . on.k. n. n. d.__. n.k. d.k. n. n. d.__
-    .  n.k. n. n. d.__. n.k.od.k.on.on.od.k
+    sd $ o .k.on.on.od.__.on.k.od.k.on.on.od.__
+       . on.k.on.on.od.__.on.k.od.k.on.on.od.__
+       . on.k. n. n. d.__. n.k. d.k. n. n. d.__
+       .  n.k. n. n. d.__. n.k.od.k.on.on.od.k
 
 -- * candiramani
 
@@ -468,78 +431,3 @@ s_rupaka = date 2026 2 5 $ sarvalaghu $ korvaiV Tala.rupaka_fast
     0   .   1   .   2   .   3   .   x   .   o   .   x   .   o   .   |
                 k k k o D  kD k D k D
 -}
-
--- * sollus
-
-sollus :: Korvai
-sollus = sollu $ korvaiV adi
-    [ sarvaD_ 5.5 . "koD".su "_k"."DkDkD_"
-    , sarvaD_ 4.5 . "kktku".su (pk.r2 (g takatiku))
-    , sarvaD_ 4.5 . "kktku".su (pk.g takatiku.nakatiku)
-    , sarvaD_ 5.5 . "kktku".su (pk.nakatiku)
-    , sarvaD_ 5 . su "u_pktpktpu_kt_k_u_pknook"
-    , sarvaD_ 6.5 . "rknu".su "ktpk"
-    -- from tabla, dha trakra dhet tette dhinna gena
-    , sarvaD_ 6 . "NxqTktpk"
-    , sarvaD_ 5 . "NxqTktpk Inon"
-    , sarvaD_ 6 . "NkNoInon"
-    ]
-    where
-    takatiku = "tpupktpk"
-
-embellishments :: Korvai
-embellishments = sollu $ korvaiV adi
-    -- [ su "onpkno" `replaceStart` sarva `replaceEnd` su "onpkno"
-    [ startEnd (su "onpkno") sarva
-    , startEnd (su "pnpknp") s_nd_k
-    , startEnd (su (r2 "onpkno")) sarva
-    , startEnd (su "oktkno") sarva
-    , startEnd (su "pu_kno") sarva
-    , startEnd (su "pu_knpu_kno_") sarva
-    ]
-    where
-    startEnd sol sarva = sol `replaceStart` sarva `replaceEnd` sol
-    sarva = r2 "N.dD.dD." . "N.dd.dd.n.dD.dD."
-    -- sarva = r2 "n_ddn_ddnoDdn_dd"
-    s_nd_k = r2 $ r3 "nd_k" . su "n_o_ktok"
-
-ganesh_sollus :: Korvai
-ganesh_sollus = date 2024 12 1 $ sollu $ korvaiV adi
-    [ sarvaD_ 6 . su (r2 ("otkn".su ktok) . o.n.su ktok)
-    , sarvaD_ 6 . su "_tpknooknpk_pu_k"
-    , sarvaD_ 6 . su "kookkookk_oD_N_k"
-    , sarvaD_ 6 . su ("oo_".tri "D_" "N_k")
-    , sarvaD_ 6 . su ("oo_".tri "D_" "kpk")
-    , sarvaD_ 6 . su "okoTknpktkoTknpk" -- or start with t
-    , sarvaD_ 6 . su ("okoTkn".su ktpk."tkoTkn".su ktpk)
-    , sarvaD_ 6 . su (__.tri "D__" "ook") -- 5*3
-    , sarvaD_ 4.25 . tri (su "u__kno") "NN_" . od
-    , sarvaD_ 6.25 . k.u.su (p.k.nakatiku)
-    , sarvaD_ 6 . su ("kook".nakatiku."nook")
-    , sarvaD_ 6 . su ("kookN_pk".nakatiku)
-    , sarvaD_ 6 . su "kooknpkD_kD_N_k_" -- 4 + 6
-    , sarvaD_ 6 . su "tkpknook npk_pu_k"
-    , sarvaD_ 6 . su "npk_pu_kpu_kpu_k"
-    , sarvaD_ 6 . su (reduceTo 3 1 "kookD_") -- emphasis on each group
-    ]
-
--- Patterns for resuming sarvalaghu.
-reenter :: Korvai
-reenter = date 2025 9 13 $ elaforge $ korvaiV adi
-    [ __D 1.5 . "kkkoD" . su"_ko_N_ktok" . sarvaD_ 4
-    , __D 1.25 . g (su "ktpkpktkno").u.__3.su "n_ktpk" . sarvaD_ 4
-    ]
-
-sketch_sarva :: Korvai
-sketch_sarva = elaforge $ korvaiV adi
-    [ r3 "pkdn" . su "odpkd_n_" . r2 ("pkdn" . su "pnpkd_n_")
-    , "dpknpnd__" . "pkpnook" . "N_N_Nd_N_Nd_Nd_k"
-    . "pkN_Nd_N_Nd__Nd_" . "N_N_Nd_N_Nd_Nd_k"
-    ]
-
-c_2026_01_27 :: Korvai
-c_2026_01_27 = elaforge $ date 2026 1 27 $ korvaiV adi
-    [ r3 "nd.nd.n." . su "p,^,d_". "nd.n."
-    , r3 "nd.nd.n." . su "p,^,d_p,". "d.n."
-    , r2 "nd.nd.n." . "nd.nd" . su "p,^,d_p,^,d_p,"."d.n."
-    ]
