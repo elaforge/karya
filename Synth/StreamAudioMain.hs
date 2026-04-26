@@ -37,8 +37,8 @@ main = PortAudio.initialize $ do
     quit <- Thread.flag
     _keyboard <- Async.async $ do
         putStrLn "press return to quit"
-        c <- IO.getLine
-        putStrLn $ "got " <> show c <> ", asking streamer to stop"
+        _ <- IO.getLine
+        putStrLn "asking streamer to stop"
         Thread.set quit
     StreamAudio.streamDir (Verbose `elem` flags) mbDev quit muted start dir
 

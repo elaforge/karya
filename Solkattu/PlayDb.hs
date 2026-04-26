@@ -14,9 +14,13 @@ import           Solkattu.Db
 import           Types
 
 
-play :: RealTime -> Int -> IO Bool
-play akshara i = do
-    realizeM i
-    Play.play_m akshara $ case snd $ Db.scores !! i of
+play :: RealTime -> Int -> Maybe Int -> IO Bool
+play akshara i mbIndex = playScore akshara korvai
+    where korvai = maybe id index mbIndex $ snd $ Db.scores !! i
+
+playScore :: RealTime -> Korvai.Score -> IO Bool
+playScore akshara score = do
+    printScore score
+    Play.play_m akshara $ case score of
         Korvai.Single k -> k
         Korvai.Tani _ _parts -> error "tani not supported yet"

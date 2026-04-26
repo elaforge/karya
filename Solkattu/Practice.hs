@@ -34,6 +34,11 @@ recentDates n =
 searchName :: Text -> IO ()
 searchName name = Db.searchp [Db.nameLike name]
 
+-- TODO convert to search by name, indices are unstable
+tirmanams1 :: IO ()
+tirmanams1 = mapM_ realizeM
+    [89, 90, 91, 92, 93, 95, 97, 189, 334, 340, 342, 424]
+
 types :: [Text]
 types = ["exercise", "korvai"]
 

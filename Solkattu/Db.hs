@@ -6,17 +6,20 @@
 -- | Collect korvais into a searchable form.
 module Solkattu.Db (
     scores
-    , realizeKon, realizeM
+    , realizeKon, realizeM, printScore
     , recentDates, aroundDate, date, ofType, nameLike, hasInstrument
     , hasTag, notHasTag, sollus, strokesM
     , scoreHas, korvaiHas
+    , index
     -- * search
+    , search
     , searchp
     , searchM
     , searchAll
     , formats, format
     -- * write
     , writeAll
+    , qualifiedName
 ) where
 import qualified Data.List as List
 import qualified Data.Map as Map
@@ -67,14 +70,23 @@ realizeM :: Int -> IO ()
 realizeM i = do
     let score = get i
     Text.IO.putStr $ format (i, score)
+    printScore score
+
+printScore :: Korvai.Score -> IO ()
+printScore =
     Korvai.realizeScore (Terminal.printInstrument Korvai.IMridangam config)
-        score
     where
     config = Terminal.defaultConfig
         -- { Terminal._showSectionTags = True }
 
 get :: Int -> Korvai.Score
 get = snd . (scores !!)
+
+-- | Korvai.index but selects from korvais for a Tani.
+index :: Int -> Korvai.Score -> Korvai.Score
+index i = \case
+    Korvai.Single korvai -> Korvai.Single (Korvai.index i korvai)
+    Korvai.Tani meta parts -> Korvai.Tani meta [parts !! i]
 
 -- * predicates
 

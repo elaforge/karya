@@ -198,7 +198,6 @@ convert_pitch :: Log.LogMonad m => Env.Environ
     -> ScoreT.ControlMap -> RealTime -> PSignal.PSignal -> m Signal.NoteNumber
 convert_pitch env controls note_end psig = do
     -- Trim controls to avoid applying out of range transpositions.
-    -- TODO was drop_at_after
     let trimmed = fmap (fmap (Signal.drop_after note_end)) controls
     let (sig, nn_errs) = PSignal.to_nn $ PSignal.apply_controls trimmed $
             PSignal.apply_environ env psig
@@ -206,9 +205,6 @@ convert_pitch env controls note_end psig = do
         <> Text.intercalate ", " (Texts.ellipsisList 4
             [pretty x <> ": " <> err | (x, err) <- nn_errs])
     return sig
-    where
-    -- TODO should I also trim the pitch signal to avoid doing extra work?
-    -- trimmed_vals = fmap (fmap (Signal.drop_at_after note_end)) controls
 
 apply_patch_scale :: Log.LogMonad m => Maybe Patch.Scale -> PitchSignal
     -> m PitchSignal
