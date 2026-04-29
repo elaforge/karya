@@ -57,7 +57,6 @@ ganesh_sollus = date 2024 12 1 $ sollu $ korvaiV adi
     , sarvaD_ 6 . su "okoTknpktkoTknpk" -- or start with t
     , sarvaD_ 6 . su ("okoTkn".su ktpk."tkoTkn".su ktpk)
     , sarvaD_ 6 . su (__.tri "D__" "ook") -- 5*3
-    , sarvaD_ 4.25 . tri (su "u__kno") "NN_" . od
     , sarvaD_ 6.25 . k.u.su (p.k.nakatiku)
     , sarvaD_ 6 . su ("kook".nakatiku."nook")
     , sarvaD_ 6 . su ("kookN_pk".nakatiku)

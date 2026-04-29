@@ -37,7 +37,7 @@ module Solkattu.Dsl.Generic (
     , module Solkattu.Dsl.Metadata
     , module Solkattu.Dsl.Notation
     , module Solkattu.Dsl.Section
-    , Duration, Matra, Nadai
+    , Duration, FMatra, Matra, Nadai
     , durationOf, throw
     , Akshara
     -- * misc
@@ -62,7 +62,7 @@ import qualified Solkattu.Korvai as Korvai
 import           Solkattu.Korvai (Korvai, Part(..), Score, index, slice, tani)
 import qualified Solkattu.Realize as Realize
 import qualified Solkattu.S as S
-import           Solkattu.S (Duration, Matra, Nadai)
+import           Solkattu.S (Duration, FMatra, Matra, Nadai)
 import qualified Solkattu.Solkattu as Solkattu
 import           Solkattu.Solkattu (durationOf, throw)
 import           Solkattu.Tala (Akshara, adi, beats)

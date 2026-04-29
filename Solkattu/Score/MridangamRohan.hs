@@ -527,8 +527,8 @@ adi_6_eddupu = rohan $ date 2026 1 10 $ korvai adi $ map (eddupu 1.5 • s)
     , __D 4 . tri "D_" p6
     ]
 
-adi_chatusra :: Korvai
-adi_chatusra = rohan $ date 2026 1 10 $ korvaiV adi
+adi_korvais :: Korvai
+adi_korvais = rohan $ date 2026 1 10 $ korvaiV adi
     -- taka, takatiku, but played kptp instead of kpnp, and slow
     [ reduce3 2 ("N_k".p5) "k_t_kook" . "N_k" . tri2 "N_kpk" "N_kkptp" p5
     -- irregular reduction
@@ -562,18 +562,25 @@ adi_chatusra = rohan $ date 2026 1 10 $ korvaiV adi
         ]) . sd p6 . p6 . tri __ (su p6)
     , let ktpk = su (su "ktpk") in
         tri __ (ktpk.d) . tri __ (o.ktpk.d) . tri __ (o.d.ktpk.d)
-    -- sequence
-    , "N___" . "koD_D_D_n_" . su "ktpk"."okookoD_D_D_u___"
-    . __D 1  . "koD_D_D_n_" . su "ktpk"."okookoD_D_D_u___"
-    . "okoo" . "koD_D_D_n_" . su "ktpk"."okookoooooooD___"
-    . "_npk" . "koD_D_D_n_" . su "ktpk"."okookoD_D_D_u___"
-    , tri "o_" (g "N___kook_N_kkook_o_k")
     ]
     where
     ktkno = map g [k, t, k, n, o]
     oktp = su "oktp"
     taka = su "kp"
     takatiku = su "kptp"
+
+adi_trikalam :: Korvai
+adi_trikalam = rohan $ trikalam $ date 2026 1 10 $ korvaiV adi
+    [ line
+    . __D 1  . "koD_D_D_n_" . su "ktpk"."okookoD_D_D_u___"
+    . "okoo" . "koD_D_D_n_" . su "ktpk"."okookoooooooD___"
+    . "_npk" . "koD_D_D_n_" . su "ktpk"."okookoD_D_D_u___"
+    , ending
+    , nadai 6 (r3 line . line . ending)
+    ]
+    where
+    line = "N___" . "koD_D_D_n_" . su "ktpk"."okookoD_D_D_u___"
+    ending = tri "o_" (g "N___kook_N_kkook_o_k")
 
 adi_tirmanams :: Korvai
 adi_tirmanams = rohan $ tirmanam $ date 2026 1 10 $ korvaiV adi

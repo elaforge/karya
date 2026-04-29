@@ -154,6 +154,7 @@ tir_elaforge = tirmanam $ elaforge $ korvaiV adi
     , __D 2 . tri123 "D_o" (su "N_ktok") . od
     , __D 2 . tri123 "D_o" (su p6) . od
     , __D 3 . su (r3 "k_D___" . r3 "k_D__" . r3 "kD_")
+    , __D 3 . r3 "kD__" . p5 . r3 "k_D__" . p5 . r3 "k__D__"
     , __D 3 . tri (od.__7) (k.o)
     , __D 4 . tri "D_" "Dnpk"
     , __D 4 . __ . tri (su "u_pkno") "NN_" . u

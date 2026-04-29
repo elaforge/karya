@@ -255,6 +255,34 @@ c_17_10_23a = sarvalaghu $ date 2017 10 23 $ ganesh $ korvaiV adi
     where
     cell = n.d . su (p.k) . d
 
+c_17_10_23b :: Korvai
+c_17_10_23b = sarvalaghu $ date 2017 10 23 $ ganesh $ korvaiV adi
+    [ su $ repeat 2 $ p.n.p.k.d.__.p.k . repeat 3 (n.__.p.k.d.__.p.k) ]
+
+-- * rupaka
+
+rupaka1 :: Korvai
+rupaka1 = sarvalaghu $ korvaiV Tala.rupaka_fast
+    [ "A_okkoNN_oNk" . "D_D_noD_nook"
+    , "N_D_nkn_d___" . "__".p&d."_nkn_d___"
+    . "N_NND,N,NND." . "__nnd,n,nnd."
+    . su "npktpk" . "nd,n,nnd." . "__nnd,N,NND."
+    ]
+
+-- * kanda chapu
+
+kanda1 :: Korvai
+kanda1 = sarvalaghu $ korvaiV Tala.kanda_chapu
+    [ sd $ "D_pkkoD_n_" . "D_D_NND_n_"
+    ]
+
+kanda2 :: Korvai
+kanda2 = sarvalaghu $ korvaiV Tala.kanda_chapu
+    [ "n_d,n,nnd," & "/_o_/__o/" . "n,d,n,nND,"
+      . "n,Tkn".su "ktok". "ND," . "n,d,n,nND,"
+    , "D_N_kd_n_k" . "d_n_kd_n_k"
+    ]
+
 -- * misra chapu
 
 kir_misra_1 :: Korvai
@@ -268,10 +296,6 @@ kir_misra_2 = sarvalaghu $ date 2017 9 26 $ ganesh $ korvaiS1 Tala.misra_chapu $
     sd $ sd $ rh & thomLH rh . o1 rh
     where rh = n.d.n . su (n.n) . d.d.n
 
-c_17_10_23b :: Korvai
-c_17_10_23b = sarvalaghu $ date 2017 10 23 $ ganesh $ korvaiV adi
-    [ su $ repeat 2 $ p.n.p.k.d.__.p.k . repeat 3 (n.__.p.k.d.__.p.k) ]
-
 -- from Vijayadashami concert
 c_24_10_23 :: Korvai
 c_24_10_23 = sarvalaghu $ date 2024 10 23 $ korvaiV Tala.misra_chapu
@@ -281,6 +305,13 @@ c_24_10_23 = sarvalaghu $ date 2024 10 23 $ korvaiV Tala.misra_chapu
     , r2 "N_pkd_". r2 "D_N_pkd_"
     , r2 "N_pknookD_" . "N_pkD_pk"
     ]
+
+c_18_05_25 :: Korvai
+c_18_05_25 = sarvalaghu $ date 2018 5 25 $ ganesh $ korvaiS1 Tala.misra_chapu $
+    sd $ o .k.on.on.od.__.on.k.od.k.on.on.od.__
+       . on.k.on.on.od.__.on.k.od.k.on.on.od.__
+       . on.k. n. n. d.__. n.k. d.k. n. n. d.__
+       .  n.k. n. n. d.__. n.k.od.k.on.on.od.k
 
 -- * mine
 
@@ -333,15 +364,6 @@ s_kandam_tisram :: Korvai
 s_kandam_tisram = elaforge $ date 2023 3 10 $ sarvalaghu $ korvaiS1 adi $
     r3 "dlNN," . su "d_pkD_N_,_"  . su "d,^,d,n,^,"
     . su (g "k_p_n_ktpkptok")
-
--- * misra
-
-c_18_05_25 :: Korvai
-c_18_05_25 = sarvalaghu $ date 2018 5 25 $ ganesh $ korvaiS1 Tala.misra_chapu $
-    sd $ o .k.on.on.od.__.on.k.od.k.on.on.od.__
-       . on.k.on.on.od.__.on.k.od.k.on.on.od.__
-       . on.k. n. n. d.__. n.k. d.k. n. n. d.__
-       .  n.k. n. n. d.__. n.k.od.k.on.on.od.k
 
 -- * candiramani
 
