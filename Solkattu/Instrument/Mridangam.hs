@@ -439,17 +439,17 @@ postprocess = Technique.postprocess $ Technique.plain technique
 
 technique :: Technique.Technique Stroke
 technique prevs cur (next:_)
-    -- There are extended analogues of this, e.g.:
-    -- [on, k] to [k, on, k] -> on [k, on, ..]
-    -- But to apply it I'd have to extend from ktk to ntn, and also to apply
-    -- across intervening 'k's, so no need until I see more examples.
-    | prev 1 == ([k], t, k) = Just k
-    | prev 1 == ([k], p&t, k) = Just (p&k)
+    -- Usually k_t_... is reduced to k_...  The rests seem complicated though,
+    -- so let's do it globally for now.
+    -- Except k_t_k_kt_kno, I want t_k_kt_kno
+    | prev 1 == ([k], t) = Just k
+    | prev 1 == ([k], p&t) = Just (p&k)
     -- Sometimes this happens but sometimes not.  I guess if it matters, I'll
     -- want a way to opt in to specific techniques.
-    | prev 2 == ([k, o], o, k) = Just p
+    | prevNext 2 == ([k, o], o, k) = Just p
     where
-    prev n = (Lists.takeEnd n prevs, cur, next)
+    prevNext n = (Lists.takeEnd n prevs, cur, next)
+    prev n = (Lists.takeEnd n prevs, cur)
     Strokes {..} = strokes
     (&) = bothStrokes
 technique _ _ _ = Nothing

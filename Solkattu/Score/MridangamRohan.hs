@@ -588,7 +588,6 @@ adi_tirmanams = rohan $ tirmanam $ date 2026 1 10 $ korvaiV adi
     , su $ suffixes ("ktooktpk".nakatiku) ["pko_", "pkpko_", "pkpkpko"]
     , "N_" . r3 (p6 . nadai 6 p6) -- 30 matras can also go in kanda chapu
     , __D 7.75 . r3 (tri "d_" (su "kook") . su "tp")
-    -- TODO why doesn't the t turn into a k on 2nd reduction?
     , tri "o_" (su $ reduce3 2 ø "k_t_oknpupkto_" . "ktkt")
     , __D 6 . triAAB "N_" (g "tkoonooko_k_") (g "ko_k_N_ko_k_")
     , __D 1 . __ . trin "D__" (tri od k) (tri "D_" k) (tri "D__" k)
