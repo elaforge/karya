@@ -144,14 +144,12 @@ ndn_sarva = elaforge $ sarvalaghu $ korvaiV adi
 
 rohan_dholak :: Korvai
 rohan_dholak = rohan $ sarvalaghu $ comment "dholak style" $ korvaiV adi
-    [ su $ r2 (rh1 & "o_o_o_" . rh1 & "__p_o")
-        . r2 (r2 rh1 & ("o_p_o_".p'."___o_o"))
-    , r2 (r2 rh2 & "o_/_o__o") . r2 (r2 rh2 & "o/o/o__o")
-    , r4 "/__Nd_nd"
+    [ let rh = "n__kt_k_" in
+        su $ r2 (rh & "o_o_o_" . rh & "__p_o")
+        . r2 (r2 rh & ("o_p_o_".p'."___o_o"))
+    , let rh = "kdnk" in r2 (r2 rh & "o_/_o__o") . r2 (r2 rh & "o/o/o__o")
+    , r4 ("/____o/_" & "__nd_.nd") -- "/_ndpKNd"
     ]
-    where
-    rh1 = "n__kt_k_"
-    rh2 = "kdnk"
 
 sarva_variations :: Korvai
 sarva_variations = elaforge $ sarvalaghu $ korvaiV adi
@@ -347,6 +345,11 @@ c_misc_improv :: Korvai
 c_misc_improv = elaforge $ date 2026 4 25 $ sarvalaghu $ korvaiV adi
     [ "d_nd_k_d__k_d___" . "d_nd_ndn_nd_dn_n"
     , "d_nd_k_d_k_d_kk_" . "d_n_nd_n_nd_dn_n"
+    -- 323 variations
+    , r2 "D_nD_N_k" . "D_nd_npk d_nd_" . su "n_ktpk"
+        . "D_nD_NNk" . su "D_p,^,d_pkd_N_k_" . "D_nD".su "_N_N_N_k"
+            . "D_nD" . su "pkd_knpn"
+        . "D_nD_" . su "kd_kd_kd_kd_k_"
     ]
 
 s_kandam1 :: Korvai
@@ -407,6 +410,17 @@ s_rupaka = date 2026 2 5 $ sarvalaghu $ korvaiV Tala.rupaka_fast
     , "u___kktknook"
     , "nddnddndd" . su "np"."nd"
     , su (r3 "n_d_^,^,")
+    ]
+
+s_bhajan :: Korvai
+s_bhajan = date 2026 5 15 $ sarvalaghu $ korvaiV Tala.adi
+    [ r2 $ "n_d_nnd_" . "n_d_nnd_" & "__o_ooo"
+    , r2 $ "d_n_d_nn" . "d_n_d_nn" & "o_ooo"
+    , r2 $ "d_n_kd_k" . "d_nnkd_k"
+    , r4 "_oonoooU"
+    -- https://www.youtube.com/watch?v=ctpe5H1Snd0
+    , r2 (r4 "nd_k" & "oo_oo_o_ ____ __o")
+        . (r4 "ndkn" & "oo_oo_o") . r2 "ndkn" . n . su ("ktktpk".nakatiku)
     ]
 
 {-

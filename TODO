@@ -120,6 +120,16 @@ external:
     . using tscore, especially standalone
 
 UNSORTED
+  - bug: if I do scrollwheel on an unfocused block, it eventually thinks
+    it has focus, even though it doesn't
+  - bug:
+    . open save/complete/wayang/cerucuk-punyah.state
+    . delete most of score block, and then trim ruler with :
+    . ruler gets messed up
+    . in fact it's any clip block, I guess this has to do with old-style
+      and new-style Ruler?
+  - also there is old-style collapsed pitch tracks with black, can I
+    update all states to remove those?
   * have save files be relative to "data/save" dir.
   - keycaps=True will stop the initial block from getting focus.
     . Even though KeycapWindow tries to not accept focus!
@@ -244,6 +254,8 @@ UNSORTED
     - Instrument
     - Solkattu
   OverloadedRecordDot:
+    . You have to import the module in order to use the field, but fix-imports
+      will want to remove the "unused" module.
     . It's awkward to do in UiConfig because I already have lenses there.
     . It shortens access due since I can remove the module qualification.
       Then I could further shorten by removing the type prefix but we still
@@ -609,6 +621,22 @@ UNSORTED
       . I can save and load inst config, why not use that?
       . It would be more explicit to include them both in `ky` or something,
         and be able to comment / uncomment.
+  - multiple env assignments at once?
+    . e.g. a=b c=d | ...
+    . I'd need more special parser support, currently it's
+      a = b c ... -> = a b c ...
+      It must become
+      a = b c = d ... -> = a b c d
+    . But it'll look like a = b c ... ?
+    . Why is this worth it?
+  - Can I switch from confusing a =+ b to a += b?
+    . I think just change the parser?
+    . Well, then a+=b becomes = a+ b.  So the Equal.hs doc was correct, it's
+      because a symbol can have almost any character.
+    . So it would require spaces, 'x += y'... which is reasonable.  Arguably
+      better to do that and require spaces than use a nonstandard syntax.
+    - Then update all tests
+    - Update extant scores
   + inst allocation in ky: branch ky-record:
     decision:
       - reduce to just >name [ms] -- qualified/ 1 2 3
@@ -618,6 +646,15 @@ UNSORTED
       . In tscore it's the complete allocation, and you just can't express
         the fancy stuff.  So this is pulling in the direction of all in text.
       . Ok so what if I keep the format the same, but simplify the merging.
+      Why I hesitate to just implement full records:
+        . Seems like a lot of work to create parsing for all fields
+          answer: Just do it?
+        . No docs, seems harder than calling typed update functions.
+          answer: I guess I'd need some documentation.  I can generate
+          comments, but some special hackery needed for enums.
+      . Instrument transformers also overlap, in that I can put environ in the
+        instrument, or I could set an instrument transformer like
+          >i = x=y
     notes:
       Currently it's a bad state, it's semi parsed.
         ? What's the problem?
@@ -1876,15 +1913,58 @@ UNIFY:
 ----------------------------------------------------------------------
 
 ghc:
+  9.6.7 recompilation avoidance buggy:
+    Since upgrading from 9.4 to 9.6 ghci has become unreliable.  Since the
+    upgrade, when changing an indirectly-dependened-on module, reloading
+    the current module with :r, and running some function, I sometimes
+    get a "GHC.Linker.Loader.dynLoadObjs: Loading temp shared object failed",
+    or worse, it continues to reuse the old version of the module I changed.
+    The interesting thing is it does notice the change in the parent module,
+    but the change does not seem to register.  E.g. where TimeVector was
+    changed:
+      *Util.Segment_test D> :r
+      [34 of 37] Compiling Util.TimeVector  ( Util/TimeVector.hs, interpreted ) [Source file changed]
+      [37 of 37] Compiling Util.Segment_test ( Util/Segment_test.hs, interpreted )
+    It has correctly noticed that TimeVector.hs changed and should be
+    reloaded, but functions in Segment_test.hs continue to see the old
+    TimeVector.
+
+    One possibly relevant wrinkle is that I don't use cabal to build, but my
+    own implementation in shake.  However, I believe this shouldn't be able to
+    influence ghci in this way.  Despite the fact that eg Segment.o was
+    produced by shake running ghc -c, it's still up to ghci to decide whether
+    or not to load Segment.o or recompile as bytecode, and I can't think of a
+    way I could somehow wrongly produce .o to fool it.  However it could be
+    that ghci is indeed buggy but most people are now using ghc --make rather
+    than ghc -c, and --make avoids the problem somehow.
+
+    Another thing is that this problem only shows up with ghci, I don't see it
+    with normal builds, which use ghc -c.  If I do a normal build indeed
+    TimeVector is recompiled, and Segment.hs is skipped (ghc prints
+    "compilation IS NOT required").  So it seems it's correct to not recompile
+    Segment.hs, but the binary linking doesn't have the problem, while ghci's
+    version gets something wrong.  It's also related to in-memory state
+    because if I restart ghci, it will reload things properly.
+
+    Anyway, is this a known issue?  I'm aware 9.6 is also pretty old by now,
+    and I do remember it introduced more fancier recompilation avoidance that
+    wasn't relying on just mtime any more.  So maybe it was buggy in early
+    days?  Should I focus on trying to track down this issue or on upgrading
+    ghc?
+
   . https://discourse.haskell.org/t/the-haskell-debugger-for-ghc-9-14/13499
   - -fdefer-type-errors is broken in 8.4:
     https://ghc.haskell.org/trac/ghc/ticket/14963
     . Seems to be fixed now!  Try it again.
     . Or not? https://gitlab.haskell.org/ghc/ghc/-/issues/24413
-  https://www.well-typed.com/blog/2024/04/ghc-debug-improvements/
-  https://www.well-typed.com/blog/2024/01/ghc-eras-profiling/
-  https://www.well-typed.com/blog/2024/04/choreographing-specialization-pt1/
-  https://www.well-typed.com/blog/2024/06/choreographing-specialization-pt2/
+  profiling optimization docs:
+    https://www.well-typed.com/blog/2024/04/ghc-debug-improvements/
+    https://www.well-typed.com/blog/2024/01/ghc-eras-profiling/
+    https://www.well-typed.com/blog/2024/04/choreographing-specialization-pt1/
+    https://www.well-typed.com/blog/2024/06/choreographing-specialization-pt2/
+    https://github.com/jlfwong/speedscope/wiki/Importing-from-Haskell
+    haskell optimization handbook:
+      https://haskell.foundation/hs-opt-handbook.github.io/
   new features:
     9.4:
       . https://downloads.haskell.org/~ghc/9.4.1/docs/users_guide/9.4.1-notes.html
@@ -5047,6 +5127,9 @@ cleanup: bugs:
     . fmt: even more operators and imports
 
 performance:
+  links:
+    . https://github.com/jlfwong/speedscope/wiki/Importing-from-Haskell
+    . https://haskell.foundation/hs-opt-handbook.github.io/
   profiling:
     . experiment with -finfo-table-map and -fdistinct-constructor-tables
       Also ghc-debug.
@@ -5109,9 +5192,79 @@ performance:
       . Score.Events: 13_863, Midi events: 28_200
       . About 5.3 initial_nn calls per event, why?
       . Fewer eval calls though, which is weird.
-      . Make a score with just 1 note.
-      - prof/run_profile/024.23-05-21/verify.bug/
-
+      * Make a score with just 2 notes.
+        . Seems entries is not in the json .prof?
+        . It is, but they're not in SpeedScope
+        . tools/run_profile.py derive save/prof/wayang-1-note
+        . With 2 notes there are 4 entries.  This makes sense since randomize
+          adds kantilan.  So something else in the full score is adding a lot
+          of initial note evals.
+      . Below transposed_at:
+        event_controls_at
+        Score.event_controls_go1 Util.Segment.at Derive.Score.fromAscLisc
+                                 TimeVector.highest_index
+      counts:
+        initial_nn: 148_339 events: 13_863 = 10.7
+        avoid_overlap: 14_607 / 13_863 = 1.05
+        . Ok, so avoid_overlap is causing more initial_nns.
+        . Because it only avoids overlap if the next note has the same
+          initial_nn.
+      . What if I cache initial_nn?
+      . Obvious way is via a lazy field in Score.Event, but then it has to
+        be reset when Event is modified.  That's possible, but that means
+        can't use built-in syntax.
+      . Also this is somewhat ad-hoc, what about initial_note?
+      . Could I instead make initial_nn fast?
+      . It's slow because transposed_at, which gets the signal value
+        and reapplies transposition each time.  This is because the
+        transposition is left unapplied so signals can be transposed after
+        the fact.
+      . It's harder to cache than initial_ because it has arbitrary
+        RealTime, but I could cache it at start, which would get
+        initial_note too at least.
+      . Alternately I could cache the whole transposed signal.  This would
+        eval more than necessary for single points, but in the common case
+        of no further transposition, I'm going to need it anyway for
+        perform.
+      . Or would it be worth optimizing Signal.at for a single sample
+        signal?  Short linear search faster than bsearch?
+      cache transposed signal
+        . Anyone setting event_environ or event_controls also has to set
+          ~event_transposed_pitch = PSignal.apply_controls ...
+        . Then initial_nn -> nn_at -> transposed_at -> transposed_pitch_at
+        . But the benefit is that it gets all pitch-oriented things.
+          The inefficiency is if you ask for one nn, then transpose.
+        . Also I only need nn_signal in the extent of the note.
+        . However, is it inefficient?  Score.nn_signal used in Im.Convert,
+          Sc.Convert.  Midi.Convert trims the signal to transpose only the
+          in-range part.
+        . But, NoteUtil already trims the signal?
+        . Looks like it's mostly to avoid out of range transpositions.
+          This is because it's all strict, I get the warnings even if
+          I don't use them.
+        . NoteUtil only trims start.  I guess the long pitch is if it
+          goes after the note end.  In that case, since NN signal is not
+          lazy.
+        . Also have to trim both pitch and transposition signals.
+        . Also this is specific to midi because of the need to cut pitch
+          signal ASAP to merge channels.
+        . In the end, this seems like too many implications when the
+          problem is only for initial_nn.
+      cache trasnposed_at start
+        . Would get both initial_note and initial_nn.
+      cache initial_nn
+        . Make a lazy field in Event, and make sure modifiers reset it
+          appropriately.
+        . Should I not export the record to require using the modifiers?
+        . I could also make lenses.
+        . Haskell lacks syntax for partial named initialization.
+        . If I wind up with a bunch, I could have a separate "cached"
+          field?  Due to lacking mutation, you can't just set it to empty
+          and then set when required, it has to be set "eagerly".
+        . Of course I can fake it with unsafePerformIO.
+      . How could I have found this easier?
+        I guess it would be a profiling mechanism.  Can I do a higher level
+        easier to use one than ghc profiling?
     - with_stack_region
       . Derive.Deriver.Internal.with_stack_track         0  0.0  0.0  62.8  55.2
          Derive.Control.d_control_track              13676  0.6  1.2  62.7  55.1
