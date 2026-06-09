@@ -20,8 +20,12 @@ import           Global
 
 data Stroke =
     Plak -- both
-    | Pak | Pang | TutL | DeL -- left
-    | Ka | Tut | De | Dag -- right
+    -- left
+    | Pak | Pang | TutL | DeL
+    -- right
+    | Ka | Tut
+    | De -- ^ soft dag
+    | Dag -- ^ strong dag + tong on lanang
     deriving (Eq, Enum, Bounded, Ord, Show)
 
 -- * strokes
@@ -32,11 +36,11 @@ instance Solkattu.Notation Stroke where
         Pak -> "p"
         Pang -> "t"
         TutL -> "y"
-        DeL -> "a"
+        DeL -> "u"
         Ka -> "k"
         Tut -> "i"
-        De -> "."
-        Dag -> "o"
+        De -> "e"
+        Dag -> "o" -- what about D like mridangam D? or a for dag?
 
 instance Pretty Stroke where pretty = Solkattu.notationText
 
@@ -68,7 +72,7 @@ instance Expr.ToExpr (Realize.Stroke Stroke) where
 instance Solkattu.Abbreviations Stroke where abbreviations = const Nothing
 
 data Strokes a = Strokes {
-    pk :: a, p :: a, t :: a, u :: a, a :: a, k :: a, i :: a , o :: a
+    pk :: a, p :: a, t :: a, y :: a, u :: a, k :: a, i :: a , e :: a, o :: a
     } deriving (Show, Functor)
 
 strokes :: Strokes Stroke
@@ -76,11 +80,12 @@ strokes = Strokes
     { pk = Plak
     , p = Pak
     , t = Pang
-    , u = TutL
-    , a = DeL
+    , y = TutL
+    , u = DeL
     , k = Ka
     , i = Tut
-    , o = De
+    , e = De
+    , o = Dag
     }
 
 -- TODO much copy pasted with Mridangam.fromString, factor it out
@@ -96,9 +101,12 @@ fromString = mapMaybeM parse
             Just s -> Right $ Just $ Just s
 
 notations :: Map Char (Realize.Stroke Stroke)
-notations = Map.fromList $ Lists.mapMaybeFst isChar $
+notations = Map.fromList $ (extras++) $ Lists.mapMaybeFst isChar $
     Lists.keyOn Solkattu.notationText (map Realize.stroke [minBound ..])
     where
+    extras = map (fmap Realize.stroke)
+        [ ('.', De)
+        ]
     isChar t = case untxt t of
         [c] -> Just c
         _ -> Nothing
@@ -138,7 +146,8 @@ patterns :: [(S.Matra, SequenceR)]
 patterns = Realize.patternMap . map (first Solkattu.pattern)
 
 nakatiku :: S.Sequence g (Solkattu.Note (Realize.Stroke Stroke))
-nakatiku = t.i.u.k.p.o.i.k
+-- nakatiku = t.i.u.k.p.o.i.k -- tiykpoik
+nakatiku = p.k.t.e.i.p.k.p -- or pktoipkt
     where
     Strokes {..} = notes
     (.) = (<>)

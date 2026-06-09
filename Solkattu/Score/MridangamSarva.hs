@@ -349,7 +349,8 @@ c_misc_improv = elaforge $ date 2026 4 25 $ sarvalaghu $ korvaiV adi
     , r2 "D_nD_N_k" . "D_nd_npk d_nd_" . su "n_ktpk"
         . "D_nD_NNk" . su "D_p,^,d_pkd_N_k_" . "D_nD".su "_N_N_N_k"
             . "D_nD" . su "pkd_knpn"
-        . "D_nD_" . su "kd_kd_kd_kd_k_"
+        . "D_nD_" . su "kd_kd_kd_kd_k_" . su "pkd_N_k_"
+        . "D_nD_" . su "N_ktpk" . "D_" . r2 (su "N_ktpk")
     ]
 
 s_kandam1 :: Korvai

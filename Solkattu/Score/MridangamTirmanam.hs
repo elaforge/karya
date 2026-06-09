@@ -143,6 +143,7 @@ tir_misc = tirmanam $ date 2023 3 10 $ korvaiS adi
 
     , __D 2.5 . su (tri "D_pk" "npnD_kD_N_k_")
     , __D 2 . su (tri2 "D__pk" "D__kpnp" "npnD_kD_N_k_")
+    , __D 0.5 . su (trin "D__" (r3 p5) (r3 p6) (r3 p7))
     ]
 
 tir_elaforge :: Korvai

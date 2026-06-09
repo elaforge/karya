@@ -5,6 +5,7 @@
 module Solkattu.Score.KendangTunggal where
 import           Prelude hiding ((.), repeat)
 
+import qualified Solkattu.Score.Mohra as Mohra
 import qualified Solkattu.Tala as Tala
 
 import           Solkattu.Dsl.Kendang
@@ -64,3 +65,60 @@ exercise1 = exercise $ date 2026 1 25 $ korvaiV Tala.any_beats
     , "ipkppkpkip.o_kpi_kp.o_kpkpkpkppk"
     ]
     -- Should this be u for kum?
+
+korvais :: Korvai
+korvais = korvaiV adi
+    [ tri "o_pk" nakatiku
+    , reduce3 2 p5 "p_p_yooyo__" . trin "o__" p5 ("pk".p5) ("pktk".p5)
+    ,    tri "o_" (su $ reduce3 2 ø "p_p_ekpktoyeo_" . "kpkp")
+    ]
+
+karaikudi_korvai :: Korvai
+karaikudi_korvai = date 2026 4 28 $ source "Karaikudi Mani" $ korvaiS1 adi $
+    su $ reduce3x 4 2 theme . tri "__" (r3 "po_" . r3 p7)
+    where theme = "p_p_ekpktoyoe_"
+
+reduce3x :: Pretty sollu => FMatra -> FMatra -> SequenceT sollu
+    -> SequenceT sollu
+reduce3x to by seq = mconcatMap r3 (reduceToL to by seq)
+
+sarva :: Korvai
+sarva = sarvalaghu $ korvaiV adi
+    [ "i_t_t_upktt_t_i_" . "i_t_t_i_it_tt_to" -- nddn
+    , r4 "o_po_itp" -- d_nd_dn_
+    , r4 "o__tp_tp" -- o__nd_Nd
+    ]
+
+mohra_sequence :: Korvai
+mohra_sequence = korvaiV adi $ map su
+    -- tang gu, tarikitataka
+    [ let trkttk = "tkttkt" in
+        r2 (sd "o__" . trkttk) . sd "o_p_" . r2 (sd "i__" . trkttk) . nakatiku
+    -- thom takadit thom kitataka
+    , r2 "t_ekp_o_pkpk" . nakatiku . r2 ("o_pk".nakatiku) . nakatiku
+    -- takita takita
+    , r2 "tkppkppkppkt" . nakatiku . r2 "pkppkttkppkp" . nakatiku
+    -- faran
+    , r2 ("pkuopkpk" . nakatiku) . r3 "pkoupkpk" . nakatiku
+    , r5 "pkuo" . "pkpk" . nakatiku . r5 "pkuo" . "P_pk".nakatiku
+    , r3 (r2 ("o_pk".nakatiku) . nakatiku) . tri "o___" nakatiku
+    ]
+
+k_mohra :: Korvai
+k_mohra = mohra $ korvaiS1 adi $ Mohra.make su  Mohra.A1
+    ( "P___" . "y_pk".nakatiku
+    , "tkp_y_pk".nakatiku
+    , "P___" . "y_pk".nakatiku
+    )
+    ( "iy_po_i_o_i_o___"
+    , "iy_po___"
+    , tri "o___" "iy_po_i_"
+    )
+
+{-
+    - farans
+    - korvais
+    - sarvalaghu
+    - p5 pattern variations
+    - mohra korvai sequence
+-}

@@ -408,7 +408,7 @@ featuringFives = tani
     ]
 
 featuringFives_start :: Korvai
-featuringFives_start = korvaiS adi $
+featuringFives_start = korvaiS adi
     [ tri123 __ p5 . tri123 __ (su "ktktpkpto_") . tri123 __ (su "oktpupkto_")
     , nd_k mempty . nd_k "u_____"
     . nd_k mempty . nd_k "D_____"
