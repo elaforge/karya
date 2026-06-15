@@ -7,8 +7,10 @@
 module Solkattu.Instrument.KendangTunggal where
 import qualified Data.Map as Map
 import qualified Data.Text as Text
+import qualified Data.Text.IO as Text.IO
 
 import qualified Util.Lists as Lists
+import qualified Util.Texts as Texts
 import qualified Derive.Expr as Expr
 import qualified Derive.Symbols as Symbols
 import qualified Solkattu.Realize as Realize
@@ -18,6 +20,8 @@ import qualified Solkattu.Solkattu as Solkattu
 import           Global
 
 
+-- TODO some can be done together:
+-- Plak, Dag + Pang, Tut + Pang, Ka + Pang
 data Stroke =
     Plak -- both
     -- left
@@ -110,6 +114,22 @@ notations = Map.fromList $ (extras++) $ Lists.mapMaybeFst isChar $
     isChar t = case untxt t of
         [c] -> Just c
         _ -> Nothing
+
+_printLegend :: IO ()
+_printLegend = mapM_ Text.IO.putStrLn $
+    Texts.columns 2 $ concat [row0 : rows | (row0, rows) <- legend]
+
+legend :: [([Text], [[Text]])]
+legend =
+    [ ( "both" : "LH" : map describe lhs ++ "RH" : map describe rhs
+      , [notation Plak : "" : map notation lhs ++ "" : map notation rhs]
+      )
+    ]
+    where
+    notation = Solkattu.notationText
+    lhs = [Pak, Pang, TutL, DeL]
+    rhs = [Ka, Tut, De, Dag]
+    describe = showt
 
 notes :: Strokes (S.Sequence g (Solkattu.Note (Realize.Stroke Stroke)))
 notes = Realize.strokeToSequence <$> strokes

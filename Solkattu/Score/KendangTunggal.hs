@@ -76,7 +76,8 @@ korvais = korvaiV adi
 karaikudi_korvai :: Korvai
 karaikudi_korvai = date 2026 4 28 $ source "Karaikudi Mani" $ korvaiS1 adi $
     su $ reduce3x 4 2 theme . tri "__" (r3 "po_" . r3 p7)
-    where theme = "p_p_ekpktoyoe_"
+    where theme = "p_p_.kpktoy.o_"
+    -- where theme = "p_p_okpktoyod_"
 
 reduce3x :: Pretty sollu => FMatra -> FMatra -> SequenceT sollu
     -> SequenceT sollu
@@ -95,7 +96,7 @@ mohra_sequence = korvaiV adi $ map su
     [ let trkttk = "tkttkt" in
         r2 (sd "o__" . trkttk) . sd "o_p_" . r2 (sd "i__" . trkttk) . nakatiku
     -- thom takadit thom kitataka
-    , r2 "t_ekp_o_pkpk" . nakatiku . r2 ("o_pk".nakatiku) . nakatiku
+    , r2 "t_.kp_o_pkpk" . nakatiku . r2 ("o_pk".nakatiku) . nakatiku
     -- takita takita
     , r2 "tkppkppkppkt" . nakatiku . r2 "pkppkttkppkp" . nakatiku
     -- faran

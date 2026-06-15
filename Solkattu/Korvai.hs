@@ -386,6 +386,7 @@ instrumentLegend :: Instrument stroke -> Maybe [Table]
 instrumentLegend = \case
     IMridangam -> Just Mridangam.legend
     IKendangPasang -> Just KendangPasang.legend
+    IKendangTunggal -> Just KendangTunggal.legend
     _ -> Nothing
 
 -- * realize

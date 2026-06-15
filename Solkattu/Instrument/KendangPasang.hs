@@ -15,8 +15,10 @@ module Solkattu.Instrument.KendangPasang (
 ) where
 import qualified Data.Map as Map
 import qualified Data.Text as Text
+import qualified Data.Text.IO as Text.IO
 
 import qualified Util.Lists as Lists
+import qualified Util.Texts as Texts
 import qualified Derive.Expr as Expr
 import qualified Derive.Symbols as Symbols
 import qualified Solkattu.Instrument.KendangTunggal as T
@@ -152,6 +154,10 @@ instance Solkattu.Notation Stroke where
         -- Tek -> "]"
 
 instance Pretty Stroke where pretty = Solkattu.notationText
+
+_printLegend :: IO ()
+_printLegend = mapM_ Text.IO.putStrLn $
+    Texts.columns 2 $ concat [row0 : rows | (row0, rows) <- legend]
 
 legend :: [([Text], [[Text]])]
 legend = map make rows
