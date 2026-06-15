@@ -183,6 +183,10 @@ Mridangam.Strokes {..} = Mridangam.notes
 a & b = S.fromList $
     Notation.merge Mridangam.bothRStrokes (S.toList a) (S.toList b)
 
+flam :: HasCallStack => SequenceM -> SequenceM -> SequenceM
+flam a b = S.fromList $
+    Notation.merge Mridangam.flamRStrokes (S.toList a) (S.toList b)
+
 on :: SequenceM
 on = o&n
 

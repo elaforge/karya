@@ -19,7 +19,7 @@ import           Prelude hiding ((.))
 import           Solkattu.Dsl.Interactive (diff, diffw)
 import qualified Solkattu.Dsl.Solkattu as Dsl.Solkattu
 import           Solkattu.Dsl.Solkattu
-    (merge_, realizeScore, realizeScoreM, (&))
+    (flam, merge_, realizeScore, realizeScoreM, (&))
 import qualified Solkattu.Format.Terminal as Terminal
 import qualified Solkattu.Instrument.Mridangam as Mridangam
 import qualified Solkattu.Korvai as Korvai
@@ -58,8 +58,8 @@ Mridangam.Strokes {..} = Mridangam.notes
 -- * interactive utilities
 
 realize, realizep :: Korvai.Korvai -> IO ()
-realize = realizeM id
-realizep = realizeM concrete
+realize = realizeM wider
+realizep = realizeM (wider • concrete)
 
 realizeM :: (Terminal.Config -> Terminal.Config) -> Korvai.Korvai -> IO ()
 realizeM = Dsl.Solkattu._printInstrument Just Korvai.IMridangam
@@ -68,6 +68,12 @@ realizeM = Dsl.Solkattu._printInstrument Just Korvai.IMridangam
 
 on :: Sequence
 on = o&n
+
+ou :: Sequence
+ou = o&u
+
+pu :: Sequence
+pu = p&u -- also "A"
 
 p_, pp :: Sequence
 p_ = lt p

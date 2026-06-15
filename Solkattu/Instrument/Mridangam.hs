@@ -15,7 +15,7 @@ module Solkattu.Instrument.Mridangam (
     , Strokes(..)
     , strokes
     , notes
-    , bothRStrokes
+    , bothRStrokes, flamRStrokes
     , addThoppi
     -- * fromString
     , fromString
@@ -374,6 +374,17 @@ bothStrokes :: HasCallStack => Stroke -> Stroke -> Stroke
 bothStrokes (Thoppi a) (Valantalai b) = Both a b
 bothStrokes (Valantalai b) (Thoppi a) = Both a b
 bothStrokes a b =
+    Solkattu.throw $ "requires thoppi & valantalai: " <> showt (a, b)
+
+flamRStrokes :: HasCallStack => Realize.Stroke Stroke
+    -> Realize.Stroke Stroke -> Realize.Stroke Stroke
+flamRStrokes (Realize.Stroke em1 s1) (Realize.Stroke em2 s2) =
+    Realize.Stroke (em1 <> em2) (flamStrokes s1 s2)
+
+flamStrokes :: HasCallStack => Stroke -> Stroke -> Stroke
+flamStrokes (Thoppi a) (Valantalai b) = Flam a b
+flamStrokes (Valantalai b) (Thoppi a) = Flam a b
+flamStrokes a b =
     Solkattu.throw $ "requires thoppi & valantalai: " <> showt (a, b)
 
 addThoppi :: Thoppi -> Stroke -> Stroke

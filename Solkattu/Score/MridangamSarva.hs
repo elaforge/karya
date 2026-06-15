@@ -422,6 +422,21 @@ s_bhajan = date 2026 5 15 $ sarvalaghu $ korvaiV Tala.adi
     -- https://www.youtube.com/watch?v=ctpe5H1Snd0
     , r2 (r4 "nd_k" & "oo_oo_o_ ____ __o")
         . (r4 "ndkn" & "oo_oo_o") . r2 "ndkn" . n . su ("ktktpk".nakatiku)
+    -- https://www.youtube.com/watch?v=pIsrqyMtBg4
+    , rh_nd & "oo_o" . "__nd_oNd" . rh_nd & "oo_o__o" . rh_nd & "_oo__oo"
+    , rh_nd & "o__o" . "__nd_oNd" . rh_nd & "o_oo" . su ("pktpktpk".nakatiku)
+    , r2 $ rh_nd2 & "oo_o" . rh_nd2 & "_____oo"
+    , r4 "oktU_oou"
+    , r4 "_kdd_kdd"
+    , r4 $ r2 "ndnd" & "o_o__oo"
+    ]
+    where
+    rh_nd  = "__nd__nd"
+    rh_nd2 = "d_nd_kn_"
+
+bhajan_endings :: Korvai
+bhajan_endings = korvaiV Tala.adi
+    [ __D 4 . r2 (g (r4 "Npk") . "pknnok") . "N__N__N__N__u"
     ]
 
 {-
