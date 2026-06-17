@@ -307,19 +307,19 @@ _mridangamStrokes =
 
 _kendangStrokes1 :: [(Sequence, SequenceR KendangTunggal.Stroke)]
 _kendangStrokes1 =
-    [ (thom, o)
+    [ (thom, d)
     , (tang, y)
     , (lang, y)
     , (cham, y)
     , (talang, o.y)
-    , (takadinna, p.e.i.p)
-    , (tdgnt, o.p.k.t.e)
+    , (takadinna, p.o.i.p)
+    , (tdgnt, i.p.k.t.o)
     , (kp, p.k)
     , (kpnp, p.k.t.k)
-    , (oknp, e.k.t.e)
-    , (ktktoknp, k.p.k.p.e.k.t.e)
+    , (oknp, o.k.t.o)
+    , (ktktoknp, k.p.k.p.o.k.t.o)
     , (nakatiku, KendangTunggal.nakatiku)
-    , (takadugutarikita, k.p.e.e.p.k.t.k)
+    , (takadugutarikita, k.p.o.o.p.k.t.k)
     ]
     where KendangTunggal.Strokes {..} = KendangTunggal.notes
 

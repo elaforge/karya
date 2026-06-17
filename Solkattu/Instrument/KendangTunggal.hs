@@ -43,8 +43,8 @@ instance Solkattu.Notation Stroke where
         DeL -> "u"
         Ka -> "k"
         Tut -> "i"
-        De -> "e"
-        Dag -> "o" -- what about D like mridangam D? or a for dag?
+        De -> "o"
+        Dag -> "d"
 
 instance Pretty Stroke where pretty = Solkattu.notationText
 
@@ -76,7 +76,9 @@ instance Expr.ToExpr (Realize.Stroke Stroke) where
 instance Solkattu.Abbreviations Stroke where abbreviations = const Nothing
 
 data Strokes a = Strokes {
-    pk :: a, p :: a, t :: a, y :: a, u :: a, k :: a, i :: a , e :: a, o :: a
+    pk :: a
+    , p :: a, t :: a, y :: a, u :: a
+    , k :: a, i :: a , o :: a, d :: a
     } deriving (Show, Functor)
 
 strokes :: Strokes Stroke
@@ -88,8 +90,8 @@ strokes = Strokes
     , u = DeL
     , k = Ka
     , i = Tut
-    , e = De
-    , o = Dag
+    , o = De
+    , d = Dag
     }
 
 -- TODO much copy pasted with Mridangam.fromString, factor it out
@@ -167,7 +169,7 @@ patterns = Realize.patternMap . map (first Solkattu.pattern)
 
 nakatiku :: S.Sequence g (Solkattu.Note (Realize.Stroke Stroke))
 -- nakatiku = t.i.u.k.p.o.i.k -- tiykpoik
-nakatiku = p.k.t.e.i.p.k.p -- or pktoipkt
+nakatiku = p.k.t.o.i.p.k.p -- or pktoipkt
     where
     Strokes {..} = notes
     (.) = (<>)
