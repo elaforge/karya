@@ -6819,7 +6819,19 @@ solkattu:
       but isn't all of it?
   * replace tri with r3, and rename tri_ to tri.
   - looks like putting in a group suppresses x q abbreviation
-  KendangPasang:
+  kendang:
+    * o d for de dag
+      . I don't like eo as de, dag.  Previously was .o but . is hard to read
+        and invalid id.  d would be dag and also like din.  So: o d
+    - sync tunggal and pasang strokes
+      . pasang:
+        P, k p, t l, u y, Y (pong)
+        . o i
+    - both strokes for tunggal, nonstandard but work?
+      P plak
+      D dag + pang
+      O tut + pang
+      K ka + pang
     * Isn't rendering to text or html.
     * Realize to mridangam?
     - Tweak display to put beats at the end?
@@ -7222,6 +7234,8 @@ solkattu:
       - Can I align by structure?
         . E.g. reductions or tri would line up vertically.
     terminal:
+      * two letter stroke like flam trimmed if it's the end sam stroke:
+        kumar_3
       * unwrap when 2 or 4 avartanams can fit
         Terminal.format
         . Conflicts with expanding it if I have room:

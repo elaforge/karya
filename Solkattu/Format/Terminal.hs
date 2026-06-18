@@ -18,6 +18,7 @@ module Solkattu.Format.Terminal (
 import qualified Data.Either as Either
 import qualified Data.List as List
 import qualified Data.Map as Map
+import qualified Data.Maybe as Maybe
 import qualified Data.Text as Text
 import qualified Data.Text.IO as Text.IO
 
@@ -425,18 +426,27 @@ spellRests strokeWidth
 isRest :: Symbol -> Bool
 isRest = (=="_") . Text.strip . _text
 
--- | Long names will overlap following _isSustain ones.
+-- | Restrict each Symbol to strokeWidth, so they don't mess up alignment.
+-- Trimmed off tail is propagated to the next Symbol, which it can replace if
+-- it's _isSustain.
 overlapSymbols :: Int -> [(a, Symbol)] -> [(a, Symbol)]
-overlapSymbols strokeWidth = snd . mapAccumLSnd combine ("", Nothing)
+overlapSymbols strokeWidth =
+    snd . mapAccumLSnd combine ("", Nothing) . markFinalSnd
     where
-    combine (overlap, overlapSym) sym
+    combine (overlap, overlapSym) (sym, isFinal)
         | _isSustain sym = if Text.null overlap
             then (("", Nothing), sym)
-            else let (pre, post) = Texts.splitAt strokeWidth overlap
+            else let (pre, post) = split overlap
                 in ((post, overlapSym), replace pre overlapSym sym)
         | otherwise =
-            let (pre, post) = Texts.splitAt strokeWidth (_text sym)
+            let (pre, post) = split (_text sym)
             in ((post, Just sym), sym { _text = pre })
+        where
+        -- Special-case final stroke to not trim.  This is a corner case
+        -- where the final stroke is wide.
+        split t
+            | isFinal = (t, "")
+            | otherwise = Texts.splitAt strokeWidth t
     replace prefix mbOverlapSym sym = case mbOverlapSym of
         Nothing -> sym { _text = newText }
         Just overlapSym -> sym
@@ -575,10 +585,17 @@ symWidth = Texts.length . _text
 
 -- * util
 
--- | I think lenses are the way to lift mapAccumL into second.
+-- | mapAccumL except apply only to the snd element.
+-- I think lenses are the way to lift mapAccumL into second.
 mapAccumLSnd :: (state -> a -> (state, b)) -> state -> [(x, a)]
     -> (state, [(x, b)])
 mapAccumLSnd f state = List.mapAccumL f2 state
     where
     f2 state (x, a) = (state2, (x, b))
         where (state2, b) = f state a
+
+markFinalSnd :: [(x, a)] -> [(x, (a, Bool))]
+markFinalSnd = \case
+    [] -> []
+    [(x, a)] -> [(x, (a, True))]
+    (x, a) : xs -> (x, (a, False)) : markFinalSnd xs
