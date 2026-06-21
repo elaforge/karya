@@ -50,64 +50,64 @@ import           Solkattu.Dsl.KendangPasang
 bapang_saba_angsels :: Korvai
 bapang_saba_angsels = korvaiV adi
     -- ~~.o
-    [ sarvaD_ 2 . "ypo_ypo_"    -- ~~.a
-        . yoyo.__6              -- ~~'o
+    [ sarvaD_ 2 . "ypd_ypd_"    -- ~~.a
+        . ydyd.__6              -- ~~'o
     , i_ii                      -- __
         . sarvaD_ 2 . su "kpkYY_Y_Ykp_" . __n 3     -- ~~x
-    , sarvaD_ 2 . su "p_kpo_p_._o_" . __.__         -- ~~'oo.o
-        . su "pkp.o_kpo_ko_o_kp_kpo_p_._o_" . "__"  -- ~~'oo.o
-    , sarvaD_ 1 . r3 "_yo_"     -- ~5.o 5.o 5.o
-        . yoyo . "__yo_"        -- ~~'o 5.o
+    , sarvaD_ 2 . su "p_kpd_p_o_d_" . __.__         -- ~~'oo.o
+        . su "pkpod_kpd_kd_d_kp_kpd_p_o_d_" . "__"  -- ~~'oo.o
+    , sarvaD_ 1 . r3 "_yd_"     -- ~5.o 5.o 5.o
+        . ydyd . "__yd_"        -- ~~'o 5.o
     ]
     where
     i_ii = __D 1 . "_i_iio".su "io_o"."iio_"
-    yoyo = "_yoyo" . su "yo_o_kpkp.".o
+    ydyd = "_ydyd" . su "yd_d_kpkpo".d
 
 bapang_saba_middle :: Korvai
 bapang_saba_middle = korvaiV adi
-    [ __D 4 . "_tl.itl.i.ii.i.i" -- transition
+    [ __D 4 . "_tloitloioiioioi" -- transition
     , t1a       . t2' . t3 . t4 `replaceEnd` angsel
     , r2 t1b    . t2  . t3 . t4 `replaceEnd` angsel -- beginning, angsel
     , r2 t1b    . t2  . t3 . t4 -- beginning
     , t1c       . t2  . t3 . t4 -- when slow, melody up
-    , o_i_o.t1b . t2  . t3 . t4 -- when fast
+    , d_i_d.t1b . t2  . t3 . t4 -- when fast
     ]
     where
-    t1a = "_Y.o_YYYYkp.i.i." . o_i_o
-    t1b = "itl.i.i.o_ptltl."
-    t2 =  "itlkptl.i.i.o_o_kpYYYkpo_i_.i.i."
-    t2' = "i_tli_i.i.i.o_o_kpYYYkpo_ii.i.i."
-    t3 = o_i_o . "i_.o_i_i.o_YYkp."
-    t4 = "itlkptltlY.o_" . su "kpkY" . "YYo_i.o_o_ii.i.i."
-    angsel = g "Y..iokptl..io___"
-    t1c = o_i_o . "itloioi." . su ".kpY" . "YYYkp."
-    o_i_o = "o_i.o___i.i.o___"
+    t1a = "_Yod_YYYYkpoioio" . d_i_d
+    t1b = "itloioiod_ptltlo"
+    t2 =  "itlkptloioiod_d_kpYYYkpd_i_oioio"
+    t2' = "i_tli_ioioiod_d_kpYYYkpd_iioioio"
+    t3 = d_i_d . "i_od_i_iod_YYkpo"
+    t4 = "itlkptltlYod_" . su "kpkY" . "YYd_iod_d_iioioio"
+    angsel = g "Yooidkptlooid___"
+    t1c = d_i_d . "itldidio" . su "okpY" . "YYYkpo"
+    d_i_d = "d_iod___ioiod___"
 
 bapang_saba_accel :: Korvai
 bapang_saba_accel = korvaiV adi
-    [ r3 "okptl_t_l_o_ioi." . "okpYY_Y_Y_o_p_.i"
-    , sd $ r6 "otli" . o.__4 . "pYo_"
+    [ r3 "dkptl_t_l_d_idio" . "dkpYY_Y_Y_d_p_oi"
+    , sd $ r6 "dtli" . d.__4 . "pYd_"
     ]
 
 -- * legong
 
 legong1 :: Korvai
 legong1 = korvaiV adi
-    [ __D 2 . "__o___i_._o__i_i.o_iitloi"
-    . "tlkptltli.o_Y_YYo_i.o_.okpoioi.o"
+    [ __D 2 . "__d___i_o_d__i_iod_iitloi"
+    . "tlkptltliod_Y_YYd_iod_odkpoioiod"
 
-    , "o___i_i_o __tltloitloioi.o__tltloi"
-    . "pktltloitloioii .o_o_i_i_.oYYkpoi"
+    , "d___i_i_d __tltloitloioiod__tltloi"
+    . "pktltloitloioii od_d_i_i_odYYkpoi"
     . "kptl_t_l_l_t_l_" . "_kptlkpt" . su "pkpY" . "YYYoioi"
-    . ".o__tloitloioii.o_o_i_i_.oYYkpoi"
+    . "od__tloitloioiiod_d_i_i_odYYkpdi"
     . "kptl_t_l_l_t_l_" . "_kptlkptltlkptlkp"
-    . "_YYYp.o_iioioi.o" . "__kptltloi.o___i"
-    . "iio_iioiiio_iioi" . "tloioi.o_i.o___i"
-    . "kpoioi.oY.o_Y_YY" . "o_i.o___iioioi.o"
+    . "_YYYpod_iididiod" . "__kptltldiod___i"
+    . "iid_iidiiid_iidi" . "tldidiod_iod___i"
+    . "kpdidiodYod_Y_YY" . "d_iod___iididiod"
 
-    , "_kpY_o___Y_o_Y_oYY_io_i.i.o__kp.i"
-    .  "i.i_.i.i.o_kpkpii.i_.i.i.Y_Y_Y.i"
-    .  "kptltl.i__.i.ii.o_o_i_i_.oYYkp.i"
+    , "_kpY_d___Y_d_Y_dYY_id_ioiod__kpoi"
+    .  "ioi_oioiod_kpkpiioi_oioioY_Y_Yoi"
+    .  "kptltloi__oioiiod_d_i_i_odYYkpoi"
     ]
 
 {-

@@ -37,7 +37,7 @@ data Stroke =
     | Kum | Pung | PungL
     | De -- ^ soft de
     | Dag -- ^ strong de + tong
-    | Tut
+    | Tut -- ^ de on lanang
     -- | Dag | Dug
     -- | Tak | Tek
     deriving (Show, Eq, Ord, Enum, Bounded)
@@ -52,8 +52,8 @@ toTunggal = \case
     Kum  -> (Just T.Tut, Nothing)
     Pung -> (Nothing, Just T.Tut)
     PungL -> (Nothing, Just T.TutL)
-    Dag   -> (Just T.De, Just T.Pang)
     De -> (Just T.De, Nothing)
+    Dag   -> (Just T.De, Just T.Pang)
     Tut  -> (Nothing, Just T.De)
 
 toWadon :: Realize.Stroke Stroke -> Realize.Stroke T.Stroke
@@ -134,7 +134,8 @@ instance Solkattu.Notation Stroke where
         -- Kum -> "u"
         -- Pung -> "U"
         -- PungL -> "Y"
-        -- Dag -> "o"
+        -- De -> "o"
+        -- Dag -> "d"
         -- Tut -> "i"
         Plak -> "P"
         Ka -> "k"
@@ -145,8 +146,8 @@ instance Solkattu.Notation Stroke where
         Pung -> "y"
         -- I like Ø from ToExpr, but it's hard to type, and tut is no longer o
         PungL -> "Y"
-        Dag -> "o"
-        De -> "."
+        De -> "o"
+        Dag -> "d"
         Tut -> "i" -- o is too similar looking to a
         -- Dag -> "<"
         -- Dug -> ">"
@@ -202,7 +203,7 @@ data Strokes a = Strokes {
     , t :: a, l :: a -- kam pang
     , u :: a, y :: a -- kum pung
     , yy :: a -- PungL
-    , o :: a, i :: a -- de tut
+    , o :: a, d :: a, i :: a -- de dag tut
     } deriving (Show, Functor)
 
 strokes :: Strokes Stroke
@@ -215,7 +216,8 @@ strokes = Strokes
     , u = Kum
     , y = Pung
     , yy = PungL
-    , o = Dag
+    , o = De
+    , d = Dag
     , i = Tut
     }
 
