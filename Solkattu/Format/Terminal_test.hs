@@ -325,7 +325,8 @@ test_abstract = do
     -- Named group with a longer name.
     equal (f (G.named "tata" (tas 4))) (Right ["tata----"])
     equal (f (G.named "takatiku" (tas 4))) (Right ["takatiku"])
-    equal (f (G.named "takatikutari" (tas 4))) (Right ["takatiku"])
+    -- No truncation for final stroke.
+    equal (f (G.named "takatikutari" (tas 4))) (Right ["takatikutari"])
     equal (f (G.named "takatiku" (tas 2) <> tas 2)) (Right ["takak k"])
 
     equal (f (G.reduce3 1 mempty (tas 4))) (Right ["4-------3-----2---"])

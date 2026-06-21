@@ -18,7 +18,6 @@ module Solkattu.Format.Terminal (
 import qualified Data.Either as Either
 import qualified Data.List as List
 import qualified Data.Map as Map
-import qualified Data.Maybe as Maybe
 import qualified Data.Text as Text
 import qualified Data.Text.IO as Text.IO
 
