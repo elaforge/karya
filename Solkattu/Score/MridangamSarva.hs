@@ -422,6 +422,7 @@ s_bhajan = date 2026 5 15 $ sarvalaghu $ korvaiV Tala.adi
     -- https://www.youtube.com/watch?v=ctpe5H1Snd0
     , r2 (r4 "nd_k" & "oo_oo_o_ ____ __o")
         . (r4 "ndkn" & "oo_oo_o") . r2 "ndkn" . n . su ("ktktpk".nakatiku)
+    -- California Radhakalyanam 2022 | Sampradhaya Bhajans - 2 |Ashtapadhi 7 -12
     -- https://www.youtube.com/watch?v=pIsrqyMtBg4
     , rh_nd & "oo_o" . "__nd_oNd" . rh_nd & "oo_o__o" . rh_nd & "_oo__oo"
     , rh_nd & "o__o" . "__nd_oNd" . rh_nd & "o_oo" . su ("pktpktpk".nakatiku)
@@ -429,10 +430,23 @@ s_bhajan = date 2026 5 15 $ sarvalaghu $ korvaiV Tala.adi
     , r4 "oktU_oou"
     , r4 "_kdd_kdd"
     , r4 $ r2 "ndnd" & "o_o__oo"
+    , r2 $ r2 $ "n,ndn,nd" & "o_o__oo"
+    , r4 $ "KDNkkdnK"
+    , r4 $ "NkD" . su "p,n,d_pkD_"
     ]
     where
     rh_nd  = "__nd__nd"
     rh_nd2 = "d_nd_kn_"
+
+s_bhajan_kanda :: Korvai
+s_bhajan_kanda = sarvalaghu $ korvaiV Tala.kanda_chapu
+    [ sd $ sd $ "d_n_k" . "D_N_k" . "d,n,n" . "D,N" . su "ktok"
+        . r2 "D,N,D" . "d,n,n" . su ("k_t_".p6)
+        . "Donok" . "NN".su p6
+        . "D_" . ktok . __ . k . ktok.__.ktok.__.k
+    ]
+    where
+    ktok = su (su "ktok")
 
 bhajan_endings :: Korvai
 bhajan_endings = korvaiV Tala.adi

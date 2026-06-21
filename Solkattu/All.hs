@@ -68,6 +68,8 @@ scores = map Korvai.inferMetadataS
     , setLocation ("Solkattu.Score.KendangTunggal",86,"sarva") $ Single Solkattu.Score.KendangTunggal.sarva
     , setLocation ("Solkattu.Score.KendangTunggal",93,"mohra_sequence") $ Single Solkattu.Score.KendangTunggal.mohra_sequence
     , setLocation ("Solkattu.Score.KendangTunggal",108,"k_mohra") $ Single Solkattu.Score.KendangTunggal.k_mohra
+    , setLocation ("Solkattu.Score.KendangTunggal",124,"kumar1") $ Single Solkattu.Score.KendangTunggal.kumar1
+    , setLocation ("Solkattu.Score.KendangTunggal",160,"kumar2") $ Single Solkattu.Score.KendangTunggal.kumar2
     , setLocation ("Solkattu.Score.Mridangam2013",18,"e_ktkt") $ Single Solkattu.Score.Mridangam2013.e_ktkt
     , setLocation ("Solkattu.Score.Mridangam2013",30,"e_3s_5s") $ Single Solkattu.Score.Mridangam2013.e_3s_5s
     , setLocation ("Solkattu.Score.Mridangam2013",41,"dinnagina_sequences") $ Single Solkattu.Score.Mridangam2013.dinnagina_sequences
@@ -311,7 +313,8 @@ scores = map Korvai.inferMetadataS
     , setLocation ("Solkattu.Score.MridangamSarva",400,"thani_24_03_26") $ Single Solkattu.Score.MridangamSarva.thani_24_03_26
     , setLocation ("Solkattu.Score.MridangamSarva",408,"s_rupaka") $ Single Solkattu.Score.MridangamSarva.s_rupaka
     , setLocation ("Solkattu.Score.MridangamSarva",416,"s_bhajan") $ Single Solkattu.Score.MridangamSarva.s_bhajan
-    , setLocation ("Solkattu.Score.MridangamSarva",437,"bhajan_endings") $ Single Solkattu.Score.MridangamSarva.bhajan_endings
+    , setLocation ("Solkattu.Score.MridangamSarva",441,"s_bhajan_kanda") $ Single Solkattu.Score.MridangamSarva.s_bhajan_kanda
+    , setLocation ("Solkattu.Score.MridangamSarva",451,"bhajan_endings") $ Single Solkattu.Score.MridangamSarva.bhajan_endings
     , setLocation ("Solkattu.Score.MridangamSollu",15,"misc_sollus") $ Single Solkattu.Score.MridangamSollu.misc_sollus
     , setLocation ("Solkattu.Score.MridangamSollu",20,"dinna_kitataka") $ Single Solkattu.Score.MridangamSollu.dinna_kitataka
     , setLocation ("Solkattu.Score.MridangamSollu",34,"sollus") $ Single Solkattu.Score.MridangamSollu.sollus

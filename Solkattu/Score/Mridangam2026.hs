@@ -53,7 +53,7 @@ bhajan_endings = date 2026 6 12 $ korvaiV adi
     ]
 
 
--- layamrutha varshini
+-- * layamrutha varshini
 
 kumar :: Korvai -> Korvai
 kumar = source "Patri Satish Kumar"
@@ -75,21 +75,21 @@ kumar1 = date 2026 6 12 $ kumar $ korvai adi
     , x2 $ s $ ndnd . ndnd . "A_A__" . join "U__" [t6, p5, "koNk", su p6]
     -- 2:52
     , s $ ndnd . ndnd . join __
-        ["kpkD_".p5, t9, t8, t7, t6, p5, "koNk", "NNk", "Nk", "N"]
+        [pattern $ "kpkD_".p5, t9, t8, t7, t6, p5, "koNk", "NNk", "Nk", "N"]
     , s $ "U_od" `replaceStart` ndnd . ndnd . ndnd
         . join (r3 "kD__")
             (map r3 [t9, t8, t7, t6, p5, "koNk", "NNk", "Nk", "N"])
         . r3 "kD__"
     ]
     where
-    tang_kitataka = su $ "D_pk".nakatiku
+    tang_kitataka = su $ "D_pk".takatari
     end = g "D_kD_k_D_k__"
     ndnd = sd "NDNd". "nn" . sd "DND"
-    t9 = kpnp.p5
-    t8 = "kD_".p5
+    t9 = pattern $ kpnp.p5
+    t8 = pattern $ "kD_".p5
     -- alternate: A_i_kno
-    t7 = "P_i_kno"
-    t6 = "Pi_kno"
+    t7 = pattern $ "P_i_kno"
+    t6 = pattern $ "Pi_kno"
 
 kumar2 :: Korvai
 kumar2 = date 2026 6 12 $ kumar $ korvai adi
