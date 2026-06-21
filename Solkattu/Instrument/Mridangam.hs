@@ -216,10 +216,9 @@ instance Pretty Thoppi where pretty = Solkattu.notationText
 instance Pretty Valantalai where pretty = Solkattu.notationText
 
 _printLegend :: IO ()
-_printLegend = mapM_ Text.IO.putStrLn $
-    Texts.columns 2 $ concat [row0 : rows | (row0, rows) <- legend]
+_printLegend = Solkattu.printTables legend
 
-legend :: [([Text], [[Text]])]
+legend :: [Solkattu.Table]
 legend =
     [ ("" : map describeT lhs, ["" : map Solkattu.notationText lhs])
     , ( "" : map describeV rhs

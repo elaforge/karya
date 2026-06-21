@@ -379,10 +379,7 @@ instToScore = \case
     ISargam -> Sargam.toScore
     _ -> ToScore.toScore
 
--- | Table expressed as (headers, rows).
-type Table = ([Text], [[Text]])
-
-instrumentLegend :: Instrument stroke -> Maybe [Table]
+instrumentLegend :: Instrument stroke -> Maybe [Solkattu.Table]
 instrumentLegend = \case
     IMridangam -> Just Mridangam.legend
     IKendangPasang -> Just KendangPasang.legend

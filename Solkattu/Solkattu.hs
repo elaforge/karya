@@ -100,6 +100,9 @@ module Solkattu.Solkattu (
     , Exception(..)
     , throw
     , check
+    -- * text
+    , Table
+    , printTables
     -- * util
     , applyModifications
     , permuteFst
@@ -108,12 +111,15 @@ import qualified Control.Exception as Exception
 import qualified Control.Monad.State.Strict as State
 import qualified Data.List as List
 import qualified Data.Text as Text
+import qualified Data.Text.IO as Text.IO
+
 import           GHC.Stack (HasCallStack)
 
 import qualified Util.CallStack as CallStack
 import qualified Util.Lists as Lists
 import qualified Util.Num as Num
 import qualified Util.Styled as Styled
+import qualified Util.Texts as Texts
 
 import qualified Derive.Expr as Expr
 import qualified Solkattu.S as S
@@ -559,6 +565,15 @@ throw = CallStack.throw Exception
 
 check :: HasCallStack => Either Error a -> a
 check = either throw id
+
+-- * text
+
+-- | Table expressed as (headers, rows).
+type Table = ([Text], [[Text]])
+
+printTables :: [Table] -> IO ()
+printTables tables = mapM_ Text.IO.putStrLn $
+    Texts.columns 2 $ concat [row0 : rows | (row0, rows) <- tables]
 
 -- * util
 

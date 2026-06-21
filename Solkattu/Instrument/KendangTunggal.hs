@@ -7,10 +7,8 @@
 module Solkattu.Instrument.KendangTunggal where
 import qualified Data.Map as Map
 import qualified Data.Text as Text
-import qualified Data.Text.IO as Text.IO
 
 import qualified Util.Lists as Lists
-import qualified Util.Texts as Texts
 import qualified Derive.Expr as Expr
 import qualified Derive.Symbols as Symbols
 import qualified Solkattu.Realize as Realize
@@ -118,10 +116,9 @@ notations = Map.fromList $ (extras++) $ Lists.mapMaybeFst isChar $
         _ -> Nothing
 
 _printLegend :: IO ()
-_printLegend = mapM_ Text.IO.putStrLn $
-    Texts.columns 2 $ concat [row0 : rows | (row0, rows) <- legend]
+_printLegend = Solkattu.printTables legend
 
-legend :: [([Text], [[Text]])]
+legend :: [Solkattu.Table]
 legend =
     [ ( "both" : "LH" : map describe lhs ++ "RH" : map describe rhs
       , [notation Plak : "" : map notation lhs ++ "" : map notation rhs]
