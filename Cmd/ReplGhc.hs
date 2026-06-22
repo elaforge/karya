@@ -27,11 +27,20 @@ import qualified GHC
 import qualified GHC.Exts
 import qualified GHC.Paths
 
+import qualified GHC.Types.Error as Error
+import qualified GHC.Utils.Outputable as Outputable
+
+#if GHC_VERSION >= 91201
+import qualified GHC.Driver.Ppr as Ppr
+import qualified GHC.Utils.Error as Error
+#endif
+
 #if GHC_VERSION >= 90201
 
 import qualified Control.Monad.Catch as Catch
-import qualified GHC.Utils.Outputable as Outputable
+#if GHC_VERSION < 91201
 import qualified GHC.Driver.CmdLine as CmdLine
+#endif
 import qualified GHC.Utils.Logger as Logger
 import           Global (liftIO)
 
@@ -237,9 +246,6 @@ set_context mod_names = do
     GHC.setContext $ GHC.IIDecl prelude
         : map (GHC.IIModule . GHC.mkModuleName) mod_names
 
--- in Logger
--- 8e2f85f6b4662676f0d7addaff9bf2c7d751bb63
-
 #if GHC_VERSION >= 90201
 
 collect_logs :: Ghc a -> Ghc (Result a)
@@ -304,24 +310,30 @@ log_action logs dflags _warn_reason _severity _span style msg =
 parse_flags :: [String] -> Ghc ()
 parse_flags args = do
     dflags <- GHC.getSessionDynFlags
+
 #if GHC_VERSION >= 90201
     logger <- GHC.getLogger
     (dflags, args_left, warns) <- GHC.parseDynamicFlags logger dflags
         (map (GHC.mkGeneralLocated "cmdline") args)
-    let un_msg :: CmdLine.Warn -> String
-        un_msg = GHC.unLoc . CmdLine.warnMsg
-#elif GHC_VERSION >= 80401
-    (dflags, args_left, warns) <- GHC.parseDynamicFlags dflags
-        (map (GHC.mkGeneralLocated "cmdline") args)
-    let un_msg = GHC.unLoc . CmdLine.warnMsg
 #else
     (dflags, args_left, warns) <- GHC.parseDynamicFlags dflags
         (map (GHC.mkGeneralLocated "cmdline") args)
-    let un_msg = GHC.unLoc
 #endif
+
+#if GHC_VERSION >= 91201
+    -- GHC.Types.Error.Messages GHC.Driver.Errors.Types.DriverMessage
+    -- -> [String]
+    let show_warns = map (Ppr.showSDoc dflags)
+            . Error.pprMsgEnvelopeBagWithLocDefault . Error.getMessages
+#elif GHC_VERSION >= 80401
+    let show_warns = map (GHC.unLoc . CmdLine.warnMsg)
+#else
+    let show_warns = map GHC.unLoc
+#endif
+
     unless (null warns) $
         liftIO $ Log.warn $ "warnings parsing flags " <> showt args <> ": "
-            <> showt (map un_msg warns)
+            <> Text.unlines (map txt (show_warns warns))
     unless (null args_left) $
         liftIO $ Log.warn $
             "ignoring unparsed args: " <> showt (map GHC.unLoc args_left)

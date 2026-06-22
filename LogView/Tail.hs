@@ -14,6 +14,7 @@ module LogView.Tail (
 import           Prelude hiding (read, tail)
 import qualified Control.Exception as Exception
 import qualified Data.ByteString as ByteString
+import qualified Data.ByteString.Char8 as ByteString.Char8
 import qualified Data.ByteString.Lazy as Lazy
 import qualified System.IO as IO
 import qualified System.IO.Error as Error
@@ -88,7 +89,7 @@ read_line (Handle filename hdl size) = go (hdl, size)
             -- Since hGetLine in its infinite wisdom chops the newline it's
             -- impossible to tell if this is a complete line or not.  I'll set
             -- LineBuffering and hope for the best.
-            line <- ByteString.hGetLine hdl
+            line <- ByteString.Char8.hGetLine hdl
             new_size <- IO.hFileSize hdl
             return (line, Handle filename hdl new_size)
 

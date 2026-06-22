@@ -687,6 +687,9 @@ ghcWarnings config = concat
         -- TEST ifdefs can cause duplicate exports if they add X(..) to the
         -- X export.
         , ["duplicate-exports" | buildMode config `elem` [Test, Profile]]
+        , ["x-partial" | ver >= (9, 10, 1)]
+        -- I use it monomorphic anyway.
+        , ["x-data-list-nonempty-unzip" | ver >= (9, 10, 1)]
         ]
 
 configure :: IO (Mode -> Config)

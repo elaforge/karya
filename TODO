@@ -1913,6 +1913,21 @@ UNIFY:
 ----------------------------------------------------------------------
 
 ghc:
+  - what is going on with that
+    package-db dist-newstyle/packagedb/ghc-9.12.4
+  upgrade to 9.12:
+    . See if recompilation avoidance is fixed?
+    What is the ghc upgrade process?
+      . ghcup install, ghcup set
+      . rm -rf build
+      . rm cabal.project.freeze
+      . cabal update
+      . cabal build --only-dep
+      . cabal freeze # update cabal.project.freeze if you deleted it
+    ? Can I have different cabal.project.freeze for different ghc versions?
+    warnings:
+      + List.head, tail - -Wx-partial
+    * ReplGhc
   9.6.7 recompilation avoidance buggy:
     Since upgrading from 9.4 to 9.6 ghci has become unreliable.  Since the
     upgrade, when changing an indirectly-dependened-on module, reloading

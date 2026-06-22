@@ -137,7 +137,7 @@ Here's my latest experience installing this way on M3 aarch64 OSX, using brew:
     , globalIncludes = ["/opt/homebrew/include"]
     , globalLibDirs = ["/opt/homebrew/lib"]
     ```
-  * # if you are not on ghc 9.2.8, let cabal pick new versions
+  * # if you are not on ghc 9.6, let cabal pick new versions
     rm cabal.project.freeze
   * cabal build --only-dep
   * cabal freeze # update cabal.project.freeze if you deleted it
