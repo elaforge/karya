@@ -6,11 +6,7 @@
 module Solkattu.Score.MridangamSollu where
 import           Prelude hiding ((.), repeat)
 
-import qualified Solkattu.Tala as Tala
-
-import           Global
 import           Solkattu.Dsl.Mridangam
-
 
 
 misc_sollus :: Korvai

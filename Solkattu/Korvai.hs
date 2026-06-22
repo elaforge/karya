@@ -59,6 +59,8 @@ module Solkattu.Korvai (
     , inferMetadataS
     -- * StrokeMaps
     , StrokeMaps(..)
+    -- * str
+    , fromString, fromStringStroke
 ) where
 import qualified Data.Either as Either
 import qualified Data.Map as Map
@@ -722,3 +724,21 @@ setStrokeMap inst smap = case inst of
     ISargam -> mempty { smapSargam = smap }
     IBol -> mempty
     ITabla -> mempty
+
+-- * str
+
+-- | Parse a string to strokes.  This is used for IsString instances.
+--
+-- This is when the Char level notation already incorporates Realize.Stroke.
+fromString :: (a -> Either Error [Maybe (Realize.Stroke stroke)])
+    -> a -> SequenceG g (Realize.Stroke stroke)
+fromString parseStr = mconcatMap toSeq . Solkattu.check . parseStr
+    where
+    toSeq Nothing = S.singleton $ S.Note $ Solkattu.Space Solkattu.Rest
+    toSeq (Just stroke) = Realize.strokeToSequence2 stroke
+
+-- | 'fromString' except wrap a default Realize.Stroke.
+fromStringStroke :: (a -> Either Error [Maybe stroke])
+    -> a -> SequenceG g (Realize.Stroke stroke)
+fromStringStroke parseStr =
+    fromString (fmap (fmap (fmap (fmap Realize.stroke))) parseStr)

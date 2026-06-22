@@ -10,7 +10,6 @@ module Solkattu.Dsl.KendangPasang (
 ) where
 import           Prelude hiding ((.))
 import qualified Data.String as String
-import           GHC.Stack (HasCallStack)
 
 import           Solkattu.Dsl.Interactive (diff, diffw)
 import qualified Solkattu.Dsl.Solkattu as Dsl.Solkattu
@@ -31,14 +30,7 @@ type Stroke = Realize.Stroke KendangPasang.Stroke
 type Section = Korvai.Section Sequence
 
 instance String.IsString Sequence where
-    fromString = strM
-
--- | Parse a string to strokes. TODO copy paste with Dsl.Mridangam
-strM :: HasCallStack => String -> Sequence
-strM str = mconcatMap toSeq $ Solkattu.check $ KendangPasang.fromString str
-    where
-    toSeq Nothing = __
-    toSeq (Just stroke) = Realize.strokeToSequence2 stroke
+    fromString = Korvai.fromString KendangPasang.parseString
 
 korvai :: Tala.Tala -> [Section] -> Korvai.Korvai
 korvai tala = Korvai.instrumentKorvai Korvai.IKendangPasang tala

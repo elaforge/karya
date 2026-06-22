@@ -140,7 +140,7 @@ strokesM :: String -> Korvai.Score -> Bool
 strokesM str = scoreHas Korvai.IMridangam strokes
     where
     strokes = Maybe.catMaybes $ Solkattu.check $
-        Instrument.Mridangam.fromString str
+        Instrument.Mridangam.parseString str
 
 scoreHas :: Eq a => Korvai.Instrument a -> [a] -> Korvai.Score -> Bool
 scoreHas instrument strokes =

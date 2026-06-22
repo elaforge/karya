@@ -315,14 +315,14 @@ scores = map Korvai.inferMetadataS
     , setLocation ("Solkattu.Score.MridangamSarva",417,"s_bhajan") $ Single Solkattu.Score.MridangamSarva.s_bhajan
     , setLocation ("Solkattu.Score.MridangamSarva",442,"s_bhajan_kanda") $ Single Solkattu.Score.MridangamSarva.s_bhajan_kanda
     , setLocation ("Solkattu.Score.MridangamSarva",452,"bhajan_endings") $ Single Solkattu.Score.MridangamSarva.bhajan_endings
-    , setLocation ("Solkattu.Score.MridangamSollu",16,"misc_sollus") $ Single Solkattu.Score.MridangamSollu.misc_sollus
-    , setLocation ("Solkattu.Score.MridangamSollu",21,"dinna_kitataka") $ Single Solkattu.Score.MridangamSollu.dinna_kitataka
-    , setLocation ("Solkattu.Score.MridangamSollu",35,"sollus") $ Single Solkattu.Score.MridangamSollu.sollus
-    , setLocation ("Solkattu.Score.MridangamSollu",51,"ganesh_sollus") $ Single Solkattu.Score.MridangamSollu.ganesh_sollus
-    , setLocation ("Solkattu.Score.MridangamSollu",71,"reenter") $ Single Solkattu.Score.MridangamSollu.reenter
-    , setLocation ("Solkattu.Score.MridangamSollu",77,"rohan_sollus_end") $ Single Solkattu.Score.MridangamSollu.rohan_sollus_end
-    , setLocation ("Solkattu.Score.MridangamSollu",111,"embellishments") $ Single Solkattu.Score.MridangamSollu.embellishments
-    , setLocation ("Solkattu.Score.MridangamSollu",127,"sollu_variations") $ Single Solkattu.Score.MridangamSollu.sollu_variations
+    , setLocation ("Solkattu.Score.MridangamSollu",12,"misc_sollus") $ Single Solkattu.Score.MridangamSollu.misc_sollus
+    , setLocation ("Solkattu.Score.MridangamSollu",17,"dinna_kitataka") $ Single Solkattu.Score.MridangamSollu.dinna_kitataka
+    , setLocation ("Solkattu.Score.MridangamSollu",31,"sollus") $ Single Solkattu.Score.MridangamSollu.sollus
+    , setLocation ("Solkattu.Score.MridangamSollu",47,"ganesh_sollus") $ Single Solkattu.Score.MridangamSollu.ganesh_sollus
+    , setLocation ("Solkattu.Score.MridangamSollu",67,"reenter") $ Single Solkattu.Score.MridangamSollu.reenter
+    , setLocation ("Solkattu.Score.MridangamSollu",73,"rohan_sollus_end") $ Single Solkattu.Score.MridangamSollu.rohan_sollus_end
+    , setLocation ("Solkattu.Score.MridangamSollu",107,"embellishments") $ Single Solkattu.Score.MridangamSollu.embellishments
+    , setLocation ("Solkattu.Score.MridangamSollu",123,"sollu_variations") $ Single Solkattu.Score.MridangamSollu.sollu_variations
     , setLocation ("Solkattu.Score.MridangamTirmanam",15,"tir_short_adi") $ Single Solkattu.Score.MridangamTirmanam.tir_short_adi
     , setLocation ("Solkattu.Score.MridangamTirmanam",23,"tirmanams") $ Single Solkattu.Score.MridangamTirmanam.tirmanams
     , setLocation ("Solkattu.Score.MridangamTirmanam",28,"tir_long_adi") $ Single Solkattu.Score.MridangamTirmanam.tir_long_adi

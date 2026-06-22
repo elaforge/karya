@@ -48,13 +48,17 @@ instance String.IsString Sequence where
     -- fromString :: HasCallStack => String -> Sequence
     fromString s = strS (txt s)
 
+-- | Parse a string to sollus.  Look for syllables inside words.
+strS :: Text -> Sequence
+strS str = mconcat $ map (maybe __ _sollu) $ Solkattu.check $
+    Solkattu.parseSollus str
+
 instance String.IsString SequenceM where
     fromString = strM
 
--- | Parse a string to sollus.  Look for syllables inside words.
-strS :: HasCallStack => Text -> Sequence
-strS str = mconcat $ map (maybe __ _sollu) $ Solkattu.check $
-    Solkattu.parseSollus str
+-- | Parse a string to mridangam strokes.
+strM :: String -> SequenceM
+strM = Korvai.fromStringStroke Mridangam.parseString
 
 -- * sollus
 
@@ -193,13 +197,6 @@ on = o&n
 -- | Merge, but only merge rests, otherwise b wins.
 merge_ :: HasCallStack => SequenceM -> SequenceM -> SequenceM
 merge_ a b = S.fromList $ Notation.merge (\_ n -> n) (S.toList a) (S.toList b)
-
--- | Parse a string to mridangam strokes.
-strM :: HasCallStack => String -> SequenceM
-strM str = mconcatMap toSeq $ Solkattu.check $ Mridangam.fromString str
-    where
-    toSeq Nothing = __
-    toSeq (Just stroke) = Realize.strokeToSequence stroke
 
 type StrokeMap stroke =
     [ ( Sequence

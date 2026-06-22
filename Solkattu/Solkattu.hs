@@ -103,6 +103,7 @@ module Solkattu.Solkattu (
     -- * text
     , Table
     , printTables
+    , parseString
     -- * util
     , applyModifications
     , permuteFst
@@ -110,6 +111,7 @@ module Solkattu.Solkattu (
 import qualified Control.Exception as Exception
 import qualified Control.Monad.State.Strict as State
 import qualified Data.List as List
+import qualified Data.Map as Map
 import qualified Data.Text as Text
 import qualified Data.Text.IO as Text.IO
 
@@ -574,6 +576,18 @@ type Table = ([Text], [[Text]])
 printTables :: [Table] -> IO ()
 printTables tables = mapM_ Text.IO.putStrLn $
     Texts.columns 2 $ concat [row0 : rows | (row0, rows) <- tables]
+
+-- | Create the parseStr function for Korvai.fromString.
+parseString :: Text -> Map Char stroke -> [Char] -> Either Text [Maybe stroke]
+parseString name notations = mapMaybeM parse
+    where
+    parse = \case
+        ' ' -> Right Nothing
+        '_' -> Right $ Just Nothing
+        c -> case Map.lookup c notations of
+            Nothing -> Left $ "unknown " <> name <> " stroke: '"
+                <> Text.singleton c <> "'"
+            Just s -> Right $ Just $ Just s
 
 -- * util
 

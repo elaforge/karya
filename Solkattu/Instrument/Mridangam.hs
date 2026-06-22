@@ -17,8 +17,8 @@ module Solkattu.Instrument.Mridangam (
     , notes
     , bothRStrokes, flamRStrokes
     , addThoppi
-    -- * fromString
-    , fromString
+    -- * parseString
+    , parseString
     -- * postprocess
     , postprocess
     -- * patterns
@@ -392,18 +392,10 @@ addThoppi t (Both _ v) = Both t v
 addThoppi t (Flam _ v) = Flam t v
 addThoppi t (Thoppi _) = Thoppi t
 
--- * fromString
+-- * parseString
 
-fromString :: String -> Either Text [Maybe Stroke]
-fromString = mapMaybeM parse
-    where
-    parse = \case
-        ' ' -> Right Nothing
-        '_' -> Right $ Just Nothing
-        c -> case Map.lookup c notations of
-            Nothing -> Left $ "unknown mridangam stroke: '"
-                <> Text.singleton c <> "'"
-            Just s -> Right $ Just $ Just s
+parseString :: String -> Either Text [Maybe Stroke]
+parseString = Solkattu.parseString "mridangam" notations
 
 notations :: Map Char Stroke
 notations = Map.fromList $ (extras++) $ Lists.mapMaybeFst isChar $

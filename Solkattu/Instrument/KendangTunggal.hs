@@ -6,7 +6,6 @@
 -- | Realize an abstract solkattu sequence to concrete kendang 'Note's.
 module Solkattu.Instrument.KendangTunggal where
 import qualified Data.Map as Map
-import qualified Data.Text as Text
 
 import qualified Util.Lists as Lists
 import qualified Derive.Expr as Expr
@@ -92,17 +91,8 @@ strokes = Strokes
     , d = Dag
     }
 
--- TODO much copy pasted with Mridangam.fromString, factor it out
-fromString :: String -> Either Text [Maybe (Realize.Stroke Stroke)]
-fromString = mapMaybeM parse
-    where
-    parse = \case
-        ' ' -> Right Nothing
-        '_' -> Right $ Just Nothing
-        c -> case Map.lookup c notations of
-            Nothing -> Left $ "unknown kendang stroke: '"
-                <> Text.singleton c <> "'"
-            Just s -> Right $ Just $ Just s
+parseString :: String -> Either Text [Maybe (Realize.Stroke Stroke)]
+parseString = Solkattu.parseString "kendang" notations
 
 notations :: Map Char (Realize.Stroke Stroke)
 notations = Map.fromList $ (extras++) $ Lists.mapMaybeFst isChar $

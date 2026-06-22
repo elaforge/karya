@@ -156,7 +156,7 @@ strokeOf = fmap _stroke . noteOf
 stroke :: stroke -> Stroke stroke
 stroke = Stroke Normal
 
-rest :: SNote stroke
+rest :: S.Note g (Note stroke)
 rest = S.Note (Space Solkattu.Rest)
 
 strokeToSequence :: stroke -> S.Sequence g (Solkattu.Note (Stroke stroke))
