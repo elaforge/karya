@@ -183,7 +183,26 @@ options args = Shake.shakeOptions
         if verbose then const (return ()) else Progress.report
     -- Post ghc 9.4, ghc finally works on file contents rather than just
     -- modtime.
+    --
+    -- I think ChangeModtimeAndDigestInput should be safe and efficient,
+    -- git will change modtime on branch switches but not contents.
     , Shake.shakeChange = Shake.ChangeModtimeAndDigestInput
+
+    -- Shake.ChangeDigest
+    -- Compare equality of file contents digests, a file has changed if its
+    -- digest changes. A touch will not force a rebuild. Use this mode if
+    -- modification times on your file system are unreliable.
+    --
+    -- ChangeModtimeAndDigest
+    -- A file is rebuilt if both its modification time and digest have changed.
+    -- For efficiency reasons, the modification time is checked first, and if
+    -- that has changed, the digest is checked.
+    --
+    -- ChangeModtimeAndDigestInput
+    -- Use ChangeModtimeAndDigest for input/source files and ChangeModtime for
+    -- output files. An input file is one which is a dependency but is not
+    -- built by Shake as it has no matching rule and already exists on the file
+    -- system.
     }
     where
     -- This is stupid, but shake only lets me set options before parsing flags,
@@ -745,11 +764,17 @@ configure = do
                 -- when it notices the tix file is out of date, and there's no
                 -- way to disable trying to write coverage.
                 Test -> [] -- ["-fhpc"]
-                Profile -> ["-O", "-prof"]
+                Profile -> ["-O", "-prof"] ++ map ("-fprof-"<>)
                     -- I use manual SCCs for accuracy, but auto ones can be
                     -- useful to figure out where to put manual ones.
-                    -- ++ ["-fprof-auto-top"]
-                    -- ++ ["-fprof-auto-exported"]
+                    [ "manual" -- SCC pragmas
+                    -- , "auto-top" -- non-INLINE toplevel
+                    -- , "auto-exported" -- non-INLINE exported
+                    -- , "auto-calls" -- everything, good for stack traces
+                    , "late" -- after optimizer and unfoldings
+                    -- , "late-inline" -- like late, but less late
+                    -- , "callers=*globs-ok*"
+                    ]
             ]
         , hLinkFlags = concat
             [ ["-rtsopts", "-threaded"]
