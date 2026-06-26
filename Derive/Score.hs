@@ -2,7 +2,6 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
-{-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE StrictData #-}
 {- | This has Score.Event, which is the main output of the deriver.
 
@@ -115,7 +114,7 @@ data Event = Event {
     -- | Keep track of interesting things that have happened to this event.
     -- Postproc transforms that alter it should prefix a note.
     , event_logs :: [Log.Msg]
-    } deriving (Show, Typeable.Typeable)
+    } deriving (Show)
 
 -- | Format an event in a way suitable for including inline in log messages.
 -- It's short, but hopefully enough information to identify the event in

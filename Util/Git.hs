@@ -2,7 +2,6 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
-{-# LANGUAGE DeriveDataTypeable #-}
 -- | Higher level wrapper around the hlibgit2 binding to libgit2.
 module Util.Git (
     initialize
@@ -52,7 +51,6 @@ import qualified Data.IORef as IORef
 import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Text.Encoding as Encoding
-import qualified Data.Typeable as Typeable
 
 import qualified System.Directory as Directory
 import qualified System.Exit as Exit
@@ -697,7 +695,7 @@ error_msg errno
         , (G.c'GIT_ITEROVER, "iteration over")
         ]
 
-newtype GitException = GitException String deriving (Typeable.Typeable)
+newtype GitException = GitException String
 instance Exception.Exception GitException
 instance Show GitException where
     show (GitException msg) = "GitException: " ++ msg

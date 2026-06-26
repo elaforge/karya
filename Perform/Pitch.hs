@@ -2,7 +2,6 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
-{-# LANGUAGE DeriveDataTypeable #-}
 {- | Representation for scales, pitches, and frequencies (note numbers).
 
     There are many representations for a pitch, at many different levels of
@@ -37,7 +36,6 @@ module Perform.Pitch (
 ) where
 import qualified Data.String as String
 import qualified Data.Text as Text
-import qualified Data.Typeable as Typeable
 
 import qualified Text.ParserCombinators.ReadP as ReadP
 import qualified Text.Read as Read
@@ -223,7 +221,7 @@ instance Pretty Input where
 -- since performance doesn't understand scales.
 newtype NoteNumber = NoteNumber Double
     deriving (ApproxEq.ApproxEq, Eq, Ord, Fractional, Real, RealFrac, Num,
-        Serialize.Serialize, Typeable.Typeable)
+        Serialize.Serialize)
 
 instance Show NoteNumber where
     show (NoteNumber nn) = show nn <> "nn"

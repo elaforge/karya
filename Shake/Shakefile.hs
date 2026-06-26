@@ -2,7 +2,6 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
-{-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE DisambiguateRecordFields #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
@@ -29,7 +28,6 @@ import qualified Data.Set as Set
 import qualified Data.Text as Text
 import           Data.Text (Text)
 import qualified Data.Text.IO as Text.IO
-import qualified Data.Typeable as Typeable
 
 import qualified Development.Shake as Shake
 import           Development.Shake (need, (%>), (&?>), (?==), (?>))
@@ -1039,20 +1037,20 @@ printConfig config = do
 -- ** oracle
 
 newtype Question a = Question () deriving
-    ( Show, Typeable.Typeable, Eq, Hashable.Hashable, Binary.Binary
+    ( Show, Eq, Hashable.Hashable, Binary.Binary
     , DeepSeq.NFData
     )
 
-data GhcQ deriving (Typeable.Typeable)
+data GhcQ
 type instance Shake.RuleResult (Question GhcQ) = String
 
-data FltkQ deriving (Typeable.Typeable)
+data FltkQ
 type instance Shake.RuleResult (Question FltkQ) = String
 
-data ReplQ deriving (Typeable.Typeable)
+data ReplQ
 type instance Shake.RuleResult (Question ReplQ) = Bool
 
-data MidiQ deriving (Typeable.Typeable)
+data MidiQ
 type instance Shake.RuleResult (Question MidiQ) = String
 
 setupOracle :: [(String, String)] -> Config -> Shake.Rules ()

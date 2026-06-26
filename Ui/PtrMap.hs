@@ -2,7 +2,6 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
-{-# LANGUAGE DeriveDataTypeable #-}
 -- | This holds the 'view_id_to_ptr' global variable.  Only very low level
 -- modules should import this.
 module Ui.PtrMap (
@@ -20,7 +19,6 @@ import qualified Control.Exception as Exception
 import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
-import qualified Data.Typeable as Typeable
 
 import           ForeignC (Ptr)
 import qualified System.IO.Unsafe as Unsafe
@@ -33,7 +31,7 @@ import           Types
 
 -- * error
 
-newtype FltkException = FltkException String deriving (Typeable.Typeable)
+newtype FltkException = FltkException String
 instance Exception.Exception FltkException
 instance Show FltkException where
     show (FltkException msg) = "FltkException: " ++ msg

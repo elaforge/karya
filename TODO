@@ -1916,6 +1916,32 @@ ghc:
   - what is going on with that
     package-db dist-newstyle/packagedb/ghc-9.12.4
   upgrade to 9.12:
+    9.12:
+      . OrPatterns: https://github.com/ghc-proposals/ghc-proposals/blob/master/proposals/0522-or-patterns.rst
+      . MultilineStrings: https://github.com/ghc-proposals/ghc-proposals/blob/master/proposals/0569-multiline-strings.rst
+      . Wildcard type binders: https://github.com/ghc-proposals/ghc-proposals/blob/master/proposals/0425-decl-invis-binders.rst
+      . The new runtime flag --read-tix-file=<yes|no> allows to modify whether
+        a preexisting .tix file is read in at the beginning of a program run.
+        The default is currently --read-tix-file=yes but will change to
+        --read-tix-file=no in a future version of GHC. For this reason,
+        a warning is emitted if a .tix file is read in implicitly. You can
+        silence this warning by explicitly passing --read-tix-file=yes.
+        Details can be found in GHC proposal #612.
+    9.10:
+      . The -fprof-late-overloaded flag has been introduced. It causes cost
+        centres to be added to overloaded top level bindings, unlike
+        -fprof-late which adds cost centres to all top level bindings.
+      . The -fprof-late-overloaded-calls flag has been introduced. It causes
+        cost centres to be inserted at call sites including instance
+        dictionary arguments. This may be preferred over
+        -fprof-late-overloaded since it may reveal whether imported functions
+        are called overloaded.
+      . Exceptions can now carry arbitrary user-defined annotations via the
+        new GHC.Exception.Type.ExceptionContext implicit parameter of
+        SomeException. These annotations are intended to be used to carry
+        context describing the provenance of an exception.
+    9.8:
+      . nothing interesting
     . See if recompilation avoidance is fixed?
     What is the ghc upgrade process?
       . ghcup install, ghcup set
@@ -1929,49 +1955,54 @@ ghc:
       + List.head, tail - -Wx-partial
     * ReplGhc
   9.6.7 recompilation avoidance buggy:
-    Since upgrading from 9.4 to 9.6 ghci has become unreliable.  Since the
-    upgrade, when changing an indirectly-dependened-on module, reloading
-    the current module with :r, and running some function, I sometimes
-    get a "GHC.Linker.Loader.dynLoadObjs: Loading temp shared object failed",
-    or worse, it continues to reuse the old version of the module I changed.
-    The interesting thing is it does notice the change in the parent module,
-    but the change does not seem to register.  E.g. where TimeVector was
-    changed:
-      *Util.Segment_test D> :r
-      [34 of 37] Compiling Util.TimeVector  ( Util/TimeVector.hs, interpreted ) [Source file changed]
-      [37 of 37] Compiling Util.Segment_test ( Util/Segment_test.hs, interpreted )
-    It has correctly noticed that TimeVector.hs changed and should be
-    reloaded, but functions in Segment_test.hs continue to see the old
-    TimeVector.
+    - make simple repro
+    note:
+      Since upgrading from 9.4 to 9.6 ghci has become unreliable.  Since the
+      upgrade, when changing an indirectly-dependened-on module, reloading
+      the current module with :r, and running some function, I sometimes
+      get a "GHC.Linker.Loader.dynLoadObjs: Loading temp shared object failed",
+      or worse, it continues to reuse the old version of the module I changed.
+      The interesting thing is it does notice the change in the parent module,
+      but the change does not seem to register.  E.g. where TimeVector was
+      changed:
+        *Util.Segment_test D> :r
+        [34 of 37] Compiling Util.TimeVector  ( Util/TimeVector.hs, interpreted ) [Source file changed]
+        [37 of 37] Compiling Util.Segment_test ( Util/Segment_test.hs, interpreted )
+      It has correctly noticed that TimeVector.hs changed and should be
+      reloaded, but functions in Segment_test.hs continue to see the old
+      TimeVector.
 
-    One possibly relevant wrinkle is that I don't use cabal to build, but my
-    own implementation in shake.  However, I believe this shouldn't be able to
-    influence ghci in this way.  Despite the fact that eg Segment.o was
-    produced by shake running ghc -c, it's still up to ghci to decide whether
-    or not to load Segment.o or recompile as bytecode, and I can't think of a
-    way I could somehow wrongly produce .o to fool it.  However it could be
-    that ghci is indeed buggy but most people are now using ghc --make rather
-    than ghc -c, and --make avoids the problem somehow.
+      One possibly relevant wrinkle is that I don't use cabal to build, but my
+      own implementation in shake.  However, I believe this shouldn't be able to
+      influence ghci in this way.  Despite the fact that eg Segment.o was
+      produced by shake running ghc -c, it's still up to ghci to decide whether
+      or not to load Segment.o or recompile as bytecode, and I can't think of a
+      way I could somehow wrongly produce .o to fool it.  However it could be
+      that ghci is indeed buggy but most people are now using ghc --make rather
+      than ghc -c, and --make avoids the problem somehow.
 
-    Another thing is that this problem only shows up with ghci, I don't see it
-    with normal builds, which use ghc -c.  If I do a normal build indeed
-    TimeVector is recompiled, and Segment.hs is skipped (ghc prints
-    "compilation IS NOT required").  So it seems it's correct to not recompile
-    Segment.hs, but the binary linking doesn't have the problem, while ghci's
-    version gets something wrong.  It's also related to in-memory state
-    because if I restart ghci, it will reload things properly.
+      Another thing is that this problem only shows up with ghci, I don't see it
+      with normal builds, which use ghc -c.  If I do a normal build indeed
+      TimeVector is recompiled, and Segment.hs is skipped (ghc prints
+      "compilation IS NOT required").  So it seems it's correct to not recompile
+      Segment.hs, but the binary linking doesn't have the problem, while ghci's
+      version gets something wrong.  It's also related to in-memory state
+      because if I restart ghci, it will reload things properly.
 
-    Anyway, is this a known issue?  I'm aware 9.6 is also pretty old by now,
-    and I do remember it introduced more fancier recompilation avoidance that
-    wasn't relying on just mtime any more.  So maybe it was buggy in early
-    days?  Should I focus on trying to track down this issue or on upgrading
-    ghc?
-
+      Anyway, is this a known issue?  I'm aware 9.6 is also pretty old by now,
+      and I do remember it introduced more fancier recompilation avoidance that
+      wasn't relying on just mtime any more.  So maybe it was buggy in early
+      days?  Should I focus on trying to track down this issue or on upgrading
+      ghc?
   . https://discourse.haskell.org/t/the-haskell-debugger-for-ghc-9-14/13499
   - -fdefer-type-errors is broken in 8.4:
     https://ghc.haskell.org/trac/ghc/ticket/14963
     . Seems to be fixed now!  Try it again.
     . Or not? https://gitlab.haskell.org/ghc/ghc/-/issues/24413
+  performance tools:
+    . https://www.speedscope.app/ - load +RTS -pj, and ghc-stack-profiler
+    . https://github.com/well-typed/ghc-stack-profiler - profile w/o -prof
+    https://discourse.haskell.org/t/the-haskell-debugger-for-ghc-9-14/13499
   profiling optimization docs:
     https://www.well-typed.com/blog/2024/04/ghc-debug-improvements/
     https://www.well-typed.com/blog/2024/01/ghc-eras-profiling/

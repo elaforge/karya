@@ -6,7 +6,6 @@
 module Synth.Sampler.Patch.ScGamelan (patches) where
 import qualified Data.Map as Map
 import qualified Data.Set as Set
-import qualified Data.Typeable as Typeable
 
 import qualified System.Directory as Directory
 import           System.FilePath ((</>))
@@ -128,7 +127,7 @@ gongVariations dyn = map toDyn . select . gongSamples
     vel = Util.dynToVel dyn
 
 data Gong = GongWadon | GongLanang | Kempur | Kemong
-    deriving (Eq, Ord, Show, Typeable.Typeable, Enum, Bounded)
+    deriving (Eq, Ord, Show, Enum, Bounded)
 
 gongNn :: Gong -> Pitch.NoteNumber
 gongNn = \case
