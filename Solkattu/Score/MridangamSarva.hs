@@ -449,9 +449,27 @@ s_bhajan_kanda = sarvalaghu $ korvaiV Tala.kanda_chapu
     where
     ktok = su (su "ktok")
 
+s_bhajan_misra :: Korvai
+s_bhajan_misra = sarvalaghu $ korvaiV Tala.misra_chapu
+    -- https://www.youtube.com/watch?v=pIsrqyMtBg4
+    -- 45:30
+    [ sd $ "K_i_".u.__6 . "nnok"
+    , __D 3 . sd (od.__3 . tri "o_N__" "knn")
+    , __D 4.5 . sd (tri "D_" "nd_k_")
+    , __D 0.5 . sd (tri "u_" "NN_")
+    , __D 3.5 . sd (tri (od.__6) "NN_") . od
+    ]
+
 bhajan_endings :: Korvai
 bhajan_endings = korvaiV Tala.adi
     [ __D 4 . r2 (g (r4 "Npk") . "pknnok") . "N__N__N__N__u"
+    ]
+
+bhajan_endings2 :: Korvai
+bhajan_endings2 = date 2026 6 12 $ korvaiV adi
+    -- https://www.youtube.com/watch?v=pIsrqyMtBg4
+    -- Actually misra chapu, 10 aksharas starts on +3 = 7+3
+    [ __D 6 . su (triAAB "u___" (g (r4 "k_kto_")) (expand 3 2 "k_t_k_kto_"))
     ]
 
 {-

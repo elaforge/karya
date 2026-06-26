@@ -46,19 +46,18 @@ e_nakanakadin = rohan $ exercise $ date 2026 5 29 $ korvaiV adi
     rh = g "d_p,^,d_p,^,n,^,"
     end = rh `replaceEnd` "pu_k"
 
-bhajan_endings :: Korvai
-bhajan_endings = date 2026 6 12 $ korvaiV adi
-    -- https://www.youtube.com/watch?v=pIsrqyMtBg4
-    -- Actually misra chapu, 10 aksharas starts on +3 = 7+3
-    [ __D 6 . su (triAAB "u___" (g (r4 "k_kto_")) (expand 3 2 "k_t_k_kto_"))
-    ]
-
 
 -- * layamrutha varshini
 
 kumar :: Korvai -> Korvai
 kumar = source "Patri Satish Kumar"
 
+-- (2) join 0: 9 8 7 6  x3
+-- (3) join 1: 8 7 6 5  x2
+-- (4) join 2: 7 6 5 4  x2
+-- (5) join 3: 6 5 4 3  x2
+-- (0) join 1: 10..1
+-- +4d: join (kD) 999 .. 111
 kumar1 :: Korvai
 kumar1 = date 2026 6 12 $ kumar $ korvai adi
     [ x3 $ s $ r3 tang_kitataka . end . "U_"
@@ -88,10 +87,27 @@ kumar1 = date 2026 6 12 $ kumar $ korvai adi
     ndnd = sd "NDNd". "nn" . sd "DND"
     t9 = pattern $ kpnp.p5
     t8 = pattern $ "kD_".p5
-    -- alternate: A_i_kno
     t7 = pattern $ "P_i_kno"
     t6 = pattern $ "Pi_kno"
 
+-- sar3 kd5     x2
+-- sar2 kd5 2*kd5 3*kd5
+-- sar4 sar1 kd5 sar3 2*kd5 sar3 3*kd5
+--      sar2 kd5 sar2 2*kd5 sar2 3*kd5
+--      sar1 kd5 sar1 2*kd5 sar1 3*kd5
+--      kd5 2*kd5 3*kd5 555 555
+-- sar3 kd5
+-- sar1 kd5 kd6 kd7
+-- sar3 kd5 sar3 2*kd6 sar3 3*kd7
+-- =>   sar2 kd5 sar2 2*kd6 sar2 3*kd7
+--      sar1 kd5 sar1 2*kd6 sar1 3*kd7
+--      kd5 2*kd6 3*kd7 (3) 777 (3) 777
+-- sar3 kd5     x2
+-- kd5 2*kd7 3*kd9  (5 is taka tdgnt)
+-- sar4 sar1 kd5 sar3 2*kd7 sar3 3*kd9
+--      sar2 kd5 sar2 2*kd7 sar2 3*kd9
+--      sar1 kd5 sar1 2*kd7 sar1 3*kd9
+-- kd5 2*kd7 3*kd9 (5) 3*kd9 (5) 9 n3 999
 kumar2 :: Korvai
 kumar2 = date 2026 6 12 $ kumar $ korvai adi
     [ x2 $ s $ sarva . sarva2 . tadin.p5
@@ -120,9 +136,8 @@ kumar2 = date 2026 6 12 $ kumar $ korvai adi
             (r3 (g ("k_i_" . su "k_kto_")))
             (r3 (g ("k_i_". su "ktkto_")))
     -- 3:19
-    , s $ sarva.sarva1 . tadin.p5
-        . sarva.sarva1 . r2 (tadin.p5) . rs 2 tadin (kp.p5)
-            . rs 3 tadin (kpnp.p5)
+    , x2 $ s $ sarva.sarva1 . tadin.p5
+    , s $ tadin.p5 . rs 2 tadin (kp.p5) . rs 3 tadin (kpnp.p5)
     -- 3:43
     , s $ sarva . sarva . sarva1 . tadin.p5
         . sarva . sarva1 . rs 2 tadin (kp.p5)
@@ -141,8 +156,8 @@ kumar2 = date 2026 6 12 $ kumar $ korvai adi
     sarva1 = "N,N,NND_"
     sarva2 = "__N,NND_"
     tadin = "kD_"
-    -- p6 = pattern "ki_kno"
-    -- p7 = pattern "k_i_kno"
+    p6 = pattern "ki_kno"
+    p7 = pattern "k_i_kno"
     rs n a b = repeat n a . repeat n b
 
 kumar3 :: Korvai
