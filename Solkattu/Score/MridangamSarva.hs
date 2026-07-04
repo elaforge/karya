@@ -434,6 +434,8 @@ s_bhajan = date 2026 5 15 $ sarvalaghu $ korvaiV Tala.adi
     , r2 $ r2 $ "n,ndn,nd" & "o_o__oo"
     , r4 $ "KDNkkdnK"
     , r4 $ "NkD" . su "p,n,d_pkD_"
+    -- https://www.youtube.com/watch?v=ctpe5H1Snd0
+    , r2 $ r3 "nd_k" & "oo_o" . "ndok"
     ]
     where
     rh_nd  = "__nd__nd"
@@ -445,6 +447,8 @@ s_bhajan_kanda = sarvalaghu $ korvaiV Tala.kanda_chapu
         . r2 "D,N,D" . "d,n,n" . su ("k_t_".p6)
         . "Donok" . "NN".su p6
         . "D_" . ktok . __ . k . ktok.__.ktok.__.k
+    -- https://www.youtube.com/watch?v=ctpe5H1Snd0
+    , r2 $ sd (sd "N,ND,")
     ]
     where
     ktok = su (su "ktok")

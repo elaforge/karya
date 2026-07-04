@@ -67,14 +67,12 @@ kumar1 = date 2026 6 12 $ kumar $ korvai adi
     , x2 $ s $ ndnd . ndnd `replaceEnd` "_A_A___"
     , x3 $ s $ ndnd . ndnd . __.__ . t9.t8.t7.t6
     , x2 $ s $ ndnd . ndnd . "u__" . join __ [t8, t7, t6, p5]
-    -- 2:00
-    , s $ ndnd . ndnd . "u___" . join "U_" [t7, t6, p5, "kD".su ktpk]
+    , s $ ndnd . ndnd . "u___" . join "U_" [t7, t6, p5, "kD".su ktpk] -- 2:00
         . ndnd . ndnd . "u___" . join "U_" [t7, t6, p5, "/".su (kt.ktpk)]
     -- 2:22
     -- playing: "A_A__" Pi_xxo, ktkxo
     , x2 $ s $ ndnd . ndnd . "A_A__" . join "U__" [t6, p5, "koNk", su p6]
-    -- 2:52
-    , s $ ndnd . ndnd . join __
+    , s $ ndnd . ndnd . join __ -- 2:52
         [pattern $ "kpkD_".p5, t9, t8, t7, t6, p5, "koNk", "NNk", "Nk", "N"]
     , s $ "U_od" `replaceStart` ndnd . ndnd . ndnd
         . join (r3 "kD__")
@@ -112,42 +110,34 @@ kumar2 :: Korvai
 kumar2 = date 2026 6 12 $ kumar $ korvai adi
     [ x2 $ s $ sarva . sarva2 . tadin.p5
     , s $ sarva . tadin.p5 . rs 2 tadin p5 . rs 3 tadin p5
-    -- 0:31
-    , s $ sarva . sarva . sarva1 . tadin.p5
+    , s $ sarva . sarva . sarva1 . tadin.p5 -- 0:31
         . sarva . sarva1 . rs 2 tadin p5
         . sarva . sarva1 . rs 3 tadin p5
         . sarva . tadin.p5 . sarva . rs 2 tadin p5 . sarva . rs 3 tadin p5
         . sarva1 . tadin.p5 . sarva1 . rs 2 tadin p5 . sarva1 . rs 3 tadin p5
         . tadin.p5 . rs 2 tadin p5 . r3 tadin
         . trin __ (r3 p5) (r3 (g (su "k_t_k_kto_"))) (r3 (g (su "k_t_ktkto_")))
-    -- 1:43
-    , s $ sarva . sarva1 . tadin.p5
-    -- 1:49
-    , s $ sarva1 . tadin.p5 . rs 2 tadin p6 . rs 3 tadin p7
-    -- 2:01
-    , s $ sarva . sarva1 . tadin.p5
+    , s $ sarva . sarva1 . tadin.p5 -- 1:43
+    , s $ sarva1 . tadin.p5 . rs 2 tadin p6 . rs 3 tadin p7 -- 1:49
+    , s $ sarva . sarva1 . tadin.p5 -- 2:01
         . sarva . sarva1 . rs 2 tadin p6
         . sarva . sarva1 . rs 3 tadin p7
-    -- 2:25
     , s $ sarva . tadin.p5 . sarva . rs 2 tadin p6 . sarva . rs 3 tadin p7
         . sarva1 . tadin.p5 . sarva1 . rs 2 tadin p6 . sarva1 . rs 3 tadin p7
         . tadin.p5 . rs 2 tadin p6
         . r3 tadin . trin "U__" (r3 p7)
             (r3 (g ("k_i_" . su "k_kto_")))
             (r3 (g ("k_i_". su "ktkto_")))
-    -- 3:19
-    , x2 $ s $ sarva.sarva1 . tadin.p5
+    , x2 $ s $ sarva.sarva1 . tadin.p5 -- 3:19
     , s $ tadin.p5 . rs 2 tadin (kp.p5) . rs 3 tadin (kpnp.p5)
-    -- 3:43
-    , s $ sarva . sarva . sarva1 . tadin.p5
+    , s $ sarva . sarva . sarva1 . tadin.p5 -- 3:43
         . sarva . sarva1 . rs 2 tadin (kp.p5)
         . sarva . sarva1 . rs 3 tadin (kpnp.p5)
         . sarva . tadin.p5 . sarva . rs 2 tadin (kp.p5)
             . sarva . rs 3 tadin (kpnp.p5)
         . sarva1 . tadin.p5 . sarva1 . rs 2 tadin (kp.p5)
             . sarva1 . rs 3 tadin (kpnp.p5)
-    -- 4:50
-    , s $ tadin.p5 . rs 2 tadin (kp.p5) . r3 tadin
+    , s $ tadin.p5 . rs 2 tadin (kp.p5) . r3 tadin -- 4:50
         . trin "U_U__" (r3 (kpnp.p5)) (r3 (kpnp.p5))
             ("k_i_k_n_o" . r3 (nadai 6 "D_D_D_D_k"))
     ]
@@ -163,33 +153,26 @@ kumar2 = date 2026 6 12 $ kumar $ korvai adi
 kumar3 :: Korvai
 kumar3 = date 2026 6 12 $ kumar $ korvai adi
     [ s $ r2 sarvaA . noThom sarvaA . "__U__U__"
-        . r3 sarvaA . "__UUU___"
+        . r3 sarvaA . "__UU_U__"
     , s $ r2 sarvaA . sarva . sarva . noThom sarva
-    -- 0:32
-    , s $ sarva . "ND,N,D" . su ("N_pk".takatari.takatari)
+    , s $ sarva . "ND,N,D" . su ("N_pk".takatari.takatari) -- 0:32
     , s $ sarva . "ND," . su ("N_ktpk" . tang_kita.takatari)
     -- 0:44 -- ktok instead of ktpk
     , x2 $ s $ sarva . noThom sarva . sarva . su tang_kita2
     , s $ r2 $ sarva . sarva . su tang_kita2
     , x2 $ s $ sarva . su tang_kita2
-    -- 1:38
-    , s $ su $ tang_kita2 . noThom tang_kita2
-        . r2 (tang_kita.takatari . "n_pk".takatari)
-        . takatari . r2 tang_kita . takatari . r2 tang_kita
-    -- 1:56
-    , s $ sarva . sarva
+    , s $ su $ r2 tang_kita2 -- 1:38
+        . r2 (tang_kita.takatari.tang_kita)
+        . r2 (takatari . r2 tang_kita)
+    , s $ sarva . sarva -- 1:56
     , s $ suffixes (su tang_kita) tadin123 . tri2 "kD_kD_" "kD_" (r3 p5)
-    -- 2:20
-    , s $ suffixes (su (tang_kita.takatari)) tadin123
+    , s $ suffixes (su (tang_kita.takatari)) tadin123 -- 2:20
         . tri2 "_kD_kD_" "_kD_" (r3 (su oknp.p5))
-    -- 2:44
-    , s $ suffixes (su (tang_kita.takatari.takatari)) tadin123
+    , s $ suffixes (su (tang_kita.takatari.takatari)) tadin123 -- 2:44
         . suffixes (r3 (su ktktoknp.p5)) ["D_kD_kD_", "D_kD_"]
         . su ktktoknp.p5. r3 (nadai 6 "D_D_D_D_k")
-    -- 3:14
-    , s $ sd (sd (r8 "U"))
-    -- 3:20 (3:42)
-    , s $ su $ r3 tang_kita . sd (r4 "U__" . "i__")
+    , s $ sd (sd (r8 "U")) -- 3:14
+    , s $ su $ r3 tang_kita . sd (r4 "U__" . "i__") -- 3:20 (3:42)
         . r3 tang_kita . sd (r2 "DD_NN_" . flam p u . "__")
         . r3 tang_kita . r2 "D_ktpk" . "D_kD_kD_D_k_" . flam p u
     ]
@@ -203,16 +186,12 @@ kumar3 = date 2026 6 12 $ kumar $ korvai adi
     tadin123 = ["D_kD_", "D_kD_kD_", "D_kD_kD_kD_"]
 
 kumar4_transition :: Korvai
-kumar4_transition = date 2026 6 12 $ kumar $ korvai adi -- TODO some Ds missing
-    -- 0:39
-    [ s $ r2 sarva1 . sarva_ . sarva1 . d_nd_ . r3 p5 . ou.__4
-    -- 0:50
-    , s $ n5 $ sarva5 . sarva5_ . sarva5 . r3 p5 . ou.__5
+kumar4_transition = date 2026 6 12 $ kumar $ korvai adi
+    [ s $ r2 sarva1 . sarva_ . sarva1 . d_nd_ . r3 p5 . ou.__4 -- 0:39
+    , s $ n5 $ sarva5 . sarva5_ . sarva5 . r3 p5 . ou.__5 -- 0:50
     , s $ sarva5 . sarva5_ . d_nd_ . r3 p5 . ou.__4
-    -- 1:15
-    , s $ n5 $ sarva5.sarva5_.sarva5 . r3 p5 . ou.__5
-    -- 1:27
-    , s $ r2 sarva1 . ou.__4 . n5 (sarva1.d_nd_.p5.ou.__5)
+    , s $ n5 $ sarva5.sarva5_.sarva5 . r3 p5 . ou.__5 -- 1:15
+    , s $ r2 sarva1 . ou.__4 . n5 (sarva1.d_nd_.p5.ou.__5) -- 1:27
         . sarva1.d_nd_.p5.ou.__4
         . n5 (sarva1.d_nd_.p5.ou.__5)
         . sarva1.d_nd_.p5 . n5 (r3 d_nd_ . p5) . r3 n_nd_ . p5
