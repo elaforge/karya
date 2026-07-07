@@ -1359,7 +1359,8 @@ getAllHs mbConfig =
 -- | Should this module have haddock documentation generated?
 wantsHaddock :: Config -> FilePath -> Bool
 wantsHaddock config hs = not $ or $
-    [ not $ Char.isUpper (head hs) -- no docs for scripts in tools
+    -- no docs for scripts in tools
+    [ maybe False (not . Char.isUpper) (Lists.head hs)
     , "Ness/" `List.isPrefixOf` hs -- ness stuff still uses conduit-audio
     , "_test.hs" `List.isSuffixOf` hs
     , "_profile.hs" `List.isSuffixOf` hs

@@ -85,7 +85,7 @@ available.
 - On OS X, install commandline tools if you haven't already:
     `xcode-select --install`
 
-- Install GHC, either the traditional way or `ghcup`.  I'm using 9.2 now.
+- Install GHC, either the traditional way or `ghcup`.  I'm using 9.12 now.
 
 - Install [non-haskell dependencies](#non-haskell-dependencies).
 
@@ -152,6 +152,14 @@ Here's my latest experience installing this way on M3 aarch64 OSX, using brew:
   * hsc2hs-9.2.8 on aarch64 OSX is broken!  Edit `hsc2hs` directly and put
     a space in `HSC2HS_EXTRA` between `--cflag` and `--lflag`.
     Future versions don't seem to have the problem.
+
+Upgrading ghc version:
+  * ghcup install, ghcup set
+  * rm -rf build
+  * rm cabal.project.freeze # apparently can't have >1 of these?
+  * cabal update
+  * cabal build --only-dep
+  * cabal freeze # update cabal.project.freeze if you deleted it
 
 I previously had trouble with `hlibgit2` on the `cabal build` line.
 The last time I tried it though, it worked without any changes to

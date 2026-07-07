@@ -120,17 +120,23 @@ external:
     . using tscore, especially standalone
 
 UNSORTED
+  - on every stop:
+    Midi/CoreMidi.hs:299 - CoreMIDI error: 4294967296
+    From core_midi_abort(), what does it mean?
+    . I never implemented error_str!
+    . noErr!?
   - bug: if I do scrollwheel on an unfocused block, it eventually thinks
     it has focus, even though it doesn't
+    . Can't reproduce?
   - bug:
     . open save/complete/wayang/cerucuk-punyah.state
     . delete most of score block, and then trim ruler with :
     . ruler gets messed up
     . in fact it's any clip block, I guess this has to do with old-style
       and new-style Ruler?
+    . Can I mass update those?
   - also there is old-style collapsed pitch tracks with black, can I
     update all states to remove those?
-  * have save files be relative to "data/save" dir.
   - keycaps=True will stop the initial block from getting focus.
     . Even though KeycapWindow tries to not accept focus!
     . Who has it then?
@@ -143,49 +149,8 @@ UNSORTED
       fltk/Block.cc:972 Window FL_LEAVE <13KeycapsWindow focused>
     . So even though it return false with FL_FOCUS, it gets focus anyway.
       I think this is all fltk?  What is it doing exactly?
-  * when I save under a different name, im cache state gets confused
-    . Either rename the underlying directory, or correctly regenerate.
-    . What does it currently do:
-      im/cache/test/im/untitled/
-      save_state_as - no change in im/cache
-      save_state_as -> set_save_file -> clears Cmd state
-    . What must I reset for im cache?
   - space starting a new play instead of stopping is annoying
     Because I can't stop a sample from playing without starting a new play.
-  * can I make im stop a little smoother?
-    . Message.stop = true -> streamer->stop() -> ResampleStreamer::stop()
-    . It would need to go into a stopping state which continues to stream but
-      drops volume.
-    . Maybe can do it when restarting = true.  Or not, that's just a time
-      where read() returns 0 so it can update pointers.
-      Instead of this->restart(), stopping.store(true)
-      When in this state, scale down volume by some fraction on each sample.
-    . It looks pretty complicated, maybe not worth it.
-  * why not have key up stop the sample like with midi?
-    Could I get it back if I track thru state and stop on that?
-    . That means it must currently set to point when wanting to stop thru?
-    . Yes it does.  Maybe a better fix is to have an extra stop for thru.
-    . But do I know when that's happening?  cmd_context_stop just sends
-      all_notes_off.  Do I track when thru is playing?
-    . This doesn't apply to MIDI so much because I do key up -> NoteOff
-      Can I do the same for im?
-    . How does im thru work?
-      Must be from Cmd.InstrumentCode -> ThruFunction -> Thru
-      Could send Thru.Stop, ok how to do it on key up then?
-      Cmd.inst_thru -> MidiThru.for_instrument
-      Custom thru function should send Thru.Stop on NoteOff.
-      But it it only has global stop, there's no way to stop individual
-      samples.
-    . Whence the thru function?  Patch.Util.thru
-      But by then it's type ThruFunction = [Note] -> Either Error Message
-      Where did the InputNote.Input go?
-      type ThruFunction =
-          Scale.Scale -> Attrs.Attributes -> InputNote.Input -> CmdId [Thru]
-    . It's ImInst.thru
-  * break: how to set a bpm?
-    . Should I just set the bpm I think it is instead of inferred?
-    . Yes, but if I want to go into 3s I'd want eg bpm=(* (bpm) 1.5)
-    . I can use this to make it adjust to the ambient bpm
   - break: adjust bpm based on position in beat map
     . It doesn't work in practice, because I'm playing more than one landmork.
       So the first one will be accurate, but the rest will be off by however
@@ -213,38 +178,11 @@ UNSORTED
     if I get the derivative:
       . Have to take samples.  But I can do it easily, just look for segment.
         Just have to make a decision about discontinuities.
-  * is there a repl cmd to get instrument doc?
-    . call doc is in LBlock
-    . I could put in LInst.doc
-    . But I would need to move Browser.info_of to a common spot.
-  / im still has the bug where deleting a track won't delete the files?
-    . No it does, but leaves empty directories.
-    . Maybe GC can clear out a directory with no ###.wav?
   - how to use self streaming?
     called play_im_direct
     im_play_direct <- Cmd.gets $ Cmd.config_im_play_direct . Cmd.state_config
     LCmd.im_play_direct
     How could I have found this easier?
-  * no sound from break
-    . It plays but it's all quiet.  But there is track waveform, whence that?
-    . It's from the wav but why does it not look empty?  Just very quiet?
-    . Other im works, it's just break.
-    . It's the envelope, constant 1 works.
-    . Util.dynEnvelope, but it seems like Signal.clip_after is incorrect for
-      constant!?
-  * track waveform scale
-    ? why did a 0 signal show up like a waveform in the track?
-      . It happens when Signal.from_pairs [(15.75, 1), (16, 0)]
-      . Signal is 0 until after the sample.  How does it happen that the wav
-        is all 0 but shows up in the track?
-      . Is this constant 0 or interpolated?  If it's interpolated, why doesn't
-        it get louder?
-      . It does, but too slowly to hear.  This is just the waveform autoscaling.
-    . Could I have a scale marking on track waveform so I can get a sense of
-      volume?
-    . Or what if I draw the envelope in there?
-    . It's EventTrack::Body::draw_waveforms amplitude_scale, from max_peak
-    . Other programs don't do this, they just display directly?
   - global StrictData:
     . Mark lazy fields with ~?  It'll be non-records too!
     * Synth
@@ -277,26 +215,6 @@ UNSORTED
   - osx: how to disable that "reopen windows" feature?
     defaults write -app "Application Name" NSQuitAlwaysKeepsWindows -bool false
     defaults write -app /Applications/tastyworks.app NSQuitAlwaysKeepsWindows -bool false
-  * bug: floating_insert called but no open input:  (4o)
-    Happens in kbd entry.
-    . TrackTile::floating_insert(const char *text) when no floating_input.
-      Sync.floating_input state (Cmd.FloatingInsert text) =
-      NoteEntry.floating_input_insert when Cmd.state_floating_input
-    . So it's out of sync with the UI.
-      True when Cmd.FloatingInput, False when
-      UiMsg.UiUpdate _ (UiMsg.UpdateInput {}) and UiMsg.ctx_floating_input ctx
-    . So this happens if the floating input closes, but doesn't send the
-      UiUpdate.
-    . I can prevent the state desync by sending floating status on every UiMsg
-      like with focus.
-    . But this means I'm losing an update, how?
-      Update sent when track_type == UiMsg::track_floating_input
-      MsgCollector::floating_input
-      TrackTile::floating_close, but only if text_changed().
-      Is that not a problem?  Enable msg logging.
-    . It does get stuck on!  But why isn't it a problem?
-      It is!  Kbd entry doesn't work.
-    . Always sending fixes it.  But I should also send on every update?
   save/bali/bapang-saba
     * saba tuning is totally different from mine, can I put it in as a laras?
       ? I still dislike "tuning" for the umbang/isep, still don't have
@@ -327,113 +245,6 @@ UNSORTED
     . Would it make sense to replace pasang instruments with simply a flat
       instrument that acts like it?
       . But I would want to do score integrate to split into wadon and lanang?
-  * why does seq window not come to front?
-    . test_block does, browser and logview do.
-    . what could possibly be different?
-    - Can I strip it down to just display the block?
-      Browser uses Util.Fltk, seq uses its own thing.  Could I port seq to
-      Util.Fltk?
-      . What is the difference?
-      . ask claude? what would it take to port @App/Main.hs to use
-        @Util/Fltk.hs like @Instrument/Browser.hs does?
-      . Thinks it's hard.  And there's no guarentee it helps.
-    . Difference is seq makes windows in response to events, while others
-      directly create a window.  But to fltk, doesn't it all look like
-      window create calls?
-    ? What's the different sequence between test_block creating a window and
-      Responder doing so?
-    . keycaps window comes to the front, what's the difference?
-      interface.cc keycaps_create()
-        KeycapsWindow *window = new KeycapsWindow(x, y, w, h, "", layout);
-        window->show();
-      vs.
-        BlockWindow *view = new BlockWindow(x, y, w, h, strdup(label), *config);
-        view->show();
-    . What if I simplify BlockWindow down to the minimum?
-    . Clicking keycaps brings block to the front.  This implies it's something
-      in the window manager.  It doesn't think the app is in front? But why is
-      block window special?
-    . It's because of set_flag(Fl_Window::NON_MODAL); which works but seems
-      not generally suitable.
-    . The difference is that logview and browser become the frontmost app when
-      run, but not seq.
-    . Works with direct BlockC call.  Move towards real:
-      * Use event loop.
-      * Add initialize stuff.
-      - Make block via sync.
-      - Make block via diff.
-    . Making a block directly before event_loop fixes it!
-      So what is the difference?
-    . Putting handle_actions before wait fixes it.
-    . But I still have to put something in, so it's like the block create
-      needs o come first?
-    . Maybe it happens if wait is called before actions.
-    . I want to not call wait() until there's been at least one action.
-      I can't block on the Channel since it's MVar [].  I don't want to
-      loop and Thread.delay because I want to be notified as soon as something
-      is in there.  If I have an empty MVar then I have to check
-      MVar.isEmptyMVar on every put.
-    . And I can't do that, because then I get a race, it's empty while
-      handle_actions is going on.
-    . Actually I want a one-off switch.  I could handle in C, if no windows
-      created yet, then don't Fl::wait(), but just sleep.  But I'd need to
-      be woken by awake().  I can do this more easily in haskell, with a
-      global.
-  + What is Fl::wait() doing that makes the app not get focus?
-    . Just calling wait() first doesn't reproduce.  Maybe it's wait in main
-      thread and an awake() in another?
-    . main:
-        . Fl::lock()
-        for (;;)
-          Fl::wait()
-          run actions from queue
-      responder:
-        . put action in queue
-        . Fl::awake()
-  + bug: ghci GHC.Linker.Loader.dynLoadObjs: Loading temp shared object failed
-    During interactive linking, GHCi couldn't find the following symbol:
-      dlopen(/var/folders/gm/7n_pzqns7_dd93srd5n4l_2c0000gn/T/ghc74955_0/libghc_20.dylib, 0x0005): symbol not found in flat namespace '_SolkattuziDslziMridangam_closed_closure'
-    Perhaps ghc 9.6's recompilation avoidance is buggy?
-    I thought I also noticed it not noticing changes in a file.
-    . Switched to Shake.ChangeDigest to see if it helps.
-    . It still happens, but it seems now at least if I do a shake build, it
-      fixes it.
-  * bug: midi thru: not getting key up?
-    . The first time the window gets focus, I get FL_KEYUPs, but if it loses
-      focus then gets it back, no more FL_KEYUPs.
-    . test_block is the same.
-    . Related to defaults write -g ApplePressAndHoldEnabled -bool false?
-    - Make minimal fltk repro
-      test_block does show it.
-      fltk-modifiers.cc doesn't show it.
-    . Doesn't happen with test_block not having tracks.
-      Only happens if there's an insert_track
-    . Block gets FL_KEYDOWN -> MsgCollector
-      But Track gets FL_KEYUP, which is lost.
-      This happens if I put focus on the track, if I click outside, both go on
-      Block.
-    . fltk-3.11 still does this, so probably OS X version, not fltk.
-    . Block::handle does return 1, and fltk has proper focus.  Just doesn't
-      deliver FL_KEYUP to the focused widget.
-    . FL_FOCUS: Window -> Block -> returns 1
-      FL_ENTER: Window
-      FL_KEYDOWN: Block -> Window
-      FL_KEYUP: Block -> Track
-    . Focus is on the Block, so actually both should go to Block?
-      FL_KEYDOWN goes directly to focused, FL_KEYUP to window.
-      Then why FL_KEYUP to Block, not to Window?
-    . Why do I have separate window and block handle()?  Can I move it all to
-      Block?
-    . Moved, but keys now not being detected?
-      Is Fl_Double_Window::handle(evt) not the same as block.handle(evt)?
-      FL_KEYDOWN goes to Window, then to SHORTCUT, not to Block.
-      Because window winds up with focus, not block.
-      Selecting window, Block gets focus.  After clicking on track,
-      FL_PUSH goes to Window then to Block, and Window
-      gets focus.
-    . I don't want a distiction between Block and Window at all!
-      What if I move ::handle to window, and have none in Block?  It should
-      then inherit Fl_Group.
   get rid of hlibgit2 dep?
     . It's a complicated library with a big unmaintained haskell binding.
     . Or I could fork and maintain it myself.
@@ -1913,87 +1724,14 @@ UNIFY:
 ----------------------------------------------------------------------
 
 ghc:
-  - what is going on with that
+  - cabal build puts a non-existent directory in .ghc.environment, which
+    breaks ghc-pkg:
     package-db dist-newstyle/packagedb/ghc-9.12.4
-  upgrade to 9.12:
-    9.12:
-      . OrPatterns: https://github.com/ghc-proposals/ghc-proposals/blob/master/proposals/0522-or-patterns.rst
-      . MultilineStrings: https://github.com/ghc-proposals/ghc-proposals/blob/master/proposals/0569-multiline-strings.rst
-      . Wildcard type binders: https://github.com/ghc-proposals/ghc-proposals/blob/master/proposals/0425-decl-invis-binders.rst
-      . The new runtime flag --read-tix-file=<yes|no> allows to modify whether
-        a preexisting .tix file is read in at the beginning of a program run.
-        The default is currently --read-tix-file=yes but will change to
-        --read-tix-file=no in a future version of GHC. For this reason,
-        a warning is emitted if a .tix file is read in implicitly. You can
-        silence this warning by explicitly passing --read-tix-file=yes.
-        Details can be found in GHC proposal #612.
-    9.10:
-      . The -fprof-late-overloaded flag has been introduced. It causes cost
-        centres to be added to overloaded top level bindings, unlike
-        -fprof-late which adds cost centres to all top level bindings.
-      . The -fprof-late-overloaded-calls flag has been introduced. It causes
-        cost centres to be inserted at call sites including instance
-        dictionary arguments. This may be preferred over
-        -fprof-late-overloaded since it may reveal whether imported functions
-        are called overloaded.
-      . Exceptions can now carry arbitrary user-defined annotations via the
-        new GHC.Exception.Type.ExceptionContext implicit parameter of
-        SomeException. These annotations are intended to be used to carry
-        context describing the provenance of an exception.
-    9.8:
-      . nothing interesting
-    . See if recompilation avoidance is fixed?
-    What is the ghc upgrade process?
-      . ghcup install, ghcup set
-      . rm -rf build
-      . rm cabal.project.freeze
-      . cabal update
-      . cabal build --only-dep
-      . cabal freeze # update cabal.project.freeze if you deleted it
-    ? Can I have different cabal.project.freeze for different ghc versions?
-    warnings:
-      + List.head, tail - -Wx-partial
-    * ReplGhc
+    . Also missing
+      /Users/elaforge/.ghcup/ghc/9.12.4/lib/ghc-9.12.4/lib/package.conf.d
+  ? Can I have different cabal.project.freeze for different ghc versions?
   9.6.7 recompilation avoidance buggy:
     - make simple repro
-    note:
-      Since upgrading from 9.4 to 9.6 ghci has become unreliable.  Since the
-      upgrade, when changing an indirectly-dependened-on module, reloading
-      the current module with :r, and running some function, I sometimes
-      get a "GHC.Linker.Loader.dynLoadObjs: Loading temp shared object failed",
-      or worse, it continues to reuse the old version of the module I changed.
-      The interesting thing is it does notice the change in the parent module,
-      but the change does not seem to register.  E.g. where TimeVector was
-      changed:
-        *Util.Segment_test D> :r
-        [34 of 37] Compiling Util.TimeVector  ( Util/TimeVector.hs, interpreted ) [Source file changed]
-        [37 of 37] Compiling Util.Segment_test ( Util/Segment_test.hs, interpreted )
-      It has correctly noticed that TimeVector.hs changed and should be
-      reloaded, but functions in Segment_test.hs continue to see the old
-      TimeVector.
-
-      One possibly relevant wrinkle is that I don't use cabal to build, but my
-      own implementation in shake.  However, I believe this shouldn't be able to
-      influence ghci in this way.  Despite the fact that eg Segment.o was
-      produced by shake running ghc -c, it's still up to ghci to decide whether
-      or not to load Segment.o or recompile as bytecode, and I can't think of a
-      way I could somehow wrongly produce .o to fool it.  However it could be
-      that ghci is indeed buggy but most people are now using ghc --make rather
-      than ghc -c, and --make avoids the problem somehow.
-
-      Another thing is that this problem only shows up with ghci, I don't see it
-      with normal builds, which use ghc -c.  If I do a normal build indeed
-      TimeVector is recompiled, and Segment.hs is skipped (ghc prints
-      "compilation IS NOT required").  So it seems it's correct to not recompile
-      Segment.hs, but the binary linking doesn't have the problem, while ghci's
-      version gets something wrong.  It's also related to in-memory state
-      because if I restart ghci, it will reload things properly.
-
-      Anyway, is this a known issue?  I'm aware 9.6 is also pretty old by now,
-      and I do remember it introduced more fancier recompilation avoidance that
-      wasn't relying on just mtime any more.  So maybe it was buggy in early
-      days?  Should I focus on trying to track down this issue or on upgrading
-      ghc?
   . https://discourse.haskell.org/t/the-haskell-debugger-for-ghc-9-14/13499
   - -fdefer-type-errors is broken in 8.4:
     https://ghc.haskell.org/trac/ghc/ticket/14963
@@ -2030,7 +1768,29 @@ ghc:
       . https://downloads.haskell.org/ghc/9.8.4/docs/users_guide/9.8.1-notes.html
     9.10:
       . https://downloads.haskell.org/~ghc/9.10.3/docs/users_guide/9.10.1-notes.html
-    . https://downloads.haskell.org/ghc/latest/docs/users_guide/9.12.1-notes.html
+      . The -fprof-late-overloaded flag has been introduced. It causes cost
+        centres to be added to overloaded top level bindings, unlike
+        -fprof-late which adds cost centres to all top level bindings.
+      . The -fprof-late-overloaded-calls flag has been introduced. It causes
+        cost centres to be inserted at call sites including instance
+        dictionary arguments. This may be preferred over
+        -fprof-late-overloaded since it may reveal whether imported functions
+        are called overloaded.
+      . Exceptions can now carry arbitrary user-defined annotations via the
+        new GHC.Exception.Type.ExceptionContext implicit parameter of
+        SomeException. These annotations are intended to be used to carry
+        context describing the provenance of an exception.
+    9.12:
+      . OrPatterns: https://github.com/ghc-proposals/ghc-proposals/blob/master/proposals/0522-or-patterns.rst
+      . MultilineStrings: https://github.com/ghc-proposals/ghc-proposals/blob/master/proposals/0569-multiline-strings.rst
+      . Wildcard type binders: https://github.com/ghc-proposals/ghc-proposals/blob/master/proposals/0425-decl-invis-binders.rst
+      . The new runtime flag --read-tix-file=<yes|no> allows to modify whether
+        a preexisting .tix file is read in at the beginning of a program run.
+        The default is currently --read-tix-file=yes but will change to
+        --read-tix-file=no in a future version of GHC. For this reason,
+        a warning is emitted if a .tix file is read in implicitly. You can
+        silence this warning by explicitly passing --read-tix-file=yes.
+        Details can be found in GHC proposal #612.
   . make core easier to read:
     https://www.youtube.com/watch?v=yRVjR9XcuPU&ab_channel=Tweag
     -dsuppress-module-prefixes -dsuppress-coercions
@@ -2039,25 +1799,6 @@ ghc:
   . ghc api memory use should get much better in 9.4
     Rather than insert all ModDetails, forget them and just deserialize the
     interface file.
-  what is the x-axis on the profile?
-    . CPUTime, mutator time
-  what about time profile?
-    . what about entries?
-  eventlog format.rst in ghc source tree
-  9.4:
-    . https://downloads.haskell.org/~ghc/9.4.1/docs/users_guide/9.4.1-notes.html
-    . -fprof-late
-    . Enable -fworker-wrapper-cbv, usually good but not on by default.
-    . -eventlog no longer needed
-    . The load function no longer automatically caches interface files in
-      memory between calls. If you want to use a cache then you can supply
-      one explicitly using the loadWithCache function, with your own
-      implementation or a simple cache created by newIfaceCache.
-    . GhcRepl: GHC.Target has changed
-  9.6:
-    . https://downloads.haskell.org/~ghc/9.6.4/docs/users_guide/9.6.1-notes.html
-    . https://gitlab.haskell.org/ghc/ghc/-/wikis/migration/9.6
-    . Nothing much?
 
 documentation:
   - strict markdown parser, and extensible:
@@ -6863,30 +6604,15 @@ solkattu:
   - add a bpm range annotation
     . This is sort of more dynamic, in that it's to do with my practice,
       but isn't all of it?
-  * replace tri with r3, and rename tri_ to tri.
   - looks like putting in a group suppresses x q abbreviation
   kendang:
-    * o d for de dag
-      . I don't like eo as de, dag.  Previously was .o but . is hard to read
-        and invalid id.  d would be dag and also like din.  So: o d
-    * sync tunggal and pasang strokes
-      . pasang:
-        P, k p, t l, u y, Y (pong)
-        . o i
     - both strokes for tunggal, nonstandard but work?
       P plak
       D dag + pang
       O tut + pang
       K ka + pang
-    * Isn't rendering to text or html.
-    * Realize to mridangam?
     - Tweak display to put beats at the end?
       - Also would have to modify verify to write the notation that way.
-    * I want soft de to render as '.'.  So either do a special render for
-      Light strokes, or make an entirely new stroke.
-      . It is probably also rendered as dag without tong, or as plain 'o' and
-        not 'D', so it's sort of logically a different stroke.
-      . There is already a blanket instance Solkattu.Notation (Stroke stroke)
   + mridangam sync with cmd instrument:
     + k has .5 dyn in integrate.
       . Because I have to have unique char -> (attrs, dyn), since it uses it
@@ -6907,7 +6633,6 @@ solkattu:
       . By the time it's in Common.common_code, it's already a Monad.CallMap,
         which is Map.  Where does it become that?
       . MidiInst.Code -> code_library
-    * Can't use 'p' for pattern if it's tha!  DSL uses p5 p6 etc. and 'pat n'
     . Use Stroke -> Mridnagam.notations for symbols
     . But I need a keybinding, use Stroke -> key
     . + becomes p, and I lose - and * for emphasis.  They seem useful though.
@@ -6923,19 +6648,6 @@ solkattu:
         . This would let it use non-expanded format, but it's a new thing
           because it would have to know which are ok to compress to 1 and
           which are not.
-      * abstraction level to drop the kali half
-        . I could make it a "kali half" group.
-        . But, abstraction can only blank out, it can't delete entirely.
-          So maybe I need a more extreme kind which just removes it?
-        . Or a fundamentally different kind of abstraction, how to mark it
-          then?
-        . I could put the kali matras in section meta, but then 'kali2' has to
-          be at the section level.
-        . I could clean this up and section metadata by including it in
-          Sequence, and pulling it out.  This would also work for nadai
-          inference, though I guess it's not actually better than just
-          inferring directly from nadai.
-        . Actually don't need to mark position at all, if it's always half.
       - don't drop kali for tihai sections
         . If it uses korvaiS, then it should infer tihai for the end.
         . But some of them have two tihais.
@@ -7253,7 +6965,6 @@ solkattu:
       - If I like text output better:
         https://github.com/buildkite/terminal-to-html
         . Seems to be black background and only white text.
-      * legend is hardcoded for mridangam only
       - rendering has gotten very slow, why?
         . Having entirely separate renders for each abstraction level can't be
           efficient.
@@ -7280,8 +6991,6 @@ solkattu:
       - Can I align by structure?
         . E.g. reductions or tri would line up vertically.
     terminal:
-      * two letter stroke like flam trimmed if it's the end sam stroke:
-        kumar_3
       * unwrap when 2 or 4 avartanams can fit
         Terminal.format
         . Conflicts with expanding it if I have room:
@@ -8932,7 +8641,7 @@ tscore:
       . branch tscore-stretchy-copy
       . Do in Check.resolve_call_duration.
       . Adding the durations doesn't work because I need to know when it
-        *should be*.  That's what check barline does.
+        /should be/.  That's what check barline does.
       . To get AssertCoincident time, I need to look at another track with
         AssertCoincident and no CallDuration.  If I do barline, it risks being
         confusing because it's the next valid barline, not the one that
