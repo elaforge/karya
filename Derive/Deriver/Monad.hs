@@ -223,17 +223,17 @@ instance Pretty ErrorVal where
     pretty (GenericError s) = s
     pretty (CallError err) = pretty err
 
-data CallError =
+data CallError
     -- | Error typechecking an argument.
-    TypeError TypeErrorT
+    = TypeError TypeErrorT
     -- | Couldn't even call the thing because the name was not found.
     | CallNotFound Expr.Symbol
     -- | Calling error that doesn't fit into the above categories.
     | ArgError Text
     deriving (Show)
 
-data TypeErrorT = TypeErrorT {
-    error_place :: ErrorPlace
+data TypeErrorT = TypeErrorT
+    { error_place :: ErrorPlace
     , error_source :: EvalSource
     , error_arg_name :: ArgName
     , error_expected :: ValType.Type
@@ -247,9 +247,9 @@ data TypeErrorT = TypeErrorT {
 data ErrorPlace = TypeErrorArg Int | TypeErrorEnviron EnvKey.Key
     deriving (Eq, Show)
 
-data EvalSource =
+data EvalSource
     -- | The value in error came from a literal expression.
-    Literal
+    = Literal
     -- | The value in error came from a 'DeriveT.VQuoted' bit of code.
     | Quoted DeriveT.Quoted
     -- | The error came from a SubT.Track.  The value is either a track index
@@ -462,10 +462,10 @@ instance Taggable Pitch where
 -- * state
 
 -- | All the state available during derivation.
-data State = State {
+data State = State
     -- | Threaded state means deriving one event depends on the results of the
     -- previous event.  This corresponds to StateT.
-    state_threaded :: Threaded
+    { state_threaded :: Threaded
     -- | This data is modified in a dynamically scoped way, for
     -- sub-derivations.  This corresponds to ReaderT.
     , state_dynamic :: Dynamic
@@ -509,8 +509,8 @@ initial_threaded = Threaded mempty 0
 
 -- | This is a dynamically scoped environment that applies to generated events
 -- inside its scope.
-data Dynamic = Dynamic {
-    state_control_merge_defaults :: Map ScoreT.Control Merger
+data Dynamic = Dynamic
+    { state_control_merge_defaults :: Map ScoreT.Control Merger
     -- | The unnamed pitch signal currently in scope.  This is the pitch signal
     -- that's applied to notes by default.  It's split off from 'state_environ'
     -- because it's convenient to guarentee that the main pitch signal is
@@ -579,9 +579,9 @@ type InstrumentAliases = Map ScoreT.Instrument ScoreT.Instrument
     transforms are now also stored as code rather than data, in
     'state_under_invert'.
 -}
-data Inversion =
+data Inversion
     -- | Pre-inversion.
-    NotInverted
+    = NotInverted
     -- | After inversion, but not yet at the bottom.  The inverted generator
     -- is captured here.
     | InversionInProgress NoteDeriver
@@ -692,8 +692,8 @@ type ModuleMap call = Map Module.Module (CallMap call)
 instance Show Builtins where show _ = "((Builtins))"
 
 -- | The map takes priority over the patterns.
-data CallMap call = CallMap {
-    call_map :: Map Expr.Symbol call
+data CallMap call = CallMap
+    { call_map :: Map Expr.Symbol call
     , call_patterns :: [PatternCall call]
     }
 
@@ -748,8 +748,8 @@ type Scopes = ScopesT
 --
 -- names: EScope, TScope for ExpressionScope and TrackScope?
 -- ExprScope, TrackScope?  I'd want to update the names in CallDoc too.
-data ScopesT gen trans track val = Scopes {
-    scopes_generator :: gen
+data ScopesT gen trans track val = Scopes
+    { scopes_generator :: gen
     , scopes_transformer :: trans
     , scopes_track :: track
     , scopes_val :: val
@@ -785,8 +785,8 @@ instance (Monoid gen, Monoid trans, Monoid track, Monoid val) =>
     mempty = Scopes mempty mempty mempty mempty
     mappend = (<>)
 
-data Scope note control pitch = Scope {
-    scope_note :: note
+data Scope note control pitch = Scope
+    { scope_note :: note
     , scope_control :: control
     , scope_pitch :: pitch
     }
@@ -836,11 +836,11 @@ instance Monoid (ScopePriority call) where
     mempty = ScopePriority mempty
     mappend = (<>)
 
-data CallPriority =
+data CallPriority
     -- | Override calls shadow all others.  They're useful when you want to
     -- prevent instruments from overriding calls, which the lilypond deriver
     -- needs to do.
-    PrioOverride
+    = PrioOverride
     -- | These are instrument-specific calls implicitly imported by note
     -- tracks.
     | PrioInstrument
@@ -972,8 +972,8 @@ instance Pretty Mode where
 -- * Constant
 
 -- | Values that don't change during one derive run.
-data Constant = Constant {
-    state_ui :: Ui.State
+data Constant = Constant
+    { state_ui :: Ui.State
     , state_builtins :: Builtins
     -- | Global map of signal mergers.  Unlike calls, this is static.
     , state_mergers :: Map Expr.Symbol Merger
@@ -1012,8 +1012,8 @@ initial_constant ui_state builtins lookup_scale scale_calls lookup_inst cache
 -- understand anything else about them.  However, it does need a few other
 -- things, which are expressed here to avoid excessive dependencies between the
 -- systems.
-data Instrument = Instrument {
-    inst_calls :: InstrumentCalls
+data Instrument = Instrument
+    { inst_calls :: InstrumentCalls
     -- | Merge this with the 'state_environ' when the instrument comes into
     -- scope.
     , inst_environ :: DeriveT.Environ
@@ -1100,11 +1100,11 @@ merge_scale = Merger "scale" Signal.sig_scale 0
 -- | These are things that collect throughout derivation, and are cached in
 -- addition to the derived values.  Effectively they are extra return values,
 -- which are combined with mappend.  So this is the WriterT part of 'State'.
-data Collect = Collect {
+data Collect = Collect
     -- | Remember the warp signal for each track.  A warp usually applies to
     -- a set of tracks, so remembering them together will make the play monitor
     -- more efficient when it inverts them to get playback position.
-    collect_warp_map :: TrackWarp.WarpMap
+    { collect_warp_map :: TrackWarp.WarpMap
     , collect_track_signals :: Track.TrackSignals
     , collect_signal_fragments :: SignalFragments
     , collect_track_dynamic :: TrackDynamic
@@ -1210,9 +1210,9 @@ instance Pretty ControlMod where
         Pretty.constructor "ControlMod"
             [Pretty.format control, Pretty.format signal, Pretty.format merge]
 
-data Integrated = Integrated {
+data Integrated = Integrated
     -- BlockId for a block integration, TrackId for a track integration.
-    integrated_source :: Either BlockId TrackId
+    { integrated_source :: Either BlockId TrackId
     , integrated_events :: Stream.Stream Score.Event
     } deriving (Show)
 
@@ -1289,10 +1289,10 @@ instance Monoid (CallDuration a) where
 
 -- ** calls
 
-data PatternCall call = PatternCall {
+data PatternCall call = PatternCall
     -- | Since this doesn't have a Symbol, this is a description of the kinds
     -- of symbols matched, presumably as a regex.
-    pat_description :: Text
+    { pat_description :: Text
     , pat_doc :: DocumentedCall
     -- | The function is in Deriver because some calls want to look at the
     -- state to know if the Symbol is valid, e.g. block calls.
@@ -1307,8 +1307,8 @@ instance Pretty (PatternCall call) where
     pretty pattern = "Pattern:" <> pat_description pattern
 
 -- | Data passed to a 'Call'.
-data PassedArgs val = PassedArgs {
-    passed_vals :: [DeriveT.Val]
+data PassedArgs val = PassedArgs
+    { passed_vals :: [DeriveT.Val]
     -- | Used by "Derive.Sig" to look for default arg values in the
     -- environment.  This is technically redundant since a call should know its
     -- own name, but it turns out to be inconvenient to pass the name to all of
@@ -1330,7 +1330,7 @@ instance Pretty val => Pretty (PassedArgs val) where
 -- The events are not used for transform calls.
 --
 -- TODO make separate types so the irrelevent data need not be passed?
-data Context val = Context {
+data Context val = Context
     -- The below is not used at all for val calls, and the events are not
     -- used for transform calls.  It might be cleaner to split those out, but
     -- too much bother.
@@ -1345,7 +1345,7 @@ data Context val = Context {
     -- may snip off the previous event.
     --
     -- See NOTE [prev-val] in "Derive.Args" for details.
-    ctx_prev_val :: Maybe val
+    { ctx_prev_val :: Maybe val
 
     , ctx_event :: Event.Event
     , ctx_prev_events :: [Event.Event]
@@ -1432,8 +1432,8 @@ untag_context ctx = ctx { ctx_prev_val = from_tagged =<< ctx_prev_val ctx }
 -- in @a | b@, @a@ is a transformer and @b@ is a generator.
 --
 -- More details on this strange setup are in the "Derive.Call" haddock.
-data Call func = Call {
-    call_name :: CallName
+data Call func = Call
+    { call_name :: CallName
     , call_doc :: CallDoc
     , call_func :: func
     }
@@ -1478,15 +1478,15 @@ str_to_arg_name (Expr.Str str) = ArgName str
 -- that a single newline will be replaced with two, so a single \n is enough
 -- to start a new paragraph.  Also, single quotes are turned into links as per
 -- "Util.Texts".haddockUrl.
-data CallDoc = CallDoc {
-    cdoc_module :: Module.Module
+data CallDoc = CallDoc
+    { cdoc_module :: Module.Module
     , cdoc_tags :: Tags.Tags
     , cdoc_doc :: Doc.Doc
     , cdoc_args :: [ArgDoc]
     } deriving (Eq, Ord, Show)
 
-data ArgDoc = ArgDoc {
-    arg_name :: ArgName
+data ArgDoc = ArgDoc
+    { arg_name :: ArgName
     , arg_type :: ValType.Type
     , arg_parser :: ArgParser
     , arg_environ_default :: EnvironDefault
@@ -1520,8 +1520,8 @@ type WithArgDoc f = (f, [ArgDoc])
 
 -- ** make calls
 
-data GeneratorFunc d = GeneratorFunc {
-    gfunc_f :: GeneratorF d
+data GeneratorFunc d = GeneratorFunc
+    { gfunc_f :: GeneratorF d
     -- | This gets the logical duration of this call.  'CallDuration' has
     -- details.
     , gfunc_score_duration :: PassedArgs d -> Deriver (CallDuration ScoreTime)
@@ -1692,9 +1692,9 @@ newtype BlockDeps = BlockDeps (Set BlockId)
 -- ** damage
 
 -- | Modified ranges in the score.
-data ScoreDamage = ScoreDamage {
+data ScoreDamage = ScoreDamage
     -- | Damaged ranges in tracks.
-    sdamage_tracks :: Map TrackId (Ranges.Ranges ScoreTime)
+    { sdamage_tracks :: Map TrackId (Ranges.Ranges ScoreTime)
     -- | The blocks with damaged tracks.  Calls depend on blocks
     -- ('BlockDeps') rather than tracks, so it's convenient to keep the
     -- blocks here.  This is different than block damage because a damaged
@@ -1776,8 +1776,8 @@ real_to_score pos = do
 -- | Like ValCall, but specialized to return Scale, which is not a first class
 -- Val.  Ultimately that's because there would be a circular dependency as
 -- documented in "Derive.DeriveT".
-data ScaleCall = ScaleCall {
-    scall_name :: CallName
+data ScaleCall = ScaleCall
+    { scall_name :: CallName
     , scall_doc :: CallDoc
     -- ValCall takes PassedArgs, but scales don't need Context.
     , scall_call :: ScaleF
@@ -1797,8 +1797,8 @@ scale_call name doc (call, arg_docs) = ScaleCall
     , scall_call = call
     }
 
-data Scale = Scale {
-    scale_id :: Pitch.ScaleId
+data Scale = Scale
+    { scale_id :: Pitch.ScaleId
     -- | A pattern describing what the scale notes look like.  Used only for
     -- error msgs (i.e. parse errors) so it should be human readable and
     -- doesn't have to follow any particular syntax.  A regex is recommended
