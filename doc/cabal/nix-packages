@@ -24,7 +24,6 @@ exceptions
 extra
 filepath
 ghc
-ghc-events
 ghc-paths
 ghc-prim
 hashable

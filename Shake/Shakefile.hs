@@ -124,8 +124,6 @@ basicPackages = concat
     , w "resourcet"
     , w "bindings-portaudio"
     , w "vivid-osc vivid-supercollider" -- Perform.Sc
-    -- used only by App.ConvertEventLog
-    , [("ghc-events", ">=0.15")]
     ]
     where w = map (\p -> (p, "")) . words
 
@@ -342,7 +340,6 @@ hsBinaries :: [HsBinary]
 hsBinaries =
     [ gui "browser" "Instrument/Browser.hs" ["Instrument/browser_ui.cc.o"]
     , plain "import_query" "Shake/ImportQueryMain.hs"
-    , plain "convert_event_log" "App/ConvertEventLog.hs"
     , plain "dump" "App/Dump.hs"
     -- ExtractDoc wants the global keymap, which winds up importing cmds that
     -- directly call UI level functions.  Even though it doesn't call the

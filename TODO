@@ -81,6 +81,10 @@ usability:
     . Record in edit mode?  Why not?
 
 external:
+  haddock:
+    - When it fails with some type error, last line is:
+      load' failed
+      . This looks like a mistake!
   vim:
     - mark ] is set on the last yanked character. So when you move stuff
       arround, after you pressed p, to indent you just need to press >']
@@ -120,6 +124,11 @@ external:
     . using tscore, especially standalone
 
 UNSORTED
+  warns:
+    - LogView/LogCat.hs
+  - get haddock back
+    - Derive/JScore/Db.hs
+    * App/ConvertEventLog.hs
   - on every stop:
     Midi/CoreMidi.hs:299 - CoreMIDI error: 4294967296
     From core_midi_abort(), what does it mean?
@@ -183,7 +192,7 @@ UNSORTED
     im_play_direct <- Cmd.gets $ Cmd.config_im_play_direct . Cmd.state_config
     LCmd.im_play_direct
     How could I have found this easier?
-  - global StrictData:
+  + global StrictData:
     . Mark lazy fields with ~?  It'll be non-records too!
     * Synth
     + Ui
