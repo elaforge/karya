@@ -6,7 +6,7 @@
 --
 -- TODO: formatting options
 module LogView.LogCat where
-import qualified Data.ByteString as ByteString
+import qualified Data.ByteString.Char8 as ByteString.Char8
 import qualified Data.Text.IO as Text.IO
 import qualified GHC.IO.Encoding as Encoding
 import qualified System.Environment as Environment
@@ -28,6 +28,6 @@ main = do
         _ -> error "usage: logcat [filename]"
     IO.hSetBuffering hdl IO.LineBuffering
     forever $ do
-        line <- ByteString.hGetLine hdl
+        line <- ByteString.Char8.hGetLine hdl
         let msg = Tail.deserialize_line line
         Text.IO.putStrLn (Log.format_msg msg)

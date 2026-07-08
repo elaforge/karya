@@ -125,7 +125,7 @@ external:
 
 UNSORTED
   warns:
-    - LogView/LogCat.hs
+    * LogView/LogCat.hs
   * get haddock back
     * Derive/JScore/Db.hs
     * App/ConvertEventLog.hs
