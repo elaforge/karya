@@ -21,6 +21,7 @@ import qualified Util.Num as Num
 import qualified Util.Thread as Thread
 
 import qualified Derive.JScore.Check as Check
+import qualified Derive.JScore.Format as Format
 import qualified Derive.JScore.JScore as JScore
 import qualified Derive.JScore.Parse as Parse
 import qualified Derive.JScore.T as T
@@ -32,7 +33,7 @@ type Error = Text
 
 data Entry = Entry {
     e_tags :: Tags
-    , e_meta :: Maybe JScore.Meta
+    , e_meta :: Maybe Check.Meta
     , e_block :: Block (Token ())
     } deriving (Show, Eq)
 
@@ -49,15 +50,15 @@ print_entries = mapM_ (Text.IO.putStrLn . fmt) . zip [0 :: Int ..]
 format_entry :: Entry -> Text
 format_entry (Entry { e_tags, e_meta, e_block }) =
     Text.unlines $ format_tags e_tags
-        : JScore.format_title e_block
+        : Format.format_title e_block
         : format_block fmt_pos e_meta e_block
     where fmt_pos = const id
 
-format_block :: (pos -> Text -> Text) -> Maybe JScore.Meta -> Block (Token pos)
+format_block :: (pos -> Text -> Text) -> Maybe Check.Meta -> Block (Token pos)
     -> [Text]
 format_block fmt_pos meta block =
-    JScore.format_block fmt_pos
-        (JScore.m_irama <$> meta) (JScore.m_instrument <$> meta)
+    Format.format_block fmt_pos
+        (Check.m_irama <$> meta) (Check.m_instrument <$> meta)
         block
 
 format_groups :: [Entry] -> [Text]
@@ -66,7 +67,7 @@ format_groups = map format_group . Lists.groupSort (T.block_tracks . e_block)
 format_group :: [Entry] -> Text
 format_group entries@(entry0 : _) = Text.unlines $
     format_tags common
-    : Text.intercalate " ; " (map (JScore.format_title . e_block) entries)
+    : Text.intercalate " ; " (map (Format.format_title . e_block) entries)
     : format_block (const id) (e_meta entry0) (e_block entry0)
     where
     -- TODO I could show the unique ones, but it takes space
@@ -147,7 +148,7 @@ score_entries fname source (T.Score toplevels) = go [] (map snd toplevels)
         , e_block = map (map (T.set_token_pos ())) <$> e_block
         }
         where
-        e_meta = JScore.make_meta e_metas
+        e_meta = Check.make_meta e_metas
         Just (line, _, _) = T.find_pos source  (T.block_pos e_block)
 
 make_tags :: FilePath -> [T.Meta] -> Check.Block -> Tags
@@ -157,8 +158,8 @@ make_tags fname metas block = Map.unions
     , Map.fromList [("file", txt (FilePath.takeFileName fname))]
     ]
 
-meta_tags :: JScore.Meta -> Tags
-meta_tags (JScore.Meta { m_laras, m_irama, m_instrument }) = Map.fromList
+meta_tags :: Check.Meta -> Tags
+meta_tags (Check.Meta { m_laras, m_irama, m_instrument }) = Map.fromList
     [ ("laras", Parse.laras_enum m_laras)
     , ("irama", Parse.irama_enum m_irama)
     , ("instrument", Parse.instrument_enum m_instrument)
@@ -188,13 +189,13 @@ block_tags block = Map.fromList $ concat
 convert_laras :: T.Laras -> Entry -> Maybe Entry
 convert_laras laras entry = do
     meta <- e_meta entry
-    if laras == JScore.m_laras meta
+    if laras == Check.m_laras meta
         then pure entry
         else do
-            trans <- JScore.convert_laras (JScore.m_laras meta) laras
+            trans <- Check.convert_laras (Check.m_laras meta) laras
             pure $ update_tags $ entry
-                { e_block = JScore.transform_block trans (e_block entry)
-                , e_meta = Just $ meta { JScore.m_laras = laras }
+                { e_block = Format.transform_block trans (e_block entry)
+                , e_meta = Just $ meta { Check.m_laras = laras }
                 }
 
 update_tags :: Entry -> Entry

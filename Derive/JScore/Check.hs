@@ -19,6 +19,7 @@ module Derive.JScore.Check (
     -- * Meta
     , Meta(..)
     , collect_metas
+    , make_meta
     -- * format
     , Block
     , format_score

@@ -9,6 +9,8 @@ module Derive.JScore.Format (
     , format_title
     , format_gatra
     , format_balungan
+
+    , transform_block
 ) where
 import qualified Data.List as List
 import qualified Data.Text as Text
