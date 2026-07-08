@@ -30,6 +30,7 @@ import qualified Control.Exception as Exception
 import qualified Data.ByteString as ByteString
 import           Data.ByteString (ByteString)
 import qualified Data.IORef as IORef
+import qualified Data.Int as Int
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 
@@ -37,6 +38,8 @@ import qualified Foreign
 import           Foreign (FunPtr, Ptr, Word8)
 import qualified Foreign.C as C
 import           Foreign.C (CInt(..), CString, CULong(..))
+
+import           GHC.Stack (HasCallStack)
 
 import qualified Util.FFI as FFI
 import qualified Util.Log as Log
@@ -72,8 +75,9 @@ initialize app_name want_message app = do
             -- the 'c_prime_runloop' nonsense below is about.
             Concurrent.forkOS $ do
                 err <- c_initialize app_namep read_cb notify_cb
-                MVar.putMVar err_mvar (error_str err)
-                when (error_str err == Nothing) c_cf_runloop_run
+                mb_err <- error_str err
+                MVar.putMVar err_mvar mb_err
+                when (mb_err == Nothing) c_cf_runloop_run
             MVar.takeMVar err_mvar >>= \case
                 Just err -> app (Left err)
                 Nothing -> do
@@ -112,7 +116,7 @@ type NotifyCallback = CString -> DeviceId -> CInt -> CInt -> IO ()
 foreign import ccall "core_midi_terminate" terminate :: IO ()
 foreign import ccall "core_midi_initialize"
     c_initialize :: CString -> FunPtr ReadCallback -> FunPtr NotifyCallback
-        -> IO CError
+        -> IO OSStatus
 foreign import ccall "wrapper"
     make_read_callback :: ReadCallback -> IO (FunPtr ReadCallback)
 foreign import ccall "wrapper"
@@ -191,7 +195,7 @@ connect_read_device client dev =
                 return True
 
 foreign import ccall "core_midi_connect_read_device"
-    c_connect_read_device :: CInt -> Ptr () -> IO CError
+    c_connect_read_device :: CInt -> Ptr () -> IO OSStatus
 
 disconnect_read_device :: Client -> Midi.ReadDevice -> IO Bool
 disconnect_read_device client dev = do
@@ -204,7 +208,7 @@ disconnect_read_device client dev = do
         _ -> return False
 
 foreign import ccall "core_midi_disconnect_read_device"
-    c_disconnect_read_device :: DeviceId -> IO CError
+    c_disconnect_read_device :: DeviceId -> IO OSStatus
 
 connect_write_device :: Client -> Midi.WriteDevice -> IO Bool
 connect_write_device client dev = do
@@ -258,20 +262,20 @@ write_message client (Midi.WriteMessage dev ts msg)
         case Map.lookup dev writes of
             Just (Just dev_id) ->
                 ByteString.useAsCStringLen (Encode.encode msg) $
-                \(bytesp, len) -> error_str <$> c_write_message dev_id
+                \(bytesp, len) -> error_str =<< c_write_message dev_id
                     (encode_time ts) (fromIntegral len) (Foreign.castPtr bytesp)
             _ -> return $ Just $ "device not in open WriteDevices: "
                 <> pretty (Map.keys writes) <> ": " <> pretty dev
 
 foreign import ccall "core_midi_write_message"
-    c_write_message :: CInt -> CTimestamp -> CInt -> Ptr Word8 -> IO CError
+    c_write_message :: CInt -> CTimestamp -> CInt -> Ptr Word8 -> IO OSStatus
 
 -- * misc
 
 -- | Clear all pending msgs.
 abort :: IO ()
 abort = void $ check =<< c_abort
-foreign import ccall "core_midi_abort" c_abort :: IO CError
+foreign import ccall "core_midi_abort" c_abort :: IO OSStatus
 
 -- | Get current timestamp.
 now :: IO RealTime
@@ -292,17 +296,22 @@ encode_time = fromIntegral . max 0 . RealTime.to_milliseconds
 --
 -- I previously threw an exception, but I feel like killing the whole app
 -- is overkill.
-check :: CError -> IO Bool
-check err = case error_str err of
+check :: HasCallStack => OSStatus -> IO Bool
+check err = error_str err >>= \case
     Nothing -> return True
     Just msg -> do
         Log.error msg
         return False
 
-type CError = CULong
+type OSStatus = Int.Int32
 
--- TODO look up actual error msgs
-error_str :: CError -> Maybe Error
+error_str :: OSStatus -> IO (Maybe Error)
 error_str err
-    | err == 0 = Nothing
-    | otherwise = Just $ "CoreMIDI error: " <> showt err
+    | err == 0 = pure Nothing
+    | otherwise = do
+        cstr <- c_get_error err
+        let prefix = "CoreMIDI (" <> showt err <> "): "
+        Just . (prefix <>) <$> FFI.peekCString cstr
+
+foreign import ccall "GetMacOSStatusErrorString"
+    c_get_error :: OSStatus -> IO CString

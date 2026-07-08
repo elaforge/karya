@@ -129,11 +129,13 @@ UNSORTED
   * get haddock back
     * Derive/JScore/Db.hs
     * App/ConvertEventLog.hs
-  - on every stop:
+  * on every stop:
     Midi/CoreMidi.hs:299 - CoreMIDI error: 4294967296
     From core_midi_abort(), what does it mean?
     . I never implemented error_str!
-    . noErr!?
+    . This is 2^32
+    . It's Int32, not CULong.  Now it's 0... maybe memory corruption due to
+      reading 8 bytes instead of 4?
   - bug: if I do scrollwheel on an unfocused block, it eventually thinks
     it has focus, even though it doesn't
     . Can't reproduce?

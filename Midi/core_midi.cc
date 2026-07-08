@@ -146,7 +146,7 @@ midi_notification(const MIDINotification *note, void *ref)
     free((void *) name);
 }
 
-Error
+OSStatus
 core_midi_initialize(const char *name, ReadCallback read_cb,
     NotifyCallback notify_cb)
 {
@@ -235,7 +235,7 @@ core_midi_lookup_device_id(
 
 // connect
 
-Error
+OSStatus
 core_midi_connect_read_device(DeviceId dev, void *p)
 {
     MIDIObjectRef obj;
@@ -249,7 +249,7 @@ core_midi_connect_read_device(DeviceId dev, void *p)
     return MIDIPortConnectSource(g_in_port, src, p);
 }
 
-Error
+OSStatus
 core_midi_disconnect_read_device(DeviceId dev)
 {
     MIDIObjectRef obj;
@@ -277,7 +277,7 @@ sysex_complete(MIDISysexSendRequest *req)
     delete req;
 }
 
-static Error
+static OSStatus
 write_sysex(MIDIEndpointRef dest, int len, const unsigned char *bytes)
 {
     MIDISysexSendRequest *req = new MIDISysexSendRequest;
@@ -292,7 +292,7 @@ write_sysex(MIDIEndpointRef dest, int len, const unsigned char *bytes)
 }
 
 
-Error
+OSStatus
 core_midi_write_message(DeviceId dev, Timestamp timestamp, int len,
     const unsigned char *bytes)
 {
@@ -332,7 +332,7 @@ core_midi_write_message(DeviceId dev, Timestamp timestamp, int len,
 
 // misc
 
-Error
+OSStatus
 core_midi_abort()
 {
     return MIDIFlushOutput(0);
