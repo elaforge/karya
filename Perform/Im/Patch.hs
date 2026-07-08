@@ -2,6 +2,7 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
+{-# LANGUAGE StrictData #-}
 -- | Describe an Im 'Patch', from the sequencer's point of view.
 module Perform.Im.Patch (
     Patch(..), patch
@@ -21,9 +22,9 @@ import           Global
 data Patch = Patch {
     -- | Map supported controls to documentation.
     -- TODO maybe I need a separate one for pitch controls.
-    patch_controls :: !(Map Control.Control Text)
-    , patch_attribute_map :: !AttributeMap
-    , patch_elements :: !(Set Note.Element)
+    patch_controls :: Map Control.Control Text
+    , patch_attribute_map :: AttributeMap
+    , patch_elements :: Set Note.Element
     } deriving (Show)
 
 patch :: Patch

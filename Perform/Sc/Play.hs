@@ -3,6 +3,7 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 {-# LANGUAGE CPP #-}
+{-# LANGUAGE StrictData #-}
 module Perform.Sc.Play (
     State(..)
     , play
@@ -67,9 +68,9 @@ server_port = 57110
 
 data State = State {
     -- | Communicate into the player.
-    _play_control :: !Transport.PlayControl
+    _play_control :: Transport.PlayControl
     -- | Communicate out from the player.
-    , _players :: !Transport.ActivePlayers
+    , _players :: Transport.ActivePlayers
     }
 
 -- * NodeId

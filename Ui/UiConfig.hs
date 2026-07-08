@@ -3,6 +3,7 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 {-# LANGUAGE DeriveFunctor #-}
+{-# LANGUAGE StrictData #-}
 {-# OPTIONS_HADDOCK not-home #-}
 -- | State.Config and State.Default, in their own module to avoid circular
 -- imports with "State.Update".  Everyone else should pretend they're defined
@@ -75,24 +76,24 @@ import           Types
 data Config = Config {
     -- | The default namespace is used for automatically created IDs, so each
     -- project can import other projects without clashes.
-    config_namespace :: !Id.Namespace
-    , config_meta :: !Meta
+    config_namespace :: Id.Namespace
+    , config_meta :: Meta
     -- | Derivation can start from any block, but it's useful to know which
     -- block represents the entire piece.  This way, given a position on some
     -- block I can determine where in the piece it lies, if anywhere.  This is
     -- useful for playing a block in proper context, or communicating with
     -- a program with a more absolute notion of time, like a DAW.
-    , config_root :: !(Maybe BlockId)
+    , config_root :: Maybe BlockId
 
-    , config_allocations :: !Allocations
-    , config_lilypond :: !Lilypond.Config
-    , config_default :: !Default
-    , config_saved_views :: !SavedViews
+    , config_allocations :: Allocations
+    , config_lilypond :: Lilypond.Config
+    , config_default :: Default
+    , config_saved_views :: SavedViews
     -- | Locally defined code in the ky language, as parsed by
     -- 'Derive.Parse.parse_ky'.  If the ky defines a note transformer called
     -- @GLOBAL@, it will be implicitly wrapped around every derivation.
-    , config_ky :: !Text
-    , config_tscore :: !Text
+    , config_ky :: Text
+    , config_tscore :: Text
     } deriving (Eq, Show)
 
 empty_config :: Config
@@ -261,9 +262,9 @@ modify_allocation instrument modify (Allocations allocs) = do
     from InstT.dummy, which will resolve to an empty Patch.
 -}
 data Allocation = Allocation {
-    alloc_qualified :: !InstT.Qualified
-    , alloc_config :: !Common.Config
-    , alloc_backend :: !Backend
+    alloc_qualified :: InstT.Qualified
+    , alloc_config :: Common.Config
+    , alloc_backend :: Backend
     } deriving (Eq, Show)
 
 allocation :: InstT.Qualified -> Backend -> Allocation
@@ -315,7 +316,7 @@ is_sc_allocation alloc = case alloc_backend alloc of
 -- config are saved in instrument db and score respectively, and only come
 -- together when a new score is loaded.
 data Backend =
-    Midi !Patch.Config
+    Midi Patch.Config
     | Im
     | Sc
     -- | This is for instruments without a backend.  For example a paired
@@ -323,7 +324,7 @@ data Backend =
     -- different ones.  It should be resolved to concrete instruments during
     -- derivation, and includes an error msg show if that doesn't happen.
     -- If it's "", inherit the msg from its 'Inst.Dummy', if there is one.
-    | Dummy !Text
+    | Dummy Text
     deriving (Eq, Show)
 
 instance Pretty Backend where
@@ -364,14 +365,14 @@ convert_backend = \case
 data Meta = Meta {
     -- | The time the score was created.  This should be reset whenever
     -- the score is started, or copied from a template.
-    meta_creation :: !Time.UTCTime
+    meta_creation :: Time.UTCTime
     -- | The last time the score was saved.  This is useful to determine which
     -- of several saves is the latest.
-    , meta_last_save :: !Time.UTCTime
-    , meta_notes :: !Text
-    , meta_midi_performances :: !(Map BlockId MidiPerformance)
-    , meta_lilypond_performances :: !(Map BlockId LilypondPerformance)
-    , meta_im_performances :: !(Map BlockId ImPerformance)
+    , meta_last_save :: Time.UTCTime
+    , meta_notes :: Text
+    , meta_midi_performances :: Map BlockId MidiPerformance
+    , meta_lilypond_performances :: Map BlockId LilypondPerformance
+    , meta_im_performances :: Map BlockId ImPerformance
     } deriving (Eq, Show, Generics.Generic)
 
 empty_meta :: Meta
@@ -409,11 +410,11 @@ type ImPerformance = Performance (Vector.Vector Shared.Note.Note)
 -- only save it when 'Config' changes.  I could also split it into its own
 -- file.
 data Performance a = Performance {
-    perf_events :: !a
+    perf_events :: a
     -- | The time this performance was recorded.
-    , perf_creation :: !Time.UTCTime
+    , perf_creation :: Time.UTCTime
     -- | Free text, containing the git commit when this performance was taken.
-    , perf_commit :: !Text
+    , perf_commit :: Text
     } deriving (Eq, Show, Functor)
 
 make_performance :: a -> IO (Performance a)
@@ -436,9 +437,9 @@ make_performance events = do
 -- 'ky' and the implicit GLOBAL call.  I haven't removed tempo yet because it's
 -- the only way to change the speed for tempo-less blocks, and doesn't affect
 -- (or rather, is undone automatically) for integrated blocks.
-data Default = Default {
+newtype Default = Default {
     -- | A toplevel block without a tempo track will get this tempo.
-    default_tempo :: !Signal.Y
+    default_tempo :: Signal.Y
     } deriving (Eq, Read, Show)
 
 empty_default :: Default

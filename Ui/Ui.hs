@@ -2,6 +2,7 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
+{-# LANGUAGE StrictData #-}
 {- | The overall UI state is described here.  This is an immutable data
     structure that contains all the tracks, rulers, note data, and so forth.
     It exports a StateT monad for modification and access.
@@ -173,11 +174,11 @@ import           Types
 
 -- | Score state.  When you save a score, this is what is saved to disk.
 data State = State {
-    state_views :: Map ViewId Block.View
-    , state_blocks :: Map BlockId Block.Block
-    , state_tracks :: Map TrackId Track.Track
-    , state_rulers :: Map RulerId Ruler.Ruler
-    , state_config :: UiConfig.Config
+    state_views :: ~(Map ViewId Block.View)
+    , state_blocks :: ~(Map BlockId Block.Block)
+    , state_tracks :: ~(Map TrackId Track.Track)
+    , state_rulers :: ~(Map RulerId Ruler.Ruler)
+    , state_config :: ~UiConfig.Config
     } deriving (Eq, Show)
 
 views :: Lens.Lens State (Map ViewId Block.View)
@@ -241,7 +242,7 @@ instance DeepSeq.NFData State where
 
 -- | Address a track in a block.  This is similar to a TrackId, except it
 -- doesn't guarantee that the track is an event track.
-data Track = Track !BlockId !TrackNum
+data Track = Track BlockId TrackNum
     deriving (Eq, Show)
 
 instance Pretty Track where
@@ -251,7 +252,7 @@ instance Pretty Track where
 -- | A position on a track that can be indicated on the UI.  Its Pretty
 -- instance emits a string, which if logged or copy-pasted into the REPL, will
 -- cause that section of score to be highlighted.
-data Range = Range !(Maybe BlockId) !TrackId !TrackTime !TrackTime
+data Range = Range (Maybe BlockId) TrackId TrackTime TrackTime
     deriving (Eq, Show)
 
 instance Pretty Range where
@@ -262,10 +263,10 @@ instance Pretty Range where
 
 -- | Summary information on a Track.
 data TrackInfo = TrackInfo {
-    track_title :: !Text
-    , track_id :: !TrackId
-    , track_tracknum :: !TrackNum
-    , track_block :: !Block.Track
+    track_title :: Text
+    , track_id :: TrackId
+    , track_tracknum :: TrackNum
+    , track_block :: Block.Track
     } deriving (Eq, Show)
 
 instance Pretty TrackInfo where
@@ -429,7 +430,7 @@ block_to_view_damage views damage
 -- | Abort is used by Cmd, so don't throw it from here.  This isn't exactly
 -- modular, but ErrorT can't be composed and extensible exceptions are too
 -- much bother at the moment.
-data Error = Error !GHC.Stack.CallStack !Text | Abort deriving (Show)
+data Error = Error GHC.Stack.CallStack Text | Abort deriving (Show)
 
 instance Pretty Error where
     pretty (Error stack msg) =

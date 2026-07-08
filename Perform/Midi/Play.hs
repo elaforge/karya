@@ -2,6 +2,7 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
+{-# LANGUAGE StrictData #-}
 -- | This module is responsible for actually scheduling MIDI messages with the
 -- OS's MIDI driver.
 module Perform.Midi.Play (State(..), play, cycle_messages) where
@@ -29,11 +30,11 @@ import           Types
 -- This is read-only, and shouldn't need to be modified.
 data State = State {
     -- | Communicate into the player.
-    _play_control :: !Transport.PlayControl
+    _play_control :: Transport.PlayControl
     -- | Communicate out from the player.
-    , _players :: !Transport.ActivePlayers
-    , _info :: !Transport.Info
-    , _im_end :: !(Maybe RealTime)
+    , _players :: Transport.ActivePlayers
+    , _info :: Transport.Info
+    , _im_end :: Maybe RealTime
     }
 
 type Messages = [LEvent.LEvent Midi.WriteMessage]

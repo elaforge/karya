@@ -2,6 +2,7 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
+{-# LANGUAGE StrictData #-}
 module Perform.Sc.Note (
     Note(..), ControlId(..), PatchName
     , Notes, PlayNotes(..)
@@ -20,10 +21,10 @@ import           Types
 
 
 data Note = Note {
-    patch :: !PatchName
-    , start :: !RealTime
+    patch :: PatchName
+    , start :: RealTime
     -- | The duration is encoded in the gate_id control.
-    , controls :: !(Map ControlId MSignal.Signal)
+    , controls :: Map ControlId MSignal.Signal
     } deriving (Eq, Show, Generics.Generic)
 
 instance Pretty.Pretty Note where format = Pretty.formatG

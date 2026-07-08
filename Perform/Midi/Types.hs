@@ -2,6 +2,7 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
+{-# LANGUAGE StrictData #-}
 -- | Basic types for "Perform.Midi.Perform".
 module Perform.Midi.Types where
 import qualified Control.DeepSeq as DeepSeq
@@ -26,25 +27,25 @@ import           Types
 data Patch = Patch {
     -- | The name for the instrument as used in the score.  It should globally
     -- identify the instrument within this score.
-    patch_name :: !ScoreT.Instrument
+    patch_name :: ScoreT.Instrument
     -- | Keyswitches required by this instrument.  At higher levels, a single
     -- instrument can respond to a variety of keyswitches, but at the perform
     -- level, each instrument of each note is specialized to the particular
     -- keyswitches intended.  So this is normally empty, but filled in by
     -- convert prior to perform.
-    , patch_keyswitches :: ![Patch.Keyswitch]
+    , patch_keyswitches :: [Patch.Keyswitch]
     -- | If true, the keysitch has to be held while the note is playing.
     -- Otherwise, it will just be tapped before the note starts.
-    , patch_hold_keyswitches :: !Bool
+    , patch_hold_keyswitches :: Bool
 
     -- | Map control names to a control number.  Some controls are shared by
     -- all midi instruments, but some instruments have special controls.
-    , patch_control_map :: !Control.ControlMap
-    , patch_pitch_bend_range :: !Control.PbRange
+    , patch_control_map :: Control.ControlMap
+    , patch_pitch_bend_range :: Control.PbRange
     -- | Time from NoteOff to inaudible, in seconds.  This can be used to
     -- figure out how long to generate control messages, or possibly determine
     -- overlap for channel allocation, though I use LRU so it shouldn't matter.
-    , patch_decay :: !(Maybe RealTime)
+    , patch_decay :: Maybe RealTime
     } deriving (Eq, Ord, Show)
 
 patch :: ScoreT.Instrument -> Patch.Config -> Patch.Patch -> Patch
@@ -91,14 +92,14 @@ default_decay = 1.0
 -- * event
 
 data Event = Event {
-    event_start :: !RealTime
-    , event_duration :: !RealTime
-    , event_patch :: !Patch
-    , event_controls :: !(Map ScoreT.Control MSignal.Signal)
-    , event_pitch :: !MSignal.Signal
-    , event_start_velocity :: !MSignal.Y
-    , event_end_velocity :: !MSignal.Y
-    , event_stack :: !Stack.Stack
+    event_start :: RealTime
+    , event_duration :: RealTime
+    , event_patch :: Patch
+    , event_controls :: Map ScoreT.Control MSignal.Signal
+    , event_pitch :: MSignal.Signal
+    , event_start_velocity :: MSignal.Y
+    , event_end_velocity :: MSignal.Y
+    , event_stack :: Stack.Stack
     } deriving (Eq, Show)
 
 instance DeepSeq.NFData Event where

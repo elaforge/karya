@@ -2,6 +2,7 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
+{-# LANGUAGE StrictData #-}
 -- | Convert from Score events to a lilypond score.
 module Perform.Lilypond.Lilypond where
 import qualified Control.Monad.State.Strict as State
@@ -211,9 +212,9 @@ run_output m = Builder.toLazyText (output_text state)
     where state = State.execState m (OutputState mempty 1 Nothing)
 
 data OutputState = OutputState {
-    output_text :: !Builder.Builder
-    , output_bar :: !Int
-    , output_last_stack :: !(Maybe Stack.UiFrame)
+    output_text :: Builder.Builder
+    , output_bar :: Int
+    , output_last_stack :: Maybe Stack.UiFrame
     } deriving (Show)
 
 outputs :: [Text] -> Output ()

@@ -2,6 +2,7 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
+{-# LANGUAGE StrictData #-}
 {- | The transport is the communication mechanism between the app and the
     performer.  Extensive description is in the Cmd.Play docstring.
 -}
@@ -33,7 +34,7 @@ import           Types
 
 -- | These go back to the responder loop from the render thread to notify it
 -- about the transport's state.
-data Status = Playing | Stopped !PlayControl
+data Status = Playing | Stopped PlayControl
     deriving (Eq, Show)
 
 instance Pretty Status where pretty = showt

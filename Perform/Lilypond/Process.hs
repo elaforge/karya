@@ -3,6 +3,7 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 {-# LANGUAGE CPP #-}
+{-# LANGUAGE StrictData #-}
 -- | Convert Lilypond Events to lilypond code.
 --
 -- It's a terrible name, but what else am I supposed to call it?  Render?
@@ -935,7 +936,7 @@ get_subdivision = do
 type ConvertM =
     State.StateT State (Except.ExceptT ConvertError Identity.Identity)
 
-data ConvertError = ConvertError !(Maybe Stack.Stack) !Error
+data ConvertError = ConvertError (Maybe Stack.Stack) Error
     deriving (Eq, Show)
 
 to_log :: ConvertError -> Log.Msg
@@ -957,22 +958,22 @@ with_context prefix = flip Except.catchError $ \(ConvertError stack msg) ->
 
 data State = State {
     -- Constant:
-    state_config :: !Types.Config
+    state_config :: Types.Config
 
     -- Changes on each measure:
     -- | One Meter for each expected measure in the output.
     -- The head of the list is the current meter.  It's valid for the meters to
     -- be [] as long as you don't have any more notes or rests to generate.
-    , state_meters :: ![Meter.Meter]
-    , state_measure_start :: !Time
-    , state_measure_end :: !Time
+    , state_meters :: [Meter.Meter]
+    , state_measure_start :: Time
+    , state_measure_end :: Time
 
     -- Changes on each note:
     -- | Current position in time, aka the end of the previous note.
-    , state_time :: !Time
+    , state_time :: Time
         -- | Used in conjunction with 'modal_articulations'.
-    , state_prev_attrs :: Attrs.Attributes
-    , state_key :: !Key
+    , state_prev_attrs :: ~Attrs.Attributes
+    , state_key :: Key
 
     -- Changes on a directive.
     , state_subdivision :: !(Maybe Meter.Meter)
@@ -1027,11 +1028,11 @@ lookup_val key parse deflt event = prefix $ do
 -- modified, though I don't think I ever do that.  However, 'ly_duration' at
 -- least is used to merge 'FreeCode' into a Ly stream.
 data Ly =
-    LyNote !Note
-    | LyRest !Rest
+    LyNote Note
+    | LyRest Rest
     | LyNested Nested
-    | LyBarline !(Maybe Meter.Meter)
-    | LyCode !Code
+    | LyBarline (Maybe Meter.Meter)
+    | LyCode Code
     deriving (Show)
 
 ly_duration :: Ly -> Time
@@ -1061,10 +1062,10 @@ count_notes_rests = Lists.count $ \ly -> case ly of
 -- | This represents a bit of nested lilypond code, e.g.
 -- \something { contents }.
 data Nested = Nested {
-    nested_prefix :: !Code
-    , nested_contents :: !(NonEmpty Ly)
-    , nested_suffix :: !Code
-    , nested_duration :: !Time
+    nested_prefix :: Code
+    , nested_contents :: NonEmpty Ly
+    , nested_suffix :: Code
+    , nested_duration :: Time
     } deriving (Show)
 
 instance ToLily Nested where
@@ -1075,20 +1076,20 @@ instance ToLily Nested where
 
 data Note = Note {
     -- | Greater than one pitch indicates a chord.
-    note_pitches :: !(NonEmpty NotePitch)
-    , note_duration :: !Types.NoteDuration
+    note_pitches :: NonEmpty NotePitch
+    , note_duration :: Types.NoteDuration
     -- | Additional code to prepend to the note.
-    , note_prepend :: ![Code]
+    , note_prepend :: [Code]
     -- | Additional code to append to the note.
-    , note_append :: ![Code]
-    , note_stack :: !(Maybe Stack.UiFrame)
+    , note_append :: [Code]
+    , note_stack :: Maybe Stack.UiFrame
     } deriving (Show)
 
 data NotePitch = NotePitch {
-    pitch_pitch :: !Text
-    , pitch_tie :: !Tie
-    , pitch_prepend :: ![Code]
-    , pitch_append :: ![Code]
+    pitch_pitch :: Text
+    , pitch_tie :: Tie
+    , pitch_prepend :: [Code]
+    , pitch_append :: [Code]
     } deriving (Show)
 
 data Tie = NoTie | TieNeutral | TieUp | TieDown deriving (Show)
@@ -1128,9 +1129,9 @@ instance ToLily Tie where
 -- ** Rest
 
 data Rest = Rest {
-    rest_type :: !RestType
-    , rest_prepend :: ![Code]
-    , rest_append :: ![Code]
+    rest_type :: RestType
+    , rest_prepend :: [Code]
+    , rest_append :: [Code]
     } deriving (Show)
 
 make_rest :: RestType -> Rest
@@ -1141,9 +1142,9 @@ make_rest typ = Rest
     }
 
 data RestType =
-    NormalRest !Types.NoteDuration
-    | HiddenRest !Types.NoteDuration
-    | FullMeasure !Types.Duration !Int
+    NormalRest Types.NoteDuration
+    | HiddenRest Types.NoteDuration
+    | FullMeasure Types.Duration Int
     deriving (Show)
 
 rest_time :: Rest -> Time
@@ -1164,7 +1165,7 @@ instance ToLily RestType where
 
 -- ** Key
 
-data Key = Key !Text !Mode deriving (Eq, Show)
+data Key = Key Text Mode deriving (Eq, Show)
 type Mode = Text
 
 instance Pretty Key where pretty = to_lily

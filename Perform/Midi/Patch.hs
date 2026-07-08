@@ -3,6 +3,7 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 {-# LANGUAGE CPP #-}
+{-# LANGUAGE StrictData #-}
 {- | Description of a midi-specific instrument, as well as the runtime midi
     device and channel mapping.
 -}
@@ -92,9 +93,9 @@ data Config = Config {
     --
     -- Each Addr has a count of how many simultaneous voices the addr can
     -- handle.  Nothing means there's no limit.
-    config_allocation :: ![(Addr, Maybe Voices)]
-    , config_initialization :: !(Maybe Initialization)
-    , config_settings :: !Settings
+    config_allocation :: [(Addr, Maybe Voices)]
+    , config_initialization :: Maybe Initialization
+    , config_settings :: Settings
     } deriving (Eq, Show, Generics.Generic)
 
 allocation = Lens.lens config_allocation (\r a -> r { config_allocation = a })
@@ -141,20 +142,20 @@ has_flag config flag = maybe False (Set.member flag) (settings#flags #$ config)
 -- (Cmd.resolve_instrument), 'patch_defaults' is merged with 'config_settings'
 -- via 'merge_defaults'.
 data Settings = Settings {
-    config_flags :: !(Maybe (Set Flag))
-    , config_scale :: !(Maybe Scale)
+    config_flags :: Maybe (Set Flag)
+    , config_scale :: Maybe Scale
     -- | Time from NoteOff to inaudible, in seconds.  This can be used to
     -- figure out how long to generate control messages, or possibly determine
     -- overlap for channel allocation, though I use LRU so it shouldn't matter.
-    , config_decay :: !(Maybe RealTime)
-    , config_pitch_bend_range :: !(Maybe Control.PbRange)
+    , config_decay :: Maybe RealTime
+    , config_pitch_bend_range :: Maybe Control.PbRange
     -- | Default controls for this instrument, will always be set unless
     -- explicitly replaced.  This hopefully avoids the problem where
     -- a synthesizer starts in an undefined state.  This is different from
     -- 'Common.config_controls' in that these are meant to provide a default
     -- for synthesizer state, so these are only applied during conversion, and
     -- thus should only contain controls the MIDI instrument understands.
-    , config_control_defaults :: !(Maybe ScoreT.ControlValMap)
+    , config_control_defaults :: Maybe ScoreT.ControlValMap
     } deriving (Eq, Show, Generics.Generic)
 
 instance Pretty Settings where format = Pretty.formatG_
@@ -195,12 +196,12 @@ data Patch = Patch {
     --
     -- The patch's unique name, as used by 'InstT.Qualified' to look up
     -- the patch, is in 'Instrument.Inst.synth_insts'.
-    patch_name :: !Text
-    , patch_control_map :: !Control.ControlMap
-    , patch_initialize :: !InitializePatch
-    , patch_attribute_map :: !AttributeMap
-    , patch_mode_map :: !ModeMap
-    , patch_defaults :: !Settings
+    patch_name :: Text
+    , patch_control_map :: Control.ControlMap
+    , patch_initialize :: InitializePatch
+    , patch_attribute_map :: AttributeMap
+    , patch_mode_map :: ModeMap
+    , patch_defaults :: Settings
     } deriving (Eq, Show)
 
 instance Pretty Patch where
@@ -250,11 +251,11 @@ default_name = ""
     need any tuning and can thus all go on a single MIDI channel.
 -}
 data Scale = Scale {
-    scale_name :: !Text
+    scale_name :: Text
     -- | If a patch is tuned to something other than 12TET, this vector maps
     -- MIDI key numbers to their NNs, or 'no_pitch' if the patch doesn't
     -- support that key.
-    , scale_key_to_nn :: !(Unboxed.Vector Double)
+    , scale_key_to_nn :: Unboxed.Vector Double
     } deriving (Eq, Show)
 
 instance Pretty Scale where
@@ -389,9 +390,9 @@ remove_flag = Set.delete
 data InitializePatch =
     -- | Send these msgs to initialize the patch.  It should be a patch
     -- change or a sysex.  Channel is ignored.
-    InitializeMidi ![Midi.Message]
+    InitializeMidi [Midi.Message]
     -- | Display this msg to the user and hope they do what it says.
-    | InitializeMessage !Text
+    | InitializeMessage Text
     | NoInitialization
     deriving (Eq, Ord, Show)
 
@@ -418,12 +419,12 @@ data Keymap =
     -- | This ignores the event's pitch and instead emits the given MIDI key.
     -- This is appropriate for drumkit style patches, with a separate unpitched
     -- timbre on each key.
-    UnpitchedKeymap !Midi.Key
+    UnpitchedKeymap Midi.Key
     -- | The timbre is mapped over the inclusive MIDI key range from low to
     -- high, where the pitch of the low end of the range is given by the
     -- NoteNumber.  So this transposes the event's pitch and clips it to the
     -- given range.  low, high, nn
-    | PitchedKeymap !Midi.Key !Midi.Key !Midi.Key
+    | PitchedKeymap Midi.Key Midi.Key Midi.Key
     deriving (Eq, Ord, Show)
 
 instance Pretty Keymap where
@@ -435,13 +436,13 @@ instance Pretty Keymap where
 -- way.  So overlapping notes with different keyswitches will be split into
 -- different channels, if possible.  See NOTE [midi-state].
 data Keyswitch =
-    Keyswitch !Midi.Key
+    Keyswitch Midi.Key
     -- | This keyswitch is triggered by a control change.
-    | ControlSwitch !Midi.Control !Midi.ControlValue
+    | ControlSwitch Midi.Control Midi.ControlValue
     -- | This is like 'ControlSwitch', except send a poly aftertouch value
     -- for the note's pitch.  This allows simultaneous different notes with
     -- different articulations.
-    | Aftertouch !Midi.ControlValue
+    | Aftertouch Midi.ControlValue
     deriving (Eq, Ord, Show)
 
 instance DeepSeq.NFData Keymap where

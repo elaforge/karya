@@ -3,6 +3,7 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 {-# LANGUAGE CPP #-}
+{-# LANGUAGE StrictData #-}
 {- | Main entry point for Perform.Midi.  Render Deriver output down to actual
     midi events.
 -}
@@ -115,9 +116,9 @@ type MidiEvents = [LEvent.LEvent Midi.WriteMessage]
 -- I don't do that anymore, and this is left over from when I cached the
 -- performance.  I removed the cache but left the state visible.
 data State = State {
-    state_channelize :: !ChannelizeState
-    , state_allot :: !AllotState
-    , state_perform :: !PerformState
+    state_channelize :: ChannelizeState
+    , state_allot :: AllotState
+    , state_perform :: PerformState
     } deriving (Eq, Show)
 
 instance Pretty State where
@@ -330,11 +331,11 @@ data AllotState = AllotState {
     -- This is used by the voice stealer to figure out which voice is ripest
     -- for plunder.  It also has the AllotKey so the previous allotment can be
     -- deleted.
-    ast_available :: !(Map Patch.Addr (RealTime, AllotKey))
+    ast_available :: Map Patch.Addr (RealTime, AllotKey)
     -- | Map input channels to an instrument address in the allocated range.
     -- Once an (inst, chan) pair has been allotted to a particular Addr, it
     -- should keep going to that Addr, as long as voices remain.
-    , ast_allotted :: !(Map AllotKey Allotted)
+    , ast_allotted :: Map AllotKey Allotted
     } deriving (Eq, Show)
 
 instance Pretty AllotState where
@@ -351,11 +352,11 @@ empty_allot_state = AllotState Map.empty Map.empty
 type AllotKey = (ScoreT.Instrument, Channel)
 
 data Allotted = Allotted {
-    _allotted_addr :: !Patch.Addr
+    _allotted_addr :: Patch.Addr
     -- | End time for each allocated voice.
-    , allotted_voices :: ![RealTime]
+    , allotted_voices :: [RealTime]
     -- | Maximum length for allotted_voices.
-    , _allotted_voice_count :: !Patch.Voices
+    , _allotted_voice_count :: Patch.Voices
     } deriving (Eq, Show)
 
 instance Pretty Allotted where

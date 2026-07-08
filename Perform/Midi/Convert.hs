@@ -2,6 +2,7 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
+{-# LANGUAGE StrictData #-}
 {- | Convert from the Derive events to MIDI performer specific events.
 
     Since this module depends on both the Derive and Perform.Midi layers, it

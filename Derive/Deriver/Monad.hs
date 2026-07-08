@@ -2,10 +2,11 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
-{-# LANGUAGE TypeFamilies #-}
-{-# LANGUAGE FlexibleContexts #-} -- for super-classes of Callable
-{-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE ConstraintKinds #-}
+{-# LANGUAGE DeriveFunctor #-}
+{-# LANGUAGE FlexibleContexts #-} -- for super-classes of Callable
+{-# LANGUAGE StrictData #-}
+{-# LANGUAGE TypeFamilies #-}
 {- | Implementation for the Deriver monad.
 
     This module should contain only 'Deriver' and the definitions needed to
@@ -207,7 +208,7 @@ initialize_log_msg msg = case Log.msg_stack msg of
 
 -- * error
 
-data Error = Error !GHC.Stack.CallStack !Stack.Stack !ErrorVal
+data Error = Error GHC.Stack.CallStack Stack.Stack ErrorVal
     deriving (Show)
 
 instance Pretty Error where
@@ -215,7 +216,7 @@ instance Pretty Error where
         CallStack.showCaller (CallStack.caller call_stack)
             <> " " <> pretty stack <> ": " <> pretty val
 
-data ErrorVal = GenericError !Text | CallError !CallError
+data ErrorVal = GenericError Text | CallError CallError
     deriving (Show)
 
 instance Pretty ErrorVal where
@@ -224,36 +225,36 @@ instance Pretty ErrorVal where
 
 data CallError =
     -- | Error typechecking an argument.
-    TypeError !TypeErrorT
+    TypeError TypeErrorT
     -- | Couldn't even call the thing because the name was not found.
-    | CallNotFound !Expr.Symbol
+    | CallNotFound Expr.Symbol
     -- | Calling error that doesn't fit into the above categories.
-    | ArgError !Text
+    | ArgError Text
     deriving (Show)
 
 data TypeErrorT = TypeErrorT {
-    error_place :: !ErrorPlace
-    , error_source :: !EvalSource
-    , error_arg_name :: !ArgName
-    , error_expected :: !ValType.Type
-    , error_received :: !(Maybe DeriveT.Val)
+    error_place :: ErrorPlace
+    , error_source :: EvalSource
+    , error_arg_name :: ArgName
+    , error_expected :: ValType.Type
+    , error_received :: Maybe DeriveT.Val
     -- | 'Typecheck.Eval' or evaluating 'DeriveT.Quoted' may produce a derive
     -- error.
-    , error_derive :: !(Maybe Error)
+    , error_derive :: Maybe Error
     } deriving (Show)
 
 -- | Where a type error came from.  The arg number starts at 0.
-data ErrorPlace = TypeErrorArg !Int | TypeErrorEnviron !EnvKey.Key
+data ErrorPlace = TypeErrorArg Int | TypeErrorEnviron EnvKey.Key
     deriving (Eq, Show)
 
 data EvalSource =
     -- | The value in error came from a literal expression.
     Literal
     -- | The value in error came from a 'DeriveT.VQuoted' bit of code.
-    | Quoted !DeriveT.Quoted
+    | Quoted DeriveT.Quoted
     -- | The error came from a SubT.Track.  The value is either a track index
     -- into 'ctx_sub_events' or a TrackId from 'ctx_sub_tracks'.
-    | SubTrack !(Either Text TrackId)
+    | SubTrack (Either Text TrackId)
     deriving (Show)
 
 instance Pretty CallError where
@@ -464,15 +465,15 @@ instance Taggable Pitch where
 data State = State {
     -- | Threaded state means deriving one event depends on the results of the
     -- previous event.  This corresponds to StateT.
-    state_threaded :: !Threaded
+    state_threaded :: Threaded
     -- | This data is modified in a dynamically scoped way, for
     -- sub-derivations.  This corresponds to ReaderT.
-    , state_dynamic :: !Dynamic
+    , state_dynamic :: Dynamic
     -- | This data is mappended.  It functions like an implicit return value.
     -- This corresponds to WriterT.
-    , state_collect :: !Collect
+    , state_collect :: Collect
     -- | This data is constant throughout the derivation.
-    , state_constant :: !Constant
+    , state_constant :: Constant
     }
 
 initial_state :: Constant -> Dynamic -> State
@@ -492,12 +493,12 @@ initial_state constant dynamic = State
 data Threaded = Threaded {
     -- | Keep track of the previous value for each track currently being
     -- evaluated.  See NOTE [prev-val].
-    state_prev_val :: !(Map (BlockId, TrackId) Tagged)
+    state_prev_val :: Map (BlockId, TrackId) Tagged
     -- | This is used for 'Stack.Serial' to ensure a unique stack for multiple
     -- generator calls within a single track event.  It's reset on the
     -- evaluation of each uninverted track event, and incremented after
     -- every Score.Event is emitted.  See NOTE [event-serial] for history.
-    , state_event_serial :: !Stack.Serial
+    , state_event_serial :: Stack.Serial
     } deriving (Show)
 
 initial_threaded :: Threaded
@@ -509,24 +510,24 @@ initial_threaded = Threaded mempty 0
 -- | This is a dynamically scoped environment that applies to generated events
 -- inside its scope.
 data Dynamic = Dynamic {
-    state_control_merge_defaults :: !(Map ScoreT.Control Merger)
+    state_control_merge_defaults :: Map ScoreT.Control Merger
     -- | The unnamed pitch signal currently in scope.  This is the pitch signal
     -- that's applied to notes by default.  It's split off from 'state_environ'
     -- because it's convenient to guarentee that the main pitch signal is
     -- always present.
-    , state_pitch :: !PSignal.PSignal
-    , state_environ :: !DeriveT.Environ
-    , state_warp :: !Warp.Warp
+    , state_pitch :: PSignal.PSignal
+    , state_environ :: DeriveT.Environ
+    , state_warp :: Warp.Warp
     -- | Calls currently in scope.
-    , state_scopes :: !Scopes
-    , state_instrument_aliases :: !InstrumentAliases
-    , state_control_damage :: !ControlDamage
+    , state_scopes :: Scopes
+    , state_instrument_aliases :: InstrumentAliases
+    , state_control_damage :: ControlDamage
     -- | This is a delayed transform.  If a call wants to evaluate under
     -- inversion, it composes itself on to this, which is then applied as
     -- a transformation to the eventual synthesized event at the bottom of the
     -- inversion.
-    , state_under_invert :: !(NoteDeriver -> NoteDeriver)
-    , state_inversion :: !Inversion
+    , state_under_invert :: NoteDeriver -> NoteDeriver
+    , state_inversion :: Inversion
     {- | Each note track sets this to either an unsliced evaluation of the
         closest pitch track below it, or its surrounding 'state_pitch' if there
         is no pitch track below.  Calls can then use it to get neighboring
@@ -546,18 +547,18 @@ data Dynamic = Dynamic {
         previous pitch, which seems error-prone.  But I think for it to be an
         error, I'd have to have it return an error, e.g. Map TrackTime Pitch
     -}
-    , state_pitch_map :: !(Maybe (Maybe PSignal.PSignal, [Log.Msg]))
+    , state_pitch_map :: Maybe (Maybe PSignal.PSignal, [Log.Msg])
 
     -- | This is set to the current note track being evaluated.  It's useful
     -- to look up 'state_prev_val' when evaluating other tracks in an
     -- inversion.  It's set when entering a note track, and unset when entering
     -- a block.
-    , state_note_track :: !(Maybe (BlockId, TrackId))
+    , state_note_track :: Maybe (BlockId, TrackId)
     -- | This is the call stack for events.  It's used for error reporting,
     -- and attached to events in case they want to emit errors later (say
     -- during performance).
-    , state_stack :: !Stack.Stack
-    , state_mode :: !Mode
+    , state_stack :: Stack.Stack
+    , state_mode :: Mode
     }
 
 -- | Instrument aliases as (alias, destination) pairs.  Map through this before
@@ -583,7 +584,7 @@ data Inversion =
     NotInverted
     -- | After inversion, but not yet at the bottom.  The inverted generator
     -- is captured here.
-    | InversionInProgress !NoteDeriver
+    | InversionInProgress NoteDeriver
 
 instance Pretty Inversion where
     pretty NotInverted = "NotInverted"
@@ -748,10 +749,10 @@ type Scopes = ScopesT
 -- names: EScope, TScope for ExpressionScope and TrackScope?
 -- ExprScope, TrackScope?  I'd want to update the names in CallDoc too.
 data ScopesT gen trans track val = Scopes {
-    scopes_generator :: !gen
-    , scopes_transformer :: !trans
-    , scopes_track :: !track
-    , scopes_val :: !val
+    scopes_generator :: gen
+    , scopes_transformer :: trans
+    , scopes_track :: track
+    , scopes_val :: val
     }
     -- Previously, a single Call contained both generator and transformer.
     -- This turned out to not be flexible enough, because an instrument that
@@ -785,9 +786,9 @@ instance (Monoid gen, Monoid trans, Monoid track, Monoid val) =>
     mappend = (<>)
 
 data Scope note control pitch = Scope {
-    scope_note :: !note
-    , scope_control :: !control
-    , scope_pitch :: !pitch
+    scope_note :: note
+    , scope_control :: control
+    , scope_pitch :: pitch
     }
 
 s_note = Lens.lens scope_note (\r a -> r { scope_note = a })
@@ -879,7 +880,7 @@ replace_priority prio cmap (ScopePriority scopes) =
     ScopePriority $ Map.insert prio cmap scopes
 
 -- | This is like 'Call', but with only documentation.  (name, CallDoc)
-data DocumentedCall = DocumentedCall !CallName !CallDoc
+data DocumentedCall = DocumentedCall CallName CallDoc
 
 extract_doc :: Call d -> DocumentedCall
 extract_doc call = DocumentedCall (call_name call) (call_doc call)
@@ -961,7 +962,7 @@ data Mode =
     -- | Emit events intended for the lilypond backend.  Calls that have
     -- corresponding staff notation (e.g. trills) emit special events with
     -- attached lilypond code in this mode.
-    | Lilypond !Lilypond.Types.Config
+    | Lilypond Lilypond.Types.Config
     deriving (Show)
 
 instance Pretty Mode where
@@ -972,21 +973,21 @@ instance Pretty Mode where
 
 -- | Values that don't change during one derive run.
 data Constant = Constant {
-    state_ui :: !Ui.State
-    , state_builtins :: !Builtins
+    state_ui :: Ui.State
+    , state_builtins :: Builtins
     -- | Global map of signal mergers.  Unlike calls, this is static.
-    , state_mergers :: !(Map Expr.Symbol Merger)
+    , state_mergers :: Map Expr.Symbol Merger
     -- | LookupScale is actually hardcoded to 'Derive.Scale.All.lookup_scale'.
     -- But using this means that if it ever becomes dynamic I hopefully don't
     -- have to change so much code.  Also I think it avoids a circular import.
-    , state_lookup_scale :: !LookupScale
-    , state_scale_calls :: !(Map CallName ScaleCall)
+    , state_lookup_scale :: LookupScale
+    , state_scale_calls :: Map CallName ScaleCall
     -- | Get the calls and environ that should be in scope with a certain
     -- instrument.  The environ is merged with the environ in effect.
-    , state_lookup_instrument :: !(ScoreT.Instrument -> Either Text Instrument)
+    , state_lookup_instrument :: ScoreT.Instrument -> Either Text Instrument
     -- | Cache from the last derivation.
-    , state_cache :: !Cache
-    , state_score_damage :: !ScoreDamage
+    , state_cache :: Cache
+    , state_score_damage :: ScoreDamage
     }
 
 initial_constant :: Ui.State -> Builtins -> LookupScale
@@ -1012,16 +1013,16 @@ initial_constant ui_state builtins lookup_scale scale_calls lookup_inst cache
 -- things, which are expressed here to avoid excessive dependencies between the
 -- systems.
 data Instrument = Instrument {
-    inst_calls :: !InstrumentCalls
+    inst_calls :: InstrumentCalls
     -- | Merge this with the 'state_environ' when the instrument comes into
     -- scope.
-    , inst_environ :: !DeriveT.Environ
+    , inst_environ :: DeriveT.Environ
     -- | Like 'inst_environ', merge these controls.
-    , inst_controls :: !ScoreT.ControlValMap
+    , inst_controls :: ScoreT.ControlValMap
     -- | This is a list of the attributes that the instrument understands, in
     -- order of priority.  It corresponds to 'Instrument.Common.AttributeMap'.
-    , inst_attributes :: ![Attrs.Attributes]
-    , inst_elements :: !(Set Shared.Note.Element)
+    , inst_attributes :: [Attrs.Attributes]
+    , inst_elements :: Set Shared.Note.Element
     } deriving (Show)
 
 -- | Some ornaments only apply to a particular instrument, so each instrument
@@ -1045,7 +1046,7 @@ instance Show InstrumentCalls where
 
 -- | How to merge a control into 'Dynamic'.
 data Merge = DefaultMerge -- ^ Apply the default merge for this control.
-    | Merge !Merger -- ^ Merge with a specific operator.
+    | Merge Merger -- ^ Merge with a specific operator.
     deriving (Show)
 
 instance Pretty Merge where pretty = showt
@@ -1058,7 +1059,7 @@ instance DeepSeq.NFData Merge where rnf _ = ()
 -- important with associativity?
 data Merger =
     -- | name merge identity
-    Merger !Text !(Signal.Control -> Signal.Control -> Signal.Control) !Signal.Y
+    Merger Text (Signal.Control -> Signal.Control -> Signal.Control) Signal.Y
     | Set -- ^ Replace the existing signal.
     | Unset -- ^ Replace only if there is no existing signal.
     -- TODO I thought I'd need this but I don't.  If it turns out to never be
@@ -1103,32 +1104,32 @@ data Collect = Collect {
     -- | Remember the warp signal for each track.  A warp usually applies to
     -- a set of tracks, so remembering them together will make the play monitor
     -- more efficient when it inverts them to get playback position.
-    collect_warp_map :: !TrackWarp.WarpMap
-    , collect_track_signals :: !Track.TrackSignals
-    , collect_signal_fragments :: !SignalFragments
-    , collect_track_dynamic :: !TrackDynamic
+    collect_warp_map :: TrackWarp.WarpMap
+    , collect_track_signals :: Track.TrackSignals
+    , collect_signal_fragments :: SignalFragments
+    , collect_track_dynamic :: TrackDynamic
     -- | I prefer the Dynamic from the inverted version of a track, if it
     -- exists.  But I want the controls to come from the non-inverted version,
     -- since they are sliced to a particular event in the inverted version.
     -- So I record both, and merge them together at the end.
-    , collect_track_dynamic_inverted :: !TrackDynamic
+    , collect_track_dynamic_inverted :: TrackDynamic
     -- | This is how a call records its dependencies.  After evaluation of
     -- a deriver, this will contain the dependencies of the most recent call.
-    , collect_block_deps :: !BlockDeps
+    , collect_block_deps :: BlockDeps
 
     -- | New caches accumulating over the course of the derivation.
-    , collect_cache :: !Cache
-    , collect_cache_stats :: !CacheStats
-    , collect_integrated :: ![Integrated]
-    , collect_control_mods :: ![ControlMod]
-    , collect_score_duration :: !(CallDuration ScoreTime)
-    , collect_real_duration :: !(CallDuration RealTime)
+    , collect_cache :: Cache
+    , collect_cache_stats :: CacheStats
+    , collect_integrated :: [Integrated]
+    , collect_control_mods :: [ControlMod]
+    , collect_score_duration :: CallDuration ScoreTime
+    , collect_real_duration :: CallDuration RealTime
     }
 
-data CacheStats = CacheStats {
+newtype CacheStats = CacheStats {
     -- This isn't Ranges RealTime because I don't want to allow
     -- Ranges.Everything.
-    cstats_hits :: ![(Either BlockId TrackId, (RealTime, RealTime))]
+    cstats_hits :: [(Either BlockId TrackId, (RealTime, RealTime))]
     } deriving (Eq, Show)
 
 instance Pretty CacheStats where
@@ -1201,7 +1202,7 @@ instance DeepSeq.NFData Collect where
 -- dynamics.  The modifications are a secondary return value from control
 -- and pitch calls.  The track deriver will extract them and merge them into
 -- the dynamic environment.  [NOTE control-modification]
-data ControlMod = ControlMod !ScoreT.Control !Signal.Control !Merger
+data ControlMod = ControlMod ScoreT.Control Signal.Control !Merger
     deriving (Show)
 
 instance Pretty ControlMod where
@@ -1211,8 +1212,8 @@ instance Pretty ControlMod where
 
 data Integrated = Integrated {
     -- BlockId for a block integration, TrackId for a track integration.
-    integrated_source :: !(Either BlockId TrackId)
-    , integrated_events :: !(Stream.Stream Score.Event)
+    integrated_source :: Either BlockId TrackId
+    , integrated_events :: Stream.Stream Score.Event
     } deriving (Show)
 
 instance Pretty Integrated where
@@ -1270,7 +1271,7 @@ type TrackDynamic = Map (BlockId, TrackId) Dynamic
     and this is the only one that worked.  Historical details are in
     NOTE [call-duration].
 -}
-data CallDuration a = Unknown | CallDuration !a
+data CallDuration a = Unknown | CallDuration a
     deriving (Eq, Show)
 
 instance Show a => Pretty (CallDuration a) where pretty = showt
@@ -1291,11 +1292,11 @@ instance Monoid (CallDuration a) where
 data PatternCall call = PatternCall {
     -- | Since this doesn't have a Symbol, this is a description of the kinds
     -- of symbols matched, presumably as a regex.
-    pat_description :: !Text
-    , pat_doc :: !DocumentedCall
+    pat_description :: Text
+    , pat_doc :: DocumentedCall
     -- | The function is in Deriver because some calls want to look at the
     -- state to know if the Symbol is valid, e.g. block calls.
-    , pat_function :: !(Expr.Symbol -> Deriver (Maybe call))
+    , pat_function :: Expr.Symbol -> Deriver (Maybe call)
     }
 
 pat_call_doc :: PatternCall call -> CallDoc
@@ -1307,13 +1308,13 @@ instance Pretty (PatternCall call) where
 
 -- | Data passed to a 'Call'.
 data PassedArgs val = PassedArgs {
-    passed_vals :: ![DeriveT.Val]
+    passed_vals :: [DeriveT.Val]
     -- | Used by "Derive.Sig" to look for default arg values in the
     -- environment.  This is technically redundant since a call should know its
     -- own name, but it turns out to be inconvenient to pass the name to all of
     -- those functions.
-    , passed_call_name :: !CallName
-    , passed_ctx :: !(Context val)
+    , passed_call_name :: CallName
+    , passed_ctx :: Context val
     } deriving (Functor)
 
 instance Pretty val => Pretty (PassedArgs val) where
@@ -1344,11 +1345,11 @@ data Context val = Context {
     -- may snip off the previous event.
     --
     -- See NOTE [prev-val] in "Derive.Args" for details.
-    ctx_prev_val :: !(Maybe val)
+    ctx_prev_val :: Maybe val
 
-    , ctx_event :: !Event.Event
-    , ctx_prev_events :: ![Event.Event]
-    , ctx_next_events :: ![Event.Event]
+    , ctx_event :: Event.Event
+    , ctx_prev_events :: [Event.Event]
+    , ctx_next_events :: [Event.Event]
 
     -- | The extent of the note past its duration.  Since notes have decay,
     -- its important to capture control for that.  Normally this is the next
@@ -1358,23 +1359,23 @@ data Context val = Context {
     --
     -- This is the same as the first element of 'ctx_next_events' except of
     -- course it has a value even when there is no next event.
-    , ctx_event_end :: !ScoreTime
+    , ctx_event_end :: ScoreTime
     -- | From 'TrackTree.track_shifted'.
-    , ctx_track_shifted :: !TrackTime
+    , ctx_track_shifted :: TrackTime
 
     -- | The track tree below note tracks.  Not given for control tracks.
     -- TODO should this be Either with ctx_sub_events?  I don't think I ever
     -- need both set.
-    , ctx_sub_tracks :: !TrackTree.EventsTree
+    , ctx_sub_tracks :: TrackTree.EventsTree
     -- | If present, 'Derive.Sub.sub_events' will directly return these sub
     -- events instead of slicing sub-tracks.  Track evaluation will never set
     -- this, but calls can set this to reapply a note parent.  It should
     -- be 'Derive.SubT.Event's, but isn't to avoid circular imports.
-    , ctx_sub_events :: !(Maybe [[(ScoreTime, ScoreTime, NoteDeriver)]])
+    , ctx_sub_events :: Maybe [[(ScoreTime, ScoreTime, NoteDeriver)]]
     -- | This is needed by val calls that want to evaluate events around them.
     -- Since val calls are the same on all track types, they need to know
     -- explicitly what the track type is to evaluate events on it.
-    , ctx_track_type :: !(Maybe ParseTitle.Type)
+    , ctx_track_type :: Maybe ParseTitle.Type
     } deriving (Functor)
 
 -- | Range of the event in TrackTime.
@@ -1432,9 +1433,9 @@ untag_context ctx = ctx { ctx_prev_val = from_tagged =<< ctx_prev_val ctx }
 --
 -- More details on this strange setup are in the "Derive.Call" haddock.
 data Call func = Call {
-    call_name :: !CallName
-    , call_doc :: !CallDoc
-    , call_func :: !func
+    call_name :: CallName
+    , call_doc :: CallDoc
+    , call_func :: func
     }
 type Generator d = Call (GeneratorFunc d)
 type Transformer d = Call (TransformerF d)
@@ -1478,24 +1479,24 @@ str_to_arg_name (Expr.Str str) = ArgName str
 -- to start a new paragraph.  Also, single quotes are turned into links as per
 -- "Util.Texts".haddockUrl.
 data CallDoc = CallDoc {
-    cdoc_module :: !Module.Module
-    , cdoc_tags :: !Tags.Tags
-    , cdoc_doc :: !Doc.Doc
-    , cdoc_args :: ![ArgDoc]
+    cdoc_module :: Module.Module
+    , cdoc_tags :: Tags.Tags
+    , cdoc_doc :: Doc.Doc
+    , cdoc_args :: [ArgDoc]
     } deriving (Eq, Ord, Show)
 
 data ArgDoc = ArgDoc {
-    arg_name :: !ArgName
-    , arg_type :: !ValType.Type
-    , arg_parser :: !ArgParser
-    , arg_environ_default :: !EnvironDefault
-    , arg_doc :: !Doc.Doc
+    arg_name :: ArgName
+    , arg_type :: ValType.Type
+    , arg_parser :: ArgParser
+    , arg_environ_default :: EnvironDefault
+    , arg_doc :: Doc.Doc
     } deriving (Eq, Ord, Show)
 
 -- | These enumerate the different ways an argumnt can be parsed, and
 -- correspond to parsers in "Derive.Sig".
-data ArgParser = Required | Defaulted !Text | Optional !Text | Many | Many1
-    | Environ !(Maybe Text)
+data ArgParser = Required | Defaulted Text | Optional Text | Many | Many1
+    | Environ (Maybe Text)
     deriving (Eq, Ord, Show)
 
 -- | This configures how an argument looks for a default in the environ.
@@ -1520,12 +1521,11 @@ type WithArgDoc f = (f, [ArgDoc])
 -- ** make calls
 
 data GeneratorFunc d = GeneratorFunc {
-    gfunc_f :: !(GeneratorF d)
+    gfunc_f :: GeneratorF d
     -- | This gets the logical duration of this call.  'CallDuration' has
     -- details.
-    , gfunc_score_duration
-        :: !(PassedArgs d -> Deriver (CallDuration ScoreTime))
-    , gfunc_real_duration :: !(PassedArgs d -> Deriver (CallDuration RealTime))
+    , gfunc_score_duration :: PassedArgs d -> Deriver (CallDuration ScoreTime)
+    , gfunc_real_duration :: PassedArgs d -> Deriver (CallDuration RealTime)
     }
 
 type GeneratorF d = PassedArgs d -> Deriver (Stream.Stream d)
@@ -1649,7 +1649,7 @@ newtype CacheKey = CacheKey { key_stack :: Stack.Stack }
 -- | When cache entries are invalidated by ScoreDamage, a marker is left in
 -- their place.  This is just for a nicer log msg that can tell the difference
 -- between never evaluated and damaged.
-data Cached = Cached !CacheEntry | Invalid
+data Cached = Cached CacheEntry | Invalid
 
 instance Pretty Cached where
     format Invalid = Pretty.text "Invalid"
@@ -1663,9 +1663,9 @@ instance DeepSeq.NFData Cached where
 -- different types, the deriver type division goes above the call type
 -- division.
 data CacheEntry =
-    CachedEvents !(CallType Score.Event)
-    | CachedControl !(CallType Signal.Control)
-    | CachedPitch !(CallType PSignal.PSignal)
+    CachedEvents (CallType Score.Event)
+    | CachedControl (CallType Signal.Control)
+    | CachedPitch (CallType PSignal.PSignal)
 
 instance Pretty CacheEntry where
     format (CachedEvents (CallType _ events)) = Pretty.format events
@@ -1679,7 +1679,7 @@ instance DeepSeq.NFData CacheEntry where
 
 -- | The type here should match the type of the stack it's associated with,
 -- but I'm not quite up to those type gymnastics yet.
-data CallType d = CallType !Collect !(Stream.Stream d)
+data CallType d = CallType Collect (Stream.Stream d)
 
 instance DeepSeq.NFData d => DeepSeq.NFData (CallType d) where
     rnf (CallType collect events) = rnf collect `seq` rnf events
@@ -1694,15 +1694,15 @@ newtype BlockDeps = BlockDeps (Set BlockId)
 -- | Modified ranges in the score.
 data ScoreDamage = ScoreDamage {
     -- | Damaged ranges in tracks.
-    sdamage_tracks :: !(Map TrackId (Ranges.Ranges ScoreTime))
+    sdamage_tracks :: Map TrackId (Ranges.Ranges ScoreTime)
     -- | The blocks with damaged tracks.  Calls depend on blocks
     -- ('BlockDeps') rather than tracks, so it's convenient to keep the
     -- blocks here.  This is different than block damage because a damaged
     -- block will invalidate all caches below it, but a block with damaged
     -- tracks must be called but may still have valid caches within.
-    , sdamage_track_blocks :: !(Set BlockId)
+    , sdamage_track_blocks :: Set BlockId
     -- | Blocks which are entirely damaged.
-    , sdamage_blocks :: !(Set BlockId)
+    , sdamage_blocks :: Set BlockId
     } deriving (Eq, Show)
 
 instance Semigroup ScoreDamage where
@@ -1777,10 +1777,10 @@ real_to_score pos = do
 -- Val.  Ultimately that's because there would be a circular dependency as
 -- documented in "Derive.DeriveT".
 data ScaleCall = ScaleCall {
-    scall_name :: !CallName
-    , scall_doc :: !CallDoc
+    scall_name :: CallName
+    , scall_doc :: CallDoc
     -- ValCall takes PassedArgs, but scales don't need Context.
-    , scall_call :: !ScaleF
+    , scall_call :: ScaleF
     }
 
 type ScaleF = [DeriveT.Val] -> Deriver Scale
@@ -1798,23 +1798,23 @@ scale_call name doc (call, arg_docs) = ScaleCall
     }
 
 data Scale = Scale {
-    scale_id :: !Pitch.ScaleId
+    scale_id :: Pitch.ScaleId
     -- | A pattern describing what the scale notes look like.  Used only for
     -- error msgs (i.e. parse errors) so it should be human readable and
     -- doesn't have to follow any particular syntax.  A regex is recommended
     -- though.
-    , scale_pattern :: !Text
+    , scale_pattern :: Text
 
     -- | If a scale uses 'Symbol.Symbol's, it can include the definitions here
     -- so they are close to their use.  This symbol list should be loaded as
     -- soon as possible, which means program startup for hardcoded scales.
-    , scale_symbols :: ![Symbol.Symbol]
+    , scale_symbols :: [Symbol.Symbol]
 
     -- | The controls that will casue a pitch from this scale to change.
     -- This is used by 'PSignal.apply_controls' to know when to reevaluate
     -- a given pitch.  Other controls can affect the pitch, but if they aren't
     -- in this set, the pitch won't be reevaluated when they change.
-    , scale_transposers :: !(Set ScoreT.Control)
+    , scale_transposers :: Set ScoreT.Control
     -- | Parse a Note into a Pitch.Pitch with scale degree and accidentals.
     , scale_read :: DeriveT.Environ -> Pitch.Note
         -> Either DeriveT.PitchError Pitch.Pitch
@@ -1823,18 +1823,18 @@ data Scale = Scale {
     -- | Bottom pitch of the scale, if there is one.  You can find the top
     -- pitch by transposing until you get OutOfRange.  TODO that's a dumb way,
     -- if I explicitly need the top I should just add it.
-    , scale_bottom :: !Pitch.Pitch
+    , scale_bottom :: Pitch.Pitch
     -- | If a scale has a Layout, cmds can do math with 'Pitch.Pitch'es.
-    , scale_layout :: !Layout
-    , scale_transpose :: !Transpose
-    , scale_enharmonics :: !Enharmonics
+    , scale_layout :: Layout
+    , scale_transpose :: Transpose
+    , scale_enharmonics :: Enharmonics
 
     -- | Used by derivation.
-    , scale_note_to_call :: !(Pitch.Note -> Maybe ValCall)
+    , scale_note_to_call :: Pitch.Note -> Maybe ValCall
 
     -- | Used by note input.
-    , scale_input_to_note :: !(DeriveT.Environ -> Pitch.Input
-        -> Either DeriveT.PitchError Pitch.Note)
+    , scale_input_to_note :: DeriveT.Environ -> Pitch.Input
+        -> Either DeriveT.PitchError Pitch.Note
     -- | Used by MIDI thru.  This is a shortcut for
     -- @eval . note_to_call . input_to_note@ but can often be implemented more
     -- efficiently by the scale.
@@ -1846,12 +1846,12 @@ data Scale = Scale {
     -- This is because pitch val calls aren't evaluated in normalized time.
     -- If controls had (shift, stretch) I could normalize them efficiently
     -- and the pitch would just always look at time 0.  But they don't.
-    , scale_input_to_nn :: !(ScoreTime -> Pitch.Input
-        -> Deriver (Either DeriveT.PitchError Pitch.NoteNumber))
+    , scale_input_to_nn :: ScoreTime -> Pitch.Input
+        -> Deriver (Either DeriveT.PitchError Pitch.NoteNumber)
 
     -- | Documentation for all of the ValCalls that 'scale_note_to_call' can
     -- return.
-    , scale_call_doc :: !DocumentedCall
+    , scale_call_doc :: DocumentedCall
     }
 
 instance Pretty Scale where

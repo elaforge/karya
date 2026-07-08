@@ -186,9 +186,11 @@ UNSORTED
   - global StrictData:
     . Mark lazy fields with ~?  It'll be non-records too!
     * Synth
-    - Ui
-    - Derive
-    - Perform
+    + Ui
+      Ui.State not strict, what effects does it have?
+    * UiConfig
+    * Derive/Deriver
+    * Perform
     - Instrument
     - Solkattu
   OverloadedRecordDot:

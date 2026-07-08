@@ -3,6 +3,7 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 {-# LANGUAGE CPP #-}
+{-# LANGUAGE StrictData #-}
 -- | Support for rhythmic spelling in different meters.
 module Perform.Lilypond.Meter (
     Meter, meter_nums, meter_denom
@@ -39,9 +40,9 @@ import           Global
 
 data Meter = Meter {
     -- | NonEmpty list of numerators.  E.g. [2, 3] indicates 2+3.
-    meter_nums :: ![Int]
-    , meter_denom :: !Duration
-    , meter_ranks :: !Ranks
+    meter_nums :: [Int]
+    , meter_denom :: Duration
+    , meter_ranks :: Ranks
     } deriving (Eq, Show)
 
 -- | Meter rank, indexed by 128th note.

@@ -2,6 +2,7 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
+{-# LANGUAGE StrictData #-}
 module Perform.Sc.Patch (Patch(..), c_pitch) where
 import qualified GHC.Generics as Generics
 
@@ -13,11 +14,11 @@ import           Global
 
 
 data Patch = Patch {
-    name :: !Note.PatchName
+    name :: Note.PatchName
     -- | Path to the scsyndef file.  This is needed to tell scserver to load
     -- it.
-    , filename :: !FilePath
-    , controls :: !(Map ScoreT.Control Note.ControlId)
+    , filename :: FilePath
+    , controls :: Map ScoreT.Control Note.ControlId
     } deriving (Eq, Show, Generics.Generic)
 
 instance Pretty.Pretty Patch where format = Pretty.formatG

@@ -2,6 +2,7 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
+{-# LANGUAGE StrictData #-}
 {- | This has the higher level parts of the deriver library.  That is,
     functions where are considered basic but can be defined outside of
     "Derive.Deriver.Monad".
@@ -141,16 +142,16 @@ import           Types
 
 -- | Package up the results of a derivation.
 data Result = Result {
-    r_events :: !(Stream.Stream Score.Event)
-    , r_cache :: !Cache
-    , r_track_warps :: ![TrackWarp.TrackWarp]
-    , r_track_signals :: !Track.TrackSignals
-    , r_track_dynamic :: !TrackDynamic
-    , r_integrated :: ![Integrated]
+    r_events :: Stream.Stream Score.Event
+    , r_cache :: Cache
+    , r_track_warps :: [TrackWarp.TrackWarp]
+    , r_track_signals :: Track.TrackSignals
+    , r_track_dynamic :: TrackDynamic
+    , r_integrated :: [Integrated]
 
     -- | The relevant parts of the final state should be extracted into the
     -- above fields, but returning the whole state can be useful for testing.
-    , r_state :: !State
+    , r_state :: State
     }
 
 -- | Kick off a derivation.
