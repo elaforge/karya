@@ -126,8 +126,8 @@ external:
 UNSORTED
   warns:
     - LogView/LogCat.hs
-  - get haddock back
-    - Derive/JScore/Db.hs
+  * get haddock back
+    * Derive/JScore/Db.hs
     * App/ConvertEventLog.hs
   - on every stop:
     Midi/CoreMidi.hs:299 - CoreMIDI error: 4294967296

@@ -1223,7 +1223,7 @@ allTests = do
 
 hlint :: Config -> Shake.Action ()
 hlint config = do
-    hs <- liftIO $ getAllHs (Just config)
+    hs <- liftIO $ getAllHs config
     need hs
     Util.systemKeepGoing "hlint" $
         [ "--report=" <> build </> "hlint.html"
@@ -1262,7 +1262,7 @@ getMarkdown = map (docDir</>) <$> Shake.getDirectoryFiles docDir ["*.md"]
 makeHaddock :: (Mode -> Config) -> Shake.Action [FilePath]
 makeHaddock modeConfig = do
     let config = modeConfig Debug
-    hs <- filter (wantsHaddock config) <$> liftIO (getAllHs (Just config))
+    hs <- filter (wantsHaddock config) <$> liftIO (getAllHs config)
     need $ hsconfigPath config : hs
     let flags = configFlags config
     interfaces <- liftIO $ getHaddockInterfaces (packageFlags flags Nothing)
@@ -1270,7 +1270,7 @@ makeHaddock modeConfig = do
     let title = mconcat
             [ "Karya, built on "
             , SourceControl.showDate (SourceControl._date entry)
-            , " (patch ", SourceControl._hash entry, ")"
+            , " (", SourceControl._hash entry, ")"
             ]
     -- This is like 'ghcFlags', but haddock takes slightly different flags.
     includeFlags <- liftIO $ cIncludeUnwrapped flags
@@ -1290,8 +1290,9 @@ makeHaddock modeConfig = do
         , "--package-name=karya" -- otherwise it warns incessantly
         -- Don't report every single function without a doc.
         , "--no-print-missing-docs"
-        -- Source references qualified names as written in the doc.
-        , "--qual=aliased"
+        -- Haddock can't just use what you typed, or M.f, but this is
+        -- the closest there seems to be.
+        , "--qual=relative"
         , "-o", build </> "haddock"
         ] ++ concat
         [ map ("--read-interface="<>) interfaces
@@ -1336,14 +1337,13 @@ getHaddockInterfaces packageDbFlags = do
 
 -- | Get all hs files in the repo, in their .hs form (so it's the generated
 -- output from .hsc or .chs).
-getAllHs :: Maybe Config -> IO [FilePath]
-getAllHs mbConfig =
+getAllHs :: Config -> IO [FilePath]
+getAllHs config =
     filterHs . lines <$>
         Process.readProcess "git" ["ls-tree", "--name-only", "-r", "HEAD"] ""
     where
-    filterHs fnames = concat $ hs : case mbConfig of
-        Nothing -> [hsc, chs]
-        Just config ->
+    filterHs fnames = concat $
+        hs :
             [ map (hscToHs (hscDir config)) hsc
             , map (chsToHs (chsDir config)) chs
             ]
@@ -1356,8 +1356,9 @@ getAllHs mbConfig =
 -- | Should this module have haddock documentation generated?
 wantsHaddock :: Config -> FilePath -> Bool
 wantsHaddock config hs = not $ or $
-    -- no docs for scripts in tools
-    [ maybe False (not . Char.isUpper) (Lists.head hs)
+    -- no docs for scripts in tools, or dist-newstyle/, but do want build/hsc/
+    [ not ((build <> "/") `List.isPrefixOf` hs)
+        && maybe False (not . Char.isUpper) (Lists.head hs)
     , "Ness/" `List.isPrefixOf` hs -- ness stuff still uses conduit-audio
     , "_test.hs" `List.isSuffixOf` hs
     , "_profile.hs" `List.isSuffixOf` hs
