@@ -95,7 +95,7 @@ kumar1 = date 2026 6 12 $ kumar $ korvai adi
 --      sar1 kd5 sar1 2*kd5 sar1 3*kd5
 --      kd5 2*kd5 3*kd5 555 555
 -- sar3 kd5
--- sar1 kd5 kd6 kd7
+-- sar1 kd5 2*kd6 3*kd7
 -- sar3 kd5 sar3 2*kd6 sar3 3*kd7
 -- =>   sar2 kd5 sar2 2*kd6 sar2 3*kd7
 --      sar1 kd5 sar1 2*kd6 sar1 3*kd7
@@ -243,6 +243,17 @@ kumar4_kanda = date 2026 6 12 $ kumar $ korvai adi $ map (fmap (nadai 5))
     n_nd_ = "N,ND_"
     d_nd_ = "D_ND_"
     takadinna = "kook"
+
+kumar5 :: Korvai
+kumar5 = date 2026 7 9 $ kumar $ korvaiV adi [sequence, nadai 6 sequence]
+    where
+    sequence = with (r4 sarva) . with (r3 sarva) . with (r2 sarva) . with sarva
+        . mconcat expand . mconcatMap r2 expand . mconcatMap r3 expand
+    with sarva = suffixes sarva expand
+    expand = [p6, "k_".p6, "k_t_".p6]
+    sarva = takadimi.takajonu
+    takadimi = "nkdd"
+    takajonu = "nkdd"
 
 takatari :: Sequence
 takatari = nakatiku
