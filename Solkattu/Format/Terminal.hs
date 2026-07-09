@@ -532,8 +532,8 @@ shouldEmphasize tala angas state
 
 -- ** formatting
 
-data Symbol = Symbol {
-    _text :: Text
+data Symbol = Symbol
+    { _text :: Text
     , _style :: Styled.Style
     -- | If this was from a S.Sustain, which comes from S.hasSustain.  This
     -- differentiates a stroke followed by rests from a sequence that continues

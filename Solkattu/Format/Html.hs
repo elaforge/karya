@@ -3,6 +3,7 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 {-# LANGUAGE CPP #-}
+{-# LANGUAGE StrictData #-}
 -- | Format korvais as HTML.
 module Solkattu.Format.Html (
     indexHtml, writeAll, write
@@ -169,13 +170,13 @@ write mbInstruments fname score =
 
 -- * high level
 
-data Config = Config {
-    _abstraction :: !Format.Abstraction
-    , _font :: !Font
+data Config = Config
+    { _abstraction :: Format.Abstraction
+    , _font :: Font
     -- | Show the ruler on multiples of this line as a reminder.  The ruler is
     -- always shown if it changes.  It should be a multiple of 2 to avoid
     -- getting the second half of a talam in case it's split in half.
-    , _rulerEach :: !Int
+    , _rulerEach :: Int
     } deriving (Show)
 
 -- | HTML output has vertical lines for ruler marks, so they can be rarer.
@@ -486,10 +487,10 @@ formatAvartanams config toSpeed prevRuler tala =
 
 type Line = [(S.State, Symbol)]
 
-data Symbol = Symbol {
-    _html :: !Html.Html
-    , _isSustain :: !Bool
-    , _style :: !(Maybe Text)
+data Symbol = Symbol
+    { _html :: Html.Html
+    , _isSustain :: Bool
+    , _style :: Maybe Text
     } deriving (Eq, Show)
 
 instance Pretty Symbol where

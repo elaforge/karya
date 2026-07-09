@@ -3,6 +3,7 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 {-# LANGUAGE DeriveFunctor #-}
+{-# LANGUAGE StrictData #-}
 -- | This contains instrument data in common between different backends.
 module Instrument.Common where
 import qualified Data.List as List
@@ -29,30 +30,30 @@ import           Global
 
 -- | Attributes common to all instruments.  Unlike 'Config', these are
 -- part of the instrument itself and not configurable.
-data Common code = Common {
+data Common code = Common
     -- | Cmds and Derive calls.  This is abstract so this can be defined
     -- without incurring a dependency on "Cmd.Cmd", which would wind up being
     -- a circular dependency.
-    common_code :: !code
+    { common_code :: code
     -- | This environ is merged into the derive environ when the instrument
     -- comes into scope, and also when the pitch of 'Score.Event's with this
     -- instrument is converted.  Typically it sets things like instrument
     -- range, tuning details, etc.
-    , common_environ :: !REnv.Environ
+    , common_environ :: REnv.Environ
     -- | Key-value pairs used to index the instrument.  A key may appear more
     -- than once with different values.  Tags are free-form, but there is
     -- a list of standard tags in "Instrument.Tag".
-    , common_tags :: ![Tag.Tag]
+    , common_tags :: [Tag.Tag]
     -- | So, instrument, tell me about yourself.
-    , common_doc :: !Doc.Doc
+    , common_doc :: Doc.Doc
     -- | Flags shared with all instruments.
     --
     -- TODO unlike midi flags, these are hardcoded and can't be changed
     -- per-instrument.  I should probably do the same thing as Midi.Patch and
     -- have a Settings which is copied as the default.  But it's a hassle and
     -- I don't need it right now.
-    , common_flags :: !(Set Flag)
-    , common_call_map :: !CallMap
+    , common_flags :: Set Flag
+    , common_call_map :: CallMap
     } deriving (Show, Functor)
 
 code = Lens.lens common_code (\r a -> r { common_code = a })
@@ -171,10 +172,10 @@ sort_attributes = Lists.sortOn (\(a, _) -> - Set.size (Attrs.to_set a))
 
 -- | Configuration for a specific allocation of an instrument in a specific
 -- score.
-data Config = Config {
+data Config = Config
     -- | This is a local version of 'common_environ'.  Overlayed on the
     -- instrument config 'common_environ'.
-    config_environ :: !REnv.Environ
+    { config_environ :: REnv.Environ
     -- | This is the control equivalent to 'config_environ'.  These
     -- controls are merged using their default mergers in the note call.
     -- Being in the note call means that the merge should only happen once.
@@ -184,12 +185,12 @@ data Config = Config {
     --
     -- This can be useful to set a per-instrument transposition, or dynamic
     -- level.
-    , config_controls :: !ScoreT.ControlValMap
+    , config_controls :: ScoreT.ControlValMap
     -- | If true, this instrument is filtered out prior to playing.
-    , config_mute :: !Bool
+    , config_mute :: Bool
     -- | If any instrument is soloed, all instruments except soloed ones are
     -- filtered out prior to playing.
-    , config_solo :: !Bool
+    , config_solo :: Bool
     } deriving (Eq, Show)
 
 empty_config :: Config

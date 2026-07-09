@@ -173,12 +173,12 @@ import           Types
 -- * types
 
 -- | Score state.  When you save a score, this is what is saved to disk.
-data State = State {
-    state_views :: ~(Map ViewId Block.View)
-    , state_blocks :: ~(Map BlockId Block.Block)
-    , state_tracks :: ~(Map TrackId Track.Track)
-    , state_rulers :: ~(Map RulerId Ruler.Ruler)
-    , state_config :: ~UiConfig.Config
+data State = State
+    { state_views :: Map ViewId Block.View
+    , state_blocks :: Map BlockId Block.Block
+    , state_tracks :: Map TrackId Track.Track
+    , state_rulers :: Map RulerId Ruler.Ruler
+    , state_config :: UiConfig.Config
     } deriving (Eq, Show)
 
 views :: Lens.Lens State (Map ViewId Block.View)

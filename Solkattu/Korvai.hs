@@ -4,6 +4,7 @@
 
 {-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE ExistentialQuantification #-}
+{-# LANGUAGE StrictData #-}
 {-# LANGUAGE GADTs #-}
 -- | Tie together generic Solkattu and specific instruments into a single
 -- 'Korvai'.
@@ -114,9 +115,9 @@ mapSollu f = S.mapS $ \case
 
 -- * Score
 
-data Score = Single !Korvai | Tani !Metadata ![Part Korvai]
+data Score = Single Korvai | Tani Metadata [Part Korvai]
     deriving (Show)
-data Part k = K !k | Comment !Text
+data Part k = K k | Comment !Text
     deriving (Show, Functor)
 
 -- | Make a Tani Score, which is just a sequence of Korvais.
@@ -145,10 +146,10 @@ realizeScore realize = \case
 -- * korvai
 
 data Korvai = Korvai {
-    korvaiSections :: !KorvaiSections
-    , korvaiStrokeMaps :: !StrokeMaps
-    , korvaiTala :: !Talas.Tala
-    , korvaiMetadata :: !Metadata
+    korvaiSections :: KorvaiSections
+    , korvaiStrokeMaps :: StrokeMaps
+    , korvaiTala :: Talas.Tala
+    , korvaiMetadata :: Metadata
     } deriving (Show, Generics.Generic)
 
 instance Pretty Korvai where
@@ -292,15 +293,15 @@ instance Show GInstrument where
 -- * Section
 
 data Section a = Section {
-    sectionSequence :: !a
+    sectionSequence :: a
     -- | Where the section should start.  0 means start on sam.
-    , sectionStart :: !S.Duration
+    , sectionStart :: S.Duration
     -- | Expect the section to end at this time.  It can be negative, in which
     -- case it falls before sam.  Useful for eddupu.
-    , sectionEnd :: !S.Duration
+    , sectionEnd :: S.Duration
     -- | This is lazy because it might have a 'Solkattu.Exception' in it.  This
     -- is because 'inferSectionTags' has to evaluate the sequence.
-    , sectionTags :: Tags.Tags
+    , sectionTags :: ~Tags.Tags
     } deriving (Eq, Show, Functor, Generics.Generic)
 
 instance Pretty a => Pretty (Section a) where
@@ -545,9 +546,9 @@ lint inst defaultStrokes korvai =
 
 -- | Attach some metadata to a Korvai.
 data Metadata = Metadata {
-    _date :: !(Maybe Calendar.Day)
-    , _tags :: !Tags.Tags
-    , _location :: !Location
+    _date :: Maybe Calendar.Day
+    , _tags :: Tags.Tags
+    , _location :: Location
     } deriving (Eq, Show, Generics.Generic)
 
 -- | (module, lineNumber, variableName)

@@ -2,6 +2,7 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
+{-# LANGUAGE StrictData #-}
 {-# LANGUAGE ViewPatterns #-}
 module Cmd.Msg where
 import           Control.DeepSeq (deepseq)
@@ -88,12 +89,12 @@ data DeriveStatus =
     -- 'Cmd.state_current_performance' but not in 'Cmd.state_performance' yet.
     OutOfDate
     | Deriving
-    | DeriveComplete !Performance !ImStarted
+    | DeriveComplete Performance ImStarted
     -- | The BlockId is the block to which this status applies, the BlockId
     -- in the containing DeriveStatus is the root block for the derivation.
     -- It's redundant for 'ImComplete', because only the root block gets one of
     -- those.
-    | ImStatus !BlockId !(Set TrackId) !ImStatus
+    | ImStatus BlockId (Set TrackId) ImStatus
     deriving (Show)
 
 instance Pretty DeriveStatus where
@@ -108,13 +109,13 @@ data ImStarted = ImStarted -- ^ im subprocess in progress
 
 data ImStatus =
     -- | start--end currently being rendered.
-    ImRenderingRange !ScoreT.Instrument !RealTime !RealTime
+    ImRenderingRange ScoreT.Instrument RealTime RealTime
     -- | Waveforms written for these chunks.
-    | ImWaveformsCompleted ![Track.WaveformChunk]
+    | ImWaveformsCompleted [Track.WaveformChunk]
     -- | True if the im subprocess had a failure.  The error will have been
     -- logged, and this flag will leave a visual indicator on the track that
     -- something went wrong.
-    | ImComplete !Bool !(Maybe ImGc.Stats)
+    | ImComplete Bool (Maybe ImGc.Stats)
     deriving (Show)
 
 instance Pretty ImStatus where
@@ -140,32 +141,32 @@ instance Pretty ImStatus where
     then force the fields in a separate thread.  Also I need to modify
     'perf_damage' without forcing any of the others.
 -}
-data Performance = Performance {
-    perf_derive_cache :: Derive.Cache
+data Performance = Performance
+    { perf_derive_cache :: ~Derive.Cache
     -- | This is the forced result of a derivation.
-    , perf_events :: Vector.Vector Score.Event
+    , perf_events :: ~(Vector.Vector Score.Event)
     -- | Logs from the derivation are written separately.
-    , perf_logs :: [Log.Msg]
+    , perf_logs :: ~[Log.Msg]
     -- | The logs are only written on the first play, to minimize error spam.
     -- So there's a flag which says whether these logs have been written or
     -- not.  I don't clear the logs, so 'Cmd.Repl.LPerf.cache_stats' can
     -- inspect them.
-    , perf_logs_written :: Bool
-    , perf_track_dynamic :: Derive.TrackDynamic
-    , perf_integrated :: [Derive.Integrated]
+    , perf_logs_written :: ~Bool
+    , perf_track_dynamic :: ~Derive.TrackDynamic
+    , perf_integrated :: ~[Derive.Integrated]
     -- | ScoreDamage is normally calculated automatically from the UI diff,
     -- but Cmds can also intentionally inflict damage to cause a rederive.
-    , perf_damage :: Derive.ScoreDamage
-    , perf_warps :: [TrackWarp.TrackWarp]
-    , perf_track_signals :: Track.TrackSignals
-    , perf_block_deps :: Derive.BlockDeps
+    , perf_damage :: ~Derive.ScoreDamage
+    , perf_warps :: ~[TrackWarp.TrackWarp]
+    , perf_track_signals :: ~Track.TrackSignals
+    , perf_block_deps :: ~Derive.BlockDeps
     -- | Map each track to the instruments on it.  This tries to remain lazy,
     -- since it's only used by muted_im_instruments.
-    , perf_track_instruments :: Map TrackId (Set ScoreT.Instrument)
+    , perf_track_instruments :: ~(Map TrackId (Set ScoreT.Instrument))
     -- | This is the score state at the time of the performance.  It's needed
     -- to interpret 'perf_track_signals', because at the time signals are sent
     -- (in 'Cmd.PlayC.cmd_play_msg'), the Ui.State may have unsynced changes.
-    , perf_ui_state :: Ui.State
+    , perf_ui_state :: ~Ui.State
     }
 
 -- | Force a Performance so that it can be used without a lag.

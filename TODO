@@ -197,13 +197,13 @@ UNSORTED
   + global StrictData:
     . Mark lazy fields with ~?  It'll be non-records too!
     * Synth
-    + Ui
+    * Ui
       Ui.State not strict, what effects does it have?
     * UiConfig
     * Derive/Deriver
     * Perform
-    - Instrument
-    - Solkattu
+    * Instrument
+    * Solkattu
   OverloadedRecordDot:
     . You have to import the module in order to use the field, but fix-imports
       will want to remove the "unused" module.

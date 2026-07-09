@@ -161,8 +161,8 @@ mods_down = Set.fromList <$> fmap (filter is_mod . Map.keys) keys_down
     is_mod (MouseMod {}) = True
 
 -- | Pair a Cmd with a Doc that can be used for logging, undo, etc.
-data NamedCmd m = NamedCmd {
-    cmd_name :: Text
+data NamedCmd m = NamedCmd
+    { cmd_name :: Text
     , cmd_call :: Msg.Msg -> m Status
     }
 
@@ -311,8 +311,8 @@ merge_status s1 s2 = if prio s1 >= prio s2 then s1 else s2
 
 -- | Arguments for 'Cmd.PlayC.play'.  This is a special return value to trigger
 -- a play, see "Cmd.PlayC" for details.
-data PlayArgs = PlayArgs {
-    play_sync :: Maybe SyncConfig
+data PlayArgs = PlayArgs
+    { play_sync :: Maybe SyncConfig
     -- | Description of what is being played for logging.
     , play_name :: Text
     , play_midi :: Midi.Perform.MidiEvents
@@ -329,8 +329,8 @@ data PlayArgs = PlayArgs {
 instance Show PlayArgs where show _ = "((PlayArgs))"
 
 -- | Arguments for 'Cmd.PlayC.play_im_direct_thread'.
-data PlayDirectArgs = PlayDirectArgs {
-    play_score_path :: FilePath
+data PlayDirectArgs = PlayDirectArgs
+    { play_score_path :: FilePath
     , play_block_id :: BlockId
     , play_muted :: Set ScoreT.Instrument
     , play_start :: RealTime
@@ -550,8 +550,8 @@ require_right fmt_err = either (throw . fmt_err) return
     say by having a Cmd return a new Cmd and keeping the state trapped inside,
     or a less clever but simpler and easier way like @Map Name Dynamic@.
 -}
-data State = State {
-    state_config :: Config
+data State = State
+    { state_config :: Config
     -- | If set, the current 'Ui.State' was loaded from this file.
     -- This is so save can keep saving to the same file.
     , state_save_file :: Maybe (Writable, SaveFile)
@@ -616,8 +616,8 @@ data SaveFile = SaveState Path.Canonical | SaveRepo Path.Canonical
 data Writable = ReadWrite | ReadOnly deriving (Show, Eq)
 
 -- | This tracks how much the score has been saved to disk.
-data Saved = Saved {
-    _saved_state :: SavedState
+data Saved = Saved
+    { _saved_state :: SavedState
     , _editor_open :: Bool
     } deriving (Eq, Show)
 
@@ -642,8 +642,8 @@ data KeycapsUpdate =
 -- | The set of things that can affect a keycaps window.  So when this changes,
 -- the window has to be updated.  I assume the KeycapsT.Layout is constant, so
 -- it's not in here, which allows me to cache global keymaps in CAFs.
-data KeycapsState = KeycapsState {
-    kc_mods :: Set Modifier
+data KeycapsState = KeycapsState
+    { kc_mods :: Set Modifier
     , kc_octave :: Pitch.Octave
     , kc_is_kbd_entry :: Bool
     , kc_track_type :: Maybe ParseTitle.Type
@@ -750,9 +750,9 @@ reinit_state present cstate = cstate
 
 -- | Config type variables that change never or rarely.  These mostly come from
 -- the "App.StaticConfig".
-data Config = Config {
+data Config = Config
     -- | App root, initialized from 'Config.get_app_dir'.
-    config_app_dir :: Path.AppDir
+    { config_app_dir :: Path.AppDir
     , config_save_dir :: Path.Canonical
     , config_midi_interface :: Midi.Interface.Interface
     -- | Search path for local definition files, from 'Config.definition_path'.
@@ -805,7 +805,7 @@ lookup_scale = Scale.All.lookup_scale
 -- ** PlayState
 
 -- | State concerning derivation, performance, and playing the performance.
-data PlayState = PlayState {
+data PlayState = PlayState
     -- | Transport control channel for the player, if one is running.
     -- This is a list even though I only expect one to run at a time.  The
     -- reason is that if starting a new one stops the old one, there will
@@ -814,7 +814,7 @@ data PlayState = PlayState {
     -- where play gets stuck on, that makes me think with the concurrency I'm
     -- going to wind up with overlapping anyway, so I may as well handle it
     -- when I see it.
-    state_play_control :: [Transport.PlayControl]
+    { state_play_control :: [Transport.PlayControl]
     -- | When changes are made to a block, its performance will be
     -- recalculated in the background.  When the Performance is forced, it will
     -- replace the existing performance in 'state_performance', if any.  This
@@ -899,11 +899,11 @@ initial_play_state = PlayState
     }
 
 -- | Step play is a way of playing back the performance in non-realtime.
-data StepState = StepState {
+data StepState = StepState
     -- - constant
     -- | Keep track of the view step play was started in, so I know where to
     -- display the selection.
-    step_view_id :: ViewId
+    { step_view_id :: ViewId
     -- | If step play only applies to a few tracks, list them.  If null,
     -- step play applies to all tracks.
     , step_tracknums :: [TrackNum]
@@ -920,8 +920,8 @@ data StepState = StepState {
 --
 -- MMC has start and stop msgs, but they seem useless, since they're sysexes,
 -- which are not delivered precisely.
-data SyncConfig = SyncConfig {
-    sync_device :: Midi.WriteDevice
+data SyncConfig = SyncConfig
+    { sync_device :: Midi.WriteDevice
     -- | Send MMC to this device.
     , sync_device_id :: Mmc.DeviceId
     -- | If true, send MTC on the 'sync_device'.  If this is set, MMC play and
@@ -968,9 +968,9 @@ instance Monoid Hooks where
 -- ** EditState
 
 -- | Editing state, modified in the course of editing.
-data EditState = EditState {
+data EditState = EditState
     -- | Edit mode enables various commands that write to tracks.
-    state_edit_mode :: EditMode
+    { state_edit_mode :: EditMode
     -- | True if the floating input edit is open.
     , state_floating_input :: Bool
     -- | Whether or not to advance the insertion point after a note is
@@ -1059,10 +1059,10 @@ instance Pretty Action where
 
 -- *** midi devices
 
-data WriteDeviceState = WriteDeviceState {
+data WriteDeviceState = WriteDeviceState
     -- Used by Cmd.MidiThru:
     -- | NoteId currently playing in each Addr.  An Addr may have >1 NoteId.
-    wdev_note_addr :: Map InputNote.NoteId Patch.Addr
+    { wdev_note_addr :: Map InputNote.NoteId Patch.Addr
     -- | The note id is not guaranteed to have any relationship to the key,
     -- so the MIDI NoteOff needs to know what key the MIDI NoteOn used.
     , wdev_note_key :: Map InputNote.NoteId Midi.Key
@@ -1118,8 +1118,8 @@ perf_closest_warp = TrackWarp.closest_warp . perf_warps
 -- scope.
 --
 -- This has to be in Cmd.Cmd for circular import reasons.
-data InstrumentCode = InstrumentCode {
-    inst_calls :: Derive.InstrumentCalls
+data InstrumentCode = InstrumentCode
+    { inst_calls :: Derive.InstrumentCalls
     , inst_postproc :: InstrumentPostproc
     , inst_cmds :: [HandlerId]
     -- | An optional specialized cmd to write Thru.  This is separate from
@@ -1183,8 +1183,8 @@ type Inst = Inst.Inst InstrumentCode
 -- *** history
 
 -- | Ghosts of state past, present, and future.
-data History = History {
-    hist_past :: [HistoryEntry]
+data History = History
+    { hist_past :: [HistoryEntry]
     -- | The present is actually the immediate past.  When you undo, the
     -- undo itself is actually in the future of the state you want to undo.
     -- So another way of looking at it is that you undo from the past to
@@ -1211,9 +1211,9 @@ data LastCmd =
     | Load (Maybe GitT.Commit) [Text]
     deriving (Show)
 
-data HistoryConfig = HistoryConfig {
+data HistoryConfig = HistoryConfig
     -- | Keep this many previous history entries in memory.
-    hist_keep :: Int
+    { hist_keep :: Int
     -- | Checkpoints are saved relative to the state at the next checkpoint.
     -- So it's important to keep the commit of that checkpoint up to date,
     -- otherwise the state and the checkpoints will get out of sync.
@@ -1223,13 +1223,13 @@ data HistoryConfig = HistoryConfig {
 empty_history_config :: HistoryConfig
 empty_history_config = HistoryConfig Config.default_keep_history Nothing
 
-data HistoryCollect = HistoryCollect {
+data HistoryCollect = HistoryCollect
     -- | This is cleared after each cmd.  A cmd can cons its name on, and
     -- the cmd is recorded with the (optional) set of names it returns.
     -- Hopefully each cmd has at least one name, since this makes the history
     -- more readable.  There can be more than one name if the history records
     -- several cmds or if one cmd calls another.
-    state_cmd_names :: [Text]
+    { state_cmd_names :: [Text]
     -- | Suppress history record until the EditMode changes from the given one.
     -- This is a bit of a hack so that every keystroke in a raw edit isn't
     -- recorded separately.
@@ -1245,8 +1245,8 @@ empty_history_collect = HistoryCollect
     , state_suppressed = Nothing
     }
 
-data HistoryEntry = HistoryEntry {
-    hist_state :: Ui.State
+data HistoryEntry = HistoryEntry
+    { hist_state :: Ui.State
     -- | Since track event updates are not caught by diff but recorded by
     -- Ui.State, I have to save those too, or else an undo or redo will miss
     -- the event changes.  TODO ugly, can I avoid this?
@@ -1303,8 +1303,8 @@ instance Pretty HistoryCollect where
 
 -- | Remember previous selections.  This should be updated only by significant
 -- movements, so clicks and cmd-a, but not hjkl stuff.
-data SelectionHistory = SelectionHistory {
-    sel_past :: [(ViewId, Sel.Selection)]
+data SelectionHistory = SelectionHistory
+    { sel_past :: [(ViewId, Sel.Selection)]
     , sel_future :: [(ViewId, Sel.Selection)]
     } deriving (Eq, Show)
 
@@ -1477,8 +1477,8 @@ set_status key val = do
 -- | This is an instrument as looked up by 'lookup_instrument' or
 -- 'get_lookup_instrument'.  This merges compiled-in and runtime instrument
 -- data.
-data ResolvedInstrument = ResolvedInstrument {
-    inst_instrument :: Inst
+data ResolvedInstrument = ResolvedInstrument
+    { inst_instrument :: Inst
     , inst_qualified :: InstT.Qualified
     , inst_common_config :: Common.Config
     , inst_backend :: Backend

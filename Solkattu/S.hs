@@ -4,6 +4,7 @@
 
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE DeriveFunctor, DeriveFoldable, DeriveTraversable #-}
+{-# LANGUAGE StrictData #-}
 -- deriving (Real) for Duration emits this warning.
 {-# OPTIONS_GHC -fno-warn-identities #-}
 -- | Low level support for rhythmic sequences in a Tala.  The actual Note
@@ -60,10 +61,10 @@ import qualified Solkattu.Tala as Tala
 import           Global
 
 
-data Note g a = Note !a
-    | TempoChange !TempoChange ![Note g a]
+data Note g a = Note a
+    | TempoChange TempoChange [Note g a]
     -- See NOTE [nested-groups] for how I arrived at this design.
-    | Group !g ![Note g a]
+    | Group g [Note g a]
     deriving (Eq, Ord, Show, Functor, Foldable, Traversable)
 
 newtype Sequence g a = Sequence [Note g a]
@@ -261,7 +262,7 @@ dropEndWhile f = apply go
 
     Another way to look at this, is that each FNote is one Matra.
 -}
-data Flat g a = FGroup !Tempo !g ![Flat g a] | FNote !Tempo !a
+data Flat g a = FGroup Tempo g [Flat g a] | FNote Tempo a
     deriving (Eq, Show, Functor)
 
 flatTempo :: Flat g a -> Tempo
@@ -428,7 +429,7 @@ flattenSpeed toSpeed = normalize defaultTempo
 
 -- ** Tempo
 
-data Tempo = Tempo { _speed :: !Speed, _nadai :: !Nadai, _stride :: !Stride }
+data Tempo = Tempo { _speed :: Speed, _nadai :: Nadai, _stride :: Stride }
     deriving (Eq, Show)
 
 instance Pretty Tempo where
@@ -466,13 +467,13 @@ decomposeM (FMatra m) = decompose (Duration m)
 -- ** State
 
 -- | Keep track of timing and tala position.
-data State = State {
-    stateAvartanam :: !Int
-    , stateAkshara :: !Tala.Akshara
+data State = State
+    { stateAvartanam :: Int
+    , stateAkshara :: Tala.Akshara
     -- | Time through this akshara, so this is always < 1.
     -- TODO actually this is not matras, but fraction of the way through the
     -- akshara.  Is there a better term?
-    , stateMatra :: !Duration
+    , stateMatra :: Duration
     -- | The tempo at the time of the State.  This is not needed internally,
     -- but it's easier to record this explicitly than try to figure it out
     -- based on the difference between this state and the next.
@@ -481,7 +482,7 @@ data State = State {
     -- about the current state, this is about the next time step.  That means
     -- 'advanceStateBy' is too late to set it, and it has to be set by whoever
     -- calls advanceStateBy.  Ugh.
-    , stateTempo :: !Tempo
+    , stateTempo :: Tempo
     } deriving (Show)
 
 instance Pretty State where

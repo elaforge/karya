@@ -2,6 +2,7 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
+{-# LANGUAGE StrictData #-}
 {- | This is called Inst because I already have way too many modules named
     Instrument and I couldn't think of anything better.  TODO think of
     something better.
@@ -59,9 +60,9 @@ import           Global
 
 -- * Inst
 
-data Inst code = Inst {
-    inst_backend :: !Backend
-    , inst_common :: !(Common.Common code)
+data Inst code = Inst
+    { inst_backend :: Backend
+    , inst_common :: Common.Common code
     } deriving (Show)
 
 backend = Lens.lens inst_backend (\r a -> r { inst_backend = a })
@@ -76,10 +77,10 @@ instance Pretty code => Pretty (Inst code) where
 data Backend =
     -- | A Dummy instrument should be resolved to concrete instruments during
     -- derivation.  It includes an error msg show if that doesn't happen.
-    Dummy !Text
-    | Midi !Midi.Patch.Patch
-    | Im !Im.Patch.Patch
-    | Sc !Sc.Patch.Patch
+    Dummy Text
+    | Midi Midi.Patch.Patch
+    | Im Im.Patch.Patch
+    | Sc Sc.Patch.Patch
     deriving (Show)
 
 instance Pretty Backend where
@@ -115,9 +116,9 @@ inst_attributes inst = case inst_backend inst of
 newtype Db code = Db (Map InstT.SynthName (Synth code))
     deriving (Show, Pretty)
 
-data Synth code = Synth {
-    synth_doc :: !Text -- ^ Full name, just for documentation.
-    , synth_insts :: !(Map InstT.Name (Inst code))
+data Synth code = Synth
+    { synth_doc :: Text -- ^ Full name, just for documentation.
+    , synth_insts :: Map InstT.Name (Inst code)
     } deriving (Show)
 
 insts = Lens.lens synth_insts (\r a -> r { synth_insts = a })
@@ -149,11 +150,11 @@ type Warn = Text
 
 -- | Unchecked synth declaration.  'db' will check it for duplicates and other
 -- problems.
-data SynthDecl code = SynthDecl {
-    synthd_name :: !InstT.SynthName
-    , synthd_doc :: !Text
-    , synthd_patches :: ![(InstT.Name, Inst code)]
-    , synthd_warns :: ![Warn]
+data SynthDecl code = SynthDecl
+    { synthd_name :: InstT.SynthName
+    , synthd_doc :: Text
+    , synthd_patches :: [(InstT.Name, Inst code)]
+    , synthd_warns :: [Warn]
     } deriving (Show)
 
 instance Pretty code => Pretty (SynthDecl code) where

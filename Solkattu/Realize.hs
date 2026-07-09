@@ -7,6 +7,7 @@
 {-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE DeriveTraversable #-}
 {-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE StrictData #-}
 -- | Realize abstract solkattu 'S.Note's to concrete instrument-dependent
 -- 'Note's.
 module Solkattu.Realize (
@@ -92,8 +93,8 @@ type SNote stroke = S.Note () (Note stroke)
 
 -- | The 'Solkattu.Sollu's have been reduced to concrete strokes.
 data Note stroke =
-    Note !(Stroke stroke)
-    | Space !Solkattu.Space
+    Note (Stroke stroke)
+    | Space Solkattu.Space
     -- | A pattern that has been made abstract.  This is a group that has been
     -- abstracted away.  That means it can have a name, but also it doesn't
     -- have to have an integral matra duration.  Since Abstract comes from
@@ -101,12 +102,12 @@ data Note stroke =
     -- each Note used to be.
     --
     -- These are created at the Format level, not here.
-    | Abstract !Solkattu.Meta
+    | Abstract Solkattu.Meta
     -- | This is 'Solkattu.Alignment'.  It shouldn't be here, but since I now
     -- drop groups in realize via 'convertGroups', I have to do
     -- 'checkAlignment' on the output of 'realize', which means I need to
     -- preserve the Alignments.
-    | Alignment !Tala.Akshara
+    | Alignment Tala.Akshara
     deriving (Eq, Show, Functor, Foldable, Traversable)
 
 mapStroke :: Applicative f => (Stroke a -> f (Stroke b)) -> Note a -> f (Note b)
@@ -119,8 +120,8 @@ mapStroke f = \case
 instance DeepSeq.NFData (Note stroke) where rnf _ = ()
 
 data Stroke stroke = Stroke {
-    _emphasis :: !Emphasis
-    , _stroke :: !stroke
+    _emphasis :: Emphasis
+    , _stroke :: stroke
     } deriving (Eq, Ord, Show, Functor, Foldable, Traversable)
 
 toExpr :: Expr.ToExpr a => Stroke a -> Expr.Expr Expr.MiniVal
@@ -243,7 +244,7 @@ instance Pretty stroke => Pretty (Note stroke) where
 -- * checkAlignment
 
 -- | Stroke index and warning text.
-data Warning = Warning (Maybe Int) !Text
+data Warning = Warning (Maybe Int) Text
     deriving (Show, Eq)
 
 -- | Verify that the notes start and end at sam, and the given Alignments
@@ -319,8 +320,8 @@ flatDuration = Num.sum . map (uncurry S.noteDuration) . S.tempoNotes
     have tempo changes since they always substitute a single Solkattu.Note.
     If I ever have a use for e.g. (taka.p5, ...) then I could reconsider.
 -}
-data StrokeMap sollu stroke = StrokeMap {
-    smapSolluMap :: SolluMap sollu stroke
+data StrokeMap sollu stroke = StrokeMap
+    { smapSolluMap :: SolluMap sollu stroke
     -- | Shadowed SolluMapKeys, saved here to warn about them later.
     , smapSolluShadows :: [(SolluMapKey sollu, [Maybe (Stroke stroke)])]
     , smapPatternMap :: PatternMap stroke
@@ -496,13 +497,13 @@ realizePattern pmap tempo pattern = case lookupPattern pattern pmap of
 -- | This is the realized version of 'Solkattu.Group'.  I retain the dropped
 -- strokes so "Solkattu.Technique" can use them.
 data Group stroke =
-    GReduction !(Reduction stroke)
-    | GMeta !Solkattu.Meta
+    GReduction (Reduction stroke)
+    | GMeta Solkattu.Meta
     deriving (Eq, Ord, Show, Functor)
 
 data Reduction stroke = Reduction {
-    _dropped :: ![stroke]
-    , _side :: !Solkattu.Side
+    _dropped :: [stroke]
+    , _side :: Solkattu.Side
     } deriving (Eq, Ord, Show, Functor)
 
 instance Pretty stroke => Pretty (Group stroke) where
@@ -772,7 +773,7 @@ replaceSollus (_:_) [] = ([], [])
 data ToStrokes sollu stroke = ToStrokes {
     -- | The longest [sollu] key in the whole SolluMap, so I know when to give
     -- up looking for the longest prefix.
-    _longestKey :: !Int
+    _longestKey :: Int
     , _getStrokes :: Maybe Solkattu.Tag -> [sollu]
         -> Maybe [Maybe (Stroke stroke)]
     }
