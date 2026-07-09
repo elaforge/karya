@@ -58,30 +58,21 @@ def main():
         for timing in timings:
             fp.write(json.dumps(timing) + '\n')
 
-def fix_old_json():
-    # Add a field to old JSONs.
-    # Used as a one-off, I'll keep it around in case I need it again.
-    ghc = subprocess.check_output(['ghc', '--numeric-version']).strip() \
-        .decode('utf-8')
-    for fn in sys.argv[1:]:
-        print(fn)
-        out = []
-        for line in open(fn):
-            js = json.loads(line)
-            js['ghc'] = ghc
-            out.append(json.dumps(js))
-        open(fn, 'w').write('\n'.join(out) + '\n')
-
 def metadata_json():
     patch = parse_json(
         subprocess.run(
             [verify_binary, '--mode=CommitInfo'],
             stdout=subprocess.PIPE,
             check=True).stdout)
-    ghc = subprocess.check_output(['ghc', '--numeric-version']).strip() \
-        .decode('utf-8')
+    ghc = capture(['ghc', '--numeric-version'])
+    # Include cpu because I upgrade laptops and use the old name!
+    # TODO linux? use lscpu?
+    processor = capture(['sysctl', '-n', 'machdep.cpu.brand_string'])
+    processor = ''.join(processor.split())
+    hostname = socket.gethostname().split('.')[0]
     return {
-        'system': socket.gethostname().split('.')[0],
+        'system': hostname,
+        'processor': processor,
         'ghc': ghc,
         'patch': patch,
         'run_date': datetime.datetime.now().isoformat(),
@@ -147,6 +138,9 @@ def merge_dicts(dicts):
 def run(cmd, check=True):
     print('## ' + ' '.join(cmd))
     return subprocess.run(cmd, check=check).returncode
+
+def capture(cmd):
+    return subprocess.check_output(cmd, text=True).strip()
 
 def empty_dir(dir):
     try:

@@ -77,12 +77,7 @@ def read_timings():
     return timings
 
 def utc2local(date):
-    epoch = time.mktime(date.timetuple())
-    offset = (
-        datetime.datetime.fromtimestamp(epoch)
-        - datetime.datetime.utcfromtimestamp(epoch)
-    )
-    return (date + offset).isoformat()
+    return date.replace(tzinfo=datetime.UTC).astimezone().isoformat()
 
 COLUMNS = [
     ('patch', lambda t: t['patch']['name'][:64]),
