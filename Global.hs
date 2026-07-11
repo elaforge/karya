@@ -17,7 +17,6 @@ module Global (
     , findM, partitionM
     , unlessM, whenM, whenJust, whenJustM
     -- * list
-    , foldl'
     , mconcatMap, concatMapM, mapMaybeM
     , mapMaybe, fromMaybe
 
@@ -57,7 +56,6 @@ import           Data.HashMap.Strict (HashMap)
 import           Data.HashSet (HashSet)
 import           Data.IntMap (IntMap)
 import           Data.IntSet (IntSet)
-import           Data.List (foldl')
 import           Data.List.NonEmpty (NonEmpty((:|)))
 import           Data.Map (Map)
 import           Data.Maybe (fromMaybe, mapMaybe)
