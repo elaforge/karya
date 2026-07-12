@@ -52,6 +52,20 @@ e_nakanakadin = rohan $ exercise $ date 2026 5 29 $ korvaiV adi
 kumar :: Korvai -> Korvai
 kumar = source "Patri Satish Kumar"
 
+kumar0 :: Korvai
+kumar0 = date 2026 7 11 $ kumar $ korvai adi
+    [ x2 $ s $ ndnd . ndnd `replaceEnd` "__A_A___"
+    , x2 $ s $ r3 ndnd' . "N_D,D_" . kD3
+    , x2 $ s $ r3 ndnd' . "N,NND_" . kD3 -- 2:00
+    , x2 $ s $ r2 ndnd' . r2 "N,NND_" . r2 kD3
+    , x2 $ s $ ndnd' . r3 "N,NND_" . r3 kD3
+    , s $ r2 ndnd
+    ]
+    where
+    ndnd = sd "NDNd". "nn" . sd "DND"
+    ndnd' = "N_D,N_d,nnd,N_D,"
+    kD3 = "kD_k_D_k__"
+
 -- (2) join 0: 9 8 7 6  x3
 -- (3) join 1: 8 7 6 5  x2
 -- (4) join 2: 7 6 5 4  x2
@@ -64,7 +78,7 @@ kumar1 = date 2026 6 12 $ kumar $ korvai adi
     , s $ r3 (r2 tang_kitataka . end . "U_")
         . tri "D_" (tang_kitataka . end) . end . end . pu
     , s $ __D 5 . r4 "u__"
-    , x2 $ s $ ndnd . ndnd `replaceEnd` "_A_A___"
+    , x2 $ s $ ndnd . ndnd `replaceEnd` "__A_A___"
     , x3 $ s $ ndnd . ndnd . __.__ . t9.t8.t7.t6
     , x2 $ s $ ndnd . ndnd . "u__" . join __ [t8, t7, t6, p5]
     , s $ ndnd . ndnd . "u___" . join "U_" [t7, t6, p5, "kD".su ktpk] -- 2:00
