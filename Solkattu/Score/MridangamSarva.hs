@@ -449,6 +449,12 @@ s_bhajan_kanda = sarvalaghu $ korvaiV Tala.kanda_chapu
         . "D_" . ktok . __ . k . ktok.__.ktok.__.k
     -- https://www.youtube.com/watch?v=ctpe5H1Snd0
     , r2 $ sd (sd "N,ND,")
+    -- from Rohan
+    , sd $ "u_oDnoD_N_" . "u__dn_d_n_" & "o_o_oo/_o_"
+        . "u_tktk" . su "nooknook" . "NkoNkoD_N_"
+        . "N,NND,N,D," . "n,nnd,n,d,"
+        . n.su "ktpk"."nd,n,d," . su "npktpk"."nd,n,d,"
+        . "n,d," . su ("n_pk".nakatiku) . "NkoNkoD_N_"
     ]
     where
     ktok = su (su "ktok")

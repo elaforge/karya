@@ -315,9 +315,9 @@ scores = map Korvai.inferMetadataS
     , setLocation ("Solkattu.Score.MridangamSarva",409,"s_rupaka") $ Single Solkattu.Score.MridangamSarva.s_rupaka
     , setLocation ("Solkattu.Score.MridangamSarva",417,"s_bhajan") $ Single Solkattu.Score.MridangamSarva.s_bhajan
     , setLocation ("Solkattu.Score.MridangamSarva",444,"s_bhajan_kanda") $ Single Solkattu.Score.MridangamSarva.s_bhajan_kanda
-    , setLocation ("Solkattu.Score.MridangamSarva",456,"s_bhajan_misra") $ Single Solkattu.Score.MridangamSarva.s_bhajan_misra
-    , setLocation ("Solkattu.Score.MridangamSarva",467,"bhajan_endings") $ Single Solkattu.Score.MridangamSarva.bhajan_endings
-    , setLocation ("Solkattu.Score.MridangamSarva",472,"bhajan_endings2") $ Single Solkattu.Score.MridangamSarva.bhajan_endings2
+    , setLocation ("Solkattu.Score.MridangamSarva",462,"s_bhajan_misra") $ Single Solkattu.Score.MridangamSarva.s_bhajan_misra
+    , setLocation ("Solkattu.Score.MridangamSarva",473,"bhajan_endings") $ Single Solkattu.Score.MridangamSarva.bhajan_endings
+    , setLocation ("Solkattu.Score.MridangamSarva",478,"bhajan_endings2") $ Single Solkattu.Score.MridangamSarva.bhajan_endings2
     , setLocation ("Solkattu.Score.MridangamSollu",12,"misc_sollus") $ Single Solkattu.Score.MridangamSollu.misc_sollus
     , setLocation ("Solkattu.Score.MridangamSollu",17,"dinna_kitataka") $ Single Solkattu.Score.MridangamSollu.dinna_kitataka
     , setLocation ("Solkattu.Score.MridangamSollu",31,"sollus") $ Single Solkattu.Score.MridangamSollu.sollus
