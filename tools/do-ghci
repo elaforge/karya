@@ -16,6 +16,9 @@ args=(
     # This bit of zsh insanity reads newline separated words, so args with
     # spaces work.
     "${(@f)$(cat $flags)}"
+    # Since ghc 9.4 loading mixed bytecode and .o is buggy.  Always using .o is
+    # slower but works around.
+    -fobject-code
 )
 
 # Don't use ghci since I run this from a script called ghci, and I don't
