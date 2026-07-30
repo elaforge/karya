@@ -124,6 +124,8 @@ KeycapsWindow::KeycapsWindow(int x, int y, int w, int h, const char *title,
     set_flag(Fl_Window::NON_MODAL | Fl_Window::NOBORDER);
     // Refuse to take focus.
     set_output();
+    // Really refuse to take focus.
+    visible_focus(false);
 
     resizable(nullptr); // window cannot be resized
     keycaps.callback(KeycapsWindow::keycaps_cb, static_cast<void *>(this));
@@ -158,10 +160,15 @@ KeycapsWindow::handle(int evt)
     static IPoint root;
     switch (evt) {
     case FL_ENTER:
-        // This should opt out of focus, but doesn't work on OS X, or maybe not
-        // for windows.  In fact, I never get this.
+        // The docs say I have to return true to get FL_MOVE, but at least on
+        // OSX, I seem to get it when I return false too.
+        return true;
+    case FL_FOCUS:
+        // Don't accept keyboard focus.  Thuogh actually focus is refused by
+        // visible_focus(false), so this should be unreached.
         return false;
-        // return true; // to receive FL_MOVE
+    case FL_UNFOCUS:
+        return true;
     case FL_MOVE:
         return Fl_Double_Window::handle(evt);
     case FL_PUSH:
@@ -174,9 +181,6 @@ KeycapsWindow::handle(int evt)
         this->position(root.x + delta.x, root.y + delta.y);
         return true;
     }
-    case FL_FOCUS:
-        // Don't accept keyboard focus.
-        return false;
     case FL_MOUSEWHEEL:
         // Consume these so MsgCollector doesn't get it and complain.
         return true;

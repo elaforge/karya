@@ -967,9 +967,6 @@ dispatch_to_keycaps(IPoint mouse)
 int
 BlockWindow::handle(int evt)
 {
-    // if (evt != FL_MOVE)
-    //     DEBUG("Window " << f_util::show_event(evt)
-    //         << " " << f_util::show_widget(Fl::focus()));
     check_focus(evt);
 
     bool accepted = false;

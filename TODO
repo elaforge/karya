@@ -148,18 +148,45 @@ UNSORTED
     . Can I mass update those?
   - also there is old-style collapsed pitch tracks with black, can I
     update all states to remove those?
-  - keycaps=True will stop the initial block from getting focus.
+  * keycaps=True will stop the initial block from getting focus.
+    . repro in pure fltk?
+      Doesn't happen with test_block.cc show_keycaps!
+      What's the difference?
     . Even though KeycapWindow tries to not accept focus!
     . Who has it then?
-      fltk/Block.cc:972 Window FL_FOCUS <null>
-      fltk/Block.cc:972 Window FL_SHOW <11BlockWindow focused>
-      fltk/Block.cc:972 Window FL_FOCUS <11BlockWindow focused>
-      fltk/Block.cc:972 Window FL_UNFOCUS <13KeycapsWindow focused>
-      fltk/Keycaps.cc:159 Keycaps FL_SHOW <13KeycapsWindow focused>
-      fltk/Keycaps.cc:159 Keycaps FL_SHOW <13KeycapsWindow focused>
-      fltk/Block.cc:972 Window FL_LEAVE <13KeycapsWindow focused>
-    . So even though it return false with FL_FOCUS, it gets focus anyway.
-      I think this is all fltk?  What is it doing exactly?
+      There are two windows, Window and Keycaps.  Keycaps is meant to
+      never have keyboard focus, and returns false when it gets FL_FOCUS,
+      which is supposed to refuse focus.  But it gets focus anyway.  Here's
+      a log showing who gets events and who is focused at that time:
+
+      > fltk/Block.cc:972 Window FL_FOCUS <null>
+      > fltk/Block.cc:972 Window FL_SHOW <11BlockWindow focused>
+      > fltk/Block.cc:972 Window FL_FOCUS <11BlockWindow focused>
+      > fltk/Block.cc:972 Window FL_UNFOCUS <13KeycapsWindow focused>
+      > fltk/Keycaps.cc:159 Keycaps FL_SHOW <13KeycapsWindow focused>
+
+      Window is created and accepts focus.  But then it gets FL_UNFOCUS
+      and focus is given to Keycaps.  Keycaps never receives a FL_FOCUS, only
+      FL_SHOW, but it gets focus anyway.  If I press 'a' Keycaps indeed
+      receives the event:
+
+      > fltk/Keycaps.cc:159 Keycaps FL_KEYDOWN <13KeycapsWindow focused>
+      > fltk/Block.cc:972 Window FL_SHORTCUT <13KeycapsWindow focused>
+      > fltk/Keycaps.cc:159 Keycaps FL_KEYUP <13KeycapsWindow focused>
+
+      Then when the mouse pointer touches Window, it gets and accepts FL_FOCUS:
+
+      > fltk/Block.cc:972 Window FL_FOCUS <13KeycapsWindow focused>
+      > fltk/Keycaps.cc:159 Keycaps FL_UNFOCUS <11BlockWindow focused>
+      > fltk/Block.cc:972 Window FL_ENTER <11BlockWindow focused>
+
+      Only at this point do keystrokes go to the window.
+
+      Why does Window get FL_UNFOCUS when Keycaps is shown, and why does
+      Keycaps get focus with no accompanying FL_FOCUS?
+      Source for fltk is in /usr/local/src/fltk-1.4.4/, specifically the FL
+      and src directories, where Fl_Window.cxx and Fl_Group.cxx probably have
+      the relevant event handling code.
   - space starting a new play instead of stopping is annoying
     Because I can't stop a sample from playing without starting a new play.
   - break: adjust bpm based on position in beat map
@@ -194,7 +221,8 @@ UNSORTED
     im_play_direct <- Cmd.gets $ Cmd.config_im_play_direct . Cmd.state_config
     LCmd.im_play_direct
     How could I have found this easier?
-  + global StrictData:
+  + global StrictData: branch strict-data:
+    . Causes a <<loop>> somehow if I do everywhere.
     . Mark lazy fields with ~?  It'll be non-records too!
     * Synth
     * Ui
