@@ -368,7 +368,7 @@ wait_for_command cmd args = do
             return False
 
 -- This can't use readProcess, which always pipes stdin, which stty doesn't
--- likek.
+-- like.
 capture :: String -> [String] -> IO Text
 capture cmd args =
     Process.withCreateProcess proc $ \Nothing (Just outh) Nothing pid -> do

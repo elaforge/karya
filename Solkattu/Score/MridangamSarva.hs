@@ -441,6 +441,25 @@ s_bhajan = date 2026 5 15 $ sarvalaghu $ korvaiV Tala.adi
     rh_nd  = "__nd__nd"
     rh_nd2 = "d_nd_kn_"
 
+s_bhajan2 :: Korvai
+s_bhajan2 = date 2026 7 23 $ sarvalaghu $ korvaiV Tala.adi
+    [ r6 "nd_d" . "nd_" . su "ktktpknook"
+    , r6 "nd_d" . "nd" . su "pktktkooktok"
+    , __D 2 . trin "D_k" "NNk" (r2 "NNk") (r3 "NNk")
+    ]
+
+bhajan_o_nd :: Korvai
+bhajan_o_nd = date 2026 7 23 $ sarvalaghu $ korvaiV Tala.adi
+    [ r3 "o_nd_oNd" . "o_nd_" . su "ktktok"
+    , r3 "N_nd_oNd" . "o_o" . su "ktktpknook"
+    , r2 rh `replaceEnd` su ktok . r2 "ondnldNd" `replaceEnd` su ktok
+    , r2 rh `replaceEnd` su (ktok.nakatiku)
+    . r2 rh `replaceEnd` su (ktok.nakatiku."npk_pu_k")
+    , r2 rh `replaceEnd` su "odpknook" . r2 rh
+    , r4 rh `replaceEnd` ("ktkn".su ktok."okook")
+    ]
+    where rh = "o_nd_oNd"
+
 s_bhajan_kanda :: Korvai
 s_bhajan_kanda = sarvalaghu $ korvaiV Tala.kanda_chapu
     [ sd $ sd $ "d_n_k" . "D_N_k" . "d,n,n" . "D,N" . su "ktok"
