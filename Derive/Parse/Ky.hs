@@ -7,7 +7,7 @@ module Derive.Parse.Ky (
     Ky(..), Loaded(..)
     , Definitions(..), Definition
     , load_ky
-    , get_ky
+    , replace_section
     -- ** types
     , Expr(..), Call(..), Term(..), Var(..)
 #ifdef TESTING
@@ -29,7 +29,6 @@ import           System.FilePath ((</>))
 import qualified Util.Exceptions as Exceptions
 import qualified Util.Lists as Lists
 import qualified Util.Maps as Maps
-import qualified Util.Parse
 import qualified Util.ParseText as ParseText
 
 import qualified Derive.DeriveT as DeriveT
@@ -41,7 +40,6 @@ import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Symbols as Symbols
 
 import qualified Ui.Id as Id
-import qualified Ui.Ui as Ui
 import qualified Ui.UiConfig as UiConfig
 
 import           Global
@@ -52,11 +50,10 @@ type Error = Text
 type Code = Text
 
 -- | A parsed .ky file
-data Ky a = Ky {
-    ky_definitions :: Definitions
+data Ky a = Ky
+    { ky_definitions :: Definitions
     , ky_imports :: [a]
-    -- | Nothing if there is no instrument section.
-    , ky_instruments :: Maybe [Instruments.Allocation]
+    , ky_instruments :: UiConfig.Allocations
     } deriving (Show)
 
 instance Semigroup (Ky a) where
@@ -75,8 +72,8 @@ data Import = Import !FilePath !String
 
 -- | This is a mirror of 'Derive.Library', but with expressions instead of
 -- calls.  (generators, transformers)
-data Definitions = Definitions {
-    def_note :: !([Definition], [Definition])
+data Definitions = Definitions
+    { def_note :: !([Definition], [Definition])
     , def_control :: !([Definition], [Definition])
     , def_pitch :: !([Definition], [Definition])
     , def_val :: ![Definition]
@@ -99,9 +96,11 @@ type Definition = (FilePath, (Expr.Symbol, Expr))
 
 -- | Parse ky text and load and parse all the files it imports.  'parse_ky'
 -- describes the format of the ky file.
-load_ky :: [FilePath] -> Code -> IO (Either ParseText.Error (Ky Loaded))
+load_ky :: [FilePath] -> Code
+    -> IO (Either ParseText.Error (Ky Loaded))
 load_ky paths content = Except.runExceptT $ do
-    ky <- tryRight $ first (ParseText.prefix "<score>: ") $ parse_ky "" content
+    ky <- tryRight $ first (ParseText.prefix "<score>: ") $
+        parse_ky "" content
     kys <- load_ky_file paths Set.empty (ky_imports ky)
     return $ mconcat $ ky { ky_imports = [Loaded "" content] } : kys
 
@@ -177,7 +176,7 @@ parse_ky fname text = do
         , Map.delete Instruments.instrument_section sections
         )
     let extra = Set.toList $
-            Map.keysSet sections `Set.difference` Set.fromList valid_headers
+            Map.keysSet sections `Set.difference` Set.fromList valid_titles
     unless (null extra) $
         Left $ ParseText.message $
             "unknown sections: " <> Text.intercalate ", " extra
@@ -189,9 +188,7 @@ parse_ky fname text = do
             , get (kind <> " " <> transformer)
             )
     aliases <- first (ParseText.Error Nothing) $ mapM parse_alias (get alias)
-    allocs <- case instrument_section of
-        Nothing -> return Nothing
-        Just lines -> Just <$> mapMaybeM parse_instrument lines
+    allocs <- parse_instruments $ map snd $ fromMaybe [] instrument_section
     let add_fname = map (fname,)
         add_fname2 = bimap add_fname add_fname
     return $ Ky
@@ -213,7 +210,7 @@ parse_ky fname text = do
     generator = "generator"
     transformer = "transformer"
     alias = "alias"
-    valid_headers = val : alias :
+    valid_titles = val : alias :
         [ t1 <> " " <> t2
         | t1 <- [note, control, pitch], t2 <- [generator, transformer]
         ]
@@ -222,22 +219,11 @@ parse_ky fname text = do
         first (ParseText.offset (lineno, 0)) $ ParseText.parse p_section $
             Text.unlines (line0 : map snd lines)
 
-parse_instrument :: (Int, Text)
-    -> Either ParseText.Error (Maybe Instruments.Allocation)
-parse_instrument (lineno, line) = first fmt $ Util.Parse.parse p line
-    where
-    -- Instruments awkwardly use megaparsec, which the rest of the code here
-    -- uses attoparsec.  The reason is attoparsec is for performance parsing
-    -- tracklang, but I'd rather have better errors for parsing ky.  But I need
-    -- to parse DeriveT.Vals, which I'd rather use the same parser as with
-    -- tracklang.  Also, instruments are line-based rather than token based.
-    p = Just <$> Instruments.p_allocation
-        <|> Instruments.spaces *> pure Nothing
-    fmt msg = ParseText.Error
-        -- TODO I could extract the column from the megaparsec error
-        { _position = Just (line, (lineno, 1))
-        , _message = msg
-        }
+parse_instruments :: [Text] -> Either ParseText.Error UiConfig.Allocations
+parse_instruments lines =
+    -- TODO convert megaparsec line numbers back to ParseText._position?
+    first (ParseText.Error Nothing) $
+        Instruments.parse_instruments (Text.unlines lines)
 
 -- | The alias section allows only @alias = inst@ definitions.
 parse_alias :: (Expr.Symbol, Expr)
@@ -252,42 +238,6 @@ parse_alias (lhs, rhs) = first (msg<>) $ case rhs of
     where
     msg = "alias " <> ShowVal.show_val lhs <> " = " <> ShowVal.show_val rhs
         <> ": "
-
--- | Get UiConfig.ky with UiConfig.allocations merged in.  See
--- "Derive.Parse.Instruments".
-get_ky :: Ui.M m => m Code
-get_ky = do
-    ky <- Ui.config#UiConfig.ky <#> Ui.get
-    allocs <- Ui.config#UiConfig.allocations <#> Ui.get
-    allocs <- Ui.require_right id $ mapM (uncurry Instruments.from_ui) $
-        Map.toList $ UiConfig.unallocations allocs
-    return $ merge_instruments allocs ky
-
--- | Update a ky instruments section with Allocations.
-merge_instruments :: [Instruments.Allocation] -> Code -> Code
-merge_instruments allocs = replace_section Instruments.instrument_section merge
-    where
-    merge lines
-        | null added && null removed = lines -- Common case of no changes.
-        | otherwise = Instruments.unparse_allocations $
-            -- Added allocs have no comment.
-            map ((, "") . Just) added_allocs ++ mapMaybe update inst_lines
-        where
-        added_allocs =
-            filter ((`Set.member` added) . Instruments.alloc_name) allocs
-        added = new_insts `Set.difference` old_insts
-        removed = old_insts `Set.difference` new_insts
-        new_insts = Set.fromList $ map Instruments.alloc_name allocs
-        old_insts = Set.fromList (mapMaybe fst inst_lines)
-        inst_lines = Lists.keyOn inst_of lines
-    update (Nothing, line) = Just (Nothing, line)
-    update (Just inst, line) = case Map.lookup inst inst_alloc of
-        Nothing -> Nothing
-        Just alloc -> Just (Just alloc, comment)
-            where comment = snd $ Text.breakOn "--" line
-    inst_alloc = Map.fromList (Lists.keyOn Instruments.alloc_name allocs)
-    inst_of = either (const Nothing) (Just . Instruments.alloc_name)
-        . Util.Parse.parse Instruments.p_allocation
 
 -- * parse ky file
 
@@ -310,39 +260,30 @@ checked_sections = traverse check . extract . parse_sections
 
 -- | Split ky code into Sections.  A Title of "" is used for the implicit
 -- section before the first section title, used for imports.
+-- A title is a line that's all letters or spaces, ending with ':',
+-- enumerated in valid_titles.
 parse_sections :: Code -> [Section]
 parse_sections =
     merge . Lists.splitWith parse_header . zip [0..] . Text.lines
     where
     merge (pre, sections) = ("", pre) : sections
     parse_header (_, line)
-        | not ("--" `Text.isPrefixOf` line), Just (c, _) <- Text.uncons line
-                , not (Char.isSpace c) =
-            Text.stripSuffix ":" line
+        | Just (title, ':') <- Text.unsnoc line
+        , Text.all (\c -> Char.isAsciiLower c || c == ' ') title =
+            Just title
         | otherwise = Nothing
 
-unparse_section :: (Title, [(line, Text)]) -> Code
+unparse_section :: (Title, [Text]) -> Code
 unparse_section (section, lines) =
-    (if section == "" then "" else section <> ":\n")
-        <> Text.unlines (map snd lines)
+    (if section == "" then "" else section <> ":\n") <> Text.unlines lines
 
-replace_section :: Title -> ([Text] -> [Text]) -> Code -> Code
-replace_section title modify code =
-    mconcatMap unparse_section $ concat
-        [ if add_separator then Lists.mapLast (second (++empty)) pre else pre
-        , [(title, map (0,) new) | not (null new)]
-        , drop 1 post
-        ]
+replace_section :: Title -> (Text -> Text) -> Code -> Code
+replace_section title modify =
+    mconcatMap unparse_section . map mod . parse_sections
     where
-    -- Extra hack for aesthetics: add an extra line if there is a non-""
-    -- section above and this section is inserted.
-    add_separator = null post && not (null (dropWhile ((=="") . fst) pre))
-    empty = [(0, "")]
-    new = modify $ case post of
-        [] -> []
-        (_, lines) : _ -> map snd lines
-    sections = parse_sections code
-    (pre, post) = break ((==title) . fst) sections
+    mod (title2, lines)
+        | title == title2 = (modify title, map (modify . snd) lines)
+        | otherwise = (title2, map snd lines)
 
 -- * parse inside sections
 
@@ -438,7 +379,7 @@ p_call_ky = Call <$> Parse.lexeme (Parse.p_symbol False) <*> many p_term_ky
 p_term_ky :: A.Parser Term
 p_term_ky =
     Parse.lexeme $ VarTerm <$> p_var
-    <|> Literal <$> Parse.p_val
+    <|> Literal <$> Parse.p_val Parse.UnquotedLoose
     <|> ValCall <$> p_sub_call_ky
 
 p_var :: A.Parser Var

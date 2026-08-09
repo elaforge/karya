@@ -23,6 +23,7 @@ dlist
 exceptions
 extra
 filepath
+fsnotify
 ghc
 ghc-paths
 ghc-prim

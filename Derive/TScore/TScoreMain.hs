@@ -405,9 +405,6 @@ load_score cmd_config source = Except.runExceptT $ do
         =<< liftIO (Ky.load ky_paths (Ui.config#UiConfig.ky #$ ui_state))
     let cmd_state =  DeriveSaved.add_library builtins aliases $
             Cmd.initial_state cmd_config
-    allocs <- tryRight $ Instruments.update_ui
-        (Cmd.get_lookup_backend cmd_state) allocs
-        (Ui.config#UiConfig.allocations #$ ui_state)
     return (Ui.config#UiConfig.allocations #= allocs $ ui_state, cmd_state)
     where
     -- For now, I don't support ky import.

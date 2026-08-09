@@ -73,10 +73,10 @@ import           Types
 
 
 -- | Miscellaneous config data.
-data Config = Config {
+data Config = Config
     -- | The default namespace is used for automatically created IDs, so each
     -- project can import other projects without clashes.
-    config_namespace :: Id.Namespace
+    { config_namespace :: Id.Namespace
     , config_meta :: Meta
     -- | Derivation can start from any block, but it's useful to know which
     -- block represents the entire piece.  This way, given a position on some
@@ -261,8 +261,8 @@ modify_allocation instrument modify (Allocations allocs) = do
     allocate a Dummy from a Patch with 'Inst.Dummy' backend, or allocate one
     from InstT.dummy, which will resolve to an empty Patch.
 -}
-data Allocation = Allocation {
-    alloc_qualified :: InstT.Qualified
+data Allocation = Allocation
+    { alloc_qualified :: InstT.Qualified
     , alloc_config :: Common.Config
     , alloc_backend :: Backend
     } deriving (Eq, Show)
@@ -315,8 +315,8 @@ is_sc_allocation alloc = case alloc_backend alloc of
 -- I can't think of a way to ensure this statically, since the instrument and
 -- config are saved in instrument db and score respectively, and only come
 -- together when a new score is loaded.
-data Backend =
-    Midi Patch.Config
+data Backend
+    = Midi Patch.Config
     | Im
     | Sc
     -- | This is for instruments without a backend.  For example a paired

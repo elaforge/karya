@@ -3,15 +3,9 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Cmd.PlayUtil_test where
-import qualified Data.Map as Map
 import qualified Data.Set as Set
 import qualified Data.Vector as Vector
 
-import Util.Test
-import qualified Midi.Key as Key
-import qualified Midi.Midi as Midi
-import qualified Ui.Ui as Ui
-import qualified Ui.UiTest as UiTest
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.CmdTest as CmdTest
 import qualified Cmd.Performance as Performance
@@ -21,9 +15,14 @@ import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.LEvent as LEvent
 import qualified Derive.Score as Score
 
-import qualified Perform.Midi.Patch as Patch
-import Global
-import Types
+import qualified Midi.Key as Key
+import qualified Midi.Midi as Midi
+import qualified Ui.Ui as Ui
+import qualified Ui.UiTest as UiTest
+
+import           Global
+import           Types
+import           Util.Test
 
 
 test_events_from :: Test
@@ -56,12 +55,9 @@ test_events_from = do
 
 test_control_defaults :: Test
 test_control_defaults = do
-    let make = (Ui.allocation UiTest.i1 #= Just alloc)
+    let make = UiTest.set_instruments alloc_ky
             . CmdTest.make_tracks . uncurry UiTest.inst_note_track
-        alloc = UiTest.midi_allocation "s/1" $
-            Patch.settings#Patch.control_defaults
-                #= Just (Map.fromList [("cc17", 0.5)]) $
-            UiTest.midi_config [0]
+        alloc_ky = ">i1 s/1 [ms] wdev 1 { control_defaults: {cc17: .5} }"
         extract = first $ fmap (map snd . DeriveTest.midi_channel)
     let run state = extract $ perform_events state UiTest.default_block_id
     let (midi, logs) = run $ make ("i1", [(0, 1, "4c")])

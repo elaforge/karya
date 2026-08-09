@@ -19,6 +19,7 @@ import qualified Ui.Id as Id
 import qualified Ui.Ruler as Ruler
 import qualified Ui.Track as Track
 import qualified Ui.Ui as Ui
+import qualified Ui.UiConfig as UiConfig
 import qualified Ui.UiTest as UiTest
 import qualified Ui.Update as Update
 
@@ -35,7 +36,7 @@ test_do_save = Git.initialize $ do
             ]
     SaveGit.save user repo state ["save"]
     state2 <- fmap (\(a, _, _) -> a) <$> SaveGit.load repo Nothing
-    right_equal (strip_views <$> state2) (strip_views state)
+    right_equal (strip <$> state2) (strip state)
 
 test_checkpoint :: Test
 test_checkpoint = Git.initialize $ do
@@ -120,12 +121,13 @@ check_sequence actions = do
 load_from :: Git.Repo -> SaveGit.Commit -> Maybe SaveGit.Commit -> Ui.State
     -> IO (Either Text (Ui.State, Update.UiDamage))
 load_from repo commit_from maybe_commit_to state =
-    fmap (first strip_views) <$>
+    fmap (first strip) <$>
         SaveGit.load_from repo commit_from maybe_commit_to state
 
--- | Views aren't saved, so I shouldn't compare them.
-strip_views :: Ui.State -> Ui.State
-strip_views state = state { Ui.state_views = mempty }
+-- | Strip fields that aren't saved.
+strip :: Ui.State -> Ui.State
+strip state = (Ui.config#UiConfig.allocations #= mempty) $
+    state { Ui.state_views = mempty }
 
 check_load :: FilePath -> (Ui.State, SaveGit.Commit, [Text]) -> IO ()
 check_load repo (state, commit, names) =
@@ -147,7 +149,7 @@ checkpoint_sequence repo actions = apply (Ui.empty, Nothing) actions
         Right commit <- SaveGit.checkpoint user repo
             (SaveGit.SaveHistory state prev_commit ui_updates [name])
         rest <- apply (state, Just commit) actions
-        return $ (strip_views state, commit) : rest
+        return $ (strip state, commit) : rest
 
 diff :: Ui.State -> Ui.StateId a -> (Ui.State, [Update.UiUpdate])
 diff state modify = (state2, ui_updates)

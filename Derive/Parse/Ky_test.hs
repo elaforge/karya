@@ -13,15 +13,10 @@ import           System.FilePath ((</>))
 import qualified Util.ParseText as ParseText
 import qualified Util.Test.Testing as Testing
 import qualified Derive.Expr as Expr
-import qualified Derive.Parse.Instruments as Instruments
 import qualified Derive.Parse.Ky as Ky
 import qualified Derive.ScoreT as ScoreT
 import qualified Derive.ShowVal as ShowVal
 import           Derive.TestInstances ()
-
-import qualified Instrument.InstT as InstT
-import qualified Midi.Midi as Midi
-import qualified Ui.UiTest as UiTest
 
 import           Global
 import           Util.Test
@@ -64,7 +59,7 @@ test_load_ky = do
           , Ky.Loaded (lib </> "lib1") lib1
           , Ky.Loaded (lib </> "lib2") lib2
           ]
-        , Nothing
+        , mempty
         )
 
 e_expr :: Ky.Expr -> [(Expr.Symbol, [Text])]
@@ -106,42 +101,6 @@ test_parse_ky = do
         [(ScoreT.Instrument "a", ScoreT.Instrument "b")]
     left_like (f aliases "alias:\n>a = >b\n") "lhs not a valid id"
 
-test_merge_instruments :: Test
-test_merge_instruments = do
-    let f allocs = Text.lines . Ky.merge_instruments (map mkalloc allocs)
-            . Text.unlines
-    let instrument = "instrument:"
-    equal (f [] []) []
-    equal (f [("a", "a/b", [0])] []) [instrument, ">a a/b [ms] wdev 1"]
-    let allocs =
-            [ ("new", "a/b", [0])
-            , ("exist", "a/b", [1])
-            ]
-        ky =
-            [ instrument
-            , "-- exist"
-            , ">exist a/b [ms] wdev 15 16 -- hi"
-            , "-- old"
-            , ">old a/b [ms] wdev 15"
-            ]
-    -- >new goes at the top, >exist is updated, >old is removed
-    -- Fancy column formatting is gratuitous.
-    equal (f allocs ky)
-        [ instrument
-        , ">new   a/b [ms] wdev 1"
-        , "-- exist"
-        , ">exist a/b [ms] wdev 2 -- hi"
-        , "-- old"
-        ]
-
-mkalloc :: (ScoreT.Instrument, Text, [Midi.Channel]) -> Instruments.Allocation
-mkalloc (name, qual, chans) = Instruments.Allocation
-    { alloc_name =  name
-    , alloc_qualified = InstT.parse_qualified qual
-    , alloc_config = Instruments.Config False False
-    , alloc_backend = Instruments.Midi UiTest.wdev chans
-    }
-
 test_p_definition :: Test
 test_p_definition = do
     let f = bimap ParseText.show_error (second e_expr)
@@ -158,26 +117,32 @@ test_checked_sections = do
     right_equal (f
         [ "import x"
         , "-- hi:"
-        , "sec1:"
+        , "sec a:"
         , "hi"
         , ""
         , "-- xyz:"
-        , "sec2:"
+        , "sec b:"
         , "there"
         ])
         ( "import x\n-- hi:\n"
         , Map.fromList
-            [ ("sec1", [(3, "hi"), (4, ""), (5, "-- xyz:")])
-            , ("sec2", [(7, "there")])
+            [ ("sec a", [(3, "hi"), (4, ""), (5, "-- xyz:")])
+            , ("sec b", [(7, "there")])
             ]
         )
-    left_like (f ["sec1:", "hi", "sec1:", "there"])
-        "duplicate sections: sec1"
+    left_like (f ["sec:", "hi", "sec:", "there"])
+        "duplicate sections: sec"
 
 test_replace_section :: Test
 test_replace_section = do
-    let f = Text.lines . Ky.replace_section "sec" ("!":) . Text.unlines
-    equal (f []) ["sec:", "!"]
-    equal (f ["sec1:", "a"]) ["sec1:", "a", "", "sec:", "!"]
-    equal (f ["sec1:", "a", "sec:", "b", "", "sec2:", "c"])
-        ["sec1:", "a", "sec:", "!", "b", "", "sec2:", "c"]
+    let f = Ky.replace_section "sec" ("-- "<>) . Text.unlines
+    equal (f []) ""
+    equal (f ["x", "sec:", "a"]) "x\n-- sec:\n-- a\n"
+    equal (f ["abc:", "a", "sec:", "b", "c", "xyz:", "z"])
+        "abc:\n\
+        \a\n\
+        \-- sec:\n\
+        \-- b\n\
+        \-- c\n\
+        \xyz:\n\
+        \z\n"

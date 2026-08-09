@@ -39,7 +39,6 @@ import qualified Cmd.Save as Save
 
 import qualified Derive.Derive as Derive
 import qualified Derive.LEvent as LEvent
-import qualified Derive.Parse.Ky as Parse.Ky
 import qualified Derive.Stream as Stream
 
 import qualified Midi.Midi as Midi
@@ -106,7 +105,7 @@ ky = do
         }
 
 get_ky :: Ui.M m => m Text
-get_ky = Parse.Ky.get_ky
+get_ky = Ui.config#UiConfig.ky <#> Ui.get
 
 set_ky :: Text -> Cmd.CmdT IO Text
 set_ky = Ky.set

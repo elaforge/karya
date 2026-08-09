@@ -34,9 +34,9 @@ import           Global
 -- @Expr Text@ while fully parsed one would be @Expr Val@.
 type Expr val = NonEmpty (Call val)
 data Call val = Call Symbol [Term val]
-    deriving (Show, Read, Eq, Functor)
+    deriving (Show, Read, Eq, Functor, Foldable, Traversable)
 data Term val = ValCall (Call val) | Literal val
-    deriving (Show, Read, Eq, Functor)
+    deriving (Show, Read, Eq, Functor, Foldable, Traversable)
 
 instance String.IsString (Call val) where
     fromString = call0 . String.fromString

@@ -7,7 +7,7 @@
 module Derive.TScore.Parse (
     -- * Parse
     parse_score
-    , parse_allocation, unparse_allocations
+    -- , parse_allocation, unparse_allocations
     , default_call, default_namespace
     , show_block, show_block_track
     -- * Note
@@ -263,12 +263,12 @@ dedent t = Text.strip $ case Text.lines (Text.dropWhile (=='\n') t) of
         where indent = Text.takeWhile Char.isSpace x
     where strip pref s = fromMaybe s $ Text.stripPrefix pref s
 
-parse_allocation :: Text -> Either String Instruments.Allocation
-parse_allocation = parse_text Instruments.p_allocation
-
-unparse_allocations :: [Instruments.Allocation] -> Text
-unparse_allocations =
-    Text.unlines . Instruments.unparse_allocations . map ((, "") . Just)
+-- parse_allocation :: Text -> Either String Instruments.Allocation
+-- parse_allocation = parse_text Instruments.p_instruments
+--
+-- unparse_allocations :: [Instruments.Allocation] -> Text
+-- unparse_allocations =
+--     Text.unlines . Instruments.unparse_allocations . map ((, "") . Just)
 
 type Token = T.Token T.Call (T.NPitch T.Pitch) T.NDuration T.Duration
 

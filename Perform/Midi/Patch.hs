@@ -120,10 +120,10 @@ instance Pretty Config where format = Pretty.formatG_
 
 -- | Document what kinds of initialization this instrument needs.  Each
 -- instrument is initialized once when the score is loaded.
-data Initialization =
-    Tuning -- ^ Configure tuning with 'Midi.realtime_tuning'.
+data Initialization
+    = Tuning -- ^ Configure tuning with 'Midi.realtime_tuning'.
     | NrpnTuning -- ^ Configure tuning with 'Midi.nrpn_tuning'.
-    deriving (Show, Ord, Eq)
+    deriving (Show, Ord, Eq, Enum, Bounded)
 instance Pretty Initialization where pretty = showt
 
 -- | MIDI instruments are addressed by a (device, channel) pair, allocated in
@@ -141,8 +141,8 @@ has_flag config flag = maybe False (Set.member flag) (settings#flags #$ config)
 -- be modified per score.  When the instrument is looked up
 -- (Cmd.resolve_instrument), 'patch_defaults' is merged with 'config_settings'
 -- via 'merge_defaults'.
-data Settings = Settings {
-    config_flags :: Maybe (Set Flag)
+data Settings = Settings
+    { config_flags :: Maybe (Set Flag)
     , config_scale :: Maybe Scale
     -- | Time from NoteOff to inaudible, in seconds.  This can be used to
     -- figure out how long to generate control messages, or possibly determine
@@ -250,8 +250,8 @@ default_name = ""
     tuning.  The idea is that they will warp to integral 'Midi.Key's that won't
     need any tuning and can thus all go on a single MIDI channel.
 -}
-data Scale = Scale {
-    scale_name :: Text
+data Scale = Scale
+    { scale_name :: Text
     -- | If a patch is tuned to something other than 12TET, this vector maps
     -- MIDI key numbers to their NNs, or 'no_pitch' if the patch doesn't
     -- support that key.

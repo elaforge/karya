@@ -301,3 +301,9 @@ song_tirmanams = korvaiV adi
     [ __ . trin "D_kno" "Dk_" (r2 "Dk_") (r4 "Dk_") . od
     , __D 4 . trin "D_" "ok" "o_k_" "o__k__" . od
     ]
+
+misc_ending :: Korvai
+misc_ending = elaforge $ korvaiV adi
+    [ __D 7 . r3 "D_kD_k_D_k__"
+    , __D 4 . r3 "D_kD_k_D_k_D_k__"
+    ]

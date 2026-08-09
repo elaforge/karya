@@ -11,8 +11,8 @@ import Global
 
 
 -- | This is an instrument name qualified by synth name.  It should uniquely
--- address a single instrument.  It's different from
--- a 'Derive.ScoreTypes.Instrument', which addresses a particular instantiation
+-- address a single instrument.  It's different from a
+-- 'Derive.ScoreTypes.Instrument', which addresses a particular instantiation
 -- of an instrument in a particular score.
 data Qualified = Qualified SynthName Name deriving (Show, Eq, Ord)
 

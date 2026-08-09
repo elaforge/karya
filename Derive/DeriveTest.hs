@@ -32,8 +32,7 @@ import qualified Cmd.Simple as Simple
 import qualified Derive.C.All as C.All
 import qualified Derive.C.Prelude.Block as Prelude.Block
 import qualified Derive.Controls as Controls
-import           Derive.DDebug ()
--- just make sure it compiles
+import           Derive.DDebug () -- just make sure it compiles
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveT as DeriveT
 import qualified Derive.Deriver.Internal as Internal
@@ -459,7 +458,7 @@ type SimpleAllocations = [(Text, Text)]
 
 simple_allocs :: SimpleAllocations -> UiConfig.Allocations
 simple_allocs allocs = Simple.allocations
-    [ (inst, (qual, Simple.Midi [(UiTest.wdev_name, chan)]))
+    [ (inst, (qual, Simple.Midi [("wdev", chan)]))
     | (chan, (inst, qual)) <- zip [0..] allocs
     ]
 

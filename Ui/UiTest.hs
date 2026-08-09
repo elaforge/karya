@@ -47,6 +47,7 @@ import qualified Cmd.Ruler.RulerUtil as RulerUtil
 import qualified Cmd.Simple as Simple
 import qualified Cmd.TimeStep as TimeStep
 
+import qualified Derive.Parse.Instruments as Instruments
 import qualified Derive.ParseSkeleton as ParseSkeleton
 import qualified Derive.ParseTitle as ParseTitle
 import qualified Derive.ScoreT as ScoreT
@@ -672,39 +673,29 @@ meter_marklist zoom = map (second snd) . meter_zoom zoom
 
 -- * allocations
 
-midi_allocation :: Text -> Patch.Config -> UiConfig.Allocation
-midi_allocation qualified config =
-    UiConfig.allocation (InstT.parse_qualified qualified) (UiConfig.Midi config)
-
 midi_config :: [Midi.Channel] -> Patch.Config
 midi_config chans = Patch.config [((wdev, chan), Nothing) | chan <- chans]
 
--- | Make Simple.Allocations from (inst, qualified, [chan]).
-midi_allocations :: [(Text, Text, [Midi.Channel])] -> UiConfig.Allocations
-midi_allocations allocs = Simple.allocations
-    [ (inst, (qualified, Simple.Midi $ map (wdev_name,) chans))
-    | (inst, qualified, chans) <- allocs
-    ]
-
-mk_allocation :: (Simple.Instrument, Simple.Qualified, Maybe [Midi.Channel])
-    -> (ScoreT.Instrument, UiConfig.Allocation)
-mk_allocation (inst, qual, backend) = Simple.allocation
-    (inst, (qual, maybe Simple.Im (Simple.Midi . map (wdev_name,)) backend))
-
-mk_allocations :: [(Simple.Instrument, Simple.Qualified, Maybe [Midi.Channel])]
-    -> UiConfig.Allocations
-mk_allocations = UiConfig.Allocations . Map.fromList . map mk_allocation
-
 set_default_allocations :: Ui.State -> Ui.State
-set_default_allocations = Ui.config#UiConfig.allocations #= default_allocations
+set_default_allocations = set_instruments default_instruments
+
+set_instruments :: Text -> Ui.State -> Ui.State
+set_instruments ky =
+    (Ui.config#UiConfig.allocations #= allocs)
+    . (Ui.config#UiConfig.ky #= Instruments.instrument_section <> ":\n" <> ky)
+    where
+    allocs = either (error . untxt) id $ Instruments.parse_instruments ky
+
+default_instruments :: Text
+default_instruments =
+    ">i s/1 [ms] wdev 1..3\n\
+    \>i1 s/1 [ms] wdev 1..3\n\
+    \>i2 s/2 [ms] wdev 4\n\
+    \>i3 s/3 [ms] wdev 5\n"
 
 default_allocations :: UiConfig.Allocations
-default_allocations = midi_allocations
-    [ ("i", "s/1", [0..2])
-    , ("i1", "s/1", [0..2])
-    , ("i2", "s/2", [3])
-    , ("i3", "s/3", [4])
-    ]
+default_allocations = either (error . untxt) id $
+    Instruments.parse_instruments default_instruments
 
 modify_midi_config :: HasCallStack => ScoreT.Instrument
     -> (Patch.Config -> Patch.Config)
@@ -723,14 +714,8 @@ i1 = ScoreT.Instrument "i1"
 i2 = ScoreT.Instrument "i2"
 i3 = ScoreT.Instrument "i3"
 
-i1_qualified :: InstT.Qualified
-i1_qualified = InstT.Qualified "s" "1"
-
 wdev :: Midi.WriteDevice
-wdev = Midi.write_device wdev_name
-
-wdev_name :: Text
-wdev_name = "wdev"
+wdev = Midi.write_device "wdev"
 
 -- * instrument db
 

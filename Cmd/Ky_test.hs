@@ -17,8 +17,6 @@ import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Expr as Expr
 import qualified Derive.Parse.Ky as Parse.Ky
 
-import qualified Instrument.Inst as Inst
-import qualified Instrument.InstT as InstT
 import qualified Ui.UiTest as UiTest
 
 import           Global
@@ -59,7 +57,7 @@ test_ky_file = do
 test_check_cache :: Test
 test_check_cache = do
     let f ky_cache ky = fmap (fmap (fst . fst)) $
-            Ky.check_cache lookup_backend ky_cache mempty [] ky
+            Ky.check_cache ky_cache mempty [] ky
         extract Nothing = Right Nothing
         extract (Just (Cmd.KyCache builtins (Cmd.Fingerprint fnames _fprint))) =
             case builtins of
@@ -85,9 +83,6 @@ test_check_cache = do
     io_equal (extract <$> f result "error") (Right Nothing)
 
     -- TODO track imported files
-
-lookup_backend :: InstT.Qualified -> Maybe Inst.Backend
-lookup_backend _qual = Nothing
 
 e_builtins :: Derive.Builtins -> [Expr.Symbol]
 e_builtins = concatMap (Map.keys . Derive.call_map) . Map.elems

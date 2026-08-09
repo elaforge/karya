@@ -29,7 +29,10 @@ test_serialize = do
     let (_, state) =
             UiTest.run_mkview [("track", [(0, 1, "e0"), (1, 1, "e1")])]
     let run f = (recode (f state), f state)
-    uncurry right_equal $ run Ui.state_config
+    uncurry right_equal $ run $
+        (\c -> c { UiConfig.config_allocations = mempty }) . Ui.state_config
+        -- config_allocations is now a cache where the source of truth is
+        -- the ky file, so it isn't saved.
     uncurry right_equal $ run Ui.state_views
     uncurry right_equal $ run Ui.state_blocks
     uncurry right_equal $ run Ui.state_tracks

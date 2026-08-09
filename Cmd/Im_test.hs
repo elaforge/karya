@@ -9,15 +9,12 @@ import qualified Cmd.Cmd as Cmd
 import qualified Cmd.ResponderTest as ResponderTest
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Instrument.Inst as Inst
-import qualified Instrument.InstT as InstT
 import qualified Perform.NN as NN
 import qualified Synth.Shared.Config as Config
 import qualified Synth.Shared.Control as Control
 import qualified Synth.Shared.Note as Note
 import qualified Synth.Shared.Signal as Signal
 
-import qualified Ui.Ui as Ui
-import qualified Ui.UiConfig as UiConfig
 import qualified Ui.UiTest as UiTest
 
 import           Global
@@ -32,11 +29,7 @@ test_respond = do
                 , [(0, 1, "4c"), (1, 1, "4d")]
                 , [("dyn", [(0, ".5")]), ("unsupported", [(0, ".25")])]
                 )
-        add_allocation = Ui.config#UiConfig.allocations #= allocs
-        allocs = UiConfig.Allocations $ Map.fromList
-            [ ("im", UiConfig.allocation
-                (InstT.Qualified "im-synth" "") UiConfig.Im)
-            ]
+        add_allocation = UiTest.set_instruments ">im im-synth/ [ms] im"
         set_db state = state
             { Cmd.state_config = (Cmd.state_config state)
                 { Cmd.config_instrument_db = db }

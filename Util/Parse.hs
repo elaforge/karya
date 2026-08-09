@@ -6,6 +6,7 @@
 module Util.Parse where
 import qualified Control.Monad.Identity as Identity
 import qualified Control.Monad.State.Strict as State
+import qualified Data.Attoparsec.Text as A
 import qualified Data.Text as Text
 import qualified Data.Text.IO as Text.IO
 import qualified Data.Void as Void
@@ -18,6 +19,7 @@ import qualified Text.Megaparsec.Char as P
 import qualified Util.Exceptions as Exceptions
 
 import           Global
+
 
 -- * parsec
 
@@ -108,3 +110,20 @@ p_unsigned_float = do
 
 is_digit :: Char -> Bool
 is_digit c = '0' <= c && c <= '9'
+
+
+-- * attoparse
+
+-- | Convert an attoparsec parser to a megaparsec one.
+attoparse :: forall a. String -> A.Parser a -> Parser a
+attoparse msg p = go . A.parse p =<< P.getInput
+    where
+    go = \case
+        A.Done rest val -> do
+            P.setInput rest
+            return val
+        A.Fail _rest _contexts _msg ->
+            -- The attoparsec msg is so useless I just ignore it and use my
+            -- own.  E.g. it may be "Failed reading: takeWhile1".
+            fail $ "expected " <> msg
+        A.Partial cont -> go (cont "")

@@ -617,12 +617,12 @@ source_key = "tscore"
 
 -- * ui_state
 
-parse_score :: Text -> Either Error (Ui.State, [Instruments.Allocation])
+parse_score :: Text -> Either Error (Ui.State, UiConfig.Allocations)
 parse_score = score_to_ui get_ext_dur
     where get_ext_dur _ _ = (Left "external call duration not supported", [])
 
 score_to_ui :: GetExternalCallDuration -> Text
-    -> Either Error (Ui.State, [Instruments.Allocation])
+    -> Either Error (Ui.State, UiConfig.Allocations)
 score_to_ui get_ext_dur source = do
     (blocks, ScoreConfig instruments ky) <- track_blocks
         (UiConfig.config_namespace UiConfig.empty_config)
@@ -672,7 +672,7 @@ ui_ruler block = RulerUtil.replace (_block_id block) $ const $ Right $
 -- * make_blocks
 
 data ScoreConfig = ScoreConfig {
-    config_instruments :: ![Instruments.Allocation]
+    config_instruments :: !UiConfig.Allocations
     , config_ky :: !Text
     } deriving (Eq, Show)
 

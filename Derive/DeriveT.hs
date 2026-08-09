@@ -468,7 +468,7 @@ environ_attributes environ =
 -- | This is the type of first class values in the tracklang.  It's main
 -- purpose is the type for arguments to tracklang calls, and val calls' return
 -- type.
-data Val =
+data Val
     -- | Numbers are merged with signals, a constant number is just a constant
     -- signal.  The signal type internally recognizes a constant and can
     -- apply various optimizations.
@@ -480,7 +480,7 @@ data Val =
     -- Constant literal: @42.23@, @-.4@, @1c@, @-2.4d@, @3/2@, @-3/2@, @0x7f@.
     --
     -- Signal literal: @(signal d 0 0 1 1)@.
-    VSignal (ScoreT.Typed Signal.Control)
+    = VSignal (ScoreT.Typed Signal.Control)
     -- | No literal, but constants are returned from val calls, notably scale
     -- calls.
     | VPSignal PSignal

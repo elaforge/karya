@@ -39,6 +39,8 @@ import qualified Derive.LEvent as LEvent
 import qualified Derive.Score as Score
 import qualified Derive.Stream as Stream
 
+import qualified Instrument.Inst as Inst
+import qualified Instrument.InstT as InstT
 import qualified Local.Config
 import qualified Midi.Midi as Midi
 import qualified Midi.StubMidi as StubMidi
@@ -162,11 +164,11 @@ perform_midi cmd_state ui_state events =
 
 load_score_states :: Cmd.Config -> FilePath -> IO (Ui.State, Cmd.State)
 load_score_states cmd_config fname = do
-    (ui_state, library, aliases) <- either errorIO return =<< load_score fname
-    return
-        ( ui_state
-        , add_library library aliases (Cmd.initial_state cmd_config)
-        )
+    (ui_state, library, aliases) <- either errorIO return
+        =<< load_score fname
+    return (ui_state, add_library library aliases cmd_state)
+    where
+    cmd_state = Cmd.initial_state cmd_config
 
 add_library :: Derive.Builtins -> Derive.InstrumentAliases
     -> Cmd.State -> Cmd.State
@@ -176,8 +178,8 @@ add_library builtins aliases state =
 -- | Load a score and its accompanying local definitions library, if it has one.
 load_score :: FilePath
     -> IO (Either Text (Ui.State, Derive.Builtins, Derive.InstrumentAliases))
-load_score fname = fmap fst $ time ("load " <> txt fname) (\_ _ -> "") $
-    Except.runExceptT $ do
+load_score fname =
+    fmap fst $ time ("load " <> txt fname) (\_ _ -> "") $ Except.runExceptT $ do
         save <- require_right $ Save.infer_save_type fname
         (state, dir) <- case save of
             Cmd.SaveRepo repo -> do

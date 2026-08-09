@@ -27,7 +27,7 @@ enum Events {
 static const Events t1_use_events = Normal;
 // Turn this off just draw a single track.
 static const bool many_tracks = false;
-static const bool show_keycaps = false;
+static const bool show_keycaps = true;
 
 // Visible windows.
 static std::vector<BlockWindow *> windows;

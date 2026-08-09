@@ -27,8 +27,11 @@ import           Util.Serialize
     (Serialize, bad_enum, bad_tag, bad_version, get, get_enum, get_tag,
      get_version, put, put_enum, put_tag, put_version)
 
+import qualified Derive.Parse.Instruments as Instruments
+import qualified Derive.Parse.Ky as Ky
 import qualified Derive.REnv as REnv
 import qualified Derive.ScoreT as ScoreT
+
 import qualified Instrument.Common as Common
 import qualified Instrument.InstT as InstT
 import           Midi.Instances ()
@@ -84,10 +87,11 @@ instance Serialize Ui.State where
             _ -> bad_version "Ui.State" v
 
 instance Serialize UiConfig.Config where
-    put (UiConfig.Config ns meta root allocs lilypond defaults
+    put (UiConfig.Config ns meta root _insts lilypond defaults
             saved_views ky tscore)
-        =  put_version 14
-            >> put ns >> put meta >> put root >> put allocs >> put lilypond
+        =  put_version 15
+            >> put ns >> put meta >> put root -- >> put insts
+            >> put lilypond
             >> put defaults >> put saved_views >> put ky >> put tscore
     get = get_version >>= \v -> case v of
         11 -> do
@@ -100,11 +104,11 @@ instance Serialize UiConfig.Config where
             defaults :: UiConfig.Default <- get
             saved_views :: UiConfig.SavedViews <- get
             ky_file :: Maybe FilePath <- get
+            let ky = upgrade_transform transform
+                    (maybe "" (\fn -> "import '" <> txt fn <> "'\n") ky_file)
+            ky <- either (fail . untxt) pure $ upgrade_ky insts ky
             return $ UiConfig.Config ns meta root insts lilypond defaults
-                saved_views
-                (upgrade_transform transform
-                    (maybe "" (\fn -> "import '" <> txt fn <> "'\n") ky_file))
-                ""
+                saved_views ky ""
         12 -> do
             ns :: Id.Namespace <- get
             meta :: UiConfig.Meta <- get
@@ -115,6 +119,7 @@ instance Serialize UiConfig.Config where
             defaults :: UiConfig.Default <- get
             saved_views :: UiConfig.SavedViews <- get
             ky :: Text <- get
+            ky <- either (fail . untxt) pure $ upgrade_ky insts ky
             return $ UiConfig.Config ns meta root insts lilypond
                 defaults saved_views (upgrade_transform transform ky)
                 ""
@@ -127,6 +132,7 @@ instance Serialize UiConfig.Config where
             defaults :: UiConfig.Default <- get
             saved_views :: UiConfig.SavedViews <- get
             ky :: Text <- get
+            ky <- either (fail . untxt) pure $ upgrade_ky insts ky
             return $ UiConfig.Config ns meta root insts lilypond defaults
                 saved_views ky ""
         14 -> do
@@ -134,6 +140,21 @@ instance Serialize UiConfig.Config where
             meta :: UiConfig.Meta <- get
             root :: Maybe BlockId <- get
             insts :: UiConfig.Allocations <- get
+            lilypond :: Lilypond.Config <- get
+            defaults :: UiConfig.Default <- get
+            saved_views :: UiConfig.SavedViews <- get
+            ky :: Text <- get
+            tscore :: Text <- get
+            ky <- either (fail . untxt) pure $ upgrade_ky insts ky
+            return $ UiConfig.Config ns meta root insts lilypond defaults
+                saved_views ky tscore
+        15 -> do
+            -- No more UiConfig.Allocations, stored in ky now.
+            ns :: Id.Namespace <- get
+            meta :: UiConfig.Meta <- get
+            root :: Maybe BlockId <- get
+            -- _insts :: UiConfig.Allocations <- get
+            let insts = mempty
             lilypond :: Lilypond.Config <- get
             defaults :: UiConfig.Default <- get
             saved_views :: UiConfig.SavedViews <- get
@@ -147,6 +168,15 @@ instance Serialize UiConfig.Config where
             | Text.null (Text.strip global_transform) = ky
             | otherwise = ky <> "\n\nnote transformer:\nGLOBAL = "
                 <> global_transform
+
+upgrade_ky :: UiConfig.Allocations -> Text -> Either Text Text
+upgrade_ky insts ky = do
+    section <- Instruments.un_instruments insts
+    pure $ mconcat
+        [ Text.stripEnd $
+            Ky.replace_section Instruments.instrument_section ("-- "<>) ky
+        , "\n\n", Instruments.instrument_section, ":\n", section
+        ]
 
 instance Serialize UiConfig.Allocations where
     put (UiConfig.Allocations a) = put_version 1 >> put a

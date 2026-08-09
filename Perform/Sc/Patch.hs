@@ -13,8 +13,8 @@ import qualified Perform.Sc.Note as Note
 import           Global
 
 
-data Patch = Patch {
-    name :: Note.PatchName
+data Patch = Patch
+    { name :: Note.PatchName
     -- | Path to the scsyndef file.  This is needed to tell scserver to load
     -- it.
     , filename :: FilePath

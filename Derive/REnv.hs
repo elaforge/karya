@@ -6,9 +6,10 @@
 -- | This is a serializable subset of 'DeriveT.Val' and 'DeriveT.Environ'.
 -- It omits pitches, which are code and can't be serialized.
 module Derive.REnv (
-    Environ
+    Environ(..)
     , to_map, from_list, convert, lookup, null
     -- * val
+    , promote, demote
     , Val(..)
     , ConstantPitch(..)
     , ToVal(..)
@@ -85,16 +86,35 @@ data Val =
 
 promote :: Val -> DeriveT.Val
 promote = \case
-    VNum v -> DeriveT.VSignal $ Signal.constant <$> v
-    VAttributes v -> DeriveT.VAttributes v
-    VControlRef v -> DeriveT.VControlRef v
+    VNum a -> DeriveT.VSignal $ Signal.constant <$> a
+    VAttributes a -> DeriveT.VAttributes a
+    VControlRef a -> DeriveT.VControlRef a
     VConstantPitch (ConstantPitch scale_id note nn) ->
         DeriveT.VPSignal $ PSignal.constant $
             PSignal.constant_pitch scale_id note nn
-    VNotePitch v -> DeriveT.VNotePitch v
-    VStr v -> DeriveT.VStr v
-    VQuoted v -> DeriveT.VQuoted $ DeriveT.Quoted $ Expr.map_literals promote v
-    VList v -> DeriveT.VList $ map promote v
+    VNotePitch a -> DeriveT.VNotePitch a
+    VStr a -> DeriveT.VStr a
+    VQuoted a -> DeriveT.VQuoted $ DeriveT.Quoted $ Expr.map_literals promote a
+    VList a -> DeriveT.VList $ map promote a
+
+demote :: DeriveT.Val -> Maybe Val
+demote = \case
+    DeriveT.VSignal (ScoreT.Typed ty sig)
+        | Just a <- Signal.constant_val sig -> Just $ VNum (ScoreT.Typed ty a)
+        | otherwise -> Nothing
+    DeriveT.VPSignal _ -> Nothing
+    DeriveT.VAttributes a -> Just $ VAttributes a
+    DeriveT.VControlRef a -> Just $ VControlRef a
+    DeriveT.VPControlRef _ -> Nothing
+    DeriveT.VNotePitch a -> Just $ VNotePitch a
+    DeriveT.VStr a -> Just $ VStr a
+    DeriveT.VQuoted (DeriveT.Quoted a) ->
+        VQuoted <$> traverse (traverse demote) a
+    DeriveT.VCFunction _ -> Nothing
+    DeriveT.VPFunction _ -> Nothing
+    DeriveT.VNotGiven -> Nothing
+    DeriveT.VSeparator -> Nothing
+    DeriveT.VList as -> VList <$> mapM demote as
 
 instance Pretty Val where format = Pretty.format . promote
 instance ShowVal.ShowVal Val where show_val = ShowVal.show_val . promote

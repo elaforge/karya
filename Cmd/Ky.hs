@@ -33,13 +33,10 @@ import qualified Derive.DeriveT as DeriveT
 import qualified Derive.Eval as Eval
 import qualified Derive.Expr as Expr
 import qualified Derive.Library as Library
-import qualified Derive.Parse.Instruments as Instruments
 import qualified Derive.Parse.Ky as Ky
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Sig as Sig
 
-import qualified Instrument.Inst as Inst
-import qualified Instrument.InstT as InstT
 import qualified Ui.Ui as Ui
 import qualified Ui.UiConfig as UiConfig
 
@@ -51,7 +48,7 @@ import           Global
 update :: Ui.State -> Cmd.State -> Text
     -> IO (Maybe (Ui.State, Cmd.State, [Log.Msg]))
 update ui_state cmd_state ky_text =
-    justm (check_cache lookup_backend cache allocs paths ky_text) $
+    justm (check_cache cache allocs paths ky_text) $
     \((ky_cache, allocs), logs) -> do
         return $ Just
             ( Ui.config#UiConfig.allocations #= allocs $
@@ -70,7 +67,6 @@ update ui_state cmd_state ky_text =
             , logs
             )
     where
-    lookup_backend = Cmd.get_lookup_backend cmd_state
     allocs = Ui.config#UiConfig.allocations #$ ui_state
     cache = Cmd.state_ky_cache cmd_state
     paths = state_ky_paths cmd_state
@@ -92,12 +88,11 @@ set ky_text = do
 
 -- | Reload the ky files if they're out of date, Nothing if no reload is
 -- needed.
-check_cache :: (InstT.Qualified -> Maybe Inst.Backend) -> Maybe Cmd.KyCache
-    -> UiConfig.Allocations -> [FilePath] -> Text
+check_cache :: Maybe Cmd.KyCache -> UiConfig.Allocations -> [FilePath] -> Text
     -> IO (Maybe ((Cmd.KyCache, UiConfig.Allocations), [Log.Msg]))
-check_cache lookup_backend prev_cache old_allocs paths ky_text = run $ do
+check_cache prev_cache old_allocs paths ky_text = run $ do
     when is_permanent abort
-    Ky.Ky defs imported mb_allocs <- try . first ParseText.show_error
+    Ky.Ky defs imported allocs <- try . first ParseText.show_error
         =<< liftIO (Ky.load_ky paths ky_text)
     -- This uses the contents of all the files for the fingerprint, which
     -- means it has to read and parse them on each respond cycle.  If this
@@ -107,14 +102,6 @@ check_cache lookup_backend prev_cache old_allocs paths ky_text = run $ do
     when (old_fingerprint == fingerprint) abort
     let (builtins, logs) = compile_library (loaded_fnames imported) $
             compile_definitions defs
-    allocs <- case mb_allocs of
-        -- TODO this means deleting the whole section will have no effect,
-        -- rather than removing all allocations.  This is a bit inconsistent,
-        -- but I may have done it this way for historical reasons, since old ky
-        -- files won't have instrument sections?
-        Nothing -> pure old_allocs
-        Just allocs -> try $
-            Instruments.update_ui lookup_backend allocs old_allocs
     pure
         ( (builtins, Map.fromList (Ky.def_aliases defs), fingerprint, allocs)
         , logs
@@ -145,7 +132,8 @@ check_cache lookup_backend prev_cache old_allocs paths ky_text = run $ do
 load :: [FilePath] -> Text
     -> IO (Either Text (Derive.Builtins, Derive.InstrumentAliases))
 load paths ky_text =
-    bimap ParseText.show_error compile <$> liftIO (Ky.load_ky paths ky_text)
+    bimap ParseText.show_error compile <$>
+        liftIO (Ky.load_ky paths ky_text)
     where
     -- Instrument allocations are stored in the score state, and if there is
     -- anything in the ky text it should be the same as in the score state.

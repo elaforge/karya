@@ -74,10 +74,10 @@ instance Pretty code => Pretty (Inst code) where
         , ("common", Pretty.format common)
         ]
 
-data Backend =
+data Backend
     -- | A Dummy instrument should be resolved to concrete instruments during
     -- derivation.  It includes an error msg show if that doesn't happen.
-    Dummy Text
+    = Dummy Text
     | Midi Midi.Patch.Patch
     | Im Im.Patch.Patch
     | Sc Sc.Patch.Patch

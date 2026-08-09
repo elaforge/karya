@@ -10,6 +10,7 @@ module Derive.Parse (
     , parse_val, parse_attrs, parse_num, parse_call
     , lex1, lex, split_pipeline, join_pipeline
     , unparsed_call
+    , UnquotedString(..)
 
     -- * parsers
     , lexeme, p_pipe, p_expr, p_pcontrol_ref, p_identifier, p_symbol
@@ -91,7 +92,7 @@ parse_expr_raw = parse (p_expr True)
 -- | Parse a single Val.
 {-# SCC parse_val #-}
 parse_val :: Text -> Either Text DeriveT.Val
-parse_val = ParseText.parse1 (lexeme p_val)
+parse_val = ParseText.parse1 (lexeme (p_val UnquotedLoose))
 
 -- | Parse attributes in the form +a+b.
 parse_attrs :: String -> Either Text Attrs.Attributes
@@ -288,15 +289,19 @@ p_symbol :: Bool -- ^ A call at the top level can allow a ).
     -> A.Parser Expr.Symbol
 p_symbol toplevel = Expr.Symbol <$> p_word toplevel
 
+p_word :: Bool -> A.Parser Text
+p_word toplevel =
+    A.takeWhile1 (if toplevel then is_toplevel_word_char else is_word_char)
+
 p_term :: A.Parser (Expr.Term DeriveT.Val)
-p_term = Expr.Literal <$> p_val <|> Expr.ValCall <$> p_sub_call
+p_term = Expr.Literal <$> p_val UnquotedLoose <|> Expr.ValCall <$> p_sub_call
     <?> "term"
 
 p_sub_call :: A.Parser (Expr.Call DeriveT.Val)
 p_sub_call = ParseText.between (A.char '(') (A.char ')') (p_call False)
 
-p_val :: A.Parser DeriveT.Val
-p_val =
+p_val :: UnquotedString -> A.Parser DeriveT.Val
+p_val unquoted =
     DeriveT.VAttributes <$> p_attributes
     <|> DeriveT.num <$> p_hex
     <|> DeriveT.VSignal . fmap Signal.constant <$> p_num
@@ -306,7 +311,7 @@ p_val =
     <|> DeriveT.VQuoted <$> p_quoted
     <|> (A.char '_' >> return DeriveT.VNotGiven)
     <|> (A.char ';' >> return DeriveT.VSeparator)
-    <|> DeriveT.VStr <$> p_unquoted_str
+    <|> DeriveT.VStr <$> p_unquoted_str unquoted
 
 p_num :: A.Parser (ScoreT.Typed Signal.Y)
 p_num = do
@@ -388,6 +393,8 @@ p_pcontrol_ref = DeriveT.Ref <$> p_pcontrol <*> pure Nothing
 p_quoted :: A.Parser DeriveT.Quoted
 p_quoted = ParseText.between "\"(" ")" (DeriveT.Quoted <$> p_expr False)
 
+data UnquotedString = UnquotedStrict | UnquotedLoose deriving (Eq, Show)
+
 -- | Symbols can have anything in them but they have to start with a letter.
 -- This means special literals can start with wacky characters and not be
 -- ambiguous.
@@ -395,16 +402,21 @@ p_quoted = ParseText.between "\"(" ")" (DeriveT.Quoted <$> p_expr False)
 -- This should be a superset of what 'p_identifier' will accept, so if IDs use
 -- 'p_identifier' and 'Id.valid_symbol', they will also be parseable without
 -- quotes.
-p_unquoted_str :: A.Parser Expr.Str
-p_unquoted_str = do
+p_unquoted_str :: UnquotedString -> A.Parser Expr.Str
+p_unquoted_str unquoted = do
     sym <- Text.cons
         <$> A.satisfy ShowVal.is_unquoted_head
-        <*> A.takeWhile is_word_char
+        <*> A.takeWhile (case unquoted of
+            UnquotedLoose -> is_word_char
+            UnquotedStrict -> \c -> range 'a' 'z' c || range 'A' 'Z' c
+                || range '0' '9' c || c == '-' || c == '.')
     -- If I have an unbalanced quote, it may parse as an unquoted string with
     -- a quote in it, which is confusing.  So let's outlaw that.
     when ("'" `Text.isInfixOf` sym) $
         fail $ "quote in unquoted string: " <> show sym
     return $ Expr.Str sym
+    where
+    range x y c = x <= c && c <= y
 
 -- | Identifiers are somewhat more strict than usual.  They must be lowercase,
 -- and the only non-letter allowed is hyphen.  This means words must be
@@ -432,10 +444,6 @@ p_identifier null_ok until = do
         fail $ "invalid chars in identifier, expected "
             <> untxt Id.symbol_description <> ": " <> show ident
     return ident
-
-p_word :: Bool -> A.Parser Text
-p_word toplevel =
-    A.takeWhile1 (if toplevel then is_toplevel_word_char else is_word_char)
 
 -- | A word is as permissive as possible, and is terminated by whitespace.
 -- That's because this determines how calls are allowed to be named, and for

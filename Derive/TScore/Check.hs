@@ -50,26 +50,27 @@ import qualified Perform.Pitch as Pitch
 import qualified Ui.Id as Id
 import qualified Ui.Meter.Meter as Meter
 import qualified Ui.Meter.Meters as Meters
+import qualified Ui.UiConfig as UiConfig
 
 import           Global
 import           Types
 
 
-data Config = Config {
-    config_meter :: !Meter
+data Config = Config
+    { config_meter :: !Meter
     , config_scale :: !Scale
     , config_duration :: !DurationMode
     , config_from :: !(Maybe From)
     -- | Use negative durations.  Notes arrive at beats instead of departing
     -- from them.
     , config_negative :: !Bool
-    , config_instruments :: ![Instruments.Allocation]
+    , config_instruments :: !UiConfig.Allocations
     , config_ky :: !Text
     } deriving (Show)
 
 -- | The target of a 'T.CopyFrom'.
-data From = From {
-    from_block :: !(Maybe Id.BlockId)
+data From = From
+    { from_block :: !(Maybe Id.BlockId)
     , from_tracknum :: !TrackNum
     , from_pos :: !T.Pos
     } deriving (Show)
@@ -85,7 +86,7 @@ default_config = Config
     , config_duration = Multiplicative
     , config_from = Nothing
     , config_negative = False
-    , config_instruments = []
+    , config_instruments = mempty
     , config_ky = ""
     }
 
@@ -112,10 +113,10 @@ parse_directive scope (T.Directive pos name maybe_val) config =
             (`Map.lookup` scale_map) =<< with_arg
         "instruments" -> do
             require_toplevel
-            unless (null (config_instruments config)) $
+            unless (config_instruments config == mempty) $
                 Left "should only be one %instruments"
             val <- with_arg
-            allocs <- parse_instruments val
+            allocs <- Instruments.parse_instruments val
             return $ config { config_instruments = allocs }
         "ky" -> do
             require_toplevel
@@ -134,24 +135,6 @@ parse_directive scope (T.Directive pos name maybe_val) config =
     without_arg = maybe (Right ()) (Left . ("unexpected arg: "<>)) maybe_val
     set_config setter parse val = fmap (setter config) (lookup parse val)
     lookup parse val = tryJust ("unknown " <> name <> ": " <> val) (parse val)
-
-parse_instruments :: Text -> Either Text [Instruments.Allocation]
-parse_instruments val = do
-    -- Instrument parsing is line-oriented, which is awkward with the
-    -- usuall comment/whitespace handling, so I have to account for
-    -- comment-only lines.
-    let empty = Text.null . Text.strip . Parse.strip_comment
-    allocs <- mapM parse $ filter (not . empty . snd) $
-        map (second Text.strip) $ zip [1..] $ Text.lines val
-    let dups = map head $ filter ((>1) . length) $ Lists.groupSort id $
-            map Instruments.alloc_name allocs
-    unless (null dups) $
-        Left $ "duplicate instrument definitions: "
-            <> Text.unwords (map pretty dups)
-    return allocs
-    where
-    parse (n, s) = first ((("alloc " <> showt n <> ": ") <>) . txt) $
-        Parse.parse_allocation s
 
 parse_from :: Scope -> T.Pos -> Text -> Either Text From
 parse_from scope pos arg = case scope of
@@ -331,14 +314,14 @@ modify_duration modify note =
 
 -- ** meter
 
-data Meter = Meter {
+data Meter = Meter
     -- | Rank pattern.
     --
     -- Adi: [2, 0, 0, 0, 1, 0, 0, 1, 0, 0]
     -- > || ssss rrrr gggg mmmm | pppp dddd | nnnn sssss ||
     -- 4/4: [1, 0, 0, 0]
     -- > | ssss rrrr gggg mmmm |
-    meter_pattern :: [T.Rank]
+    { meter_pattern :: [T.Rank]
     -- | This is the duration one one element of 'meter_pattern'.
     , meter_step :: !T.Time
     -- | If true, beats fall at the end of measures.

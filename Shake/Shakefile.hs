@@ -104,8 +104,9 @@ basicPackages = concat
     , w "zlib" -- Util.Files
     -- karya
     , w "attoparsec" -- Derive: tracklang parsing
-    , w "old-locale"
+    , w "fsnotify" -- REPL .ky file change detection
     , w "hlibgit2"
+    , w "old-locale" -- ?
     , w "optics-core"
     , w "ghc ghc-paths haskeline terminfo" -- REPL
     -- Derive: score randomization

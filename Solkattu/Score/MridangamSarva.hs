@@ -446,6 +446,8 @@ s_bhajan2 = date 2026 7 23 $ sarvalaghu $ korvaiV Tala.adi
     [ r6 "nd_d" . "nd_" . su "ktktpknook"
     , r6 "nd_d" . "nd" . su "pktktkooktok"
     , __D 2 . trin "D_k" "NNk" (r2 "NNk") (r3 "NNk")
+    , su $ "o_o___/" & "n__kt_k_n_o_o_d_" . "____o_/" & "n__kt_k_n_o_o_d_"
+        . r2 ("o___o_/" & "n__nn_k_n_o_T_k_")
     ]
 
 bhajan_o_nd :: Korvai
@@ -474,9 +476,15 @@ s_bhajan_kanda = sarvalaghu $ korvaiV Tala.kanda_chapu
         . "N,NND,N,D," . "n,nnd,n,d,"
         . n.su "ktpk"."nd,n,d," . su "npktpk"."nd,n,d,"
         . "n,d," . su ("n_pk".nakatiku) . "NkoNkoD_N_"
+
+    , sd $ __D 1 . "nnd_n_u_odDodDod" . od
     ]
     where
     ktok = su (su "ktok")
+
+s_bhajan_kanda_nadai = sarvalaghu $ korvaiV adi $ map (nadai 5)
+    [ __M (5*5) . r3 "D_NNk"
+    ]
 
 s_bhajan_misra :: Korvai
 s_bhajan_misra = sarvalaghu $ korvaiV Tala.misra_chapu
@@ -490,16 +498,30 @@ s_bhajan_misra = sarvalaghu $ korvaiV Tala.misra_chapu
     ]
 
 bhajan_endings :: Korvai
-bhajan_endings = korvaiV Tala.adi
+bhajan_endings = date 2026 6 12 $ korvaiV adi
     [ __D 4 . r2 (g (r4 "Npk") . "pknnok") . "N__N__N__N__u"
-    ]
-
-bhajan_endings2 :: Korvai
-bhajan_endings2 = date 2026 6 12 $ korvaiV adi
     -- https://www.youtube.com/watch?v=pIsrqyMtBg4
     -- Actually misra chapu, 10 aksharas starts on +3 = 7+3
-    [ __D 6 . su (triAAB "u___" (g (r4 "k_kto_")) (expand 3 2 "k_t_k_kto_"))
+    , __D 6 . su (triAAB "u___" (g (r4 "k_kto_")) (expand 3 2 "k_t_k_kto_"))
+
+    , __D 4 . "D_o" . r3 "I_ku_"
+    , "D_ND_,N,D_ND_DNk" . "oi_u_o" . r2 "I_u_o" . "U"
     ]
+
+-- bhajan_endings_kandam :: Korvai
+-- bhajan_endings_kandam = rohan $ korvaiV Tala.kanda_chapu
+--     [ sd $ "__k_D_" . tri "D_" "NNk"
+--     ]
+
+misc = korvaiV adi
+    -- https://www.facebook.com/reel/1785493366079530 0:36
+    [ "o/_o" & naka . r2 naka . "_oo" & naka . "o/_o" & naka
+        . naka . su "n_nk_nk_nk_kd___"
+    -- https://www.facebook.com/watch/?v=2102938466944555
+    , r4 "nd_d" . r2 "kd_k". "__" . su "_,^,^,oo,^o,"
+        . r2 (r2 "nd_d" . "__" . su "_,^,^,oN_kN,")
+    ]
+    where naka = su "n,^,^,^,"
 
 {-
     These are easier to transcribe and read as plain text.  Maybe there

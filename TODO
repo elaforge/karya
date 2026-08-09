@@ -490,8 +490,60 @@ UNSORTED
     - Then update all tests
     - Update extant scores
   + inst allocation in ky: branch ky-record:
+    2026-08-05 attempt:
+      cons:
+        * Loses .. range syntax. Just add it!
+        * Programmatic creation requires unparsing
+        * and automatic append to instrument section
+        . No syntax for midi Voices.  Come up with a syntax?  Or drop the
+          feature?
+        . It makes Patch.Scale impractical, to copy the nns over.  I'll
+          want a programmatic way to do that anyway.  Otherwise I'd want to
+          go to a global named registry.
+        . What's more, they're usually all the same.
+      . Ky is parsed with megaparsec.
+        Val is parsed with attoparsec.
+        For the moment, I use Util.attoparse.  In the future see if megaparsec
+        is now fast enough to use everywhere.  Or flatparse, if it has good
+        errors.
+      * restore Parse.Record
+      * restore AllocRecord, which parses the generic form
+        * Parse header line.
+        * How to parse scale?  It's string -> tuning map.
+          . Where do they come from?
+          . From instrument definitions, so no global table.
+          . This is a Settings feature to override the built-in one.
+          . It's an attribute of patches, but ultimately comes from scales
+            eg Selisir.instrument_scale
+          . The purpose is to undo a tuning so it goes back to plain
+            Midi.Keys.  So it's convoluted, but I think necessary for
+            a generic pitch representation.
+          . What if rather than saving as Vector NN, use symbolic name and
+            have a big table in Scales.all?
+          . Or if I override, why not just put the whole table in []s?
+      * if I make backend explicit, I can remove LookupBackend dep
+      * to convert existing scores:
+        . If UiConfig.Config version is old, append an instruments clause to
+          ky text.
+        . No longer need to save allocations, it should be in ky!
+        * comment out old instruments section
+      * unify with tscore
+      * serialize is confused by UiConfig.config_allocations which is not
+        saved.  Since it comes from ky now, what if I remove the field and
+        keep it in Cmd.State?
+        . This will be inconvenient for tests which use ui state and derive.
+          Or maybe, I just put ky in instead of default allocations?
+        . Or save it for now, but ignore on load.
+        . No work, not serialize at least.  Because ky overwrites?
+        . That's only on load though, in tests if I manipulate with ky I have
+          to reparse and reload.
+        . The problem is tests manipulate UiConfig directly
+        . Can I have set_instruments take ky, parse it, and update
+          allocations?  Ideally it would be read-only.
+      - This means all the UiConfig functions for alloc manipulation goes
+        away, as does LInst ones.
     decision:
-      - reduce to just >name [ms] -- qualified/ 1 2 3
+      / reduce to just >name [ms] -- qualified/ 1 2 3
         Only mute/solo are synced.  Generate it each time, no comments.
       . Wait except tscore uses this!  This is probably how I started down
         this road in the first place.
