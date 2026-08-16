@@ -5,7 +5,7 @@ shift
 
 # For some reason, cabal puts this in .ghc.environment, which doesn't exist and
 # makes ghci crash.
-mkdir -p dist-newstyle/packagedb/ghc-9.6.7
+mkdir -p dist-newstyle/packagedb/ghc-9.12.4
 
 args=(
     # Turn off idle time GC, since it causes input lag when lots of modules

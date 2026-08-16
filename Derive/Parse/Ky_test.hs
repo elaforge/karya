@@ -101,6 +101,21 @@ test_parse_ky = do
         [(ScoreT.Instrument "a", ScoreT.Instrument "b")]
     left_like (f aliases "alias:\n>a = >b\n") "lhs not a valid id"
 
+test_instruments :: Test
+test_instruments = do
+    let f = bimap ParseText.show_error extract
+            . Ky.parse_ky "fname.ky"
+        extract = Ky.ky_instruments
+    -- line offset to 4
+    left_like (f ky1) "4:1:*unexpected '1'"
+
+ky1 :: Text
+ky1 =
+    "-- blah\n\
+    \-- blah\n\
+    \instrument:\n\
+    \123\n"
+
 test_p_definition :: Test
 test_p_definition = do
     let f = bimap ParseText.show_error (second e_expr)

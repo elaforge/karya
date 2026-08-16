@@ -40,7 +40,6 @@ import qualified Util.P as P
 import           Util.P ((<?>))
 import qualified Util.Parse as Parse
 
-import qualified Derive.Parse.Instruments as Instruments
 import qualified Derive.TScore.T as T
 import qualified Ui.Id as Id
 
@@ -262,13 +261,6 @@ dedent t = Text.strip $ case Text.lines (Text.dropWhile (=='\n') t) of
     x : xs -> Text.unlines (map (strip indent) (x:xs))
         where indent = Text.takeWhile Char.isSpace x
     where strip pref s = fromMaybe s $ Text.stripPrefix pref s
-
--- parse_allocation :: Text -> Either String Instruments.Allocation
--- parse_allocation = parse_text Instruments.p_instruments
---
--- unparse_allocations :: [Instruments.Allocation] -> Text
--- unparse_allocations =
---     Text.unlines . Instruments.unparse_allocations . map ((, "") . Just)
 
 type Token = T.Token T.Call (T.NPitch T.Pitch) T.NDuration T.Duration
 

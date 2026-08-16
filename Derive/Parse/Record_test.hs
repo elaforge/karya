@@ -54,6 +54,21 @@ inst_val =
     \  }\n\
     \}\n"
 
+test_val_error :: Test
+test_val_error = do
+    let f = parse_rval
+    left_like (f bad_val) "5:23:" -- carat should be under /
+    where
+    bad_val =
+        "{ initialization: Tuning\n\
+        \, settings:\n\
+        \  { flags: [Pressure, HoldKeyswitch, ResumePlay]\n\
+        \  , scale: 'legong umbang'\n\
+        \  , pitch_bend_range: /\n\
+        \  , control_defaults: {cc1: 42}\n\
+        \  }\n\
+        \}\n"
+
 v :: DeriveT.Val -> Record.RVal
 v = Record.Val
 

@@ -83,7 +83,7 @@ import           Types
 -- * Config
 
 -- | Configuration for one MIDI instrument allocation.
-data Config = Config {
+data Config = Config
     -- | An instrument may have multiple addresses assigned to it, which means
     -- that it can be multiplexed across multiple channels.  In addition,
     -- multiple instruments can be allocated to overlapping addresses, which is
@@ -93,7 +93,7 @@ data Config = Config {
     --
     -- Each Addr has a count of how many simultaneous voices the addr can
     -- handle.  Nothing means there's no limit.
-    config_allocation :: [(Addr, Maybe Voices)]
+    { config_allocation :: [(Addr, Maybe Voices)]
     , config_initialization :: Maybe Initialization
     , config_settings :: Settings
     } deriving (Eq, Show, Generics.Generic)
@@ -351,13 +351,13 @@ nn_at scale key
 
 -- | Various instrument flags.  Add new ones at the bottom to avoid messing up
 -- serialization.
-data Flag =
+data Flag
     -- | Patch uses continuous pressure control, assigned to CC 2 (breath),
     -- instead of trigger velocity.  This is used to support the @dyn@ control.
     -- Percussive instruments like pianos map it to MIDI velocity, and
     -- continuous instruments like winds always have maximum velocity and map
     -- @dyn@ to breath.
-    Pressure
+    = Pressure
     -- | If set, a keysitch has to be held while its note is playing.
     -- Otherwise, it will just be tapped before the note starts.
     | HoldKeyswitch
@@ -413,11 +413,11 @@ type AttributeMap = Common.AttributeMap ([Keyswitch], Maybe Keymap)
 -- keyswitches.  Unlike a keyswitch, this doesn't change the state of the MIDI
 -- channel, so multiple keymapped notes can coexist, and keymap replaces the
 -- pitch of the note.
-data Keymap =
+data Keymap
     -- | This ignores the event's pitch and instead emits the given MIDI key.
     -- This is appropriate for drumkit style patches, with a separate unpitched
     -- timbre on each key.
-    UnpitchedKeymap Midi.Key
+    = UnpitchedKeymap Midi.Key
     -- | The timbre is mapped over the inclusive MIDI key range from low to
     -- high, where the pitch of the low end of the range is given by the
     -- NoteNumber.  So this transposes the event's pitch and clips it to the
@@ -433,8 +433,8 @@ instance Pretty Keymap where
 -- | A Keyswitch changes the timbre of a patch, but does so in a channel-global
 -- way.  So overlapping notes with different keyswitches will be split into
 -- different channels, if possible.  See NOTE [midi-state].
-data Keyswitch =
-    Keyswitch Midi.Key
+data Keyswitch
+    = Keyswitch Midi.Key
     -- | This keyswitch is triggered by a control change.
     | ControlSwitch Midi.Control Midi.ControlValue
     -- | This is like 'ControlSwitch', except send a poly aftertouch value

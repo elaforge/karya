@@ -37,6 +37,30 @@ parseM fname p =
 parseS :: state -> FilePath -> ParserS state a -> Text -> Either Text a
 parseS state fname p = fst . flip State.runState state . parseM fname p
 
+-- | Like 'parse', but pretend the text starts at the given 1-based line, so
+-- error messages get the line numbers of the enclosing file.
+parseOffset :: Int -> FilePath -> Parser a -> Text -> Either Text a
+parseOffset line fname p = Identity.runIdentity . parseLineM
+    where
+    parseLineM text = first (txt . P.errorBundlePretty) . snd <$>
+        P.runParserT' (p <* P.eof) (state text)
+    state text = P.State
+        { P.stateInput = text
+        , P.stateOffset = 0
+        , P.statePosState = P.PosState
+            { P.pstateInput = text
+            , P.pstateOffset = 0
+            , P.pstateSourcePos = P.SourcePos
+                { P.sourceName = fname
+                , P.sourceLine = P.mkPos (max 1 line)
+                , P.sourceColumn = P.pos1
+                }
+            , P.pstateTabWidth = P.defaultTabWidth
+            , P.pstateLinePrefix = ""
+            }
+        , P.stateParseErrors = []
+        }
+
 parse_maybe :: Parser a -> Text -> Maybe a
 parse_maybe p = either (const Nothing) Just . parse p
 
@@ -116,14 +140,18 @@ is_digit c = '0' <= c && c <= '9'
 
 -- | Convert an attoparsec parser to a megaparsec one.
 attoparse :: forall a. String -> A.Parser a -> Parser a
-attoparse msg p = go . A.parse p =<< P.getInput
+attoparse msg p = do
+    input <- P.getInput
+    go (Text.length input) $ A.parse p input
     where
-    go = \case
+    go pre = \case
         A.Done rest val -> do
             P.setInput rest
+            offset <- P.getOffset
+            P.setOffset (offset + (pre - Text.length rest))
             return val
         A.Fail _rest _contexts _msg ->
             -- The attoparsec msg is so useless I just ignore it and use my
             -- own.  E.g. it may be "Failed reading: takeWhile1".
             fail $ "expected " <> msg
-        A.Partial cont -> go (cont "")
+        A.Partial cont -> go pre (cont "")

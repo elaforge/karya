@@ -29,6 +29,7 @@ import           System.FilePath ((</>))
 import qualified Util.Exceptions as Exceptions
 import qualified Util.Lists as Lists
 import qualified Util.Maps as Maps
+import qualified Util.Parse
 import qualified Util.ParseText as ParseText
 
 import qualified Derive.DeriveT as DeriveT
@@ -188,7 +189,10 @@ parse_ky fname text = do
             , get (kind <> " " <> transformer)
             )
     aliases <- first (ParseText.Error Nothing) $ mapM parse_alias (get alias)
-    allocs <- parse_instruments $ map snd $ fromMaybe [] instrument_section
+    allocs <- case instrument_section of
+        Just lines@((lineno, _) : _) ->
+            parse_instruments fname lineno $ map snd lines
+        _ -> Right mempty
     let add_fname = map (fname,)
         add_fname2 = bimap add_fname add_fname
     return $ Ky
@@ -219,11 +223,15 @@ parse_ky fname text = do
         first (ParseText.offset (lineno, 0)) $ ParseText.parse p_section $
             Text.unlines (line0 : map snd lines)
 
-parse_instruments :: [Text] -> Either ParseText.Error UiConfig.Allocations
-parse_instruments lines =
+-- | The lineno is the 0-based line of the first line of the section, which
+-- becomes the 1-based starting line for megaparsec.
+parse_instruments :: FilePath -> Line -> [Text]
+    -> Either ParseText.Error UiConfig.Allocations
+parse_instruments fname lineno lines =
     -- TODO convert megaparsec line numbers back to ParseText._position?
     first (ParseText.Error Nothing) $
-        Instruments.parse_instruments (Text.unlines lines)
+        Util.Parse.parseOffset (lineno+1) fname Instruments.p_instruments
+            (Text.unlines lines)
 
 -- | The alias section allows only @alias = inst@ definitions.
 parse_alias :: (Expr.Symbol, Expr)
