@@ -83,7 +83,7 @@ instance Pretty Pitch where
 -- | This relies on the presence of a @pitch@ val call.
 instance ShowVal.ShowVal Pitch where
     show_val (Pitch oct (Degree pc accs)) =
-        "(pitch " <> Text.unwords args <> ")"
+        "\"(pitch " <> Text.unwords args <> ")"
         where args = map showt $ oct : pc : if accs == 0 then [] else [accs]
 
 instance Serialize.Serialize Pitch where

@@ -55,8 +55,8 @@ doc = Doc.literal . show_val
 -- "Derive.DeriveT", which needs them.
 
 instance ShowVal a => ShowVal [a] where
-    show_val [] = "(list)"
-    show_val xs = "(list " <> Text.unwords (map show_val xs) <> ")"
+    show_val [] = "\"(list)"
+    show_val xs = "\"(list " <> Text.unwords (map show_val xs) <> ")"
 instance ShowVal a => ShowVal (Set a) where
     show_val = show_val . Set.toList
 

@@ -491,6 +491,38 @@ UNSORTED
     - Update extant scores
   + inst allocation in ky: branch ky-record:
     2026-08-05 attempt:
+      - How to parse scale?  It's string -> tuning map.
+        . Where do they come from?
+        . From instrument definitions, so no global table.
+        . This is a Settings feature to override the built-in one.
+        . It's an attribute of patches, but ultimately comes from scales
+          eg Selisir.instrument_scale
+        . The purpose is to undo a tuning so it goes back to plain
+          Midi.Keys.  So it's convoluted, but I think necessary for
+          a generic pitch representation.
+        . What if rather than saving as Vector NN, use symbolic name and
+          have a big table in Scales.all?
+        . I would have an extra field in Scale, like
+          Map Text (Vector NoteNumber)
+        . Where look it up then?
+        . Or if I override, why not just put the whole table in []s?
+        . It's really noisy.  I could have a local definition:
+          legong_umbang = [47.91, 48.855, 49.8, 50.415, 51.03, 53.622,
+            54.336, 55.05, 55.575, 56.1, 56.9, 57.7, 59.91, 60.855, 61.8,
+            62.35, 62.9, 64.801, 65.975, 67.15, 67.605, 68.06, 68.955, 69.851,
+            71.88, 72.74, 73.6, 74.375, 75.15, 77.906, 78.513, 79.12, 79.695,
+            80.27, 81.6, 82.93, 84.09, 85.056, 86.021, 86.894, 87.767, 89.953,
+            90.865, 91.778, 92.119, 92.459, 93.712, 94.965, 96.428]
+          >calung-p kontakt/sc-calung [ms] loop1 3
+              { env: {tuning: umbang}, scale: legong_umbang
+              }
+        . How am I supposed to enter them in the first place?  I guess it
+          would be print, then copy paste into the definition.  So it's
+          still awkward.  But I guess I put them in via code, eg
+          the complete gong definition.  So maybe in practice these are
+          external files that I import?  Or copy paste in?
+        . The definition is part of eg the kontakt patch, so it should
+          remain stable, not change with Scale changes.
       cons:
         * Loses .. range syntax. Just add it!
         * Programmatic creation requires unparsing
@@ -509,38 +541,6 @@ UNSORTED
       * restore Parse.Record
       * restore AllocRecord, which parses the generic form
         * Parse header line.
-        * How to parse scale?  It's string -> tuning map.
-          . Where do they come from?
-          . From instrument definitions, so no global table.
-          . This is a Settings feature to override the built-in one.
-          . It's an attribute of patches, but ultimately comes from scales
-            eg Selisir.instrument_scale
-          . The purpose is to undo a tuning so it goes back to plain
-            Midi.Keys.  So it's convoluted, but I think necessary for
-            a generic pitch representation.
-          . What if rather than saving as Vector NN, use symbolic name and
-            have a big table in Scales.all?
-          . I would have an extra field in Scale, like
-            Map Text (Vector NoteNumber)
-          . Where look it up then?
-          . Or if I override, why not just put the whole table in []s?
-          . It's really noisy.  I could have a local definition:
-            legong_umbang = [47.91, 48.855, 49.8, 50.415, 51.03, 53.622,
-              54.336, 55.05, 55.575, 56.1, 56.9, 57.7, 59.91, 60.855, 61.8,
-              62.35, 62.9, 64.801, 65.975, 67.15, 67.605, 68.06, 68.955, 69.851,
-              71.88, 72.74, 73.6, 74.375, 75.15, 77.906, 78.513, 79.12, 79.695,
-              80.27, 81.6, 82.93, 84.09, 85.056, 86.021, 86.894, 87.767, 89.953,
-              90.865, 91.778, 92.119, 92.459, 93.712, 94.965, 96.428]
-            >calung-p kontakt/sc-calung [ms] loop1 3
-                { env: {tuning: umbang}, scale: legong_umbang
-                }
-          . How am I supposed to enter them in the first place?  I guess it
-            would be print, then copy paste into the definition.  So it's
-            still awkward.  But I guess I put them in via code, eg
-            the complete gong definition.  So maybe in practice these are
-            external files that I import?  Or copy paste in?
-          . The definition is part of eg the kontakt patch, so it should
-            remain stable, not change with Scale changes.
 
       * if I make backend explicit, I can remove LookupBackend dep
       * to convert existing scores:
@@ -576,11 +576,19 @@ UNSORTED
 
                                                            ^
             expected val
-      - The real error is (pitch 1 2), ShowVal must be "(pitch ..).
+      * The real error is (pitch 1 2), ShowVal must be "(pitch ..).
         Is this right?  It's because record doesn't allow Expr, only Val.
         Maybe it should parse Expr, and automatically quote it?
         Is this not a weird interpreter?  I guess it's because calls have
         location context, so quote is needed to delay evaluation?
+        . An Expr is always a function call, e.g. "4" is (4).
+          So there is a difference between toplevel calls: "a b c" and nested
+          ones: "(a b c)"
+      . So I could parse p_term instead of p_val.
+        But it has to go into REnv, so must be wrapped in Quote.
+      . But "() is more honest, because it will become quoted, because it'll
+        only be evaluated on the spot.
+      . But that means ShowVal has to put in "().  I think it's ok though.
       - This means all the UiConfig functions for alloc manipulation go
         away, as do LInst ones.
     decision:
