@@ -30,6 +30,7 @@ module Perform.Midi.Patch (
     -- ** Scale
     , Scale(..) -- should just be Scale(scale_name), but Cmd.Serialize
     , make_scale
+    , make_scale_dense
     , convert_scale, nn_at
     , scale_nns, scale_offsets, scale_tuning
     -- ** Flag
@@ -287,6 +288,13 @@ make_scale name keys = Scale
     convert (k, Pitch.NoteNumber nn) = (Midi.from_key k, nn)
     empty = Unboxed.fromList $ replicate 128 no_pitch
 
+make_scale_dense :: Text -> [Double] -> Scale
+make_scale_dense scale_name keys = Scale
+    { scale_name
+    , scale_key_to_nn = Unboxed.fromList $
+        take 128 keys <> replicate (128 - length keys) no_pitch
+    }
+
 interpolate_gaps :: [(Midi.Key, Pitch.NoteNumber)]
     -> [(Midi.Key, Pitch.NoteNumber)]
 interpolate_gaps ((k1, nn1) : rest@((k2, nn2) : _))
@@ -302,8 +310,8 @@ interpolate_gaps xs = xs
 
 convert_scale :: Scale -> Pitch.NoteNumber -- ^ if you want this pitch
     -> Maybe Pitch.NoteNumber -- ^ play this key
-convert_scale (Scale _ scale) (Pitch.NoteNumber nn) =
-    case Util.Vector.bracket scale nn of
+convert_scale (Scale _ key_to_nn) (Pitch.NoteNumber nn) =
+    case Util.Vector.bracket key_to_nn nn of
         Just (i, low, high) | low /= no_pitch ->
             Just $ Pitch.NoteNumber $ fromIntegral i + Num.normalize low high nn
         _ -> Nothing

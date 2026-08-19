@@ -5,6 +5,7 @@ module Derive.Parse.Instruments_test where
 
 import qualified Data.Map as Map
 import qualified Data.Text as Text
+import qualified Data.Vector.Unboxed as Vector.Unboxed
 
 import qualified Util.Parse as Parse
 import qualified Derive.Controls as Controls
@@ -14,7 +15,7 @@ import qualified Derive.ScoreT as ScoreT
 import qualified Instrument.Common as Common
 import qualified Instrument.InstT as InstT
 import qualified Midi.Midi as Midi
-import qualified Perform.Midi.Patch as Midi.Patch
+import qualified Perform.Midi.Patch as Patch
 import qualified Perform.Signal as Signal
 import qualified Ui.UiConfig as UiConfig
 
@@ -22,10 +23,10 @@ import           Global
 import           Util.Test
 
 
-test_p_instruments :: Test
-test_p_instruments = do
+test_parse_instruments :: Test
+test_parse_instruments = do
     let parse = fmap (Map.elems . UiConfig.unallocations)
-            . Parse.parse I.p_instruments
+            . I.parse_instruments
     let alloc synth name = UiConfig.Allocation (InstT.Qualified synth name)
     right_equal (parse "") []
     right_equal (parse ">i im/xyz [ms] im")
@@ -40,21 +41,38 @@ test_p_instruments = do
     right_equal
         (parse ">i1 midi/ [ms] dev 1 2 {decay: 1}\n-- hi\n>i2 im/ [ms] im\n")
         [ alloc "midi" "" config $
-            UiConfig.Midi $ Midi.Patch.settings#Midi.Patch.decay #= Just 1 $
+            UiConfig.Midi $ Patch.settings#Patch.decay #= Just 1 $
                 midi [0, 1]
         , alloc "im" "" config UiConfig.Im
         ]
 
+test_equal :: Test
+test_equal = do
+    let parse = fmap (Map.elems . UiConfig.unallocations) . I.parse_instruments
+    let alloc synth name = UiConfig.Allocation (InstT.Qualified synth name)
+    let legong = Patch.Scale "legong-umbang" $
+            Vector.Unboxed.fromList $ [1, 2] <> replicate (128 - 2) (-1)
+    right_equal (parse
+        ">i1 / [ms] dev 1\n\
+        \>i2 / [ms] dev 2 { scale: legong-umbang }\n\
+        \legong-umbang = [1, 2]\n")
+        [ alloc "" "" config $ UiConfig.Midi $ midi [0]
+        , alloc "" "" config $ UiConfig.Midi $
+            Patch.settings#Patch.scale #= Just legong $
+            midi [1]
+        ]
+
+
 test_un_instruments :: Test
 test_un_instruments = do
-    let parse = Parse.parse I.p_instruments
+    let parse = I.parse_instruments
     let un = I.un_instruments
     let ky =
             ">i1 midi/ [Ms] dev 1\n\
-            \{decay: 1s}\n\
+            \    {decay: 1s}\n\
             \>i2 im/ [mS] im\n\
-            \{ env: {a: b}\n\
-            \}\n\
+            \    { env: {a: b}\n\
+            \    }\n\
             \>i3 midi/ [ms] dev 2..4\n\
             \>i4 im/ [ms] im\n"
     right_equal (un =<< parse ky) ky
@@ -65,8 +83,8 @@ config = Common.empty_config
 config_ :: [(ScoreT.Control, Signal.Y)] -> Common.Config
 config_ cs = Common.empty_config { Common.config_controls = Map.fromList cs }
 
-midi :: [Midi.Channel] -> Midi.Patch.Config
-midi chans = Midi.Patch.config [((dev, chan), Nothing) | chan <- chans]
+midi :: [Midi.Channel] -> Patch.Config
+midi chans = Patch.config [((dev, chan), Nothing) | chan <- chans]
 
 dev :: Midi.WriteDevice
 dev = Midi.write_device "dev"

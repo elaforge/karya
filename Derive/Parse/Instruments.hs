@@ -22,10 +22,7 @@ module Derive.Parse.Instruments (
     Allocation(..)
     , Config(..), empty_config
     , Backend(..)
-    -- , get_ky
-    -- , alloc_to_record
     , instrument_section
-    -- , update_ui
     -- * parse
     , parse_instruments
     , p_instruments
@@ -35,6 +32,7 @@ module Derive.Parse.Instruments (
     , spaces
 ) where
 import qualified Data.Char as Char
+import qualified Data.Either as Either
 import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Text as Text
@@ -46,6 +44,8 @@ import qualified Util.P as P
 import qualified Util.Parse as Parse
 import qualified Util.Texts as Texts
 
+import qualified Derive.DeriveT as DeriveT
+import qualified Derive.Expr as Expr
 import qualified Derive.Parse.AllocRecord as AllocRecord
 import qualified Derive.Parse.Record as Record
 import qualified Derive.ScoreT as ScoreT
@@ -115,9 +115,11 @@ parse_instruments = Parse.parse p_instruments
 
 p_instruments :: Parser UiConfig.Allocations
 p_instruments = do
-    spaces
-    (allocs, dups) <- Maps.unique2 <$> P.many (lexeme p_instrument)
-    -- TODO can I get megaparsec to interpret the SourcePos?
+    (env, records) <- first Map.fromList . Either.partitionEithers <$>
+        p_definitions
+    insts <- mapM (resolveM env) records
+    let (allocs, dups) = Maps.unique2 insts
+    dups <- mapM (traverse (mapM (firstM Parse.offsetToSourcePos))) dups
     unless (null dups) $
         fail $ "duplicate instrument names: " <> unlines (map show_dup dups)
     pure $ UiConfig.Allocations $ snd <$> allocs
@@ -125,15 +127,48 @@ p_instruments = do
     show_dup (inst, posAllocs) = prettys inst <> " at "
         <> List.intercalate ", " (map (P.sourcePosPretty . fst) posAllocs)
 
-p_instrument :: Parser (ScoreT.Instrument, (P.SourcePos, UiConfig.Allocation))
-p_instrument = do
-    pos <- P.getSourcePos
-    Allocation name qualified config backend <- p_alloc_line
-    record <- P.option mempty Record.p_record
-    ui_alloc <- either (fail . untxt) pure $
+type Record = Map Text Record.RVal
+
+resolveM :: Record -> (Parse.Offset, (Allocation, Record))
+    -> Parser (ScoreT.Instrument, (Parse.Offset, UiConfig.Allocation))
+resolveM env (offset, (alloc_line, record)) = do
+    record <- either die pure $ resolve env record
+    ui_alloc <- either die pure $
         AllocRecord.p_allocation qualified record
-    either (fail . untxt) (pure . (name,) . (pos,)) $
+    either die (pure . (name,) . (offset,)) $
         merge config backend ui_alloc
+    where
+    die = Parse.failAt offset . untxt
+    Allocation name qualified config backend = alloc_line
+
+-- | Resolve variables parsed by p_equal.  So far it's just for scale.
+resolve :: Record -> Record -> Either Error Record
+resolve env record = case Map.lookup "scale" record of
+    Just (Record.Val (DeriveT.VStr (Expr.Str name))) ->
+        case Map.lookup name env of
+            Nothing -> Left $ "no assignment for: " <> name
+            Just nns -> Right $ Map.insert "scale" (make name nns) record
+    _ -> Right record
+    where
+    make name nns = Record.Record
+        -- I think name is now unnecessary, but Patch.Scale has it, so let's
+        -- keep it for now.
+        [ ("name", Record.Val (DeriveT.str name))
+        , ("key_to_nn", nns)
+        ]
+
+p_definitions :: Parser
+    [Either (Symbol, Record.RVal) (Parse.Offset, (Allocation, Record))]
+p_definitions = do
+    spaces
+    P.many $ lexeme $ (Left <$> p_equal <|> Right <$> p_record)
+
+p_record :: Parser (Parse.Offset, (Allocation, Record))
+p_record = do
+    offset <- P.getOffset
+    alloc <- p_alloc_line
+    record <- P.option mempty Record.p_record
+    pure (offset, (alloc, Map.fromList record))
 
 merge :: Config -> Backend -> UiConfig.Allocation
     -> Either Error UiConfig.Allocation
@@ -271,6 +306,17 @@ abbr_ranges = map fmt . Lists.splitBetween (\x y -> x+1 /= y)
     fmt [] = ""
     fmt xs@(x:_) = showt x <> ".." <> showt (last xs)
 
+-- ** p_equal
+
+type Symbol = Text
+
+p_equal :: Parser (Symbol, Record.RVal)
+p_equal = do
+    lhs <- p_symbol
+    spaces >> "=" >> spaces
+    val <- Record.p_rval
+    pure (lhs, val)
+
 -- * util
 
 p_word :: [Char] -> Parser Text
@@ -280,6 +326,9 @@ p_word extra = P.takeWhile1 $ \c -> any ($c)
     , (`elem` extra)
     ]
 
+p_symbol :: Parser Symbol
+p_symbol = P.takeWhile $ \c -> Char.isAsciiLower c || c == '-'
+
 spaces :: Parser ()
 spaces = P.skipMany $
     ("--" *> P.skipWhile (/='\n') *> P.skipWhile (=='\n'))
@@ -287,3 +336,6 @@ spaces = P.skipMany $
 
 lexeme :: Parser a -> Parser a
 lexeme = (<* spaces)
+
+firstM :: Applicative f => (a -> f c) -> (a, b) -> f (c, b)
+firstM f (a, b) = (,) <$> f a <*> pure b

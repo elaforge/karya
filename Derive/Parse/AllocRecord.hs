@@ -35,7 +35,7 @@ type Error = Text
 
 type Parse a = State.StateT (Map Text Record.RVal) (Except.Except [Error]) a
 
-p_allocation :: InstT.Qualified -> [(Text, Record.RVal)]
+p_allocation :: InstT.Qualified -> Map Text Record.RVal
     -> Either Error UiConfig.Allocation
 p_allocation alloc_qualified fields = run $ do
     alloc_config <- p_config
@@ -47,7 +47,7 @@ p_allocation alloc_qualified fields = run $ do
         { alloc_qualified, alloc_config, alloc_backend }
     where
     run = first (Text.intercalate " -> ") . Except.runExcept
-        . flip State.evalStateT (Map.fromList fields)
+        . flip State.evalStateT fields
 
 -- put in the inherited env as comments?
 un_allocation :: UiConfig.Allocation -> [(Text, Record.RVal)]
@@ -117,31 +117,18 @@ p_settings = do
 p_scale :: Record.RVal -> Parse Patch.Scale
 p_scale val
     | Record.Record fields <- val
-    , [("key_to_nn", nns), ("name", name), ("offset", offset)]
-        <- Lists.sortOn fst fields
-    = do
-        -- These are often mostly -1, so abbreviate.
-        offset <- floor <$> p_num offset
+    , [("key_to_nn", nns), ("name", name)] <- Lists.sortOn fst fields = do
         nns <- p_list p_num nns
-        let scale_key_to_nn = Vector.Unboxed.fromList $
-                replicate offset (-1) <> nns
-                <> replicate (len - offset - length nns) (-1)
-        scale_name <- p_str name
-        pure $ Patch.Scale { scale_name, scale_key_to_nn }
+        name <- p_str name
+        pure $ Patch.make_scale_dense name nns
     | otherwise = throw "{name, key_to_nn}" val
-    where
-    len = 128
 
 un_scale :: Patch.Scale -> Record.RVal
 un_scale (Patch.Scale { scale_name, scale_key_to_nn }) = Record.Record
     [ ("name", Record.Val $ DeriveT.str scale_name)
-    , ("offset", Record.Val $ int $ Vector.Unboxed.length pad)
     , ("key_to_nn", Record.Val $ DeriveT.VList $ map DeriveT.num $
-        Vector.Unboxed.toList nns)
+        Vector.Unboxed.toList scale_key_to_nn)
     ]
-    where
-    (pad, nns) = fmap (Vector.Unboxed.takeWhile (/= -1)) $
-        Vector.Unboxed.span (== -1) scale_key_to_nn
 
 un_backend :: UiConfig.Backend -> [(Text, Record.RVal)]
 un_backend = \case

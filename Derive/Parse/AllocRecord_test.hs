@@ -5,7 +5,6 @@ module Derive.Parse.AllocRecord_test where
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 import qualified Data.Text as Text
-import qualified Data.Vector.Unboxed as Vector.Unboxed
 
 import qualified Util.Parse
 import qualified Derive.Controls as Controls
@@ -31,13 +30,13 @@ test_un_allocation = do
 
 test_p_allocation :: Test
 test_p_allocation = do
-    let parse = AllocRecord.p_allocation alloc_qualified <=< p_record
-    pprint (p_record alloc_expr)
+    let parse = AllocRecord.p_allocation alloc_qualified . Map.fromList
+            <=< p_record
+    -- pprint (p_record alloc_expr)
     right_equal (parse alloc_expr) allocation
 
 legong :: Patch.Scale
-legong = Patch.Scale "legong umbang" $ Vector.Unboxed.fromList
-    [-1, -1, 1, 2] <> Vector.Unboxed.replicate (128 - 4) (-1)
+legong = Patch.make_scale_dense "legong-umbang" [1, 2]
 
 alloc_qualified :: InstT.Qualified
 alloc_qualified = InstT.Qualified "a" "b"
@@ -82,9 +81,8 @@ alloc_expr =
     \, initialization: Tuning\n\
     \, flags: [Pressure, HoldKeyswitch, ResumePlay]\n\
     \, scale:\n\
-    \    { name: 'legong umbang'\n\
-    \    , offset: 2\n\
-    \    , key_to_nn: [1, 2]\n\
+    \    { name: legong-umbang\n\
+    \    , key_to_nn: [1, 2, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1]\n\
     \    }\n\
     \, decay: .5s\n\
     \, pb_range: [-12, 12]\n\

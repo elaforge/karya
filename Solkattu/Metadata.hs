@@ -90,7 +90,7 @@ parseTime s = case Regex.groups time s of
     where
     Right time = Regex.compile "(\\d+h)?(\\d+m)?(\\d+s)?"
     parse :: Text -> Int
-    parse = fromMaybe 0 . Parse.parse_maybe Parse.p_nat . Text.dropEnd 1
+    parse = fromMaybe 0 . Parse.parseMaybe Parse.p_nat . Text.dropEnd 1
 
 showTime :: HasCallStack => Time -> Text
 showTime (h, m, s)

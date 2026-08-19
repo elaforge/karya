@@ -230,7 +230,7 @@ parse_instruments :: FilePath -> Line -> [Text]
 parse_instruments fname lineno lines =
     -- TODO convert megaparsec line numbers back to ParseText._position?
     first (ParseText.Error Nothing) $
-        Util.Parse.parseOffset (lineno+1) fname Instruments.p_instruments
+        Util.Parse.parseFromLine (lineno+1) fname Instruments.p_instruments
             (Text.unlines lines)
 
 -- | The alias section allows only @alias = inst@ definitions.

@@ -591,6 +591,9 @@ UNSORTED
       . But that means ShowVal has to put in "().  I think it's ok though.
       - This means all the UiConfig functions for alloc manipulation go
         away, as do LInst ones.
+      . Also LAlloc can become directory of text files?
+        But this means local code eg ScGamelan.kebyar_allocations gets
+        flattened.  Is this good?
     decision:
       / reduce to just >name [ms] -- qualified/ 1 2 3
         Only mute/solo are synced.  Generate it each time, no comments.

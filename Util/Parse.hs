@@ -7,6 +7,7 @@ module Util.Parse where
 import qualified Control.Monad.Identity as Identity
 import qualified Control.Monad.State.Strict as State
 import qualified Data.Attoparsec.Text as A
+import qualified Data.Set as Set
 import qualified Data.Text as Text
 import qualified Data.Text.IO as Text.IO
 import qualified Data.Void as Void
@@ -30,6 +31,9 @@ type ParserS s a = ParserT (State.StateT s Identity.Identity) a
 parse :: Parser a -> Text -> Either Text a
 parse p = Identity.runIdentity . parseM "" p
 
+parseMaybe :: Parser a -> Text -> Maybe a
+parseMaybe p = either (const Nothing) Just . parse p
+
 parseM :: Monad m => FilePath -> ParserT m a -> Text -> m (Either Text a)
 parseM fname p =
     fmap (first (txt . P.errorBundlePretty)) . P.runParserT (p <* P.eof) fname
@@ -39,8 +43,8 @@ parseS state fname p = fst . flip State.runState state . parseM fname p
 
 -- | Like 'parse', but pretend the text starts at the given 1-based line, so
 -- error messages get the line numbers of the enclosing file.
-parseOffset :: Int -> FilePath -> Parser a -> Text -> Either Text a
-parseOffset line fname p = Identity.runIdentity . parseLineM
+parseFromLine :: Int -> FilePath -> Parser a -> Text -> Either Text a
+parseFromLine line fname p = Identity.runIdentity . parseLineM
     where
     parseLineM text = first (txt . P.errorBundlePretty) . snd <$>
         P.runParserT' (p <* P.eof) (state text)
@@ -61,8 +65,22 @@ parseOffset line fname p = Identity.runIdentity . parseLineM
         , P.stateParseErrors = []
         }
 
-parse_maybe :: Parser a -> Text -> Maybe a
-parse_maybe p = either (const Nothing) Just . parse p
+type Offset = Int
+
+failAt :: Offset -> String -> Parser a
+failAt offset err =
+    P.parseError $ P.FancyError offset $ Set.singleton (P.ErrorFail err)
+
+getOffset :: Parser Offset
+getOffset = P.getOffset
+
+offsetToSourcePos :: Offset -> Parser P.SourcePos
+offsetToSourcePos offset = do
+  state <- P.getParserState
+  P.setOffset offset
+  pos <- P.getSourcePos
+  P.setParserState state
+  pure pos
 
 -- | Try to parse a file, or return a default value if the file doesn't exist.
 file :: a -> ParserS st a -> st -> FilePath -> IO (Either Text a)
