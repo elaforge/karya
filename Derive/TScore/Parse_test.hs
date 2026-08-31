@@ -23,10 +23,6 @@ everything_score =
     \-- Toplevel directives apply to everything below them.\n\
     \-- The supported directives are in 'Check.parse_directive'.\n\
     \%meter=adi\n\
-    \%instruments=''\n\
-    \    >i1 a/b [ms] loop0 1 -- comments work in multi-line strings\n\
-    \    >i2 c/d [Ms] -- im instrument, but muted\n\
-    \''\n\
     \%ky=''\n\
     \    x y z\n\
     \''\n\

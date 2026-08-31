@@ -49,9 +49,9 @@ import           Types
 
 -- | Parsing config.  Parsed 'T.Directive's can affect further parsing, which
 -- is not very nice, but convenient for concise notation.
-data Config = Config {
+newtype Config = Config
     -- | If true, notes with no call get the pitch as their call.
-    _default_call :: !Bool
+    { _default_call :: Bool
     } deriving (Show, Eq)
 
 default_config :: Config

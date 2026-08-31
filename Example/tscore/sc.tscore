@@ -2,10 +2,9 @@
 %ky=''
     note transformer:
     GLOBAL = scale=raga | key = hemavati | dyn=.75
-''
 
-%instruments=''
-    >sine sc/sine
+    instrument:
+    >sine sc/sine [ms] sc
 ''
 
 %scale=sargam

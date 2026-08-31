@@ -39,8 +39,6 @@ import qualified Derive.LEvent as LEvent
 import qualified Derive.Score as Score
 import qualified Derive.Stream as Stream
 
-import qualified Instrument.Inst as Inst
-import qualified Instrument.InstT as InstT
 import qualified Local.Config
 import qualified Midi.Midi as Midi
 import qualified Midi.StubMidi as StubMidi
@@ -192,9 +190,13 @@ load_score fname =
                 return (state, FilePath.takeDirectory (Path.to_path fname))
         app_dir <- liftIO Path.get_app_dir
         let paths = dir : map (Path.to_absolute app_dir) Config.ky_paths
-        (builtins, aliases) <- require_right $
+        (builtins, aliases, allocs) <- require_right $
             Ky.load paths (Ui.config#UiConfig.ky #$ state)
-        return (state, builtins, aliases)
+        pure
+            ( Ui.config#UiConfig.allocations #= allocs $ state
+            , builtins
+            , aliases
+            )
 
 require_right :: IO (Either Text a) -> Except.ExceptT Text IO a
 require_right io = tryRight =<< liftIO io

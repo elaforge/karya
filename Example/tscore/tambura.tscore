@@ -25,12 +25,11 @@
 
     note generator:
     r = roll 3 .06 .4
-''
 
-%instruments=''
-    >pno pianoteq/ loop1 1
-    >tmb faust/tambura4
-    >tmb8 faust/tambura8
+    instrument:
+    >pno pianoteq/          [ms] loop1 1
+    >tmb faust/tambura4     [ms] im
+    >tmb8 faust/tambura8    [ms] im
 ''
 
 %scale=sargam

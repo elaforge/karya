@@ -64,8 +64,8 @@ import           Types
 
 -- * types
 
-data Block track = Block {
-    _block_id :: !BlockId
+data Block track = Block
+    { _block_id :: !BlockId
     , _block_title :: !Text
     , _meter :: !(Meter.Config, Meter.MSection)
     -- | True if this was created via T.SubBlock.
@@ -139,7 +139,7 @@ integrate :: Ui.M m => GetExternalCallDuration -> Text -> m [BlockId]
 integrate get_ext_dur source = do
     ns <- Ui.get_namespace
     (blocks, config) <- Ui.require_right id $ track_blocks ns get_ext_dur source
-    unless (config == ScoreConfig mempty mempty) $
+    unless (config == ScoreConfig mempty) $
         Ui.throw $ "instruments or ky are only for standalone tscore,\
             \ put those in the Ui.State directly: " <> showt config
     let (subs, parents) = List.partition _is_sub blocks
@@ -617,17 +617,16 @@ source_key = "tscore"
 
 -- * ui_state
 
-parse_score :: Text -> Either Error (Ui.State, UiConfig.Allocations)
+parse_score :: Text -> Either Error Ui.State
 parse_score = score_to_ui get_ext_dur
     where get_ext_dur _ _ = (Left "external call duration not supported", [])
 
-score_to_ui :: GetExternalCallDuration -> Text
-    -> Either Error (Ui.State, UiConfig.Allocations)
+score_to_ui :: GetExternalCallDuration -> Text -> Either Error Ui.State
 score_to_ui get_ext_dur source = do
-    (blocks, ScoreConfig instruments ky) <- track_blocks
+    (blocks, ScoreConfig ky) <- track_blocks
         (UiConfig.config_namespace UiConfig.empty_config)
         get_ext_dur source
-    first pretty $ second (, instruments) $ Ui.exec Ui.empty $ do
+    first pretty $ Ui.exec Ui.empty $ do
         mapM_ ui_block blocks
         Ui.modify_config $ UiConfig.ky #= ky
 
@@ -671,10 +670,7 @@ ui_ruler block = RulerUtil.replace (_block_id block) $ const $ Right $
 
 -- * make_blocks
 
-data ScoreConfig = ScoreConfig {
-    config_instruments :: !UiConfig.Allocations
-    , config_ky :: !Text
-    } deriving (Eq, Show)
+newtype ScoreConfig = ScoreConfig { config_ky :: Text } deriving (Eq, Show)
 
 parse_blocks :: Text -> Either T.Error ([Block ParsedTrack], ScoreConfig)
 parse_blocks source = do
@@ -682,10 +678,7 @@ parse_blocks source = do
     (blocks, config) <- foldM collect ([], Check.default_config) defs
     return
         ( blocks
-        , ScoreConfig
-            { config_instruments = Check.config_instruments config
-            , config_ky = Check.config_ky config
-            }
+        , ScoreConfig { config_ky = Check.config_ky config }
         )
     where
     collect (accum, config) (_pos, def) = do

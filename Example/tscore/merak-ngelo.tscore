@@ -30,13 +30,12 @@
     pr = pu
     sl = pi
     sr = pi
-''
 
-%instruments=''
-    >ki         sampler/wayang-kantilan-isep
-    >ku         sampler/wayang-kantilan-umbang
-    >pi         sampler/wayang-pemade-isep
-    >pu         sampler/wayang-pemade-umbang
+    instrument:
+    >ki         sampler/wayang-kantilan-isep    [ms] sc
+    >ku         sampler/wayang-kantilan-umbang  [ms] sc
+    >pi         sampler/wayang-pemade-isep      [ms] sc
+    >pu         sampler/wayang-pemade-umbang    [ms] sc
 ''
 
 %scale=sargam

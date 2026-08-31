@@ -1,9 +1,9 @@
-%instruments=''
-    >pno pianoteq/ loop1 1
-''
 %ky=''
     note transformer:
     GLOBAL = scale = twelve-r | key=c-min | dyn=.75
+
+    instrument:
+    >pno pianoteq/ [ms] loop1 1
 ''
 
 %scale=sargam

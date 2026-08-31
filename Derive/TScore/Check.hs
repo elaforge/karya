@@ -2,6 +2,7 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
+{-# LANGUAGE StrictData #-}
 {-# LANGUAGE CPP #-}
 -- | Post-process 'T.Token's.  Check barlines, resolve ties, etc.
 module Derive.TScore.Check (
@@ -41,7 +42,6 @@ import qualified Cmd.Ruler.Gong as Gong
 import qualified Cmd.Ruler.Tala as Tala
 import qualified Derive.Eval as Eval
 import qualified Derive.Expr as Expr
-import qualified Derive.Parse.Instruments as Instruments
 import qualified Derive.Scale.Theory as Theory
 import qualified Derive.TScore.Parse as Parse
 import qualified Derive.TScore.T as T
@@ -50,29 +50,27 @@ import qualified Perform.Pitch as Pitch
 import qualified Ui.Id as Id
 import qualified Ui.Meter.Meter as Meter
 import qualified Ui.Meter.Meters as Meters
-import qualified Ui.UiConfig as UiConfig
 
 import           Global
 import           Types
 
 
 data Config = Config
-    { config_meter :: !Meter
-    , config_scale :: !Scale
-    , config_duration :: !DurationMode
-    , config_from :: !(Maybe From)
+    { config_meter :: Meter
+    , config_scale :: Scale
+    , config_duration :: DurationMode
+    , config_from :: Maybe From
     -- | Use negative durations.  Notes arrive at beats instead of departing
     -- from them.
-    , config_negative :: !Bool
-    , config_instruments :: !UiConfig.Allocations
-    , config_ky :: !Text
+    , config_negative :: Bool
+    , config_ky :: Text
     } deriving (Show)
 
 -- | The target of a 'T.CopyFrom'.
 data From = From
-    { from_block :: !(Maybe Id.BlockId)
-    , from_tracknum :: !TrackNum
-    , from_pos :: !T.Pos
+    { from_block :: Maybe Id.BlockId
+    , from_tracknum :: TrackNum
+    , from_pos :: T.Pos
     } deriving (Show)
 
 instance Pretty From where
@@ -86,7 +84,6 @@ default_config = Config
     , config_duration = Multiplicative
     , config_from = Nothing
     , config_negative = False
-    , config_instruments = mempty
     , config_ky = ""
     }
 
@@ -111,13 +108,6 @@ parse_directive scope (T.Directive pos name maybe_val) config =
         "negative" -> without_arg >> return (config { config_negative = True })
         "scale" -> set_config (\c a -> c { config_scale = a })
             (`Map.lookup` scale_map) =<< with_arg
-        "instruments" -> do
-            require_toplevel
-            unless (config_instruments config == mempty) $
-                Left "should only be one %instruments"
-            val <- with_arg
-            allocs <- Instruments.parse_instruments val
-            return $ config { config_instruments = allocs }
         "ky" -> do
             require_toplevel
             unless (config_ky config == "") $
@@ -186,7 +176,7 @@ type GetCallDuration = Text -> (Either Text T.Time, [Log.Msg])
 mkerror :: T.Pos -> Text -> EList.Elt Meta a
 mkerror pos msg = EList.Meta $ Left $ T.Error pos msg
 
-data AssertCoincident = AssertCoincident !T.Time !T.Pos
+data AssertCoincident = AssertCoincident T.Time T.Pos
     deriving (Eq, Show)
 
 check :: GetCallDuration -> Config
@@ -195,7 +185,7 @@ check :: GetCallDuration -> Config
             (T.Time, T.Note T.CallText (T.NPitch (Maybe T.PitchText)) T.Time)]
        , T.Time
        )
-check get_dur (Config meter scale dur_mode _ negative _instruments _ky) =
+check get_dur (Config meter scale dur_mode _ negative _ky) =
     Tuple.swap
     . fmap (map EList.toEither)
     . fmap (resolve_pitch scale)
@@ -323,13 +313,13 @@ data Meter = Meter
     -- > | ssss rrrr gggg mmmm |
     { meter_pattern :: [T.Rank]
     -- | This is the duration one one element of 'meter_pattern'.
-    , meter_step :: !T.Time
+    , meter_step :: T.Time
     -- | If true, beats fall at the end of measures.
     -- TODO has no effect yet, not even sure what it would be for
-    , meter_negative :: !Bool
+    , meter_negative :: Bool
     -- | Meter as used by the UI.
     -- TODO redundant with meter_pattern, merge them?
-    , meter_ui :: !(Meter.Config, Meter.MSection)
+    , meter_ui :: (Meter.Config, Meter.MSection)
     } deriving (Eq, Show)
 
 meter_duration :: Meter -> T.Time
@@ -610,12 +600,12 @@ map_duration carry time_of = \case
 
 -- * pitch
 
-data Scale = Scale {
-    scale_name :: !Text
+data Scale = Scale
+    { scale_name :: Text
     , scale_parse :: Text -> Maybe Pitch.Degree
     , scale_unparse :: Pitch.Degree -> Maybe Text
-    , scale_layout :: !Theory.Layout
-    , scale_initial_octave :: !Pitch.Octave
+    , scale_layout :: Theory.Layout
+    , scale_initial_octave :: Pitch.Octave
     }
 
 instance Show Scale where

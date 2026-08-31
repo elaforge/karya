@@ -130,18 +130,14 @@ check_cache prev_cache old_allocs paths ky_text = run $ do
 
 -- | Like 'check_cache', but assuming no existing cmd or ui state.
 load :: [FilePath] -> Text
-    -> IO (Either Text (Derive.Builtins, Derive.InstrumentAliases))
+    -> IO (Either Text
+        (Derive.Builtins, Derive.InstrumentAliases, UiConfig.Allocations))
 load paths ky_text =
     bimap ParseText.show_error compile <$>
         liftIO (Ky.load_ky paths ky_text)
     where
-    -- Instrument allocations are stored in the score state, and if there is
-    -- anything in the ky text it should be the same as in the score state.
-    -- If I ever move the the state entirely to ky then this will need to
-    -- parse and return them, but meanwhile existing scores don't have allocs
-    -- in the ky.
-    compile (Ky.Ky defs imported _allocs) =
-        (builtins, Map.fromList (Ky.def_aliases defs))
+    compile (Ky.Ky defs imported allocs) =
+        (builtins, Map.fromList (Ky.def_aliases defs), allocs)
         where
         -- Logs are boring, just loaded this or that.
         (builtins, _logs) = compile_library (loaded_fnames imported) $

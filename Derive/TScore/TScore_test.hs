@@ -67,8 +67,7 @@ test_parse_score = do
 
 test_skeleton :: Test
 test_skeleton = do
-    let f = fmap (Map.elems . UiTest.extract_skeletons . fst)
-            . TScore.parse_score
+    let f = fmap (Map.elems . UiTest.extract_skeletons) . TScore.parse_score
     right_equal (f "top = [s r g]") [[(1, 2)]]
     right_equal (f "top = [>i1 s r g >i2 m p d]") [[(1, 2), (3, 4)]]
 
@@ -389,7 +388,7 @@ get_ext_dur :: TScore.GetExternalCallDuration
 get_ext_dur = \_ _ -> (Left "external call dur not supported", [])
 
 parsed_score :: Text -> Either Text [UiTest.BlockSpec]
-parsed_score = fmap (UiTest.extract_blocks . fst) . TScore.parse_score
+parsed_score = fmap UiTest.extract_blocks . TScore.parse_score
 
 parsed_blocks :: Text -> [TScore.Block TScore.ParsedTrack]
 parsed_blocks = fst . expect_right . TScore.parse_blocks

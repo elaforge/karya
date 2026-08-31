@@ -3,7 +3,7 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 -- | Standalone driver for tscore.
-module Derive.TScore.TScoreMain where
+module Derive.TScore.TScoreMain (main) where
 import qualified Control.Concurrent.MVar as MVar
 import qualified Control.Exception as Exception
 import qualified Control.Monad.Except as Except
@@ -42,10 +42,8 @@ import qualified Cmd.Simple as Simple
 
 import qualified Derive.DeriveSaved as DeriveSaved
 import qualified Derive.LEvent as LEvent
-import qualified Derive.Parse.Instruments as Instruments
 import qualified Derive.Score as Score
 import qualified Derive.ScoreT as ScoreT
-import qualified Derive.TScore.T as T
 import qualified Derive.TScore.TScore as TScore
 
 import qualified Instrument.Inst as Inst
@@ -61,6 +59,7 @@ import qualified Perform.Sc.Patch as Sc.Patch
 import qualified Perform.Sc.Play as Sc.Play
 import qualified Perform.Transport as Transport
 
+import qualified Synth.Shared.Note as Shared.Note
 import qualified Synth.StreamAudio as StreamAudio
 import qualified Ui.Transform as Transform
 import qualified Ui.Ui as Ui
@@ -130,26 +129,7 @@ check_score fname = do
     source <- Text.IO.readFile fname
     case TScore.parse_score source of
         Left err -> Text.IO.putStrLn $ txt fname <> ": " <> err
-        Right (ui_state, _allocs) ->
-            Text.IO.putStr $ Transform.show_stats ui_state
-
--- TODO show duration?  I have to derive for that though.
--- Maybe check should derive!
-
-score_stats :: T.Score -> Text
-score_stats (T.Score toplevels) = Text.unwords
-    [ showt (length blocks), "blocks"
-    , showt (length tracks), "tracks"
-    , showt (length notes) <> "/" <> showt (length rests), "notes/rests"
-    ]
-    where
-    blocks = [b | (_, T.BlockDefinition b) <- toplevels]
-    tracks =
-        [ t | b <- blocks, T.WrappedTracks _ wraps <- [T.block_tracks b]
-        , T.Tracks ts <- wraps, t <- ts
-        ]
-    notes = [n | t <- tracks, T.TNote _ n <- T.track_tokens t]
-    rests = [n | t <- tracks, T.TRest _ n <- T.track_tokens t]
+        Right ui_state -> Text.IO.putStr $ Transform.show_stats ui_state
 
 list_devices :: IO ()
 list_devices = PortAudio.initialize $ initialize_midi $ \midi_interface -> do
@@ -167,18 +147,26 @@ dump_score :: FilePath -> IO ()
 dump_score fname = do
     source <- Text.IO.readFile fname
     cmd_config <- DeriveSaved.load_cmd_config
-    (ui_state, cmd_state) <- either die return =<< load_score cmd_config source
-    dump <- either (die . pretty) return $
-        Ui.eval ui_state Simple.dump_state
+    (ui_state, cmd_state) <- either die pure =<< load_score cmd_config source
+    dump <- either (die . pretty) pure $ Ui.eval ui_state Simple.dump_state
     Pretty.pprint dump
-    putStrLn "\n\tscore events:"
-    block_id <- maybe (die "no root block") return $
+
+    block_id <- maybe (die "no root block") pure $
         Ui.config#UiConfig.root #$ ui_state
     let (events, logs) = derive ui_state cmd_state block_id
     mapM_ Log.write logs
     mapM_ (Text.IO.putStrLn . Score.short_event) events
+    putStrLn "\n\tscore events:"
+    mapM_ Log.write logs
+    mapM_ (Text.IO.putStrLn . Score.short_event) events
 
-    events <- dump_im ui_state cmd_state block_id events
+    ((im_notes, logs), events) <-
+        pure $ convert_im ui_state cmd_state block_id events
+    unless (null im_notes && null logs) $ do
+        putStrLn "\n\tim events:"
+        mapM_ Log.write logs
+        mapM_ Pretty.pprint im_notes
+
     let ((midi_msgs, sc_msgs), logs) =
             DeriveSaved.perform cmd_state ui_state events
     mapM_ Log.write logs
@@ -189,18 +177,16 @@ dump_score fname = do
         putStrLn "\n\tsc msgs:"
         mapM_ Pretty.pprint sc_msgs
 
-dump_im :: Ui.State -> Cmd.State -> BlockId -> Vector.Vector Score.Event
-    -> IO (Vector.Vector Score.Event)
-dump_im ui_state cmd_state block_id events = do
-    unless (null im_notes && null logs) $ do
-        putStrLn "\n\tim events:"
-        mapM_ Log.write logs
-        mapM_ Pretty.pprint im_notes
-    return rest_events
+convert_im :: Ui.State -> Cmd.State -> BlockId
+    -> Vector.Vector Score.Event
+    -> (([Shared.Note.Note], [Log.Msg]), Vector.Vector Score.Event)
+convert_im ui_state cmd_state block_id events =
+    ( LEvent.partition $
+        Im.Convert.convert block_id lookup_inst $ Vector.toList im_events
+    , rest_events
+    )
     where
     (im_events, rest_events) = Vector.partition is_im_event events
-    (im_notes, logs) = LEvent.partition $
-        Im.Convert.convert block_id lookup_inst $ Vector.toList im_events
     is_im_event =
         maybe False (is_im . Cmd.inst_instrument) . lookup_inst
             . Score.event_instrument
@@ -399,11 +385,11 @@ load_cmd_config midi_interface = do
 
 load_score :: Cmd.Config -> Text -> IO (Either Error (Ui.State, Cmd.State))
 load_score cmd_config source = Except.runExceptT $ do
-    (ui_state, allocs) <- tryRight $ TScore.parse_score source
+    ui_state <- tryRight $ TScore.parse_score source
     -- TODO adjust starting line in error
-    (builtins, aliases) <- tryRight . first ("parsing %ky: "<>)
+    (builtins, aliases, allocs) <- tryRight . first ("parsing %ky: "<>)
         =<< liftIO (Ky.load ky_paths (Ui.config#UiConfig.ky #$ ui_state))
-    let cmd_state =  DeriveSaved.add_library builtins aliases $
+    let cmd_state = DeriveSaved.add_library builtins aliases $
             Cmd.initial_state cmd_config
     return (Ui.config#UiConfig.allocations #= allocs $ ui_state, cmd_state)
     where

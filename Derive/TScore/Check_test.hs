@@ -5,46 +5,20 @@
 module Derive.TScore.Check_test where
 import qualified Control.Monad.Combinators as P
 import qualified Control.Monad.Identity as Identity
-import qualified Data.Map as Map
 
 import qualified Util.EList as EList
 import           Util.Test hiding (check)
 import qualified Util.Test.Testing as Testing
 
-import qualified Derive.ScoreT as ScoreT
 import qualified Derive.TScore.Check as Check
 import qualified Derive.TScore.Parse as Parse
 import qualified Derive.TScore.T as T
 import qualified Derive.TScore.TScore as TScore
 
-import qualified Instrument.Common as Common
-import qualified Instrument.InstT as InstT
-import qualified Ui.UiConfig as UiConfig
 import qualified Ui.UiTest as UiTest
 
 import           Global
 
-
-test_parse_directive :: Test
-test_parse_directive = do
-    let f = fmap (Map.toList . UiConfig.unallocations . snd)
-            . TScore.parse_score
-    left_like (f "%instruments=''>i a/b [ms] loop1 17''")
-        "midi channel should be in range"
-    left_like
-        (f "%instruments=''>i a/b [ms] sc''\n%instruments=''>i a/b [ms] sc''")
-        "should only be one"
-    left_like (f "%instruments=''>i a/b [ms] sc\n>i a/b [ms] sc''")
-        "duplicate instrument names"
-    left_like (f "block = %instruments=''>i a/b [ms] im'' []")
-        "must be at global"
-    right_equal (f "%instruments=''\n  >i a/b [ms] im\n''")
-        [ ( ScoreT.Instrument "i"
-          , UiConfig.Allocation (InstT.Qualified "a" "b") Common.empty_config
-            UiConfig.Im
-          )
-        ]
-    right_equal (f "%instruments=''\n  -- >i a/b\n''") mempty
 
 test_check :: Test
 test_check = do
@@ -249,7 +223,7 @@ parse_cdur :: Text
 parse_cdur = resolve_call_duration . parse
 
 parsed_score :: Text -> Either Text [UiTest.BlockSpec]
-parsed_score = fmap (UiTest.extract_blocks . fst) . TScore.parse_score
+parsed_score = fmap (UiTest.extract_blocks) . TScore.parse_score
 
 -- | Rather than actually doing a TScore.resolve_sub_block, I'll just fake it.
 convert_call :: T.Token T.Call pitch ndur rdur
