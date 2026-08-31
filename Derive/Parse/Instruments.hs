@@ -186,9 +186,8 @@ merge config backend ui_alloc = do
     -- determines it.
     alloc_backend <- case (backend, record) of
         (Midi wdev chans, Just config) ->
-            pure $ UiConfig.Midi $ config
-                { Patch.config_allocation = convert wdev chans
-                }
+            pure $ UiConfig.Midi $
+                config { Patch.config_allocation = convert wdev chans }
         (Midi wdev chans, Nothing) ->
             pure $ UiConfig.Midi $ Patch.config (convert wdev chans)
         (Dummy, Nothing) -> pure $ UiConfig.Dummy ""
@@ -230,7 +229,12 @@ split inst alloc = do
     ui_midi config =
         case Lists.groupFst $ map fst $ Midi.Patch.config_allocation config of
             [(wdev, chans)] -> Right $ Midi wdev chans
-            allocs -> Left $ "midi config too complicated for: " <> showt allocs
+            -- TODO I should no longer allow these, but if any are left, they
+            -- should be converted to Dummy.
+            [] -> Right Dummy
+            allocs -> Left $ pretty inst
+                <> ": midi config too complicated for: " <> showt allocs
+                <> ": " <> pretty alloc
 
 -- * parse / unparse
 

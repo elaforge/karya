@@ -62,7 +62,6 @@ test_equal = do
             midi [1]
         ]
 
-
 test_un_instruments :: Test
 test_un_instruments = do
     let parse = I.parse_instruments
@@ -117,11 +116,12 @@ test_alloc_line_roundtrip = do
             , p_alloc_line $ Text.unlines $
                 I.unparse_allocations [(Just alloc, "")]
             )
-    uncurry equal $ trip $ I.Allocation "i" syn I.empty_config I.Im
-    uncurry equal $ trip $ I.Allocation "i" syn (I.Config False True)
-        (I.Midi dev [0, 2])
-    uncurry equal $ trip $ I.Allocation "i" syn (I.Config True False)
-        (I.Midi dev [2])
+    uncurry equal $ trip $
+        I.Allocation "i" syn I.empty_config I.Im
+    uncurry equal $ trip $
+        I.Allocation "i" syn (I.Config False True) (I.Midi dev [0, 2])
+    uncurry equal $ trip $
+        I.Allocation "i" syn (I.Config True False) (I.Midi dev [2])
 
 p_alloc_line :: Text -> Either Text I.Allocation
 p_alloc_line = Parse.parse I.p_alloc_line

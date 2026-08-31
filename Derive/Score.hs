@@ -77,8 +77,8 @@ import           Types
 
 -- * Event
 
-data Event = Event {
-    event_start :: RealTime
+data Event = Event
+    { event_start :: RealTime
     , event_duration :: RealTime
     -- | This is the text of the call that created the event.  It's basically
     -- just for debugging.

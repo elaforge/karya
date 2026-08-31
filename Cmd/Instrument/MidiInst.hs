@@ -217,8 +217,8 @@ thru f = mempty { code_thru = Just f }
 
 -- * Patch
 
-data Patch = Patch {
-    patch_patch :: Patch.Patch
+data Patch = Patch
+    { patch_patch :: Patch.Patch
     , patch_dummy :: Maybe Text
     , patch_common :: Common.Common Code
     }

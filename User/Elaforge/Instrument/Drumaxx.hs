@@ -26,6 +26,7 @@ patches =
         CUtil.drum_patch stroke_keys $ MidiInst.default_patch pb_range []
     , MidiInst.code #= composite_code $
         MidiInst.doc #= composite_doc $
+        MidiInst.dummy "should have been redirected to other instruments" $
         MidiInst.named_patch pb_range "comb" []
     ]
     where
