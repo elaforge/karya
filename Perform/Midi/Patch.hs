@@ -372,8 +372,6 @@ data Flag =
     -- TODO: this is disabled, remove it entirely if I really don't seem to
     -- need it.  'Perform.Midi.Perform.avoid_overlaps'.
     | UseFinalNoteOff
-    -- | Obsolete, don't use.
-    | Old_Triggered
     deriving (Eq, Ord, Show, Bounded, Enum)
 
 instance Pretty Flag where pretty = showt

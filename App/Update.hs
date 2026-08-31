@@ -32,7 +32,7 @@ main = Git.initialize $ do
     args <- Environment.getArgs
     case args of
         [from_fn, to_fn] -> update Nothing from_fn to_fn
-        ["unidy-env", from_fn, to_fn] ->
+        ["unify-env", from_fn, to_fn] ->
             update (Just upgrade_controls) from_fn to_fn
         _ -> fail_with "usage: update from_fn to_fn"
 

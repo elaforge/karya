@@ -796,51 +796,57 @@ instance Serialize Patch.Settings where
         >> put a >> put b >> put c >> put d >> put e
     get = get_version >>= \case
         0 -> do
-            flags :: Set Patch.Flag <- get
+            flags :: Set OldFlag <- get
             scale :: Maybe Patch.Scale <- get
             decay :: Maybe RealTime <- get
             _pitch_bend_range :: Midi.Control.PbRange <- get
             return $ Patch.Settings
-                (if Set.null flags then Nothing else Just flags)
+                (if Set.null flags then Nothing else Just (upgrade flags))
                 scale decay Nothing Nothing
         1 -> do
-            flags :: Maybe (Set Patch.Flag) <- get
+            flags :: Maybe (Set OldFlag) <- get
             scale :: Maybe Patch.Scale <- get
             decay :: Maybe RealTime <- get
             pitch_bend_range :: Maybe Midi.Control.PbRange <- get
-            return $ Patch.Settings flags scale decay pitch_bend_range Nothing
+            return $ Patch.Settings (upgrade <$> flags) scale decay
+                pitch_bend_range Nothing
         2 -> do
-            flags :: Maybe (Set Patch.Flag) <- get
+            flags :: Maybe (Set OldFlag) <- get
             scale :: Maybe Patch.Scale <- get
             decay :: Maybe RealTime <- get
             pitch_bend_range :: Maybe Midi.Control.PbRange <- get
             control_defaults :: Maybe ScoreT.ControlValMap <- get
-            return $ Patch.Settings flags scale decay pitch_bend_range
-                control_defaults
+            return $ Patch.Settings (upgrade <$> flags) scale decay
+                pitch_bend_range control_defaults
         v -> bad_version "Patch.Settings" v
-
--- TODO this should have had a version.  Add one when I next do an incompatible
--- update, and remove Old_Triggered.
-instance Serialize Patch.Flag where
-    -- The tag is Int rather than Word8, because this originally used
-    -- Serialize.put_enum_unsafe and get_enum_unsafe.  Those are dangerous for
-    -- compatibility though, because when I deleted a Flag it silently broke
-    -- saves.
-    put = \case
-        Patch.Old_Triggered -> tag 0
-        Patch.Pressure -> tag 1
-        Patch.HoldKeyswitch -> tag 2
-        Patch.ResumePlay -> tag 3
-        Patch.UseFinalNoteOff -> tag 4
         where
-        tag n = put (n :: Int)
-    get = get >>= \(tag :: Int) -> case tag of
-        0 -> return Patch.Old_Triggered
+        upgrade = Set.fromList . map (\(OldFlag a) -> a) . Set.toList
+
+instance Serialize Patch.Flag where
+    put a = (put_version 0 >>) $ put_enum $ case a of
+        Patch.Pressure -> 0
+        Patch.HoldKeyswitch -> 1
+        Patch.ResumePlay -> 2
+        Patch.UseFinalNoteOff -> 3
+    get = get_version >>= \case
+        0 -> get >>= \n -> case n :: Int of
+            0 -> pure Patch.Pressure
+            1 -> pure Patch.HoldKeyswitch
+            2 -> pure Patch.ResumePlay
+            3 -> pure Patch.UseFinalNoteOff
+            n -> fail $ "unknown enum val for Patch.Flag " <> show n
+        v -> bad_version "Patch.Initialization" v
+
+newtype OldFlag = OldFlag Patch.Flag
+    deriving (Show, Eq, Ord)
+
+instance Serialize OldFlag where
+    put _ = error "unimplemented"
+    get = get >>= \(tag :: Int) -> OldFlag <$> case tag of
         1 -> return Patch.Pressure
         2 -> return Patch.HoldKeyswitch
         3 -> return Patch.ResumePlay
         4 -> return Patch.UseFinalNoteOff
-        5 -> return Patch.Old_Triggered
         _ -> bad_tag "Flag" (fromIntegral tag)
 
 -- ** Instrument.Common
