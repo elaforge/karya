@@ -103,19 +103,20 @@ derive_at_exc block_id track_id deriver = do
     let (val, _, logs) = PlayUtil.run_with_constant constant dynamic deriver
     return (val, logs)
 
--- | This is like 'derive_at_exc', except with the minimal dependencies
--- needed to run a derive.
-mini_derive :: Ui.State -- ^ for instrument allocations and because derivers
-    -- have access to Ui.State
-    -> Cmd.Config -- ^ for instrument db and builtins
-    -> Derive.Builtins -> Derive.InstrumentAliases -- ^ from parsed ky
-    -> Derive.Deriver a -> (Either Derive.Error a, [Log.Msg])
-mini_derive ui_state cmd_config builtins aliases deriver = (val, logs)
-    where
-    (val, _, logs) = PlayUtil.run_with_constant constant
-        (PlayUtil.initial_dynamic aliases) deriver
-    constant = PlayUtil.initial_constant ui_state cmd_config builtins
-        mempty mempty
+-- | Like 'derive_at_exc', but with no block or track context.  This is for
+-- derivations that don't belong to any particular track, e.g. asking for the
+-- 'Derive.get_score_duration' of a call.  Since there's no context there's
+-- also no cached Dynamic to reuse, so this always starts from
+-- 'PlayUtil.initial_dynamic'.  If you want the GLOBAL transform you have to
+-- apply 'Derive.C.Prelude.Block.global_transform' yourself.
+derive_no_block :: Cmd.M m => Derive.Deriver a
+    -> m (Either Derive.Error a, [Log.Msg])
+derive_no_block deriver = do
+    ui_state <- Ui.get
+    (constant, aliases) <- PlayUtil.get_constant ui_state mempty mempty
+    let (val, _, logs) = PlayUtil.run_with_constant constant
+            (PlayUtil.initial_dynamic aliases) deriver
+    return (val, logs)
 
 -- | Like 'derive_at', but write logs and throw on a Left.
 derive_at_throw :: Cmd.M m => BlockId -> TrackId -> Derive.Deriver a -> m a

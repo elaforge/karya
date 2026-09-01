@@ -127,7 +127,8 @@ initialize_midi app = MidiDriver.initialize "tscore" (const False) $ \case
 check_score :: FilePath -> IO ()
 check_score fname = do
     source <- Text.IO.readFile fname
-    case TScore.parse_score source of
+    cmd_config <- DeriveSaved.load_cmd_config
+    case TScore.parse_score cmd_config source of
         Left err -> Text.IO.putStrLn $ txt fname <> ": " <> err
         Right ui_state -> Text.IO.putStr $ Transform.show_stats ui_state
 
@@ -385,7 +386,7 @@ load_cmd_config midi_interface = do
 
 load_score :: Cmd.Config -> Text -> IO (Either Error (Ui.State, Cmd.State))
 load_score cmd_config source = Except.runExceptT $ do
-    ui_state <- tryRight $ TScore.parse_score source
+    ui_state <- tryRight $ TScore.parse_score cmd_config source
     -- TODO adjust starting line in error
     (builtins, aliases, allocs) <- tryRight . first ("parsing %ky: "<>)
         =<< liftIO (Ky.load ky_paths (Ui.config#UiConfig.ky #$ ui_state))

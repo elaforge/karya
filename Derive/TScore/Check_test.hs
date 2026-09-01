@@ -15,6 +15,7 @@ import qualified Derive.TScore.Parse as Parse
 import qualified Derive.TScore.T as T
 import qualified Derive.TScore.TScore as TScore
 
+import qualified Ui.Ui as Ui
 import qualified Ui.UiTest as UiTest
 
 import           Global
@@ -138,7 +139,7 @@ test_resolve_time = do
 
 test_check_barlines :: Test
 test_check_barlines = do
-    let f = bimap id (const ()) . TScore.parse_score
+    let f = bimap id (const ()) . parse_score
     left_like (f "b = %meter=bargle [s r g]") "unknown meter: bargle"
     left_like (f "b = [s4 r g | m]")
         "beat 3/4: saw |, next beat of that rank is 1"
@@ -223,7 +224,13 @@ parse_cdur :: Text
 parse_cdur = resolve_call_duration . parse
 
 parsed_score :: Text -> Either Text [UiTest.BlockSpec]
-parsed_score = fmap (UiTest.extract_blocks) . TScore.parse_score
+parsed_score = fmap (UiTest.extract_blocks) . parse_score
+
+-- | TScore.parse_score with make_ext_dur stubbed out.  Tests exercise tscore,
+-- not the deriver, so don't give them a derive environment.
+-- 'TScore.standalone_duration' is the one that does.
+parse_score :: Text -> Either Text Ui.State
+parse_score = TScore.score_to_ui $ const $ Right TScore.no_external_duration
 
 -- | Rather than actually doing a TScore.resolve_sub_block, I'll just fake it.
 convert_call :: T.Token T.Call pitch ndur rdur

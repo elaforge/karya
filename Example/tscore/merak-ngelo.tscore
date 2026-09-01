@@ -1,7 +1,7 @@
--- TODO unfortunately doesn't work yet due to lack of external call
--- duration support.  The non-standalone Example/score/merak-ngelo should
--- work though.
-
+-- tscore version of Merak Ngelo, for gender wayang.
+-- It's an experiment if tscore can express a proper score.
+-- It kind of can but it has a lot complicated syntax and I'm not
+-- sure if this is better than the graphical style.
 %ky=''
     note transformer:
 
@@ -32,10 +32,10 @@
     sr = pi
 
     instrument:
-    >ki         sampler/wayang-kantilan-isep    [ms] sc
-    >ku         sampler/wayang-kantilan-umbang  [ms] sc
-    >pi         sampler/wayang-pemade-isep      [ms] sc
-    >pu         sampler/wayang-pemade-umbang    [ms] sc
+    >ki sampler/wayang-kantilan-isep    [ms] im
+    >ku sampler/wayang-kantilan-umbang  [ms] im
+    >pi sampler/wayang-pemade-isep      [ms] im
+    >pu sampler/wayang-pemade-umbang    [ms] im
 ''
 
 %scale=sargam

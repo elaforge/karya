@@ -36,6 +36,7 @@ import qualified Cmd.Ky
 import qualified Cmd.Perf as Perf
 import qualified Cmd.Ruler.RulerUtil as RulerUtil
 
+import qualified Derive.C.Prelude.Block as Prelude.Block
 import qualified Derive.Derive as Derive
 import qualified Derive.Eval as Eval
 import qualified Derive.Note
@@ -134,13 +135,16 @@ cmd_integrate :: Cmd.M m => Text -> m [BlockId]
 cmd_integrate source = do
     ui_state <- Ui.get
     cmd_state <- Cmd.get
-    integrate (get_external_duration ui_state cmd_state) source
+    -- Embedded tscore isn't allowed its own %ky, it uses the one already in
+    -- the Cmd.State, so ignore it.
+    integrate (const $ Right $ get_external_duration ui_state cmd_state) source
 
-integrate :: Ui.M m => GetExternalCallDuration -> Text -> m [BlockId]
+integrate :: Ui.M m => MakeExternalCallDuration -> Text -> m [BlockId]
     -- ^ newly created blocks
-integrate get_ext_dur source = do
+integrate make_ext_dur source = do
     ns <- Ui.get_namespace
-    (blocks, config) <- Ui.require_right id $ track_blocks ns get_ext_dur source
+    (blocks, config) <- Ui.require_right id $
+        track_blocks ns make_ext_dur source
     unless (config == ScoreConfig mempty) $
         Ui.throw $ "instruments or ky are only for standalone tscore,\
             \ put those in the Ui.State directly: " <> showt config
@@ -165,9 +169,20 @@ destroy_subs = do
     mapM_ (Ui.destroy_block . fst) blocks
     mapM_ Ui.destroy_track $ concatMap (Block.block_track_ids . snd) blocks
 
-track_blocks :: Id.Namespace -> GetExternalCallDuration -> Text
+track_blocks :: Id.Namespace -> MakeExternalCallDuration -> Text
     -> Either Error ([Block NTrack], ScoreConfig)
-track_blocks namespace get_ext_dur source = do
+track_blocks namespace make_ext_dur source = do
+    (errs, blocks, config) <- track_blocks_ namespace make_ext_dur source
+    unless (null errs) $
+        Left $ Text.intercalate "; " errs
+    return (blocks, config)
+
+-- | Like 'track_blocks', but return the tracks that did resolve along with
+-- the errors, instead of failing entirely.  This is for 'standalone_duration',
+-- which wants whatever blocks it can get.
+track_blocks_ :: Id.Namespace -> MakeExternalCallDuration -> Text
+    -> Either Error ([Error], [Block NTrack], ScoreConfig)
+track_blocks_ namespace make_ext_dur source = do
     (blocks, config) <- first (T.show_error source) $ parse_blocks source
     whenJust (check_recursion $ map (track_tokens <$>) blocks) Left
     case check_recursive_copy_from blocks of
@@ -177,17 +192,12 @@ track_blocks namespace get_ext_dur source = do
     case concatMap check_unique_keys blocks of
         [] -> return ()
         errs -> Left $ mconcat (map (T.show_error source) errs)
-
-    -- TODO not implemented yet
-    -- let cmd_config = undefined
-    -- derive_args <- make_derive_args cmd_config (config_ky config)
-    -- let get_ext_dur = get_external_duration_mini derive_args
-
+    -- Parsing doesn't need durations, so the %ky is available before
+    -- 'resolve_blocks', which is what needs it.
+    get_ext_dur <- make_ext_dur (config_ky config)
     (errs, blocks) <- return $
         partition_errors $ resolve_blocks get_ext_dur source blocks
-    unless (null errs) $
-        Left $ Text.intercalate "; " errs
-    return (map (set_namespace namespace) blocks, config)
+    return (errs, map (set_namespace namespace) blocks, config)
 
 check_unique_keys :: Block ParsedTrack -> [T.Error]
 check_unique_keys block =
@@ -228,6 +238,11 @@ partition_errors = first concat . unzip . map partition_block
 type GetExternalCallDuration =
     [Text] -> Text -> (Either Error TrackTime, [Log.Msg])
 
+-- | Make a 'GetExternalCallDuration' given the score's %ky.  Standalone tscore
+-- has to build a derive environment out of that ky, while embedded tscore
+-- already has one in its Cmd.State and ignores the argument.
+type MakeExternalCallDuration = Text -> Either Error GetExternalCallDuration
+
 -- TODO I'll need some way to get the logs out, but I'd prefer to not make
 -- everything monadic.
 get_external_duration :: Ui.State -> Cmd.State -> GetExternalCallDuration
@@ -241,58 +256,59 @@ get_external_duration ui_state cmd_state transformers call =
 
 lookup_call_duration :: Cmd.M m => [Text] -> Text -> m (Maybe TrackTime)
 lookup_call_duration transformers call = do
-    -- I need BlockId, TrackId to get the Dynamic, for deriving context.
-    -- I think it shouldn't really matter for call duration, but of course it
-    -- could.  If I pick the root block then I get global transform and
-    -- whatever transform is in the root.
-    (block_id, track_id) <- root_block
-    result <- Perf.derive_at_throw block_id track_id $
-        Derive.get_score_duration deriver
+    (result, logs) <- Perf.derive_no_block $ Derive.get_score_duration deriver
+    mapM_ Log.write logs
+    result <- Cmd.require_right pretty result
     case result of
         Left err -> Cmd.throw $ pretty err
         Right Derive.Unknown -> return Nothing
         Right (Derive.CallDuration dur) -> return $ Just dur
     where
-    -- I think if I have a root block with a performance then I don't need
-    -- with_default_imported, but for tests I don't have a Performance.
-    -- TODO it would be better to get a Performance for tests.
-
-    transform = map (Eval.eval_transform_expr "lookup_call_duration") $
-        filter (not . Text.null) transformers
+    -- with_default_imported has to be outside global_transform, since GLOBAL
+    -- is itself a ky definition, and hence in Module.local.
     deriver = Derive.with_default_imported $
+        Prelude.Block.global_transform $
         foldr (.) id transform $
         Perf.derive_event (Derive.Note.track_info track [])
             (Event.event 0 1 call)
+    transform = map (Eval.eval_transform_expr "lookup_call_duration") $
+        filter (not . Text.null) transformers
     track = TrackTree.make_track "title" mempty 1
 
-root_block :: Ui.M m => m (BlockId, TrackId)
-root_block = do
-    block_id <- Ui.get_root_id
-    track_id <- Ui.require "root block has no tracks" . Lists.head
-        =<< Ui.track_ids_of block_id
-    return (block_id, track_id)
+-- * standalone
 
--- * get_external_duration_mini
+-- | For when there's no deriver to ask, e.g. tests, and the first pass of
+-- 'standalone_duration'.
+no_external_duration :: GetExternalCallDuration
+no_external_duration _ _ = (Left "external call duration not supported", [])
 
--- TODO: not implemented yet
---
--- This is full support for GetExternalCallDuration for standalone tscore.
--- It's awkward because the lookup_call_duration above uses Cmd.eval, which
--- evaluates in the context of the root block.  There's a circular problem
--- because
+{- | Standalone tscore has no Ui.State or Cmd.State, since it's in the middle
+    of creating them, so make them from the score itself.
 
-data DeriveArgs =
-    DeriveArgs
-        Cmd.Config
-        UiConfig.Allocations
-        Derive.Builtins
-        Derive.InstrumentAliases
-    deriving (Show)
+    The Cmd.State comes from the score's %ky, and there's no circularity there
+    because parsing doesn't need durations, so the ky is in hand before
+    'resolve_blocks' asks for any.
 
-make_derive_args :: Cmd.Config -> Text -> Either Error DeriveArgs
-make_derive_args cmd_config ky = do
+    The Ui.State is trickier, because the calls whose durations I want are
+    usually transformers on a tscore block, e.g. @repeat=2 | b@, and the
+    deriver can only call @b@ if it's actually in the Ui.State.  So do a first
+    pass with 'no_external_duration', which resolves everything tscore can do
+    by itself.  That's exactly the blocks the external calls want to call, and
+    the tracks that fail are the ones I'm about to resolve here.  It means
+    parsing and resolving the score twice, but that's cheap next to deriving.
+-}
+standalone_duration :: Cmd.Config -> Text -> MakeExternalCallDuration
+standalone_duration cmd_config source ky = do
     (builtins, aliases, allocs) <- parse_ky ky
-    return $ DeriveArgs cmd_config allocs builtins aliases
+    (_errs, blocks, _config) <- track_blocks_ namespace
+        (const (Right no_external_duration)) source
+    ui_state <- first pretty $ Ui.exec Ui.empty $ do
+        mapM_ ui_block blocks
+        Ui.modify_config $ UiConfig.allocations #= allocs
+    let cmd_state = (Cmd.initial_state cmd_config)
+            { Cmd.state_ky_cache = Just $ Cmd.PermanentKy (builtins, aliases) }
+    pure $ get_external_duration ui_state cmd_state
+    where namespace = UiConfig.config_namespace UiConfig.empty_config
 
 parse_ky :: Text -> Either Error
     (Derive.Builtins, Derive.InstrumentAliases, UiConfig.Allocations)
@@ -300,37 +316,9 @@ parse_ky text = do
     ky <- first ParseText.show_error $ Ky.parse_ky "" text
     ky <- case Ky.ky_imports ky of
         [] -> Right $ ky { Ky.ky_imports = [] }
-        imports -> Left $ "imports not supported: " <> Text.unwords
-            (map showt imports)
+        imports -> Left $ "imports not supported for standalone tscore: "
+            <> Text.unwords (map showt imports)
     pure $ Cmd.Ky.compile ky
-
-get_external_duration_mini :: DeriveArgs -> GetExternalCallDuration
-get_external_duration_mini derive_args transformers call =
-    ( case result of
-        Left err -> Left $ pretty err
-        Right (Left err) -> Left $ pretty err
-        Right (Right Derive.Unknown) ->
-            Left "call doesn't support CallDuration"
-        Right (Right (Derive.CallDuration dur)) -> Right dur
-    , logs
-    )
-    where
-    (result, logs) = mini_derive derive_args $
-        -- TODO this plus transform is a copy paste from lookup_call_duration
-        Derive.with_default_imported $
-        Derive.get_score_duration $
-        foldr (.) id transform $
-        Perf.derive_event (Derive.Note.track_info track [])
-            (Event.event 0 1 call)
-    transform = map (Eval.eval_transform_expr "lookup_call_duration") $
-        filter (not . Text.null) transformers
-    track = TrackTree.make_track "title" mempty 1
-
-mini_derive :: DeriveArgs -> Derive.Deriver a
-    -> (Either Derive.Error a, [Log.Msg])
-mini_derive (DeriveArgs cmd_config allocs builtins aliases) deriver = do
-    let ui_state = Ui.config#UiConfig.allocations #= allocs $ Ui.empty
-    Perf.mini_derive ui_state cmd_config builtins aliases deriver
 
 -- * detect moves
 
@@ -629,15 +617,15 @@ source_key = "tscore"
 
 -- * ui_state
 
-parse_score :: Text -> Either Error Ui.State
-parse_score = score_to_ui get_ext_dur
-    where get_ext_dur _ _ = (Left "external call duration not supported", [])
+parse_score :: Cmd.Config -> Text -> Either Error Ui.State
+parse_score cmd_config source =
+    score_to_ui (standalone_duration cmd_config source) source
 
-score_to_ui :: GetExternalCallDuration -> Text -> Either Error Ui.State
-score_to_ui get_ext_dur source = do
+score_to_ui :: MakeExternalCallDuration -> Text -> Either Error Ui.State
+score_to_ui make_ext_dur source = do
     (blocks, ScoreConfig ky) <- track_blocks
         (UiConfig.config_namespace UiConfig.empty_config)
-        get_ext_dur source
+        make_ext_dur source
     first pretty $ Ui.exec Ui.empty $ do
         mapM_ ui_block blocks
         Ui.modify_config $ UiConfig.ky #= ky

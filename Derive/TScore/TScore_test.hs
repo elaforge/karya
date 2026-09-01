@@ -67,7 +67,7 @@ test_parse_score = do
 
 test_skeleton :: Test
 test_skeleton = do
-    let f = fmap (Map.elems . UiTest.extract_skeletons) . TScore.parse_score
+    let f = fmap (Map.elems . UiTest.extract_skeletons) . parse_score
     right_equal (f "top = [s r g]") [[(1, 2)]]
     right_equal (f "top = [>i1 s r g >i2 m p d]") [[(1, 2), (3, 4)]]
 
@@ -104,7 +104,7 @@ test_copy_from = do
 
 test_assert_coincident :: Test
 test_assert_coincident = do
-    let f = fmap (const ()) . TScore.parse_score
+    let f = fmap (const ()) . parse_score
     left_like (f "top = [s r > g ; m]") "got unexpected assert"
     left_like (f "top = [s ; r > g m]") "expected assert here"
     right_equal (f "top = [s ; r > g ; m]") ()
@@ -366,7 +366,7 @@ test_integrate_sub_block = do
 
 test_check_unique_track_keys :: Test
 test_check_unique_track_keys = do
-    let f = fmap (const ()) . TScore.parse_score
+    let f = fmap (const ()) . parse_score
     right_equal (f "b1 = [>!i1 s >@i1 r]") ()
     right_equal (f "b1 = [>i1 s >i2 r]") ()
     left_like (f "b1 = [>i1 s >i1 r]") "non-unique track key"
@@ -382,13 +382,18 @@ test_check_recursion = do
     equal (f "b1 = [b2/]\nb2 = [b1/]") $ Just "recursive loop: b2, b1, b2"
 
 integrate :: Ui.M m => Text -> m [BlockId]
-integrate = TScore.integrate get_ext_dur
+integrate = TScore.integrate make_ext_dur
 
-get_ext_dur :: TScore.GetExternalCallDuration
-get_ext_dur = \_ _ -> (Left "external call dur not supported", [])
+-- | Tests exercise tscore, not the deriver, so don't give them a derive
+-- environment.  'TScore.standalone_duration' is the one that does.
+make_ext_dur :: TScore.MakeExternalCallDuration
+make_ext_dur = const $ Right TScore.no_external_duration
+
+parse_score :: Text -> Either Text Ui.State
+parse_score = TScore.score_to_ui make_ext_dur
 
 parsed_score :: Text -> Either Text [UiTest.BlockSpec]
-parsed_score = fmap UiTest.extract_blocks . TScore.parse_score
+parsed_score = fmap UiTest.extract_blocks . parse_score
 
 parsed_blocks :: Text -> [TScore.Block TScore.ParsedTrack]
 parsed_blocks = fst . expect_right . TScore.parse_blocks

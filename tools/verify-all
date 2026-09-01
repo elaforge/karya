@@ -1,4 +1,13 @@
 #!/usr/bin/env zsh
 # Verify all scores.  This should be run as part of the usual testing sequence.
 
+set -eux
+
 bin/run build/opt/verify_performance --out=build/verify save/complete/*
+
+tscore=build/opt/tscore
+mk $tscore
+
+for fn in Example/tscore/*.tscore; do
+    $tscore --dump $fn >/dev/null
+done
