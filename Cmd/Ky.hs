@@ -133,15 +133,16 @@ load :: [FilePath] -> Text
     -> IO (Either Text
         (Derive.Builtins, Derive.InstrumentAliases, UiConfig.Allocations))
 load paths ky_text =
-    bimap ParseText.show_error compile <$>
-        liftIO (Ky.load_ky paths ky_text)
+    bimap ParseText.show_error compile <$> liftIO (Ky.load_ky paths ky_text)
+
+compile :: Ky.Ky Ky.Loaded
+    -> (Derive.Builtins, Derive.InstrumentAliases, UiConfig.Allocations)
+compile (Ky.Ky defs imported allocs) =
+    (builtins, Map.fromList (Ky.def_aliases defs), allocs)
     where
-    compile (Ky.Ky defs imported allocs) =
-        (builtins, Map.fromList (Ky.def_aliases defs), allocs)
-        where
-        -- Logs are boring, just loaded this or that.
-        (builtins, _logs) = compile_library (loaded_fnames imported) $
-            compile_definitions defs
+    -- Logs are boring, just loaded this or that.
+    (builtins, _logs) = compile_library (loaded_fnames imported) $
+        compile_definitions defs
 
 loaded_fnames :: [Ky.Loaded] -> [FilePath]
 loaded_fnames loads = [fname | Ky.Loaded fname _ <- loads]

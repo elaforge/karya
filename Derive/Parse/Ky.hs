@@ -15,7 +15,9 @@ module Derive.Parse.Ky (
 #endif
 ) where
 import           Control.Applicative (many)
+import qualified Control.Exception as Exception
 import qualified Control.Monad.Except as Except
+
 import qualified Data.Attoparsec.Text as A
 import qualified Data.Char as Char
 import qualified Data.List.NonEmpty as NonEmpty
@@ -25,8 +27,8 @@ import qualified Data.Text as Text
 import qualified Data.Text.IO as Text.IO
 
 import           System.FilePath ((</>))
+import qualified System.IO.Error as IO.Error
 
-import qualified Util.Exceptions as Exceptions
 import qualified Util.Lists as Lists
 import qualified Util.Maps as Maps
 import qualified Util.Parse
@@ -97,8 +99,7 @@ type Definition = (FilePath, (Expr.Symbol, Expr))
 
 -- | Parse ky text and load and parse all the files it imports.  'parse_ky'
 -- describes the format of the ky file.
-load_ky :: [FilePath] -> Code
-    -> IO (Either ParseText.Error (Ky Loaded))
+load_ky :: [FilePath] -> Code -> IO (Either ParseText.Error (Ky Loaded))
 load_ky paths content = Except.runExceptT $ do
     ky <- tryRight $ first (ParseText.prefix "<score>: ") $
         parse_ky "" content
@@ -124,18 +125,20 @@ load_ky_file paths loaded (Import fname lib : imports)
 find_ky :: [FilePath] -> FilePath -> FilePath
     -> IO (Either Error (FilePath, Code))
 find_ky paths from fname =
-    catch_io (txt fname) $ justErr msg <$>
+    maybe (Left not_found) id <$>
         firstJusts (map (\dir -> get (dir </> fname)) paths)
     where
-    msg = "ky file not found: " <> txt fname
+    not_found = "ky file not found: " <> txt fname
         <> (if from == "" then "" else " from " <> txt from)
         <> " (searched " <> Text.intercalate ", " (map txt paths) <> ")"
-    get fn = Exceptions.ignoreEnoent $ (,) fn <$> Text.IO.readFile fn
+    get fn = fmap (fmap (fn,)) <$> read_file fn
 
--- | Catch any IO exceptions and put them in Left.
-catch_io :: Text -> IO (Either Error a) -> IO (Either Error a)
-catch_io prefix io =
-    either (Left . ((prefix <> ": ") <>) . showt) id <$> Exceptions.tryIO io
+read_file :: FilePath -> IO (Maybe (Either Error Text))
+read_file fn = Exception.try (Text.IO.readFile fn) >>= pure . \case
+    Left exc
+        | IO.Error.isDoesNotExistError exc -> Nothing
+        | otherwise -> Just $ Left $ txt $ fn <> ": " <> show exc
+    Right t -> Just $ Right t
 
 {- | Parse a ky file.  This file gives a way to define new calls in the
     tracklang language, which is less powerful but more concise than haskell.
