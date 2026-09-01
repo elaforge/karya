@@ -9,6 +9,7 @@ module Cmd.Ky (
     update
     , set
     , load
+    , compile
     , compile_definitions
 #ifdef TESTING
     , module Cmd.Ky

@@ -7,6 +7,7 @@ module Derive.Parse.Ky (
     Ky(..), Loaded(..)
     , Definitions(..), Definition
     , load_ky
+    , parse_ky
     , replace_section
     -- ** types
     , Expr(..), Call(..), Term(..), Var(..)

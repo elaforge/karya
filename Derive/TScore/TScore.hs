@@ -24,6 +24,7 @@ import qualified Data.Text as Text
 import qualified Util.Lists as Lists
 import qualified Util.Log as Log
 import qualified Util.Logger as Logger
+import qualified Util.ParseText as ParseText
 import qualified Util.Pretty as Pretty
 import qualified Util.Texts as Texts
 
@@ -31,13 +32,14 @@ import qualified App.Config as Config
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Integrate.Convert as Convert
 import qualified Cmd.Integrate.Manual as Manual
+import qualified Cmd.Ky
 import qualified Cmd.Perf as Perf
 import qualified Cmd.Ruler.RulerUtil as RulerUtil
 
 import qualified Derive.Derive as Derive
 import qualified Derive.Eval as Eval
 import qualified Derive.Note
-import qualified Derive.Parse.Instruments as Instruments
+import qualified Derive.Parse.Ky as Ky
 import qualified Derive.ParseTitle as ParseTitle
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Stack as Stack
@@ -176,11 +178,10 @@ track_blocks namespace get_ext_dur source = do
         [] -> return ()
         errs -> Left $ mconcat (map (T.show_error source) errs)
 
-    -- -- TODO not implemented yet
+    -- TODO not implemented yet
     -- let cmd_config = undefined
-    -- derive_args <- make_derive_args cmd_config (config_instruments config)
-    --     (config_ky config)
-    -- let get_ext_dur = get_external_duration2 derive_args
+    -- derive_args <- make_derive_args cmd_config (config_ky config)
+    -- let get_ext_dur = get_external_duration_mini derive_args
 
     (errs, blocks) <- return $
         partition_errors $ resolve_blocks get_ext_dur source blocks
@@ -271,30 +272,40 @@ root_block = do
         =<< Ui.track_ids_of block_id
     return (block_id, track_id)
 
--- * get_external_duration2
+-- * get_external_duration_mini
 
 -- TODO: not implemented yet
+--
+-- This is full support for GetExternalCallDuration for standalone tscore.
+-- It's awkward because the lookup_call_duration above uses Cmd.eval, which
+-- evaluates in the context of the root block.  There's a circular problem
+-- because
 
 data DeriveArgs =
-    DeriveArgs Cmd.Config UiConfig.Allocations Derive.Builtins
+    DeriveArgs
+        Cmd.Config
+        UiConfig.Allocations
+        Derive.Builtins
         Derive.InstrumentAliases
     deriving (Show)
 
-make_derive_args :: Cmd.Config -> [Instruments.Allocation] -> Text
-    -> Either Error DeriveArgs
-make_derive_args cmd_config allocs ky = do
-    (builtins, aliases) <- parse_ky ky
-    allocations <- convert_allocations allocs
-    return $ DeriveArgs cmd_config allocations builtins aliases
-    where
-    parse_ky :: Text -> Either Error (Derive.Builtins, Derive.InstrumentAliases)
-    parse_ky = undefined -- TODO
-    convert_allocations :: [Instruments.Allocation]
-        -> Either Error UiConfig.Allocations
-    convert_allocations = undefined -- TODO
+make_derive_args :: Cmd.Config -> Text -> Either Error DeriveArgs
+make_derive_args cmd_config ky = do
+    (builtins, aliases, allocs) <- parse_ky ky
+    return $ DeriveArgs cmd_config allocs builtins aliases
 
-get_external_duration2 :: DeriveArgs -> GetExternalCallDuration
-get_external_duration2 derive_args transformers call =
+parse_ky :: Text -> Either Error
+    (Derive.Builtins, Derive.InstrumentAliases, UiConfig.Allocations)
+parse_ky text = do
+    ky <- first ParseText.show_error $ Ky.parse_ky "" text
+    ky <- case Ky.ky_imports ky of
+        [] -> Right $ ky { Ky.ky_imports = [] }
+        imports -> Left $ "imports not supported: " <> Text.unwords
+            (map showt imports)
+    pure $ Cmd.Ky.compile ky
+
+get_external_duration_mini :: DeriveArgs -> GetExternalCallDuration
+get_external_duration_mini derive_args transformers call =
     ( case result of
         Left err -> Left $ pretty err
         Right (Left err) -> Left $ pretty err
@@ -305,6 +316,7 @@ get_external_duration2 derive_args transformers call =
     )
     where
     (result, logs) = mini_derive derive_args $
+        -- TODO this plus transform is a copy paste from lookup_call_duration
         Derive.with_default_imported $
         Derive.get_score_duration $
         foldr (.) id transform $
