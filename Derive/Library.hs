@@ -153,7 +153,8 @@ type Shadowed = ((Text, Module.Module), [(Expr.Symbol, [Derive.CallName])])
 show_shadowed :: Shadowed -> Text
 show_shadowed ((name, Module.Module module_), calls) = Text.unwords $ mconcat
     [ ["shadowed", name, "calls in module", module_ <> ":"]
-    , [ pretty sym <> ": " <> Text.intercalate "; " (map unname names)
+    , [ Expr.unsym sym <> " bound by ["
+        <> Text.unwords (map unname names) <> "]"
       | (sym, names) <- calls
       ]
     ]

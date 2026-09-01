@@ -271,3 +271,33 @@ kumar5 = date 2026 7 9 $ kumar $ korvaiV adi [sequence, nadai 6 sequence]
 
 takatari :: Sequence
 takatari = nakatiku
+
+e_lh_exercise :: Korvai
+e_lh_exercise = date 2026 8 4 $ exercise $ korvaiV adi $ map pat
+    [ "o___p___", "o__p_p__", "o_p__p__", "op_p_p__"
+    , "o___p___", "o_o__p__", "o__o__p_", "o_o_o__p"
+    ]
+    where
+    pat lh = r4 $ r2 rh & lh
+    rh = "n,nd"
+
+misra_nadai :: Korvai
+misra_nadai = korvaiV adi
+    [ tn $ "NDn,ND__" . __D 2
+    , tn $ "NDn,ND__" . "__N,ND__"
+    , tn $ r2 "NDn,ND__"
+    , tn $ r3 "NDn," . "ND__"
+    , tn $ r4 "NDn,"
+    , nadai 7 $ tn $ r4 "N_D_n_,"
+    , nadai 7 $ tn (r4 "N_D_n_,") `replaceEnd` "koonook"
+    , nadai 7 $ r4 ("N_D_n_," . "koonook")
+    , nadai 7 $ r2 ("N_D_n_," . "koonook") . "___" . tri "D_" "koonook"
+    ]
+    where
+    tn seq = seq . o & noThom seq
+
+song_tirmanams :: Korvai
+song_tirmanams = korvaiV adi
+    [ __ . trin "D_kno" "Dk_" (r2 "Dk_") (r4 "Dk_") . od
+    , __D 4 . trin "D_" "ok" "o_k_" "o__k__" . od
+    ]

@@ -57,12 +57,12 @@ data Thoppi =
     -- thom.
     | Gum
     deriving (Eq, Ord, Show)
-data Valantalai =
-    Ki
+data Valantalai
+    = Ki
     | Ta
     | Tra -- ^ tabla-style tra, quick kita
     | Mi -- ^ light Ki, played with middle finger
-    -- | Min -- ^ middle finger, on meetu?
+    | Min -- ^ middle finger, on meetu
     | Nam
     | Din
     | AraiChapu -- ^ "half chapu", played covering half the valantalai
@@ -123,8 +123,10 @@ instance Solkattu.Notation Stroke where
                 Kin -> "o" <> cedillaBelow
                 Mi -> "o" <> dotAbove
                 Tan -> "ô"
-                Tra -> "Kt"
-                _ -> Text.toUpper (Solkattu.notationText v)
+                Tra -> "Kt" -- X is already pt
+                _ | upper /= Solkattu.notationText v -> upper
+                    where upper = Text.toUpper (Solkattu.notationText v)
+                _ -> "o" <> Solkattu.notationText v
             , case dir of
                 Open -> ""
                 Low -> ""
@@ -179,6 +181,7 @@ instance Solkattu.Notation Valantalai where
         Tra -> "x"
         -- Tra -> "kt"
         Mi -> "."
+        Min -> ";"
         Nam -> "n"
         Din -> "d"
         AraiChapu -> "u"
@@ -298,7 +301,7 @@ extraCalls :: Thoppi -> Valantalai -> Maybe Text
 extraCalls t v = case t of
     Tha Palm | v `elem` [Ki, Ta, AraiChapu, MuruChapu] ->
         Just $ Solkattu.notationText $ Both t v
-    Thom Open | v `notElem` [Kin, Mi, Tan] ->
+    Thom Open | v `notElem` [Kin, Mi, Min, Tan] ->
         Just $ Solkattu.notationText $ Both t v
     _ -> Nothing
 

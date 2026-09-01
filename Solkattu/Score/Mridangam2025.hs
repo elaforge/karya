@@ -41,40 +41,6 @@ e_sarva = date 2025 3 13 $ elaforge $ sarvalaghu $ korvaiV adi
         . su "n_u_ktok"
     ]
 
-e_3sequence :: Korvai
-e_3sequence = date 2025 3 6 $ tirmanam $ korvaiV adi $ map (__D 2 .)
-    [ tri (su "u_pkno") (r2 "NN_")
-    , tri123 (su "u_pkno") "NN_"
-    , tri123 tanggu (su p6)
-    , trin tanggu (su p5) (su (p6.p7)) (su (p5.p6.p7))
-    , su p5 . tanggu . su (r2 p5) . r2 tanggu . su (r3 p5)
-
-    , tri tanggu "koNkok"
-    , tanggu . reduceTo 3 2 "koNkokD__"
-    , tri "D__" (sd "kok")
-    , "D__" . reduceTo 3 2 "k_o_k_D__"
-    , "D__" . expand 4 2 "k_o_k_D__"
-    , "k_o_kD__" . "k_o_kD__D__" . "k_o_k"
-    , su "k_o_k" . "D__" . r2 (su "k_o_k") . r2 "D__" . r3 (su "k_o_k")
-    ] ++
-    -- 3x = 18, 4x = 24 = 3 avartanam
-    -- so, 123, 222, 321 + 3(3)3(3)3
-    -- pk koNkok -> koNkok -> Nkok
-    -- or su "_kpk"
-    [ trin "D___" (trin "D__" p4 p3 p2) (tri "D__" p3) (trin "D__" p2 p3 p4)
-        . __ . tri (su "u_pkno") "NN_"
-    , tri "i___" (tri "D__" "koNkok") . __ . tri (su "u_pkno") "NN_"
-    ]
-    -- each one is 6, can I sequence them?
-    -- Yes, I wind up at +2 again!  6*3 = 18 - 16 = 2
-    -- So actually 4x
-    where
-    tanggu = "D__"
-    p3 = sd "kok"
-    -- p3 = "koNkok"
-    p2 = dropM 2 p3
-    p4 = su "_kpk".p3
-
 simple_korvai :: Korvai
 simple_korvai = date 2025 5 2 $ rohan $ korvaiS adi
     [ tri "D_" ("P_" .su ("u_pk".nakatiku)."o_k_") . od.__3 . r3 p7
@@ -108,23 +74,6 @@ yella_tani = tani
     , Comment "mohra"
     , K yella_mohra_korvai
     , K yella_ending
-    ]
-
-yella_mohra_korvai :: Korvai
-yella_mohra_korvai = date 2025 9 13 $ korvaiS adi
-    [ purvangam . r3 ("u_i_".su"ktkt".o)
-    , purvangam . r3 (su $ "pu_k__".nakatiku)
-    , purvangam . r3 (su $ "pu__kp".nakatiku)
-    , purvangam . r3 (su $ "u___ktkt pkpto_") -- or pktp ktkto
-    ]
-    where
-    purvangam = reduceTo 8 2 ("o_k_D__".p5).p5.p5.od.__3
-
-yella_ending :: Korvai
-yella_ending = date 2025 9 13 $ korvaiV adi
-    [ su $ sd (sd "NDDN") . "nod_ktpk".nakatiku
-    . r2 (tri "N_pk" nakatiku)
-    . nakatiku . "N_pk".nakatiku . r4 "N_k"
     ]
 
 yella_sequence :: Korvai
@@ -173,6 +122,23 @@ yella_sequence = date 2025 9 13 $ korvai adi $
     pu_k = su "pu_k"
     ktpk = su "ktpk"
     ktok = su "ktok"
+
+yella_mohra_korvai :: Korvai
+yella_mohra_korvai = date 2025 9 13 $ korvaiS adi
+    [ purvangam . r3 ("u_i_".su"ktkt".o)
+    , purvangam . r3 (su $ "pu_k__".nakatiku)
+    , purvangam . r3 (su $ "pu__kp".nakatiku)
+    , purvangam . r3 (su $ "u___ktkt pkpto_") -- or pktp ktkto
+    ]
+    where
+    purvangam = reduceTo 8 2 ("o_k_D__".p5).p5.p5.od.__3
+
+yella_ending :: Korvai
+yella_ending = date 2025 9 13 $ korvaiV adi
+    [ su $ sd (sd "NDDN") . "nod_ktpk".nakatiku
+    . r2 (tri "N_pk" nakatiku)
+    . nakatiku . "N_pk".nakatiku . r4 "N_k"
+    ]
 
 s_sketch :: Korvai
 s_sketch = date 2025 12 7 $ elaforge $ korvaiV adi $

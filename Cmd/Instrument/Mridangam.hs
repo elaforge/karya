@@ -15,7 +15,7 @@ module Cmd.Instrument.Mridangam (
     -- * used by pakhawaj
     , make_both, make_code
 ) where
-import           Prelude hiding (tan)
+import           Prelude hiding (min, tan)
 import qualified Data.Map as Map
 import qualified Data.Text as Text
 
@@ -54,7 +54,7 @@ to_sym = Expr.Symbol . Expr.show_val_expr . Expr.to_expr
 pitched_strokes :: [Attrs.Attributes]
 pitched_strokes =
     [ nam, din
-    , kin, tan
+    , kin, tan, min
     , chapu
     , dim
     ]
@@ -156,6 +156,7 @@ stops :: Drums.Stops
         Ta -> v_closed
         Tra -> v_closed
         Mi -> v_closed
+        Min -> v_meetu
         Nam -> v_meetu
         Din -> v_meetu
         AraiChapu -> v_open
@@ -182,6 +183,7 @@ valantalai_attrs = \case
     Ta -> ta
     Tra -> tra
     Mi -> mi
+    Min -> min
     Nam -> nam
     Din -> din
     AraiChapu -> arai <> chapu
@@ -209,6 +211,7 @@ ki = Attrs.attr "ki"
 ta = Attrs.attr "ta"
 tra = Attrs.attr "tra"
 mi = Attrs.attr "mi"
+min = Attrs.attr "min"
 nam = Attrs.attr "nam"
 din = Attrs.attr "din"
 dim = Attrs.attr "dim"
