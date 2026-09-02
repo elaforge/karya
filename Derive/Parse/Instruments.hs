@@ -23,12 +23,14 @@ module Derive.Parse.Instruments (
     , Config(..), empty_config
     , Backend(..)
     , instrument_section
+    , to_backend
     -- * parse
     , parse_instruments
     , p_instruments
     , un_instruments
+    , un_scale
     , p_alloc_line
-    , unparse_allocations
+    , un_alloc_line
     , spaces
 ) where
 import qualified Data.Char as Char
@@ -43,7 +45,6 @@ import qualified Util.Maps as Maps
 import qualified Util.Num as Num
 import qualified Util.P as P
 import qualified Util.Parse as Parse
-import qualified Util.Texts as Texts
 
 import qualified Derive.DeriveT as DeriveT
 import qualified Derive.Expr as Expr
@@ -99,14 +100,8 @@ instrument_section = "instrument"
 un_instruments :: UiConfig.Allocations -> Either Error Text
 un_instruments (UiConfig.Allocations allocs) = do
     lines <- concatMapM (uncurry un_instrument) (Map.toList allocs)
-    pure $ Text.unlines $ lines ++ scale_lines
+    pure $ Text.unlines $ lines ++ map un_scale scales
     where
-    scale_lines =
-        [ un_equal (Text.replace " " "-" scale.scale_name) $
-            Record.list $ map DeriveT.num $
-            Vector.Unboxed.toList scale.scale_key_to_nn
-        | scale <- scales
-        ]
     scales = Lists.unique $ mapMaybe (scale_of . UiConfig.alloc_backend)
         (Map.elems allocs)
     scale_of = \case
@@ -170,6 +165,15 @@ substitute env record = case Map.lookup "scale" record of
         , ("key_to_nn", nns)
         ]
 
+-- | Create the p_equal that 'substitute' replaces.
+un_scale :: Patch.Scale -> Text
+un_scale scale =
+    -- TODO Historically scale_name had spaces.  They should no longer
+    -- have them, but this is so old scores still load.
+    un_equal (Text.replace " " "-" scale.scale_name) $
+    Record.list $ map DeriveT.num $
+    Vector.Unboxed.toList scale.scale_key_to_nn
+
 p_definitions :: Parser
     [Either (Symbol, Record.RVal) (Parse.Offset, (Allocation, Record))]
 p_definitions = do
@@ -224,7 +228,8 @@ merge config backend ui_alloc = do
 split :: ScoreT.Instrument -> UiConfig.Allocation -> Either Error Allocation
 split inst alloc = do
     alloc_backend <- case alloc.alloc_backend of
-        UiConfig.Midi config -> ui_midi config
+        UiConfig.Midi config -> first (prefix<>) $ to_backend config
+            where prefix = pretty inst <> ": " <> pretty alloc <> ": "
         UiConfig.Dummy {} -> pure Dummy
         UiConfig.Im -> pure Im
         UiConfig.Sc -> pure Sc
@@ -237,17 +242,15 @@ split inst alloc = do
             }
         , alloc_backend
         }
-    where
-    ui_midi :: Midi.Patch.Config -> Either Error Backend
-    ui_midi config =
-        case Lists.groupFst $ map fst $ Midi.Patch.config_allocation config of
-            [(wdev, chans)] -> Right $ Midi wdev chans
-            -- TODO I should no longer allow these, but if any are left, they
-            -- should be converted to Dummy.
-            [] -> Right Dummy
-            allocs -> Left $ pretty inst
-                <> ": midi config too complicated for: " <> showt allocs
-                <> ": " <> pretty alloc
+
+to_backend :: Midi.Patch.Config -> Either Error Backend
+to_backend config =
+    case Lists.groupFst $ map fst $ Midi.Patch.config_allocation config of
+        [(wdev, chans)] -> Right $ Midi wdev chans
+        -- TODO I should no longer allow these, but if any are left, they
+        -- should be converted to Dummy.
+        [] -> Right Dummy
+        allocs -> Left $ "midi config too complicated for: " <> showt allocs
 
 -- * parse / unparse
 
@@ -257,15 +260,6 @@ p_alloc_line = Allocation
     <*> lexeme (InstT.parse_qualified <$> p_word "/")
     <*> lexeme p_config
     <*> p_backend
-
-type Comment = Text
-
-unparse_allocations :: [(Maybe Allocation, Comment)] -> [Text]
-unparse_allocations allocs = Texts.columnsSome 1
-    [ maybe (Left cmt) (Right . (++cmts) . un_alloc_line) mb_alloc
-    | (mb_alloc, cmt) <- allocs
-    , let cmts = filter (/="") [cmt]
-    ]
 
 un_alloc_line :: Allocation -> [Text]
 un_alloc_line (Allocation name qualified config backend) =

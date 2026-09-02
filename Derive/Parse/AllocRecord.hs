@@ -140,7 +140,10 @@ un_backend = \case
             config_flags
         -- Save it as just the name.  It should be factored out into an
         -- assignment by Instruments.un_instruments.
-        , maybe_field "scale" (Record.Val . DeriveT.str . Patch.scale_name)
+        , maybe_field "scale"
+            -- TODO Historically scale_name had spaces.  They should no longer
+            -- have them, but this is so old scores still load.
+            (Record.Val . DeriveT.str . Text.replace " " "-" . Patch.scale_name)
             config_scale
         , maybe_field "decay" (Record.Val . DeriveT.real_time) config_decay
         , maybe_field "pb_range" (\(a, b) -> Record.list [int a, int b])

@@ -28,8 +28,8 @@ import qualified Data.Text as Text
 import qualified Data.Text.IO as Text.IO
 import qualified Data.Vector.Unboxed as Unboxed
 
-import qualified Util.Num as Num
 import qualified Util.Lists as Lists
+import qualified Util.Num as Num
 import qualified Util.Texts as Texts
 
 import qualified Cmd.Cmd as Cmd
@@ -43,6 +43,7 @@ import qualified Cmd.Selection as Selection
 import qualified Derive.C.Prelude.Equal as Equal
 import qualified Derive.Call as Call
 import qualified Derive.Derive as Derive
+import qualified Derive.Parse.Instruments as Instruments
 import qualified Derive.Scale as Scale
 import qualified Derive.Scale.BaliScales as BaliScales
 import qualified Derive.Scale.Legong as Legong
@@ -139,11 +140,6 @@ all_inputs :: [(Midi.Key, Pitch.Input)]
 all_inputs =
     [(key, InputNote.nn_to_input (Midi.from_key key)) | key <- [0..127]]
 
-set_scale :: Cmd.M m => Util.Instrument -> m ()
-set_scale inst = do
-    scale <- selection True
-    LInst.set_scale scale inst
-
 -- * retune
 
 -- | All instruments with initialization get the new scale.
@@ -170,20 +166,27 @@ get_tuning inst scale = do
 
 -- | Set the instrument's Scale to the given scale and send a MIDI tuning
 -- message with 'LInst.initialize_realtime_tuning'.
-realtime :: Cmd.M m => Util.Instrument -> Patch.Scale -> m ()
+--
+-- Since instruments are now defined in ky, this can only return the
+-- code to paste in.
+realtime :: Cmd.M m => Util.Instrument -> Patch.Scale -> m Text
 realtime inst scale = do
-    LInst.set_scale scale inst
-    LInst.modify_midi_config_
-        (Patch.initialization #= Just Patch.Tuning) inst
     LInst.initialize_realtime_tuning (Util.instrument inst)
+    pure $ Text.unlines
+        [ ">" <> inst <> " ..."
+        , "  { initialization: Tuning }"
+        , Instruments.un_scale scale
+        ]
 
 -- | Just like 'realtime', but send tuning via 'LInst.initialize_nrpn_tuning'.
-nrpn :: Cmd.M m => Util.Instrument -> Patch.Scale -> m ()
+nrpn :: Cmd.M m => Util.Instrument -> Patch.Scale -> m Text
 nrpn inst scale = do
-    LInst.set_scale scale inst
-    LInst.modify_midi_config_
-        (Patch.initialization #= Just Patch.NrpnTuning) inst
     LInst.initialize_nrpn_tuning (Util.instrument inst)
+    pure $ Text.unlines
+        [ ">" <> inst <> " ..."
+        , "  { initialization: NrpnTuning }"
+        , Instruments.un_scale scale
+        ]
 
 -- | Write KSP to retune a 12TET patch.  Don't forget to do 'LInst.set_scale'
 -- to configure the instrument.

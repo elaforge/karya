@@ -8,7 +8,6 @@ import           Prelude hiding (lookup)
 import qualified Data.Map as Map
 import qualified Data.Text as Text
 
-import qualified Util.Lens as Lens
 import qualified Util.Lists as Lists
 import qualified Util.Log as Log
 import qualified Util.Maps as Maps
@@ -20,12 +19,12 @@ import qualified Cmd.Info as Info
 import qualified Cmd.Perf as Perf
 import qualified Cmd.Repl.Util as Util
 import           Cmd.Repl.Util (Instrument)
-import qualified Cmd.Save as Save
 import qualified Cmd.Selection as Selection
 
 import qualified Derive.Env as Env
 import qualified Derive.EnvKey as EnvKey
 import qualified Derive.Parse as Parse
+import qualified Derive.Parse.Instruments as Instruments
 import qualified Derive.ParseTitle as ParseTitle
 import qualified Derive.REnv as REnv
 import qualified Derive.ScoreT as ScoreT
@@ -43,14 +42,11 @@ import qualified Perform.Midi.Patch as Patch
 import qualified Perform.Pitch as Pitch
 import qualified Perform.Sc.Patch as Sc.Patch
 import qualified Perform.Sc.Play as Sc.Play
-import qualified Perform.Signal as Signal
 
-import qualified Ui.TrackTree as TrackTree
 import qualified Ui.Ui as Ui
 import qualified Ui.UiConfig as UiConfig
 
 import           Global
-import           Types
 
 
 -- * get
@@ -202,247 +198,6 @@ to_chan (Channel1 c)
     | 1 <= c && c <= 16 = fromIntegral (c - 1)
     | otherwise = error $ "MIDI channel out of range: " <> show c
 
--- | Allocate a new MIDI instrument.  For instance:
---
--- > LInst.add "m" "kontakt/mridangam-g" "loop1" [1]
---
--- This will create an instance of the @kontakt/mridangam@ instrument named
--- @>m@, and assign it to the MIDI WriteDevice @loop1@, with a single MIDI
--- channel 0 allocated.
-add :: Instrument -> Qualified -> Text -> [Channel1] -> Cmd.CmdL ()
-add inst qualified wdev chans =
-    add_config inst qualified [((dev, to_chan chan), Nothing) | chan <- chans]
-    where dev = Midi.write_device wdev
-
-add_mpe :: Instrument -> Qualified -> Text -> Cmd.CmdL ()
-add_mpe inst qualified wdev = add inst qualified wdev [2..16]
-
--- | Allocate the given channels for the instrument using its default device.
-add_default :: Instrument -> Qualified -> [Channel1] -> Cmd.CmdL ()
-add_default inst qualified chans = do
-    dev <- device_of (Util.instrument inst)
-    add_config inst qualified [((dev, to_chan chan), Nothing) | chan <- chans]
-
-add_config :: Instrument -> Qualified -> [(Patch.Addr, Maybe Patch.Voices)]
-    -> Cmd.CmdL ()
-add_config inst qualified allocs = do
-    qualified <- parse_qualified qualified
-    allocate (Util.instrument inst) $ UiConfig.allocation qualified $
-        UiConfig.Midi $ Patch.config allocs
-
--- | Allocate a new Im instrument.
-add_im :: Instrument -> Qualified -> Cmd.CmdL ()
-add_im inst qualified = do
-    qualified <- parse_qualified qualified
-    allocate (Util.instrument inst) $
-        UiConfig.allocation qualified UiConfig.Im
-
-add_sc :: Instrument -> Text -> Cmd.CmdT IO ()
-add_sc inst patch = allocate (Util.instrument inst) $
-    UiConfig.allocation (InstT.Qualified "sc" patch) UiConfig.Sc
-
--- | Add the play-cache instrument.  This is a dummy instrument used to
--- trigger the play-cache vst.  It's emitted automatically if there are im
--- instruments, but needs a channel allocation.
-add_play_cache :: Text -> Channel1 -> Cmd.CmdL ()
-add_play_cache wdev chan =
-    allocate (Util.instrument "play-cache") $
-        UiConfig.allocation UiConfig.play_cache (UiConfig.Midi config)
-    where
-    config = Patch.config [((Midi.write_device wdev, to_chan chan), Nothing)]
-
--- | Create a dummy instrument.  This is used for instruments which are
--- expected to be converted into other instruments during derivation.  For
--- instance, pasang instruments are stand-ins for polos sangsih pairs.
---
--- The qualified name still has to name a valid patch, with the Dummy backend.
-add_dummy :: Instrument -> Instrument -> Cmd.CmdL ()
-add_dummy inst qualified = do
-    qualified <- parse_qualified qualified
-    allocate (Util.instrument inst) $
-        UiConfig.allocation qualified (UiConfig.Dummy "")
-
--- | Like 'add_dummy' except it doesn't require a patch.
-add_dummy_ :: Instrument -> Text -> Cmd.CmdL ()
-add_dummy_ inst msg =
-    allocate (Util.instrument inst) $
-        UiConfig.allocation InstT.dummy (UiConfig.Dummy msg)
-
--- | All allocations should go through this to verify their validity, unless
--- it's modifying an existing allocation and not changing the Qualified name.
-allocate :: Cmd.M m => ScoreT.Instrument -> UiConfig.Allocation -> m ()
-allocate score_inst alloc = do
-    inst <- Cmd.get_alloc_qualified alloc
-    allocs <- Ui.config#UiConfig.allocations <#> Ui.get
-    backend <- case (UiConfig.alloc_backend alloc, Inst.inst_backend inst) of
-        (backend@(UiConfig.Dummy {}), Inst.Dummy {}) -> return backend
-        -- This is just a convenience, so I can use add_im or something on a
-        -- dummy, instead of the proper 'add_dummy'.
-        (backend, Inst.Dummy {}) -> do
-            Log.warn $ "switched non-dummy alloc "
-                <> pretty (UiConfig.alloc_qualified alloc)
-                <> " (" <> UiConfig.backend_name backend <> ") to dummy"
-            return $ UiConfig.Dummy ""
-        (backend, _) -> return backend
-    allocs <- Cmd.require_right id $
-        UiConfig.allocate (Inst.inst_backend inst) score_inst
-            (alloc { UiConfig.alloc_backend = backend }) allocs
-    Ui.modify_config $ UiConfig.allocations #= allocs
-
--- | Remove an instrument allocation.
-remove :: Instrument -> Cmd.CmdL ()
-remove = deallocate . Util.instrument
-
-deallocate :: Cmd.M m => ScoreT.Instrument -> m ()
-deallocate inst = Ui.modify_config $ UiConfig.allocations_map %= Map.delete inst
-
--- | Merge the given configs into the existing ones.  This also merges
--- 'Patch.patch_defaults' into 'Patch.config_settings'.  This way functions
--- that create Allocations don't have to find the relevant Patch.
-merge :: Cmd.M m => Bool -> UiConfig.Allocations -> m ()
-merge override (UiConfig.Allocations alloc_map) = do
-    let (names, allocs) = unzip (Map.toList alloc_map)
-    insts <- mapM Cmd.get_alloc_qualified allocs
-    existing <- Ui.get_config (UiConfig.allocations #$)
-    let errors = mapMaybe (verify existing) (zip3 names allocs insts)
-    unless (null errors) $
-        Cmd.throw $ "merged allocations: " <> Text.intercalate "\n" errors
-    let new_allocs = UiConfig.Allocations (Map.fromList (zip names allocs))
-    Ui.modify_config $ UiConfig.allocations
-        %= if override then (new_allocs<>) else (<>new_allocs)
-    where
-    verify allocs (name, alloc, inst) =
-        UiConfig.verify_allocation allocs (Inst.inst_backend inst) name alloc
-
-replace :: Cmd.M m => UiConfig.Allocations -> m ()
-replace allocs = do
-    Ui.modify_config $ UiConfig.allocations #= mempty
-    merge True allocs
-
--- * modify
-
--- | Point an instrument at a different Qualified.
-rename_qualified :: Cmd.M m => Instrument -> Qualified -> m ()
-rename_qualified inst qualified = do
-    qualified <- parse_qualified qualified
-    Cmd.get_qualified qualified
-    Ui.modify_allocation (Util.instrument inst) $ \alloc ->
-        alloc { UiConfig.alloc_qualified = qualified }
-
--- | Rename an instrument.
-rename :: Ui.M m => Instrument -> Instrument -> m ()
-rename from to = modify_allocations from $ \alloc ->
-    Map.insert (Util.instrument to) alloc
-    . Map.delete (Util.instrument from)
-
-copy :: Ui.M m => Instrument -> Instrument -> m ()
-copy from to = modify_allocations from $ Map.insert (Util.instrument to)
-
-modify_allocations :: Ui.M m => Instrument
-    -> (UiConfig.Allocation -> Map ScoreT.Instrument UiConfig.Allocation
-        -> Map ScoreT.Instrument UiConfig.Allocation)
-    -> m ()
-modify_allocations inst modify = do
-    alloc <- get_allocation inst
-    Ui.modify_config $ UiConfig.allocations_map %= modify alloc
-
--- ** Common.Config
-
--- | Toggle and return the new value.
-mute :: Ui.M m => Instrument -> m Bool
-mute = modify_common_config $ \config ->
-    let mute = not $ Common.config_mute config
-    in (config { Common.config_mute = mute }, mute)
-
--- | Toggle and return the new value.
-solo :: Ui.M m => Instrument -> m Bool
-solo = modify_common_config $ \config ->
-    let solo = not $ Common.config_solo config
-    in (config { Common.config_solo = solo }, solo)
-
--- | Add an environ val to the instrument config.
-add_environ :: (REnv.ToVal a, Ui.M m) => Env.Key -> a -> Instrument -> m ()
-add_environ name val = modify_common_config_ $ Common.add_cenviron name val
-
--- | Clear the instrument config's environ.  The instrument's built-in environ
--- from 'Patch.patch_environ' is still present.
-clear_environ :: Ui.M m => Instrument -> m ()
-clear_environ = modify_common_config_ $ Common.cenviron #= mempty
-
--- ** Midi.Patch.Config
-
-set_addr :: Ui.M m => Text -> [Channel1] -> Instrument -> m ()
-set_addr wdev chans = modify_midi_config_ $
-    Patch.allocation #= [((dev, to_chan chan), Nothing) | chan <- chans]
-    where dev = Midi.write_device wdev
-
-set_chans :: Ui.M m => [Channel1] -> Instrument -> m ()
-set_chans chans = modify_midi_config_ $ \config ->
-    case Patch.config_allocation config of
-        ((dev, _), _) : _ -> Patch.allocation
-            #= [((dev, to_chan chan), Nothing) | chan <- chans] $
-                config
-        [] -> config
-
-set_controls :: Ui.M m => [(ScoreT.Control, Signal.Y)] -> Instrument -> m ()
-set_controls controls = modify_common_config_ $
-    Common.controls #= Map.fromList controls
-
-set_control :: Ui.M m => ScoreT.Control -> Maybe Signal.Y -> Instrument -> m ()
-set_control control val = modify_common_config_ $
-    Common.controls # Lens.map control #= val
-
-set_tuning_scale :: Ui.M m => Text -> Patch.Scale -> Instrument -> m ()
-set_tuning_scale tuning scale inst = do
-    set_scale scale inst
-    add_environ EnvKey.tuning tuning inst
-
-set_control_defaults :: Ui.M m => [(ScoreT.Control, Signal.Y)] -> Instrument
-    -> m ()
-set_control_defaults controls = modify_midi_config_ $
-    Patch.settings#Patch.control_defaults #= Just (Map.fromList controls)
-
--- ** Midi.Patch.Config settings
-
-get_scale :: Cmd.M m => ScoreT.Instrument -> m (Maybe Patch.Scale)
-get_scale inst =
-    (Patch.settings#Patch.scale #$) . snd <$> Cmd.get_midi_instrument inst
-
-set_scale :: Ui.M m => Patch.Scale -> Instrument -> m ()
-set_scale scale = modify_midi_config_ $ Patch.settings#Patch.scale #= Just scale
-
-copy_scale :: Cmd.M m => Instrument -> Instrument -> m ()
-copy_scale from to = do
-    scale <- Cmd.require "no scale" =<< get_scale (Util.instrument from)
-    set_scale scale to
-
-pressure :: Ui.M m => Instrument -> m ()
-pressure = add_flag Patch.Pressure
-
-add_flag :: Ui.M m => Patch.Flag -> Instrument -> m ()
-add_flag flag = modify_midi_config_ $
-    Patch.settings#Patch.flags %= Just . Patch.add_flag flag . fromMaybe mempty
-
-remove_flag :: Ui.M m => Patch.Flag -> Instrument -> m ()
-remove_flag flag = modify_midi_config_ $
-    Patch.settings#Patch.flags
-        %= Just . Patch.remove_flag flag . fromMaybe mempty
-
--- | Reset all settings back to instrument defaults.
-reset_settings :: Ui.M m => Instrument -> m ()
-reset_settings = modify_midi_config_ $ Patch.settings #= mempty
-
-reset_flags :: Ui.M m => Instrument -> m ()
-reset_flags = modify_midi_config_ $
-    Patch.settings#Patch.flags #= Nothing
-
-set_decay :: Ui.M m => Maybe RealTime -> Instrument -> m ()
-set_decay decay = modify_midi_config_ $ Patch.settings#Patch.decay #= decay
-
-set_pb_range :: Ui.M m => Maybe Patch.PbRange -> Instrument -> m ()
-set_pb_range range =
-    modify_midi_config_ $ Patch.settings#Patch.pitch_bend_range #= range
-
 -- * util
 
 get_midi_config :: Ui.M m => ScoreT.Instrument
@@ -460,43 +215,11 @@ lookup_midi_config inst = do
         UiConfig.Midi midi_config -> Just (qualified, config, midi_config)
         _ -> Nothing
 
-modify_config :: Ui.M m =>
-    (Common.Config -> Patch.Config -> ((Common.Config, Patch.Config), a))
-    -> Instrument -> m a
-modify_config modify inst_ = do
-    let inst = Util.instrument inst_
-    (qualified, common, midi) <- get_midi_config inst
-    let ((new_common, new_midi), result) = modify common midi
-        new = UiConfig.Allocation qualified new_common (UiConfig.Midi new_midi)
-    Ui.modify_config $ UiConfig.allocations_map %= Map.insert inst new
-    return result
-
-modify_midi_config_ :: Ui.M m => (Patch.Config -> Patch.Config) -> Instrument
-    -> m ()
-modify_midi_config_ modify =
-    modify_config $ \common midi -> ((common, modify midi), ())
-
-modify_common_config :: Ui.M m => (Common.Config -> (Common.Config, a))
-    -> Instrument -> m a
-modify_common_config modify inst_ = do
-    let inst = Util.instrument inst_
-    alloc <- get_instrument_allocation inst
-    let (config, result) = modify (UiConfig.alloc_config alloc)
-        new = alloc { UiConfig.alloc_config = config }
-    Ui.modify_config $ UiConfig.allocations_map %= Map.insert inst new
-    return result
-
-modify_common_config_ :: Ui.M m => (Common.Config -> Common.Config)
-    -> Instrument -> m ()
-modify_common_config_ modify =
-    modify_common_config $ \config -> (modify config, ())
-
 get_instrument_allocation :: Ui.M m => ScoreT.Instrument
     -> m UiConfig.Allocation
 get_instrument_allocation inst =
     Ui.require ("no allocation for " <> pretty inst)
         =<< Ui.allocation inst <#> Ui.get
-
 
 -- * Cmd.EditState
 
@@ -520,37 +243,37 @@ find substr = do
         , inst <- Map.keys $ Inst.synth_insts s
         ]
 
-
 -- * change_instrument
 
--- | Replace the instrument in the current track with the given one, and
--- 'initialize_midi' it.  This is intended for hardware synths which need a
--- program change or sysex.  It's called by "Instrument.Browser".
-set_instrument :: Cmd.M m => Qualified -> m ()
-set_instrument new_qualified = do
-    new_qualified <- parse_qualified new_qualified
+-- | Look up the patch and send MIDI patch initialization, inferring
+-- channels from selected note track.  This is intended for hardware synths
+-- which need a program change or sysex.  It's called by "Instrument.Browser",
+-- and makes it into a kind of sysex librarian.
+set_instrument :: Cmd.M m => Qualified -> m Text
+set_instrument qualified = do
+    qualified <- parse_qualified qualified
+    inst <- Cmd.get_qualified qualified
+    patch <- Cmd.require "only for midi" $ case Inst.inst_backend inst of
+        Inst.Midi patch -> Just patch
+        _ -> Nothing
+    -- I need a MIDI addr to reinit, infer it from the selected track.
     track_id <- snd <$> Selection.event_track
     inst <- Cmd.require "must select a note track"
         =<< ParseTitle.title_to_instrument <$> Ui.get_track_title track_id
-    (_, common_config, midi_config) <- get_midi_config inst
-    -- Replace the old instrument and reuse its addr.
-    deallocate inst
-    allocate inst $ UiConfig.Allocation new_qualified common_config
-        (UiConfig.Midi midi_config)
-    initialize_inst inst
-
-block_instruments :: BlockId -> Cmd.CmdL [ScoreT.Instrument]
-block_instruments block_id = do
-    titles <- fmap (map Ui.track_title) (TrackTree.tracks_of block_id)
-    return $ mapMaybe ParseTitle.title_to_instrument titles
-
--- | Synths default to writing to a device with their name.  You'll have to
--- map it to a real hardware WriteDevice in the 'Cmd.Cmd.write_device_map'.
-device_of :: ScoreT.Instrument -> Cmd.CmdL Midi.WriteDevice
-device_of inst = do
-    InstT.Qualified synth _ <- Cmd.inst_qualified <$> Cmd.get_instrument inst
-    return $ Midi.write_device synth
-
+    (_, _, config) <- get_midi_config inst
+    backend <- Cmd.require_right id $ Instruments.to_backend config
+    -- Previously I would reallocate the new one to replace, but since
+    -- switching to ky config, the most I can do is print it out for
+    -- copy paste.
+    let alloc = Instruments.un_alloc_line $ Instruments.Allocation
+            { alloc_name = "name"
+            , alloc_qualified = qualified
+            , alloc_config = Instruments.empty_config
+            , alloc_backend = backend
+            }
+    Text.unlines . (++alloc) <$> mapMaybeM
+        (\addr -> send_midi_initialize addr (Patch.patch_initialize patch))
+        (Patch.config_addrs config)
 
 -- * midi interface
 
@@ -575,21 +298,7 @@ run_interface op = do
     interface <- Cmd.gets (Cmd.config_midi_interface . Cmd.state_config)
     liftIO (op interface)
 
-
 -- * misc
-
-save :: FilePath -> Cmd.CmdL ()
-save = Save.save_allocations
-
-load :: FilePath -> Cmd.CmdL ()
-load fname = do
-    allocs <- Save.load_allocations fname
-    Ui.modify_config $ UiConfig.allocations #= allocs
-
--- | Load and merge instruments.  If there are name collisions, the
--- already-allocated instrument wins.
-load_merge :: FilePath -> Cmd.CmdL ()
-load_merge fname = merge False =<< Save.load_allocations fname
 
 -- | Send a CC MIDI message on the given device and channel.  This is for
 -- synths that use MIDI learn.
@@ -606,14 +315,14 @@ parse_qualified text
     | otherwise =
         Cmd.throw $ "qualified inst name lacks a /: " <> showt text
 
-
 -- * initialize
 
 -- | Initialize all instruments that need it.
-initialize_all :: Cmd.CmdT IO ()
+initialize_all :: Cmd.CmdT IO Text
 initialize_all = do
-    mapM_ initialize_inst =<< allocated
+    msgs <- concatMapM initialize_inst =<< allocated
     sc_initialize
+    pure $ Text.unlines msgs
 
 -- | List allocated instruments that need initialization.
 need_initialization :: Ui.M m => m Text
@@ -629,15 +338,17 @@ inst_initialization inst = lookup_midi_config inst >>= return . \case
     Just (_, _, config) -> Patch.config_initialization config
 
 -- | Initialize an instrument according to its 'Patch.config_initialization'.
-initialize_inst :: Cmd.M m => ScoreT.Instrument -> m ()
-initialize_inst inst =
-    whenJustM (lookup_midi_config inst) $ \(_, _, config) -> do
+initialize_inst :: Cmd.M m => ScoreT.Instrument -> m [Text]
+initialize_inst inst = lookup_midi_config inst >>= \case
+    Nothing -> pure []
+    Just (_, _, config) -> do
         whenJust (Patch.config_initialization config) $ \case
             Patch.Tuning -> initialize_realtime_tuning inst
             Patch.NrpnTuning -> initialize_nrpn_tuning inst
         (patch, _) <- Cmd.get_midi_instrument inst
-        forM_ (Patch.config_addrs config) $ \addr ->
-            send_midi_initialize inst addr (Patch.patch_initialize patch)
+        mapMaybeM
+            (\addr -> send_midi_initialize addr (Patch.patch_initialize patch))
+            (Patch.config_addrs config)
 
 -- | Send a MIDI tuning message to retune the synth to its 'Patch.Scale'.  Very
 -- few synths support this, I only know of pianoteq.
@@ -667,22 +378,23 @@ get_tuning_map inst = get_scale inst >>= \case
         return $ map (second Pitch.nn_to_double) $
             Patch.scale_nns (Just attr_map) scale
 
-initialize_midi :: Cmd.M m => ScoreT.Instrument -> Patch.Addr -> m ()
+get_scale :: Cmd.M m => ScoreT.Instrument -> m (Maybe Patch.Scale)
+get_scale inst =
+    (Patch.settings#Patch.scale #$) . snd <$> Cmd.get_midi_instrument inst
+
+initialize_midi :: Cmd.M m => ScoreT.Instrument -> Patch.Addr -> m (Maybe Text)
 initialize_midi inst addr = do
     (patch, _) <- Cmd.get_midi_instrument inst
-    send_midi_initialize inst addr (Patch.patch_initialize patch)
+    send_midi_initialize addr (Patch.patch_initialize patch)
 
-send_midi_initialize :: Cmd.M m => ScoreT.Instrument -> Patch.Addr
-    -> Patch.InitializePatch -> m ()
-send_midi_initialize inst (dev, chan) = \case
+send_midi_initialize :: Cmd.M m => Patch.Addr -> Patch.InitializePatch
+    -> m (Maybe Text)
+send_midi_initialize (dev, chan) = \case
     Patch.InitializeMidi msgs -> do
-        Log.notice $ "sending midi init: " <> pretty msgs
         mapM_ (Cmd.midi dev . Midi.set_channel chan) msgs
-    Patch.InitializeMessage msg ->
-        -- Warn doesn't seem quite right for this, but the whole point is to
-        -- show this message, so it should be emphasized.
-        Log.warn $ "initialize instrument " <> pretty inst <> ": " <> msg
-    Patch.NoInitialization -> return ()
+        pure $ Just $ "sending midi init: " <> pretty msgs
+    Patch.InitializeMessage msg -> pure $ Just $ "initialize: " <> msg
+    Patch.NoInitialization -> pure Nothing
 
 sc_initialize :: Cmd.CmdT IO ()
 sc_initialize = do
@@ -692,7 +404,7 @@ sc_initialize = do
     sc_initialize_patches $ mapMaybe Cmd.sc_patch insts
 
 sc_initialize_patches :: [Sc.Patch.Patch] -> Cmd.CmdT IO ()
-sc_initialize_patches [] = return ()
+sc_initialize_patches [] = pure ()
 sc_initialize_patches patches = do
     -- scsynth has a /d_free, but seems to have no way to query what is
     -- actually loaded, so it's sort of useless, because you must control the

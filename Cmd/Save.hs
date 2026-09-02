@@ -25,8 +25,6 @@ module Cmd.Save (
     -- * git
     , save_git, save_git_as, load_git, revert
     , get_git_path
-    -- * config
-    , save_allocations, load_allocations
     -- * misc
     , save_views
 ) where
@@ -386,25 +384,6 @@ make_git_path ns state = case Cmd.state_save_file state of
 
 default_git :: FilePath
 default_git = "save" <> SaveGit.git_suffix
-
--- * config
-
-save_allocations :: FilePath -> Cmd.CmdT IO ()
-save_allocations fname = do
-    allocs <- Ui.config#UiConfig.allocations <#> Ui.get
-    fname <- expand_filename fname
-    Log.notice $ "write instrument allocations to " <> showt fname
-    rethrow_io "save_allocations" $ liftIO $ void $
-        Serialize.serialize Cmd.Serialize.allocations_magic fname allocs
-
-load_allocations :: FilePath -> Cmd.CmdT IO UiConfig.Allocations
-load_allocations fname = do
-    fname <- expand_filename fname
-    Log.notice $ "load instrument allocations from " <> showt fname
-    let mkmsg err = "unserializing instrument allocations " <> showt fname
-            <> ": " <> pretty err
-    Cmd.require_right mkmsg
-        =<< liftIO (Serialize.unserialize Cmd.Serialize.allocations_magic fname)
 
 -- * misc
 

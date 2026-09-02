@@ -124,8 +124,7 @@ test_alloc_line_roundtrip = do
     let syn = InstT.Qualified "syn" "p"
     let trip alloc =
             ( Right alloc
-            , p_alloc_line $ Text.unlines $
-                I.unparse_allocations [(Just alloc, "")]
+            , p_alloc_line $ Text.unlines $ I.un_alloc_line alloc
             )
     uncurry equal $ trip $
         I.Allocation "i" syn I.empty_config I.Im

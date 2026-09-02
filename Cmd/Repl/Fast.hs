@@ -27,45 +27,45 @@ fast_interpret text = case lex_all text of
     Just tokens -> interpret tokens
 
 interpret :: [String] -> Maybe (Cmd.CmdT IO ReplProtocol.CmdResult)
-interpret tokens = case tokens of
-        -- Called by logview.
-        ["s", str] | Just arg <- val str -> action $ Global.s arg
-        ["collapse", int] | Just arg <- val int -> action $ Global.collapse arg
-        ["expand", int] | Just arg <- val int -> action $ Global.expand arg
+interpret = \case
+    -- Called by logview.
+    ["s", str] | Just arg <- val str -> action $ Global.s arg
+    ["collapse", int] | Just arg <- val int -> action $ Global.collapse arg
+    ["expand", int] | Just arg <- val int -> action $ Global.expand arg
 
-        -- Called by the browser.
-        ["load_instrument", str] | Just arg <- val str ->
-            action $ LInst.load arg
+    -- Called by the browser.
+    ["LInst.set_instrument", str] | Just arg <- val str ->
+        action $ LInst.set_instrument arg
 
-        -- Called manually via the REPL.
+    -- Called manually via the REPL.
 
-        -- Make blocks and views.
-        ["LState.rename", a1]
-            | Just v1 <- val a1 -> action $ LState.rename v1
-        ["Create.view", str] | Just arg <- val str -> action $ Create.view arg
+    -- Make blocks and views.
+    ["LState.rename", a1]
+        | Just v1 <- val a1 -> action $ LState.rename v1
+    ["Create.view", str] | Just arg <- val str -> action $ Create.view arg
 
-        -- Misc.
-        ["quit"] -> action Global.quit
-        ["save"] -> action Global.save
-        ["save_state_as", str] | Just arg <- val str ->
-            action $ Global.save_state_as arg
-        ["write_state", str] | Just arg <- val str ->
-            action $ Global.write_state arg
-        ["save_git_as", str] | Just arg <- val str ->
-            action $ Global.save_git_as arg
-        ["load", str] | Just arg <- val str -> action $ Global.load arg
+    -- Misc.
+    ["quit"] -> action Global.quit
+    ["save"] -> action Global.save
+    ["save_state_as", str] | Just arg <- val str ->
+        action $ Global.save_state_as arg
+    ["write_state", str] | Just arg <- val str ->
+        action $ Global.write_state arg
+    ["save_git_as", str] | Just arg <- val str ->
+        action $ Global.save_git_as arg
+    ["load", str] | Just arg <- val str -> action $ Global.load arg
 
-        -- State
-        ["Ui.lookup_root_id"] -> action Ui.lookup_root_id
-        ["Ui.set_root_id", str] | Just arg <- val str ->
-            action $ Ui.set_root_id arg
+    -- State
+    ["Ui.lookup_root_id"] -> action Ui.lookup_root_id
+    ["Ui.set_root_id", str] | Just arg <- val str ->
+        action $ Ui.set_root_id arg
 
-        -- So I can see memory stats without loading GHC API.  Though it
-        -- happens automatically in the background, so I'd have to disable that
-        -- manually.
-        ["LDebug.rtsAllocated"] -> action $ LDebug.rtsAllocated
-        ["LDebug.rssVsize"] -> action $ LDebug.rssVsize
-        _ -> Nothing
+    -- So I can see memory stats without loading GHC API.  Though it
+    -- happens automatically in the background, so I'd have to disable that
+    -- manually.
+    ["LDebug.rtsAllocated"] -> action $ LDebug.rtsAllocated
+    ["LDebug.rssVsize"] -> action $ LDebug.rssVsize
+    _ -> Nothing
     where
     action c = Just (fmap (cmd_result . Global._to_result) c)
     cmd_result result = ReplProtocol.CmdResult result []
