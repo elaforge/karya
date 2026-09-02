@@ -25,7 +25,6 @@ module Derive.Parse.Instruments (
     , instrument_section
     , to_backend
     -- * parse
-    , parse_instruments
     , p_instruments
     , un_instruments
     , un_scale
@@ -117,9 +116,6 @@ un_instrument inst alloc = do
     pure $ line : if null record then []
         -- Indent so they can fold up.
         else map ("    " <>) $ Record.un_record record
-
-parse_instruments :: Text -> Either Error UiConfig.Allocations
-parse_instruments = Parse.parse p_instruments
 
 p_instruments :: Parser UiConfig.Allocations
 p_instruments = do

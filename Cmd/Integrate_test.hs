@@ -105,14 +105,15 @@ test_block_integrate_call_map = do
                 [ (Attrs.attr "attr1", "one")
                 ] $
             MidiInst.make_patch $ Patch.patch (-2, 2) "1"
-    let states = second (const cmd_state) $ mkstates "<<"
-            ( "i1"
-            , [ (0, 1, "+attr1 -- 4c"), (1, 1, "+attr2 -- 4d")
-              , (2, 1, "+attr3 -- 4e")
-              ]
-            , []
-            )
-    res <- start states $ return ()
+    let ui_state = UiTest.set_instruments ">i1 s/1 [ms] dev 1" $
+            fst $ mkstates "<<"
+                ( "i1"
+                , [ (0, 1, "+attr1 -- 4c"), (1, 1, "+attr2 -- 4d")
+                  , (2, 1, "+attr3 -- 4e")
+                  ]
+                , []
+                )
+    res <- start (ui_state, cmd_state) $ return ()
     -- prettyp (e_integrated res)
     equal (e_tracks res)
         [ ( "b1 -- <<"

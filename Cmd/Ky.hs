@@ -38,6 +38,8 @@ import qualified Derive.Parse.Ky as Ky
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Sig as Sig
 
+import qualified Instrument.Inst as Inst
+import qualified Instrument.InstT as InstT
 import qualified Ui.Ui as Ui
 import qualified Ui.UiConfig as UiConfig
 
@@ -49,30 +51,33 @@ import           Global
 update :: Ui.State -> Cmd.State -> Text
     -> IO (Maybe (Ui.State, Cmd.State, [Log.Msg]))
 update ui_state cmd_state ky_text =
-    justm (check_cache cache allocs paths ky_text) $
-    \((ky_cache, allocs), logs) -> do
-        return $ Just
-            ( Ui.config#UiConfig.allocations #= allocs $
-                -- Should already be set when Responder calls me, but not
-                -- when 'set' calls me.
-                Ui.config#UiConfig.ky #= ky_text $ ui_state
-            , cmd_state
-                { Cmd.state_ky_cache = Just ky_cache
-                , Cmd.state_play = (Cmd.state_play cmd_state)
-                    -- TODO should I kill threads?
-                    { Cmd.state_performance = mempty
-                    , Cmd.state_current_performance = mempty
-                    , Cmd.state_performance_threads = mempty
-                    }
+    justm (check_cache lookup_backend cache allocs paths ky_text) $
+    \((ky_cache, allocs), logs) -> pure $ Just
+        ( Ui.config#UiConfig.allocations #= allocs $
+            -- Should already be set when Responder calls me, but not
+            -- when 'set' calls me.
+            Ui.config#UiConfig.ky #= ky_text $ ui_state
+        , cmd_state
+            { Cmd.state_ky_cache = Just ky_cache
+            , Cmd.state_play = (Cmd.state_play cmd_state)
+                -- TODO should I kill threads?
+                { Cmd.state_performance = mempty
+                , Cmd.state_current_performance = mempty
+                , Cmd.state_performance_threads = mempty
                 }
-            , logs
-            )
+            }
+        , logs
+        )
     where
+    lookup_backend = Cmd.get_lookup_backend cmd_state
     allocs = Ui.config#UiConfig.allocations #$ ui_state
     cache = Cmd.state_ky_cache cmd_state
     paths = state_ky_paths cmd_state
 
-set :: Text -> Cmd.CmdT IO Text
+-- | Directly replace the ky text.  This is used when it is explicitly updated,
+-- and can synchronously return the error rather than waiting for play.
+-- 'update' passively detects all other changes, eg undo/redo.
+set :: Text -> Cmd.CmdT IO Cmd.Error
 set ky_text = do
     cmd_state <- Cmd.get
     ui_state <- Ui.get
@@ -89,9 +94,10 @@ set ky_text = do
 
 -- | Reload the ky files if they're out of date, Nothing if no reload is
 -- needed.
-check_cache :: Maybe Cmd.KyCache -> UiConfig.Allocations -> [FilePath] -> Text
+check_cache :: (InstT.Qualified -> Maybe Inst.Backend) -> Maybe Cmd.KyCache
+    -> UiConfig.Allocations -> [FilePath] -> Text
     -> IO (Maybe ((Cmd.KyCache, UiConfig.Allocations), [Log.Msg]))
-check_cache prev_cache old_allocs paths ky_text = run $ do
+check_cache lookup_backend prev_cache old_allocs paths ky_text = run $ do
     when is_permanent abort
     Ky.Ky defs imported allocs <- try . first ParseText.show_error
         =<< liftIO (Ky.load_ky paths ky_text)
@@ -103,6 +109,9 @@ check_cache prev_cache old_allocs paths ky_text = run $ do
     when (old_fingerprint == fingerprint) abort
     let (builtins, logs) = compile_library (loaded_fnames imported) $
             compile_definitions defs
+    let errs = UiConfig.verify_allocations lookup_backend allocs
+    unless (null errs) $
+        Except.throwError $ Just $ "instrument: " <> Text.intercalate "; " errs
     pure
         ( (builtins, Map.fromList (Ky.def_aliases defs), fingerprint, allocs)
         , logs
@@ -112,7 +121,10 @@ check_cache prev_cache old_allocs paths ky_text = run $ do
     apply (Left Nothing) = Nothing
     apply (Left (Just err))
         | failed_previously err = Nothing
-        | otherwise = Just ((Cmd.KyCache (Left err) mempty, old_allocs), [])
+        | otherwise = Just
+            ( (Cmd.KyCache (Left err) mempty, old_allocs)
+            , [Log.msg Log.Warn Nothing $ "broken ky: " <> err]
+            )
     apply (Right ((builtins, aliases, fingerprint, allocs), logs)) = Just
         ((Cmd.KyCache (Right (builtins, aliases)) fingerprint, allocs), logs)
     try = tryRight . first Just

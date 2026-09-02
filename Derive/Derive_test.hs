@@ -542,7 +542,7 @@ test_fractional_pitch = do
     equal logs []
     equal [(chan, nn) | Midi.ChannelMessage chan (Midi.NoteOn nn _)
             <- map Midi.wmsg_msg mmsgs]
-        [(0, Key.c4), (1, Key.d4)]
+        [(1, Key.c4), (2, Key.d4)]
 
 test_control :: Test
 test_control = do

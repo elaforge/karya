@@ -26,7 +26,7 @@ import           Util.Test
 test_parse_instruments :: Test
 test_parse_instruments = do
     let parse = fmap (Map.elems . UiConfig.unallocations)
-            . I.parse_instruments
+            . parse_instruments
     let alloc synth name = UiConfig.Allocation (InstT.Qualified synth name)
     right_equal (parse "") []
     right_equal (parse ">i im/xyz [ms] im")
@@ -48,7 +48,7 @@ test_parse_instruments = do
 
 test_equal :: Test
 test_equal = do
-    let parse = fmap (Map.elems . UiConfig.unallocations) . I.parse_instruments
+    let parse = fmap (Map.elems . UiConfig.unallocations) . parse_instruments
     let alloc synth name = UiConfig.Allocation (InstT.Qualified synth name)
     let legong = Patch.Scale "legong-umbang" $
             Vector.Unboxed.fromList $ [1, 2] <> replicate (128 - 2) (-1)
@@ -64,7 +64,7 @@ test_equal = do
 
 test_un_instruments :: Test
 test_un_instruments = do
-    let parse = I.parse_instruments
+    let parse = parse_instruments
     let un = I.un_instruments
     let ky =
             ">i1 midi/ [Ms] dev 1\n\
@@ -86,6 +86,9 @@ test_un_instruments = do
         \>i2 midi/ [ms] dev 2\n\
         \    {scale: legong}\n\
         \legong = [1, 2, 3, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1]\n"
+
+parse_instruments :: Text -> Either Text UiConfig.Allocations
+parse_instruments = Parse.parse I.p_instruments
 
 config :: Common.Config
 config = Common.empty_config

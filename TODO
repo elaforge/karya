@@ -606,7 +606,12 @@ UNSORTED
         Not as convenient
       - LInst.list shows inherited values, so still useful.  Maybe reduce it
         to just that?
-      - do I still need UiConfig.verify_allocation?
+        . Or put them in as comments?
+        . un_instruments needs lookup_backend then.
+        . Not convenient because can't do it in unserialize.
+        . Maybe back to LInst.list?
+      * do I still need UiConfig.verify_allocation?
+        . It's not used.  At least it should verify Instruments output?
     decision:
       / reduce to just >name [ms] -- qualified/ 1 2 3
         Only mute/solo are synced.  Generate it each time, no comments.
@@ -795,12 +800,6 @@ UNSORTED
             I still don't like it at all.
       - Experiment to see if megaparsec is just as fast as attoparsec now.
         . Or flatparse, should be faster.
-    notes:
-    . Check.parse_instruments -> Parse.p_allocation
-      >pno pianoteq/ midi loop1 0 1 2
-      >tmb faust/tambura4 im
-      >osc sc/inst sc
-      >dum kontakt/sc-calung-pasang dummy
     example:
       instruments:
       >calung kontakt/sc-calung-pasang    (dummy)

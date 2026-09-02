@@ -189,7 +189,7 @@ control_defaults = Lens.lens config_control_defaults
 -- | A Patch has information about one specific instrument.  The performance
 -- 'Instrument' and MIDI config are derived from it, via its
 -- 'Instrument.Inst.Synth'.
-data Patch = Patch {
+data Patch = Patch
     -- | This is the name of the instrument on the synthesizer, and likely has
     -- all sorts of wacky characters in it, and may not be unique, even on
     -- a single synth.  This is just for documentation, and is not actually
@@ -197,7 +197,7 @@ data Patch = Patch {
     --
     -- The patch's unique name, as used by 'InstT.Qualified' to look up
     -- the patch, is in 'Instrument.Inst.synth_insts'.
-    patch_name :: Text
+    { patch_name :: Text
     , patch_control_map :: Control.ControlMap
     , patch_initialize :: InitializePatch
     , patch_attribute_map :: AttributeMap

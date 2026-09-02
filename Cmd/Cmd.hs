@@ -669,10 +669,14 @@ score_path state = case state_save_file state of
     where
     strip = Path.drop_prefix (config_save_dir (state_config state))
 
+type Error = Text
+
 -- | A loaded and parsed ky file, or an error string.  This also has the files
 -- loaded and their timestamps, to detect when one has changed.
-data KyCache =
-    KyCache (Either Text (Derive.Builtins, Derive.InstrumentAliases))
+data KyCache
+    -- | Error marks a broken ky file.  Error reporting is delayed
+    -- until you try to play.  This is
+    = KyCache (Either Error (Derive.Builtins, Derive.InstrumentAliases))
         Fingerprint
     -- | This disables the cache mechanism.  Tests use this to avoid having
     -- to set SaveFile.
@@ -1565,7 +1569,7 @@ get_lookup_instrument = fmap (either (const Nothing) Just .) $
     -- happen to want.
 
 state_lookup_instrument :: Ui.State -> State -> ScoreT.Instrument
-    -> Either Text ResolvedInstrument
+    -> Either Error ResolvedInstrument
 state_lookup_instrument ui_state cmd_state = memoized_instrument
     (UiConfig.config_allocations (Ui.state_config ui_state))
     (config_instrument_db (state_config cmd_state))
@@ -1579,7 +1583,7 @@ state_lookup_instrument ui_state cmd_state = memoized_instrument
 -- which should happen if you use 'get_lookup_instrument' and reuse the
 -- function it returns.
 memoized_instrument :: UiConfig.Allocations -> InstrumentDb
-    -> ScoreT.Instrument -> Either Text ResolvedInstrument
+    -> ScoreT.Instrument -> Either Error ResolvedInstrument
 memoized_instrument (UiConfig.Allocations allocs) db = \inst ->
     fromMaybe (Left $ "no alloc for " <> pretty inst) $ Map.lookup inst memo
     where
@@ -1588,7 +1592,7 @@ memoized_instrument (UiConfig.Allocations allocs) db = \inst ->
 
 -- | See 'ResolvedInstrument'.
 resolve_instrument :: InstrumentDb -> UiConfig.Allocation
-    -> Either Text ResolvedInstrument
+    -> Either Error ResolvedInstrument
 resolve_instrument db alloc = do
     let qualified = UiConfig.alloc_qualified alloc
     inst <- tryJust ("patch not in db: " <> pretty qualified) $
@@ -1606,7 +1610,7 @@ resolve_instrument db alloc = do
         (inst_backend, alloc_backend) -> Left $
             "inconsistent backends: " <> pretty (inst_backend, alloc_backend)
     return $ ResolvedInstrument
-        { inst_instrument = inst -- merge_call_map backend inst
+        { inst_instrument = inst -- merge_attr_calls backend inst
         , inst_qualified = qualified
         , inst_common_config =
             merge_environ (Inst.inst_common inst) (UiConfig.alloc_config alloc)
@@ -1628,7 +1632,7 @@ resolve_instrument db alloc = do
     -- Put the attrs the instrument understands in the CallMap as +attr calls.
     -- If there isn't already a higher level call in there, then at least we
     -- don't lose the attrs entirely.
-    merge_call_map backend =
+    merge_attr_calls backend =
         Inst.common#Common.call_map %= (<> attr_calls (inst_attrs backend))
         where
         attr_calls attrs = Map.fromList

@@ -17,6 +17,9 @@ import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Expr as Expr
 import qualified Derive.Parse.Ky as Parse.Ky
 
+import qualified Instrument.Inst as Inst
+import qualified Instrument.InstT as InstT
+import qualified Perform.Midi.Patch as Patch
 import qualified Ui.UiTest as UiTest
 
 import           Global
@@ -57,7 +60,7 @@ test_ky_file = do
 test_check_cache :: Test
 test_check_cache = do
     let f ky_cache ky = fmap (fmap (fst . fst)) $
-            Ky.check_cache ky_cache mempty [] ky
+            Ky.check_cache lookup_backend ky_cache mempty [] ky
         extract Nothing = Right Nothing
         extract (Just (Cmd.KyCache builtins (Cmd.Fingerprint fnames _fprint))) =
             case builtins of
@@ -82,7 +85,16 @@ test_check_cache = do
     -- But don't update after two errors in a row.
     io_equal (extract <$> f result "error") (Right Nothing)
 
+    result <- f Nothing "instrument:\n>i1 a/b [ms] im\n"
+    left_like (extract result) "i1: patch not found: a/b"
+    result <- f Nothing
+        "instrument:\n>i1 midi/ [ms] d 1\n>i2 midi/ [ms] d 1 2\n"
+    left_like (extract result) "i1 and i2 on d overlap chans: 1"
     -- TODO track imported files
+    where
+    lookup_backend (InstT.Qualified synth _)
+        | synth == "midi" = Just $ Inst.Midi $ Patch.patch (0, 0) "name"
+        | otherwise = Nothing
 
 e_builtins :: Derive.Builtins -> [Expr.Symbol]
 e_builtins = concatMap (Map.keys . Derive.call_map) . Map.elems

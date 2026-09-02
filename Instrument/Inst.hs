@@ -94,7 +94,7 @@ backend_name :: Backend -> Text
 backend_name = \case
     Dummy {} -> "dummy"
     Midi {} -> "midi"
-    Im {} -> "音"
+    Im {} -> "im"
     Sc {} -> "sc"
 
 inst_midi :: Inst code -> Maybe Midi.Patch.Patch

@@ -50,7 +50,7 @@ p_allocation alloc_qualified fields = run $ do
         . flip State.evalStateT fields
 
 -- put in the inherited env as comments?
-un_allocation :: UiConfig.Allocation -> [(Text, Record.RVal)]
+un_allocation :: UiConfig.Allocation -> Record.Record
 un_allocation (UiConfig.Allocation { alloc_config, alloc_backend }) =
     un_config alloc_config ++ un_backend alloc_backend
 
@@ -60,14 +60,17 @@ p_config = do
     controls <- field "controls" mempty p_controls
     return $ Common.Config env controls False False
 
-un_config :: Common.Config -> [(Text, Record.RVal)]
+un_config :: Common.Config -> Record.Record
 un_config (Common.Config { config_environ, config_controls }) = concat
     [ [("env", env) | config_environ /= mempty]
     , [("controls", controls) | config_controls /= mempty]
     ]
     where
-    env = Record.Record $ Map.toAscList $ un_val <$> REnv.to_map config_environ
+    env = un_environ config_environ
     controls = un_controls config_controls
+
+un_environ :: REnv.Environ -> Record.RVal
+un_environ = Record.Record . Map.toAscList . fmap un_val . REnv.to_map
 
 un_controls :: ScoreT.ControlValMap -> Record.RVal
 un_controls = Record.Record . Map.toAscList . fmap un_num
@@ -130,7 +133,7 @@ un_scale (Patch.Scale { scale_name, scale_key_to_nn }) = Record.Record
         Vector.Unboxed.toList scale_key_to_nn)
     ]
 
-un_backend :: UiConfig.Backend -> [(Text, Record.RVal)]
+un_backend :: UiConfig.Backend -> Record.Record
 un_backend = \case
     UiConfig.Midi config -> concat
         [ maybe_field "initialization" (Record.Val . un_enum)
@@ -173,7 +176,7 @@ field name deflt parse =
             State.put (Map.delete name fields)
             annotate name (parse val)
 
-p_record :: Record.RVal -> Parse [(Text, Record.RVal)]
+p_record :: Record.RVal -> Parse Record.Record
 p_record = \case
     Record.Record rec -> return rec
     a@(Record.Val _) -> throw "record" a

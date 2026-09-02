@@ -14,8 +14,7 @@ module Ui.UiConfig (
     , namespace_, meta, root, allocations, lilypond, default_, saved_views
     , ky, tscore
     , allocations_map
-    , allocate
-    , verify_allocation
+    , verify_allocations
     , Allocations(..), unallocations
     , make_allocations
     , midi_allocations
@@ -41,8 +40,8 @@ module Ui.UiConfig (
     , SavedViews
 ) where
 import qualified Control.DeepSeq as DeepSeq
-import qualified Data.List as List
 import qualified Data.Map as Map
+import qualified Data.Set as Set
 import qualified Data.Text as Text
 import qualified Data.Time as Time
 import qualified Data.Vector as Vector
@@ -50,7 +49,8 @@ import qualified Data.Vector as Vector
 import qualified GHC.Generics as Generics
 
 import qualified Util.Lens as Lens
-import qualified Util.Num as Num
+import qualified Util.Lists as Lists
+import qualified Util.Maps as Maps
 import qualified Util.Pretty as Pretty
 import qualified Util.SourceControl as SourceControl
 
@@ -128,63 +128,52 @@ allocations_map = Lens.lens (open . config_allocations)
     (\r a -> r { config_allocations = Allocations a })
     where open (Allocations a) = a
 
--- | Insert an allocation into 'config_allocations' while checking it for
--- validity.
---
--- TODO Of course there's no enforcement for this.  I could get rid of the
--- lens, but there is still uncontrolled access through 'State.modify_config'.
--- On the other hand, it might not really matter, and I do use unchecked
--- modification when the backend doesn't change.
-allocate :: Inst.Backend -- ^ This should the result of looking up
-    -- 'alloc_qualified' in the instrument db.
-    -> ScoreT.Instrument -> Allocation -> Allocations
-    -> Either Text Allocations
-allocate backend instrument alloc (Allocations allocs) =
-    maybe (Right inserted) Left $
-        verify_allocation (Allocations allocs) backend instrument alloc
-    where inserted = Allocations $ Map.insert instrument alloc allocs
+-- | TODO Make this the Allocations constructor?  Probably not worth it.
+verify_allocations :: (InstT.Qualified -> Maybe Inst.Backend) -> Allocations
+    -> [Text]
+verify_allocations lookup_backend allocs =
+    verify_backends_match lookup_backend allocs
+    ++ verify_no_overlapping_midi allocs
 
-verify_allocation :: Allocations -> Inst.Backend -> ScoreT.Instrument
-    -> Allocation -> Maybe Text
-verify_allocation allocs backend instrument alloc =
-    fmap (prefix<>) $
-        verify_backends_match backend alloc
-        <|> verify_no_overlapping_addrs allocs alloc instrument
+verify_backends_match :: (InstT.Qualified -> Maybe Inst.Backend) -> Allocations
+    -> [Text]
+verify_backends_match lookup_backend (Allocations allocs) =
+    concatMap check (Map.toList allocs)
     where
-    prefix = pretty instrument <> " from " <> pretty qualified <> ": "
-    qualified = alloc_qualified alloc
+    check (inst, alloc) = maybe [] ((:[]) . ((pretty inst <> ": ")<>)) $
+        case lookup_backend alloc_qualified of
+            Nothing -> Just $
+                "patch not found: " <> pretty alloc_qualified
+            Just backend -> case (alloc_backend, backend) of
+                (Midi {}, Inst.Midi {}) -> Nothing
+                (Im, Inst.Im {}) -> Nothing
+                (Sc, Inst.Sc {}) -> Nothing
+                (Dummy {}, Inst.Dummy {}) -> Nothing
+                _ -> Just $ "allocation type " <> backend_name alloc_backend
+                    <> " /= instrument type " <> Inst.backend_name backend
+        where Allocation { alloc_qualified, alloc_backend } = alloc
 
-verify_no_overlapping_addrs :: Allocations -> Allocation
-    -> ScoreT.Instrument -> Maybe Text
-verify_no_overlapping_addrs (Allocations allocs) alloc instrument
-    | not (null out_of_range) =
-        Just $ "invalid MIDI channel: " <> pretty out_of_range
-    | null overlaps = Nothing
-    | otherwise = Just $ "instruments with overlapping channel allocations: "
-        <> Text.intercalate ", "
-            [ pretty addr <> " used by " <> pretty inst
-            | (addr, inst) <- overlaps
-            ]
+verify_no_overlapping_midi :: Allocations -> [Text]
+verify_no_overlapping_midi (Allocations allocs) =
+    concatMap check $ Lists.zipNexts inst_addrs
     where
-    out_of_range = filter (not . Num.inRange 0 16 . snd) $ addrs_of alloc
-    overlaps = mapMaybe find (addrs_of alloc)
-    find addr = (addr,) . fst <$>
-        List.find ((addr `elem`) . addrs_of . snd)
-            (filter ((/=instrument) . fst) (Map.toList allocs))
-            -- Don't count this instrument as an overlap, since I'll be
-            -- replacing it.
-    addrs_of alloc = case alloc_backend alloc of
-        Midi config -> map fst (Patch.config_allocation config)
-        _ -> []
-
-verify_backends_match :: Inst.Backend -> Allocation -> Maybe Text
-verify_backends_match backend alloc = case (alloc_backend alloc, backend) of
-    (Midi {}, Inst.Midi {}) -> Nothing
-    (Im, Inst.Im {}) -> Nothing
-    (Sc, Inst.Sc {}) -> Nothing
-    (Dummy {}, Inst.Dummy {}) -> Nothing
-    _ -> Just $ "allocation type " <> backend_name (alloc_backend alloc)
-        <> " /= instrument type " <> Inst.backend_name backend
+    check (inst1, rest) = concatMap (overlaps inst1) rest
+    overlaps (inst1, devs1) (inst2, devs2) = do
+        (dev, Lists.Both chans1 chans2) <- Maps.pairs devs1 devs2
+        let overlap = Set.intersection
+                (Set.fromList chans1) (Set.fromList chans2)
+        guard (overlap /= mempty)
+        pure $ Text.unwords $
+            [ pretty inst1, "and", pretty inst2, "on", pretty dev
+            , "overlap chans:"
+            ] ++ map (showt . (+1)) (Set.toList overlap)
+    inst_addrs =
+        [ (inst, by_device config)
+        | (inst, alloc) <- Map.toList allocs
+        , Midi config <- [alloc_backend alloc]
+        ]
+    by_device = Map.fromList . Lists.groupFst . map fst
+        . Patch.config_allocation
 
 -- TODO I'm not a big fan of this name, since it's generic and not
 -- obviously related to instruments.  However the previous name,
@@ -338,7 +327,7 @@ instance Pretty Backend where
 backend_name :: Backend -> Text
 backend_name = \case
     Midi {} -> "midi"
-    Im -> "音"
+    Im -> "im"
     Sc -> "sc"
     Dummy {} -> "dummy"
 

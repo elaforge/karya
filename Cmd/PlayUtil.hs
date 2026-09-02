@@ -162,7 +162,7 @@ initial_constant ui_state cmd_config builtins cache damage =
     config_builtins = Cmd.config_builtins cmd_config
 
 ky_builtins :: Cmd.KyCache
-    -> Either Text (Derive.Builtins, Derive.InstrumentAliases)
+    -> Either Cmd.Error (Derive.Builtins, Derive.InstrumentAliases)
 ky_builtins = \case
     Cmd.KyCache (Left err) _ -> Left $ "parsing ky: " <> err
     Cmd.KyCache (Right builtins) _ -> Right builtins

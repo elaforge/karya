@@ -14,6 +14,7 @@ import           GHC.Stack (HasCallStack)
 import qualified Util.Debug as Debug
 import qualified Util.Lists as Lists
 import qualified Util.Log as Log
+import qualified Util.Parse as Parse
 import qualified Util.Rect as Rect
 import qualified Util.Test.Testing as Testing
 import qualified Util.Texts as Texts
@@ -684,18 +685,19 @@ set_instruments ky =
     (Ui.config#UiConfig.allocations #= allocs)
     . (Ui.config#UiConfig.ky #= Instruments.instrument_section <> ":\n" <> ky)
     where
-    allocs = either (error . untxt) id $ Instruments.parse_instruments ky
+    allocs = either (error . untxt) id $
+        Parse.parse Instruments.p_instruments ky
 
 default_instruments :: Text
 default_instruments =
-    ">i s/1 [ms] wdev 1..3\n\
-    \>i1 s/1 [ms] wdev 1..3\n\
-    \>i2 s/2 [ms] wdev 4\n\
-    \>i3 s/3 [ms] wdev 5\n"
+    ">i s/1 [ms] wdev 1\n\
+    \>i1 s/1 [ms] wdev 2..4\n\
+    \>i2 s/2 [ms] wdev 5\n\
+    \>i3 s/3 [ms] wdev 6\n"
 
 default_allocations :: UiConfig.Allocations
 default_allocations = either (error . untxt) id $
-    Instruments.parse_instruments default_instruments
+    Parse.parse Instruments.p_instruments default_instruments
 
 modify_midi_config :: HasCallStack => ScoreT.Instrument
     -> (Patch.Config -> Patch.Config)
