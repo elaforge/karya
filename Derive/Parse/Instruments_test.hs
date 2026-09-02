@@ -75,6 +75,17 @@ test_un_instruments = do
             \>i3 midi/ [ms] dev 2..4\n\
             \>i4 im/ [ms] im\n"
     right_equal (un =<< parse ky) ky
+    let ky =
+            ">i1 midi/ [ms] dev 1\n\
+            \{ scale: { name: legong, key_to_nn: [1, 2, 3] } }\n\
+            \>i2 midi/ [ms] dev 2\n\
+            \{ scale: { name: legong, key_to_nn: [1, 2, 3] } }\n"
+    right_equal (un =<< parse ky)
+        ">i1 midi/ [ms] dev 1\n\
+        \    {scale: legong}\n\
+        \>i2 midi/ [ms] dev 2\n\
+        \    {scale: legong}\n\
+        \legong = [1, 2, 3, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1]\n"
 
 config :: Common.Config
 config = Common.empty_config

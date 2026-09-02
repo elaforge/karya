@@ -257,7 +257,7 @@ data Scale = Scale
     -- MIDI key numbers to their NNs, or 'no_pitch' if the patch doesn't
     -- support that key.
     , scale_key_to_nn :: Unboxed.Vector Double
-    } deriving (Eq, Show)
+    } deriving (Eq, Ord, Show)
 
 instance Pretty Scale where
     format (Scale name _) = Pretty.constructor "Patch.Scale" [Pretty.text name]

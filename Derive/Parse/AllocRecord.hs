@@ -138,7 +138,10 @@ un_backend = \case
         , maybe_field "flags"
             (Record.Val . DeriveT.VList . map un_enum . Set.toList)
             config_flags
-        , maybe_field "scale" un_scale config_scale
+        -- Save it as just the name.  It should be factored out into an
+        -- assignment by Instruments.un_instruments.
+        , maybe_field "scale" (Record.Val . DeriveT.str . Patch.scale_name)
+            config_scale
         , maybe_field "decay" (Record.Val . DeriveT.real_time) config_decay
         , maybe_field "pb_range" (\(a, b) -> Record.list [int a, int b])
             config_pitch_bend_range

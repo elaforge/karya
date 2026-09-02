@@ -2,12 +2,14 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
--- | Functions to construct instrument allocations.  You can merge them with
--- 'LInst.replace' or 'LInst.merge'.
+-- | Functions to construct instrument allocations.
 module Cmd.Repl.LAlloc where
+import qualified Data.Text.IO as Text.IO
+
 import qualified Cmd.Instrument.ImInst as ImInst
 import qualified Cmd.Instrument.MidiInst as MidiInst
 import qualified Derive.C.Bali.Gangsa as Gangsa
+import qualified Derive.Parse.Instruments as Instruments
 import qualified Derive.Scale.BaliScales as BaliScales
 import qualified Derive.Scale.Legong as Legong
 import qualified Derive.ScoreT as ScoreT
@@ -23,6 +25,11 @@ import qualified User.Elaforge.Instrument.Kontakt.ScGamelan as ScGamelan
 
 import           Global
 
+
+-- | Convert Allocations into ky and paste from here into instrument: section.
+ky :: UiConfig.Allocations -> IO ()
+ky = either (Text.IO.putStrLn . ("ERROR: "<>)) Text.IO.putStr
+    . Instruments.un_instruments
 
 -- * bali
 

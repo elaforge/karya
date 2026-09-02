@@ -184,7 +184,7 @@ undo_extend = take 15 . drop (1 + 5 + 5)
 
 instrument_scale :: Bool -> BaliScales.Laras -> BaliScales.Tuning -> Patch.Scale
 instrument_scale extended laras tuning =
-    Patch.make_scale ("wayang " <> ShowVal.show_val tuning) $
+    Patch.make_scale ("wayang-" <> ShowVal.show_val tuning) $
         zip (midi_keys extended)
             ((if extended then id else undo_extend) (Vector.toList nns))
     where

@@ -491,7 +491,7 @@ UNSORTED
     - Update extant scores
   + inst allocation in ky: branch ky-record:
     2026-08-05 attempt:
-      - How to parse scale?  It's string -> tuning map.
+      * How to parse scale?  It's string -> tuning map.
         . Where do they come from?
         . From instrument definitions, so no global table.
         . This is a Settings feature to override the built-in one.
@@ -541,7 +541,6 @@ UNSORTED
       * restore Parse.Record
       * restore AllocRecord, which parses the generic form
         * Parse header line.
-
       * if I make backend explicit, I can remove LookupBackend dep
       * to convert existing scores:
         . If UiConfig.Config version is old, append an instruments clause to
@@ -573,7 +572,6 @@ UNSORTED
           .15, 72.975, 73.8, 74.59, 75.38, 78, 78.64, 79.28, 79.77, 80.26, 81.63, 83, 84.24, 85.16, 86.0
           8, 86.95, 87.82, 90, 90.91, 91.82, 92.16, 92.5, 93.75, 95, 96.46]
              |
-
                                                            ^
             expected val
       * The real error is (pitch 1 2), ShowVal must be "(pitch ..).
@@ -591,7 +589,7 @@ UNSORTED
       . But that means ShowVal has to put in "().  I think it's ok though.
       - This means all the UiConfig functions for alloc manipulation go
         away, as do LInst ones.
-      - Also LAlloc can become directory of text files?
+      / Also LAlloc can become directory of text files?
         But this means local code eg ScGamelan.kebyar_allocations goes
         from code to data.  Is this good?
         . Or it could just generate text.

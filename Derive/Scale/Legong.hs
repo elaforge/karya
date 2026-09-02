@@ -307,7 +307,7 @@ make_instrument_scale :: Text -> [Midi.Key]
     -- ^ drop and take keys for the instrument's range
     -> BaliScales.Laras -> BaliScales.Tuning -> Patch.Scale
 make_instrument_scale name keys take_range laras tuning =
-    Patch.make_scale (name <> " " <> ShowVal.show_val tuning) $
+    Patch.make_scale (name <> "-" <> ShowVal.show_val tuning) $
         take_range $ zip (midi_keys keys) (Vector.toList nns)
     where
     nns = case tuning of

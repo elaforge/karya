@@ -36,6 +36,7 @@ import qualified Data.Either as Either
 import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Text as Text
+import qualified Data.Vector.Unboxed as Vector.Unboxed
 
 import qualified Util.Lists as Lists
 import qualified Util.Maps as Maps
@@ -98,7 +99,19 @@ instrument_section = "instrument"
 un_instruments :: UiConfig.Allocations -> Either Error Text
 un_instruments (UiConfig.Allocations allocs) = do
     lines <- concatMapM (uncurry un_instrument) (Map.toList allocs)
-    pure $ Text.unlines lines
+    pure $ Text.unlines $ lines ++ scale_lines
+    where
+    scale_lines =
+        [ un_equal (Text.replace " " "-" scale.scale_name) $
+            Record.list $ map DeriveT.num $
+            Vector.Unboxed.toList scale.scale_key_to_nn
+        | scale <- scales
+        ]
+    scales = Lists.unique $ mapMaybe (scale_of . UiConfig.alloc_backend)
+        (Map.elems allocs)
+    scale_of = \case
+        UiConfig.Midi config -> Patch.settings#Patch.scale #$ config
+        _ -> Nothing
 
 un_instrument :: ScoreT.Instrument -> UiConfig.Allocation
     -> Either Error [Text]
@@ -117,7 +130,7 @@ p_instruments :: Parser UiConfig.Allocations
 p_instruments = do
     (env, records) <- first Map.fromList . Either.partitionEithers <$>
         p_definitions
-    insts <- mapM (resolveM env) records
+    insts <- mapM (substituteM env) records
     let (allocs, dups) = Maps.unique2 insts
     dups <- mapM (traverse (mapM (firstM Parse.offsetToSourcePos))) dups
     unless (null dups) $
@@ -129,10 +142,10 @@ p_instruments = do
 
 type Record = Map Text Record.RVal
 
-resolveM :: Record -> (Parse.Offset, (Allocation, Record))
+substituteM :: Record -> (Parse.Offset, (Allocation, Record))
     -> Parser (ScoreT.Instrument, (Parse.Offset, UiConfig.Allocation))
-resolveM env (offset, (alloc_line, record)) = do
-    record <- either die pure $ resolve env record
+substituteM env (offset, (alloc_line, record)) = do
+    record <- either die pure $ substitute env record
     ui_alloc <- either die pure $
         AllocRecord.p_allocation qualified record
     either die (pure . (name,) . (offset,)) $
@@ -142,8 +155,8 @@ resolveM env (offset, (alloc_line, record)) = do
     Allocation name qualified config backend = alloc_line
 
 -- | Resolve variables parsed by p_equal.  So far it's just for scale.
-resolve :: Record -> Record -> Either Error Record
-resolve env record = case Map.lookup "scale" record of
+substitute :: Record -> Record -> Either Error Record
+substitute env record = case Map.lookup "scale" record of
     Just (Record.Val (DeriveT.VStr (Expr.Str name))) ->
         case Map.lookup name env of
             Nothing -> Left $ "no assignment for: " <> name
@@ -320,6 +333,9 @@ p_equal = do
     spaces >> "=" >> spaces
     val <- Record.p_rval
     pure (lhs, val)
+
+un_equal :: Symbol -> Record.RVal -> Text
+un_equal sym val = Text.unwords $ [sym, "="] ++ Record.un_rval val
 
 -- * util
 

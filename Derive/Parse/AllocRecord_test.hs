@@ -35,9 +35,6 @@ test_p_allocation = do
     -- pprint (p_record alloc_expr)
     right_equal (parse alloc_expr) allocation
 
-legong :: Patch.Scale
-legong = Patch.make_scale_dense "legong-umbang" [1, 2]
-
 alloc_qualified :: InstT.Qualified
 alloc_qualified = InstT.Qualified "a" "b"
 
@@ -61,7 +58,7 @@ allocation = UiConfig.Allocation
         , config_settings = Patch.Settings
             { config_flags = Just $ Set.fromList
                 [Patch.Pressure, Patch.HoldKeyswitch, Patch.ResumePlay]
-            , config_scale = Just legong
+            , config_scale = Nothing
             , config_decay = Just 0.5
             , config_pitch_bend_range = Just (-12, 12)
             , config_control_defaults = Just $
@@ -80,10 +77,6 @@ alloc_expr =
     \, controls: {dyn: .25}\n\
     \, initialization: Tuning\n\
     \, flags: [Pressure, HoldKeyswitch, ResumePlay]\n\
-    \, scale:\n\
-    \    { name: legong-umbang\n\
-    \    , key_to_nn: [1, 2, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1]\n\
-    \    }\n\
     \, decay: .5s\n\
     \, pb_range: [-12, 12]\n\
     \, control_defaults: {cc1: 42}\n\
