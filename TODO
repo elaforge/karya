@@ -489,410 +489,54 @@ UNSORTED
       better to do that and require spaces than use a nonstandard syntax.
     - Then update all tests
     - Update extant scores
-  + inst allocation in ky: branch ky-record:
-    2026-08-05 attempt:
-      * How to parse scale?  It's string -> tuning map.
-        . Where do they come from?
-        . From instrument definitions, so no global table.
-        . This is a Settings feature to override the built-in one.
-        . It's an attribute of patches, but ultimately comes from scales
-          eg Selisir.instrument_scale
-        . The purpose is to undo a tuning so it goes back to plain
-          Midi.Keys.  So it's convoluted, but I think necessary for
-          a generic pitch representation.
-        . What if rather than saving as Vector NN, use symbolic name and
-          have a big table in Scales.all?
-        . I would have an extra field in Scale, like
-          Map Text (Vector NoteNumber)
-        . Where look it up then?
-        . Or if I override, why not just put the whole table in []s?
-        . It's really noisy.  I could have a local definition:
-          legong_umbang = [47.91, 48.855, 49.8, 50.415, 51.03, 53.622,
-            54.336, 55.05, 55.575, 56.1, 56.9, 57.7, 59.91, 60.855, 61.8,
-            62.35, 62.9, 64.801, 65.975, 67.15, 67.605, 68.06, 68.955, 69.851,
-            71.88, 72.74, 73.6, 74.375, 75.15, 77.906, 78.513, 79.12, 79.695,
-            80.27, 81.6, 82.93, 84.09, 85.056, 86.021, 86.894, 87.767, 89.953,
-            90.865, 91.778, 92.119, 92.459, 93.712, 94.965, 96.428]
-          >calung-p kontakt/sc-calung [ms] loop1 3
-              { env: {tuning: umbang}, scale: legong_umbang
-              }
-        . How am I supposed to enter them in the first place?  I guess it
-          would be print, then copy paste into the definition.  So it's
-          still awkward.  But I guess I put them in via code, eg
-          the complete gong definition.  So maybe in practice these are
-          external files that I import?  Or copy paste in?
-        . The definition is part of eg the kontakt patch, so it should
-          remain stable, not change with Scale changes.
-      cons:
-        * Loses .. range syntax. Just add it!
-        * Programmatic creation requires unparsing
-        * and automatic append to instrument section
-        . No syntax for midi Voices.  Come up with a syntax?  Or drop the
-          feature?
-        . It makes Patch.Scale impractical, to copy the nns over.  I'll
-          want a programmatic way to do that anyway.  Otherwise I'd want to
-          go to a global named registry.
-        . What's more, they're usually all the same.
-      . Ky is parsed with megaparsec.
-        Val is parsed with attoparsec.
-        For the moment, I use Util.attoparse.  In the future see if megaparsec
-        is now fast enough to use everywhere.  Or flatparse, if it has good
-        errors.
-      * restore Parse.Record
-      * restore AllocRecord, which parses the generic form
-        * Parse header line.
-      * if I make backend explicit, I can remove LookupBackend dep
-      * to convert existing scores:
-        . If UiConfig.Config version is old, append an instruments clause to
-          ky text.
-        . No longer need to save allocations, it should be in ky!
-        * comment out old instruments section
-      * unify with tscore
-      * serialize is confused by UiConfig.config_allocations which is not
-        saved.  Since it comes from ky now, what if I remove the field and
-        keep it in Cmd.State?
-        . This will be inconvenient for tests which use ui state and derive.
-          Or maybe, I just put ky in instead of default allocations?
-        . Or save it for now, but ignore on load.
-        . No work, not serialize at least.  Because ky overwrites?
-        . That's only on load though, in tests if I manipulate with ky I have
-          to reparse and reload.
-        . The problem is tests manipulate UiConfig directly
-        . Can I have set_instruments take ky, parse it, and update
-          allocations?  Ideally it would be read-only.
-      * bug:
-        If I have empty qualified eg
-          '>ra / [ms] dummy'
-        then error is reported at end of two lines before and with
-        wrong line number:
-          <score>: 71:241:
-             |
-          71 |         , key_to_nn: [48.4, 49.405, 50.41, 51.13, 51.85, 54, 54.835, 55.67, 56.085, 56.5,
-           57.25, 58, 60.4, 61.405, 62.41, 62.84, 63.27, 65, 66.24, 67.48, 67.905, 68.33, 69.165, 70, 72
-          .15, 72.975, 73.8, 74.59, 75.38, 78, 78.64, 79.28, 79.77, 80.26, 81.63, 83, 84.24, 85.16, 86.0
-          8, 86.95, 87.82, 90, 90.91, 91.82, 92.16, 92.5, 93.75, 95, 96.46]
-             |
-                                                           ^
-            expected val
-      * The real error is (pitch 1 2), ShowVal must be "(pitch ..).
-        Is this right?  It's because record doesn't allow Expr, only Val.
-        Maybe it should parse Expr, and automatically quote it?
-        Is this not a weird interpreter?  I guess it's because calls have
-        location context, so quote is needed to delay evaluation?
-        . An Expr is always a function call, e.g. "4" is (4).
-          So there is a difference between toplevel calls: "a b c" and nested
-          ones: "(a b c)"
-      . So I could parse p_term instead of p_val.
-        But it has to go into REnv, so must be wrapped in Quote.
-      . But "() is more honest, because it will become quoted, because it'll
-        only be evaluated on the spot.
-      . But that means ShowVal has to put in "().  I think it's ok though.
-      . This means all the UiConfig functions for alloc manipulation go
-        away, as do LInst ones.
-      / Also LAlloc can become directory of text files?
-        But this means local code eg ScGamelan.kebyar_allocations goes
-        from code to data.  Is this good?
-        . Or it could just generate text.
-        . Or use un_instruments, that's why I have it.
-      * rm Save allocations
-      * what about browser setting current instrument?  Also send init?
-        I never used this much, but it's the whole reason for browser as
-        patch library.
-        Maybe it can send the init, and print out the alloc line?
-        If I keep it, then paste it into ky.
-      * LTuning
-        I think 'realtime' and 'nrpn' switch to printing the 'scale =' line?
-        Have to paste in initialization: NrpnTuning too.
-        Not as convenient
-      * LInst.list shows inherited values, so still useful.  Maybe reduce it
-        to just that?
-        . Or put them in as comments?
-        . un_instruments needs lookup_backend then.
-        . Not convenient because can't do it in unserialize.
-        . Maybe back to LInst.list?
-        . Or maybe unserialize is just const Nothing.
-        . LAlloc is it!  No one else does un_instruments.
-          Unless I have LInst.set_istrument do it?
-        . Or just use LInst.doc?
-      * do I still need UiConfig.verify_allocation?
-        . It's not used.  At least it should verify Instruments output?
-    decision:
-      / reduce to just >name [ms] -- qualified/ 1 2 3
-        Only mute/solo are synced.  Generate it each time, no comments.
-      . Wait except tscore uses this!  This is probably how I started down
-        this road in the first place.
-      . In tscore it's the complete allocation, and you just can't express
-        the fancy stuff.  So this is pulling in the direction of all in text.
-      . Ok so what if I keep the format the same, but simplify the merging.
-      Why I hesitate to just implement full records:
-        . Seems like a lot of work to create parsing for all fields
-          answer: Just do it?
-        . No docs, seems harder than calling typed update functions.
-          answer: I guess I'd need some documentation.  I can generate
-          comments, but some special hackery needed for enums.
-      . Instrument transformers also overlap, in that I can put environ in the
-        instrument, or I could set an instrument transformer like
-          >i = x=y
-    notes:
-      Currently it's a bad state, it's semi parsed.
-        ? What's the problem?
-          I think it's 2 way sync, from UiConfig to ky, and ky back.
-        . If I add with LInst.add_inst, then I have to generate the line.
-      Can I make ky canonical for the bits it covers?
-        . Instead of generating it in Ky.get_ky, just have it directly from
-          UiConfig.ky.
-      . Do I need Common.config_environ if I can already do the same with
-        instrument transformers?  Same for ControlValMap.
-        Not quite, because I have dummy pasangan instruments with environ,
-        they would have to be injected into the transform: section somehow.
-      . The original reason was to more easily mute/solo.
-        But then add_inst wouldn't add new ones, and converse.
-        And it seemed like it would be neat to show stuff about instrumenst.
-        And it seemed compelling to have all the alloc data right there in
-        text, where I could have comments etc.  I could easily switch by
-        commenting/uncommenting.  Also don't need separate .inst files, or
-        rather that they become text.
-        If I can serialize it for save, why can't I serialize to text?
-        `dump` does this, but it's not 2 way, e.g. scale is stand-in.
-        But there's lots of complicated stuff, and it would all need to be
-        reflected into a json-esque format.
-      all text problems:
-        . The plan was to make a generic Record like JSON and then a separate
-          parser out of that.
-        . Complicated though, two levels of parser.
-        . I also had doubts because LInst provides a typed modification
-          interface, it seemed hard to remember some complicated data
-          structure.  I could create a skeleton for new instruments, but
-          the majority is unused.
-        . I could have both with an unparser, but now it also needs to
-          preserve comments to do 2 way sync.
-        ? REnv?
-        ? config_scale
-      . So there are two paths:
-        . Continue to pursue all in text.
-        . Back out and either delete the instruments section entirely, or
-          see if I can support just mute/solo.
-
-      . Does Ky.merge_instruments not work?
-      . I want some of it to be in ky, where ky is canonical.  So no need
-        to unparse, the UiConfig version is just a parsed version of ky.
-        , alloc_qualified :: !InstT.Qualified
-        , alloc_config :: !Common.Config
-        , alloc_backend :: !Backend
-        data Backend = Midi !Patch.Config | Im | Sc | Dummy !Text
-        Midi.Patch.Config
-          + config_allocation :: ![(Addr, Maybe Voices)]
-          - config_initialization :: !(Maybe Initialization)
-          . config_settings :: !Settings
-        Midi.Patch.Settings
-          - config_flags :: !(Maybe (Set Flag))
-          - config_scale :: !(Maybe Scale)
-          - config_decay :: !(Maybe RealTime)
-          - config_pitch_bend_range :: !(Maybe Control.PbRange)
-          - config_control_defaults :: !(Maybe ScoreT.ControlValMap)
-        Common.Config:
-          - config_environ :: !REnv.Environ
-          - config_controls :: !ScoreT.ControlValMap
-          + config_mute :: !Bool
-          + config_solo :: !Bool
-
-        >pno [ms] pianoteq/ midi loop1 0 1 2
-        >tmb [ms] faust/tambura4 im
-        >osc [ms] sc/inst sc
-        >dum [ms] kontakt/sc-calung-pasang dummy
-        This is name, solo/mute, qualified, backend, allocation
-
-        >pno [ms] pianoteq/ midi loop1 0 1 2
-          { environ:
-            { -inst-bottom: (pitch 4 0)
-            , -inst-top: (pitch 4 6)
-            , +tuning: umbang
-            }
-          }
-
-      . Some of the instrument config is in ky:
-        >pno pianoteq/ midi loop1 0 1 2
-        >tmb faust/tambura4 im
-        >osc sc/inst sc
-        >dum kontakt/sc-calung-pasang dummy
-        instruments:
-        >calung kontakt/sc-calung-pasang    (dummy)
-          { +inst-polos: calung-p
-          , +inst-sangsih: calung-s
-          }
-        >calung-p kontakt/sc-calung loop1 [3]
-          { -inst-bottom: (pitch 4 0)
-          , -inst-top: (pitch 4 6)
-          , +tuning: umbang
-          }
-          >m-d kontakt/mridangam-d loop2 [3] {mute}
-
-    * implement Record type and parser
-    / I'll probably need to parse and unparse comments too:
-      . commented out lines for unset config
-      . However, if this is really the source of truth, then whence the
-        generated stuff?  Maybe instead I just have a function to emit
-        a commented out example, that I edit to suit.
-      . Inherited environ.  I guess I can include this too, if it's for
-        a specific patch.
-    * pretty printer to generate an initial expression with comments
-      . AllocRecord.from_allocation
-      one purpose is to provide a starting point for existing scores:
-      other is to provide something to edit to add new instruments:
-        . Take an LInst.add (name, qualified, loop, addrs) and
-          print an example expression full of comments.
-        . It seems annoynig to have to learn a special language and know all
-          the possible values.  If I'm using haskell, I have the same problem
-          though... but at least I can do tab completion and I know where to
-          look in the source and there are medium-quality errors.
-      . Alternately, I could regenerate the instruments section every time,
-        and not store it in ky.  Sort of annoying because comments go away.
-      . So, try to preserve comments, this is merge_instruments.
-    parse Record -> UiConfig.Allocation:
-      * integrate parsing the initial line
-      * implement REnv.demote
-      * Text -> Maybe Patch.Scale so I can save it by name, will need registry
-      * simplify Midi.Patch.Addr to (WriteDevice, [Channel])
-    cleanup:
-      / maybe all '-strings into Parse.Strict
-        . Why though?  I actually do use symbols like key = d#-maj
-      - merge RVal with Val, REnv with Env
-        . see notes below, will allow Eq Val instance
-        - serialize ControlFunction as an expression
-        - serialize Pitch as a constant pitch
-      * unify with TScore
-        . But this will make errors bad because of attoparsec.  So first
-          implement 'attoparse' so it can be in megaparsec.
-      - kill threads in Cmd.Ky.update_cache?
-      * switch Derive.Parse.Instruments to megaparsec, and "shell out" to
-        attoparsec just for p_val.
-        . attoparse :: A.Parser a -> Parser a
-      - Refactor to remove the duplication by embedding an RVal in a DVal.
-        . type              DVal    RVal (* has parser, - has type)
-          Num               *       -
-          Attributes        *       -
-          ControlRef        *       -
-          ConstantPitch             - (promote to Pitch)
-          Pitch             -
-          PControlRef       *
-          NotePitch         -       -
-          Str               *       -
-          Quoted            *       - (of Expr DVal and Expr RVal)
-          ControlFunction   *
-          NotGiven          *
-          Separator         *
-          List              *       - (of DVals and RVals respectively)
-        . Quoted and List have the same problem, where they need to be
-          parameterized by val.
-        . So:
-          data RVal val = VList [val]
-          data DVal = RVal (RVal DVal) | VControlFunction
-        . The non-parseable thing is really just Pitch and ControlFunction.
-          Could I define a literal for Pitch?  Basically that's what
-          ConstantPitch is.  If it gets serialized and deserialized it would
-          lose its transpose, but that's ok, right?
-        . Then I have ControlFunction, which is a haskell function.
-        . The main thing is I can't serialize this, so I can't put it in an
-          instrument.  Except, I could serialize it as the expression that
-          creates it, like `cf-rnd 1 2`, but deserialize would have to mean
-          evaluate it in the standard library context.  This is the same as
-          the "literal" syntax for list, (list 1 2).
-        . If I do this, I can eliminate REnv and RVal entirely.
-        - Serialize Pitch.  It can set it to ConstantPitch.
-        - Serialize ControlFunction.  I can save it as name plus args.
-          . But maybe I can take another look at ControlFunction first,
-            I still don't like it at all.
-      - Experiment to see if megaparsec is just as fast as attoparsec now.
-        . Or flatparse, should be faster.
-    example:
-      instruments:
-      >calung kontakt/sc-calung-pasang    (dummy)
-        { +inst-polos: calung-p
-        , +inst-sangsih: calung-s
-        }
-      >calung-p kontakt/sc-calung loop1 [3]
-        { -inst-bottom: (pitch 4 0)
-        , -inst-top: (pitch 4 6)
-        , +tuning: umbang
-        }
-        (scale legong umbang 49 keys)
-      >m-d kontakt/mridangam-d loop2 [3] {mute}
-    . I could have a generic records and values syntax.  Like JSON but
-      with comments... and no "s?
-      . Though if I use literally json and strip comments I can reuse aeson.
-      . Also seems like I want tuples?
-        >pemade-p
-          { qualified = 'kontakt/sc-pemade'
-          , config: -- Common.Config
-            { environ = {tuning = 'umbang'}
-            , mute = False, solo = False
-            }
-          , backend: -- Midi Patch.Config | Im | Sc | Dummy
-            { allocation = [("loop1", 6)]
-            , initialization = Tuning | NrpnTuning
-            , settings =
-              { flags = {Pressure, HoldKeyswitch, ResumePlay}
-              , scale = "legong umbang"
-              , pitch_bend_range = (-12, 12)
-              , control_defaults = {cc1 = 42}
-              }
-            }
-          }
-      . >pemade-p kontakt/sc-pemade [ms] {"tuning": "umbang"} loop1 6
-        { "initialization": "Tuning" | "NrpnTuning"
-        , "settings":
-          { "flags": ["Pressure", "HoldKeyswitch", "ResumePlay"]
-          , "scale": "legong umbang"
-          , "pitch_bend_range": [-12, 12]
-          , "control_defaults": {"cc1": 42}
-          }
-        }
-        . The quotes on keys are annoying, since this really has nothing
-          to do with javascript.
-        . There are various quoteless json things, but no haskell parsers.
-        . However, I'm going to want comments anyway, and to use --.
-        . Probably is not that hard to write, actually:
-          data Val = Record (Map Text Val) | List [Val]
-            | Number Double | Str Text
-      . Even so there would be a fair amount of faffing about converting.
-      . Alternately, have a mini format that doesn't affect env, etc.
-        Just name, qualified, alloc, flags, maybe with other values in
-        comments?
-      . But I'm losing track of the original idea to switch between MIDI and
-        im backends.  That's hardly a general purpose thing though.  Why don't
-        I just save and load .inst?
-      . Also I can't move instrument declaration to ky and retain standalone
-        .tscore files.
-      . >pemade-p kontakt/sc-pemade [ms] loop1 6 {
-            -- common
-            environ: {tuning: 'umbang'},
-            controls: {dyn: .5},
-            -- midi
-            initialization: 'Tuning',
-            settings: {
-              flags: ['Pressure', 'HoldKeyswitch', 'ResumePlay'],
-              scale: 'legong umbang',
-              pitch_bend_range: [-12, 12],
-              control_defaults: {cc1: 42},
-            }
-        }
-    . It does seem generally useful to have a readable text version of
-      insts, then .inst files could be text, and I could edit in vi.
-    . Alternately, use a vi like a GUI to have a menu of instruments, where
-      I can toggle mute, solo, etc.
-    * parse and unparse with flags
-    - hook that up to LState.ky
-      . I'd have to move all the TScore types to Derive.Parse, which is
-        unappealing since megaparsec -> attoparsec and I'd need to move
-        all the types too.
-    . If I put allocs entirely in ky, it would allow me to have allocs in
-      imported .ky files.  In fact, .inst goes away and becomes .ky.
-    . Taken to its logical conclusion, this then removes the various alloc
-      functions in LInst in favor of editing a special language in ky.
-    . I can still have them though, and the "generate" ones may be useful,
-      but they would become an unparse and insert into ky.
-    . The cost is a much more elaborate values syntax
-    . Is this good?  Not sure.
+  post ky-record cleanup:
+    ? Instrument transformers overlap, in that I can put environ in the
+      instrument, or I could set an instrument transformer like
+        >i = x=y
+    - build/opt/dump can still dump .inst files, because Util.Serialize still
+      supports.  Eventually should delete that.
+    - merge RVal with Val, REnv with Env
+      . see notes below, will allow Eq Val instance
+      - serialize ControlFunction as an expression
+      - serialize Pitch as a constant pitch
+    - kill threads in Cmd.Ky.update_cache?
+    - Refactor to remove the duplication by embedding an RVal in a DVal.
+      . type              DVal    RVal (* has parser, - has type)
+        Num               *       -
+        Attributes        *       -
+        ControlRef        *       -
+        ConstantPitch             - (promote to Pitch)
+        Pitch             -
+        PControlRef       *
+        NotePitch         -       -
+        Str               *       -
+        Quoted            *       - (of Expr DVal and Expr RVal)
+        ControlFunction   *
+        NotGiven          *
+        Separator         *
+        List              *       - (of DVals and RVals respectively)
+      . Quoted and List have the same problem, where they need to be
+        parameterized by val.
+      . So:
+        data RVal val = VList [val]
+        data DVal = RVal (RVal DVal) | VControlFunction
+      . The non-parseable thing is really just Pitch and ControlFunction.
+        Could I define a literal for Pitch?  Basically that's what
+        ConstantPitch is.  If it gets serialized and deserialized it would
+        lose its transpose, but that's ok, right?
+      . Then I have ControlFunction, which is a haskell function.
+      . The main thing is I can't serialize this, so I can't put it in an
+        instrument.  Except, I could serialize it as the expression that
+        creates it, like `cf-rnd 1 2`, but deserialize would have to mean
+        evaluate it in the standard library context.  This is the same as
+        the "literal" syntax for list, (list 1 2).
+      . If I do this, I can eliminate REnv and RVal entirely.
+      - Serialize Pitch.  It can set it to ConstantPitch.
+      - Serialize ControlFunction.  I can save it as name plus args.
+        . But maybe I can take another look at ControlFunction first,
+          I still don't like it at all.
+    - Experiment to see if megaparsec is just as fast as attoparsec now.
+      . Or flatparse, should be faster.
   + implicit skeleton doesn't work for dyn over two tracks
     . Instead, it assigns it to the note track to the left.
     . How can I disambiguate?
