@@ -85,18 +85,18 @@ list_midi = do
 list_like :: Cmd.M m => Text -> m Text
 list_like pattern = do
     alloc_map <- Ui.config#UiConfig.allocations_map <#> Ui.get
-    db <- Cmd.gets $ Cmd.config_instrument_db . Cmd.state_config
+    lookup_inst <- Cmd.get_lookup_inst <$> Cmd.get
+    let inst_env = maybe mempty (Common.common_environ . Inst.inst_common)
+            . lookup_inst . UiConfig.alloc_qualified
+    -- TODO show inherited Midi.Patch and common_flags?
     let (names, allocs) = unzip $ Map.toAscList alloc_map
     return $ Text.unlines $ Texts.columns 1
-        [ pretty_alloc name (inst_environ db alloc) alloc
+        [ pretty_alloc name (inst_env alloc) alloc
         | (name, alloc) <- zip names allocs
         , matches name
         ]
     where
     matches inst = pattern `Text.isInfixOf` ScoreT.instrument_name inst
-    inst_environ db =
-        maybe mempty (Common.common_environ . Inst.inst_common)
-        . flip Inst.lookup db . UiConfig.alloc_qualified
 
 -- | On the environ, - means it was inherited from the Inst, + is from the
 -- Allocation, and * means both had it and the Allocation overrode it.
@@ -110,14 +110,7 @@ pretty_alloc inst inst_environ alloc =
         UiConfig.Im -> "音"
         UiConfig.Sc -> "sc"
         UiConfig.Dummy {} -> "(dummy)"
-    -- Put flags in their own column to make them obvious.
-    , show_flags (UiConfig.alloc_config alloc)
-    , join
-        [ show_common_config (UiConfig.alloc_config alloc)
-        , case UiConfig.alloc_backend alloc of
-            UiConfig.Midi config -> show_midi_config config
-            _ -> ""
-        ]
+    , show_common_config (UiConfig.alloc_config alloc)
     ]
     where
     show_common_config config = join
@@ -134,33 +127,10 @@ pretty_alloc inst inst_environ alloc =
             Lists.First v -> ("-" <> k, v)
             Lists.Second v -> ("+" <> k, v)
             Lists.Both _ v -> ("*" <> k, v)
-    show_flags config
-        | null flags = ""
-        | otherwise = "{" <> Text.intercalate ", " flags <> "}"
-        where
-        flags = ["mute" | Common.config_mute config]
-            ++ ["solo" | Common.config_solo config]
-    show_midi_config = pretty_settings . Patch.config_settings
     show_controls msg controls
         | Map.null controls = ""
         | otherwise = msg <> pretty controls
     join = Text.unwords . filter (not . Text.null)
-
-pretty_settings :: Patch.Settings -> Text
-pretty_settings settings =
-    Text.unwords $ filter (not . Text.null)
-        [ if_changed Patch.config_flags pretty
-        , if_changed Patch.config_scale $ (("("<>) . (<>")") . show_scale)
-        , if_changed Patch.config_decay $ ("decay="<>) . pretty
-        , if_changed Patch.config_pitch_bend_range $ ("pb="<>) . pretty
-        , if_changed Patch.config_control_defaults $ ("controls="<>) . pretty
-        ]
-    where
-    if_changed get fmt = maybe "" fmt (get settings)
-
-show_scale :: Patch.Scale -> Text
-show_scale scale = "scale " <> Patch.scale_name scale <> " "
-    <> showt (length (Patch.scale_nns Nothing scale)) <> " keys"
 
 -- | Instrument allocations.
 allocations :: Ui.M m => m UiConfig.Allocations
