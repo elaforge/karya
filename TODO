@@ -604,12 +604,16 @@ UNSORTED
         I think 'realtime' and 'nrpn' switch to printing the 'scale =' line?
         Have to paste in initialization: NrpnTuning too.
         Not as convenient
-      - LInst.list shows inherited values, so still useful.  Maybe reduce it
+      * LInst.list shows inherited values, so still useful.  Maybe reduce it
         to just that?
         . Or put them in as comments?
         . un_instruments needs lookup_backend then.
         . Not convenient because can't do it in unserialize.
         . Maybe back to LInst.list?
+        . Or maybe unserialize is just const Nothing.
+        . LAlloc is it!  No one else does un_instruments.
+          Unless I have LInst.set_istrument do it?
+        . Or just use LInst.doc?
       * do I still need UiConfig.verify_allocation?
         . It's not used.  At least it should verify Instruments output?
     decision:

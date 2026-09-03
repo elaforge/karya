@@ -49,6 +49,7 @@ import qualified Derive.DeriveT as DeriveT
 import qualified Derive.Expr as Expr
 import qualified Derive.Parse.AllocRecord as AllocRecord
 import qualified Derive.Parse.Record as Record
+import qualified Derive.REnv as REnv
 import qualified Derive.ScoreT as ScoreT
 
 import qualified Instrument.Common as Common
@@ -96,9 +97,12 @@ show_backend = \case
 instrument_section :: Text
 instrument_section = "instrument"
 
-un_instruments :: UiConfig.Allocations -> Either Error Text
-un_instruments (UiConfig.Allocations allocs) = do
-    lines <- concatMapM (uncurry un_instrument) (Map.toList allocs)
+type LookupInst = InstT.Qualified -> Maybe REnv.Environ
+
+un_instruments :: LookupInst -> UiConfig.Allocations -> Either Error Text
+un_instruments lookup_inst (UiConfig.Allocations allocs) = do
+    lines <- concatMapM (uncurry (un_instrument lookup_inst))
+        (Map.toList allocs)
     pure $ Text.unlines $ lines ++ map un_scale scales
     where
     scales = Lists.unique $ mapMaybe (scale_of . UiConfig.alloc_backend)
@@ -107,15 +111,21 @@ un_instruments (UiConfig.Allocations allocs) = do
         UiConfig.Midi config -> Patch.settings#Patch.scale #$ config
         _ -> Nothing
 
-un_instrument :: ScoreT.Instrument -> UiConfig.Allocation
+un_instrument :: LookupInst -> ScoreT.Instrument -> UiConfig.Allocation
     -> Either Error [Text]
-un_instrument inst alloc = do
+un_instrument lookup_inst inst alloc = do
     alloc_line <- split inst alloc
     let line = Text.unwords $ un_alloc_line alloc_line
     let record = AllocRecord.un_allocation alloc
-    pure $ line : if null record then []
-        -- Indent so they can fold up.
-        else map ("    " <>) $ Record.un_record record
+    -- Indent so they can fold up.
+    pure $ (line :) $ map ("    " <>) $
+        (if null record then [] else Record.un_record record)
+        ++ maybe [] inherited_environ (lookup_inst (alloc_qualified alloc_line))
+
+inherited_environ :: REnv.Environ -> [Text]
+inherited_environ env
+    | REnv.null env = []
+    | otherwise = map ("-- "<>) $ Record.un_rval $ AllocRecord.un_environ env
 
 p_instruments :: Parser UiConfig.Allocations
 p_instruments = do

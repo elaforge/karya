@@ -69,7 +69,7 @@ update ui_state cmd_state ky_text =
         , logs
         )
     where
-    lookup_backend = Cmd.get_lookup_backend cmd_state
+    lookup_backend = fmap Inst.inst_backend . Cmd.get_lookup_inst cmd_state
     allocs = Ui.config#UiConfig.allocations #$ ui_state
     cache = Cmd.state_ky_cache cmd_state
     paths = state_ky_paths cmd_state

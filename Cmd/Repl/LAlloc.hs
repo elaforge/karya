@@ -6,8 +6,10 @@
 module Cmd.Repl.LAlloc where
 import qualified Data.Text.IO as Text.IO
 
+import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Instrument.ImInst as ImInst
 import qualified Cmd.Instrument.MidiInst as MidiInst
+
 import qualified Derive.C.Bali.Gangsa as Gangsa
 import qualified Derive.Parse.Instruments as Instruments
 import qualified Derive.Scale.BaliScales as BaliScales
@@ -27,9 +29,16 @@ import           Global
 
 
 -- | Convert Allocations into ky and paste from here into instrument: section.
-ky :: UiConfig.Allocations -> IO ()
-ky = either (Text.IO.putStrLn . ("ERROR: "<>)) Text.IO.putStr
-    . Instruments.un_instruments
+ky :: UiConfig.Allocations -> Cmd.CmdL Text
+ky allocs = do
+    lookup_inst <- Cmd.get_lookup_inst_env <$> Cmd.get
+    either (pure . ("ERROR: "<>)) pure $
+        Instruments.un_instruments lookup_inst allocs
+
+ky_ :: UiConfig.Allocations -> IO ()
+ky_ allocs =
+    either (Text.IO.putStrLn . ("ERROR: "<>)) Text.IO.putStr $
+        Instruments.un_instruments (const Nothing) allocs
 
 -- * bali
 

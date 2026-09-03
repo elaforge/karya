@@ -171,7 +171,7 @@ instance Serialize UiConfig.Config where
 
 upgrade_ky :: UiConfig.Allocations -> Text -> Either Text Text
 upgrade_ky insts ky = do
-    section <- Instruments.un_instruments insts
+    section <- Instruments.un_instruments (const Nothing) insts
     pure $ mconcat
         [ Text.stripEnd $
             Ky.replace_section Instruments.instrument_section ("-- "<>) ky

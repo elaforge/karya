@@ -1663,9 +1663,13 @@ lookup_qualified qualified = do
     db <- gets (config_instrument_db . state_config)
     pure $ inst_lookup qualified db
 
-get_lookup_backend :: State -> InstT.Qualified -> Maybe Inst.Backend
-get_lookup_backend state qualified = Inst.inst_backend <$>
+get_lookup_inst :: State -> InstT.Qualified -> Maybe Inst
+get_lookup_inst state qualified =
     inst_lookup qualified (config_instrument_db (state_config state))
+
+get_lookup_inst_env :: State -> InstT.Qualified -> Maybe REnv.Environ
+get_lookup_inst_env state =
+    fmap (Common.common_environ . Inst.inst_common) . get_lookup_inst state
 
 inst_lookup :: InstT.Qualified -> InstrumentDb -> Maybe Inst
 inst_lookup qualified db

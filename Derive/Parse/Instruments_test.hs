@@ -65,7 +65,7 @@ test_equal = do
 test_un_instruments :: Test
 test_un_instruments = do
     let parse = parse_instruments
-    let un = I.un_instruments
+    let un = I.un_instruments (const Nothing)
     let ky =
             ">i1 midi/ [Ms] dev 1\n\
             \    {decay: 1s}\n\
