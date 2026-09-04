@@ -66,8 +66,8 @@ make_curve_call doc curve =
     , ControlUtil.make_curve_call doc curve
     )
 
-data Distribution =
-    Uniform
+data Distribution
+    = Uniform
     -- | Approximate a bounded normal distribution.
     | Normal
     -- | This is like Normal, but rotated, so the peaks are at the extremities.

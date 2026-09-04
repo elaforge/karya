@@ -12,10 +12,10 @@ import           Global
 import           Types
 
 
-data Track = Track {
+data Track = Track
     -- | Usually this comes from a sliced track with a TrackId, but sometimes
     -- from 'Derive.ctx_sub_events', or an unnamed track.
-    _source :: !(Either Text TrackId)
+    { _source :: !(Either Text TrackId)
     , _events :: ![Event]
     }
 
@@ -35,8 +35,8 @@ show_track (Track source _) = "subtrack:" <> either id Id.ident_text source
 -- modification.
 type Event = EventT Derive.NoteDeriver
 
-data EventT a = EventT {
-    _start :: !ScoreTime
+data EventT a = EventT
+    { _start :: !ScoreTime
     , _duration :: !ScoreTime
     , _note :: !a
     } deriving (Show, Functor)

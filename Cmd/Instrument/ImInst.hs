@@ -52,8 +52,8 @@ synth name doc patch_map = Inst.SynthDecl
     (synthd_patches, synthd_warns) = extract_warns $
         map (second make_inst) patch_map
 
-data Patch = Patch {
-    patch_patch :: Patch.Patch
+data Patch = Patch
+    { patch_patch :: Patch.Patch
     , patch_dummy :: Maybe Text
     , patch_common :: Common.Common Code
     }

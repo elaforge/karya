@@ -161,9 +161,9 @@ notify_callback client namep _dev_id c_is_added c_is_read = do
         -- anyway.
         _ -> return ()
 
-data Client = Client {
+data Client = Client
     -- | I don't need to deal with DeviceIds for reads.
-    client_reads :: IORef.IORef (Set.Set Midi.ReadDevice)
+    { client_reads :: IORef.IORef (Set.Set Midi.ReadDevice)
     , client_writes :: IORef.IORef (Map.Map Midi.WriteDevice (Maybe DeviceId))
     }
 

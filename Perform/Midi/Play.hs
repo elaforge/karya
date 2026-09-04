@@ -28,9 +28,9 @@ import           Types
 
 -- | Access to info that's needed by a particular run of the player.
 -- This is read-only, and shouldn't need to be modified.
-data State = State {
+data State = State
     -- | Communicate into the player.
-    _play_control :: Transport.PlayControl
+    { _play_control :: Transport.PlayControl
     -- | Communicate out from the player.
     , _players :: Transport.ActivePlayers
     , _info :: Transport.Info

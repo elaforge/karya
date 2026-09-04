@@ -18,8 +18,8 @@ import Global
 --
 -- TODO This doesn't really belong in this module, but I couldn't think of
 -- a better place to put it that wouldn't incur unnecessary dependencies.
-data Highlight =
-    NoHighlight
+data Highlight
+    = NoHighlight
     -- | This note is special in some way, perhaps an open string.
     | Notice
     -- | This note might have a problem, e.g. in a difficult range or requires

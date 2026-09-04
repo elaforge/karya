@@ -20,8 +20,8 @@ import           Global
 -- standardize call names, attributes, and keymap key.  Of course there will be
 -- drum sets that don't fit in (e.g. have two or three snares), but at least
 -- this provides a standard base.
-data Stroke = Stroke {
-    _name :: !Expr.Symbol
+data Stroke = Stroke
+    { _name :: !Expr.Symbol
     , _attributes :: !Attributes
     -- | Bind the stroke to this key in insert mode.  This should be called
     -- "key", but that's sometimes already taken for midi key.

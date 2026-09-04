@@ -566,11 +566,11 @@ instance Serialize OldMeterConfig where
         v -> bad_version "OldMeterConfig" v
 
 -- | Configuration specific to the 'meter' marklist.
-data OldMeterConfig = OldMeterConfig {
+data OldMeterConfig = OldMeterConfig
     -- | The type of meter that this marklist represents.  This is looked up in
     -- a table of meter types to figure out how to do transformations on the
     -- meter, since different meters follow different rules.
-    config_name :: !Text
+    { config_name :: !Text
     , config_start_measure :: !Int
     } deriving (Eq, Show)
 

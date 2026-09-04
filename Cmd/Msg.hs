@@ -37,9 +37,9 @@ import           Global
 import           Types
 
 
-data Msg =
+data Msg
     -- | Message from the UI.
-    Ui UiMsg.UiMsg
+    = Ui UiMsg.UiMsg
     -- | Incoming midi message.
     | Midi Midi.ReadMessage
     -- | Incoming abstract note.  This is meant to enter a note and is not
@@ -83,11 +83,11 @@ instance Pretty Msg where
             <> pretty status
         Socket _hdl query -> "Socket: " <> pretty query
 
-data DeriveStatus =
+data DeriveStatus
     -- | The current derivation is out of date, but work has not yet started
     -- on a replacement.  The new Performance is already in
     -- 'Cmd.state_current_performance' but not in 'Cmd.state_performance' yet.
-    OutOfDate
+    = OutOfDate
     | Deriving
     | DeriveComplete Performance ImStarted
     -- | The BlockId is the block to which this status applies, the BlockId
@@ -107,9 +107,9 @@ data ImStarted = ImStarted -- ^ im subprocess in progress
     | ImUnnecessary -- ^ no im notes, so no subprocesses started
     deriving (Show)
 
-data ImStatus =
+data ImStatus
     -- | start--end currently being rendered.
-    ImRenderingRange ScoreT.Instrument RealTime RealTime
+    = ImRenderingRange ScoreT.Instrument RealTime RealTime
     -- | Waveforms written for these chunks.
     | ImWaveformsCompleted [Track.WaveformChunk]
     -- | True if the im subprocess had a failure.  The error will have been

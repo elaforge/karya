@@ -262,8 +262,8 @@ instance Pretty Range where
 -- * other types
 
 -- | Summary information on a Track.
-data TrackInfo = TrackInfo {
-    track_title :: Text
+data TrackInfo = TrackInfo
+    { track_title :: Text
     , track_id :: TrackId
     , track_tracknum :: TrackNum
     , track_block :: Block.Track

@@ -26,8 +26,8 @@ stringName i = "string" <> showt i
 
 -- * instrument
 
-data Instrument = Instrument {
-    iStrings :: [String]
+data Instrument = Instrument
+    { iStrings :: [String]
     , iPlate :: Plate
     , iCollision :: Collision
     } deriving (Eq, Show)
@@ -45,8 +45,8 @@ renderInstrument sr (Instrument strings plate collision) = Text.unlines $ concat
     where
     nameStrings = zip (map stringName [1..]) strings
 
-data String = String {
-    sLength :: Meters
+data String = String
+    { sLength :: Meters
     , sDensity :: Double -- kg/m
     , sTension :: Newtons
     , sYoung :: Double -- ^ Young's modulus
@@ -78,8 +78,8 @@ renderString name
         , map render [fretHeight, baseHeight, baseProfile]
         ]
 
-data StringOutput = StringOutput {
-    sLocation :: Location
+data StringOutput = StringOutput
+    { sLocation :: Location
     , sPan :: Pan
     } deriving (Eq, Ord, Show)
 
@@ -89,8 +89,8 @@ renderStringOutput name (StringOutput location pan) = Text.unwords $ concat
     , map render [location, pan]
     ]
 
-data Plate = Plate {
-    pDensity :: Double -- kg/m
+data Plate = Plate
+    { pDensity :: Double -- kg/m
     , pThickness :: Meters
     , pYoung :: Double
     , pPoisson :: Double -- ? Poisson's ratio
@@ -108,8 +108,8 @@ instance Render Plate where
         Text.unwords $ "plate" : map render
             [density, thickness, young, poisson, tension, w, h, t60dc, t601]
 
-data PlateOutput = PlateOutput {
-    pPosition :: (Location, Location) -- 0 to 1
+data PlateOutput = PlateOutput
+    { pPosition :: (Location, Location) -- 0 to 1
     , pPan :: Pan
     } deriving (Eq, Ord, Show)
 
@@ -117,8 +117,8 @@ instance Render PlateOutput where
     render (PlateOutput (x, y) pan) = Text.unwords $
         "plate_out" : map render [x, y, pan]
 
-data Collision = Collision {
-    cStiffness :: Double
+data Collision = Collision
+    { cStiffness :: Double
     , cNonlinearityExponent :: Double
     , cIterations :: Int
     } deriving (Eq, Ord, Show)
@@ -129,8 +129,8 @@ instance Render Collision where
 
 -- * score
 
-data Score = Score {
-    sDecay :: Seconds
+data Score = Score
+    { sDecay :: Seconds
     , sNotes :: [Note]
     } deriving (Eq, Show)
 
@@ -145,8 +145,8 @@ instance Render Strike where
     render Strike = "strike"
     render Pluck = "pluck"
 
-data Note = Note {
-    nString :: String
+data Note = Note
+    { nString :: String
     , nStrike :: Strike
     , nStart :: Seconds
     , nDuration :: Seconds

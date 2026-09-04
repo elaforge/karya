@@ -29,8 +29,8 @@ type SamplePath = FilePath
 
 -- | Low level representation of a note.  This corresponds to a single sample
 -- played.
-data Note = Note {
-    start :: Audio.Frames
+data Note = Note
+    { start :: Audio.Frames
     -- | This is the actual duration of the sample at the given 'ratios', not
     -- the requested 'Note.duration'.
     -- TODO maybe move 'duration' to Sample then.
@@ -67,10 +67,10 @@ makeHash start dur effectControls sample = mconcat $
     e = Serialize.encode
 
 -- | The actual sample played by a 'Note'.
-data Sample = Sample {
+data Sample = Sample
     -- | This is initially relative to 'Patch._rootDir', and will have the root
     -- dir prepended before rendering.
-    filename :: SamplePath
+    { filename :: SamplePath
     -- | Sample start offset.
     , offset :: Audio.Frames
     -- | The sample ends when it runs out of samples, or when envelope ends
@@ -82,8 +82,8 @@ data Sample = Sample {
     , stretch :: Stretch
     } deriving (Show)
 
-data Stretch = Stretch {
-    stretchMode :: StretchMode
+data Stretch = Stretch
+    { stretchMode :: StretchMode
     , timeRatio :: Signal.Y
     , pitchRatio :: Signal.Y
     } deriving (Show)

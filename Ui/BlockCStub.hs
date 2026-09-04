@@ -148,8 +148,8 @@ dump = return []
 
 -- | This is the low level version of 'Sel.Selection'.  It only applies to
 -- a single track, and has an explicit color.
-data Selection = Selection {
-    sel_color :: !Color.Color
+data Selection = Selection
+    { sel_color :: !Color.Color
     , sel_start :: !TrackTime
     , sel_cur :: !TrackTime
     , sel_orientation :: !SelectionOrientation

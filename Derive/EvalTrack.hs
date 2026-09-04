@@ -124,8 +124,8 @@ import           Types
 
 -- | Per-track parameters, to cut down on the number of arguments taken by
 -- 'derive_note_track'.
-data TrackInfo d = TrackInfo {
-    tinfo_track :: !TrackTree.Track
+data TrackInfo d = TrackInfo
+    { tinfo_track :: !TrackTree.Track
     , tinfo_sub_tracks :: !TrackTree.EventsTree
     , tinfo_type :: !ParseTitle.Type
     , tinfo_get_last_val :: GetLastVal d

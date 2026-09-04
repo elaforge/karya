@@ -61,10 +61,10 @@ import           Global
 import           Types
 
 
-data Config = Config {
+data Config = Config
     -- | True if this is the single topmost track and is a tempo track.
     -- Ultimately it'is used by "Derive.Tempo".
-    config_toplevel_tempo :: !Bool
+    { config_toplevel_tempo :: !Bool
     , config_use_cache :: !Bool
     } deriving (Show)
 

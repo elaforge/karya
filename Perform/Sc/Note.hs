@@ -20,8 +20,8 @@ import           Global
 import           Types
 
 
-data Note = Note {
-    patch :: PatchName
+data Note = Note
+    { patch :: PatchName
     , start :: RealTime
     -- | The duration is encoded in the gate_id control.
     , controls :: Map ControlId MSignal.Signal
@@ -44,8 +44,8 @@ type Notes = [LEvent.LEvent Note]
 -- are at a higher level and converted to low level OSC only in Sc.Play... not
 -- for any really good reason, but I guess it seemed simpler to not expose the
 -- "perform" step, and keep it inside Sc.Play.
-data PlayNotes = PlayNotes {
-    shift :: RealTime
+data PlayNotes = PlayNotes
+    { shift :: RealTime
     , stretch :: RealTime
     , notes :: Notes
     } deriving (Show)

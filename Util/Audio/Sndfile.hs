@@ -20,8 +20,8 @@ import           Sound.File.Sndfile
 import           Global
 
 
-data Handle = Handle {
-    _filename :: !FilePath
+data Handle = Handle
+    { _filename :: !FilePath
     -- | libsndfile has no protection against multiple closes on the same
     -- handle and happily double frees memory, and hsndfile provides no
     -- protection either.

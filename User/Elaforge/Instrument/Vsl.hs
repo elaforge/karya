@@ -350,8 +350,8 @@ expand_ab attrs
 
 -- * natural harmonics
 
-data HarmonicMap = HarmonicMap {
-    hmap_strings :: [OpenString]
+data HarmonicMap = HarmonicMap
+    { hmap_strings :: [OpenString]
     , hmap_string_nns :: [Pitch.NoteNumber]
     -- | Map sounding pitch to possible strings and the key to play to get that
     -- pitch on that string.

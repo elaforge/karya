@@ -344,8 +344,8 @@ write_commit repo user email parents tree description =
         go ps [] cont = cont (reverse ps)
         go ps (c:cs) cont = with_commit repop c $ \p -> go (p:ps) cs cont
 
-data CommitData = CommitData {
-    commit_tree :: !Tree
+data CommitData = CommitData
+    { commit_tree :: !Tree
     , commit_parents :: ![Commit]
     , commit_author :: !String
     , commit_text :: !String

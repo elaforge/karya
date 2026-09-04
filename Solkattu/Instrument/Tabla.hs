@@ -35,8 +35,8 @@ data Stroke = Baya Baya | Daya Daya | Both Baya Daya | Flam Baya Daya
     deriving (Eq, Ord, Show)
 data Baya = Ka | Ge
     deriving (Eq, Ord, Show)
-data Daya =
-    The -- dhere, thumb side.  Usually dhe but the because without ge.
+data Daya
+    = The -- dhere, thumb side.  Usually dhe but the because without ge.
     | Rhe -- dhere, right side
     | Na -- nam
     | Ne -- like tet, but closer to edge
@@ -123,8 +123,8 @@ instance Solkattu.Notation Daya where
 instance Solkattu.Abbreviations Stroke where
     abbreviations = const Nothing
 
-data Strokes a = Strokes {
-    ka :: a, ge :: a
+data Strokes a = Strokes
+    { ka :: a, ge :: a
     , the :: a
     , rhe :: a
     , na :: a

@@ -175,9 +175,9 @@ call_transformer ctx call deriver =
 -- null call for some instrument.
 type GenerateNote = Derive.NoteArgs -> Derive.NoteDeriver
 
-data Config = Config {
+data Config = Config
     -- | Note duration is affected by 'Attrs.staccato'.
-    config_staccato :: !Bool
+    { config_staccato :: !Bool
     -- | Note duration can depend on 'Controls.sustain' and
     -- 'Controls.sustain_abs'.
     , config_sustain :: !Bool

@@ -41,8 +41,8 @@ just_base_control :: ScoreT.Control
 just_base_control = "just-base"
 
 -- | Bundle up data needed to construct a just scale.
-data ScaleMap = ScaleMap {
-    smap_fmt :: TheoryFormat.Format
+data ScaleMap = ScaleMap
+    { smap_fmt :: TheoryFormat.Format
     , smap_keys :: Keys
     , smap_default_key :: Key
     -- | Use this Tuning if there is no EnvKey.tuning.  If Nothing, don't even
@@ -281,8 +281,8 @@ index_mod v i = Vector.unsafeIndex v (i `mod` Vector.length v)
 
 -- * key
 
-data Key = Key {
-    key_tonic :: TheoryFormat.Tonic
+data Key = Key
+    { key_tonic :: TheoryFormat.Tonic
     , key_ratios :: Map Tuning Ratios
     } deriving (Eq, Show)
 

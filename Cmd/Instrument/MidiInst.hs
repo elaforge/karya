@@ -131,8 +131,8 @@ compile_library = first convert . Library.compile
 
 -- | A version of 'Cmd.InstrumentCode' that's more convenient for record update
 -- syntax.
-data Code = Code {
-    code_library :: !Library.Library
+data Code = Code
+    { code_library :: !Library.Library
     , code_postproc :: !Cmd.InstrumentPostproc
     , code_cmds :: ![Cmd.HandlerId]
     , code_thru :: !(Maybe Cmd.ThruFunction)
@@ -161,8 +161,8 @@ merge f1 f2 = (\(b, logs) -> (logs++) <$> f1 b) . f2
 
 -- | Bundle together generators and transformers.  The rationale is described
 -- in 'Derive.CallMaps'.
-data Call d =
-    Generator Expr.Symbol (Derive.Generator d)
+data Call d
+    = Generator Expr.Symbol (Derive.Generator d)
     | Transformer Expr.Symbol (Derive.Transformer d)
     | Both Expr.Symbol (Derive.Generator d) (Derive.Transformer d)
 

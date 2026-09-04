@@ -38,9 +38,9 @@ import           Ui.Meter.Meter (AbstractMeter(..))
 import           Global
 
 
-data Meter = Meter {
+data Meter = Meter
     -- | NonEmpty list of numerators.  E.g. [2, 3] indicates 2+3.
-    meter_nums :: [Int]
+    { meter_nums :: [Int]
     , meter_denom :: Duration
     , meter_ranks :: Ranks
     } deriving (Eq, Show)

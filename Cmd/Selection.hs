@@ -198,8 +198,8 @@ advance :: Cmd.M m => m ()
 advance = step TimeStep.Advance default_move
 
 -- | How to move a selection.
-data Move =
-    Extend -- ^ Extend the existing selection.
+data Move
+    = Extend -- ^ Extend the existing selection.
     | Move -- ^ Move the existing selection by the step amount.
     | Replace -- ^ Replace the existing selection with a point selection.
     deriving (Show)
@@ -671,8 +671,8 @@ sel_track block_id sel = Ui.event_track_at block_id (sel_point_track sel)
 -- | The selection is in the Ui.State, but focused view is in Cmd.State.
 -- Extracting it out lets me depend only on Ui.M, not Cmd.M.  Also it decouples
 -- selection functions from the current Ui.State and Cmd.State.
-data Context = Context {
-    ctx_view_id :: !ViewId
+data Context = Context
+    { ctx_view_id :: !ViewId
     , ctx_block_id :: !BlockId
     , ctx_selection :: !Sel.Selection
     } deriving (Show)

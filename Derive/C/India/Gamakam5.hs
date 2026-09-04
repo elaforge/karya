@@ -374,11 +374,11 @@ resolve_dyn_calls = mapM $ \(Call name arg) ->
 
 type M s a = State.StateT s Derive.Deriver a
 
-data PitchState = PitchState {
+data PitchState = PitchState
     -- # maintained automatically
     -- | Absolute pitch of the underlying note.  The Steps are relative to
     -- this.
-    _swaram :: !PSignal.Transposed
+    { _swaram :: !PSignal.Transposed
     -- | Current pitch value.  Starts as the pitch at the end of the previous
     -- note.
     , _from :: !Step
@@ -514,8 +514,8 @@ modify_duration modify = fmap $ first $ \call ->
 
 -- * DynCall
 
-data DynCall = forall a. DynCall {
-    dcall_doc :: Text
+data DynCall = forall a. DynCall
+    { dcall_doc :: Text
     , _dcall_signature :: Sig.Parser a
     , _dcall_func :: a -> Context -> M DynState Signal.Control
     }
@@ -575,8 +575,8 @@ arg_to_dyn = (/9) . fromIntegral
 
 -- * PitchCall
 
-data PitchCall = PitchCall {
-    pcall_doc :: !Text
+data PitchCall = PitchCall
+    { pcall_doc :: !Text
     , pcall_duration :: !Double
     -- | If True, cons the call's name on to the arg before parsing it.
     , pcall_parse_call_name :: !Bool
@@ -635,8 +635,8 @@ parse_args name arg sig = lift $ do
 
 -- | Here I am reinventing Derive.Call yet again.  This is the equivalent of
 -- 'Derive.Context' and 'Derive.PassedArgs'.
-data Context = Context {
-    ctx_start :: !ScoreTime
+data Context = Context
+    { ctx_start :: !ScoreTime
     , ctx_end :: !ScoreTime
     -- | Complete call name, first char consed to arg.
     , ctx_call_name :: !Derive.CallName

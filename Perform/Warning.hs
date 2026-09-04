@@ -9,8 +9,8 @@ import qualified Derive.Stack as Stack
 import Types
 
 
-data Warning = Warning {
-    warn_msg :: String
+data Warning = Warning
+    { warn_msg :: String
     , warn_event :: Stack.Stack
     -- | Range that the warning covers.  It should be within the event's
     -- range.  It's in real time, so it needs to be converted back to

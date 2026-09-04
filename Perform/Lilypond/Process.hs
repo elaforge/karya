@@ -956,9 +956,9 @@ with_context :: Text -> ConvertM a -> ConvertM a
 with_context prefix = flip Except.catchError $ \(ConvertError stack msg) ->
     Except.throwError $ ConvertError stack (prefix <> ": " <> msg)
 
-data State = State {
+data State = State
     -- Constant:
-    state_config :: Types.Config
+    { state_config :: Types.Config
 
     -- Changes on each measure:
     -- | One Meter for each expected measure in the output.
@@ -1027,8 +1027,8 @@ lookup_val key parse deflt event = prefix $ do
 -- convenient for debugging.  It could also could theoretically be further
 -- modified, though I don't think I ever do that.  However, 'ly_duration' at
 -- least is used to merge 'FreeCode' into a Ly stream.
-data Ly =
-    LyNote Note
+data Ly
+    = LyNote Note
     | LyRest Rest
     | LyNested Nested
     | LyBarline (Maybe Meter.Meter)
@@ -1061,8 +1061,8 @@ count_notes_rests = Lists.count $ \ly -> case ly of
 
 -- | This represents a bit of nested lilypond code, e.g.
 -- \something { contents }.
-data Nested = Nested {
-    nested_prefix :: Code
+data Nested = Nested
+    { nested_prefix :: Code
     , nested_contents :: NonEmpty Ly
     , nested_suffix :: Code
     , nested_duration :: Time
@@ -1074,9 +1074,9 @@ instance ToLily Nested where
 
 -- ** Note
 
-data Note = Note {
+data Note = Note
     -- | Greater than one pitch indicates a chord.
-    note_pitches :: NonEmpty NotePitch
+    { note_pitches :: NonEmpty NotePitch
     , note_duration :: Types.NoteDuration
     -- | Additional code to prepend to the note.
     , note_prepend :: [Code]
@@ -1085,8 +1085,8 @@ data Note = Note {
     , note_stack :: Maybe Stack.UiFrame
     } deriving (Show)
 
-data NotePitch = NotePitch {
-    pitch_pitch :: Text
+data NotePitch = NotePitch
+    { pitch_pitch :: Text
     , pitch_tie :: Tie
     , pitch_prepend :: [Code]
     , pitch_append :: [Code]
@@ -1128,8 +1128,8 @@ instance ToLily Tie where
 
 -- ** Rest
 
-data Rest = Rest {
-    rest_type :: RestType
+data Rest = Rest
+    { rest_type :: RestType
     , rest_prepend :: [Code]
     , rest_append :: [Code]
     } deriving (Show)
@@ -1141,8 +1141,8 @@ make_rest typ = Rest
     , rest_append = []
     }
 
-data RestType =
-    NormalRest Types.NoteDuration
+data RestType
+    = NormalRest Types.NoteDuration
     | HiddenRest Types.NoteDuration
     | FullMeasure Types.Duration Int
     deriving (Show)

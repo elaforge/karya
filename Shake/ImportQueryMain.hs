@@ -179,8 +179,8 @@ unparseWeaks =
     mconcat . map (uncurry unparseWeak) . List.sortOn (_count . snd)
     . Map.toList
 
-data Parsed = Parsed {
-    _sigil :: Char
+data Parsed = Parsed
+    { _sigil :: Char
     , _count :: Int
     , _comments :: [Text]
     } deriving (Show)

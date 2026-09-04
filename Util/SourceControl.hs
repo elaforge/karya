@@ -17,8 +17,8 @@ import qualified Text.Read as Read
 
 type Error = String
 
-data Entry = Entry {
-    _author :: !Text
+data Entry = Entry
+    { _author :: !Text
     , _date :: !Time.UTCTime
     , _hash :: !Text
     , _summary :: !Text

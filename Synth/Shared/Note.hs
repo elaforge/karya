@@ -30,9 +30,9 @@ import           Synth.Types
 
 
 -- | IR for im.  These are the inputs for im synthesizers.
-data Note = Note {
+data Note = Note
     -- | Map this note to one of the synthesizer's patches.
-    patch :: PatchName
+    { patch :: PatchName
     -- | Unique name for this particular instantiation of the patch.
     , instrument :: ScoreT.Instrument
     -- | Display render progress on this track.

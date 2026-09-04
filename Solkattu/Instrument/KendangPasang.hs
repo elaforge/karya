@@ -27,8 +27,8 @@ import qualified Solkattu.Solkattu as Solkattu
 import           Global
 
 
-data Stroke =
-    Plak
+data Stroke
+    = Plak
     | Ka | Pak
     | Kam | Pang
     | Kum | Pung | PungL
@@ -193,8 +193,8 @@ instance Expr.ToExpr (Realize.Stroke Stroke) where
 
 instance Solkattu.Abbreviations Stroke where abbreviations = const Nothing
 
-data Strokes a = Strokes {
-    pk :: a
+data Strokes a = Strokes
+    { pk :: a
     , k :: a, p :: a -- ka pak
     , t :: a, l :: a -- kam pang
     , u :: a, y :: a -- kum pung

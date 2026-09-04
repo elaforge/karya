@@ -82,8 +82,8 @@ pick ks = do
     i <- Random.randomRIO (0, length ks - 1)
     return $ Just $ ks !! i
 
-data Practiced = Practiced {
-    name :: Text
+data Practiced = Practiced
+    { name :: Text
     , date :: Time.UTCTime
     , bpm :: Maybe BPM
     } deriving (Eq, Show, Generics.Generic)

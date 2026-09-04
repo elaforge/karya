@@ -51,9 +51,9 @@ type WarpMap = Map Stack.Stack Track
 -- | Each track warp is a warp indexed by the block and tracks it covers.
 -- These are used by the play monitor to figure out where the play position
 -- indicator is at a given point in real time.
-data TrackWarp = TrackWarp {
+data TrackWarp = TrackWarp
     -- | The range over which this warp's 'tw_warp' can be used.
-    tw_start :: !RealTime
+    { tw_start :: !RealTime
     , tw_end :: !RealTime
     , tw_block :: !BlockId
     , tw_tracks :: !(Set TrackId)

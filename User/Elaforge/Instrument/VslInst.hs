@@ -29,9 +29,9 @@ import Types
 (.) :: Attributes -> Attributes -> Attributes
 (.) = (<>)
 
-data Keys = Keys {
+data Keys = Keys
     -- | Base keyswitch for matrix x axis.
-    key_x_axis :: Midi.Key
+    { key_x_axis :: Midi.Key
     -- | Base keyswitch for matrix y axis.
     , key_y_axis :: Midi.Key
     -- | First of the AB keyswitches.

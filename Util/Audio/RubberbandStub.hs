@@ -14,8 +14,8 @@ module Util.Audio.RubberbandStub (
     , offline
 ) where
 
-data Config = Config {
-    _options :: ![Option]
+data Config = Config
+    { _options :: ![Option]
     , _timeRatio :: !Double
     , _pitchRatio :: !Double
     } deriving (Show)

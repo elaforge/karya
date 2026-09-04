@@ -300,8 +300,8 @@ data PasangStroke = Wadon !Note | Lanang !Note | Both !Note !Note
 data Note = Note !Stroke !Attrs.Attributes
     deriving (Eq, Ord, Show)
 
-data Stroke =
-    Plak -- both
+data Stroke
+    = Plak -- both
     | Pak | Pang | TutL | DeL -- left
     | Ka | Tut | De | Dag | Tek -- right
     deriving (Eq, Ord, Show)

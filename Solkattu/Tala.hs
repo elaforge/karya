@@ -58,8 +58,8 @@ tala_aksharas = Num.sum . tala_angas
 tala_labels :: Tala -> [Text]
 tala_labels tala = concatMap (anga_labels (_jati tala)) (_angas tala)
 
-data Tala = Tala {
-    _name :: !Text
+data Tala = Tala
+    { _name :: !Text
     , _angas :: ![Anga]
     , _jati :: !Jati
     } deriving (Show, Eq)

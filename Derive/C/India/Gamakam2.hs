@@ -338,10 +338,10 @@ with_empty_collect = fmap (second Derive.collect_control_mods)
 
 -- ** parse
 
-data Expr =
+data Expr
     -- | This is a call which was embedded in the argument list of the sequence
     -- call, so its arguments have already been evaluated.
-    EvaluatedExpr Expr.Symbol [DeriveT.Val]
+    = EvaluatedExpr Expr.Symbol [DeriveT.Val]
     -- | A call and its arguments can be protected from evaluation by quoting
     -- it.  This is also necessary to use a transformer, since @;@ has higher
     -- precedence than @|@ (actually it's just a value, not an operator).
@@ -547,9 +547,9 @@ c_flat = generator1 "flat" mempty "Emit a flat pitch."
 
 -- ** kampita
 
-data KampitaArgs =
+data KampitaArgs
     -- | Both interval arguments are hardcoded.
-    Kampita0 !Signal.Y !Signal.Y
+    = Kampita0 !Signal.Y !Signal.Y
     -- | The starting pitch is hardcoded.
     | Kampita1 !Signal.Y
     -- | Both arguments must be provided.

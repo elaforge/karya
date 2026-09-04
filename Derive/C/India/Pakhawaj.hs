@@ -93,8 +93,8 @@ stroke_to_attribute s = case s of
 
 -- * implementation
 
-data Stroke =
-    Tet | Te | Tette -- ^ either tet or te, whichever is more convenient
+data Stroke
+    = Tet | Te | Tette -- ^ either tet or te, whichever is more convenient
     | Ne -- ^ tet with two fingers
     | Na | Ta | Di
     | Di1 -- ^ di with one finger

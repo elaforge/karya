@@ -92,8 +92,8 @@ type SNote stroke = S.Note () (Note stroke)
 -- * Note
 
 -- | The 'Solkattu.Sollu's have been reduced to concrete strokes.
-data Note stroke =
-    Note (Stroke stroke)
+data Note stroke
+    = Note (Stroke stroke)
     | Space Solkattu.Space
     -- | A pattern that has been made abstract.  This is a group that has been
     -- abstracted away.  That means it can have a name, but also it doesn't
@@ -119,8 +119,8 @@ mapStroke f = \case
 
 instance DeepSeq.NFData (Note stroke) where rnf _ = ()
 
-data Stroke stroke = Stroke {
-    _emphasis :: Emphasis
+data Stroke stroke = Stroke
+    { _emphasis :: Emphasis
     , _stroke :: stroke
     } deriving (Eq, Ord, Show, Functor, Foldable, Traversable)
 
@@ -496,13 +496,13 @@ realizePattern pmap tempo pattern = case lookupPattern pattern pmap of
 
 -- | This is the realized version of 'Solkattu.Group'.  I retain the dropped
 -- strokes so "Solkattu.Technique" can use them.
-data Group stroke =
-    GReduction (Reduction stroke)
+data Group stroke
+    = GReduction (Reduction stroke)
     | GMeta Solkattu.Meta
     deriving (Eq, Ord, Show, Functor)
 
-data Reduction stroke = Reduction {
-    _dropped :: [stroke]
+data Reduction stroke = Reduction
+    { _dropped :: [stroke]
     , _side :: Solkattu.Side
     } deriving (Eq, Ord, Show, Functor)
 
@@ -770,10 +770,10 @@ replaceSollus (_:_) [] = ([], [])
 -- ** ToStrokes
 
 -- | Find strokes for a sequence of sollus.
-data ToStrokes sollu stroke = ToStrokes {
+data ToStrokes sollu stroke = ToStrokes
     -- | The longest [sollu] key in the whole SolluMap, so I know when to give
     -- up looking for the longest prefix.
-    _longestKey :: Int
+    { _longestKey :: Int
     , _getStrokes :: Maybe Solkattu.Tag -> [sollu]
         -> Maybe [Maybe (Stroke stroke)]
     }

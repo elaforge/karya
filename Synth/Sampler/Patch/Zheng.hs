@@ -187,8 +187,8 @@ inferEnd note nexts = case mapMaybe dampedAt (note : nexts) of
 
 -- * make samples
 
-data Sample = Sample {
-    _key :: Midi.Key
+data Sample = Sample
+    { _key :: Midi.Key
     , _articulation :: Articulation
     , _variation :: Util.Variation
     , _maxVelocity :: MaxVelocity

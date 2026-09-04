@@ -54,8 +54,8 @@ import           Types
 -}
 data Warp = WarpFunction !Function | WarpLinear !Linear
 
-data Function = Function {
-    _warp :: ScoreTime -> RealTime
+data Function = Function
+    { _warp :: ScoreTime -> RealTime
     , _unwarp :: RealTime -> ScoreTime
     -- -- | For debugging.  TODO keep all of them?  Or is it a memory leak?
     -- , _signal :: !Signal.Warp

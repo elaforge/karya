@@ -32,8 +32,8 @@ import           Types
 -- * Ruler
 
 -- | A Ruler contains all the data to display a ruler.
-data Ruler = Ruler {
-    ruler_marklists :: !Marklists
+data Ruler = Ruler
+    { ruler_marklists :: !Marklists
     , ruler_bg :: !Color.Color
     -- | Show the names if this is on an event track.  Ruler tracks always show
     -- the names.

@@ -695,9 +695,9 @@ config_arg start_dir end_dir =
         Sig.environ "tr-bias" Sig.Unprefixed (Typecheck.NormalizedBipolar 0)
             "Offset every other transition by this amount."
 
-data Config = Config {
+data Config = Config
     -- | transition speed
-    _speed :: !Typecheck.RealTimeFunctionT
+    { _speed :: !Typecheck.RealTimeFunctionT
     , _start_dir :: !(Maybe Direction)
     , _end_dir :: !(Maybe Direction)
     -- | extend the first transition by this amount
@@ -742,9 +742,9 @@ direction_doc _ _ = "\nA `^` suffix makes the trill starts on the higher value,\
     \ No suffix causes it to obey the settings in scope."
 
 -- | How to adjust an ornament to fulfill its 'Direction' restrictions.
-data Adjust =
+data Adjust
     -- | Adjust by shortening the ornament.
-    Shorten
+    = Shorten
     -- | Adjust by increasing the speed.
     | Stretch
     deriving (Bounded, Eq, Enum, Show)

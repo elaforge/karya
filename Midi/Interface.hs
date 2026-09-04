@@ -58,9 +58,9 @@ type Initialize a = String -- ^ register this name with CoreMIDI
 type WantMessage = ByteString.ByteString -> Bool
 
 -- | Produced by an @initialize@ function.
-data RawInterface write_message = Interface {
+data RawInterface write_message = Interface
     -- | Name of the MIDI driver.  Just for debugging.
-    name :: String
+    { name :: String
     -- | ReadMessages from the opened ReadDevices become available on this
     -- channel.
     , read_channel :: ReadChan
@@ -100,8 +100,8 @@ instance Show (RawInterface a) where
 type Interface = RawInterface Message
 
 -- | Annotate a WriteMessage with additional control messages.
-data Message =
-    Midi !Midi.WriteMessage
+data Message
+    = Midi !Midi.WriteMessage
     -- | Turn off sounding notes on all devices and channels.
     | AllNotesOff !RealTime
     -- | Emit the messages for all devices that have been used.  This doesn't

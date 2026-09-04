@@ -69,8 +69,8 @@ instance Pretty Note where pretty (Note n) = n
 -- | A Pitch is a parsed 'Note'.  Functions that want to manipulate notes
 -- in a scale-independent way can ask the scale to convert to and from a Note.
 -- Not all scales use all the fields.
-data Pitch = Pitch {
-    pitch_octave :: !Octave
+data Pitch = Pitch
+    { pitch_octave :: !Octave
     , pitch_degree :: !Degree
     } deriving (Eq, Ord, Read, Show)
 
@@ -91,8 +91,8 @@ instance Serialize.Serialize Pitch where
     get = Pitch <$> Serialize.get <*> Serialize.get
 
 -- | A scale degree, without reference to an octave.
-data Degree = Degree {
-    degree_pc :: !PitchClass
+data Degree = Degree
+    { degree_pc :: !PitchClass
     -- | Ignored for diatonic scales.
     , degree_accidentals :: !Accidentals
     } deriving (Eq, Ord, Read, Show)
@@ -188,14 +188,14 @@ middle_c = Pitch middle_octave (Degree 0 0)
 data Input = Input !KbdType !Pitch !Frac
     deriving (Eq, Show)
 
-data KbdType =
+data KbdType
     -- | An absolute kbd maps the same key to the same absolute pitch,
     -- regardless of the key.  This is the case for a piano style kbd.
     -- This is consistent with convention, but also the piano kbd has a fixed
     -- layout of white and black keys.  So if you e.g. transpose A-major to
     -- start on C, then you have a mysterious black key in between B and C, and
     -- no way to play C#.
-    PianoKbd
+    = PianoKbd
     -- | A relative kbd always maps the same key to the same relative pitch.
     -- This is appropriate for the ASCII kbd, because it has \"black keys\"
     -- between every white key, so scales can be transposed freely.

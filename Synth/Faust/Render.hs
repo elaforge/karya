@@ -123,8 +123,8 @@ toSpan note = Checkpoint.Span
 
 -- Since _controlSize and _controlsPerBlock overlap, this isn't in normal
 -- form.
-data Config = Config {
-    _chunkSize :: Audio.Frames
+data Config = Config
+    { _chunkSize :: Audio.Frames
     , _blockSize :: Audio.Frames
     -- | This is _blockSize / _controlsPerBlock
     , _controlSize :: Audio.Frames

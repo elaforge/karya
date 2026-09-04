@@ -20,8 +20,8 @@ import           Global
 -- TODO ParseTitle pulls in Derive.Parse when it only needs is_note_track and
 -- is_tempo_track.  But everyone likely already needs Derive.Parse.
 
-data Track = Track {
-    _tracknum :: !Int
+data Track = Track
+    { _tracknum :: !Int
     , _title :: !Title
     } deriving (Show)
 type Title = Text

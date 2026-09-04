@@ -26,8 +26,8 @@ import           Types
 
 -- | An event track, which contains some configuration, and the actual
 -- events that make up the score.
-data Track = Track {
-    track_title :: !Text
+data Track = Track
+    { track_title :: !Text
     , track_events :: !Events.Events
     -- | Similar to 'Event.Event.style', you can individually configure track
     -- bg color, but in practice I do it automatically at the low level with
@@ -75,8 +75,8 @@ type SetStyle = (TrackBg, Event.EventStyle)
 --
 -- It's a bit awkward to have two SetStyles, but some information can only be
 -- supplied by "Ui.Sync".
-data SetStyleHigh = SetStyleHigh {
-    _track_bg :: TrackBg
+data SetStyleHigh = SetStyleHigh
+    { _track_bg :: TrackBg
     -- | The arguments are what 'Cmd.Internal.event_style' needs to figure out
     -- a style.
     , _set_event_style :: forall a. Id.Namespace -> Map BlockId a -> BlockId
@@ -88,8 +88,8 @@ type TrackBg = Track -> Color.Color
 -- * track signal
 
 -- | Whether to draw a 'Signal.Display' on this track, and if so, how.
-data RenderConfig = RenderConfig {
-    render_style :: !RenderStyle
+data RenderConfig = RenderConfig
+    { render_style :: !RenderStyle
     , render_color :: !Color.Color
     } deriving (Eq, Show)
 
@@ -144,8 +144,8 @@ type TrackSignals = Map (BlockId, TrackId) TrackSignal
 -- I don't have to bother generating another signal just for display.  However,
 -- if there is a non-trivial warp, the signal will have to be unwarped back
 -- to ScoreTime.
-data TrackSignal = TrackSignal {
-    ts_signal :: !Signal.Display
+data TrackSignal = TrackSignal
+    { ts_signal :: !Signal.Display
     , ts_shift :: !ScoreTime
     , ts_stretch :: !ScoreTime
     } deriving (Show, Eq)
@@ -169,8 +169,8 @@ signal_at x (TrackSignal sig shift stretch) = Signal.at sig warped
 
 -- | Draw one chunk of waveform on the track.  Corresponds to
 -- PeakCache::Params.
-data WaveformChunk = WaveformChunk {
-    _filename :: !FilePath
+data WaveformChunk = WaveformChunk
+    { _filename :: !FilePath
     , _chunknum :: Types.ChunkNum
     , _start :: !TrackTime
     -- | See PeakCache::Params.

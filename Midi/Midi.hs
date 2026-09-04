@@ -79,13 +79,13 @@ import           Global
 type WriteMessages = [WriteMessage]
 type ReadMessages = [ReadMessage]
 
-data WriteMessage = WriteMessage {
-    wmsg_dev :: !WriteDevice
+data WriteMessage = WriteMessage
+    { wmsg_dev :: !WriteDevice
     , wmsg_ts :: !RealTime
     , wmsg_msg :: !Message
     } deriving (Eq, Ord, Read, Show)
-data ReadMessage = ReadMessage {
-    rmsg_dev :: !ReadDevice
+data ReadMessage = ReadMessage
+    { rmsg_dev :: !ReadDevice
     , rmsg_ts :: !RealTime
     , rmsg_msg :: !Message
     } deriving (Eq, Ord, Read, Show)
@@ -322,8 +322,8 @@ message_channel _ = Nothing
 
 -- * types
 
-data Message =
-    ChannelMessage !Channel !ChannelMessage
+data Message
+    = ChannelMessage !Channel !ChannelMessage
     | CommonMessage !CommonMessage
     | RealtimeMessage !RealtimeMessage
     | UnknownMessage !Word8 !Word8 !Word8
@@ -389,8 +389,8 @@ to_closest_key nn
     | otherwise = (to_key d, frac)
     where (d, frac) = properFraction nn
 
-data ChannelMessage =
-    NoteOff !Key !Velocity
+data ChannelMessage
+    = NoteOff !Key !Velocity
     | NoteOn !Key !Velocity
     | Aftertouch !Key !ControlValue
     | ControlChange !Control !ControlValue
@@ -408,9 +408,9 @@ data ChannelMessage =
     | UndefinedChannelMode !Word7 !Word7
     deriving (Eq, Ord, Show, Read)
 
-data CommonMessage =
+data CommonMessage
     -- | manufacturer id, data including eox
-    SystemExclusive !Manufacturer !ByteString.ByteString
+    = SystemExclusive !Manufacturer !ByteString.ByteString
     | SongPositionPointer !Int
     | SongSelect !Word8
     | TuneRequest
@@ -450,8 +450,8 @@ rate_fps Frame25 = 25
 rate_fps Frame29_97df = 29.97
 rate_fps Frame30 = 30
 
-data Smpte = Smpte {
-    smpte_hours :: !Word8
+data Smpte = Smpte
+    { smpte_hours :: !Word8
     , smpte_minutes :: !Word8
     , smpte_seconds :: !Word8
     , smpte_frames :: !Word8

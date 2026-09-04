@@ -35,8 +35,8 @@ type ThruFunction = [Note] -> Either Error Message
 data Message = Plays [Play] | Stop
     deriving (Show)
 
-data Note = Note {
-    _pitch :: Pitch.NoteNumber
+data Note = Note
+    { _pitch :: Pitch.NoteNumber
     , _velocity :: Double
     , _attributes :: Attrs.Attributes
     , _startOffset :: Int
@@ -45,8 +45,8 @@ data Note = Note {
 type Error = Text
 type Frames = Int
 
-data Play = Play {
-    _sample :: FilePath
+data Play = Play
+    { _sample :: FilePath
     , _offset :: Frames
     , _ratio :: Double
     , _volume :: Double

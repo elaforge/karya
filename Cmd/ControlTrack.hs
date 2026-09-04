@@ -241,8 +241,8 @@ modify_val f text = case Parse.parse_val (_val partial) of
     it's just a call, but for that matter so are numeric literals, so I need
     something to differentiate @1@ from @i 1@.
 -}
-data Partial = Partial {
-    _transform :: [[Text]]
+data Partial = Partial
+    { _transform :: [[Text]]
     , _method :: Text
     , _val :: Text
     , _args :: [Text]

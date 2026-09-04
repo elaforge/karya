@@ -17,8 +17,8 @@ import Global
 
 
 -- | View zoom and time scroll offset.
-data Zoom = Zoom {
-    offset :: !TrackTime
+data Zoom = Zoom
+    { offset :: !TrackTime
     , factor :: !Double
     } deriving (Eq, Ord, Show, Read)
 

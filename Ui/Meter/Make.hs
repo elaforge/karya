@@ -75,8 +75,8 @@ next_rank r
     | r == maxBound = r
     | otherwise = succ r
 
-data LabeledMark = LabeledMark {
-    m_rank :: !Meter.Rank
+data LabeledMark = LabeledMark
+    { m_rank :: !Meter.Rank
     , m_duration :: !Duration
     , m_label :: !Label
     } deriving (Eq, Show)

@@ -38,8 +38,8 @@ import           Global
 import           Types
 
 
-data State = State {
-    _tempo :: !ModT.Tempo
+data State = State
+    { _tempo :: !ModT.Tempo
     , _instruments :: IntMap ModT.Instrument
     } deriving (Eq, Show)
 
@@ -182,8 +182,8 @@ nn_to_call nn = showt (oct-1) <> steps !! step
 
 -- * convert
 
-data Note = Note {
-    _start :: !TrackTime
+data Note = Note
+    { _start :: !TrackTime
     , _duration :: !TrackTime
     , _instrument :: !ModT.Instrument
     -- | Note call text.

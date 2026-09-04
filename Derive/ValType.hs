@@ -27,9 +27,9 @@ import qualified Ui.Id as Id
 import           Global
 
 
-data Type =
+data Type
     -- | This is the \"any\" type.
-    TVal
+    = TVal
     | TSignal NumType NumValue
     | TPSignal
     | TAttributes | TControlRef | TPControlRef | TPitch | TNotePitch
@@ -78,8 +78,8 @@ instance Semigroup NumType where
         | otherwise = TUntyped
 
 -- | Numeric subtypes.
-data NumValue =
-    TAny
+data NumValue
+    = TAny
     -- | >=0
     | TNonNegative
     -- | >0

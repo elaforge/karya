@@ -156,8 +156,8 @@ class Abbreviations stroke where
 
 type Error = Text
 
-data Note sollu =
-    Note (NoteT sollu)
+data Note sollu
+    = Note (NoteT sollu)
     | Space !Space
     | Pattern !Pattern
     | Alignment !Tala.Akshara
@@ -176,18 +176,18 @@ instance Pretty sollu => Pretty (Note sollu) where
 data Group = GReduction !Reduction | GMeta !Meta
     deriving (Eq, Ord, Show)
 
-data Reduction = Reduction {
+data Reduction = Reduction
     -- | Where to split the sollus.
-    _split :: !S.FMatra
+    { _split :: !S.FMatra
     , _side :: !Side
     } deriving (Eq, Ord, Show)
 
-data Meta = Meta {
+data Meta = Meta
     -- | This is the logical number of Matras the group has.  It has to be
     -- stored because the number of matras is only accurate relative to the
     -- tempo context.  For GSarva, this actually defines the duration, which
     -- is pretty unfortunate.  See 'flatDuration'.
-    _matras :: !(Maybe S.Matra)
+    { _matras :: !(Maybe S.Matra)
     -- | Normally name is derived from _matras and _type, but some groups want
     -- to override that.
     , _name :: !(Maybe Text)
@@ -198,9 +198,9 @@ data Meta = Meta {
 meta :: GroupType -> Meta
 meta = Meta Nothing Nothing
 
-data GroupType =
+data GroupType
     -- | A generic group, usually manually applied.
-    GGroup
+    = GGroup
     -- | 'Reduction's get this automatically.
     | GReductionT
     -- | A bit of decorative filler, should be highlighted subtly if at all.
@@ -251,8 +251,8 @@ instance Pretty Space where
     pretty Rest = "__"
     pretty Offset = ".."
 
-data NoteT sollu = NoteT {
-    _sollu :: !sollu
+data NoteT sollu = NoteT
+    { _sollu :: !sollu
     -- | If it's a karvai sollu, and it's followed by a rest, it will replace
     -- the rest.  Otherwise, it will be replaced by a note.
     , _karvai :: !Bool
@@ -355,8 +355,8 @@ instance Expr.ToExpr Pattern where
 
 data Karvai = Karvai | NotKarvai deriving (Eq, Ord, Show)
 
-data Sollu =
-    NoSollu -- ^ a dummy sollu for rests in Konnakol
+data Sollu
+    = NoSollu -- ^ a dummy sollu for rests in Konnakol
     | Cha | Cham | Dom | Dhom | Di | Dim | Din | Dit | Du
     | Ga | Gin | Gu | Jo | Ka | Ki | Ku | Kum | Lang
     | Mi | Na | Nam | Nang | Nu | Ri

@@ -39,8 +39,8 @@ import qualified Util.Lists as Lists
 import           Global
 
 
-data Config = Config {
-    _options :: ![Option]
+data Config = Config
+    { _options :: ![Option]
     , _timeRatio :: !Double
     , _pitchRatio :: !Double
     } deriving (Show)

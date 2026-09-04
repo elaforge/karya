@@ -351,10 +351,10 @@ convert_backend = \case
     Inst.Sc {} -> Sc
 
 -- | Extra data that doesn't have any effect on the score.
-data Meta = Meta {
+data Meta = Meta
     -- | The time the score was created.  This should be reset whenever
     -- the score is started, or copied from a template.
-    meta_creation :: Time.UTCTime
+    { meta_creation :: Time.UTCTime
     -- | The last time the score was saved.  This is useful to determine which
     -- of several saves is the latest.
     , meta_last_save :: Time.UTCTime
@@ -398,8 +398,8 @@ type ImPerformance = Performance (Vector.Vector Shared.Note.Note)
 -- shouldn't actually be that large, and if it is, the git repo save should
 -- only save it when 'Config' changes.  I could also split it into its own
 -- file.
-data Performance a = Performance {
-    perf_events :: a
+data Performance a = Performance
+    { perf_events :: a
     -- | The time this performance was recorded.
     , perf_creation :: Time.UTCTime
     -- | Free text, containing the git commit when this performance was taken.

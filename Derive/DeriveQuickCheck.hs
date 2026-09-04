@@ -143,8 +143,8 @@ derive_note_track state blocks (notes, samples) =
         , Score.event_pitch = state_psignal state
         }
 
-data Sample = Sample {
-    sample_name :: Text -- ^ @*@ for pitch
+data Sample = Sample
+    { sample_name :: Text -- ^ @*@ for pitch
     , sample_pos :: RealTime
     , sample_val :: Text
     } deriving (Show)
@@ -152,8 +152,8 @@ data Sample = Sample {
 -- | (note track, pitch track, controls)
 type NoteTrack = (Events, [Sample])
 
-data State = State {
-    state_pitch :: Pitch.NoteNumber
+data State = State
+    { state_pitch :: Pitch.NoteNumber
     , state_controls :: Map ScoreT.Control Signal.Y
     } deriving (Show)
 

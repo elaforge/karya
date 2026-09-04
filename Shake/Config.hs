@@ -10,12 +10,12 @@ import qualified Shake.C as C
 
 type Flag = String
 
-data Config = Config {
+data Config = Config
     -- switches
 
     -- | If True, expect that hackage packages were built and installed via
     -- @cabal v2-build --only-dep@ instead of @cabal v1-install --only-dep@
-    useCabalV2 :: Bool
+    { useCabalV2 :: Bool
     -- | If true, link in the EKG library for realtime monitoring.  But it
     -- requires the ekg package with a giant set of dependencies so it's
     -- disabled by default.

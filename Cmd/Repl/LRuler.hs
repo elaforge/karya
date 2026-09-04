@@ -407,8 +407,8 @@ block modify = do
 --
 -- TODO I could also include entire block, and then add_cue etc. could use it,
 -- in addition to being able to clip the entire block.
-data Modify = Modify {
-    m_block_id :: !BlockId
+data Modify = Modify
+    { m_block_id :: !BlockId
     , m_scope :: !RulerUtil.Scope
     , m_modify :: !RulerUtil.ModifyRuler
     }

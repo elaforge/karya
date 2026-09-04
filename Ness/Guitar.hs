@@ -37,8 +37,8 @@ verify instrument = map ("duplicate string names: "<>) $ map fst $ snd $
     contains 7 items: length in metres, Young’s modulus, tension, radius,
     density, T60 at 0Hz, T60 at 1000Hz.
 -}
-data String = String {
-    sLength :: Meters
+data String = String
+    { sLength :: Meters
     , sTension :: Newtons
     , sMaterial :: Material
     , sRadius :: Meters
@@ -52,8 +52,8 @@ data String = String {
     } deriving (Eq, Ord, Show)
 type StringName = Text
 
-data Material = Material {
-    mDensity, mYoung :: Double
+data Material = Material
+    { mDensity, mYoung :: Double
     } deriving (Eq, Ord, Show)
 
 renderStrings :: [String] -> Text
@@ -69,8 +69,8 @@ renderStrings = array2 "string_def" . map list
     (1-based), and the distance along the string (normalised to the range
     0-1).
 -}
-data Output = Output {
-    oLocation :: Location
+data Output = Output
+    { oLocation :: Location
     , oPan :: Pan
     } deriving (Eq, Ord, Show)
 
@@ -86,8 +86,8 @@ renderOutputs = array2 "output_def" . map list
     All should be negative or zero (i.e., the backboard is under the strings).
     E.g. -0.001 -0.000 -0.0002
 -}
-data Backboard = Backboard {
-    ba :: Double
+data Backboard = Backboard
+    { ba :: Double
     , bb :: Double
     , bc :: Double
     } deriving (Eq, Ord, Show)
@@ -95,8 +95,8 @@ data Backboard = Backboard {
 renderBackboard :: Backboard -> Text
 renderBackboard (Backboard b1 b2 b3) = array "backboard" [b1, b2, b3]
 
-data Fret = Fret {
-    fHeight :: Meters -- negative
+data Fret = Fret
+    { fHeight :: Meters -- negative
     , fLocation :: Location
     } deriving (Eq, Ord, Show)
 
@@ -110,9 +110,9 @@ renderFrets = array2 "frets" . map list
 
     E.g. 1e10 1.3 10
 -}
-data Barrier = Barrier {
+data Barrier = Barrier
     -- | stiffness (normally a high number, like 1e10, or 1e13
-    bK :: Double
+    { bK :: Double
     -- | stiffness exponent (small number, usually between 1 and 3)
     , bAlpha :: Double
     -- | loss parameter (positive or zero...bigger means more loss)
@@ -141,8 +141,8 @@ renderFingerParams :: FingerParams -> Text
 renderFingerParams (FingerParams mass k alpha beta) =
     array "finger_params" [mass, k, alpha, beta]
 
-data Solver = Solver {
-    nIterations :: Int
+data Solver = Solver
+    { nIterations :: Int
     , nTolerance :: Double
     } deriving (Eq, Ord, Show)
 
@@ -159,8 +159,8 @@ type StringIndex = Int
     point on a string, the latter one will be automatically removed as this is
     not currently supported.
 -}
-data Connection = Connection {
-    cMass :: Double
+data Connection = Connection
+    { cMass :: Double
     , cFrequency :: Double
     , cLoss :: Double
     , cCollisionExponent :: Double
@@ -177,8 +177,8 @@ renderConnections = array2 "ssconnect_def" . map list
         , fromIntegral s1, s1Loc, fromIntegral s2, s2Loc
         ]
 
-data Instrument = Instrument {
-    iName :: Text
+data Instrument = Instrument
+    { iName :: Text
     , iStrings :: [String]
     , iFrets :: [Fret]
     , iBarrier :: Barrier
@@ -211,8 +211,8 @@ renderInstrument sr (Instrument name strings frets barrier backboard
 
 -- * Score
 
-data Score = Score {
-    sDecay :: Seconds
+data Score = Score
+    { sDecay :: Seconds
     , sHighpass :: Bool
     , sNotes :: [Note]
     , sFingers :: [Finger]
@@ -232,8 +232,8 @@ renderScore strings (Score decay highpass notes fingers) = Text.unlines
         Map.lookup str toNum
         where toNum = Map.fromList $ zip (map sName strings) [1..]
 
-data Note = Note {
-    nStrike :: Strike
+data Note = Note
+    { nStrike :: Strike
     , nString :: StringName
     , nStart :: Seconds
     , nDuration :: Seconds
@@ -251,8 +251,8 @@ renderNotes indexOf = array2 "exc" . map list
 
 data Strike = Strike | Pluck deriving (Eq, Show)
 
-data Finger = Finger {
-    fString :: StringName
+data Finger = Finger
+    { fString :: StringName
     , fInitial :: (Location, Velocity)
     , fMovement :: [(Seconds, Location, Newtons)]
     } deriving (Eq, Show)

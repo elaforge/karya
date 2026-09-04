@@ -111,8 +111,8 @@ char first second
 toRanges :: [Int] -> [(Int, Int)]
 toRanges xs = Ranges.merge_sorted [(n, n+1) | n <- xs]
 
-data Numbered a = Numbered {
-    numbered :: !Int
+data Numbered a = Numbered
+    { numbered :: !Int
     , numberedVal :: !a
     } deriving (Show)
 

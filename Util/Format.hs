@@ -37,9 +37,9 @@ import qualified Util.Lists as Lists
 import qualified Util.Num as Num
 
 
-data Doc =
+data Doc
     -- | Use 'text' instead of this constructor to get newlines right.
-    Text !Text
+    = Text !Text
     | Doc :+ Doc -- intentionally lazy
     -- | Use 'shortForm'.
     | ShortForm Doc Doc
@@ -213,9 +213,9 @@ wrap [] = mempty
 -- | Width of monospace text, in characters.
 type Width = Int
 
-data State = State {
+data State = State
     -- | Collect text for each Section, for 'sectionB'.
-    stateCollect :: !B
+    { stateCollect :: !B
     -- | Collect long form Sections for 'sectionSubs'.  Like stateSections,
     -- this is in reverse order.
     , stateSubs :: ![Section]
@@ -234,10 +234,10 @@ data State = State {
     , stateBreakIndent :: !Indent
     } deriving (Show)
 
-data Section = Section {
+data Section = Section
     -- | This is the indent in effect when the section starts, and will be the
     -- physical indent of the section if it gets wrapped.
-    sectionStartIndent :: !Indent
+    { sectionStartIndent :: !Indent
     -- | The indent of this section for breaking, see [NOTE end-indent].
     , sectionEndIndent :: !Indent
     -- | Text of the section.
@@ -426,8 +426,8 @@ renderText indentS maxWidth = Builder.toLazyText . flip renderLine mempty
 {- This is for debugging, but I don't want it in the real version, and I don't
 know how to make the debugging part free when disabled.
 
-data Output = Output {
-    outputLogs :: ![Text]
+data Output = Output
+    { outputLogs :: ![Text]
     , outputText :: !Builder.Builder
     } deriving (Show)
 
@@ -563,8 +563,8 @@ showt = Text.pack . show
 -- * B
 
 -- | A 'Builder.Builder' that keeps track of its length.
-data B = B {
-    bBuilder :: !Builder.Builder
+data B = B
+    { bBuilder :: !Builder.Builder
     , bWidth :: !Width
     }
 

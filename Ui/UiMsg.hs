@@ -51,8 +51,8 @@ data Track = Track !TrackTime | SkeletonDisplay | Divider
 -- Each UiUpdate has a ViewId which is separate from the focus.  This is
 -- because they can happen to an unfocused view, e.g. on OS X UpdateViewResize
 -- and UpdateClose.
-data Msg =
-    MsgEvent MsgEvent
+data Msg
+    = MsgEvent MsgEvent
     | UiUpdate ViewId UiUpdate
     -- | Give screen dimensions: screen number, total screens, rect.  This
     -- is a UiUpdate but it doesn't have a ViewId.
@@ -62,10 +62,10 @@ data Msg =
 -- | These are generated when the UI is manipulated directly and makes changes
 -- to its own state.  They are like Ui.Update except in the opposide
 -- direction: fltk telling haskell what changes occurred.
-data UiUpdate =
+data UiUpdate
     -- | Nothing means the text didn't change, but a msg is being sent anyway
     -- since that's the only way I know the floating edit input has closed.
-    UpdateInput !(Maybe Text.Text)
+    = UpdateInput !(Maybe Text.Text)
     | UpdateTrackScroll !Types.Width
     | UpdateTimeScroll !ScoreTime
     -- | Size of entire block window, and padding.
@@ -77,8 +77,8 @@ data UiUpdate =
     deriving (Eq, Ord, Show)
 
 -- | MsgType.msg_event, which is a fltk event.
-data MsgEvent =
-    Mouse !MouseEvent
+data MsgEvent
+    = Mouse !MouseEvent
     -- | The Char is the text that this key wants to enter, if any.  The Key is
     -- just the keycap, without taking shift or other modifiers into account.
     | Kbd KbdState [Key.Modifier] Key.Key (Maybe Char)

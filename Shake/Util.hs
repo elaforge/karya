@@ -76,8 +76,8 @@ quote w
     | any (`elem` w) ("\" " :: [Char]) = '\'' : w ++ "'"
     | otherwise = w
 
-data Metric = Metric {
-    metricCpu :: !Double
+data Metric = Metric
+    { metricCpu :: !Double
     , metricWall :: !Time.UTCTime
     } deriving (Show)
 

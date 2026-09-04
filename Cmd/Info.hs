@@ -37,18 +37,18 @@ import           Types
 
 -- * track info
 
-data Track = Track {
-    track_info :: Ui.TrackInfo
+data Track = Track
+    { track_info :: Ui.TrackInfo
     , track_type :: TrackType
     } deriving (Show, Eq)
 
-data TrackType =
+data TrackType
     -- | A note track has a list of control tracks, and a list of child note
     -- tracks.  The controls start with the children and continues with its
     -- parents.  However, it stops at another note track or as soon as a parent
     -- has more than one child, because that control track doesn't belong to
     -- just this note track.
-    Note [Ui.TrackInfo] [Ui.TrackInfo]
+    = Note [Ui.TrackInfo] [Ui.TrackInfo]
     -- | The note track for this pitch track.
     | Pitch (Maybe Ui.TrackInfo)
     -- | Tracks this control track has scope over.  This means all its

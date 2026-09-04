@@ -73,8 +73,8 @@ import           Types
 -- * block
 
 -- | This is the data behind a single block.
-data Block = Block {
-    block_title :: !Text
+data Block = Block
+    { block_title :: !Text
     , block_config :: !Config
     , block_tracks :: ![Track]
     , block_skeleton :: !Skeleton.Skeleton
@@ -109,10 +109,10 @@ instance Pretty Skeleton where pretty = showt
 -}
 type Meta = Map Text Text
 
-data Source =
+data Source
     -- | Integrated from a manually-invoked integration.  A single SourceKey
     -- can have destinations on multiple tracks within the block.
-    ManualSource !SourceKey
+    = ManualSource !SourceKey
     | TrackSource !TrackId
     | BlockSource !BlockId
     deriving (Eq, Ord, Show)
@@ -153,11 +153,11 @@ destination_to_source block = concat
         (fst note, (source, snd note))
             : [(tid, (source, index)) | (tid, index) <- Map.elems controls]
 
-data TrackDestinations =
+data TrackDestinations
     -- | A derive integrate can produce multiple note tracks, and each one gets
     -- its own NoteDestination.  The TrackIds in here should point to tracks
     -- within the block that contains the TrackDestinations.
-    DeriveDestinations ![NoteDestination]
+    = DeriveDestinations ![NoteDestination]
     -- | A score integrate is always just one track along with its descendents.
     -- It's not necessarily a note track.
     | ScoreDestinations !ScoreDestinations
@@ -198,12 +198,12 @@ instance Pretty TrackDestinations where
 
 -- | This holds the 'EventIndex' for one note track, along with its dependent
 -- control tracks.
-data NoteDestination = NoteDestination {
+data NoteDestination = NoteDestination
     -- | The key should uniquely identify this particular destination.  The next
     -- time there is a merge, the source tracks can match by key.  Otherwise,
     -- they just have to blindly zip sources and dests, and can't detect
     -- deletions or moves.
-    dest_key :: !Text
+    { dest_key :: !Text
     -- | (dest_track, index)
     , dest_note :: !(TrackId, EventIndex)
     -- | Map from control name to the track which was created for it.
@@ -289,8 +289,8 @@ block config title tracks = Block
     }
 
 -- | Per-block configuration.
-data Config = Config {
-    config_skel_box :: !Box
+data Config = Config
+    { config_skel_box :: !Box
     , config_track_box :: !Box
     , config_sb_box :: !Box
     , config_skeleton :: !Skeleton
@@ -319,8 +319,8 @@ instance Pretty Box where
 --
 -- This is the higher level track that is visible at the haskell level, as
 -- opposed to 'DisplayTrack', which is what is visible in the UI.
-data Track = Track {
-    tracklike_id :: !TracklikeId
+data Track = Track
+    { tracklike_id :: !TracklikeId
     -- | Formerly the width was in the view since each view could have
     -- a different width and this was just the default width, but that turned
     -- out to be too much of a hassle, so now all occurences of a track have
@@ -384,8 +384,8 @@ track_wants_signal flags track =
 -- | This is the low-level representation of a track, which directly
 -- corresponds with what is displayed by the UI.  The DisplayTracks should be
 -- derivable from a 'Block' deterministically.
-data DisplayTrack = DisplayTrack {
-    dtracklike_id :: !TracklikeId
+data DisplayTrack = DisplayTrack
+    { dtracklike_id :: !TracklikeId
     , dtrack_width :: !Types.Width
     , dtrack_merged :: !(Set TrackId)
     , dtrack_status :: !Status
@@ -412,9 +412,9 @@ empty_status :: Status
 empty_status = Status "" Color.black
 
 -- | Most of these only make sense for event tracks.
-data TrackFlag =
+data TrackFlag
     -- | Track is collapsed to take up less space.
-    Collapse
+    = Collapse
     | Merge
     -- | UI shows solo indication.  If any tracks are soloed on a block, only
     -- those tracks are played.
@@ -502,9 +502,9 @@ flag_char status = case status of
     Collapse -> ' '
     Merge -> ' '
 
-data TracklikeId =
+data TracklikeId
     -- | Tracks may have a Ruler overlay
-    TId TrackId RulerId
+    = TId TrackId RulerId
     | RId RulerId
     | DId Divider
     deriving (Eq, Ord, Show)
@@ -535,8 +535,8 @@ set_ruler_id rid (TId tid _) = TId tid rid
 set_ruler_id rid (RId _) = RId rid
 set_ruler_id _ t = t
 
-data Tracklike =
-    T Track.Track Ruler.Ruler
+data Tracklike
+    = T Track.Track Ruler.Ruler
     | R Ruler.Ruler
     | D Divider
     deriving (Show)
@@ -563,9 +563,9 @@ newtype Divider = Divider Color.Color deriving (Eq, Ord, Show)
 
 -- | A view is a single window on screen.  Views are destroyed when the window
 -- is closed.
-data View = View {
+data View = View
     -- | view_block should never change.
-    view_block :: !BlockId
+    { view_block :: !BlockId
     , view_rect :: !Rect.Rect
     , view_padding :: !Padding
     -- | Contents of the status line.  Map (sort_order, name) contents.  This
@@ -616,8 +616,8 @@ view block block_id rect zoom = View
 -- here so pure code doesn't have to call to the UI and import BlockC.
 -- Only 'UiMsg.UpdateViewResize' should set this, which in turn comes from
 -- MsgCollector::msg_resize, which in turn comes from Block::get_padding.
-data Padding = Padding {
-    left :: !Int
+data Padding = Padding
+    { left :: !Int
     , top :: !Int
     , bottom :: !Int
     -- Right padding is not necessary, because I can add up track widths.

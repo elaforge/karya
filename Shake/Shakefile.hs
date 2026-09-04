@@ -211,8 +211,8 @@ options args = Shake.shakeOptions
     -- -v is version, not verbose.
     version = any ("-v" `List.isPrefixOf`) args || "--version" `elem` args
 
-data Config = Config {
-    buildMode :: Mode
+data Config = Config
+    { buildMode :: Mode
     , hscDir :: FilePath
     , chsDir :: FilePath
     , ghcLib :: FilePath
@@ -227,8 +227,8 @@ data Config = Config {
     , rootDir :: FilePath
     } deriving (Show)
 
-data CLibs = CLibs {
-    _libfltk :: C.ExternalLibrary
+data CLibs = CLibs
+    { _libfltk :: C.ExternalLibrary
     } deriving (Show)
 
 buildDir :: Config -> FilePath
@@ -253,9 +253,9 @@ cabalDir = "doc/cabal"
 
 type Flag = String
 
-data Flags = Flags {
+data Flags = Flags
     -- | -D flags.  This is used by both c++ and ghc.
-    define :: [Flag]
+    { define :: [Flag]
     -- | There's one global list of include dirs, for both haskell and C++.
     -- Technically they don't all need the same dirs, but it doesn't hurt to
     -- have unneeded ones.
@@ -317,8 +317,8 @@ parseNixIncludeFlags =
 {- | Describe a single haskell binary.  The dependencies are inferred by
     chasing imports.
 -}
-data HsBinary = HsBinary {
-    hsName :: FilePath
+data HsBinary = HsBinary
+    { hsName :: FilePath
     , hsMain :: FilePath -- ^ main module
     , hsDeps :: [FilePath] -- ^ additional deps, relative to obj dir
     , hsGui :: GuiType
@@ -331,8 +331,8 @@ defaultRtsFlags :: [Flag]
 defaultRtsFlags = ["-N", "-T"]
 
 -- | GUI apps require some postprocessing.
-data GuiType =
-    NoGui -- ^ plain app
+data GuiType
+    = NoGui -- ^ plain app
     | MakeBundle -- ^ run make_bundle on mac
     | HasIcon -- ^ run make_bundle, and add an icon from build/name.icns
     deriving (Show, Eq)

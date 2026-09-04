@@ -104,9 +104,7 @@ char :: Char -> Doc
 char = text . Text.singleton
 
 
-data GConfig = GConfig {
-    _modifyField :: String -> String
-    }
+data GConfig = GConfig { _modifyField :: String -> String }
 
 gconfig :: GConfig
 gconfig = GConfig id

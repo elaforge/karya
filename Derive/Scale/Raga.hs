@@ -198,9 +198,9 @@ type Name = Text
 type Ragam = RagamT SwaramP
 
 -- | Arohana \/ avarohana structure.  Sa is implicit, so it's omitted.
-data RagamT a =
+data RagamT a
     -- | The arohana is given, the avarohana is the same but reversed.
-    Same [a]
+    = Same [a]
     -- | Arohana ascending from low sa, avarohana descending from high sa.
     -- The first and last Sa are omitted, since they are implicit.
     | Different [a] [a]

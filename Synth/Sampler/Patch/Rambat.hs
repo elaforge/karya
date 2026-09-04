@@ -239,8 +239,8 @@ rambatTuning = Map.fromList $ zip [Pitch 3 E ..]
 
 -- * implementation
 
-data Articulation =
-    Open | OpenShort | MuteGenderLoose | MuteGenderTight | MuteGangsa
+data Articulation
+    = Open | OpenShort | MuteGenderLoose | MuteGenderTight | MuteGangsa
     | Calung | MuteCalung
     deriving (Eq, Ord, Show, Enum, Bounded)
 

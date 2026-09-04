@@ -60,8 +60,8 @@ type Title = Text
 
 -- | A simplified description of a UI track, as collected by
 -- "Derive.Call.Integrate".
-data Track = Track {
-    track_title :: !Title
+data Track = Track
+    { track_title :: !Title
     , track_events :: ![Event.Event]
     } deriving (Eq, Ord, Show)
 

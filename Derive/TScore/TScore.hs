@@ -78,8 +78,8 @@ data Block track = Block
 
 -- | A tscore track consists of multiple tracklang tracks, since it includes
 -- both rhythm and pitch.
-data NTrack = NTrack {
-    _note :: !Track
+data NTrack = NTrack
+    { _note :: !Track
     , _key :: !Text
     , _controls :: ![Track]
     -- | End of the track.  This could be past the end of the last event if
@@ -90,8 +90,8 @@ data NTrack = NTrack {
 
 -- | This track has been parsed, and directives propagated to Check.Config,
 -- but not yet converted to a Track.
-data ParsedTrack = ParsedTrack {
-    track_config :: !Check.Config
+data ParsedTrack = ParsedTrack
+    { track_config :: !Check.Config
     , track_key :: !Text
     , track_title :: !Text
     , track_tokens :: ![Token (T.NPitch T.Pitch)]
@@ -101,8 +101,8 @@ data ParsedTrack = ParsedTrack {
 type Token pitch = T.Token T.CallText pitch T.NDuration T.Duration
 
 -- | A complete track, ready to be integrated or directly put in a block.
-data Track = Track {
-    _title :: !Text
+data Track = Track
+    { _title :: !Text
     , _events :: !Events.Events
     } deriving (Eq, Show)
 

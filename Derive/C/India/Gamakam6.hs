@@ -59,10 +59,10 @@ library = mconcat
 
 type M a = State.StateT PitchState Derive.Deriver a
 
-data PitchState = PitchState {
+data PitchState = PitchState
     -- # maintained automatically
     -- | Pitch of the underlying note.  The Nns below are relative to this.
-    _current :: !PSignal.Transposed
+    { _current :: !PSignal.Transposed
     -- | Current pitch value.  Starts as the pitch at the end of the previous
     -- note.
     , _from :: !Nn

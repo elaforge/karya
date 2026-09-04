@@ -404,8 +404,8 @@ with_tracklike update_ruler merged_events set_style tracklike f =
     with_ruler = if update_ruler then RulerC.with_ruler
         else const RulerC.no_ruler
 
-data TracklikePtr =
-    TPtr (Ptr Track.Track) (Ptr Ruler.Ruler)
+data TracklikePtr
+    = TPtr (Ptr Track.Track) (Ptr Ruler.Ruler)
     | RPtr (Ptr Ruler.Ruler)
     | DPtr (Ptr Block.Divider)
 
@@ -562,8 +562,8 @@ instance CStorable Block.Status where
 
 -- | This is the low level version of 'Sel.Selection'.  It only applies to
 -- a single track, and has an explicit color.
-data Selection = Selection {
-    sel_color :: !Color.Color
+data Selection = Selection
+    { sel_color :: !Color.Color
     , sel_start :: !TrackTime
     , sel_cur :: !TrackTime
     , sel_orientation :: !SelectionOrientation

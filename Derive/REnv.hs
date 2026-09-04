@@ -73,8 +73,8 @@ null (Environ env) = Map.null env
 --
 -- Namely: 'DeriveT.VPSignal', 'DeriveT.VCFunction'.
 -- NOTE [val-and-minival].
-data Val =
-    VNum !(ScoreT.Typed Signal.Y)
+data Val
+    = VNum !(ScoreT.Typed Signal.Y)
     | VAttributes !Attrs.Attributes
     | VControlRef !DeriveT.ControlRef
     | VConstantPitch !ConstantPitch

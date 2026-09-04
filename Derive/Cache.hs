@@ -94,8 +94,8 @@ block block_id call args = caching_deriver (Block block_id) range (call args)
         , _negative = Event.is_negative (Args.event args)
         }
 
-data Range = Range {
-    _start :: !TrackTime
+data Range = Range
+    { _start :: !TrackTime
     , _end :: !TrackTime
     -- | If True, these are the ranges of a negative event, which affects how
     -- control damage works.

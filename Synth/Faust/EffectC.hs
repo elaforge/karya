@@ -34,8 +34,8 @@ import           ForeignC
 import           Global
 
 
-data EffectT ptr cptr = EffectT {
-    _name :: Text
+data EffectT ptr cptr = EffectT
+    { _name :: Text
     , _doc :: Text
     , _controls :: Map Control.Control (cptr, Text)
     , _ptr :: ptr

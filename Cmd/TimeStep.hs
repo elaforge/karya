@@ -86,10 +86,10 @@ rank :: Meter.Rank -> TimeStep
 rank = time_step . AbsoluteMark match_meter
 
 -- | The possible matchers for a TimeStep.
-data Step =
+data Step
      -- | Step a certain amount of time.  It's measured relative to the current
      -- selection, rather than absolute from the beginning of the block.
-    Duration ScoreTime
+    = Duration ScoreTime
     -- | Until the next mark that matches.
     | AbsoluteMark MarklistMatch Meter.Rank
     -- | Until next matching mark + offset from previous mark.

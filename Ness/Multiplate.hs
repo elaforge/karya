@@ -31,8 +31,8 @@ verify instrument score =
 
 -- * instrument
 
-data Instrument = Instrument {
-    iName :: Text
+data Instrument = Instrument
+    { iName :: Text
     , iNormalize :: Bool
     , iAirbox :: Airbox
     , iPlates :: [Plate]
@@ -63,8 +63,8 @@ renderInstrument sr
     Parameters are the width, the depth, the height, c_a and rho_a. Only one
     airbox can be defined currently.
 -}
-data Airbox = Airbox {
-    aWidth, aDepth, aHeight :: Meters
+data Airbox = Airbox
+    { aWidth, aDepth, aHeight :: Meters
     , aC_a, aRho_a :: Double
     , aOutputs :: [AirboxOutput]
     } deriving (Eq, Ord, Show)
@@ -90,8 +90,8 @@ instance Render AirboxOutput where
     the purposes of outputs and strikes. The numeric parameters are size X,
     size Y, centre X, centre Y, centre Z, rho, H, E, nu, T60, sig1.
 -}
-data Plate = Plate {
-    pName :: Text
+data Plate = Plate
+    { pName :: Text
     , pSize :: (Meters, Meters)
     , pCenter :: (Meters, Meters, Meters)
     , pMaterial :: Material
@@ -105,8 +105,8 @@ instance Render Plate where
         list (Plate _ (sx, sy) (cx, cy, cz) (Material rho h e nu t60 sig1) _) =
             [sx, sy, cx, cy, cz, rho, h, e, nu, t60, sig1]
 
-data Material = Material {
-    mRho, mH, mE, mNu, mT60, mSig1 :: Double
+data Material = Material
+    { mRho, mH, mE, mNu, mT60, mSig1 :: Double
     } deriving (Eq, Ord, Show)
 
 {- | • plate output defines an output taken from a plate. The parameters are
@@ -128,8 +128,8 @@ renderPlateOutputs plates =
     parameters are the radius, centre X, centre Y, centre Z, rho, H, T, E, nu,
     T60 and sig1.
 -}
-data Membrane = Membrane {
-    mName :: Text
+data Membrane = Membrane
+    { mName :: Text
     , mRadius :: Meters
     , mCenter :: (Meters, Meters, Meters)
     , mMaterial :: Material
@@ -147,8 +147,8 @@ instance Render Membrane where
     a unique string. The numeric parameters are centre X, centre Y, bottom Z,
     radius and shell height.
 -}
-data Drumshell = Drumshell {
-    dName :: Text
+data Drumshell = Drumshell
+    { dName :: Text
     , dCenter :: (Meters, Meters)
     , dBottomZ :: Meters
     , dRadius :: Meters
@@ -173,8 +173,8 @@ instance Render Drumshell where
 
 -- * score
 
-data Score = Score {
-    sDecay :: Seconds
+data Score = Score
+    { sDecay :: Seconds
     , sStrikes :: [Strike]
     } deriving (Eq, Show)
 
@@ -191,8 +191,8 @@ type Force = Double
     are the name of the plate, the X position, the Y position, the duration,
     and the maximum force. The position values are normalised to the range 0-1.
 -}
-data Strike = Strike {
-    sObject :: Text
+data Strike = Strike
+    { sObject :: Text
     , sStart :: Seconds
     , sDuration :: Seconds
     , sPosition :: (Meters, Meters)

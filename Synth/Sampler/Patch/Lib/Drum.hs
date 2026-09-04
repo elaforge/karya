@@ -109,14 +109,14 @@ makePatch attributeMap hasNaturalNn = ImInst.make_patch $ Im.Patch.patch
 -- * convert
 
 -- | Arguments for the 'convert' function.
-data ConvertMap art = ConvertMap {
+data ConvertMap art = ConvertMap
     -- | Dyn from 0 to 1 will be scaled to this range.  If the samples are not
     -- normalized, and there are enough for a smooth curve, then (1, 1) should
     -- do.
     --
     -- TODO: if the samples are not normalized, I need a separate range for
     -- each sample, to smooth out the differences.
-    dynRange :: (Signal.Y, Signal.Y)
+    { dynRange :: (Signal.Y, Signal.Y)
     -- | If Just, use the note's pitch, assuming ratio=1 will be this pitch.
     ,  naturalNn :: Maybe (art -> Pitch.NoteNumber)
     -- | Time to mute at the end of a note.
@@ -266,9 +266,9 @@ convert attributeMap cmap = \note -> do
 
 -- | Describe a drum-like instrument.  This is just the data for the various
 -- functions to construct the patch.
-data StrokeMap art = StrokeMap {
+data StrokeMap art = StrokeMap
     -- | Map each articulation to the articulations that stop it.
-    stops :: Map art (Set art)
+    { stops :: Map art (Set art)
     -- | Retain the Stroke to 'art' assocation so I can have it when generating
     -- the call for each stroke.
     , strokes :: [(Drums.Stroke, Maybe art)]
@@ -285,9 +285,9 @@ strokeMapSimple stops table = strokeMapTable stops
     | (key, sym, attrs, art, group) <- table
     ]
 
-data Call art =
+data Call art
     -- | A call that doesn't correspond directly to Attributes.
-    Call (Derive.Generator Derive.Note)
+    = Call (Derive.Generator Derive.Note)
     -- | Emit a call that produces these Attributes, and cause the patch to
     -- assign those Attributes to the given articulation.
     | Stroke Attrs.Attributes art Drums.Group

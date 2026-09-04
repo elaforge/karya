@@ -97,8 +97,8 @@ muteNote start note = note
 muteOffset :: Pitch.NoteNumber
 muteOffset = 0.25
 
-data Note = Note {
-    _instrument :: !Guitar.Instrument
+data Note = Note
+    { _instrument :: !Guitar.Instrument
     , _string :: !Guitar.String
     , _start :: !RealTime.RealTime
     -- | Since strings are only damped explicitly, this is only used to

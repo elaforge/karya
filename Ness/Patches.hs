@@ -17,8 +17,8 @@ patches = Map.fromList $ Lists.keyOn patchName $
     map PGuitar Guitar.Patch.instruments
     ++ map PMultiplate Multiplate.Patch.instruments
 
-data Performance =
-    Guitar Guitar.Instrument Guitar.Score
+data Performance
+    = Guitar Guitar.Instrument Guitar.Score
     | Multiplate Multiplate.Instrument Multiplate.Score
     deriving (Show)
 

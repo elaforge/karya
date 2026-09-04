@@ -49,8 +49,8 @@ main
 joined :: [a -> String] -> a -> String
 joined fs x = Lists.join "-" $ map ($x) fs
 
-data Bench = Bench {
-    benchmark_action :: String -> Criterion.Benchmark
+data Bench = Bench
+    { benchmark_action :: String -> Criterion.Benchmark
     , bench_code :: String
     , bench_state :: String
     , bench_size :: String

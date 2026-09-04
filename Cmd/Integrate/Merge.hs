@@ -88,8 +88,8 @@ score_merge_block source_id dest_id dests = do
 
 -- * tracks
 
-data MergeTitles =
-    KeepTitles -- ^ leave the titles of merged tracks alone
+data MergeTitles
+    = KeepTitles -- ^ leave the titles of merged tracks alone
     | ReplaceTitles -- ^ replace titles with the merge source
     deriving (Eq, Show)
 
@@ -469,9 +469,9 @@ diff_text old new
     ends_with_pipe text = "|" `Text.isSuffixOf` pre && Text.all (==' ') post
         where (pre, post) = Text.breakOnEnd "|" text
 
-data Edit =
+data Edit
     -- | This event was added, and will be copied to the output.
-    Add !Event.Event
+    = Add !Event.Event
     -- | This matched an existing event, which has possibly been modified, so
     -- I have to merge the new event while applying any modifications.
     | Edit !Event.IndexKey ![Modify]

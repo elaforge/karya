@@ -55,8 +55,8 @@ type UiUpdate = Update Block.Track State
 --
 -- TODO The indirection for BringToFront, TitleFocus, seems a bit fussy.  Can I
 -- just store some Updates in here?
-data UiDamage = UiDamage {
-    _views :: Set ViewId
+data UiDamage = UiDamage
+    { _views :: Set ViewId
     -- | This means there may have been any change at all inside these blocks,
     -- and Diff should check for them.  It doesn't mean it's an interesting
     -- change, that's up to Diff to decide!
@@ -99,8 +99,8 @@ track_damage id range = mempty { _tracks = Map.singleton id range }
 ruler_damage :: RulerId -> UiDamage
 ruler_damage id = mempty { _rulers = Set.singleton id }
 
-data Update t u =
-    View ViewId View
+data Update t u
+    = View ViewId View
     | Block BlockId (Block t)
     | Track TrackId Track
     -- | Since I expect rulers to be changed infrequently, the only kind of
@@ -109,8 +109,8 @@ data Update t u =
     | State u
     deriving (Eq, Show)
 
-data View =
-    CreateView
+data View
+    = CreateView
     | DestroyView
     | ViewSize Rect.Rect
     | Status (Map (Int, Text) Text) Color.Color -- ^ background color
@@ -125,8 +125,8 @@ data View =
     | TitleFocus (Maybe TrackNum)
     deriving (Eq, Show)
 
-data Block t =
-    BlockTitle Text
+data Block t
+    = BlockTitle Text
     | BlockConfig Block.Config
     -- | The second is the \"integrate skeleton\", which is drawn in the same
     -- place.  It could be Skeleton too, but since it never was a skeleton it
@@ -141,9 +141,9 @@ data Block t =
     | BlockTrack TrackNum t
     deriving (Eq, Show)
 
-data Track =
+data Track
     -- | Low pos, high pos.
-    TrackEvents ScoreTime ScoreTime
+    = TrackEvents ScoreTime ScoreTime
     -- | Update the entire track.
     | TrackAllEvents
     | TrackTitle Text
@@ -152,8 +152,8 @@ data Track =
     deriving (Eq, Show)
 
 -- | These are updates to 'Ui.Ui.State' that have no UI presence.
-data State =
-    Config UiConfig.Config
+data State
+    = Config UiConfig.Config
     | CreateBlock BlockId Block.Block
     | DestroyBlock BlockId
     | CreateTrack TrackId Track.Track

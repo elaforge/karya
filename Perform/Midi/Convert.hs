@@ -53,8 +53,8 @@ import           Types
 default_srate :: RealTime
 default_srate = 1 / 0.015 -- TODO set to PlayUtil.initial_environ[srate]
 
-data MidiLookup = MidiLookup {
-    lookup_scale :: Derive.LookupScale
+data MidiLookup = MidiLookup
+    { lookup_scale :: Derive.LookupScale
     , lookup_control_defaults
         :: ScoreT.Instrument -> Map ScoreT.Control Signal.Y
     }

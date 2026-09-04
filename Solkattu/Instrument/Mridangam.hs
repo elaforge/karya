@@ -45,12 +45,12 @@ import qualified Solkattu.Technique as Technique
 import           Global
 
 
-data Stroke =
-    Thoppi Thoppi | Valantalai Valantalai
+data Stroke
+    = Thoppi Thoppi | Valantalai Valantalai
     | Both Thoppi Valantalai | Flam Thoppi Valantalai
     deriving (Eq, Ord, Show)
-data Thoppi =
-    Tha Tha | Thom Thom
+data Thoppi
+    = Tha Tha | Thom Thom
     -- | Just the gumiki movement, no strike.  Or possibly a light strike to
     -- make it speak if it doesn't sustain.  This is for explicitly delayed
     -- gum, so while Thom Up is up on strike, this can express up on beat after
@@ -79,8 +79,8 @@ data Tha = Palm -- ^ full hand tha
     | Fingertips -- ^ touch with fingertips
     deriving (Eq, Ord, Show)
 
-data Thom =
-    Open -- ^ standard stroke
+data Thom
+    = Open -- ^ standard stroke
     | Low -- ^ gumiki low stroke with fingertips
     | Up -- ^ gumiki strike then immediately up
     deriving (Eq, Ord, Show)
@@ -319,8 +319,8 @@ instance Expr.ToExpr (Realize.Stroke Stroke) where
         Realize.Light -> Expr.with Symbols.weak stroke
         Realize.Heavy -> Expr.with Symbols.accent stroke
 
-data Strokes a = Strokes {
-    k :: a
+data Strokes a = Strokes
+    { k :: a
     , t :: a
     , r :: a
     , l :: a

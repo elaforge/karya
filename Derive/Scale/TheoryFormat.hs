@@ -36,8 +36,8 @@ import           Global
 -- * types
 
 -- | General purpose config.
-data Config = Config {
-    config_show_octave :: ShowOctave
+data Config = Config
+    { config_show_octave :: ShowOctave
     , config_parse_octave :: ParseOctave
     , config_accidental :: AccidentalFormat
     }
@@ -63,8 +63,8 @@ type ParseOctave = A.Parser (Pitch.PitchClass, Maybe Pitch.Accidentals)
 
 -- | Key config is only necessary for formatting that depends on the key, e.g.
 -- 'RelativeFormat'.
-data KeyConfig key = KeyConfig {
-    key_parse :: Maybe Pitch.Key -> Either DeriveT.PitchError key
+data KeyConfig key = KeyConfig
+    { key_parse :: Maybe Pitch.Key -> Either DeriveT.PitchError key
     -- | Default key if there is none, or it's not parseable.  Otherwise, a bad
     -- or missing key would mean you couldn't even display notes.
     , key_default :: key
@@ -115,8 +115,8 @@ absolute_c_degrees = ["c", "d", "e", "f", "g", "a", "b"]
 -- as the Pitches of an absolute scale.  The difference is that the
 -- 'read_pitch' and 'show_pitch' functions adjust based on the key to display
 -- the absolute Pitch relative to the tonic of the key.
-data RelativeFormat key = RelativeFormat {
-    rel_config :: Config
+data RelativeFormat key = RelativeFormat
+    { rel_config :: Config
     , rel_key_config :: KeyConfig key
     , rel_show_degree :: ShowDegree key
     , rel_to_absolute :: ToAbsolute key
@@ -163,8 +163,8 @@ make_pattern degrees = "[" <> mconcat (Vector.toList degrees) <> "]"
 -- these gives you access to the set of functions in here, such as 'show_pitch'
 -- and 'read_pitch', which in turn can be used to implement
 -- a 'Derive.Scale.Scale'.
-data Format = Format {
-    fmt_show :: ShowPitch
+data Format = Format
+    { fmt_show :: ShowPitch
     -- | This doesn't need the key because that work is split off to
     -- 'fmt_to_absolute'.
     , fmt_read :: A.Parser RelativePitch

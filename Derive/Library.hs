@@ -46,8 +46,8 @@ type Library = Derive.ScopesT
         [Entry (Derive.TrackCall Derive.Pitch)])
     [Entry Derive.ValCall]
 
-data Entry call =
-    Single !Expr.Symbol !call
+data Entry call
+    = Single !Expr.Symbol !call
     | Pattern !(Derive.PatternCall call)
 
 instance Show Library where show _ = "((Library))"
@@ -80,8 +80,8 @@ pattern c = to_library [Pattern c] mempty
 
 -- | Bundle a generator and transformer together, so I can define them
 -- together.  Functions to create these are in "Derive.Call.Make".
-data Calls d = Calls {
-    generator :: !(Derive.Generator d)
+data Calls d = Calls
+    { generator :: !(Derive.Generator d)
     , transformer :: !(Derive.Transformer d)
     }
 

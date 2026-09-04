@@ -393,10 +393,10 @@ remove_flag = Set.delete
 -- ** InitializePatch
 
 -- | Describe how an instrument should be initialized before it can be played.
-data InitializePatch =
+data InitializePatch
     -- | Send these msgs to initialize the patch.  It should be a patch
     -- change or a sysex.  Channel is ignored.
-    InitializeMidi [Midi.Message]
+    = InitializeMidi [Midi.Message]
     -- | Display this msg to the user and hope they do what it says.
     | InitializeMessage Text
     | NoInitialization

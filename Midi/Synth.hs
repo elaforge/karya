@@ -46,9 +46,9 @@ round_cents = (/100) . Pitch.nn . round . (*100)
 
 -- * compute
 
-data State = State {
+data State = State
     -- constant
-    state_pb_range :: !(Map Addr PbRange)
+    { state_pb_range :: !(Map Addr PbRange)
 
     , state_channel :: !MState.State
     -- | Notes still sounding.  This retains notes for 'deactivate_time' after
@@ -78,8 +78,8 @@ get_pb_range addr = Map.findWithDefault (-2, 2) addr . state_pb_range
 type SoundingNote = NoteT (Maybe RealTime)
 type Note = NoteT RealTime
 
-data NoteT end = Note {
-    note_start :: RealTime
+data NoteT end = Note
+    { note_start :: RealTime
     , note_end :: end
     , note_key :: Midi.Key
     , note_vel :: Midi.Velocity

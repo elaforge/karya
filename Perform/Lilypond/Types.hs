@@ -33,10 +33,10 @@ instance ToLily Text where
     to_lily txt = "\"" <> Text.replace "\"" "\\\"" txt <> "\""
 
 -- | Configure how the lilypond score is generated.
-data Config = Config {
+data Config = Config
     -- | Amount of RealTime per quarter note.  This is the same value used by
     -- 'Perform.Lilypond.Convert'.
-    config_quarter_duration :: RealTime
+    { config_quarter_duration :: RealTime
     -- | Round everything to this duration.
     , config_quantize :: Duration
     -- | Allow dotted rests?
@@ -53,11 +53,11 @@ dotted_rests = Lens.lens config_dotted_rests
     (\r a -> r { config_dotted_rests = a })
 staves = Lens.lens config_staves (\r a -> r { config_staves = a })
 
-data StaffConfig = StaffConfig {
+data StaffConfig = StaffConfig
     -- | Set Staff.instrumentName or PianoStaff.instrumentName.
     -- If an instrument doesn't have a StaffConfig, the long name defaults to
     -- the instrument name.
-    staff_long :: Instrument
+    { staff_long :: Instrument
     -- | Set Staff.shortInstrumentName or PianoStaff.shortInstrumentName.
     , staff_short :: Instrument
     -- | Additional code to include verbatim, after the \\new Staff line.
@@ -258,8 +258,8 @@ multiply_int factor (Time t) = Time (t * factor)
 
 -- * Event
 
-data Event = Event {
-    event_start :: Time
+data Event = Event
+    { event_start :: Time
     , event_duration :: Time
     , event_pitch :: Maybe Pitch
     , event_instrument :: ScoreT.Instrument

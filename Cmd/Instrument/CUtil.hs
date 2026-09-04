@@ -420,10 +420,10 @@ pitched_strokes pitched natural_nn attrs
         { _transform = Derive.with_constant_pitch (PSignal.nn_pitch natural_nn)
         }
 
-data CallConfig = CallConfig {
+data CallConfig = CallConfig
     -- | If set, look at this control for relative pitch adjustment.  For
     -- unpitched drums which nonetheless can use some tweaking.
-    _tuning_control :: Maybe ScoreT.Control
+    { _tuning_control :: Maybe ScoreT.Control
     -- | If set, take pitch from a $name-pitch arg, otherwise use the given
     -- pitch.
     , _natural_nn :: Maybe Pitch.NoteNumber

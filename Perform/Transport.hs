@@ -42,9 +42,9 @@ instance Pretty Status where pretty = showt
 -- | Data needed by the MIDI player thread.  This is created during app setup
 -- and passed directly to the play cmds by the responder loop.  When the play
 -- is started, it's incorporated into the play 'Perform.Midi.Play.State'.
-data Info = Info {
+data Info = Info
     -- | Send status messages back to the responder loop.
-    info_send_status :: Status -> IO ()
+    { info_send_status :: Status -> IO ()
     , info_midi_writer :: Interface.Message -> IO ()
     -- | Action that will abort any pending midi msgs written with the midi
     -- writer.
@@ -134,11 +134,11 @@ type InverseTempoFunction =
     Stop -> RealTime -> [(BlockId, [(TrackId, ScoreTime)])]
 
 -- | Configure 'InverseTempoFunction'.  TODO think of better names
-data Stop =
+data Stop
     -- | Stop emitting ScoreTime as soon as the events on the block end.
     -- This is used by the play monitor, since I want it to stop as soon as
     -- the score is "over" visually.
-    StopAtEnd
+    = StopAtEnd
     -- | Keep emitting score time for all blocks.  This is used to map from
     -- RealTime to ScoreTime for a particular block, regardless of the notes on
     -- it.  E.g. Msg.ImProgress uses this because synthesis continues as long

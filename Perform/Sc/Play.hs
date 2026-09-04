@@ -66,9 +66,9 @@ lang_port = 57120
 server_port :: Socket.PortNumber
 server_port = 57110
 
-data State = State {
+data State = State
     -- | Communicate into the player.
-    _play_control :: Transport.PlayControl
+    { _play_control :: Transport.PlayControl
     -- | Communicate out from the player.
     , _players :: Transport.ActivePlayers
     }

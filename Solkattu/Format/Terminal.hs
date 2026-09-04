@@ -40,11 +40,11 @@ import           Global
 
 type Error = Text
 
-data Config = Config {
+data Config = Config
     -- | Show the ruler on multiples of this line as a reminder.  The ruler is
     -- always shown if it changes.  It should be a multiple of 2 to avoid
     -- getting the second half of a talam in case it's split in half.
-    _rulerEach :: Int
+    { _rulerEach :: Int
     , _terminalWidth :: Int
     -- | Normally 'format' tries to figure out a with for each stroke according
     -- to what will fit on the screen.  But it assumes notation is always at

@@ -211,8 +211,8 @@ run_output :: Output a -> Lazy.Text
 run_output m = Builder.toLazyText (output_text state)
     where state = State.execState m (OutputState mempty 1 Nothing)
 
-data OutputState = OutputState {
-    output_text :: Builder.Builder
+data OutputState = OutputState
+    { output_text :: Builder.Builder
     , output_bar :: Int
     , output_last_stack :: Maybe Stack.UiFrame
     } deriving (Show)

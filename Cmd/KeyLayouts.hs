@@ -22,9 +22,9 @@ import qualified Util.Lists as Lists
 import           Global
 
 
-data Layout = Layout {
+data Layout = Layout
     -- | Map from the shifted key to the unshifted one.
-    map_to_unshifted :: Map Char Char
+    { map_to_unshifted :: Map Char Char
     , map_to_shifted :: Map Char Char
     -- | Map from the layout to qwerty.
     , map_from_qwerty :: Map Char Char

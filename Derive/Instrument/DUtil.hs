@@ -175,9 +175,9 @@ composite_doc = "Composite instrument calls create notes for multiple\
 -- This is useful for instruments with multiple pitches, e.g. a drum with
 -- a keymap for strokes as well as a tuned pitch, or a pitched instrument with
 -- a secondary pitch as a resonance.
-data Composite = Composite {
+data Composite = Composite
     -- | Dispatch to this call.
-    c_call :: !Expr.Symbol
+    { c_call :: !Expr.Symbol
     -- | And this instrument.
     , c_instrument :: !ScoreT.Instrument
     , c_pitch :: !Pitch

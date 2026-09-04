@@ -403,8 +403,8 @@ save_views cmd_state ui_state = case Cmd.state_save_file cmd_state of
     _ -> return ()
 
 -- | This is just like 'Cmd.SaveFile', except SaveRepo has more data.
-data SaveFile =
-    SaveState !FilePath
+data SaveFile
+    = SaveState !FilePath
     -- | The Strings are the cmd name of this commit, and only set on a git
     -- load.
     | SaveRepo !SaveGit.Repo !SaveGit.Commit !(Maybe [Text])

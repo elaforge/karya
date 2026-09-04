@@ -129,8 +129,8 @@ import           Types
 -- | This is the toplevel object representing a cmd.  Fundamentally it's
 -- just Msg -> Status, but it's also wrapped up in some documentation,
 -- so cmds can be introspected.
-data Handler m =
-    Keymap (Keymap m)
+data Handler m
+    = Keymap (Keymap m)
     | Handler (Maybe (NoteEntryMap KeycapsT.KeyDoc)) (NamedCmd m)
 type HandlerId = Handler CmdId
 
@@ -168,8 +168,8 @@ data NamedCmd m = NamedCmd
 
 -- | NoteEntry might depend on base octave, and might have different
 -- mappings for unshifted or shifted.
-data NoteEntryMap a =
-    WithOctave (Map Pitch.Octave (Map Char a))
+data NoteEntryMap a
+    = WithOctave (Map Pitch.Octave (Map Char a))
     | WithoutOctave (Map Char a)
     deriving (Show, Functor)
 
@@ -185,9 +185,9 @@ type Keymap m = Map KeySpec (NamedCmd m)
 data KeySpec = KeySpec (Set Modifier) Bindable
     deriving (Eq, Ord, Show)
 
-data Bindable =
+data Bindable
     -- | Key IsRepeat Key
-    Key Bool Key.Key
+    = Key Bool Key.Key
     -- | Click MouseButton Clicks
     | Click Types.MouseButton MouseOn Int
     | Drag Types.MouseButton MouseOn
@@ -283,10 +283,10 @@ type CmdId = CmdT Identity.Identity
 -- | Cmds used by the REPL, which all run in IO.
 type CmdL a = CmdT IO a
 
-data Status =
+data Status
     -- | Continue processing, so another Cmd will have an opportunity to see
     -- the Msg.
-    Continue
+    = Continue
     -- | Stop further cmd processing, \"consuming\" the Msg.
     | Done
     -- | Hack to control import dependencies, see "Cmd.PlayC".
@@ -336,10 +336,10 @@ data PlayDirectArgs = PlayDirectArgs
     , play_start :: RealTime
     } deriving (Eq, Show)
 
-data FloatingInput =
+data FloatingInput
     -- | Open a new floating text input.
     -- View, track, pos, (select start, select end).
-    FloatingOpen ViewId TrackNum ScoreTime Text (Int, Int)
+    = FloatingOpen ViewId TrackNum ScoreTime Text (Int, Int)
     -- | Insert the given text into an already open edit box.
     | FloatingInsert Text
     deriving (Show)
@@ -466,11 +466,11 @@ instance Monad m => M (CmdT m) where
         catch Ui.Abort = return Nothing
         catch err = Except.throwError err
 
-data Thru =
+data Thru
     -- | Send MIDI thru.  You can give it a timestamp, but it should be 0 for
     -- thru, which will cause it to go straight to the front of the queue.  Use
     -- 'midi' for normal midi thru.
-    MidiThru Midi.Interface.Message
+    = MidiThru Midi.Interface.Message
     | ImThru Thru.Message
     | OscThru [OSC.OSC]
     deriving (Show)
@@ -623,18 +623,18 @@ data Saved = Saved
 
 -- True if state is synced to disk, either because it was just saved and
 -- not significantly changed, or because it was just loaded.
-data SavedState =
+data SavedState
     -- | Just loaded from a file.  This is almost like SavedChanges, except
     -- that it's required so 'Cmd.Internal.sync_status' can tell the difference
     -- between the state changing because it was just loaded (set to
     -- SavedChanges) and changing due to an edit (set to UnsavedChanges).
-    JustLoaded
+    = JustLoaded
     | UnsavedChanges
     | SavedChanges
     deriving (Eq, Show)
 
-data KeycapsUpdate =
-    KeycapsUpdate KeycapsState (Maybe ((Int, Int), KeycapsT.Layout))
+data KeycapsUpdate
+    = KeycapsUpdate KeycapsState (Maybe ((Int, Int), KeycapsT.Layout))
         KeycapsT.RawBindings
     | KeycapsClose
     deriving (Show)
@@ -1046,10 +1046,10 @@ type RecordedActions = Map Char Action
 -- Select event and duration and hit shift-1 to record InsertEvent.
 -- Text edits record ReplaceText, PrependText, or AppendText in the last
 -- action field (bound to '.'), which you can then save.
-data Action =
+data Action
     -- | If a duration is given, the event has that duration, otherwise
     -- it gets the current time step.
-    InsertEvent (Maybe TrackTime) Text
+    = InsertEvent (Maybe TrackTime) Text
     | ReplaceText Text | PrependText Text | AppendText Text
     deriving (Show, Eq)
 
@@ -1205,11 +1205,11 @@ initial_history present = History [] present [] Nothing
 
 -- | Record some information about the last cmd for the benefit of
 -- 'Cmd.Undo.maintain_history'.
-data LastCmd =
+data LastCmd
     -- | This cmd set the state because it was an undo or redo.  Otherwise undo
     -- and redo themselves would be recorded and multiple undo would be
     -- impossible!
-    UndoRedo
+    = UndoRedo
     -- | This cmd set the state because of a load.  This should reset all the
     -- history so I can start loading from the new state's history.
     | Load (Maybe GitT.Commit) [Text]
@@ -1505,8 +1505,8 @@ instance Pretty ResolvedInstrument where
 
 -- | This merges the compiled-id 'Inst.Backend' and the per-score
 -- 'UiConfig.Backend'.
-data Backend =
-    Midi Midi.Patch.Patch Midi.Patch.Config
+data Backend
+    = Midi Midi.Patch.Patch Midi.Patch.Config
     | Im Im.Patch.Patch
     | Sc Sc.Patch.Patch
     | Dummy Text

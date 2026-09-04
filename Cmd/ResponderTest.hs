@@ -101,9 +101,9 @@ mk_cmd_state ui_state view_id = CmdTest.default_cmd_state
 
 -- * result
 
-data Result = Result {
+data Result = Result
     -- | Msg that gave rise to this Result.
-    result_msg :: Msg.Msg
+    { result_msg :: Msg.Msg
     -- | In CmdTest, Result has MIDI from the thru mechanism, and updates
     -- collected during the event.  But responder tests scope over the entire
     -- respond cycle, so MIDI potentially also includes play output and

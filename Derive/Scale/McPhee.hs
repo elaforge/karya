@@ -19,8 +19,8 @@ import Global
 
 type Hz = Double
 
-data Laras = Laras {
-    name :: Text
+data Laras = Laras
+    { name :: Text
     , genre :: Text
     , origin :: Text
     -- | 'hz' start on this note, relative to selisir.

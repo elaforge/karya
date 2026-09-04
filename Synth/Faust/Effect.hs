@@ -29,8 +29,8 @@ import           Global
 
 
 -- TODO this has to be initialized to be consistent with the sampler
-data Config = Config {
-    _blockSize :: Audio.Frames
+data Config = Config
+    { _blockSize :: Audio.Frames
     -- | This is _blockSize / _controlsPerBlock
     , _controlSize :: Audio.Frames
     -- | This is _blockSize / _controlSize

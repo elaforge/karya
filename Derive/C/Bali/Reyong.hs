@@ -524,11 +524,11 @@ realize_note show_pitch voice start (pitch, attrs) =
 
 -- * kotekan
 
-data KotekanPattern = KotekanPattern {
+data KotekanPattern = KotekanPattern
     -- | Pair relative steps with the final note's distance from the
     -- destination pitch.  This is used to find this line's distance from
     -- a given position.
-    kotekan_above :: !([Maybe Pitch.Step], Pitch.Step)
+    { kotekan_above :: !([Maybe Pitch.Step], Pitch.Step)
     , kotekan_below :: !([Maybe Pitch.Step], Pitch.Step)
     } deriving (Show)
 
@@ -686,8 +686,8 @@ note_table octave start = Map.fromList $
     mute = map (fmap (<>Attrs.mute))
     notes = "ioeua"
 
-data Position = Position {
-    pos_cek :: !Pitch.Pitch
+data Position = Position
+    { pos_cek :: !Pitch.Pitch
     , pos_byong :: ![Pitch.Pitch]
     , pos_table :: !NoteTable
     } deriving (Eq, Show)

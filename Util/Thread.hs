@@ -175,8 +175,8 @@ forCpu_ xs f = do
 
 -- * Metric
 
-data Metric time = Metric {
-    metricCpu :: Seconds
+data Metric time = Metric
+    { metricCpu :: Seconds
     , metricWall :: time
     } deriving (Show)
 

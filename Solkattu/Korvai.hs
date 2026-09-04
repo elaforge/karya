@@ -145,8 +145,8 @@ realizeScore realize = \case
 
 -- * korvai
 
-data Korvai = Korvai {
-    korvaiSections :: KorvaiSections
+data Korvai = Korvai
+    { korvaiSections :: KorvaiSections
     , korvaiStrokeMaps :: StrokeMaps
     , korvaiTala :: Talas.Tala
     , korvaiMetadata :: Metadata
@@ -292,8 +292,8 @@ instance Show GInstrument where
 
 -- * Section
 
-data Section a = Section {
-    sectionSequence :: a
+data Section a = Section
+    { sectionSequence :: a
     -- | Where the section should start.  0 means start on sam.
     , sectionStart :: S.Duration
     -- | Expect the section to end at this time.  It can be negative, in which
@@ -545,8 +545,8 @@ lint inst defaultStrokes korvai =
 -- * Metadata
 
 -- | Attach some metadata to a Korvai.
-data Metadata = Metadata {
-    _date :: Maybe Calendar.Day
+data Metadata = Metadata
+    { _date :: Maybe Calendar.Day
     , _tags :: Tags.Tags
     , _location :: Location
     } deriving (Eq, Show, Generics.Generic)
@@ -659,8 +659,8 @@ sectionAvartanams tala section = floor $ dur / talaAksharas
 type EitherStrokeMap sollu stroke =
     Either Error (Realize.StrokeMap sollu stroke)
 
-data StrokeMaps = StrokeMaps {
-    smapMridangam        :: EitherStrokeMap Solkattu.Sollu Mridangam.Stroke
+data StrokeMaps = StrokeMaps
+    { smapMridangam        :: EitherStrokeMap Solkattu.Sollu Mridangam.Stroke
     , smapKendangTunggal :: EitherStrokeMap Solkattu.Sollu KendangTunggal.Stroke
     , smapKendangPasang  :: EitherStrokeMap Solkattu.Sollu KendangPasang.Stroke
     , smapReyong         :: EitherStrokeMap Solkattu.Sollu Reyong.Stroke

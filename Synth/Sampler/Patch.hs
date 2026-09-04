@@ -31,17 +31,17 @@ db rootDir patches = Db
     , _patches = Map.fromList $ Lists.keyOn _name patches
     }
 
-data Db = Db {
+data Db = Db
     -- | Base directory for patches.  Samples are in '_rootDir' / '_dir'.
-    _rootDir :: FilePath
+    { _rootDir :: FilePath
     , _patches :: Map Note.PatchName Patch
     }
 
 lookupPatch :: Note.PatchName -> [Patch] -> Maybe Patch
 lookupPatch name = List.find ((==name) . _name)
 
-data Patch = Patch {
-    _name :: Note.PatchName
+data Patch = Patch
+    { _name :: Note.PatchName
     -- | Root dir for samples, relative to '_rootDir'.  This is not the same
     -- as '_name' because multiple patches may share a sample directory.
     , _dir :: FilePath
@@ -135,8 +135,8 @@ standardControls = Map.fromList
 
 -- * EffectConfig
 
-data EffectConfig = EffectConfig {
-    _effectName :: Text
+data EffectConfig = EffectConfig
+    { _effectName :: Text
     -- | Map event controls to effect controls.  So if the effect exports
     -- "effect-feedback" and we want to refer to it as "depth", then
     -- ("depth", "effect-feedback").

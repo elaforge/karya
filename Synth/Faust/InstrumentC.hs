@@ -35,8 +35,8 @@ import           ForeignC
 import           Global
 
 
-data PatchT ptr cptr = Patch {
-    _name :: Text
+data PatchT ptr cptr = Patch
+    { _name :: Text
     , _doc :: Text
     -- | Corresponds to 'Instrument.Common.Triggered' flag.
     , _impulseGate :: Bool
@@ -57,8 +57,8 @@ type Patch = PatchT PatchC.PatchP ()
 -- | An allocated patch.
 type Instrument = PatchT PatchC.InstrumentP (Ptr Float)
 
-data ControlConfig = ControlConfig {
-    _constant :: Bool
+data ControlConfig = ControlConfig
+    { _constant :: Bool
     , _description :: Text
     } deriving (Eq, Show)
 

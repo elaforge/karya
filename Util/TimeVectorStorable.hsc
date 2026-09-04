@@ -21,8 +21,8 @@ import qualified Perform.RealTime as RealTime
 
 #include "Ui/c_interface.h"
 
-data Sample y = Sample {
-    sx :: {-# UNPACK #-} !X
+data Sample y = Sample
+    { sx :: {-# UNPACK #-} !X
     , sy :: !y
     } deriving (Show, Eq)
 

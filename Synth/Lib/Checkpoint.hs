@@ -286,8 +286,8 @@ extendHashes = go
 noteHashes :: Audio.Frames -> [Span] -> [(Int, Note.Hash)]
 noteHashes chunkSize = zip [0..] . hashOverlapping 0 (AUtil.toSeconds chunkSize)
 
-data Span = Span {
-    _start :: RealTime
+data Span = Span
+    { _start :: RealTime
     , _duration :: RealTime
     , _hash :: Note.Hash
     } deriving (Show)

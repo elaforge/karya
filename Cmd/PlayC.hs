@@ -464,8 +464,8 @@ monitor_state ui_chan transport_info play_ctl players inv_tempo_func
         , monitor_ui_channel = ui_chan
         }
 
-data MonitorState = MonitorState {
-    monitor_players :: !Transport.ActivePlayers
+data MonitorState = MonitorState
+    { monitor_players :: !Transport.ActivePlayers
     , monitor_play_ctl :: !Transport.PlayControl
     -- | When the monitor thread started.
     , monitor_offset :: !RealTime

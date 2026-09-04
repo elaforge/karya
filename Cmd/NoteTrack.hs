@@ -51,8 +51,8 @@ import           Types
 
 -- | A control track belonging to the note track.  This can be a pitch track,
 -- or a dyn track.
-data ControlTrack = ControlTrack {
-    track_note :: TrackNum
+data ControlTrack = ControlTrack
+    { track_note :: TrackNum
     , track_control :: TrackNum
     } deriving (Show, Eq)
 

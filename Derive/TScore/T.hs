@@ -30,15 +30,15 @@ instance Show Time where
 newtype Score = Score [(Pos, Toplevel)]
     deriving (Eq, Show)
 
-data Toplevel =
-    ToplevelDirective Directive
+data Toplevel
+    = ToplevelDirective Directive
     | BlockDefinition (Block WrappedTracks)
     deriving (Eq, Show)
 
 -- | call is a parameter, because 'SubBlock' will later be resolved to
 -- 'CallText'.
-data Block tracks = Block {
-    block_id :: Id.BlockId
+data Block tracks = Block
+    { block_id :: Id.BlockId
     , block_directives :: [Directive]
     , block_title :: Text
     , block_tracks :: tracks
@@ -71,9 +71,9 @@ data Track call = Track
 data Directive = Directive Pos Text (Maybe Text)
     deriving (Eq, Show)
 
-data Token call pitch ndur rdur =
+data Token call pitch ndur rdur
     -- | Higher count for larger divisions, e.g. anga vs. avartanam.
-    TBarline Pos Barline
+    = TBarline Pos Barline
     | TNote Pos (Note call pitch ndur)
     | TRest Pos (Rest rdur)
     deriving (Eq, Show)
@@ -127,8 +127,8 @@ type Rank = Int
 data Barline = Barline Rank | AssertCoincident
     deriving (Eq, Show)
 
-data Note call pitch dur = Note {
-    note_call :: call
+data Note call pitch dur = Note
+    { note_call :: call
     , note_pitch :: pitch
     -- | The generated event should have 0 duration.
     , note_zero_duration :: Bool
@@ -160,8 +160,8 @@ instance Pretty pitch => Pretty (NPitch pitch) where
     pretty (NPitch pitch) = pretty pitch
     pretty CopyFrom = "CopyFrom"
 
-data Pitch = Pitch {
-    pitch_octave :: Octave
+data Pitch = Pitch
+    { pitch_octave :: Octave
     , pitch_call :: Text
     } deriving (Eq, Show)
 
@@ -173,10 +173,10 @@ data Octave = Absolute Int | Relative Int
 data NDuration = NDuration Duration | CallDuration
     deriving (Eq, Show)
 
-data Duration = Duration {
+data Duration = Duration
     -- | Durations are specified as two optional integers: int1, or int1:int2.
     -- The interpretation is up to the dur Directive.
-    dur_int1 :: Maybe Int
+    { dur_int1 :: Maybe Int
     , dur_int2 :: Maybe Int
     , dur_dots :: Int
     , dur_tie :: Bool

@@ -31,8 +31,8 @@ import           Global
 
 type Error = Text
 
-data Entry = Entry {
-    e_tags :: Tags
+data Entry = Entry
+    { e_tags :: Tags
     , e_meta :: Maybe Check.Meta
     , e_block :: Block (Token ())
     } deriving (Show, Eq)

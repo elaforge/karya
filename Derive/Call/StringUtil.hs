@@ -44,8 +44,8 @@ with_string = Derive.with_val EnvKey.string . str_val
 insert_string :: String -> Env.Environ -> Env.Environ
 insert_string = Env.insert_val EnvKey.string . str_val
 
-data String = String {
-    str_pitch :: !PSignal.Pitch
+data String = String
+    { str_pitch :: !PSignal.Pitch
     , str_nn :: !Pitch.NoteNumber
     -- | Assign this value to EnvKey.string for this string.
     , str_val :: !DeriveT.Val

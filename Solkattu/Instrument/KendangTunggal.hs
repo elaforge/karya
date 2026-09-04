@@ -19,8 +19,8 @@ import           Global
 
 -- TODO some can be done together:
 -- Plak, Dag + Pang, Tut + Pang, Ka + Pang
-data Stroke =
-    Plak -- both
+data Stroke
+    = Plak -- both
     -- left
     | Pak | Pang | TutL | DeL
     -- right
@@ -72,8 +72,8 @@ instance Expr.ToExpr (Realize.Stroke Stroke) where
 
 instance Solkattu.Abbreviations Stroke where abbreviations = const Nothing
 
-data Strokes a = Strokes {
-    pk :: a
+data Strokes a = Strokes
+    { pk :: a
     , p :: a, t :: a, y :: a, u :: a
     , k :: a, i :: a , o :: a, d :: a
     } deriving (Show, Functor)

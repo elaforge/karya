@@ -121,8 +121,8 @@ strip_disabled_tracks block_id = concatMapM strip
 type EventsTree = [EventsNode]
 type EventsNode = Tree.Tree Track
 
-data Track = Track {
-    track_title :: !Text
+data Track = Track
+    { track_title :: !Text
     -- | Events on this track.  These are shifted by
     -- 'Derive.Slice.slice_notes', so they are in ScoreTime, not TrackTime.
     , track_events :: !Events.Events
@@ -193,12 +193,12 @@ make_track title events end = Track
     , track_voice = Nothing
     }
 
-data Sliced =
+data Sliced
     -- | An intact track, unchanged from the score.
     --
     -- It's confusing to say track_sliced track == NotSliced, and I could pick
     -- something like Intact, but there's no precedent for that terminology.
-    NotSliced
+    = NotSliced
     -- | A "Derive.Slice"d fragment, and certain track-level things should be
     -- skipped.
     | Sliced !Types.Orientation

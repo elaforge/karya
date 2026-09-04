@@ -57,8 +57,8 @@ import           Types
 
 -- | Ask 'slice' to synthesize a note track and insert it at the leaves of
 -- the sliced tree.
-data InsertEvent = InsertEvent {
-    event_duration :: !ScoreTime
+data InsertEvent = InsertEvent
+    { event_duration :: !ScoreTime
     -- | A Negative orientation means that the controls at the Event.end time
     -- are not trimmed off.
     , event_orientation :: !Types.Orientation
@@ -241,8 +241,8 @@ type Sliced =
 -- | (start, dur, tracks)
 type Note = (ScoreTime, ScoreTime, [TrackTree.EventsNode])
 
-data Track = Track {
-    _track_id :: Maybe TrackId
+data Track = Track
+    { _track_id :: Maybe TrackId
     , _notes :: [Note]
     } deriving (Show)
 

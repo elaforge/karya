@@ -11,8 +11,8 @@ import qualified Ui.Color as Color
 import           Global
 
 
-data Layout = Layout {
-    lt_size :: (Int, Int) -- ^ width and height for the window
+data Layout = Layout
+    { lt_size :: (Int, Int) -- ^ width and height for the window
     , lt_bg_color :: Color.Color
     , lt_keycap_color :: Color.Color
     , lt_highlight_color :: Color.Color
@@ -29,8 +29,8 @@ type Doc = Text
 
 type Bindings = Map Keycap Binding
 
-data Binding = Binding {
-    b_color :: Maybe Color.Color
+data Binding = Binding
+    { b_color :: Maybe Color.Color
     , b_text :: KeyDoc
     , b_doc :: Doc
     } deriving (Show)

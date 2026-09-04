@@ -47,8 +47,8 @@ labels = \case
 -- * Tal
 
 -- | Hindustani taal.
-data Tal = Tal {
-    talName :: Text
+data Tal = Tal
+    { talName :: Text
     , talVibhags :: [(Tali, Tala.Akshara)]
     } deriving (Eq, Show, Generics.Generic)
 

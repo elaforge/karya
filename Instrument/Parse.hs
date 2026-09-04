@@ -97,16 +97,16 @@ parse_patch_file fn =
     fmap (map (second (Sysex.add_file fn))) <$>
         Parse.file mempty p_patch_file empty_state fn
 
-data State = State {
-    state_bank :: Int
+data State = State
+    { state_bank :: Int
     , state_patch_num :: Midi.Program
     } deriving (Show)
 
 empty_state :: State
 empty_state = State 0 0
 
-data PatchLine = PatchLine {
-    patch_name :: Text
+data PatchLine = PatchLine
+    { patch_name :: Text
     , patch_bank :: Int
     , patch_program :: Midi.Program
     , patch_tags :: [Tag.Tag]

@@ -76,9 +76,9 @@ parse_control_type = fmap fst . parse_control_title
 parse_control_title :: Text -> Either Text (ControlType, [DeriveT.Call])
 parse_control_title = ParseText.parse1 p_control_title
 
-data ControlType =
+data ControlType
     -- | Tempo track with an optional modifying symbol.
-    Tempo (Maybe Expr.Symbol)
+    = Tempo (Maybe Expr.Symbol)
     -- | Pitch track that sets a ScaleId (unless it's 'Pitch.empty_scale'),
     -- and sets the given pitch signal.
     | Pitch Pitch.ScaleId (Either TrackCall ScoreT.PControl)

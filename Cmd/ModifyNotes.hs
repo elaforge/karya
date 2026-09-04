@@ -75,8 +75,8 @@ import           Types
 
 
 -- | This represents a single event on a note track.
-data Note = Note {
-    note_start :: !TrackTime
+data Note = Note
+    { note_start :: !TrackTime
     , note_duration :: !TrackTime
     , note_text :: !Text
     -- | This is the contents of the child tracks, where they overlap this

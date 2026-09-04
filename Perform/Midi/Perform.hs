@@ -115,8 +115,8 @@ type MidiEvents = [LEvent.LEvent Midi.WriteMessage]
 --
 -- I don't do that anymore, and this is left over from when I cached the
 -- performance.  I removed the cache but left the state visible.
-data State = State {
-    state_channelize :: ChannelizeState
+data State = State
+    { state_channelize :: ChannelizeState
     , state_allot :: AllotState
     , state_perform :: PerformState
     } deriving (Eq, Show)
@@ -326,12 +326,12 @@ allot state configs events = (event_addrs, final_state)
     allot1 state (LEvent.Event e) = allot_event configs state e
     allot1 state (LEvent.Log log) = (state, LEvent.Log log)
 
-data AllotState = AllotState {
+data AllotState = AllotState
     -- | Allocated addresses, and when they were last used.
     -- This is used by the voice stealer to figure out which voice is ripest
     -- for plunder.  It also has the AllotKey so the previous allotment can be
     -- deleted.
-    ast_available :: Map Patch.Addr (RealTime, AllotKey)
+    { ast_available :: Map Patch.Addr (RealTime, AllotKey)
     -- | Map input channels to an instrument address in the allocated range.
     -- Once an (inst, chan) pair has been allotted to a particular Addr, it
     -- should keep going to that Addr, as long as voices remain.
@@ -351,8 +351,8 @@ empty_allot_state = AllotState Map.empty Map.empty
 -- share channels.
 type AllotKey = (ScoreT.Instrument, Channel)
 
-data Allotted = Allotted {
-    _allotted_addr :: Patch.Addr
+data Allotted = Allotted
+    { _allotted_addr :: Patch.Addr
     -- | End time for each allocated voice.
     , allotted_voices :: [RealTime]
     -- | Maximum length for allotted_voices.

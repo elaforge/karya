@@ -70,8 +70,8 @@ attributeMap :: Common.AttributeMap Articulation
 attributeMap =
     Common.attribute_map (Lists.keyOn articulationToAttrs Util.enumAll)
 
-data Articulation =
-    Plak -- both
+data Articulation
+    = Plak -- both
     | De | DeStaccato | DeThumb | DeClosed -- right
     | Dag | DagStaccato | Tek
     | Tut | Ka

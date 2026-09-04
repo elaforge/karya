@@ -24,10 +24,10 @@ import           Types
 -- | The Patch is derived from a 'Patch.Patch' and contains all the data
 -- necessary to render a 'Perform.Midi.Perform.Event' to a midi message.  Each
 -- Event has an attached Patch.
-data Patch = Patch {
+data Patch = Patch
     -- | The name for the instrument as used in the score.  It should globally
     -- identify the instrument within this score.
-    patch_name :: ScoreT.Instrument
+    { patch_name :: ScoreT.Instrument
     -- | Keyswitches required by this instrument.  At higher levels, a single
     -- instrument can respond to a variety of keyswitches, but at the perform
     -- level, each instrument of each note is specialized to the particular
@@ -91,8 +91,8 @@ default_decay = 1.0
 
 -- * event
 
-data Event = Event {
-    event_start :: RealTime
+data Event = Event
+    { event_start :: RealTime
     , event_duration :: RealTime
     , event_patch :: Patch
     , event_controls :: Map ScoreT.Control MSignal.Signal

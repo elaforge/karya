@@ -173,8 +173,8 @@ type_error_msg expected val = "expected " <> pretty (to_type expected)
 
 -- * Typecheck class
 
-data Checked a =
-    Val (Result a)
+data Checked a
+    = Val (Result a)
     -- | This val needs to be evaluated to know if it will typecheck.  The
     -- argument is the call start time.  This is needed when coercing a
     -- function to a scalar, because I only know the value to check after

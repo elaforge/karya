@@ -30,8 +30,8 @@ newtype State = State (Map Addr Channel)
 empty :: State
 empty = State Map.empty
 
-data Channel = Channel {
-    chan_notes :: !(Map Midi.Key Midi.Velocity)
+data Channel = Channel
+    { chan_notes :: !(Map Midi.Key Midi.Velocity)
     , chan_pb :: !Midi.PitchBendValue
     , chan_controls :: !(Map Control Midi.ControlValue)
     } deriving (Eq, Show)

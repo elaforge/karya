@@ -55,8 +55,8 @@ import           Types
 data Flag = Help | Mode Mode | Output !FilePath
     deriving (Eq, Show)
 
-data Mode =
-    Verify | Save | Derive | Perform | Profile | ProfileDerive
+data Mode
+    = Verify | Save | Derive | Perform | Profile | ProfileDerive
     | DumpMidi | CommitInfo
     | UpdateMidi
     deriving (Eq, Show, Bounded, Enum)

@@ -54,8 +54,8 @@ global_windows = Unsafe.unsafePerformIO $ MVar.newMVar $ Windows
     , _keycaps = Nothing
     }
 
-data Windows = Windows {
-    _blocks :: Map ViewId (Ptr CView)
+data Windows = Windows
+    { _blocks :: Map ViewId (Ptr CView)
     , _keycaps :: Maybe (Ptr KeycapsT.CWindow)
     }
 

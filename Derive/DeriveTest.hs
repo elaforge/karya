@@ -309,8 +309,8 @@ type Setup = SetupA (Stream.Stream Score.Event)
 -- | This file only ever uses 'Setup', but it loses polymorphism.  To reuse
 -- @with_*@ functions in a polymorphic way, I can use SetupA and pull them back
 -- out with setup_deriver.
-data SetupA a = Setup {
-    setup_ui :: Ui.State -> Ui.State
+data SetupA a = Setup
+    { setup_ui :: Ui.State -> Ui.State
     , setup_cmd :: Cmd.State -> Cmd.State
     , setup_deriver :: Derive.Deriver a -> Derive.Deriver a
     }

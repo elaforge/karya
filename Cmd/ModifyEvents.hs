@@ -216,8 +216,8 @@ move_events block_end point shift events = merged
 
 -- * replace tokens
 
-data Replacement =
-    RLiteral !Text -- ^ literal text
+data Replacement
+    = RLiteral !Text -- ^ literal text
     | F !Int -- ^ field from match
     deriving (Eq, Show)
 

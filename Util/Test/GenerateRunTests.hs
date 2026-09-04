@@ -63,8 +63,8 @@ testTemplate imports allTests =
     \main :: IO ()\n\
     \main = RunTests.run tests\n"
 
-data Test  = Test {
-    testLineNumber :: !LineNumber
+data Test  = Test
+    { testLineNumber :: !LineNumber
     , testName :: !Text
     } deriving (Show)
 type LineNumber = Int

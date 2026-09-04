@@ -85,8 +85,8 @@ foreign import ccall "has_windows" c_has_windows :: IO C.CInt
 
 -- * window
 
-data Window a = Window {
-    win_ptr :: Foreign.Ptr (Window a)
+data Window a = Window
+    { win_ptr :: Foreign.Ptr (Window a)
     , win_chan :: STM.TChan (Msg a)
     }
 type MsgCallback = C.CInt -> C.CString -> IO ()

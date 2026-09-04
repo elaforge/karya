@@ -192,8 +192,8 @@ data Untransposed_
 
 -- | A pitch is an abstract value that can generate a 'Pitch.NoteNumber' or
 -- symbolic 'Pitch.Note'.
-data RawPitch a = Pitch {
-    pitch_eval_nn :: PitchConfig -> Either PitchError Pitch.NoteNumber
+data RawPitch a = Pitch
+    { pitch_eval_nn :: PitchConfig -> Either PitchError Pitch.NoteNumber
     , pitch_eval_note :: PitchConfig -> Either PitchError Pitch.Note
     , pitch_scale :: Scale
     , pitch_config :: PitchConfig
@@ -275,10 +275,10 @@ instance Monoid PitchConfig where
 -- Fortunately it only needs a few fields.  However, because of the
 -- circularity, the Scale.Scale -> PSignal.Scale constructor is in
 -- "Derive.Derive".
-data Scale = Scale {
+data Scale = Scale
     -- | It can be useful to see the scale of a pitch, e.g. to create more
     -- pitches in the same scale as an existing pitch.
-    pscale_scale_id :: Pitch.ScaleId
+    { pscale_scale_id :: Pitch.ScaleId
     -- | The set of transposer signals for this scale, as documented in
     -- 'Derive.Scale.scale_transposers'.
     --
@@ -333,8 +333,8 @@ detailed_error pitch err = mconcat
     scale = pitch_scale pitch
 
 -- | Things that can go wrong evaluating a pitch.
-data PitchError =
-    UnparseableNote Pitch.Note
+data PitchError
+    = UnparseableNote Pitch.Note
     | OutOfRangeError OutOfRange
     -- | Input note doesn't map to a scale note.
     | InvalidInput
@@ -358,8 +358,8 @@ data PitchError =
     they're limited by the backend.  In this case 'pitch_nn' checks 0--127,
     which happens to be MIDI's limitation.
 -}
-data OutOfRange = OutOfRange {
-    oor_nn :: Maybe Pitch.NoteNumber
+data OutOfRange = OutOfRange
+    { oor_nn :: Maybe Pitch.NoteNumber
     , oor_degree :: Maybe Pitch.FSemi
     , oor_valid :: Maybe (Int, Int)
     , oor_transposers :: ScoreT.ControlValMap
@@ -851,12 +851,12 @@ type PitchFunction = RealTime -> Maybe Pitch
 
     See NOTE [control-function].
 -}
-data CFunction = CFunction {
+data CFunction = CFunction
     -- | Human readable name.
     --
     -- TODO I thought of making it the expression that created this, for
     -- serialization, but not implemented yet.
-    cf_name :: Text
+    { cf_name :: Text
     , cf_signal :: ScoreT.TypedSignal
     {- | This is modifying an underlying signal.
 
@@ -871,8 +871,8 @@ data CFunction = CFunction {
     }
 
 -- | A simple pure function.
-data PFunction = PFunction {
-    pf_name :: Text
+data PFunction = PFunction
+    { pf_name :: Text
     , pf_function :: ScoreT.TypedFunction
     }
 
@@ -896,8 +896,8 @@ call_cfunction cf_dyn cf = ScoreT.Typed typ (cf_function cf cf_dyn signal)
 
 -- | A stripped down "Derive.Deriver.Monad.Dynamic" for ControlFunctions
 -- to use.  The duplication is unfortunate, see 'CFunction'.
-data Dynamic = Dynamic {
-    dyn_pitch :: PSignal
+data Dynamic = Dynamic
+    { dyn_pitch :: PSignal
     , dyn_environ :: Environ
     -- | This is from 'Derive.Deriver.Monad.state_event_serial'.
     , dyn_event_serial :: Int

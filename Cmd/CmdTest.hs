@@ -53,9 +53,9 @@ import           Types
 
 -- * running cmds
 
-data Result val = Result {
+data Result val = Result
     -- | A Nothing val means it aborted.
-    result_val :: Either Text (Maybe val)
+    { result_val :: Either Text (Maybe val)
     , result_cmd_state :: Cmd.State
     , result_ui_state :: Ui.State
     , result_ui_damage :: Update.UiDamage

@@ -119,9 +119,9 @@ with_test_name name action = do
     modify_test_config (\config -> config { config_test_name = name })
     action
 
-data Config = Config {
+data Config = Config
     -- | Keep the test name so I can report it in 'success' in 'failure'.
-    config_test_name :: !Text
+    { config_test_name :: !Text
     -- | If True, 'io_human' will always return True.  That way I can at least
     -- get the coverage and check for crashes, even if I can't verify the
     -- results.
@@ -142,10 +142,10 @@ check_val val f
 
 -- * metadata
 
-data ModuleMeta = ModuleMeta {
+data ModuleMeta = ModuleMeta
     -- | Wrap each test with IO level setup and teardown.  Sync exceptions are
     -- caught from the test function, so this should only see async exceptions.
-    initialize :: IO () -> IO ()
+    { initialize :: IO () -> IO ()
     , tags :: [Tag]
     }
 
@@ -155,9 +155,9 @@ moduleMeta = ModuleMeta
     , tags = []
     }
 
-data Tag =
+data Tag
     -- | Especially expensive to run.
-    Large
+    = Large
     -- | Wants to have a conversation.  This implies the tests must be
     -- serialized, since who wants to have a conversation in parallel.
     -- 'io_human' is one way to do this.

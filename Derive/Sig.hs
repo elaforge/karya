@@ -124,8 +124,8 @@ import           Global
 type Error = Derive.CallError
 type Docs = [Derive.ArgDoc]
 
-data Parser a = Parser {
-    parser_docs :: !Docs
+data Parser a = Parser
+    { parser_docs :: !Docs
     , parser_parser :: !(State -> Either Error (State, a))
     }
 
@@ -133,8 +133,8 @@ parser :: Derive.ArgDoc -> (State -> Either Error (State, a)) -> Parser a
 parser arg_doc = Parser [arg_doc]
 
 -- | Keep track of state when parsing arguments.
-data State = State {
-    state_args :: ![Arg]
+data State = State
+    { state_args :: ![Arg]
     -- | This has to be incremented every time a Val is taken.  Pairing argnums
     -- in state_args doesn't work because when I run out I don't know where
     -- I am.

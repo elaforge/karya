@@ -275,8 +275,8 @@ intern_stats table =
 
 -- * stats
 
-data Stats = Stats {
-    _blocks :: Int
+data Stats = Stats
+    { _blocks :: Int
     , _tracks :: Int
     , _events :: Int
     } deriving (Show)

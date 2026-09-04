@@ -120,8 +120,8 @@ data Meta = Source Text | Piece Text | Section Text | Laras Laras
     deriving (Eq, Show)
 
 -- | Actually laras + pathet.
-data Laras =
-    SlendroNem | SlendroSanga | SlendroManyura
+data Laras
+    = SlendroNem | SlendroSanga | SlendroManyura
     | PelogNem | PelogLima | PelogBarang
     deriving (Eq, Show, Bounded, Enum)
 
@@ -139,8 +139,8 @@ data Bentuk = Gendhing | Ketawang | Ladrang | Lancaran
 
 type ParsedBlock = Block ParsedPitch (Maybe Tracks)
 
-data Block pitch tracks = Block {
-    block_gatra :: Gatra pitch
+data Block pitch tracks = Block
+    { block_gatra :: Gatra pitch
     -- | Usually zero or one name, possibly with a modifier such as gede or
     -- cilik.
     , block_names :: [Text]
@@ -158,8 +158,8 @@ instance Pretty tracks => Pretty (Block Pitch tracks) where
 newtype Tracks = Tracks [Track ParsedToken]
     deriving (Eq, Show)
 
-data Track token = Track {
-    track_tokens :: [token]
+data Track token = Track
+    { track_tokens :: [token]
     , track_pos :: Pos
     } deriving (Eq, Show)
 
@@ -201,8 +201,8 @@ map_pitch :: (a -> b) -> [Token pos (Note a dur) rest]
     -> [Token pos (Note b dur) rest]
 map_pitch f = map $ map_note (\n -> n { note_pitch = f (note_pitch n) })
 
-data Note pitch dur = Note {
-    note_pitch :: pitch
+data Note pitch dur = Note
+    { note_pitch :: pitch
     -- | The generated event should have 0 duration.
     , note_zero_duration :: Bool
     , note_duration :: dur
@@ -222,8 +222,8 @@ instance Pretty HasSpace where
     pretty HasSpace = "_"
     pretty NoSpace = "X"
 
-data Rest = Rest {
-    rest_sustain :: Bool
+data Rest = Rest
+    { rest_sustain :: Bool
     , rest_space :: HasSpace
     } deriving (Eq, Ord, Show)
 

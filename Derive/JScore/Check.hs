@@ -159,8 +159,8 @@ instrument_octave = \case
 
 -- * Meta
 
-data Meta = Meta {
-    m_laras :: T.Laras
+data Meta = Meta
+    { m_laras :: T.Laras
     , m_irama :: T.Irama
     , m_instrument :: T.Instrument
     } deriving (Show, Eq)

@@ -37,8 +37,8 @@ import qualified Util.Pretty as Pretty
 import           Global
 
 
-data Stats = Stats {
-    _instruments :: Set Text
+data Stats = Stats
+    { _instruments :: Set Text
     , _deletedFiles :: Int
     , _deletedBytes :: Bytes
     , _remaining :: Bytes

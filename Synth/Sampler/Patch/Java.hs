@@ -43,16 +43,16 @@ sampleFormat = Util.Wav
 patches :: [Patch.Patch]
 patches = map makePatch [genderPanerus, slenthem, peking, kenong]
 
-data Instrument = Instrument {
-    name :: Text
+data Instrument = Instrument
+    { name :: Text
     , variations :: Variations
     , tuning :: Tuning
     , dynamicTweaks :: Map Sample.SamplePath Util.Db
     , articulations :: Set Articulation
     }
 
-data Variations =
-    FixedDyns FixedDyns (Dynamic -> (Util.Dyn, (Util.Db, Util.Db)))
+data Variations
+    = FixedDyns FixedDyns (Dynamic -> (Util.Dyn, (Util.Db, Util.Db)))
     | VarDyns VarDyns
 type FixedDyns = Articulation -> (Pitch, Util.Dynamic) -> Util.Variation
 

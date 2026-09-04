@@ -70,8 +70,8 @@ search idx (Query clauses)
 tags_of :: Index -> InstT.Qualified -> Maybe [Tag.Tag]
 tags_of idx inst = Map.lookup inst (idx_instrument_tags idx)
 
-data Index = Index {
-    idx_by_key :: Map Tag.Key (Map Tag.Value [InstT.Qualified])
+data Index = Index
+    { idx_by_key :: Map Tag.Key (Map Tag.Value [InstT.Qualified])
     , idx_instrument_tags :: Map InstT.Qualified [Tag.Tag]
     } deriving (Show)
 

@@ -19,26 +19,26 @@ import qualified Perform.Pitch as Pitch
 import           Global
 
 
-data Module = Module {
-    _instruments :: IntMap Instrument
+data Module = Module
+    { _instruments :: IntMap Instrument
     , _default_tempo :: !Tempo
     , _blocks :: [Block]
     -- | Name of sequence, '_blocks' indices.
     , _block_order :: Map Text [Int]
     } deriving (Eq, Show)
 
-data Tempo = Tempo {
-    _speed :: !Int -- ^ could be BPM, or some tempo value
+data Tempo = Tempo
+    { _speed :: !Int -- ^ could be BPM, or some tempo value
     , _frames :: !Int -- ^ number of divisions per line
     } deriving (Eq, Show)
 
-data Instrument = Instrument {
-    _instrument_name :: !ScoreT.Instrument
+data Instrument = Instrument
+    { _instrument_name :: !ScoreT.Instrument
     , _volume :: !(Maybe Double)
     } deriving (Eq, Show)
 
-data Block = Block {
-    _block_length :: !Int
+data Block = Block
+    { _block_length :: !Int
     , _tracks :: [Track]
     } deriving (Eq, Show)
 
@@ -48,8 +48,8 @@ type Track = IntMap Line
 make_track :: [(Int, Line)] -> Track
 make_track = carry_zeroes . IntMap.fromList
 
-data Line = Line {
-    _pitch :: !(Maybe Pitch.NoteNumber)
+data Line = Line
+    { _pitch :: !(Maybe Pitch.NoteNumber)
     , _instrument :: !Int
     , _commands :: ![Command]
     } deriving (Eq, Show)
@@ -61,8 +61,8 @@ pitch p
     | p == 0 = Nothing
     | otherwise = Just $ fromIntegral (p - 1)
 
-data Command =
-    Command !Text !Word8
+data Command
+    = Command !Text !Word8
     | SetFrames !Int
     | Volume !Double -- ^ 0 to 1
     | VolumeSlide !Double -- ^ positive for up, negative for down

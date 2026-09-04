@@ -49,8 +49,8 @@ type Font = String
 -- If the bounding box is not given, it will be inferred from the first glyph.
 -- The bounding box will be scaled by the eventual font size.  Don't pass an
 -- empty glyphs list.
-data Symbol = Symbol {
-    name :: Text
+data Symbol = Symbol
+    { name :: Text
     -- | Turn on absolute y placement, disabling automatic y placement.  If
     -- the glyphs have descenders and you want them to actually descend, turn
     -- this on.
@@ -58,9 +58,9 @@ data Symbol = Symbol {
     , glyphs :: [Glyph]
     } deriving (Show)
 
-data Glyph = Glyph {
+data Glyph = Glyph
     -- | Unicode characters that make up the glyph.
-    glyph_text :: Text
+    { glyph_text :: Text
     , glyph_font :: Maybe Font
     -- | Relative size.  This is added to the font size when the glyph is
     -- drawn.

@@ -11,10 +11,10 @@ import qualified Development.Shake as Shake
 
 type Flag = String
 
-data ExternalLibrary = ExternalLibrary {
+data ExternalLibrary = ExternalLibrary
     -- | Add to the link line, e.g. ["-L/path/to/lib", "-lthing"] or
     -- ["/path/to/libthing.a"].
-    libLink :: [Flag]
+    { libLink :: [Flag]
     -- | Add to the compile line, e.g. ["-I/path/to/include"].
     , libCompile :: [Flag]
     } deriving (Show)
@@ -25,8 +25,8 @@ library name = ExternalLibrary
     , libCompile = []
     }
 
-data Binary config = Binary {
-    binName :: String
+data Binary config = Binary
+    { binName :: String
     -- | Object files required, relative to build/<mode>/obj.
     , binObjs :: [FilePath]
     , binCompile :: config -> [Flag]

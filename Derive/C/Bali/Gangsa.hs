@@ -222,8 +222,8 @@ c_ngoret = Gender.ngoret module_ False $
 -- 2. Slow but divided.  Play all the notes, but sangsih and polos are kempyung
 -- on the outer notes.
 -- 3, 4. Ngotek, in telu and pat versions.
-data KotekanPattern = KotekanPattern {
-    kotekan_telu :: ![Maybe Pitch.Step]
+data KotekanPattern = KotekanPattern
+    { kotekan_telu :: ![Maybe Pitch.Step]
     , kotekan_pat :: ![Maybe Pitch.Step]
     , kotekan_interlock_telu :: !(Pasang [Maybe Pitch.Step])
     , kotekan_interlock_pat :: !(Pasang [Maybe Pitch.Step])
@@ -237,10 +237,7 @@ instance Pretty KotekanPattern where
         , ("interlock_pat", Pretty.format ipat)
         ]
 
-data Pasang a = Pasang {
-    polos :: a
-    , sangsih :: a
-    } deriving (Eq, Show)
+data Pasang a = Pasang { polos :: a, sangsih :: a } deriving (Eq, Show)
 
 instance Pretty a => Pretty (Pasang a) where
     format (Pasang polos sangsih) = Pretty.record "Pasang"
@@ -248,8 +245,8 @@ instance Pretty a => Pretty (Pasang a) where
         , ("sangsih", Pretty.format sangsih)
         ]
 
-data Realization a = Realization {
-    interlocking :: a
+data Realization a = Realization
+    { interlocking :: a
     , non_interlocking :: a
     } deriving (Eq, Show)
 
@@ -960,8 +957,8 @@ instance Pretty Repeat where pretty = showt
 -- Each list represents coincident notes.  [] is a rest.
 type Cycle = Realization [[KotekanNote]]
 
-data Note a = Note {
-    note_start :: !ScoreTime
+data Note a = Note
+    { note_start :: !ScoreTime
     , note_duration :: !ScoreTime
     -- | Used for 'final_flag'.
     , note_flags :: !Flags.Flags
@@ -976,10 +973,10 @@ add_flag flag n = n { note_flags = flag <> note_flags n }
 
 -- | High level description of a note.  This goes into Note before it becomes
 -- a Derive.NoteDeriver.
-data KotekanNote = KotekanNote {
+data KotekanNote = KotekanNote
     -- | If Nothing, retain the instrument in scope.  Presumably it will be
     -- later split into polos and sangsih by a @unison@ or @kempyung@ call.
-    note_instrument :: !(Maybe ScoreT.Instrument)
+    { note_instrument :: !(Maybe ScoreT.Instrument)
     , note_steps :: !Pitch.Step
     , note_muted :: !Bool
     } deriving (Show)
@@ -1078,10 +1075,10 @@ realize_notes realize = mconcatMap $ \(Note start dur flags note) ->
 
 -- | Style for non-interlocking norot.  Interlocking norot is always the upper
 -- neighbor (or lower on the top key).
-data NorotStyle =
+data NorotStyle
     -- | Norot is emitted as the current instrument, which should be converted
     -- into kempyung or unison by a postproc.
-    Default
+    = Default
     -- | Norot in the diamond pattern, where sangsih goes down.
     | Diamond
     deriving (Bounded, Eq, Enum, Show)

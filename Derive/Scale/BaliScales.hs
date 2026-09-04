@@ -60,8 +60,8 @@ make_scale scale_id smap =
             | (name, laras) <- Map.toList (smap_laras smap)
             ]
 
-data ScaleMap = ScaleMap {
-    smap_chromatic :: !ChromaticScales.ScaleMap
+data ScaleMap = ScaleMap
+    { smap_chromatic :: !ChromaticScales.ScaleMap
     , smap_laras :: !LarasMap
     , smap_default_laras :: !Laras
     }
@@ -92,8 +92,8 @@ scale_map (Config layout all_keys default_key laras default_laras)
     top = maybe 0 (subtract 1 . Vector.length . laras_umbang) $
         Lists.head (Map.elems laras)
 
-data Config = Config {
-    config_layout :: !Theory.Layout
+data Config = Config
+    { config_layout :: !Theory.Layout
     , config_keys :: !ChromaticScales.Keys
     , config_default_key :: !Theory.Key
     , config_laras :: !LarasMap
@@ -114,8 +114,8 @@ instrument_scale_map config
     per_oct = Theory.layout_semis_per_octave (config_layout config)
 
 -- | Describe an instrument-relative scale.
-data Instrument = Instrument {
-    inst_degrees :: !TheoryFormat.Degrees
+data Instrument = Instrument
+    { inst_degrees :: !TheoryFormat.Degrees
     , inst_relative_octaves :: !RelativeOctaves
     , inst_center :: !Pitch.Octave
     , inst_low :: !Pitch.Pitch
@@ -130,8 +130,8 @@ instrument_range inst = Scale.Range (inst_low inst) (inst_high inst)
 -- | Describe the frequencies in a saih.  This doesn't say what the range is,
 -- since that's in the 'ScaleMap', and all saihs in one scale should have the
 -- same range.
-data Laras = Laras {
-    laras_name :: Text
+data Laras = Laras
+    { laras_name :: Text
     , laras_doc :: Doc.Doc
     -- | The pitch where the laras starts.  It should be such that octave 4 is
     -- close to middle C.

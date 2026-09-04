@@ -95,8 +95,8 @@ write pollQuit stream framesPerBuffer = go
 
 -- * Device
 
-data Device = Device {
-    _name :: String
+data Device = Device
+    { _name :: String
     , _id :: C.CInt
     , _info :: B.C'PaDeviceInfo
     } deriving (Show)

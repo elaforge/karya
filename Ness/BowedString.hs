@@ -29,9 +29,9 @@ renderAll sr (instrument, score) =
 
 -- * instrument
 
-data Instrument = Instrument {
+data Instrument = Instrument
     -- | Normalises the outputs separately before saving them.
-    iNormalizeOuts :: Bool
+    { iNormalizeOuts :: Bool
     , iStrings :: [String]
     , iBow :: Bow
     , iFinger :: Finger
@@ -52,8 +52,8 @@ renderInstrument sr (Instrument normalize strings bow finger) = Text.unlines $
     members f0 (frequency), rho (density), rad (radius), E (Young’s Modulus),
     T60 (array of T60 values at 0Hz and 1KHz), and L (length).
 -}
-data String = String {
-    sFrequency :: Frequency
+data String = String
+    { sFrequency :: Frequency
     , sDensity :: Double
     , sRadius :: Double
     , sYoung :: Double
@@ -79,8 +79,8 @@ renderStrings strings = Text.unlines $
 
 -- bow (struct) specifies parameters for the bows. Members are Kw, alpha, beta,
 -- lambda and M.
-data Bow = Bow { -- TODO?
-    bKw :: Double
+data Bow = Bow -- TODO?
+    { bKw :: Double
     , bAlpha :: Double
     , bBeta :: Double
     , bLambda :: Double
@@ -99,8 +99,8 @@ instance Render Bow where
 
 -- fing (struct) specifies parameters for the fingers. Members are Kw, Ku,
 -- alpha, beta, lambda and M.
-data Finger = Finger { -- TODO?
-    fKw :: Double
+data Finger = Finger -- TODO?
+    { fKw :: Double
     , fKu :: Double
     , fAlpha :: Double
     , fBeta :: Double
@@ -121,8 +121,8 @@ instance Render Finger where
 
 -- * score
 
-data Score = Score {
-    sDuration :: Seconds
+data Score = Score
+    { sDuration :: Seconds
     , sBows :: [BowMovement]
     , sFingers :: [FingerMovement]
     } deriving (Eq, Show)
@@ -142,8 +142,8 @@ renderScore indexOf (Score dur bows fingers) = Text.unlines $ concat
     times), force w (an array of vertical force values at the specified times),
     and force u (an array of horizontal force values at the specified times).
 -}
-data BowMovement = BowMovement {
-    bString :: String
+data BowMovement = BowMovement
+    { bString :: String
     , bInitialVertical :: (Location, Velocity)
     , bInitialHorizontal :: (Location, Velocity)
     , bBreakpoints :: [(Seconds, Breakpoint)]
@@ -155,16 +155,16 @@ data BowMovement = BowMovement {
     of which contains 5 values: a start time, an end time, a ramp time (all in
     seconds), an amplitude and a frequency, for a vibrato motion.
 -}
-data FingerMovement = FingerMovement {
-    fString :: String
+data FingerMovement = FingerMovement
+    { fString :: String
     , fInitialVertical :: (Location, Velocity)
     , fInitialHorizontal :: (Location, Velocity)
     , fBreakpoints :: [(Seconds, Breakpoint)]
     , fVibrato :: Vibrato
     } deriving (Eq, Show)
 
-data Vibrato = Vibrato {
-    vStart :: Seconds
+data Vibrato = Vibrato
+    { vStart :: Seconds
     , vEnd :: Seconds
     , vRamp :: Seconds
     , vAmplitude :: Double -- 0 to 1?
@@ -201,8 +201,8 @@ renderFingerMovement indexOf i (FingerMovement str v h bps vibrato) =
 
 type Force = Double
 
-data Breakpoint = Breakpoint {
-    bPosition :: Location
+data Breakpoint = Breakpoint
+    { bPosition :: Location
     , bVertical :: Force
     , bHorizontal :: Force
     } deriving (Eq, Show)

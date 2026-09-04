@@ -75,9 +75,9 @@ delete start end ss = Meter.sections_take start ss <> Meter.sections_drop end ss
 type ModifyRuler = Ruler.Ruler -> Either Text Ruler.Ruler
 
 -- | The scope of a ruler modification.
-data Scope =
+data Scope
     -- | Modify all rulers on the block.
-    Block
+    = Block
     -- | Modify the 'section_ruler_id'.  Section 0 is the 'Ui.block_ruler'.
     | Section !TrackNum
     -- | Modify the given tracks.

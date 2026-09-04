@@ -73,8 +73,8 @@ import           Types
 
 -- * integrate
 
-data ConvertedBlock = ConvertedBlock {
-    block_name :: Text
+data ConvertedBlock = ConvertedBlock
+    { block_name :: Text
     , block_tracks :: Convert.Tracks
     } deriving (Show, Eq)
 

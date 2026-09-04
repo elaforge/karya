@@ -216,8 +216,8 @@ _test_bug = do
         , ("rec1Map", Pretty.format map)
         ]
 
-data Rec1 = Rec1 {
-    rec1Int :: Int
+data Rec1 = Rec1
+    { rec1Int :: Int
     , rec1Double :: Double
     , rec1Char :: Char
     , rec1Map :: Map String String
@@ -226,8 +226,8 @@ data Rec1 = Rec1 {
 instance Pretty.Pretty Rec1 where
     format = Pretty.formatGCamel
 
-data Rec2 = Rec2 {
-    rec2Sub :: Rec1
+data Rec2 = Rec2
+    { rec2Sub :: Rec1
     , rec2String :: String
     } deriving (Show, Generics.Generic)
 

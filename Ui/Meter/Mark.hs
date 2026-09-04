@@ -120,11 +120,11 @@ insert_mark pos mark = marklist . List.insertBy cmp (pos, mark) . ascending 0
 
 -- * mark
 
-data Mark = Mark {
+data Mark = Mark
     -- | An arbitrary low integer.  This is the only part of the mark that
     -- matters to the code, the rest is purely visual.  By convention, the
     -- most prominent divisions start at rank 0 and go up from there.
-    mark_rank :: !Meter.Rank
+    { mark_rank :: !Meter.Rank
     -- | Width in pixels.
     , mark_width :: !Int
     , mark_color :: !Color.Color

@@ -141,8 +141,8 @@ import           Types
 -- maybe it should have less stuff in it anyway?
 
 -- | Package up the results of a derivation.
-data Result = Result {
-    r_events :: Stream.Stream Score.Event
+data Result = Result
+    { r_events :: Stream.Stream Score.Event
     , r_cache :: Cache
     , r_track_warps :: [TrackWarp.TrackWarp]
     , r_track_signals :: Track.TrackSignals

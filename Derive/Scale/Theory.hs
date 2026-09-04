@@ -255,8 +255,8 @@ type Step = Int
     note.  Ultimately there is a tension between diatonic and chromatic
     systems.
 -}
-data Key = Key {
-    key_tonic :: !Pitch.Degree
+data Key = Key
+    { key_tonic :: !Pitch.Degree
     -- | This is the name of the key without reference to its tonic, e.g.
     -- \"dorian\" or \"major\".
     , key_name :: !Text
@@ -360,9 +360,9 @@ diatonic_step_of key pc =
 -- ** Layout
 
 -- | A Layout represents the configuration of white and black keys.
-data Layout = Layout {
+data Layout = Layout
     -- | Map PitchClass to the number of sharps above it.
-    layout_intervals :: !Intervals
+    { layout_intervals :: !Intervals
     -- | Map Pitch.Semis to the enharmonic Notes at that PitchClass.
     , layout_enharmonics :: !(Boxed.Vector [(Pitch.Octave, Pitch.Degree)])
     } deriving (Eq, Show)

@@ -200,8 +200,8 @@ now client = decode_time <$> c_now (client_ptr client)
 
 type CJackTime = Word.Word64
 data CClient
-data Client = Client {
-    client_ptr :: Ptr CClient
+data Client = Client
+    { client_ptr :: Ptr CClient
     , client_wanted_reads :: IORef.IORef (Set Midi.ReadDevice)
     , client_wanted_writes :: IORef.IORef (Set Midi.WriteDevice)
     }

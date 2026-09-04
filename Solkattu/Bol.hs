@@ -58,8 +58,8 @@ type BolT = Text
 
 type Error = Text
 
-data Bol =
-    Dha | Dhe | Dhen | Dhet | Dhom | Di | Din | Dhi | Dhin | Dhit | Dhu
+data Bol
+    = Dha | Dhe | Dhen | Dhet | Dhom | Di | Din | Dhi | Dhin | Dhit | Dhu
     | Ga | Gi | Ge | Ghen | Ghin | Gre
     | Ka | Kat | Ke | Kra | Kre | Ki | Kin | Ma | Na | Ne | Ra | Re | Ri | Ran
     | Ṭa -- ^ for transcription from devanagari

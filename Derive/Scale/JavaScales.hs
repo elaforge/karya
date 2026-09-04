@@ -48,15 +48,15 @@ import           Global
 import           Util.Affine
 
 
-data ScaleMap = ScaleMap {
-    layout :: Layout
+data ScaleMap = ScaleMap
+    { layout :: Layout
     , laras_map :: Map Text BaliScales.Laras
     , default_laras :: BaliScales.Laras
     , format :: Format
     }
 
-data Instrument = Instrument {
-    center :: Pitch.Octave
+data Instrument = Instrument
+    { center :: Pitch.Octave
     , bottom :: Absolute
     -- | Unlike most ranges, this is inclusive, so top is a valid pitch.
     -- This seems more intuitive for instruments, and besides there's no
@@ -108,10 +108,10 @@ make_scale scale_id smap doc = Scale.Scale
     scale = PSignal.Scale scale_id Scales.standard_transposers
 
 -- TODO rename to Key or Pathet?
-data Layout = Layout {
+data Layout = Layout
     -- | 'Absolute' (chromatic) step on which 'intervals' starts, to
     -- map from Absolute to Pitch and back.
-    start :: Pitch.PitchClass
+    { start :: Pitch.PitchClass
     , intervals :: Intervals
     , theory :: Theory.Layout -- TODO remove, only BaliScales.semis_to_nn
     -- | Cache diatonic to chromatic mappings.
@@ -318,8 +318,8 @@ split_diatonic (FDiatonicSteps d) = first DiatonicSteps (properFraction d)
 
 -- * Format
 
-data Format = Format {
-    show :: Pitch.Pitch -> Either DeriveT.PitchError Pitch.Note
+data Format = Format
+    { show :: Pitch.Pitch -> Either DeriveT.PitchError Pitch.Note
     , read :: Pitch.Note -> Either DeriveT.PitchError Pitch.Pitch
     , pattern :: Text
     }

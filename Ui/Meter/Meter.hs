@@ -65,8 +65,8 @@ import           Types
 
 
 -- | Duration is of one AbstractMeter, so total duration will be count*dur.
-data Meter = Meter {
-    meter_config :: !Config
+data Meter = Meter
+    { meter_config :: !Config
     , meter_sections :: ![MSection] -- I frequently modify the end, Seq, Vector?
     } deriving (Eq, Show)
 
@@ -96,9 +96,9 @@ meter config sections =
 
 -- Called MSection due to annoying name clash with Rank Section.
 -- If I change that one, then the change to rank_names affects parsing.
-data MSection = MSection {
+data MSection = MSection
     -- | The section contains this many measures.
-    section_measures :: !Measures
+    { section_measures :: !Measures
     -- | Each measure has this duration.
     , section_measure_duration :: !Duration
     -- | Describe a measure.
@@ -196,9 +196,9 @@ type Duration = TrackTime
 time_to_duration :: TrackTime -> Duration
 time_to_duration = id
 
-data Config = Config {
+data Config = Config
     -- | Only write labels on these ranks.
-    config_labeled_ranks :: !(Set Rank)
+    { config_labeled_ranks :: !(Set Rank)
     -- | How to generate labels.
     , config_label :: !LabelConfig
     -- | The ruler should start counting at this number.  This could be measure

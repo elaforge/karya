@@ -48,8 +48,8 @@ import           Global
 import           Synth.Types
 
 
-data Config = Config {
-    _quality :: Resample.Quality
+data Config = Config
+    { _quality :: Resample.Quality
     , _chunkSize :: Audio.Frames
     , _blockSize :: Audio.Frames
     , _controlsPerBlock :: Audio.Frames
@@ -69,8 +69,8 @@ defaultConfig quality = Config
     }
 
 -- | An instrument level faust processor.
-data InstrumentEffect = InstrumentEffect {
-    _effectPatch :: Effect.Patch
+data InstrumentEffect = InstrumentEffect
+    { _effectPatch :: Effect.Patch
     , _effectConfig :: Patch.EffectConfig
     }
 
@@ -138,8 +138,8 @@ toSpan note = Checkpoint.Span
     }
 
 -- | A currently playing sample.
-data Playing = Playing {
-    _noteHash :: Note.Hash
+data Playing = Playing
+    { _noteHash :: Note.Hash
     -- | Get the current state of the resample.  NOTE [audio-state]
     , _getState :: IO PlayState
     , _audio :: AUtil.Audio
@@ -420,12 +420,12 @@ overlappingNotes start blockSize notes =
 
 -- * State
 
-data State = State {
+data State = State
     -- | These must be sorted in _noteHash order, since the resume will then
     -- sort again by Sample.hash to match them back up.  This is because I
     -- don't enforce invariants on the order of simultaneous notes, so they may
     -- vary across renders.  'getPlayStates' does this.
-    _playStates :: [PlayState]
+    { _playStates :: [PlayState]
     , _effectState :: Maybe EffectC.State
     }
 
@@ -451,11 +451,11 @@ instance Serialize.Serialize State where
     put (State plays effect) = Serialize.put plays >> Serialize.put effect
     get = State <$> Serialize.get <*> Serialize.get
 
-data PlayState =
+data PlayState
     -- | If there is no resampling, the state will be NoResample.  It's
     -- necessary to save that explicitly, so I can still line up notes with
     -- states in 'resumeSamples'.
-    NoResample
+    = NoResample
     | Resample !ResampleState
     -- | There was a resample, but it's complete.  If this shows up, something
     -- is wrong, because 'pull' should have filtered out the Playing when
@@ -479,10 +479,10 @@ instance Serialize.Serialize PlayState where
         n -> Serialize.bad_tag "Render.PlayState" n
 
 -- | The saved state of a note that had to resample.
-data ResampleState = ResampleState {
+data ResampleState = ResampleState
     -- | I don't actually need this, but it makes the Pretty instance easier to
     -- read.
-    _filename :: !Sample.SamplePath
+    { _filename :: !Sample.SamplePath
     -- | This is the position in the sample where the state was saved.
     , _offset :: !Audio.Frames
     , _resampleState :: !Resample.SavedState

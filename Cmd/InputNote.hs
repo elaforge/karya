@@ -61,10 +61,10 @@ type Input = GenericInput Pitch.Input
 -- | An input with a plain NoteNumber pitch instead of a 'Pitch.Input'.
 type InputNn = GenericInput Pitch.NoteNumber
 
-data GenericInput pitch =
+data GenericInput pitch
     -- | The Input and val (velocity) could be sent separately, but that
     -- would make converting this back into midi for thru harder.
-    NoteOn NoteId pitch Signal.Y
+    = NoteOn NoteId pitch Signal.Y
     | NoteOff NoteId Signal.Y
     -- | Controls coming from MIDI are mapped to control names, since this is
     -- a superset of MIDI CC numbers, and may include non-MIDI as well.  But

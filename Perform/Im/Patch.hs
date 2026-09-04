@@ -19,10 +19,10 @@ import qualified Synth.Shared.Note as Note
 import           Global
 
 
-data Patch = Patch {
+data Patch = Patch
     -- | Map supported controls to documentation.
     -- TODO maybe I need a separate one for pitch controls.
-    patch_controls :: Map Control.Control Text
+    { patch_controls :: Map Control.Control Text
     , patch_attribute_map :: AttributeMap
     , patch_elements :: Set Note.Element
     } deriving (Show)

@@ -34,11 +34,11 @@ import           Types
 -- | Index into the the selection list.
 type Num = Int
 
-data Selection = Selection {
+data Selection = Selection
     -- | The position the selection was established at.  Since a selection can
     -- logically go off the edge of a block, this is not necessarily a valid
     -- TrackNum!
-    start_track :: !TrackNum
+    { start_track :: !TrackNum
     , start_pos :: !TrackTime
 
     -- | The position the selection is now at.  The tracks are an inclusive

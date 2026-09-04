@@ -108,8 +108,8 @@ c_stopped_string = Derive.transformer module_ "stopped-string"
                 (ScoreT.untyped (const 0)) open_strings
             string_idiom config =<< deriver
 
-data Config = Config {
-    _open_strings :: Map Pitch.NoteNumber StringUtil.String
+data Config = Config
+    { _open_strings :: Map Pitch.NoteNumber StringUtil.String
     -- | (curve, time)
     , _attack_curve :: (PitchUtil.Interpolate, ScoreT.TypedFunction)
     , _release_curve :: (PitchUtil.Interpolate, ScoreT.TypedFunction)

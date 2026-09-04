@@ -37,8 +37,8 @@ import           Global
 type Graph = Map Module [Module] -- TODO Set
 type Module = Text
 
-data CachedGraph = CachedGraph {
-    _graph :: Graph
+data CachedGraph = CachedGraph
+    { _graph :: Graph
     , _closures :: Map Module (Set Module)
     } deriving (Show)
 

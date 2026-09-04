@@ -20,8 +20,8 @@ import qualified Util.Serialize as Serialize
 import           ForeignC
 
 
-data Style = Style {
-    style_font :: Font
+data Style = Style
+    { style_font :: Font
     , style_face :: [FontFace]
     , style_size :: Int
     , style_text_color :: Color.Color

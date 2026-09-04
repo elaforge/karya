@@ -36,8 +36,8 @@ import           Global
 
 -- * static config
 
-data StaticConfig = StaticConfig {
-    instrument_db :: Cmd.InstrumentDb
+data StaticConfig = StaticConfig
+    { instrument_db :: Cmd.InstrumentDb
     -- | These Cmds are run before any of the usual ones, and can implement
     -- local global keymaps and whatnot.
     , global_cmds :: [Msg.Msg -> Cmd.CmdT IO Cmd.Status]
@@ -76,14 +76,14 @@ get_post_setup_cmd config = do
     post_setup_cmd config
     when (keycaps config) SyncKeycaps.open
 
-data Midi = Midi {
+data Midi = Midi
     -- | Reroute the hardware level read and write devices.  This way,
     -- instruments and saved scores can use symbolic names which are then
     -- mapped to the devices exported by the MIDI driver.
     --
     -- Because input devices are likely to be relatively static, the
     -- read device map is only configured here.
-    rdev_map :: Map Midi.ReadDevice Midi.ReadDevice
+    { rdev_map :: Map Midi.ReadDevice Midi.ReadDevice
     -- | WriteDevices may vary per score, e.g. softsynths may listen at any
     -- number of virtual devices.  This map is taken as a default, but may
     -- be overridden by the score loaded.

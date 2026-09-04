@@ -68,8 +68,8 @@ import           Types
 
 -- * types
 
-data Event = Event {
-    _start :: !TrackTime
+data Event = Event
+    { _start :: !TrackTime
     , _duration :: !TrackTime
     , _text :: !Text
     -- | Each event can have its own style.  However, in practice, because I
@@ -88,10 +88,10 @@ data Event = Event {
     , _stack :: !(Maybe Stack)
     } deriving (Eq, Ord, Show)
 
-data Stack = Stack {
+data Stack = Stack
     -- | The stack is used so the event retains a reference to its generating
     -- event.
-    stack_stack :: !Stack.Stack
+    { stack_stack :: !Stack.Stack
     , stack_key :: !IndexKey
     } deriving (Eq, Ord, Show)
 

@@ -45,8 +45,8 @@ import           Global
 
 -- * state
 
-data State = State {
-    state_filter :: Filter
+data State = State
+    { state_filter :: Filter
     -- | Msgs matching this regex have their matching groups put in the
     -- status line.
     , state_catch_patterns :: [CatchPattern]
@@ -105,9 +105,9 @@ clickable_braces =
     [ (Regex.compileUnsafe "\\{.*?\\}", style_clickable)
     ]
 
-data StyledText = StyledText {
+data StyledText = StyledText
     -- | UTF8-encoded text.
-    style_text :: B.ByteString
+    { style_text :: B.ByteString
     -- | 'Style' characters, same length as style_text.
     , style_style :: B.ByteString
     } deriving (Eq, Show)

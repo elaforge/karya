@@ -60,8 +60,8 @@ instance Pretty SavedState where
         ]
 
 -- | Configure the resampler.
-data Config = Config {
-    _quality :: Quality
+data Config = Config
+    { _quality :: Quality
     , _state :: Maybe SavedState
     -- | Called before yielding a block.  The final call is with Nothing,
     -- before yielding the final block.  At that point the state should be

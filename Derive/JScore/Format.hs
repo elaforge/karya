@@ -42,8 +42,8 @@ print_score transform source = case Parse.parse_score source of
         where (lines, errs) = format_score transform score
         -- TODO interleave the errs with the lines
 
-data FormatState = FormatState {
-    state_metas :: [T.Meta]
+data FormatState = FormatState
+    { state_metas :: [T.Meta]
     , state_prev_is_block :: Bool
     , state_transform :: Check.Transform
     }

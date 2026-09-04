@@ -25,8 +25,8 @@ type SequenceM g = S.Sequence g (Solkattu.Note (Realize.Stroke Stroke))
 newtype Attributes = Attributes (Map Text (Maybe Text))
     deriving (Show, Eq)
 
-data Stroke = Stroke {
-    _pitch :: !Pitch.Pitch
+data Stroke = Stroke
+    { _pitch :: !Pitch.Pitch
     -- | These turn into transformers for the note.
     , _attributes :: !(Set Text)
     } deriving (Show, Eq, Ord)
@@ -79,8 +79,8 @@ pitchCall (Pitch.Pitch oct (Pitch.Degree pc acc)) = Expr.call "pitch" $
     [ShowVal.show_val oct, ShowVal.show_val pc]
         ++ if acc == 0 then [] else [ShowVal.show_val acc]
 
-data Strokes a = Strokes {
-    s_::a, r_::a, g_::a, m_::a, p_::a, d_::a, n_::a
+data Strokes a = Strokes
+    { s_::a, r_::a, g_::a, m_::a, p_::a, d_::a, n_::a
     , s::a, r::a, g::a, m::a, p::a, d::a, n::a
     , s1::a, r1::a, g1::a, m1::a, p1::a, d1::a, n1::a
     } deriving (Functor, Show)

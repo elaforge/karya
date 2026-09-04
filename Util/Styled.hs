@@ -135,8 +135,8 @@ styleSGR (Style fg bg bold underline) = ANSI.Reset : concat
     , [ANSI.SetUnderlining ANSI.SingleUnderline | underline]
     ]
 
-data Style = Style {
-    _foreground :: !(Maybe Color)
+data Style = Style
+    { _foreground :: !(Maybe Color)
     , _background :: !(Maybe Color)
     , _bold :: !Bool
     , _underline :: !Bool

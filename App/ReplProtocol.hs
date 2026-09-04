@@ -47,22 +47,22 @@ import           Global
 
 -- | This is a simple RPC mechanism.  'Query' goes to the server, which
 -- responds with the matching 'Response'.
-data Query =
-    QSaveFile
+data Query
+    = QSaveFile
     | QCommand !Text
     | QCompletion !Text
     -- | A notification doesn't have a corrpesponding 'Response'.
     | QNotify !NotifySeq
     deriving (Eq, Show)
 
-data NotifySeq =
+data NotifySeq
     -- | These are so the sequencer knows if there are open editors, so it
     -- can refuse to quit and hence orphan them.
-    NEditorOpened | NEditorClosed
+    = NEditorOpened | NEditorClosed
     deriving (Eq, Show)
 
-data Response =
-    RSaveFile !(Maybe FilePath) -- ^ current save file
+data Response
+    = RSaveFile !(Maybe FilePath) -- ^ current save file
     | RCommand !CmdResult
     | RCompletion ![Text] -- ^ possible completions for the prefix
     deriving (Eq, Show)
@@ -77,8 +77,8 @@ instance Pretty Query where
 data CmdResult = CmdResult !Result ![Log.Msg]
     deriving (Eq, Show)
 
-data Result =
-    Raw !Text -- ^ Print this text directly, without formatting it.
+data Result
+    = Raw !Text -- ^ Print this text directly, without formatting it.
     | Format !Text -- ^ Format and print.
     | Edit !(NonEmpty Editor) -- ^ Edit one or more files.
     deriving (Eq, Show)
@@ -91,8 +91,8 @@ data Result =
 -- the sequencer via a REPL function with a string argument (configured by
 -- '_on_save').  The text goes back separately via the @send@ command, since
 -- the REPL itself will be blocked waiting for the editor to exit.
-data Editor = Editor {
-    _file :: !File
+data Editor = Editor
+    { _file :: !File
     -- | Start editing on this line.
     , _line_number :: !Int
     -- | Send QCommands when the editor saves or quits.  A %s is replaced by
@@ -102,8 +102,8 @@ data Editor = Editor {
     , _on_send :: !(Maybe Text)
     } deriving (Eq, Show)
 
-data File =
-    FileName !FilePath -- ^ open this file
+data File
+    = FileName !FilePath -- ^ open this file
     | Text !FileType !Text -- ^ open this text in a temp file
     deriving (Eq, Show)
 

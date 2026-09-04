@@ -160,8 +160,8 @@ instance DeepSeq.NFData (v (Sample y)) => DeepSeq.NFData (Signal v y) where
     rnf (Signal offset vec) = DeepSeq.rnf offset `seq` DeepSeq.rnf vec `seq` ()
     rnf (Constant _) = ()
 
-data Segment y = Segment {
-    _x1 :: X, _y1 :: y
+data Segment y = Segment
+    { _x1 :: X, _y1 :: y
     , _x2 :: X, _y2 :: y
     } deriving (Eq, Show)
 

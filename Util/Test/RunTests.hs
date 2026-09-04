@@ -52,9 +52,9 @@ import qualified Util.Test.Testing as Testing
 import           Global
 
 
-data Test = Test {
+data Test = Test
     -- | Name of the test function.
-    testSymName :: Text
+    { testSymName :: Text
     -- | Run the test.
     , testRun :: IO ()
     -- | Test module filename.
@@ -79,8 +79,8 @@ testName test = Text.intercalate "," tags <> "-" <> testSymName test
 metaPrefix :: Text
 metaPrefix = "===>"
 
-data Flag =
-    CheckOutput
+data Flag
+    = CheckOutput
     | ClearDirs
     | Help
     | Interactive

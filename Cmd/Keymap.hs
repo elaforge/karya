@@ -147,8 +147,8 @@ make_keymap bindings = (Map.fromList bindings, warns)
 -- probably use these higher level modifiers.  That way left and right shifts
 -- work the same, and cmds can use Command as customary on the Mac and Control
 -- as customary on linux.
-data SimpleMod =
-    Shift
+data SimpleMod
+    = Shift
     -- | Primary command key: command on Mac, control on Linux and Windows.
     -- This should be used for core and global commands.
     | PrimaryCommand

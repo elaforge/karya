@@ -184,8 +184,8 @@ parseAttrs =
 parseBy :: String -> Calibrate.By
 parseBy str = fromMaybe (error ("not a By: " <> str)) (Read.readMaybe str)
 
-data Flag =
-    Quality Resample.Quality
+data Flag
+    = Quality Resample.Quality
     | Debug
     | DumpRange RealTime RealTime
     | DumpTracks (Set Id.TrackId)

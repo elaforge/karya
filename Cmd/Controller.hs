@@ -18,8 +18,8 @@ import qualified Cmd.TimeStep as TimeStep
 -- | Buttons you might find on the transport section of a controller keyboard.
 -- Since everyone's setup is different, this is expected to be configured in
 -- "Local.Config".
-data TransportConfig = TransportConfig {
-    config_repeat :: MatchMidi
+data TransportConfig = TransportConfig
+    { config_repeat :: MatchMidi
     , config_backward :: MatchMidi
     , config_forward :: MatchMidi
     , config_stop :: MatchMidi

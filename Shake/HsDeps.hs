@@ -41,8 +41,8 @@ type ModuleName = B.ByteString
 -- exist, under the assumption that they belong to external packages.  This
 -- set contains exceptions to that, so they will get a need call, so they can
 -- be generated.
-data Generated = Generated {
-    _generatedHs :: Set.Set FilePath
+data Generated = Generated
+    { _generatedHs :: Set.Set FilePath
     -- | Try files with these extensions, in addition to .hs.
     -- E.g. [".hsc", ".chs"].
     , _generatedExtensions :: [FilePath]

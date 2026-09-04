@@ -380,8 +380,8 @@ beatsToBpm (beat0, frame0) (beat1, frame1) =
     (60/) $ (fromIntegral (frame1 - frame0) / realToFrac (beat1 - beat0))
         / fromIntegral Config.samplingRate
 
-data Break = Break {
-    name :: Text
+data Break = Break
+    { name :: Text
     , beats :: [((Measure, Beat), Stroke, Frame)]
     , perMeasure :: Beat -- ^ how many beats in one measure
     , bpm :: BPM

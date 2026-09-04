@@ -100,13 +100,13 @@ usage msg = do
     System.Exit.exitFailure
 
 -- | Bundle a Db along with its search index.
-data Db = Db {
-    db_db :: Cmd.InstrumentDb
+data Db = Db
+    { db_db :: Cmd.InstrumentDb
     , db_index :: Search.Index
     }
 
-data State = State {
-    state_displayed :: [InstT.Qualified]
+data State = State
+    { state_displayed :: [InstT.Qualified]
     } deriving (Show)
 
 handle_msgs :: Fltk.Channel -> BrowserC.Window -> Db -> IO ()

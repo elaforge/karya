@@ -165,8 +165,8 @@ fingerprint texts =
     bytes = map (chop . Bits.shiftR n) [0, 8, 16, 24]
     dropR f = reverse . dropWhile f . reverse
 
-data Interactive score = Interactive {
-    r :: IO ()
+data Interactive score = Interactive
+    { r :: IO ()
     , rsr :: SamplingRate -> IO ()
     }
 

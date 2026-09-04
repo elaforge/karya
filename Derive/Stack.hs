@@ -174,8 +174,8 @@ match pattern = any (ui_match pattern) . to_ui
 
 -- ** frames
 
-data Frame =
-    Block !BlockId
+data Frame
+    = Block !BlockId
     | Track !TrackId
     | Region !TrackTime !TrackTime
     | Call !Text

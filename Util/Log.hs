@@ -87,8 +87,8 @@ import qualified Derive.Stack as Stack
 import           Global
 
 
-data Msg = Msg {
-    msg_date :: !Time.UTCTime
+data Msg = Msg
+    { msg_date :: !Time.UTCTime
     , msg_caller :: !CallStack.Caller
     , msg_priority :: !Priority
     -- | Msgs which are logged from the deriver may record the position in the
@@ -186,8 +186,8 @@ no_date_yet :: Time.UTCTime
 no_date_yet = Time.UTCTime (Time.ModifiedJulianDay 0) 0
 
 -- | Logging state.  Don't log if a handle is Nothing.
-data State = State {
-    state_write_msg :: Msg -> IO ()
+data State = State
+    { state_write_msg :: Msg -> IO ()
     , state_priority :: Priority
     }
 
@@ -267,11 +267,11 @@ with_stdio_lock action = do
     MVar.withMVar global_state $ \state -> action >> return state
     return ()
 
-data Priority =
+data Priority
     -- | Logs to determine where things are hanging when debugging
     -- a performance problem.  Use "LogView.ShowTimers" to show the time
     -- elapsed between Timer logs.
-    Timer
+    = Timer
     -- | Users don't look at this during normal use, but can be useful for
     -- debugging.
     | Debug

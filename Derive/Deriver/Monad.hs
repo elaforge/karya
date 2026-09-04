@@ -490,10 +490,10 @@ initial_state constant dynamic = State
 -- parallelize derivation, so it's not so great.  However, the only threaded
 -- state is state_prev_val, which is only needed within a track, so sibling
 -- tracks can still be parallelized.
-data Threaded = Threaded {
+data Threaded = Threaded
     -- | Keep track of the previous value for each track currently being
     -- evaluated.  See NOTE [prev-val].
-    state_prev_val :: Map (BlockId, TrackId) Tagged
+    { state_prev_val :: Map (BlockId, TrackId) Tagged
     -- | This is used for 'Stack.Serial' to ensure a unique stack for multiple
     -- generator calls within a single track event.  It's reset on the
     -- evaluation of each uninverted track event, and incremented after
@@ -951,9 +951,9 @@ lookup_call_map sym (CallMap cmap patterns) = case Map.lookup sym cmap of
 -- ** mode
 
 -- | Derivation can run in a few distinct modes.
-data Mode =
+data Mode
     -- | Standard derivation.
-    Normal
+    = Normal
     -- | This indicates that I'm running the deriver just to find out its
     -- duration.  There's a hack in "Derive.Eval" that will fill in
     -- 'collect_score_duration' when it sees this mode.  More detail in
@@ -1057,9 +1057,9 @@ instance DeepSeq.NFData Merge where rnf _ = ()
 -- The merge function is not obliged to be associative, so this isn't actually
 -- a monoid.  TODO it's all the fault of 'merge_scale'... do I lose something
 -- important with associativity?
-data Merger =
+data Merger
     -- | name merge identity
-    Merger Text (Signal.Control -> Signal.Control -> Signal.Control) Signal.Y
+    = Merger Text (Signal.Control -> Signal.Control -> Signal.Control) Signal.Y
     | Set -- ^ Replace the existing signal.
     | Unset -- ^ Replace only if there is no existing signal.
     -- TODO I thought I'd need this but I don't.  If it turns out to never be
@@ -1500,9 +1500,9 @@ data ArgParser = Required | Defaulted Text | Optional Text | Many | Many1
     deriving (Eq, Ord, Show)
 
 -- | This configures how an argument looks for a default in the environ.
-data EnvironDefault =
+data EnvironDefault
     -- | Don't default from environ at all.
-    None
+    = None
     -- | Look for @callname-argname@.
     | Prefixed
     -- | Look for @argname@.  This is useful for generic parameters that
@@ -1662,8 +1662,8 @@ instance DeepSeq.NFData Cached where
 -- | Since an entire track is one type but will have many different calls of
 -- different types, the deriver type division goes above the call type
 -- division.
-data CacheEntry =
-    CachedEvents (CallType Score.Event)
+data CacheEntry
+    = CachedEvents (CallType Score.Event)
     | CachedControl (CallType Signal.Control)
     | CachedPitch (CallType PSignal.PSignal)
 

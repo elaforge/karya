@@ -3,8 +3,6 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Derive.Parse.Record_test where
-import qualified Data.Map as Map
-
 import qualified Util.Parse
 import qualified Derive.DeriveT as DeriveT
 import qualified Derive.Expr as Expr

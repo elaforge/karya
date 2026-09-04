@@ -81,8 +81,8 @@ import           Global
 import           Types
 
 
-data State = State {
-    state_static_config :: StaticConfig.StaticConfig
+data State = State
+    { state_static_config :: StaticConfig.StaticConfig
     , state_ui :: Ui.State
     , state_cmd :: Cmd.State
     -- | Channel to send IO actions to be executed on the FLTK event loop.
@@ -236,8 +236,8 @@ kill_threads :: State -> IO ()
 kill_threads = Cmd.kill_performance_threads. state_cmd
 
 -- | State maintained for a single responder cycle.
-data RState = RState {
-    rstate_state :: !State
+data RState = RState
+    { rstate_state :: !State
     -- | Pre rollback UI state, revert to this state if an exception is
     -- thrown, and diff from this state.
     , rstate_ui_from :: !Ui.State

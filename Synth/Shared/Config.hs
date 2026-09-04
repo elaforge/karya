@@ -52,14 +52,13 @@ import           Synth.Types
 -- This is the same as 'Ui.Types.ChunkNum'.
 type ChunkNum = Int
 
-data Config = Config {
+data Config = Config
     -- | All of the data files used by the Im backend are based in this
     -- directory.  Everything in here should be temporary files, used for
     -- communication or caching.
-    imDir :: FilePath
+    { imDir :: FilePath
     , synths :: Map SynthName Synth
-    }
-    deriving (Eq, Show)
+    } deriving (Eq, Show)
 
 getConfig :: IO Config
 getConfig = config <$> Path.get_app_dir
@@ -79,10 +78,10 @@ config appDir = Config
         ]
     }
 
-data Synth = Synth {
+data Synth = Synth
     -- | This should uniquely determine the synth, since it becomes the notes
     -- filename.
-    synthName :: FilePath
+    { synthName :: FilePath
     -- | Path to the binary.  Don't run a binary if it's empty.
     , binary :: FilePath
     } deriving (Eq, Show)
@@ -264,8 +263,8 @@ listDir = fmap (fromMaybe []) . Exceptions.ignoreEnoent
 
 -- * progress
 
-data Message = Message {
-    _blockId :: Id.BlockId
+data Message = Message
+    { _blockId :: Id.BlockId
     , _trackIds :: Set Id.TrackId
     , _instrument :: ScoreT.Instrument
     , _payload :: Payload
@@ -275,8 +274,8 @@ instance Aeson.ToJSON Message where
     toEncoding = Aeson.genericToEncoding Aeson.defaultOptions
 instance Aeson.FromJSON Message
 
-data Payload =
-    RenderingRange RealTime RealTime
+data Payload
+    = RenderingRange RealTime RealTime
     -- | Completed waveforms.
     | WaveformsCompleted [ChunkNum]
     | Warn Stack.Stack Text

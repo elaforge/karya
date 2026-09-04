@@ -106,9 +106,9 @@ add_file fn = Common.tags %= ((Tag.file, txt (FilePath.takeFileName fn)) :)
 -- * record
 
 type RMap = Map Name Record
-data Record =
+data Record
     -- | A List is represented as an RMap with numbered keys.
-    RMap RMap
+    = RMap RMap
     -- | Which one this is is determined by an RStr elsewhere.
     | RUnion RMap
     | RNum Int | RStr Text
@@ -288,8 +288,8 @@ break_after f bytes = case B.findIndex f bytes of
 
 -- * config
 
-data Config = Config {
-    decode_num :: NumRange -> ByteString -> Int
+data Config = Config
+    { decode_num :: NumRange -> ByteString -> Int
     , encode_num :: NumRange -> Int -> ByteString
     -- | The number of bytes needd to encode a number in the given range.
     -- This should agree with 'decode_num', since it will be given that many
@@ -559,12 +559,12 @@ from_signed bits num
 -- * spec
 
 type Specs = [(Name, Spec)]
-data Spec =
+data Spec
     -- | A set of bitfields encoded in a single byte.  The BitField widths must
     -- add up to 8.  They start at the least significant end of the byte, so
     -- given @[(\"a\", (1, Range 0 1)), (\"b\", (7, Range 0 1))]@, @a@ is from
     -- the least significant bit.
-    Bits [(Name, BitField)]
+    = Bits [(Name, BitField)]
     | Num Range | Str Bytes | SubSpec Specs
     | List Int Specs
     -- | The content of this section depends on a previous enum value.

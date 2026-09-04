@@ -66,14 +66,14 @@ import           Types
 
 -- * Range
 
-data Range =
+data Range
     -- | A range between the given points.  It will select a positive event at
     -- the start time, or a negative one at the end time.  Effectively it's
     -- half-open from the start for Positive events, and half-open from the end
     -- for Negative ones.
     --
     -- Start should be <= end.
-    Range !TrackTime !TrackTime
+    = Range !TrackTime !TrackTime
     -- | Select an event at exactly the given time and orientation.
     | Point !TrackTime !Types.Orientation
     deriving (Eq, Show)

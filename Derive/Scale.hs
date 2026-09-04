@@ -60,10 +60,10 @@ call parser f = (go, Sig.parser_docs parser)
 
 -- * old Definition
 
-data Definition =
+data Definition
     -- | Fancy scales can configure themselves.  Since you can't just look at
     -- the Scale directly, it has the ScaleId (pattern, doc) extracted.
-    Make !Pitch.ScaleId !(Text, Derive.DocumentedCall)
+    = Make !Pitch.ScaleId !(Text, Derive.DocumentedCall)
         !(Env.Environ -> LookupScale -> Either DeriveT.PitchError Scale)
     | Simple !Scale
 
@@ -140,8 +140,8 @@ transpose_pitch transposition scale environ octaves steps =
 -- * Range
 
 -- | This is an inclusive pitch range, intended for instrument ranges.
-data Range = Range {
-    range_bottom :: !Pitch.Pitch
+data Range = Range
+    { range_bottom :: !Pitch.Pitch
     , range_top :: !Pitch.Pitch
     } deriving (Show, Eq)
 
