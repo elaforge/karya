@@ -174,6 +174,10 @@ chunkSeconds = CHUNK_SECONDS
 -- It has to cue up the sample streaming, which means it has to find and
 -- seek to the right file.  If playback starts immediately then the first
 -- chunk gets cut off, which cuts off note attacks.
+--
+-- Since MIDI is shifted by exactly this much, it only lines up if play_cache
+-- also delays by exactly this much, which requires it to be a multiple of the
+-- host block size.  See START_LATENCY_FRAMES in config.h.
 startLatency :: AudioT.Frames
 startLatency = START_LATENCY_FRAMES
 

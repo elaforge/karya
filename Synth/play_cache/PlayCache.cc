@@ -281,7 +281,7 @@ PlayCache::process_events(const VstEventBlock *events)
         int status = data[0] & 0xf0;
         if (status == ControlChange
                 && (data[1] == AllSoundOff || data[1] == AllNotesOff
-                    || data[i] == ResetAllControllers)) {
+                    || data[1] == ResetAllControllers)) {
             // See NOTE [play-im] for why I stop on these msgs, but not
             // NoteOff.
             this->start_frame = 0;

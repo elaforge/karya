@@ -5,6 +5,7 @@
 #pragma once
 
 #include <atomic>
+#include <chrono>
 #include <string>
 #include <memory>
 #include <thread>
@@ -61,6 +62,10 @@ private:
     // Set to true to have the stream_thread reload mix.  This makes read()
     // return 0s so it's safe to reset the ringbuffer.
     std::atomic<bool> restarting;
+    // steady_clock nanoseconds at which restart() was posted, so stream_loop
+    // can log how long it took to get scheduled.
+    std::atomic<int64_t> restart_ns;
+    std::chrono::steady_clock::time_point restart_posted() const;
     jack_ringbuffer_t *ring;
     // ring needs more data.
     Semaphore ready;
@@ -75,6 +80,11 @@ private:
     // Keep track if read() position gets ahead of what ring was able to
     // provide.
     Frames debt;
+    // High water mark of 'debt' since the last restart.  This is how many
+    // frames got dropped to stay in sync, so it's the amount by which
+    // START_LATENCY_FRAMES came up short.  Just for logging underrun.  read()
+    // can't log, so it records it here and stream_loop reports it.
+    std::atomic<Frames> debt_max;
     std::vector<float> output_buffer;
 };
 

@@ -34,13 +34,22 @@ private:
     const int sample_rate;
     const std::string dir;
 
-    // Current file to stream.  This goes to "" when I run out.
-    std::string fname;
+    // Sorted sample names, filled in by the constructor.  I used to
+    // just reread the directory whenever I needed a new sample and it was fine,
+    // but perhaps it would get slow with large directories and many tracks,
+    // so let's cache it.  'refresh' will re-read it if I run off the end,
+    // since the synth may still be writing chunks while I play.
+    std::vector<std::string> fnames;
+    // Index into 'fnames' of the chunk to stream.  This goes off the end when
+    // I run out.
+    size_t index;
     std::unique_ptr<Wav> wav;
-    // How many frames are left in the current chunk, which is the one in
-    // 'fname' and 'wav'.
+    // How many frames are left in the current chunk, which is the one at
+    // 'index' and in 'wav'.
     Frames frames_left;
     std::vector<float> buffer;
 
+    const std::string &cur_fname() const;
+    void refresh();
     void open(int channels, Frames offset);
 };

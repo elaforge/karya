@@ -51,25 +51,6 @@ list_samples(std::ostream &log, const string &dir)
 }
 
 
-static string
-find_nth_sample(std::ostream &log, const string &dir, int n)
-{
-    std::vector<string> fnames = list_samples(log, dir);
-    return n < fnames.size() ? fnames[n] : "";
-}
-
-
-static string
-find_next_sample(std::ostream &log, const string &dir, const string &fname)
-{
-    std::vector<string> fnames = list_samples(log, dir);
-    const auto next = std::find_if(
-        fnames.begin(), fnames.end(),
-        [&](const string &s) { return s > fname; });
-    return next == fnames.end() ?  "" : *next;
-}
-
-
 // Open the file at the given offset.  Return nullptr if there was an error,
 // or the offset is past the end of the file.
 static std::unique_ptr<Wav>
@@ -104,21 +85,44 @@ open_wav(
 }
 
 
+static const string no_fname;
+
 SampleDirectory::SampleDirectory(
         std::ostream &log, int channels, int sample_rate,
         const string &dir, Frames offset) :
-    log(log), sample_rate(sample_rate), dir(dir), wav(nullptr),
-    frames_left(0)
+    log(log), sample_rate(sample_rate), dir(dir),
+    fnames(list_samples(log, dir)),
+    index(offset / (CHUNK_SECONDS * sample_rate)),
+    wav(nullptr), frames_left(0)
 {
-    int filenum = offset / (CHUNK_SECONDS * sample_rate);
-    this->fname = find_nth_sample(log, dir, filenum);
     Frames file_offset = offset % (CHUNK_SECONDS * sample_rate);
-    LOG("dir " << dir << ": start at '" << fname << "' + " << file_offset);
-    if (!fname.empty()) {
-        this->open(channels, file_offset);
-    }
+    LOG("dir " << dir << ": start at '" << cur_fname() << "' + "
+        << file_offset);
+    this->open(channels, file_offset);
 }
 
+
+const string &
+SampleDirectory::cur_fname() const
+{
+    return index < fnames.size() ? fnames[index] : no_fname;
+}
+
+
+// Re-read the directory listing, in case the synth has written more chunks
+// since the last time.
+//
+// This gets one shot: it's only called when I run off the end of the listing,
+// and if it doesn't find anything then 'index' never advances again, so read()
+// stops and never asks again.  So playing ahead of a synth that renders slower
+// than realtime truncates the instrument rather than waiting for it.
+void
+SampleDirectory::refresh()
+{
+    std::vector<string> found(list_samples(log, dir));
+    if (found.size() > fnames.size())
+        fnames = std::move(found);
+}
 
 
 
@@ -127,7 +131,7 @@ SampleDirectory::read(int channels, Frames frames, float **out)
 {
     buffer.resize(frames * channels);
     Frames total_read = 0;
-    while (!fname.empty() && frames - total_read > 0) {
+    while (index < fnames.size() && frames - total_read > 0) {
         const Frames offset = total_read * channels;
         Frames delta;
         if (wav == nullptr) {
@@ -140,7 +144,7 @@ SampleDirectory::read(int channels, Frames frames, float **out)
                 // pretty trivial too.
                 std::fill(
                     buffer.begin() + offset,
-                    buffer.begin() + offset + delta,
+                    buffer.begin() + offset + delta * channels,
                     0);
             } else {
                 break;
@@ -158,9 +162,10 @@ SampleDirectory::read(int channels, Frames frames, float **out)
             }
         }
         if (frames_left == 0) {
-            fname = find_next_sample(log, dir, fname);
+            this->index++;
             this->open(channels, 0);
-            LOG(dir << ": next sample: " << (fname.empty() ? "<done>" : fname));
+            LOG(dir << ": next sample: "
+                << (index < fnames.size() ? cur_fname() : "<done>"));
         }
         total_read += delta;
     };
@@ -175,9 +180,13 @@ SampleDirectory::open(int channels, Frames offset)
 {
     if (wav)
         wav.reset();
-    if (!fname.empty()) {
+    // Ran off the end of the listing, but the synth may have written more
+    // since I made it.
+    if (index >= fnames.size())
+        this->refresh();
+    if (index < fnames.size()) {
         wav = open_wav(
-            log, channels, false, sample_rate, dir + '/' + fname, offset,
+            log, channels, false, sample_rate, dir + '/' + cur_fname(), offset,
             nullptr);
         // offset should never be > chunk frames.
         this->frames_left = CHUNK_SECONDS * sample_rate - offset;

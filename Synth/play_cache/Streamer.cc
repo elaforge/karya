@@ -2,9 +2,18 @@
 // This program is distributed under the terms of the GNU General Public
 // License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
+#include <algorithm>
+#include <chrono>
 #include <ostream>
 #include <string.h>
 #include <thread>
+
+#ifdef __APPLE__
+#include <pthread.h>
+#include <sys/qos.h>
+#endif
+
+#include "Synth/Shared/config.h"
 
 #include "Resample.h"
 #include "Streamer.h"
@@ -31,8 +40,23 @@ Streamer::Streamer(
         int max_frames, bool synchronized)
     : channels(channels), sample_rate(sample_rate), max_frames(max_frames),
         name(name), log(log), thread_quit(false), audio_done(false),
-        restarting(false), ready(0), synchronized(synchronized), debt(0)
+        restarting(false), restart_ns(0), ready(0),
+        synchronized(synchronized), debt(0), debt_max(0)
 {
+    // start_offset only reaches 0, and so read() only asks for a nonzero
+    // number of frames, on the process() call *after* the one that started the
+    // play.  If the latency is less than a block, read() gets called in the
+    // same process() that posted the restart, microseconds later, and takes on
+    // debt before the stream thread has run at all.
+    if (synchronized && max_frames > START_LATENCY_FRAMES) {
+        LOG(name << ": host block size " << max_frames
+            << " is larger than START_LATENCY_FRAMES " << START_LATENCY_FRAMES
+            << ", so the stream thread gets no time at all, and plays will"
+            << " start up to a block late depending on where the NoteOn falls"
+            << " in the block.  START_LATENCY_FRAMES should be a multiple of"
+            << " the block size.");
+    }
+
     ring = jack_ringbuffer_create(ring_blocks * max_frames * channels);
     jack_ringbuffer_mlock(ring);
     output_buffer.resize(max_frames * channels);
@@ -54,14 +78,44 @@ Streamer::~Streamer()
 void
 Streamer::restart()
 {
+    // Called from the audio thread.  steady_clock is mach_absolute_time on OSX,
+    // so no syscall and no lock.
+    restart_ns.store(
+        std::chrono::steady_clock::now().time_since_epoch().count(),
+        std::memory_order_relaxed);
     restarting.store(true);
     ready.post();
+}
+
+
+std::chrono::steady_clock::time_point
+Streamer::restart_posted() const
+{
+    return std::chrono::steady_clock::time_point(
+        std::chrono::steady_clock::duration(
+            restart_ns.load(std::memory_order_relaxed)));
+}
+
+
+// Milliseconds since 'start', for logging how long startup takes.
+static double
+ms_since(std::chrono::steady_clock::time_point start)
+{
+    return std::chrono::duration<double, std::milli>(
+        std::chrono::steady_clock::now() - start).count();
 }
 
 
 void
 Streamer::stream_loop()
 {
+#ifdef __APPLE__
+    // This is not the audio thread, which is why it can do IO, but we
+    // still want to get it done ASAP, because we only have block size to do it.
+    pthread_set_qos_class_self_np(QOS_CLASS_USER_INITIATED, 0);
+    // pthread_set_qos_class_self_np(QOS_CLASS_USER_INTERACTIVE, 0);
+#endif
+    Frames logged_debt = 0;
     while (!thread_quit.load()) {
         // LOG(name << ": stream_loop wait");
         ready.wait();
@@ -70,14 +124,49 @@ Streamer::stream_loop()
             break;
         if (restarting.load()) {
             // LOG(name << ": restarting");
+            const auto woke = std::chrono::steady_clock::now();
             audio.reset(this->initialize());
             // This is not safe, but since restart is true, read() shouldn't
             // touch it.
             jack_ringbuffer_reset(ring);
-            restarting.store(false);
             audio_done.store(false);
+            debt_max.store(0);
+            logged_debt = 0;
+            const double init_ms = ms_since(woke);
+            // Fill the ring *before* clearing restarting, otherwise read() can
+            // see restarting false with an empty ring, and take on debt that
+            // it then pays by discarding the beginning of the play.
+            stream();
+            const double fill_ms = ms_since(woke);
+            restarting.store(false);
+            // Measure from when the audio thread posted, not from when this
+            // thread woke up: scheduling latency counts against the budget
+            // just as much as the work does, and it's the part that varies.
+            const double wake_ms = std::chrono::duration<double, std::milli>(
+                woke - restart_posted()).count();
+            // The deadline is how many process() calls go by before read()
+            // first asks for a nonzero number of frames.  A partial block at
+            // the end is no use, since read() is called at the start of the
+            // block that contains it, and the NoteOn's offset within its block
+            // only ever makes this larger, so this is the worst case.
+            const Frames budget =
+                (START_LATENCY_FRAMES / max_frames) * max_frames;
+            LOG(name << ": wakeup " << wake_ms << "ms, initialize " << init_ms
+                << "ms, first fill " << fill_ms << "ms; budget "
+                << (budget * 1000.0 / sample_rate) << "ms (" << budget
+                << " frames) from latency " << START_LATENCY_FRAMES
+                << " and host block " << max_frames);
+            continue;
         }
         stream();
+        // Nonzero means samples were dropped to stay in sync, i.e.
+        // START_LATENCY_FRAMES is too low.
+        const Frames debt = debt_max.load();
+        if (debt > logged_debt) {
+            logged_debt = debt;
+            LOG(name << ": underrun, dropped " << debt << " frames ("
+                << (debt * 1000.0 / sample_rate) << "ms)");
+        }
     }
 }
 
@@ -113,11 +202,20 @@ Streamer::read(int channels, Frames frames, float **out)
         // This means stream_loop is restarting and will reset the ring.
         // So don't read stale samples, but also don't abort the play.
         samples = 0;
+        // Debt is paid by discarding samples, so any debt still around when
+        // the new play starts comes straight off its attack.  There are two
+        // sources: the previous play, which always ends with a partial read as
+        // the ring drains, and this restart window itself.  Neither one says
+        // anything about whether the new play is keeping up, so clear it.
+        debt = 0;
     } else {
         // Try to catch up.
         if (synchronized && debt > 0) {
+            // output_buffer only has room for max_frames, while debt can grow
+            // past that, and the ring can have more than that available.
             size_t paid = jack_ringbuffer_read(
-                ring, output_buffer.data(), debt * channels);
+                ring, output_buffer.data(),
+                std::min(debt, Frames(max_frames)) * channels);
             debt -= paid / channels;
             // LOG("discharge debt " << debt << " - " << (paid/channels));
         }
@@ -125,8 +223,12 @@ Streamer::read(int channels, Frames frames, float **out)
             ring, output_buffer.data(), frames * channels);
         if (samples == 0 && audio_done.load())
             return true;
+        debt += frames - (samples / channels);
+        // Unsynchronized streamers never discharge debt, so it's not
+        // meaningful.
+        if (synchronized && debt > debt_max.load(std::memory_order_relaxed))
+            debt_max.store(debt, std::memory_order_relaxed);
     }
-    debt += frames - (samples / channels);
     // LOG("read debt " << debt << " frames " << samples/channels);
     std::fill(output_buffer.begin() + samples, output_buffer.end(), 0);
     *out = output_buffer.data();
