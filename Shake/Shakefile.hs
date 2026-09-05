@@ -1771,9 +1771,6 @@ linkHs config rtsFlags output hs objs =
         , ["-lstdc++"]
         , packageFlags flags (Just hs)
         , objs
-        -- Suppress "warning: text-based stub file" after OSX command line
-        -- tools update.
-        , macLinkHack config
         -- Libs have to go last, or traditional unix ld can't see them.
         -- TODO: this means all binaries link fltk, not just who use it.
         -- In fact all the binaries link all the C libs.  I need the shakefile
@@ -1841,7 +1838,6 @@ ghciFlags config = concat
             "ghc 8.2 doesn't support the flags needed to make the REPL work,\
             \ use 8.0 or 8.4, see doc/INSTALL.md for details"
          | otherwise -> ["-fignore-optim-changes", "-fignore-hpc-changes"]
-    , macLinkHack config
     , packageFlags (configFlags config) Nothing
     ]
     where
@@ -1852,13 +1848,6 @@ ghciFlags config = concat
         -- Otherwise ghci warns "Hpc can't be used with byte-code interpreter."
         , flag == "-fhpc"
         ]
-
--- | Suppress "warning: text-based stub file" after OSX command line tools
--- update.  Presumably this will go away when I upgrade past 10.13.
-macLinkHack :: Config -> [Flag]
-macLinkHack config
-    | "clang-1000.10.44" `List.isInfixOf` ccVersion config = ["-optl", "-w"]
-    | otherwise = []
 
 -- * cc
 
