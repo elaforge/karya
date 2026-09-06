@@ -97,18 +97,22 @@ make_index db = Index
 
 -- | The query language looks like \"a b= c=d !e=f\", which means
 --
--- > Query [Clause False "a" "", Clause False "b" "", Clause False "c" "d",
+-- > Query [Clause False "name" "a", Clause False "b" "", Clause False "c" "d",
 -- >    Clause True "e" "f"]
 --
--- TODO parse quotes for keys or vals with spaces
+-- So a bare word is short for name=word.
 parse :: Text -> Query
 parse = Query . map clause . Text.words
     where
-    clause word
-        | Just ('!', pre) <- Text.uncons pre =
-            Clause True pre (Text.drop 1 post)
-        | otherwise = Clause False pre (Text.drop 1 post)
-        where (pre, post) = Text.break (=='=') word
+    clause word_
+        | Text.null post = Clause inverted "name" pre
+        | otherwise = Clause inverted pre val
+        where
+        (word, inverted) = case Text.uncons word_ of
+            Just ('!', word) -> (word, True)
+            _ -> (word_, False)
+        (pre, post) = Text.break (=='=') word
+        val = Text.drop 1  post
 
 -- * implementation
 
@@ -117,8 +121,8 @@ query_matches (Index idx _) = map with_tag
     where
     with_tag (key, val) = case Map.lookup key idx of
         Nothing -> []
-        Just vals -> concatMap snd $ filter ((val `Text.isInfixOf`) . fst)
-            (Map.assocs vals)
+        Just vals -> concatMap snd $
+            filter ((val `Text.isInfixOf`) . fst) (Map.assocs vals)
 
 instrument_tags :: Inst.Db code -> [(InstT.Qualified, [Tag.Tag])]
 instrument_tags = concatMap synth_tags . Inst.synths
