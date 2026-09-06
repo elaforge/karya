@@ -196,6 +196,20 @@ show_widget(const Fl_Widget *w)
     return outs.c_str();
 }
 
+const char *
+show_widget_label(const Fl_Widget *w)
+{
+    if (w == nullptr)
+        return "<null>";
+    std::ostringstream out;
+    out << '"' << w->label() << '"';
+    if (Fl::focus() == w)
+        out << "*";
+    static std::string outs;
+    outs = out.str();
+    return outs.c_str();
+}
+
 
 std::ostream &
 operator<<(std::ostream &os, const show_string &s)

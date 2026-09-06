@@ -57,7 +57,7 @@ import qualified Cmd.Factor as Factor
 import qualified Cmd.Keymap as Keymap
 import           Cmd.Keymap
     (SimpleMod(..), bind_click, bind_drag, bind_key, bind_key_status,
-     bind_repeatable, command_char, secondary_char, plain_char, plain_key,
+     bind_repeatable, command_char, plain_char, plain_key, secondary_char,
      shift_char)
 import qualified Cmd.PhysicalKey as PhysicalKey
 import qualified Cmd.PitchTrack as PitchTrack

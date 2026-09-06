@@ -51,6 +51,7 @@ std::string show_event_info(int evt);
 const char *show_event_state(int state);
 const char *show_damage(uchar d);
 const char *show_widget(const Fl_Widget *w);
+const char *show_widget_label(const Fl_Widget *w);
 // nlevels is how deep to display children.  A negative number displays all
 // children.
 const char *show_children(const Fl_Widget *w, int nlevels=-1);
