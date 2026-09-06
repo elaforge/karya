@@ -711,8 +711,8 @@ configure = do
         { buildMode = mode
         , hscDir = build </> "hsc"
         , chsDir = build </> "chs"
-        , ghcLib = ghcLib
-        , fltkVersion = fltkVersion
+        , ghcLib
+        , fltkVersion
         , midiConfig = midi
         , cLibs = CLibs
             { _libfltk = C.ExternalLibrary
@@ -721,7 +721,7 @@ configure = do
                 }
             }
         , configFlags = setGlobalCcFlags mode $ mconcat
-            [ configFlags mode ghcVersion packageDbIds
+            [ configFlags mode ghcVersion packageDbIds fltkCs
             , osFlags midi
             ]
         , ghcVersion = ghcVersion
@@ -729,7 +729,7 @@ configure = do
         , rootDir = rootDir
         }
     where
-    configFlags mode ghcVersion packageDbIds = mempty
+    configFlags mode ghcVersion packageDbIds fltkCs = mempty
         { define = concat
             [ ["-DTESTING" | mode `elem` [Test, Profile]]
             , ["-DSTUB_OUT_FLTK" | mode == Test]
@@ -739,12 +739,16 @@ configure = do
             ]
         , cInclude = concat
             [ map ("-I"<>) [".", "" ++ modeToDir mode, "fltk"]
-            -- Put this first to make sure I don't see the system header.
+            -- Put these before 'Config.globalIncludes' to make sure I don't
+            -- see the system header.  E.g. homebrew also has FL/*.
             -- TODO this breaks the idea of modular libraries, but the haskell
             -- flags really have to be global, because any difference in CPP
             -- flags causes ghc to not want to load .o files.
             , C.libCompile libsamplerate
             , C.libCompile (Config.rubberband localConfig)
+            -- Only the -Is, since the -Ds are for c++ only, and are already
+            -- in '_libfltk' libCompile.
+            , filter ("-I" `List.isPrefixOf`) fltkCs
             , map ("-I"<>) (Config.globalIncludes localConfig)
             ]
         , cLibDirs = map ("-L"<>) $ Config.globalLibDirs localConfig
@@ -785,7 +789,8 @@ configure = do
               ]
             , ["-dynamic" | mode /= Profile]
             , ["-prof" | mode == Profile]
-            , map ("-L"<>) (Config.globalLibDirs localConfig)
+            -- 'Config.globalLibDirs' is not here, but in 'linkHs', because it
+            -- has to go after the per-library -Ls.
             , map ("-framework-path="<>)
                 (Config.extraFrameworkPaths localConfig)
             ]
@@ -844,12 +849,10 @@ configure = do
 
 configureFltk :: FilePath -> IO (String, [Flag], [Flag])
 configureFltk fltkConfig = do
-    fltkVersion <- run fltkConfig ["--version"]
+    -- prefix includes the install path, I may have two of the same version!
+    fltkVersion <- run fltkConfig ["--prefix"]
     fltkCs <- filter wantCflag . words <$> run fltkConfig ["--cflags"]
-    -- The problem is that I have to pass these flags to both ghc and
-    -- gcc/clang.  I'm preprocessing these for ghc, but it's probably incorrect
-    -- for gcc.  TODO: fix this, mangle for gcc only on the hs link line.
-    fltkLds <- wrapLd . filter (`notElem` unwanted) . words <$>
+    fltkLds <- filter (`notElem` unwanted) . words <$>
         run (Config.fltkConfig localConfig) ["--ldflags"]
     return (fltkVersion, fltkCs, fltkLds)
     where
@@ -861,21 +864,32 @@ configureFltk fltkConfig = do
     -- fltk-config --cflags started putting -g and -O2 in the flags, which
     -- messes up hsc2hs, which wants only CPP flags.
     wantCflag w = any (\c -> ('-':c:"") `List.isPrefixOf` w) ['I', 'D']
-    -- I get -Wl,-rpath,/nix/store/... stuff from nix.
-    -- TODO probably wrong?  See above.
-    wrapLd (flag : flags)
-        -- ghc 9.2 supports -framework but not -weak_framework.  This is a
-        -- vaguely newish flag that fltk is using now.  I can make it work
-        -- with -optl, but as of fltk 1.4.4, it's UniformTypeIdentifiers and
-        -- ScreenCaptureKit, and I don't seem to need either.
-        -- UniformTypeIdentifiers is used by Fl_Native_File_Chooser_MAC.mm.
-        | flag == "-weak_framework", _path : flags <- flags =
-            wrapLd flags
-            -- "-optl=" <> flag : "-optl=" <> path : wrapLd flags
-        | "-Wl," `List.isPrefixOf` flag = "-optl=" <> flag : wrapLd flags
-        | otherwise = flag : wrapLd flags
-    wrapLd [] = []
     run cmd args = strip <$> Process.readProcess cmd args ""
+
+{- | Adapt C linker flags for ghc's link line.
+
+    This must not be applied to 'linkCc' flags, because clang understands
+    -optl=x as the joined form of -o, so it silently becomes an output file
+    named "ptl=x", taking the following argument with it in the
+    -weak_framework case, and then the real -o overrides it.  That's how
+    -weak_framework ScreenCaptureKit went missing, and test_block failed to
+    link with undefined _OBJC_CLASS_$_SC* symbols.
+-}
+ghcLdFlags :: [Flag] -> [Flag]
+ghcLdFlags = go
+    where
+    go (flag : flags)
+        -- ghc 9.2 supports -framework but not -weak_framework.  As of fltk
+        -- 1.4.4 these are UniformTypeIdentifiers, used by
+        -- Fl_Native_File_Chooser_MAC.mm, and ScreenCaptureKit, used by
+        -- fl_capture_window on macOS >=15.
+        | flag == "-weak_framework", path : flags <- flags =
+            optl flag : optl path : go flags
+        -- I get -Wl,-rpath,/nix/store/... stuff from nix.
+        | "-Wl," `List.isPrefixOf` flag = optl flag : go flags
+        | otherwise = flag : go flags
+    go [] = []
+    optl = ("-optl="<>)
 
 -- | Flags used by both ghc and haddock.  This is unlike 'hcFlags', which is
 -- used by ghc only, and vary based on Mode.
@@ -1775,9 +1789,13 @@ linkHs config rtsFlags output hs objs =
         -- TODO: this means all binaries link fltk, not just who use it.
         -- In fact all the binaries link all the C libs.  I need the shakefile
         -- refactor to fix this.
-        , C.libLink (_libfltk (cLibs config))
-        , C.libLink libsamplerate
-        , C.libLink (Config.rubberband localConfig)
+        , ghcLdFlags $ concat
+            [ C.libLink (_libfltk (cLibs config))
+            , C.libLink libsamplerate
+            , C.libLink (Config.rubberband localConfig)
+            ]
+        -- This goes last so the more specific library paths win.
+        , map ("-L"<>) (Config.globalLibDirs localConfig)
         , ["-o", output]
         ]
     )
@@ -1857,10 +1875,12 @@ cBinaryRule infer binary = matchBuildDir (C.binName binary) ?> \fn -> do
     let objs = ccDeps config binary
     need objs
     let flags = concat
-            [ cLibDirs (configFlags config)
-            , C.binCompileFlags binary config
+            [ C.binCompileFlags binary config
             , map ("-F"<>) (Config.extraFrameworkPaths localConfig)
             , C.binLinkFlags binary config
+            -- After binLinkFlags, so the per-library -Ls win.  Otherwise a
+            -- -L here can shadow them, e.g. homebrew also has a libfltk.
+            , cLibDirs (configFlags config)
             ]
     Util.cmdline $ linkCc flags fn objs
     C.binPostproc binary fn
