@@ -126,9 +126,6 @@ Block::~Block()
 int
 Block::handle(int evt)
 {
-    // if (evt != FL_MOVE)
-    //     DEBUG("Block " << f_util::show_event(evt)
-    //         << " " << f_util::show_widget(Fl::focus()));
     switch (evt) {
     case FL_MOUSEWHEEL:
         if (Fl::event_dy()) {
@@ -901,51 +898,24 @@ highlight_focused_window(Fl_Window *focus)
 }
 
 
-#if defined(HACKED_FLTK) && defined(__APPLE__)
-extern Fl_Window *fl_mac_get_key_window();
-extern Fl_Window *fl_mac_get_did_become_key();
-extern Fl_Window *fl_mac_get_did_become_main();
+#if defined(HACKED_FLTK)
 
+static void restore_xfocus() {}
+
+#else
+
+extern Fl_Window *fl_xfocus; // Snag global from Fl.cxx
+
+// This is a workaround for an fltk bug where it thinks mousewheel events
+// only go to the focused window, so it sets focus on when it gets one.
+// This is not true in OSX!  So a hack to undo the misunderstanding.
 static void
-check_focus(int evt)
+restore_xfocus()
 {
     Fl_Widget *focus = Fl::focus();
-    while (focus && focus->window())
-        focus = focus->window();
-    if (!focus)
-        return;
-    // I don't know why, but sometimes when deleting or adding windows I get a
-    // focus that crashes on dynamic_cast.
-    return;
-
-    printf("focus was: %p\n", focus);
-    DEBUG("label: " << (focus->label() ? focus->label() : "NULL"));
-    BlockWindow *fl = dynamic_cast<BlockWindow *>(focus);
-    BlockWindow *os = dynamic_cast<BlockWindow *>(fl_mac_get_key_window());
-    BlockWindow *key =
-        dynamic_cast<BlockWindow *>(fl_mac_get_did_become_key());
-    BlockWindow *main =
-        dynamic_cast<BlockWindow *>(fl_mac_get_did_become_main());
-
-    // fl and os will be out of sync when fltk is sending FL_FOCUS and
-    // FL_UNFOCUS.  Also, lastKey is briefly null when switching to the app
-    // via cmd-tab, and for some reason it receives a FL_MOVE.
-    // TODO probably I should just log all events and focus state, but then
-    // I have to go to a separate log file, which means real logging from
-    // C++.
-    if (fl != os && (evt == FL_PUSH || evt == FL_KEYDOWN)) {
-        DEBUG("FOCUS WARNING on "
-            << f_util::show_event(evt) << ":" << f_util::show_event_info(evt)
-            << " - Fl::focus(): " << fl
-            << " getKey: " << os
-            << " lastKey: " << key
-            << " lastMain: " << main);
-        // It turns out the OS is right, so fix the problem.
-        Fl::focus(os);
-    }
+    fl_xfocus = focus ? focus->top_window() : nullptr;
 }
-#else
-static void check_focus(int) {}
+
 #endif
 
 
@@ -967,7 +937,10 @@ dispatch_to_keycaps(IPoint mouse)
 int
 BlockWindow::handle(int evt)
 {
-    check_focus(evt);
+    // if (evt != FL_MOVE)
+    //     DEBUG(f_util::show_widget_label(this) << ": "
+    //         << f_util::show_event(evt)
+    //         << " focus " << f_util::show_widget_label(Fl::focus()));
 
     bool accepted = false;
     switch (evt) {
@@ -1021,6 +994,8 @@ BlockWindow::handle(int evt)
     // fall through
     default:
         accepted = Fl_Double_Window::handle(evt);
+        if (evt == FL_MOUSEWHEEL)
+            restore_xfocus();
     }
 
     // If it hasn't been handled by the Block directly, and a child didn't

@@ -4,7 +4,7 @@ LEGEND
   Use indent folding with indent=2.
 
 big rocks:
-  + inst allocation in ky: branch ky-record:
+  * inst allocation in ky: branch ky-record:
     Either commit to putting alloc in ky and make it all be there, or
     abandon it and commit to repl operations.
   - scales
@@ -124,21 +124,30 @@ external:
     . using tscore, especially standalone
 
 UNSORTED
-  warns:
-    * LogView/LogCat.hs
-  * get haddock back
-    * Derive/JScore/Db.hs
-    * App/ConvertEventLog.hs
-  * on every stop:
-    Midi/CoreMidi.hs:299 - CoreMIDI error: 4294967296
-    From core_midi_abort(), what does it mean?
-    . I never implemented error_str!
-    . This is 2^32
-    . It's Int32, not CULong.  Now it's 0... maybe memory corruption due to
-      reading 8 bytes instead of 4?
-  - bug: if I do scrollwheel on an unfocused block, it eventually thinks
+  - browser: query without = should be for name
+  - could I just infer a '>play-cache play-cache/ [ms] loop4 16'
+    if there are im instruments?  I lost LInst.add_play_cache.
+    Just hardcode it in StaticConfig and always use the same addr?
+  - simplify rulers:
+    . Eliminate RulerIds.  Instead, have a high level Meter specification that
+      generates marks as needed.  I could even reconsider moving it to c++ so
+      marks need never be materialized.
+    . Since they adapt to block length, I can use the same one in many blocks.
+    . Different rulers per track (eg for tuplets) seems only slightly
+      necessary.
+    . However, I will definitely have concatenations of them, e.g. for
+      a parent block if I delete some time.  I would want to be able to
+      concetenate and merge if possible sub-block rulers.
+    what do I currently have?
+  * bug: if I do scrollwheel on an unfocused block, it eventually thinks
     it has focus, even though it doesn't
-    . Can't reproduce?
+    . Happens when I scroll, then move pointer to the other window.
+    . window    event           focused
+      b1        FL_LEAVE        b1
+      b2        FL_MOUSEWHEEL   b1
+      b2        FL_LEAVE        b1
+      b2        FL_FOCUS        b1 <-- why!?
+      b1        FL_UNFOCUS      b2
   - bug:
     . open save/complete/wayang/cerucuk-punyah.state
     . delete most of score block, and then trim ruler with :
@@ -148,45 +157,8 @@ UNSORTED
     . Can I mass update those?
   - also there is old-style collapsed pitch tracks with black, can I
     update all states to remove those?
-  * keycaps=True will stop the initial block from getting focus.
-    . repro in pure fltk?
-      Doesn't happen with test_block.cc show_keycaps!
-      What's the difference?
-    . Even though KeycapWindow tries to not accept focus!
-    . Who has it then?
-      There are two windows, Window and Keycaps.  Keycaps is meant to
-      never have keyboard focus, and returns false when it gets FL_FOCUS,
-      which is supposed to refuse focus.  But it gets focus anyway.  Here's
-      a log showing who gets events and who is focused at that time:
-
-      > fltk/Block.cc:972 Window FL_FOCUS <null>
-      > fltk/Block.cc:972 Window FL_SHOW <11BlockWindow focused>
-      > fltk/Block.cc:972 Window FL_FOCUS <11BlockWindow focused>
-      > fltk/Block.cc:972 Window FL_UNFOCUS <13KeycapsWindow focused>
-      > fltk/Keycaps.cc:159 Keycaps FL_SHOW <13KeycapsWindow focused>
-
-      Window is created and accepts focus.  But then it gets FL_UNFOCUS
-      and focus is given to Keycaps.  Keycaps never receives a FL_FOCUS, only
-      FL_SHOW, but it gets focus anyway.  If I press 'a' Keycaps indeed
-      receives the event:
-
-      > fltk/Keycaps.cc:159 Keycaps FL_KEYDOWN <13KeycapsWindow focused>
-      > fltk/Block.cc:972 Window FL_SHORTCUT <13KeycapsWindow focused>
-      > fltk/Keycaps.cc:159 Keycaps FL_KEYUP <13KeycapsWindow focused>
-
-      Then when the mouse pointer touches Window, it gets and accepts FL_FOCUS:
-
-      > fltk/Block.cc:972 Window FL_FOCUS <13KeycapsWindow focused>
-      > fltk/Keycaps.cc:159 Keycaps FL_UNFOCUS <11BlockWindow focused>
-      > fltk/Block.cc:972 Window FL_ENTER <11BlockWindow focused>
-
-      Only at this point do keystrokes go to the window.
-
-      Why does Window get FL_UNFOCUS when Keycaps is shown, and why does
-      Keycaps get focus with no accompanying FL_FOCUS?
-      Source for fltk is in /usr/local/src/fltk-1.4.4/, specifically the FL
-      and src directories, where Fl_Window.cxx and Fl_Group.cxx probably have
-      the relevant event handling code.
+    . Not clear why this happened.  Is the Merged flag now interpreted as
+      Collapsed?  Can I just replace Collapsed with Merged?
   - space starting a new play instead of stopping is annoying
     Because I can't stop a sample from playing without starting a new play.
   - break: adjust bpm based on position in beat map
@@ -424,13 +396,38 @@ UNSORTED
     . Probably have to stty restore or something?
     . If I'm making ky more central, then maybe I have a way to edit it
       separately from the repl?
+    . Can I trigger iterm to start a lower panel?  Or start both together?
+      Then run a vim in there with vim --server, and forward commands to it.
+    . On quit I can send it a :wqa, but I'd need to blocking wait for the repl
+      to ack the quit.  Or maybe I already have it, it already won't quit
+      if ky is dirty.
+    . We still go through repl, since that's the way to talk to seq.  But
+      now ReplProtocol.Edit causes it to edit the given file.  No need to
+      wait for it.
+    . On quit, send a Response like RQuit, which will then make editor save
+      and quit, which sends back to to seq, which can then exit.
+    . What if instead of storing ky inside seq, it was a separate file?
+      Then no need to send it around, seq just has to monitor it for changes.
+      Then we wind up with two files, but it seems not bad.  If there is
+      fancy tscore or imports, then already multiple files.
+    . How to do this?  Just look for .ky at $base.ky.  Then monitor for
+      changes.  This would replace the Send with an fsnotify or whatever it
+      is.  Is there haskell binding for cross platform notify library?
+    . Ky.check_cache already does this, for external .ky files.  It just polls
+      on every response.  I guess I can still have the editor poke?
+    . The annoyance is I can no longer just copy files.  Maybe switch to
+      directories?
+    . What about using a text format and git?  I could get rid of the libgit2
+      bindings and use a checked out repo, using the CLI commands directly.
   - why do I need UiConfig.meta_notes when I could put it in a comment in
     UiConfig.config_ky?
     . It would be a bit better for searching if I ever wanted to do that, but
       I could also just grep ky text.
     . In fact I could put all UiConfig.Config stuff in there, such as
       namespace, root, lilypond, default_tempo, etc.
-    . Why not merge ky and tscore too?
+    . Why not merge ky and tscore too?  I would have a tscore: section.
+      It's nice to have just a single file with everything.
+    . But have to solve the ky-record problem.
   - why do a get a short note when a track of the same instrument is muted?
     . LPerf.sel_midi_events has dur .25, but midi has:
       [ loop1 1.75s: chan:1 NoteOn e6(88) 64
@@ -451,19 +448,6 @@ UNSORTED
         . At least keep a reference to the generating perform event.
         . But I want to do it so it's efficient in the usual case when I don't
           want it.
-  - space leaks:
-    . https://kodimensional.dev/space-leak
-    . look for puts into MVar and IORef, make sure they are !
-    . returning a value with local refs maybe uses 'return $! ...'.
-    . Beware of Maybe and (,) etc.  Use
-      https://hackage.haskell.org/package/strict-wrapper
-      or https://hackage.haskell.org/package/strict
-    . strict-wrapper requires a lot of Strict noise, wrapping each type but
-      also wrapping each construction and deconstruction.  The significant
-      types are just Maybe, Either, (,).
-    . strict has awkward names, must be used qualified but reuses Maybe name
-      and all functions.  So if I do that, write my own SMaybe and SEither.
-    . I could also try more StrictData, and put ~ on explicitly lazy fields.
   semara-dana:
     - '/' or '?' to play from root starts in the wrong spot in dim-g-ang1
     - ugal notes still get stuck mutes
@@ -487,6 +471,11 @@ UNSORTED
       because a symbol can have almost any character.
     . So it would require spaces, 'x += y'... which is reasonable.  Arguably
       better to do that and require spaces than use a nonstandard syntax.
+    . But a=b is good for conserving space, so maybe I don't like this.
+    . I could special case parsing and just say check for a = after a symbol
+      at the end of the word.
+    . Yes this is possible, in stash.  But do I want to do all the update
+      hassle?
     - Then update all tests
     - Update extant scores
   post ky-record cleanup:
@@ -1529,11 +1518,14 @@ UNIFY:
 ----------------------------------------------------------------------
 
 ghc:
-  - cabal build puts a non-existent directory in .ghc.environment, which
+  * cabal build puts a non-existent directory in .ghc.environment, which
     breaks ghc-pkg:
     package-db dist-newstyle/packagedb/ghc-9.12.4
+    . Actually I think it's just fix-import not ignoring non-existent.
     . Also missing
       /Users/elaforge/.ghcup/ghc/9.12.4/lib/ghc-9.12.4/lib/package.conf.d
+    . Ah I should interpret global-package-db?
+    . Turns out these were bugs in fix-imports!
   ? Can I have different cabal.project.freeze for different ghc versions?
   9.6.7 recompilation avoidance buggy:
     - make simple repro
@@ -4719,6 +4711,19 @@ cleanup: bugs:
     . fmt: even more operators and imports
 
 performance:
+  - space leaks:
+    . https://kodimensional.dev/space-leak
+    . look for puts into MVar and IORef, make sure they are !
+    . returning a value with local refs maybe uses 'return $! ...'.
+    . Beware of Maybe and (,) etc.  Use
+      https://hackage.haskell.org/package/strict-wrapper
+      or https://hackage.haskell.org/package/strict
+    . strict-wrapper requires a lot of Strict noise, wrapping each type but
+      also wrapping each construction and deconstruction.  The significant
+      types are just Maybe, Either, (,).
+    . strict has awkward names, must be used qualified but reuses Maybe name
+      and all functions.  So if I do that, write my own SMaybe and SEither.
+    . I could also try more StrictData, and put ~ on explicitly lazy fields.
   links:
     . https://github.com/jlfwong/speedscope/wiki/Importing-from-Haskell
     . https://haskell.foundation/hs-opt-handbook.github.io/
