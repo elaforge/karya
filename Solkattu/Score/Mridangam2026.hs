@@ -307,3 +307,19 @@ misc_ending = elaforge $ korvaiV adi
     [ __D 7 . r3 "D_kD_k_D_k__"
     , __D 4 . r3 "D_kD_k_D_k_D_k__"
     ]
+
+-- https://www.facebook.com/reel/1077694061659764
+-- https://www.facebook.com/kalyani.vinay
+yt_kalyani_vinay :: Korvai
+yt_kalyani_vinay = date 2026 9 13 $ korvaiV adi $ map (nadai 6)
+    [ "D_k_N_N_D_______N_N_D__k" . "d_k_n_n_d_p_" . t4
+    , "D_k_N_N_D_______N_N_pu_k" . "d_k_n_n_d_p_" . t4
+    , "D_k_N_N_D___" . t4 . "d__kn_n_d___" . t4'
+    , trin "U__" t4 t4' t4 . "U__" . triAAB "U__" (r3 p5) (r3 p5b)
+
+    ]
+    where
+    -- ta  jonu takadina gun ta (kitataka)
+    t4  = "k_ktkookok" . su ktok
+    t4' = "kpktkookok" . su ktok
+    p5b = g $ "TkN". su ktok
