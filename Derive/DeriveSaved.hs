@@ -227,6 +227,8 @@ cmd_config inst_db = do
         -- dummy values.
         , config_git_user = SaveGitT.User "name" "email"
         , config_im_play_direct = False
+        -- TODO This could mean tscore must have play-cache explicitly?
+        , config_play_cache = Nothing
         }
 
 -- * timer

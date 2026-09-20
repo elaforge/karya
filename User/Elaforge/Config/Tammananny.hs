@@ -3,9 +3,10 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module User.Elaforge.Config.Tammananny where
-import qualified Cmd.Cmd as Cmd
 import qualified App.StaticConfig as StaticConfig
-import Global
+import qualified Cmd.Cmd as Cmd
+
+import           Global
 
 
 midi_config :: Cmd.InstrumentDb -> StaticConfig.Midi
@@ -13,6 +14,7 @@ midi_config _db = StaticConfig.Midi
     { rdev_map = StaticConfig.make_rdev_map rdev_map
     , wdev_map = StaticConfig.make_wdev_map wdev_map
     , read_devices = StaticConfig.make_read_devices read_devices
+    , play_cache = Nothing
     }
 
 -- | jack1 copies the port name over from ALSA and then truncates it.

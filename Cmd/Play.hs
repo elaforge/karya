@@ -121,20 +121,20 @@ cmd_context_stop = gets Cmd.state_play_control >>= \case
         step_playing <- Cmd.gets $
             Maybe.isJust . Cmd.state_step . Cmd.state_play
         if step_playing
-            then StepPlay.cmd_clear >> return True
+            then StepPlay.cmd_clear >> pure True
             -- play_cache may still be streaming after the karya transport
             -- stops.
             else do
                 Cmd.all_notes_off
                 stop_im
                 liftIO Sc.Play.force_stop
-                return False
-    ctls -> stop ctls >> return True
+                pure False
+    ctls -> stop ctls >> pure True
 
 cmd_stop :: Cmd.CmdT IO Cmd.Status
 cmd_stop = do
     stop =<< gets Cmd.state_play_control
-    return Cmd.Done
+    pure Cmd.Done
 
 stop :: [Transport.PlayControl] -> Cmd.CmdT IO ()
 stop ctls = do
@@ -145,13 +145,6 @@ stop ctls = do
 stop_im :: Cmd.CmdT IO ()
 stop_im = whenJustM im_addr $ \(wdev, chan) ->
     Cmd.midi wdev $ Midi.ChannelMessage chan Im.Play.stop
-
-im_addr :: Cmd.M m => m (Maybe Patch.Addr)
-im_addr = do
-    allocs <- Ui.config#UiConfig.allocations_map <#> Ui.get
-    return $ case lookup_im_config allocs of
-        Right (_, Just addr) -> Just addr
-        _ -> Nothing
 
 has_im :: Cmd.M m => m Bool
 has_im = Maybe.isJust <$> im_addr
@@ -225,7 +218,7 @@ root_selection = do
         Just root_id -> do
             perf <- get_performance root_id
             let realtime_at = Perf.lookup_realtime perf block_id (Just track_id)
-            real_repeat_at <- maybe (return Nothing) realtime_at repeat_at
+            real_repeat_at <- maybe (pure Nothing) realtime_at repeat_at
             maybe local_selection (from_realtime root_id real_repeat_at)
                 =<< realtime_at pos
 
@@ -250,12 +243,12 @@ top_of_block = do
     (block_id, _, track_id, _) <- Selection.get_insert
     view_id <- Cmd.get_focused_view
     top <- Zoom.offset . Block.view_zoom <$> Ui.get_view view_id
-    return (block_id, track_id, top)
+    pure (block_id, track_id, top)
 
 root_from :: Cmd.M m => BlockId -> TrackId -> TrackTime -> m Cmd.PlayArgs
 root_from block_id track_id pos = do
     play_root <- maybe_root_from block_id track_id pos
-    maybe (local_from block_id track_id pos) return play_root
+    maybe (local_from block_id track_id pos) pure play_root
 
 maybe_root_from :: Cmd.M m => BlockId -> TrackId -> ScoreTime
     -> m (Maybe Cmd.PlayArgs)
@@ -274,7 +267,7 @@ from_score :: Cmd.M m => BlockId
     -> m Cmd.PlayArgs
 from_score block_id start_track start_pos repeat_at = do
     start <- get_realtime block_id block_id start_track start_pos
-    repeat_at <- maybe (return Nothing)
+    repeat_at <- maybe (pure Nothing)
         (fmap Just . get_realtime block_id block_id start_track) repeat_at
     from_realtime block_id repeat_at start
 
@@ -290,13 +283,13 @@ get_realtime perf_block play_block maybe_track_id pos = do
     case maybe_start of
         Nothing -> Cmd.throw $ "play " <> showt perf_block
             <> " has no tempo information"
-        Just start -> return start
+        Just start -> pure start
 
 get_performance :: Cmd.M m => BlockId -> m Cmd.Performance
 get_performance block_id = do
     perf <- Perf.get_current block_id
     write_logs block_id perf
-    return perf
+    pure perf
 
 write_logs :: Cmd.M m => BlockId -> Cmd.Performance -> m ()
 write_logs block_id perf = unless (Cmd.perf_logs_written perf) $ do
@@ -391,7 +384,7 @@ from_realtime block_id repeat_at start_ = do
         -- Don't bother with a MMC Goto if I'm going to send MTC.
         Just sync | not (Cmd.sync_mtc sync) ->
             Cmd.midi (Cmd.sync_device sync) $ Selection.mmc_goto sync start
-        _ -> return ()
+        _ -> pure ()
     -- MTC rounds up to the previous whole frame, so the mtc might start
     -- slightly before the notes.
     -- TODO actually DAWs need a bit of time to sync, so maybe I should start
@@ -399,18 +392,11 @@ from_realtime block_id repeat_at start_ = do
     let mtc = PlayUtil.shift_midi 1 start $ map LEvent.Event $
             generate_mtc maybe_sync start
 
-    allocs <- Ui.config#UiConfig.allocations_map <#> Ui.get
     im_play_direct <- Cmd.gets $ Cmd.config_im_play_direct . Cmd.state_config
-    (im_insts, mb_play_cache_addr) <- case lookup_im_config allocs of
-        Right (im_insts, _) | im_play_direct -> return (im_insts, Nothing)
-        Right (im_insts, Just play_cache_addr) ->
-            return (im_insts, Just play_cache_addr)
-        Right (_, Nothing) -> Cmd.throw
-            "im allocations but no play-cache alloc, so they\
-            \ won't play, allocate with LInst.add_play_cache,\
-            \ or set Cmd.config_im_play_direct"
-        Left Nothing -> return (mempty, Nothing)
-        Left (Just msg) -> Cmd.throw msg
+    im_insts <- get_im_insts
+    mb_play_cache_addr <- if im_play_direct || Set.null im_insts
+        then pure Nothing
+        else im_addr
     muted <- Perf.muted_im_instruments block_id
     score_path <- Cmd.gets Cmd.score_path
     let im_msgs = maybe []
@@ -420,10 +406,10 @@ from_realtime block_id repeat_at start_ = do
     (midi_msgs, sc_msgs) <- PlayUtil.perform_from start (Cmd.perf_events perf)
     let adjust0 = get_adjust0 start (not (null im_msgs)) midi_msgs
             (Cmd.perf_events perf)
-    midi_msgs <- return $ PlayUtil.shift_midi multiplier adjust0 midi_msgs
+    midi_msgs <- pure $ PlayUtil.shift_midi multiplier adjust0 midi_msgs
 
     -- See doc for "Cmd.PlayC" for why I return a magic value.
-    return $ Cmd.PlayArgs
+    pure $ Cmd.PlayArgs
         { play_sync = maybe_sync
         , play_name = pretty block_id
         , play_midi = im_msgs ++ merge_midi midi_msgs mtc
@@ -470,25 +456,31 @@ get_adjust0 start has_im midi_msgs events = negative_start - im_latency
     toSeconds = RealTime.seconds
         . AudioT.framesToSeconds Shared.Config.samplingRate
 
-lookup_im_config :: Map ScoreT.Instrument UiConfig.Allocation
-    -> Either (Maybe Text) (Set ScoreT.Instrument, Maybe Patch.Addr)
-lookup_im_config allocs = do
-    when (Set.null im_insts) $ Left Nothing
+get_im_insts :: Cmd.M m => m (Set ScoreT.Instrument)
+get_im_insts = do
+    allocs <- Ui.config#UiConfig.allocations_map <#> Ui.get
+    pure $ Set.fromList $ map fst $
+        filter (UiConfig.is_im_allocation . snd) $ Map.toList allocs
+
+-- TODO: I still support explicitly allocated play-cache for historical
+-- reasons, but eventually I should just standardize on config_play_cache?
+im_addr :: Cmd.M m => m (Maybe Patch.Addr)
+im_addr = do
+    allocs <- Ui.config#UiConfig.allocations_map <#> Ui.get
+    config_play_cache <- Cmd.gets $ Cmd.config_play_cache . Cmd.state_config
     case List.find is_play_cache (Map.elems allocs) of
-        Nothing -> Right (im_insts, Nothing)
+        Nothing -> pure config_play_cache
         Just alloc -> case UiConfig.alloc_backend alloc of
             UiConfig.Midi config -> case Patch.config_addrs config of
-                [addr] -> return (im_insts, Just addr)
-                [] -> Left $ Just $
+                [addr] -> pure (Just addr)
+                [] -> Cmd.throw $
                     pretty UiConfig.play_cache <> " allocation with no addrs"
-                _ -> Left $ Just $
+                _ -> Cmd.throw $
                     pretty UiConfig.play_cache <> " allocation with >1 addrs"
-            _ -> Left $ Just $
+            _ -> Cmd.throw $
                 pretty UiConfig.play_cache <> " with non-MIDI allocation"
     where
     is_play_cache = (==UiConfig.play_cache) . UiConfig.alloc_qualified
-    im_insts = Set.fromList $ map fst $
-        filter (UiConfig.is_im_allocation . snd) $ Map.toList allocs
 
 im_play_msgs :: FilePath -> BlockId -> Set ScoreT.Instrument -> RealTime
     -> Patch.Addr -> [LEvent.LEvent Midi.WriteMessage]

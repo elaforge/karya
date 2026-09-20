@@ -505,6 +505,7 @@ cmd_config inst_db = Cmd.Config
         }
     , config_git_user = SaveGitT.User "name" "email"
     , config_im_play_direct = False
+    , config_play_cache = Nothing
     }
 
 default_im_synth :: Inst.SynthDecl Cmd.InstrumentCode

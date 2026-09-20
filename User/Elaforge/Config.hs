@@ -28,6 +28,7 @@ import qualified Cmd.Msg as Msg
 import qualified Derive.C.All as C.All
 import qualified Derive.ScoreT as ScoreT
 import qualified Midi.Key as Key
+import qualified Midi.Midi as Midi
 import qualified Perform.Pitch as Pitch
 import qualified Ui.Id as Id
 import qualified Ui.Ui as Ui
@@ -96,9 +97,10 @@ get_midi_config db = do
 default_midi :: StaticConfig.Midi
 default_midi = StaticConfig.Midi
     { rdev_map = mempty
-    , wdev_map = StaticConfig.make_wdev_map $
+    , wdev_map = StaticConfig.make_wdev_map
         [("loop" <> showt n, iac n) | n <- [1..4]]
     , read_devices = mempty
+    , play_cache = Just (Midi.write_device "loop4", 15)
     }
     where iac n = "IAC Driver " <> showt n
 
@@ -125,8 +127,8 @@ convert_mod fname mod = do
         transpose_maps
 
 fn_to_ns :: FilePath -> Id.Namespace
-fn_to_ns = Id.namespace . txt . head . Lists.split (=='.')
-    . FilePath.takeFileName
+fn_to_ns = Id.namespace . txt . fromMaybe (error "postcondition") . Lists.head
+    . Lists.split (=='.') . FilePath.takeFileName
 
 inst_maps :: Map FilePath (Map Text Text)
 inst_maps = Map.fromList

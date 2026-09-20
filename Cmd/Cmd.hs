@@ -778,6 +778,9 @@ data Config = Config
     -- they probably won't be very in sync.
     , config_im_play_direct :: Bool
     , config_git_user :: SaveGitT.User
+    -- | If set, and there are im instruments, there is an implicit automatic
+    -- allocation for play-cache/ on this addr.
+    , config_play_cache :: Maybe (Midi.WriteDevice, Midi.Channel)
     } deriving (Show)
 
 -- | Get a midi writer that takes the 'config_wdev_map' into account.

@@ -97,10 +97,13 @@ data Midi = Midi
     -- There's no corresponding write_devices because if you don't want
     -- to write to a device, just don't write to it!
     , read_devices :: Set Midi.ReadDevice
+    -- | If set, and there are im instruments, there is an implicit automatic
+    -- allocation for play-cache/ on this addr.
+    , play_cache :: Maybe (Midi.WriteDevice, Midi.Channel)
     } deriving (Show)
 
 empty_midi :: Midi
-empty_midi = Midi Map.empty Map.empty Set.empty
+empty_midi = Midi Map.empty Map.empty Set.empty Nothing
 
 make_rdev_map :: [(Text, Text)] -> Map Midi.ReadDevice Midi.ReadDevice
 make_rdev_map = Map.fromList . map (bimap Midi.read_device Midi.read_device)
@@ -127,5 +130,6 @@ cmd_config app_dir save_dir interface config git_user = Cmd.Config
     , config_im = Shared.Config.config app_dir
     , config_git_user = git_user
     , config_im_play_direct = im_play_direct config
+    , config_play_cache = play_cache midi_config
     }
     where midi_config = midi config

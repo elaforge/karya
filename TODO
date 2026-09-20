@@ -128,7 +128,7 @@ UNSORTED
     errorIO: App/Main.hs:90; getStack: Util/CallStack.hs:88:
       initializing midi: CoreMIDI (-304): smNoDir
   * browser: query without = should be for name
-  - could I just infer a '>play-cache play-cache/ [ms] loop4 16'
+  * could I just infer a '>play-cache play-cache/ [ms] loop4 16'
     if there are im instruments?  I lost LInst.add_play_cache.
     Just hardcode it in StaticConfig and always use the same addr?
   - simplify rulers:

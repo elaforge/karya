@@ -5,6 +5,7 @@
 module User.Elaforge.Config.Hobbes where
 import qualified App.StaticConfig as StaticConfig
 import qualified Cmd.Cmd as Cmd
+import qualified Midi.Midi as Midi
 
 import           Global
 
@@ -14,6 +15,7 @@ midi_config _db = StaticConfig.Midi
     { rdev_map = StaticConfig.make_rdev_map rdev_map
     , wdev_map = StaticConfig.make_wdev_map wdev_map
     , read_devices = StaticConfig.make_read_devices read_devices
+    , play_cache = Just (Midi.write_device "loop4", 15)
     }
 
 iac, tapco, network :: Int -> Text
