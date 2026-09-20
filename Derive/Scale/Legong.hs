@@ -176,7 +176,7 @@ data Pitch = I | O | E | Es | U | A | As
 
 laras :: Map Text BaliScales.Laras
 laras = Map.fromList $ Lists.keyOn BaliScales.laras_name $
-    laras_rambat : laras_saba : mcphee
+    laras_rambat : laras_saba : laras_pete_sps7 : mcphee
 
 laras_rambat :: BaliScales.Laras
 laras_rambat = BaliScales.laras "rambat" low_pitch (extend 3 E)
@@ -265,6 +265,22 @@ legong_saba =
     , 68.20 -- fake 4
     , 72.31
     , 73.40
+    ]
+
+laras_pete_sps7 :: BaliScales.Laras
+laras_pete_sps7 = BaliScales.laras "pete-sps7" low_pitch (extend 4 I)
+    "Pete's Semar Pegulingan saih pitu"
+    (map (\nn -> (nn, Pitch.add_hz 4 nn)) pete_sps7)
+
+pete_sps7 :: [Pitch.NoteNumber]
+pete_sps7 =
+    [ 61.00 -- 1 ??
+    , 62.60 -- 2 o
+    , 64.00 -- 3 e
+    , 67.00 -- 4 ??
+    , 68.27 -- 5 u
+    , 69.40 -- 6 a
+    , 71.21 -- 7 a#
     ]
 
 -- | Extend down to 3i, which is jegog range.
