@@ -1,0 +1,40 @@
+-- Example syntax for the 'instrument:' section in ky files.
+
+instrument:
+-- Midi patch allocated to "device" channels 1..4
+-- Capitalize M or S in [ms] to mute or solo.
+>inst1 synth/patch [ms] device 1..4
+    -- Common to all backends.
+    -- Env is also inherited from the patch.
+    { env:
+        { expr: "(f 1 a)
+        , num: 42
+        , str: str
+        }
+    , controls: {dyn: .25}
+    -- midi-specific settings, corresponds to Midi.Patch.Config
+    , initialization: Tuning -- or NrpnTuning
+    -- Midi.Patch.Settings, merged from patch defaults
+    , flags: [Pressure, HoldKeyswitch, ResumePlay]
+    , scale: scale-name
+    , decay: .5s
+    , pb_range: [-12, 12]
+    , control_defaults: {cc1: 42}
+    }
+
+-- im and supercollider patches are much simpler than MIDI ones, they just
+-- have the Common fields.
+>inst2 im-synth/patch [ms] im { env: {}, controls: {} }
+>inst2 supercollider-synth/patch [ms] sc
+
+-- Tuning map for MIDI patches.  Generated from scales via LTuning.
+scale-name =
+    [-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+    -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+    -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 47.91, 48.855, 49.8,
+    50.415, 51.03, 53.9, 54.475, 55.05, 55.575, 56.1, 57.05, 58, 59.91, 60.855,
+    61.8, 62.35, 62.9, 65.9, 66.525, 67.15, 67.605, 68.06, 69.03, 70, 71.88,
+    72.74, 73.6, 74.375, 75.15, 77.9, 78.51, 79.12, 79.695, 80.27, 81.135, 82,
+    84.09, 85.056, 86.021, 86.894, 87.767, 89.9, 90.839, 91.778, 92.119,
+    92.459, 93.23, 94, 96.428, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+    -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1]
