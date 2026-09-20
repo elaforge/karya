@@ -35,6 +35,11 @@ test_search = do
         ["fm8/", "z1/comb-clav", "z1/pulse-clav"]
     equal (f "!category=epiano !category=synth name=clav")
         ["z1/comb-clav", "z1/pulse-clav"]
+    equal (f "fm") ["fm8/"]
+    equal (f "fm8/") ["fm8/"]
+    equal (f "fm8/x") []
+    equal (f "z1/s") ["z1/square-hollow", "z1/studio-ep"]
+    equal (f "z1/sq") ["z1/square-hollow"]
 
 index :: Search.Index
 index = Search.make_index db

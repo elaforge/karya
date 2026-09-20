@@ -27,8 +27,6 @@ import qualified Perform.Midi.Patch as Patch
 import           Global
 
 
-type Search = Query -> [InstT.Qualified]
-
 {- | A simple tag-oriented query language.  Instruments match whose tags match
     all of the given TagKeys exactly, and whose corresponding vals have the
     queried val as a substring.  All the pairs must match, but pairs that match
@@ -40,7 +38,7 @@ type Search = Query -> [InstT.Qualified]
 
     @tag1=x tag2=y !bad !not=want@ requires both tags to match, the @bad@ tag
     to not be present, and the @not@ tag to not contain \"want\".
-    -}
+-}
 newtype Query = Query [Clause]
     deriving (Show)
 
@@ -52,7 +50,7 @@ data Clause = Clause Bool Tag.Key Tag.Value
 -- the output is the names of matching patches, along with their backend.
 --
 -- An empty query matches everything.
-search :: Index -> Search
+search :: Index -> Query -> [InstT.Qualified]
 search idx (Query []) = Map.keys (idx_instrument_tags idx)
 search idx (Query clauses)
     | null positive = []
@@ -61,11 +59,9 @@ search idx (Query clauses)
     where
     positive
         | null kvs = [Map.keysSet (idx_instrument_tags idx)]
-        | otherwise = filter (not . Set.null) $ map Set.fromList $
-            query_matches idx kvs
+        | otherwise = filter (not . Set.null) $ query_matches idx kvs
         where kvs = [(k, v) | Clause False k v <- clauses]
-    negative = Set.fromList $ concat $
-        query_matches idx [(k, v) | Clause True k v <- clauses]
+    negative = mconcat $ query_matches idx [(k, v) | Clause True k v <- clauses]
 
 tags_of :: Index -> InstT.Qualified -> Maybe [Tag.Tag]
 tags_of idx inst = Map.lookup inst (idx_instrument_tags idx)
@@ -97,15 +93,20 @@ make_index db = Index
 
 -- | The query language looks like \"a b= c=d !e=f\", which means
 --
--- > Query [Clause False "name" "a", Clause False "b" "", Clause False "c" "d",
--- >    Clause True "e" "f"]
+-- > Query
+-- >    [ Clause False "" "a"
+-- >    , Clause False "b" ""
+-- >    , Clause False "c" "d"
+-- >    , Clause True "e" "f"
+-- >    ]
 --
--- So a bare word is short for name=word.
+-- So a bare word is short for =word, which in turn is special cased to match
+-- the qualified name.
 parse :: Text -> Query
 parse = Query . map clause . Text.words
     where
     clause word_
-        | Text.null post = Clause inverted "name" pre
+        | Text.null post = Clause inverted "" pre
         | otherwise = Clause inverted pre val
         where
         (word, inverted) = case Text.uncons word_ of
@@ -116,9 +117,13 @@ parse = Query . map clause . Text.words
 
 -- * implementation
 
-query_matches :: Index -> [(Tag.Key, Tag.Value)] -> [[InstT.Qualified]]
-query_matches (Index idx _) = map with_tag
+query_matches :: Index -> [(Tag.Key, Tag.Value)] -> [Set InstT.Qualified]
+query_matches (Index idx _) = map (Set.fromList . with_tag)
     where
+    with_tag ("", val) = case Text.splitOn "/" val of
+        [synth, name] -> filter ((val `Text.isInfixOf`) . pretty) $
+            with_tag ("synth", synth) ++ with_tag ("name", name)
+        _ -> with_tag ("synth", val) ++ with_tag ("name", val)
     with_tag (key, val) = case Map.lookup key idx of
         Nothing -> []
         Just vals -> concatMap snd $

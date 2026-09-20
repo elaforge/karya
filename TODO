@@ -124,14 +124,26 @@ external:
     . using tscore, especially standalone
 
 UNSORTED
+  - no thru for im dummy pasang
+    . Simple way would be special case way to pick a stand-in.
+    . Complex way would be to instrument transformer, e.g. unison or kempyung,
+      and play the results.
+    . I think unison works by postproc, why not have the dummy itself
+      interpret?  I guess I would have to build in the style and then
+      something like style=unison above.  Advantage is it could default.
+    . probably this is 'refactor thru:'
+  - I can have performances from any root block, but usual commands only save
+    ones for root.  So if I change root, the old one sticks around forever?
   - transient error on startup:
     errorIO: App/Main.hs:90; getStack: Util/CallStack.hs:88:
       initializing midi: CoreMIDI (-304): smNoDir
   * browser: query without = should be for name
+    . Or also for synth
   * could I just infer a '>play-cache play-cache/ [ms] loop4 16'
     if there are im instruments?  I lost LInst.add_play_cache.
     Just hardcode it in StaticConfig and always use the same addr?
-  - simplify rulers:
+  - simplify rulers: meters:
+    . doc/ruler.md
     . Eliminate RulerIds.  Instead, have a high level Meter specification that
       generates marks as needed.  I could even reconsider moving it to c++ so
       marks need never be materialized.
