@@ -124,6 +124,9 @@ external:
     . using tscore, especially standalone
 
 UNSORTED
+  - transient error on startup:
+    errorIO: App/Main.hs:90; getStack: Util/CallStack.hs:88:
+      initializing midi: CoreMIDI (-304): smNoDir
   * browser: query without = should be for name
   - could I just infer a '>play-cache play-cache/ [ms] loop4 16'
     if there are im instruments?  I lost LInst.add_play_cache.
@@ -138,7 +141,131 @@ UNSORTED
     . However, I will definitely have concatenations of them, e.g. for
       a parent block if I delete some time.  I would want to be able to
       concetenate and merge if possible sub-block rulers.
-    what do I currently have?
+    . Now I'm using Meter.AbstractMeter.  I guess this is reasonable?
+      What if I moved this to c++?
+      Then Config shows how to render down to marks.
+      m44: D
+        [ D
+          [ D
+            [ D [D [T, T], D [T, T]]
+            , D [D [T, T], D [T, T]]
+            ]
+          , D
+            [ D [D [T, T], D [T, T]]
+            , D [D [T, T], D [T, T]]
+            ]
+          ]
+        , D
+          [ D
+            [ D [D [T, T], D [T, T]]
+            , D [D [T, T], D [T, T]]
+            ]
+          , D
+            [ D [D [T, T], D [T, T]]
+            , D [D [T, T], D [T, T]]
+            ]
+          ]
+        ]
+    . What if I do the same language thing for meters?  Have a little DSL
+      that describes meter.  I guess it would be the subdivide stuff.
+    . m44  = regular_subdivision [2, 2, 2, 2, 2]
+      gong = regular_subdivision [2, 2, 2, 2, 2, 2]
+    . Maybe all this stuff is overwrought, and I should just have subdivision
+      list.  Config is all hardcoded.
+    . Things to express:
+      . 4/4, 3/4, etc.  measure.beat.1/4 beat?
+        So we label the initial subdivision, then every 2 subdivisions.
+        4/4: 1.1        1.2         1.3         1.4         2.1
+
+      Compound: 3/3/2
+      Gongs: Basically just 4/4 or 8/4?
+
+      data Rank = Section | W | H | Q | E | S | T32 | T64 | T128 | T256
+      Talam:
+        0   .   1   .   2   .   3   .  X   .   O   .   X   .   O    .   |
+        chatusra:   kanda:
+        0           0
+         .2          .2
+         .3          .3
+         .4          .4
+        1            .5
+         .2         1
+         .3
+         .4
+        w = avartanam   *
+        h = anga        * (special characters)
+        q = akshara     * (flattened with h)
+        e = matra?      * .n
+        s = matra/2     /
+        t32 matra/4     * .n.n
+        t64 matra/8     /
+
+        Different because h and q both expressed at one level of ruler.
+        h->q is a variable subdivision, e.g. 4 laghu, 2 drutam
+        q->e is a 1/4 (or 1/nadai) subdivision
+        After that should be 2 subdivision.
+      measures:
+        . For 3/4, if I want to make h be q*2, then h is not a subdivision!
+          It has to be just q*2.  Or I could do the current thing and just
+          make it 1.
+        . Timestep goes by rank, so q*2 in 3/4 can't work.  It would have to
+          be two steps, which it can do, but would then need to be meter
+          aware.  Possible but let's leave it for now.
+                    w   h   q   e   s   t32 t64
+        3/4            (1)  3   2   2 ...
+        4/4             2   2   2   2 ...
+        5/4 (3+2)       3+2 2   2   2 ...
+        8/4             4   2   2   2 ...
+
+        . So I need additive subdivision, e.g. list means divide by length, by
+          each of its elements.
+        . 4/4: 2 2      [D [D [T, T], D [T, T]]]
+          5/4: 3+2      [D [T, T, T], D [T, T]]
+          6/4: 2 3      q. q.
+          6/4: 3 2      q q q
+          7/4: 3+3+2
+          8/4:
+        . The tricky thing is that /4 says the beat is quarters.
+          So it doesn't say about half.  In staff notation, half is always
+          q*2, but I use it as a uniform structural division, so I can have it
+          be variable durations.
+        . Is this good actually?  Is it not more musically useful to simply
+          have it be q*2?
+        . This would detach timestep from ruler entirely, I could have it
+          purely be TrackTime units.  This would simplify it a lot!
+        . In this case, I don't have to care about timestep at all, just make
+          sure ruler uses 1t for measure / avartanam / jegogan.
+        . Now T is the measure count, which is also useful.
+        1
+         .2
+         .3
+         .4
+        w = measure
+        h = half
+        q = quarter
+      Gong:
+        . Like 4/4 or 8/4 except count starts at 0?  Or 8, but if omit it, then
+          it doesn't matter.
+        1(.8) .1 .2 .3 .4 .5 .6 .7
+        2(.8) .1 .2 ...
+      Summary:
+        . 1 measure is always 1t.  TimeSteps go to purely TrackTime.
+        . Config:
+          measure_start :: Int -- first measure
+          beat_start :: Int -- 1 normally, but 0 for gongs
+        . Meter is the D [T] tree, which is flattened and sent to C++ along
+          with Config.  This is used to render marks on the fly.
+        . So it's
+          { track :: TrackNum
+          , tracks :: TrackNum
+          , config :: Config
+          , meters : [(Meter, TrackTime)]
+          , end :: TrackTime
+          }
+        . If I do arbitrary TrackTime then I'll get unaligned from TimeStep.
+          But I would want to cut of block at an arbitrary time?  Or just at
+          a TimeStep?
+        . If I say arbitrary TrackTime I can still pick ratios.
   * bug: if I do scrollwheel on an unfocused block, it eventually thinks
     it has focus, even though it doesn't
     . Happens when I scroll, then move pointer to the other window.
@@ -155,6 +282,12 @@ UNSORTED
     . in fact it's any clip block, I guess this has to do with old-style
       and new-style Ruler?
     . Can I mass update those?
+    . Yes, and can use LRuler.upgrade_gong
+    . Except it infers too many gongs.  Each note should be 'e', but becomes
+      'q'.
+    . I have 'e' = 1/2.  But gongs puts 'e' = 1/4.
+      Shouldn't it be e = 1/8?
+    . Default m44 has e = 1/8.
   - also there is old-style collapsed pitch tracks with black, can I
     update all states to remove those?
     . Not clear why this happened.  Is the Merged flag now interpreted as
@@ -367,6 +500,14 @@ UNSORTED
       should suppress?
   - fltk: not wrapping by char is quite annoying
     I think I did this on purpose though?
+    . I think EventTrack.cc wrap_text -> SymbolTable::wrap
+    . Previously, if words didn't wrap, I'd wrap individual glyphs.  However,
+      that meant that Event::suggested_width would be sort of useless because it
+      uses wrapped text, and if text is always able to wrap then it doesn't
+      want to expand.  Also wrapped glyphs are not that readable.  So let's
+      disable it.
+    . Ok so I wanted this to enable track auto-width.  I think the theory was
+      I'd use auto width and just not have long words.
   - divide up App.Config
     . Move stuff that shouldn't be changed, like pixels from c++, to its own
       module.

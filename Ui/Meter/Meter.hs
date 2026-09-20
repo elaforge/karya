@@ -3,6 +3,7 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 {-# LANGUAGE CPP #-}
+{-# LANGUAGE StrictData #-}
 {- | Types to describe meters.
 
     A 'Meter' gets turned into a lower level Marklist, and goes in the
@@ -66,8 +67,8 @@ import           Types
 
 -- | Duration is of one AbstractMeter, so total duration will be count*dur.
 data Meter = Meter
-    { meter_config :: !Config
-    , meter_sections :: ![MSection] -- I frequently modify the end, Seq, Vector?
+    { meter_config :: Config
+    , meter_sections :: [MSection] -- I frequently modify the end, Seq, Vector?
     } deriving (Eq, Show)
 
 instance Pretty Meter where
@@ -98,11 +99,11 @@ meter config sections =
 -- If I change that one, then the change to rank_names affects parsing.
 data MSection = MSection
     -- | The section contains this many measures.
-    { section_measures :: !Measures
+    { section_measures :: Measures
     -- | Each measure has this duration.
-    , section_measure_duration :: !Duration
+    , section_measure_duration :: Duration
     -- | Describe a measure.
-    , section_measure :: !AbstractMeter
+    , section_measure :: AbstractMeter
     } deriving (Eq, Show)
 
 instance Pretty MSection where
@@ -198,18 +199,18 @@ time_to_duration = id
 
 data Config = Config
     -- | Only write labels on these ranks.
-    { config_labeled_ranks :: !(Set Rank)
+    { config_labeled_ranks :: Set Rank
     -- | How to generate labels.
-    , config_label :: !LabelConfig
+    , config_label :: LabelConfig
     -- | The ruler should start counting at this number.  This could be measure
     -- number, or gong count, or avartanam count, whatever is the highest visual
     -- 'Label'.
-    , config_start_measure :: !Measures
+    , config_start_measure :: Measures
     -- | Labels have at least this many sections.  Otherwise, trailing sections
     -- are omitted.
-    , config_min_depth :: !Int
+    , config_min_depth :: Int
     -- | Strip leading prefixes to this depth, via 'strip_prefixes'.
-    , config_strip_depth :: !Int
+    , config_strip_depth :: Int
     } deriving (Eq, Show, Generics.Generic)
 
 instance Pretty Config where format = Pretty.formatG_

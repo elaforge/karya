@@ -268,8 +268,8 @@ upgrade_gong mlist = (Gong.until (Mark.end mlist), "")
 type Upgrade = Mark.Marklist -> (Meter.Meter, String)
 
 -- |
--- > LRuler.replace_meters LRuler.upgrade_gong
--- > LRuler.replace_meters (LRuler.upgrade_infer Meters.m44)
+-- > LRuler.replace_meters False LRuler.upgrade_gong
+-- > LRuler.replace_meters False (LRuler.upgrade_infer Meters.m44)
 replace_meters :: Ui.M m => Bool -> Upgrade -> m String
 replace_meters force upgrade = do
     ruler_ids <- Ui.all_ruler_ids
