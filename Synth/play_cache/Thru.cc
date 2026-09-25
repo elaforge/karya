@@ -94,7 +94,7 @@ read_message(FILE *fp)
 
 
 static int
-listen(std::ostream &log)
+make_socket(std::ostream &log)
 {
     int fd = socket(PF_INET, SOCK_STREAM, 0);
     if (fd == -1) {
@@ -155,7 +155,6 @@ accept(std::ostream &log, int socket_fd)
 Thru::Thru(std::ostream &log, int channels, int sample_rate, int max_frames)
     : log(log), thread_quit(false)
 {
-    socket_fd = listen(log);
     streamer.reset(
         new MixStreamer(max_voices, log, channels, sample_rate, max_frames));
     thread.reset(new std::thread(&Thru::loop, this));
@@ -196,11 +195,18 @@ Thru::read(int channels, Frames frames, float **out)
 void
 Thru::loop()
 {
-    while (!thread_quit.load()) {
-        if (socket_fd < 0) {
-            LOG("socket not allocated");
+    for (;;) {
+        // Sometimes I get "Address already in use."
+        // If I keep trying at least it'll spam the logs rather than just crash
+        // forever.
+        socket_fd = make_socket(log);
+        if (socket_fd >= 0) {
             break;
+        } else {
+            sleep(3);
         }
+    }
+    while (!thread_quit.load()) {
         Message message(accept(log, socket_fd));
         if (message.stop) {
             LOG("stop");

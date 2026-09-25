@@ -124,6 +124,32 @@ external:
     . using tscore, especially standalone
 
 UNSORTED
+  - im can't mute a track because it mutes the whole instrument
+    and can't comment out the track:
+      track title: parse error: "⎣-- >kw": 'Failed reading: empty'
+  - related, --| is obscure magic, should I have normal `--` at the front
+    remove the event entirely?  I guess I could want a normal note but with
+    a comment.
+  - all the window management is fussy.  I'd like more like automatic tiling,
+    e.g. window expands automatically and retiles.
+    . Also if I can automatically adjust track width.  That's more tricky
+      since that's what I turned off symbol wrapping for, but should be
+      possible.
+  - bali: kotekan can't do saih pitu!
+    . The high level way would be switch key, but it seems like the key
+      boundaries may be a bit fuzzy?
+    . Low level way is to change saih pitu to simple 1-7, and do custom
+      kernels.
+  * im thru not working suddenly.  Nothing in PlayCache.log
+    . MidiThru.cmd_midi_thru gets no msg, must be absorbed by someone?
+    . Actually it doesn't for kendang-bali-wadon, but does for rambat?
+    . AND it just works after restarting Reaper.  Maybe OSX sockets get stuck.
+    . I got 'Thru quit', then 'connect(): Connection refused'
+    . Looks like it was crashing on startup with
+      'Thru.cc:120: bind(): Address already in use'
+    . If I loop trying to open it, at least it'll spam the logs.
+  - bug: Cmd/Internal.hs:116 keydown for MouseMod 1 (Just (3,Track 0.4))
+      already in modifiers
   - no thru for im dummy pasang
     . Simple way would be special case way to pick a stand-in.
     . Complex way would be to instrument transformer, e.g. unison or kempyung,
@@ -184,7 +210,7 @@ UNSORTED
       gong = regular_subdivision [2, 2, 2, 2, 2, 2]
     . Maybe all this stuff is overwrought, and I should just have subdivision
       list.  Config is all hardcoded.
-    . Things to express:
+    Things to express:
       . 4/4, 3/4, etc.  measure.beat.1/4 beat?
         So we label the initial subdivision, then every 2 subdivisions.
         4/4: 1.1        1.2         1.3         1.4         2.1
@@ -260,24 +286,51 @@ UNSORTED
           it doesn't matter.
         1(.8) .1 .2 .3 .4 .5 .6 .7
         2(.8) .1 .2 ...
-      Summary:
-        . 1 measure is always 1t.  TimeSteps go to purely TrackTime.
-        . Config:
-          measure_start :: Int -- first measure
-          beat_start :: Int -- 1 normally, but 0 for gongs
-        . Meter is the D [T] tree, which is flattened and sent to C++ along
-          with Config.  This is used to render marks on the fly.
-        . So it's
-          { track :: TrackNum
-          , tracks :: TrackNum
-          , config :: Config
-          , meters : [(Meter, TrackTime)]
-          , end :: TrackTime
-          }
-        . If I do arbitrary TrackTime then I'll get unaligned from TimeStep.
-          But I would want to cut of block at an arbitrary time?  Or just at
-          a TimeStep?
-        . If I say arbitrary TrackTime I can still pick ratios.
+    Summary:
+      . 1 measure is always 1t.  TimeSteps go to purely TrackTime.
+      . Config:
+        measure_start :: Int -- first measure
+        beat_start :: Int -- 1 normally, but 0 for gongs
+      . Meter is the D [T] tree, which is flattened and sent to C++ along
+        with Config.  This is used to render marks on the fly.
+      . data Ruler = Ruler
+        { track :: TrackNum
+        , tracks :: TrackNum
+        , config :: Config
+        , meters : [(Meter, TrackTime)]
+        , end :: TrackTime
+        }
+      . data Meter = T | D [Meter], where it's implicitly binary subdivision
+        below the last T.  So 4/4 can simply be T.
+      . If I do arbitrary TrackTime then I'll get unaligned from TimeStep.
+        But I would want to cut of block at an arbitrary time?  Or just at
+        a TimeStep?
+      . If I say arbitrary TrackTime I can still pick ratios.
+      . How does this let me eliminate RulerIds?
+        Each block has [Ruler], it's small enough to just embed there.
+        Then I serialize and send to C++ whenever it changes, and rendering
+        happens in C++.
+      . Extend ruler is just adjust the `end` field, possibly trimming meters.
+      . I'm not sure about making TimeStep absolute though, because e.g. it
+        won't be able to skip by avartanam in misra chapu.  I could make
+        avartanam = 1t, but then I have 1/7 inexact everywhere, and it doesn't
+        work if I want to append one talam to another.
+      . If I say Q is akshara and S is matra, then what is E in kanda?
+      . What if I get W duration from the meter then divide?
+      . No, because kanda nadai.  In the presence of irregular division,
+        I'll always have a non binary division.
+      . Staff notation would write quintuplets, it would be quarters, and
+        eights would be q*2.  So it does make some sense to special case
+        W and Q and S, and make H = 2*Q, and E = 2*S.
+      . Staff notation does 5/4 by just varying the measure length.  We could
+        say it was 1.25 long.  But it can't do nadai.  Or rather it can, but
+        does it via implicit 16th is actually q/5, and 8th needs some
+        bracketing to be non-ambiguous.
+      . What if I say matra is 1/16 by definition.  Then akshara is 5/16.
+        Adi talam is 2.5t.  I might still want to have W = avartanam, but then
+        Hs won't line up on anything.  It'll be awkward if I have to go up to
+        W or down to Q to get "in phase".
+      . So I think I come back to
   * bug: if I do scrollwheel on an unfocused block, it eventually thinks
     it has focus, even though it doesn't
     . Happens when I scroll, then move pointer to the other window.
@@ -3171,8 +3224,7 @@ synth: im:
       . MidiThru does an eval, I should do the same for im thru.
       . The im version of that is eval to Score.Event, then convert.  Don't
         I already have to do that though?
-      . No, it directly gets pitch, dynamic, attrs and makes a new Note for
-        it.
+      . No, it directly gets pitch, dynamic, attrs and makes a new Note for it.
       . I could continue down this path by having a special thru for kendang
         pasang that dispatches samples, but that seems less sustainable than
         evaluating the expression.
@@ -3203,10 +3255,22 @@ synth: im:
         thru function out of that?
 
       How does thru work?
-        . I get an InputNote Msg, which goes to MidiThru.cmd_midi_thru
+        . In NoteEntry.cmds_with_input, msg_to_inputs gets kbd or midi msg and
+          re-emits as InputNote.Input.
+        . InputNote then goes to MidiThru.cmd_midi_thru
         . If the inst has a ThruFunction, it calls it directly.  Otherwise,
           it uses scale_input_to_nn to get a pitch and creates the pitch
           with MIDI.
+        If ThruFunction:
+          . For im instruments, added via ImInst.thru.  Depends on backend.
+          . For sampler, Lib.Util.thruFunction runs the sample convert
+          . This produces a Synth.Shared.Thru.Message
+          . This is collected in CmdM as a Cmd.ImThru, and emitted via
+            Thru.send.
+          . This sends on a local socket on THRU_PORT, which is a CPP define
+            to share with play_cache/Thru.cc, but it's 7090.
+          . In play_cache, Thru::Thru constructor listens on the port, and
+            starts a thread to loop on it.
         . For drums, instead a key generates an expr, which I evaluate to
           produce (nn, dyn, attrs).  For MIDI, I run Perform to get the MIDI
           and write it.  For im, I call a provided function to convert to
