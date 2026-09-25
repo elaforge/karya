@@ -31,7 +31,7 @@ main :: IO ()
 main = do
     args <- Environment.getArgs
     (flags, args) <- case GetOpt.getOpt GetOpt.Permute options args of
-        (flags, args, []) -> return (flags, args)
+        (flags, args, []) -> pure (flags, args)
         (_, _, errs) -> usage (unlines errs)
     let srate = fromMaybe defaultSRate $ Lists.last [sr | SRate sr <- flags]
     depth <- traverse parseDepth $ Lists.last [s | Depth s <- flags]
@@ -79,7 +79,7 @@ options =
 
 parseDepth :: String -> IO Sndfile.SampleFormat
 parseDepth s =
-    maybe (errorIO $ "invalid depth: " <> showt s) return $ parseDepth_ s
+    maybe (errorIO $ "invalid depth: " <> showt s) pure $ parseDepth_ s
 
 parseDepth_ :: String -> Maybe Sndfile.SampleFormat
 parseDepth_ = \case

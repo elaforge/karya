@@ -76,4 +76,4 @@ id_at ns parent code n =
     where dotted s = if Text.null s then "" else s <> "."
 
 require_id :: Ui.M m => Text -> Maybe a -> m a
-require_id msg = maybe (Ui.throw $ "somehow can't find ID for " <> msg) return
+require_id msg = maybe (Ui.throw $ "somehow can't find ID for " <> msg) pure

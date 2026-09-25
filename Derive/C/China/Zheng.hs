@@ -77,7 +77,7 @@ trill_signal start_dir pitch (Typecheck.NnTransposeFunctionT ttype neighbor)
     transpose <- Trill.get_trill_control_smooth config curve
         (Args.range_or_next args) neighbor
     start <- Args.real_start args
-    return $ PSignal.apply_control (Typecheck.transpose_control ttype)
+    pure $ PSignal.apply_control (Typecheck.transpose_control ttype)
         (ScoreT.untyped transpose) (PSignal.from_sample start pitch)
     where
     config = Trill.Config

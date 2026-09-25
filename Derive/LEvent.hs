@@ -100,15 +100,15 @@ logs_of (Log log : rest) = log : logs_of rest
 logs_of (_ : rest) = logs_of rest
 
 write_logs :: Log.LogMonad m => [LEvent d] -> m [d]
-write_logs events = mapM_ Log.write logs >> return vals
+write_logs events = mapM_ Log.write logs >> pure vals
     where (vals, logs) = partition events
 
 write_snd :: Log.LogMonad m => (a, [Log.Msg]) -> m a
-write_snd (result, logs) = mapM_ Log.write logs >> return result
+write_snd (result, logs) = mapM_ Log.write logs >> pure result
 
 write_snd_prefix :: Log.LogMonad m => Text -> (a, [Log.Msg]) -> m a
 write_snd_prefix prefix (result, logs) =
-    mapM_ Log.write (map (Log.add_prefix prefix) logs) >> return result
+    mapM_ Log.write (map (Log.add_prefix prefix) logs) >> pure result
 
 partition :: [LEvent d] -> ([d], [Log.Msg])
 partition = Either.partitionEithers . map to_either

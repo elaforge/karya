@@ -51,7 +51,7 @@ instance Serialize (Common.Common ()) where
 
 instance Serialize Search.Index where
     put (Search.Index a b) = put a >> put b
-    get = get >>= \a -> get >>= \b -> return (Search.Index a b)
+    get = get >>= \a -> get >>= \b -> pure (Search.Index a b)
 
 instance Serialize Patch.Patch where
     put (Patch.Patch a b c d e f) = put a >> put b >> put c
@@ -65,9 +65,9 @@ instance Serialize Patch.InitializePatch where
     get = do
         tag <- get_tag
         case tag of
-            0 -> get >>= \a -> return (Patch.InitializeMidi a)
-            1 -> get >>= \a -> return (Patch.InitializeMessage a)
-            2 -> return Patch.NoInitialization
+            0 -> get >>= \a -> pure (Patch.InitializeMidi a)
+            1 -> get >>= \a -> pure (Patch.InitializeMessage a)
+            2 -> pure Patch.NoInitialization
             _ -> bad_tag "Patch.InitializePatch" tag
 
 instance Serialize Patch.Keymap where

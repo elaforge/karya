@@ -107,7 +107,7 @@ merge_tracks merge_titles block_id tracks dests = do
     -- TODO doesn't this combine with the old skeleton?  Why isn't that
     -- a problem?
     add_derive_skeleton block_id new_dests
-    return new_dests
+    pure new_dests
 
 add_derive_skeleton :: Ui.M m => BlockId -> [Block.NoteDestination] -> m ()
 add_derive_skeleton block_id dests =
@@ -160,7 +160,7 @@ score_merge block_id tree dests = do
     whenM (Ui.has_explicit_skeleton block_id) $
         add_skeleton block_id =<< source_to_dest block_id dests
             (map (fmap Ui.track_id) tree)
-    return dests
+    pure dests
 
 -- | Track pairs of the children of the given tree, sorted by tracknum.
 get_children :: Ui.M m => TrackTree.TrackTree -> m [(TrackId, Track.Track)]
@@ -169,13 +169,13 @@ get_children =
     where
     resolve tinfo = do
         track <- Ui.get_track (Ui.track_id tinfo)
-        return (Ui.track_tracknum tinfo, (Ui.track_id tinfo, track))
+        pure (Ui.track_tracknum tinfo, (Ui.track_id tinfo, track))
 
 source_to_dest :: Ui.M m => BlockId -> Block.ScoreDestinations
     -> [Tree.Tree TrackId] -> m [Tree.Tree TrackNum]
 source_to_dest block_id dests = mapM $ Traversable.mapM $ \track_id -> do
     dest_id <- maybe (Ui.throw $ "no destination for " <> showt track_id)
-        (return . fst) (lookup track_id dests)
+        (pure . fst) (lookup track_id dests)
     dest_tracknum block_id dest_id
 
 -- | Get the edges that are part of the destination track structure.  This
@@ -188,7 +188,7 @@ destination_edges :: Ui.M m => BlockId -> [TrackId] -> m [Skeleton.Edge]
 destination_edges block_id track_ids = do
     tracknums <- mapM (dest_tracknum block_id) track_ids
     edges <- Skeleton.flatten <$> Ui.get_skeleton block_id
-    return $ filter (\(p, c) -> p `elem` tracknums && c `elem` tracknums) edges
+    pure $ filter (\(p, c) -> p `elem` tracknums && c `elem` tracknums) edges
 
 dest_tracknum :: Ui.M m => BlockId -> TrackId -> m TrackNum
 dest_tracknum block_id track_id = Ui.require
@@ -214,7 +214,7 @@ merge_pairs :: Ui.M m => MergeTitles -> BlockId -> [TrackPair]
 merge_pairs merge_titles block_id pairs = do
     triples <- mapMaybeM (merge_pair block_id) pairs
     case triples of
-        [] -> return Nothing
+        [] -> pure Nothing
         (source_title, note_id, note_index) : controls -> do
             -- TODO I could merge them, but I need the previous integrated
             -- title
@@ -222,7 +222,7 @@ merge_pairs merge_titles block_id pairs = do
             -- can't change them without breaking the link.
             when (merge_titles == ReplaceTitles) $ do
                 Ui.set_track_title note_id source_title
-            return $ Just $ Block.NoteDestination key (note_id, note_index) $
+            pure $ Just $ Block.NoteDestination key (note_id, note_index) $
                 Map.fromList
                     [ (title, (track_id, index))
                     | (title, track_id, index) <- controls
@@ -234,41 +234,41 @@ merge_pairs merge_titles block_id pairs = do
 merge_pair :: Ui.M m => BlockId -> TrackPair
     -> m (Maybe (Text, TrackId, Block.EventIndex))
 merge_pair block_id pair = case pair of
-    (Nothing, Left _) -> return Nothing -- not reached
+    (Nothing, Left _) -> pure Nothing -- not reached
     (Just (Convert.Track title events), Left tracknum) -> do
         -- Track was deleted or it doesn't exist yet, so create it.
         track_id <- Create.track block_id tracknum title
             (Events.from_list (map Event.unmodified events))
-        return $ Just (title, track_id, make_index events)
+        pure $ Just (title, track_id, make_index events)
     (Nothing, Right (track_id, _)) -> do
         -- Integrate no longer wants the track.  Don't delete the track in case
         -- there are manually created events on it.
         clear_generated_events track_id
-        return Nothing
+        pure Nothing
     (Just (Convert.Track title events), Right dest) -> do
         merge_track events dest
-        return $ Just (title, fst dest, make_index events)
+        pure $ Just (title, fst dest, make_index events)
 
 score_merge_pair :: Ui.M m => BlockId -> ScoreTrackPair
     -> m (Maybe (TrackId, (TrackId, Block.EventIndex)))
 score_merge_pair block_id pair = case pair of
-    (Nothing, Left _) -> return Nothing -- not reached
+    (Nothing, Left _) -> pure Nothing -- not reached
     (Just (source_id, events), Left tracknum) -> do
         -- Track was deleted or never existed.
         let stacked = add_event_stacks block_id source_id events
         title <- Ui.get_track_title source_id
         track_id <- Create.track block_id tracknum
             title (Events.from_list (map Event.unmodified stacked))
-        return $ Just (source_id, (track_id, make_index stacked))
+        pure $ Just (source_id, (track_id, make_index stacked))
     (Nothing, Right (track_id, _)) -> do
         -- Integrate no longer wants the track.  Don't delete the track in case
         -- there are manually created events on it.
         clear_generated_events track_id
-        return Nothing
+        pure Nothing
     (Just (source_id, events), Right dest) -> do
         let stacked = add_event_stacks block_id source_id events
         merge_track stacked dest
-        return $ Just (source_id, (fst dest, make_index stacked))
+        pure $ Just (source_id, (fst dest, make_index stacked))
 
 clear_generated_events :: Ui.M m => TrackId -> m ()
 clear_generated_events track_id = Ui.modify_events track_id $

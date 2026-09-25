@@ -125,7 +125,7 @@ get_selection :: Cmd.M m => Selection.Tracks -> m Selected
 get_selection (block_id, tracknums, _, range) = do
     tracks <- mapM Ui.get_track
         =<< mapMaybeM (Ui.event_track_at block_id) tracknums
-    return $ map extract tracks
+    pure $ map extract tracks
     where
     extract track =
         ( Track.track_title track
@@ -198,7 +198,7 @@ cmd_paste_stretch = do
             forM_ (zip track_ids stretched) $ \(track_id, stretched) -> do
                 Ui.remove_events_range track_id (Events.Range start end)
                 Ui.insert_events track_id stretched
-        _ -> return ()
+        _ -> pure ()
 
 stretch :: (ScoreTime, ScoreTime) -> (ScoreTime, ScoreTime)
     -> [Event.Event] -> [Event.Event]
@@ -236,7 +236,7 @@ reopen_views ns operation = do
     let reopen = filter ((`elem` block_ids) . Block.view_block) views
     forM_ reopen $ \view ->
         Create.sized_view (Block.view_block view) (Block.view_rect view)
-    return result
+    pure result
 
 -- | Set all the IDs in the state to be in the given namespace, except rulers.
 -- Collisions will throw.  Rulers are omitted because copy and paste doesn't
@@ -263,7 +263,7 @@ paste_info = do
     let clip_and_move = map (Event.start_ %= (+start))
             . clip_to_selection start event_end
             . Events.ascending . Track.track_events
-    return (start, sel_end, zip track_ids (map clip_and_move tracks))
+    pure (start, sel_end, zip track_ids (map clip_and_move tracks))
 
 clip_to_selection :: ScoreTime -> ScoreTime -> [Event.Event] -> [Event.Event]
 clip_to_selection start end
@@ -292,6 +292,6 @@ get_paste_area = do
     clip_end <- Ui.block_event_end clip_block_id
     -- If start==end, I have to set the end past the end of the clip in case
     -- the last event has dur 0.
-    return (track_ids, clip_track_ids, start,
+    pure (track_ids, clip_track_ids, start,
         min ruler_end (if start == end then start + clip_end else end),
         if start == end then ruler_end else end)

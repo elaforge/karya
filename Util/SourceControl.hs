@@ -42,7 +42,7 @@ getCurrentPatchGit dir = do
         ((Process.proc "git" ["log", "-n1", "--format=%H%n%ae%n%at%n%s"])
             { Process.cwd = Just dir })
         ""
-    return $ case exit of
+    pure $ case exit of
         Exit.ExitFailure n ->
             Left $ "git failed with " <> show n <> ": " <> stderr
         Exit.ExitSuccess -> Right stdout
@@ -59,7 +59,7 @@ parseGit = parse . Text.lines
             (Left $ "can't parse timestamp: " <> Text.unpack timestamp) Right $
             (Read.readMaybe . Text.unpack) timestamp
         let date = Clock.POSIX.posixSecondsToUTCTime (fromIntegral timestamp)
-        return $ Entry
+        pure $ Entry
             { _author = author
             , _date = date
             , _hash = hash

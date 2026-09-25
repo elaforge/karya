@@ -74,7 +74,7 @@ interpolator_call name_suffix (CurveD name get_arg curve) interpolator_time =
     ) $ \(to, time, curve_arg, from) args -> do
         time <- if Args.duration args == 0
             then case interpolator_time of
-                Left _ -> return time
+                Left _ -> pure time
                 Right (get_time, _) -> get_time args
             else DeriveT.RealDuration <$> Args.real_duration args
         (start, end) <- Call.duration_from_start args time
@@ -118,7 +118,7 @@ interpolator_variations_ make (Expr.Symbol sym) curve =
     next = Right (next, "If the event's duration is 0, interpolate from this\
             \ event to the next.")
         where
-        next args = return $ DeriveT.ScoreDuration $
+        next args = pure $ DeriveT.ScoreDuration $
             Args.next args - Args.start args
     prev = Right (get_prev_val,
         "If the event's duration is 0, interpolate from the\
@@ -131,7 +131,7 @@ get_prev_val :: Derive.Taggable a => Derive.PassedArgs a
     -> Derive.Deriver DeriveT.Duration
 get_prev_val args = do
     start <- Args.real_start args
-    return $ DeriveT.RealDuration $ case Args.prev_val_end args of
+    pure $ DeriveT.RealDuration $ case Args.prev_val_end args of
         -- It's likely the callee won't use the duration if there's no
         -- prev val.
         Nothing -> 0
@@ -174,7 +174,7 @@ make_curve_call doc (CurveD name get_arg curve) =
         Tags.curve
     (fromMaybe ("Interpolation function: " <> Doc.Doc name) doc)
     $ Sig.call get_arg $ \arg _args ->
-        return $ curve_to_pf name (curve arg)
+        pure $ curve_to_pf name (curve arg)
 
 -- | Stuff a curve function into a PFunction.
 curve_to_pf :: Text -> Curve -> DeriveT.PFunction
@@ -204,20 +204,20 @@ place_range (Typecheck.Normalized place) start dur = do
     dur <- Call.real_duration start dur
     -- 0 is before, 1 is after.
     let offset = dur * RealTime.seconds (1 - place)
-    return (start - offset, start + dur - offset)
+    pure (start - offset, start + dur - offset)
 
 -- | Make a curve segment from the previous value, if there was one.
 make_segment_from :: Curve -> RealTime -> Maybe Signal.Y -> RealTime
     -> Signal.Y -> Derive.Deriver Signal.Control
 make_segment_from curve start maybe_from end to = case maybe_from of
-    Nothing -> return $ Signal.from_sample start to
+    Nothing -> pure $ Signal.from_sample start to
     Just from -> make_segment curve start from end to
 
 make_segment :: Curve -> RealTime -> Signal.Y -> RealTime
     -> Signal.Y -> Derive.Deriver Signal.Control
 make_segment curve x1 y1 x2 y2 = do
     srate <- Call.get_srate
-    return $ segment srate curve x1 y1 x2 y2
+    pure $ segment srate curve x1 y1 x2 y2
 
 -- | Interpolate between the given points.
 segment :: SRate -> Curve -> RealTime -> Signal.Y -> RealTime
@@ -427,7 +427,7 @@ modify_with merge control end sig = do
     -- Since signals are implicitly 0 before the first sample, I prepend
     -- a segment with the identity value, in case the identity isn't 0.
     Derive.modify_control merger control =<< case merger of
-        Derive.Merger _ _ identity -> return $ mconcat
+        Derive.Merger _ _ identity -> pure $ mconcat
             [ if identity == 0 then mempty else Signal.constant identity
             , sig
             , Signal.from_sample end identity
@@ -436,10 +436,10 @@ modify_with merge control end sig = do
             -- There's no identity for Set, so I have to slice the signal
             -- myself.
             maybe_old <- Derive.lookup_signal control
-            return $ case ScoreT.val_of <$> maybe_old of
+            pure $ case ScoreT.val_of <$> maybe_old of
                 Nothing -> sig
                 Just old -> old <> sig <> Signal.clip_before end old
-        Derive.Unset -> return sig
+        Derive.Unset -> pure sig
 
 multiply_dyn :: RealTime -> Signal.Control -> Derive.Deriver ()
 multiply_dyn = modify_with (Derive.Merge Derive.merge_mul) Controls.dynamic

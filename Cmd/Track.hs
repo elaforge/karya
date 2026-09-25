@@ -40,11 +40,11 @@ track_cmd :: Msg.Msg -> Cmd.CmdId Cmd.Status
 track_cmd msg = do
     cmds <- get_track_cmds `Except.catchError` \exc -> do
         case exc of
-            Ui.Abort -> return ()
+            Ui.Abort -> pure ()
             Ui.Error stack msg ->
                 Log.write $ Log.msg_call_stack stack Log.Warn Nothing
                     ("getting track cmds: " <> msg)
-        return []
+        pure []
     Cmd.sequence_cmds cmds msg
 
 -- | Get cmds according to the currently focused block and track.
@@ -80,7 +80,7 @@ get_track_cmds = do
     -- kbd entry then they will want the underlying keystrokes, as drum
     -- mappings do.  If they want 'Pitch.Input's, they can call
     -- 'NoteEntry.cmds_with_input'.
-    return $ concat
+    pure $ concat
         [ case (track_type, mb_resolved) of
             (ParseTitle.NoteTrack, Just resolved) ->
                 map Cmd.call $ Cmd.inst_cmds $ Common.common_code $
@@ -159,19 +159,19 @@ event_and_note_step = do
     (block_id, tracknum, _, _) <- Selection.get_insert
     maybe_track <- Info.lookup_track_type block_id tracknum
     note_tracknum <- case Info.track_type <$> maybe_track of
-        Nothing -> return Nothing
-        Just (Info.Note {}) -> return Nothing
-        Just (Info.Pitch Nothing) -> return Nothing
-        Just (Info.Pitch (Just note)) -> return $ Just $ Ui.track_tracknum note
+        Nothing -> pure Nothing
+        Just (Info.Note {}) -> pure Nothing
+        Just (Info.Pitch Nothing) -> pure Nothing
+        Just (Info.Pitch (Just note)) -> pure $ Just $ Ui.track_tracknum note
         Just (Info.Control tracks) -> firstJusts (map note_tracknum_of tracks)
     let tracknums = TimeStep.TrackNums $
             [tracknum] ++ maybe [] (:[]) note_tracknum
-    return $ TimeStep.from_list
+    pure $ TimeStep.from_list
         [ TimeStep.EventStart tracknums, TimeStep.EventEnd tracknums
         , TimeStep.BlockEdge
         ]
     where
     note_tracknum_of track = ifM (is_note track)
-        (return (Just (Ui.track_tracknum track))) (return Nothing)
+        (pure (Just (Ui.track_tracknum track))) (pure Nothing)
     is_note = fmap ParseTitle.is_note_track . Ui.get_track_title
         . Ui.track_id

@@ -95,8 +95,8 @@ get_html_state :: FilePath -> Path.AppDir -> IO HtmlState
 get_html_state haddock_dir app_dir = do
     files <- get_files app_dir
     -- The eventual output is in build/doc.
-    return (haddock_dir, files)
+    pure (haddock_dir, files)
     where
     get_files (Path.AppDir dir) = do
         files <- Files.listRecursive (maybe False Char.isUpper . Lists.head) dir
-        return $ Set.fromList files
+        pure $ Set.fromList files

@@ -71,7 +71,7 @@ submitMany sr render dir subdirScores = do
     let rendered = map (render sr) scores
     submitAndCheck (baseDir </> dir) $
         zip3 (repeat ()) (map txt subdirs) rendered
-    return ()
+    pure ()
 
 submitInstruments :: FilePath -> [(FilePath, Text, (Text, Text))] -> IO ()
 submitInstruments dir outputNameScores = do
@@ -103,7 +103,7 @@ previousRender :: Map Text FilePath -> FilePath
 previousRender nameOutput dir = do
     subdirs <- Files.list dir
     putStrLn $ "found previous submit: " <> show subdirs
-    return $ mapMaybe get subdirs
+    pure $ mapMaybe get subdirs
     where
     get subdir = (\out -> ("", out, subdir </> "out.wav"))
         <$> Map.lookup (txt (FilePath.takeFileName subdir)) nameOutput
@@ -122,7 +122,7 @@ submitAndCheck dir outputNameScores = do
     forM_ (findDups fst (zip urls subdirs)) $ \(count, (url, subdir)) ->
         putStrLn $ "duplicate: " <> show count <> ": " <> url <> " -> "
             <> subdir
-    return [(url, output, ok) | (output, (Just ok, url)) <- zip outputs okUrls]
+    pure [(url, output, ok) | (output, (Just ok, url)) <- zip outputs okUrls]
 
 findDups :: Ord k => (a -> k) -> [a] -> [(Int, a)]
 findDups key = map (second head) . filter ((>1) . fst) . Lists.keyOn length
@@ -133,7 +133,7 @@ submitOne model (instrument, score) = do
     let dir = baseDir </> model </> dirFor instrument score
         out = dir </> "out.wav"
     out <- ifM (Directory.doesFileExist out)
-        (putStrLn ("exists: " <> out) >> return (Just out))
+        (putStrLn ("exists: " <> out) >> pure (Just out))
         (fst <$> submit instrument score dir)
     print out
     whenJust out play
@@ -150,7 +150,7 @@ submit instrument score dir = do
     Text.IO.writeFile ifn instrument
     Text.IO.writeFile sfn score
     (ok, url) <- Submit.submitDownload False ifn sfn out
-    return $ if ok then (Just out, url) else (Nothing, url)
+    pure $ if ok then (Just out, url) else (Nothing, url)
 
 dirFor :: Text -> Text -> FilePath
 dirFor instrument score = fingerprint [instrument, score]

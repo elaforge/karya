@@ -108,7 +108,7 @@ interpret (Session chan) expr = do
     Chan.writeChan chan (QCommand expr, mvar)
     response <- MVar.takeMVar mvar
     case response of
-        RCommand cmd -> return cmd
+        RCommand cmd -> pure cmd
         _ -> errorIO "unexpected response to QCommand"
 
 complete :: Session -> Text -> IO [Text]
@@ -117,7 +117,7 @@ complete (Session chan) prefix = do
     Chan.writeChan chan (QCompletion prefix, mvar)
     response <- MVar.takeMVar mvar
     case response of
-        RCompletion words -> return words
+        RCompletion words -> pure words
         _ -> errorIO "unexpected response to QCompletion"
 
 -- | Initialize the GHC API and run the interpreter loop.
@@ -132,8 +132,8 @@ interpreter (Session chan) = do
             Log.error $ "error reading ghci flags from "
                 <> showt ghci_flags <> ": " <> showt exc
                 <> ", the REPL is probably not going to work"
-            return []
-        Right flags -> return $ lines flags
+            pure []
+        Right flags -> pure $ lines flags
 
     GHC.runGhcT (Just GHC.Paths.libdir) $ do
         parse_flags args
@@ -142,7 +142,7 @@ interpreter (Session chan) = do
             Thread.timeActionText (reload toplevel_modules)
         let expected = map ((++ ".hs, interpreted") . Lists.replace1 '.' "/")
                 (toplevel_modules ++ expected_reloads)
-        logs <- return $ filter
+        logs <- pure $ filter
             (\log -> not $ (any (`List.isInfixOf` log) expected)) logs
         liftIO $ do
             unless (null logs) $ do
@@ -161,7 +161,7 @@ interpreter (Session chan) = do
             Log.notice $ "loaded modules for repl: " <> time_msg
             case result of
                 Left err -> Log.warn $ "error loading REPL modules: " <> txt err
-                _ -> return ()
+                _ -> pure ()
         forever $ do
             (query, return_mvar) <- liftIO $ Chan.readChan chan
             result <- respond toplevel_modules query
@@ -177,13 +177,13 @@ respond toplevel_modules (QCommand expr) = RCommand <$> if
     | otherwise -> (`gcatch` catch) $ make_response <$> compile (untxt expr)
     where
     catch (exc :: Exception.SomeException) =
-        return $ return $ ReplProtocol.error_result $ "Exception: " <> showt exc
+        pure $ pure $ ReplProtocol.error_result $ "Exception: " <> showt exc
 respond _ (QCompletion prefix) = RCompletion <$>
     -- Don't bother with 50 zillion completions.
-    if prefix == "" then return [] else do
+    if prefix == "" then pure [] else do
         rdrs <- GHC.getRdrNamesInScope
         dflags <- GHC.getSessionDynFlags
-        return $ filter (prefix `Text.isPrefixOf`) $
+        pure $ filter (prefix `Text.isPrefixOf`) $
             Lists.uniqueSort $ map (txt . showPpr dflags) rdrs
 
 showPpr :: Outputable.Outputable a => GHC.DynFlags -> a -> String
@@ -195,11 +195,11 @@ showPpr = Outputable.showPpr
 
 make_response :: Result (Cmd.CmdL ReplProtocol.Result) -> Cmd
 make_response (val, logs, warns) = case val of
-    Left err -> return $ ReplProtocol.CmdResult
+    Left err -> pure $ ReplProtocol.CmdResult
         (ReplProtocol.Raw ("compile error: " <> txt err)) all_logs
     Right cmd -> do
         result <- cmd
-        return $ ReplProtocol.CmdResult result all_logs
+        pure $ ReplProtocol.CmdResult result all_logs
     where
     all_logs = map (Log.msg Log.Notice Nothing . txt) logs
         ++ map (Log.msg Log.Warn Nothing . txt) warns
@@ -214,10 +214,10 @@ reload :: [String] -> Ghc (Result (Cmd.CmdL ReplProtocol.Result))
 reload toplevel_modules = do
     (result, logs, warns) <- collect_logs $
         GHC.load GHC.LoadAllTargets <* set_context toplevel_modules
-    return (mkcmd result, logs, warns)
+    pure (mkcmd result, logs, warns)
     where
     mkcmd (Right ok)
-        | GHC.succeeded ok = Right (return $ ReplProtocol.Raw "reloaded")
+        | GHC.succeeded ok = Right (pure $ ReplProtocol.Raw "reloaded")
         | otherwise = Left "reload failed"
     mkcmd (Left err) = Left err
     -- Set the module loaded callback to print out modules as they are loaded.
@@ -232,7 +232,7 @@ reload toplevel_modules = do
 compile :: String -> Ghc (Result (Cmd.CmdL ReplProtocol.Result))
 compile expr = do
     (hval, logs, warns) <- collect_logs $ GHC.compileExpr typed_expr
-    return (fmap coerce hval, logs, warns)
+    pure (fmap coerce hval, logs, warns)
     where
     -- The _to_result method is defined in "Cmd.Repl.Global".
     typed_expr =
@@ -253,14 +253,14 @@ collect_logs action = do
     logs <- liftIO $ IORef.newIORef []
     GHC.pushLogHookM $ const (log_action logs)
     val <- fmap Right action
-        `gcatch` \(exc :: Exception.SomeException) -> return (Left (show exc))
+        `gcatch` \(exc :: Exception.SomeException) -> pure (Left (show exc))
     GHC.popLogHookM
     logs <- liftIO $ IORef.readIORef logs
     -- GHC.getWarnings is gone, apparently replaced by either printing directly
     -- or throwing an exception, e.g.
     -- compiler/main/HscTypes.lhs:handleFlagWarnings.
     let warns = []
-    return (val, reverse logs, warns)
+    pure (val, reverse logs, warns)
 
 log_action :: IORef.IORef [String] -> Logger.LogAction
 #if GHC_VERSION >= 90601
@@ -281,13 +281,13 @@ collect_logs :: Ghc a -> Ghc (Result a)
 collect_logs action = do
     logs <- liftIO $ IORef.newIORef []
     val <- fmap Right (catch_logs logs >> action) `gcatch`
-        \(exc :: Exception.SomeException) -> return (Left (show exc))
+        \(exc :: Exception.SomeException) -> pure (Left (show exc))
     logs <- liftIO $ IORef.readIORef logs
     -- GHC.getWarnings is gone, apparently replaced by either printing directly
     -- or throwing an exception, e.g.
     -- compiler/main/HscTypes.lhs:handleFlagWarnings.
     let warns = []
-    return (val, reverse logs, warns)
+    pure (val, reverse logs, warns)
     where
     catch_logs logs = modify_flags $ \flags ->
         flags { GHC.log_action = log_action logs }

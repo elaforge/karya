@@ -41,20 +41,20 @@ update mb_modify from_fn to_fn
     | ".ky" `List.isSuffixOf` from_fn = do
         old <- Text.IO.readFile from_fn
         new <- case mb_modify of
-            Nothing -> return old
+            Nothing -> pure old
             Just modify -> do
                 let new = modify old
                 when (old /= new) $ do
                     putStrLn $ "ky file: " <> from_fn
                     Text.IO.putStrLn $ Diffs.colored1 old new
-                return new
+                pure new
         Text.IO.writeFile to_fn new
     | otherwise = do
         result <- Save.read_ from_fn
         case result of
             Left err -> fail_with $ "Reading " <> showt from_fn <> ": " <> err
             Right state -> do
-                state <- maybe (return state) (\m -> upgrade_score m state)
+                state <- maybe (pure state) (\m -> upgrade_score m state)
                     mb_modify
                 Save.write_state to_fn state
 
@@ -77,15 +77,15 @@ upgrade_controls = Regex.substituteGroups controls_re (\_ gs -> mconcat gs)
 
 upgrade_score :: (Text -> Text) -> Ui.State -> IO Ui.State
 upgrade_score modify state = do
-    (state, changes) <- return $ Transform.map_code modify state
+    (state, changes) <- pure $ Transform.map_code modify state
     mapM_ Text.IO.putStrLn changes
-    (state, diff) <- return $ map_ky modify state
+    (state, diff) <- pure $ map_ky modify state
     when (diff /= "") $
         Text.IO.putStrLn $ "ky:\n" <> diff
-    (state, diff) <- return $ map_ky modify state
+    (state, diff) <- pure $ map_ky modify state
     when (diff /= "") $
         Text.IO.putStrLn $ "tscore:\n" <> diff
-    return state
+    pure state
 
 map_ky :: (Text -> Text) -> Ui.State -> (Ui.State, Text)
 map_ky modify state =

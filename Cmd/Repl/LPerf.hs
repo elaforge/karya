@@ -112,7 +112,7 @@ raw_control_vals source = do
     dyn <- dynamic source
     pos <- get_realtime source
     cmap <- PlayUtil.eval_with_dynamic dyn Derive.get_control_map
-    return $ fmap (fmap (`Signal.at` pos)) cmap
+    pure $ fmap (fmap (`Signal.at` pos)) cmap
 
 aliases :: Cmd.M m => m (Map ScoreT.Instrument ScoreT.Instrument)
 aliases = Derive.state_instrument_aliases <$> dynamic Root
@@ -131,7 +131,7 @@ sel_to_real :: Cmd.M m => m [RealTime]
 sel_to_real = do
     (block_id, _, track_id, pos) <- Selection.get_insert
     tempo <- Cmd.perf_tempo <$> get block_id
-    return $ tempo block_id track_id pos
+    pure $ tempo block_id track_id pos
 
 get_realtime :: Cmd.M m => Source -> m RealTime
 get_realtime source = do
@@ -181,7 +181,7 @@ compare_cached_events :: Cmd.M m => BlockId
 compare_cached_events block_id = do
     uncached <- PlayUtil.uncached_derive block_id
     cached <- PlayUtil.cached_derive block_id
-    return $ diff (Stream.events_of (Derive.r_events cached))
+    pure $ diff (Stream.events_of (Derive.r_events cached))
         (Stream.events_of (Derive.r_events uncached))
     where
     diff e1 e2 = Lists.diffEither (==)
@@ -197,7 +197,7 @@ inverse_tempo_func :: Cmd.M m => RealTime
     -> m [(BlockId, [(TrackId, ScoreTime)])]
 inverse_tempo_func time = do
     perf <- get =<< Cmd.get_focused_block
-    return $ TrackWarp.inverse_tempo_func (Cmd.perf_warps perf)
+    pure $ TrackWarp.inverse_tempo_func (Cmd.perf_warps perf)
         Transport.StopAtEnd time
 
 -- * block
@@ -270,7 +270,7 @@ sel_sampler_events source = do
             , notes_file
             ]
     out <- CmdUtil.read_process "build/opt/sampler-im" args
-    return $ Text.unwords ("%" : "build/opt/sampler-im" : map txt args) <> "\n"
+    pure $ Text.unwords ("%" : "build/opt/sampler-im" : map txt args) <> "\n"
         <> out
 
 -- | Like 'sel_events' but take the root derivation.
@@ -299,7 +299,7 @@ extract_debug :: Cmd.M m => BlockId -> Text -> m [(Text, [Score.Event])]
     -- ^ logged events by the stack where they were logged
 extract_debug block_id tag = do
     logs <- LEvent.logs_of <$> block_events block_id
-    return
+    pure
         [ (stack log, events)
         | (log, Just events) <- zip logs (map (Log.lookup_dyn tag) logs)
         ]
@@ -372,7 +372,7 @@ events_from = do
     (block_id, _, track_id, pos) <- Selection.get_insert
     perf <- Cmd.get_performance block_id
     start <- Perf.get_realtime perf block_id (Just track_id) pos
-    return $ snd $ PlayUtil.events_from mempty start (Cmd.perf_events perf)
+    pure $ snd $ PlayUtil.events_from mempty start (Cmd.perf_events perf)
 
 perform_from :: Cmd.M m => m (Perform.MidiEvents, [LEvent.LEvent Sc.Note.Note])
 perform_from = do
@@ -402,7 +402,7 @@ get_sel :: Cmd.M m => (d -> RealTime) -> (d -> Stack.Stack)
 get_sel event_start event_stack source derive_events = do
     (block_id, track_ids, start, end) <- get_sel_ranges source
     events <- derive_events block_id
-    return $ in_tracks event_stack track_ids $
+    pure $ in_tracks event_stack track_ids $
         in_range event_start start end events
 
 get_sel_ranges :: Cmd.M m => Source
@@ -412,7 +412,7 @@ get_sel_ranges source = do
         Root -> Selection.realtime
         Local -> Selection.local_realtime
     track_ids <- Selection.track_ids
-    return (block_id, track_ids, start, end)
+    pure (block_id, track_ids, start, end)
 
 score_in_selection :: [TrackId] -> RealTime -> RealTime
     -> [LEvent.LEvent Score.Event] -> [LEvent.LEvent Score.Event]
@@ -461,19 +461,19 @@ midi_convert :: Cmd.M m => [Score.Event] -> m [LEvent.LEvent Types.Event]
 midi_convert events = do
     lookup_inst <- Cmd.get_lookup_instrument
     let lookup = PlayUtil.make_midi_lookup lookup_inst
-    return $ Midi.Convert.convert Midi.Convert.default_srate lookup lookup_inst
+    pure $ Midi.Convert.convert Midi.Convert.default_srate lookup lookup_inst
         events
 
 im_convert :: Cmd.M m => BlockId -> [Score.Event]
     -> m [LEvent.LEvent Shared.Note.Note]
 im_convert block_id events = do
     lookup_inst <- Cmd.get_lookup_instrument
-    return $ Im.Convert.convert block_id lookup_inst events
+    pure $ Im.Convert.convert block_id lookup_inst events
 
 sc_convert :: Cmd.M m => [Score.Event] -> m [LEvent.LEvent Sc.Note.Note]
 sc_convert events = do
     lookup_inst <- Cmd.get_lookup_instrument
-    return $ Sc.Convert.convert Sc.Convert.default_srate lookup_inst events
+    pure $ Sc.Convert.convert Sc.Convert.default_srate lookup_inst events
 
 -- | Filter on events with a certain instrument.
 midi_event_inst :: Types.Event -> Text
@@ -489,7 +489,7 @@ perform_midi_events :: Ui.M m => [LEvent.LEvent Types.Event]
 perform_midi_events events = do
     allocs <- Ui.gets $ UiConfig.config_allocations . Ui.state_config
     let midi_allocs = Perform.config <$> PlayUtil.midi_configs allocs
-    return $ fst $ Perform.perform Perform.initial_state midi_allocs events
+    pure $ fst $ Perform.perform Perform.initial_state midi_allocs events
 
 -- | This is the local block's performance, and the events are filtered to the
 -- selection range, and the filtering is done post-derivation, so they reflect
@@ -512,14 +512,14 @@ get_sel_midi source = do
         Root -> Selection.realtime
         Local -> Selection.local_realtime
     events <- block_midi block_id
-    return $ in_range Midi.wmsg_ts start end events
+    pure $ in_range Midi.wmsg_ts start end events
 
 -- | Get all logs whose 'Log.msg_text' matches a regex.
 logs_like :: Cmd.M m => BlockId -> String -> m [Log.Msg]
 logs_like block_id regex = do
     logs <- LEvent.logs_of <$> block_midi block_id
     let reg = Regex.compileUnsafe regex
-    return $ filter (Regex.matches reg . Log.msg_text) logs
+    pure $ filter (Regex.matches reg . Log.msg_text) logs
 
 -- | Get logs that include a stack frame that matches the given block, tracks,
 -- and range.
@@ -530,7 +530,7 @@ logs_matching perf_block block_id track_ids start end = do
     let pattern = (Just block_id, Just (Set.fromList track_ids),
             Just (start, end))
         match = maybe False (Stack.match pattern) . Log.msg_stack
-    return $ filter match logs
+    pure $ filter match logs
 
 play_midi :: Cmd.M m => Perform.MidiEvents -> m ()
 play_midi msgs = Cmd.modify $ \st -> st { Cmd.state_repl_status = status }
@@ -564,13 +564,13 @@ get_cache :: Cmd.M m => BlockId -> m (Map Derive.CacheKey Derive.Cached)
 get_cache block_id = do
     Derive.Cache cache <- Cmd.perf_derive_cache <$>
         Cmd.get_performance block_id
-    return cache
+    pure cache
 
 get_cache_events :: (Cache.Cacheable d, Cmd.M m) => BlockId
     -> m (Map Derive.CacheKey [LEvent.LEvent d])
 get_cache_events block_id = do
     cache <- get_cache block_id
-    return $ fmap Stream.to_list $ Map.mapMaybe get cache
+    pure $ fmap Stream.to_list $ Map.mapMaybe get cache
     where
     get Derive.Invalid = Nothing
     get (Derive.Cached c) = case Cache.from_cache_entry c of
@@ -580,7 +580,7 @@ get_cache_events block_id = do
 show_cache :: Cmd.M m => BlockId -> m Text
 show_cache block_id = do
     perf <- Cmd.get_performance block_id
-    return $ Cache.pretty_cache (Cmd.perf_derive_cache perf)
+    pure $ Cache.pretty_cache (Cmd.perf_derive_cache perf)
 
 entry_events :: Derive.CacheEntry -> Int
 entry_events entry = case entry of
@@ -644,7 +644,7 @@ chord_at block_id maybe_track_id pos = do
             List.find (on_track track_id) events
     let nns = mapMaybe (Score.nn_at pos) events
         notes = mapMaybe (Score.note_at pos) events
-    return $ List.zip3 nns notes (nn_ratios (Score.nn_at pos =<< selected) nns)
+    pure $ List.zip3 nns notes (nn_ratios (Score.nn_at pos =<< selected) nns)
     where
     on_track track_id = (== Just track_id) . fmap snd . Stack.block_track_of
         . Score.event_stack
@@ -661,7 +661,7 @@ sort_by_track block_id events = do
     tracknums <- mapM (Ui.tracknum_of block_id . fst) by_track
     let by_tracknum = [(tracknum, event)
             | (Just tracknum, event) <- zip tracknums (map snd by_track)]
-    return $ map snd $ Lists.sortOn fst by_tracknum
+    pure $ map snd $ Lists.sortOn fst by_tracknum
 
 nn_ratios :: Maybe Pitch.NoteNumber -> [Pitch.NoteNumber] -> [Ratio]
 nn_ratios unity nns = case (unity, nns) of
@@ -679,4 +679,4 @@ overlapping_events source = do
         Local -> Selection.local_realtime
     events <- PlayUtil.overlapping_events start . Cmd.perf_events <$>
         get block_id
-    return (start, events)
+    pure (start, events)

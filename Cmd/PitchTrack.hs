@@ -72,7 +72,7 @@ cmd_val_edit msg = Cmd.suppress_history Cmd.ValEdit "pitch track val edit" $ do
             val_edit_at pos note
         (Msg.key_down -> Just (Key.Char '\'')) -> EditUtil.soft_insert "'"
         _ -> Cmd.abort
-    return Cmd.Done
+    pure Cmd.Done
 
 -- | Method edit directs keystrokes to the (optional) call around the pitch
 -- call.  Pitches by themselves simply set a constant pitch by default, but
@@ -84,7 +84,7 @@ cmd_method_edit msg = Cmd.suppress_history Cmd.MethodEdit
     key <- Cmd.abort_unless $ EditUtil.method_key msg
     pos <- EditUtil.get_pos
     method_edit_at pos key
-    return Cmd.Done
+    pure Cmd.Done
 
 val_edit_at :: Cmd.M m => EditUtil.Pos -> Pitch.Note -> m ()
 val_edit_at pos note = modify_event_at pos $ \partial ->
@@ -106,8 +106,8 @@ cmd_record_note_status msg = do
         Msg.InputNote (InputNote.NoteOn _ input _) -> do
             note <- EditUtil.input_to_note input
             Cmd.set_status Config.status_note $ Just $ Pitch.note_text note
-        _ -> return ()
-    return Cmd.Continue
+        _ -> pure ()
+    pure Cmd.Continue
 
 -- * implementation
 
@@ -213,7 +213,7 @@ transpose transposition octaves steps = \scale env note ->
 cycle_enharmonics :: ModifyPitch
 cycle_enharmonics scale env note = first pretty $ do
     enharmonics <- Scale.scale_enharmonics scale env note
-    return $ fromMaybe note (Lists.head enharmonics)
+    pure $ fromMaybe note (Lists.head enharmonics)
 
 pitches :: Cmd.M m => ModifyPitch -> m ()
 pitches = ModifyEvents.selection . pitch_tracks

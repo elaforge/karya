@@ -80,7 +80,7 @@ scale_map layout fmt keys default_key = ScaleMap
     , smap_keys = keys
     , smap_default_key = default_key
     , smap_layout = layout
-    , smap_semis_to_nn = \_config -> return . Theory.fsemis_to_nn
+    , smap_semis_to_nn = \_config -> pure . Theory.fsemis_to_nn
     , smap_range = range
     }
     where range = (Theory.nn_to_semis 0, Theory.nn_to_semis 127)
@@ -117,7 +117,7 @@ make_scale scale_id smap doc = Scale.Scale
 transpose :: ScaleMap -> Derive.Transpose
 transpose smap transposition env steps pitch = do
     key <- read_environ_key smap env
-    return $ trans key steps pitch
+    pure $ trans key steps pitch
     where
     trans = case transposition of
         Scale.Chromatic -> Theory.transpose_chromatic
@@ -127,7 +127,7 @@ enharmonics :: ScaleMap -> Derive.Enharmonics
 enharmonics smap env note = do
     pitch <- read_pitch smap (Scales.environ_key env) note
     key <- read_environ_key smap env
-    return $ Either.rights $ map (show_pitch smap (Scales.environ_key env)) $
+    pure $ Either.rights $ map (show_pitch smap (Scales.environ_key env)) $
         Theory.enharmonics_of (Theory.key_layout key) pitch
 
 note_to_call :: PSignal.Scale -> ScaleMap -> Pitch.Note -> Maybe Derive.ValCall
@@ -152,10 +152,10 @@ pitch_note smap relative (PSignal.PitchConfig env controls) = do
     -- Symbolic pitch is still relative, so while I transpose with the key,
     -- I don't give it to 'show_pitch'.
     show_pitch smap Nothing =<< if o == 0 && d == 0 && c == 0
-        then return pitch
+        then pure pitch
         else do
             key <- read_key smap maybe_key
-            return $ Pitch.add_octave o $ Theory.transpose_chromatic key c $
+            pure $ Pitch.add_octave o $ Theory.transpose_chromatic key c $
                 Theory.transpose_diatonic key d pitch
     where
     octave = get Controls.octave
@@ -170,7 +170,7 @@ pitch_nn smap relative config@(PSignal.PitchConfig env controls) = do
     pitch <- TheoryFormat.fmt_to_absolute (smap_fmt smap) maybe_key relative
     dsteps <- if diatonic == 0 then Right 0 else do
         key <- read_key smap maybe_key
-        return $ Theory.diatonic_to_chromatic key
+        pure $ Theory.diatonic_to_chromatic key
             (Pitch.pitch_degree pitch) diatonic
     let semis = Theory.pitch_to_semis (smap_layout smap) pitch
         degree = octave * fromIntegral per_octave
@@ -200,7 +200,7 @@ input_to_note smap env (Pitch.Input kbd_type pitch frac) = do
     note <- invalid_input $ show_pitch smap
         (if is_relative then Nothing else (Scales.environ_key env))
         (pick_enharmonic pitch)
-    return $ ScaleDegree.pitch_expr frac note
+    pure $ ScaleDegree.pitch_expr frac note
     where
     is_relative = TheoryFormat.fmt_relative (smap_fmt smap)
     invalid_input (Left (DeriveT.OutOfRangeError {})) =

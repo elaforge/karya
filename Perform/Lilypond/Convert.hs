@@ -83,7 +83,7 @@ convert_event quarter event = run $ do
         throw "a note without pitch must have code"
     when (dur == 0 && not has_code_flag) $
         throw $ "zero duration event must have " <> pretty Flags.ly_code
-    return $ Types.Event
+    pure $ Types.Event
         { event_start = Types.real_to_time quarter (Score.event_start event)
         , event_duration =
             Types.real_to_time quarter (Score.event_duration event)
@@ -104,8 +104,8 @@ throw = Except.throwError . Log.msg Log.Warn Nothing
 convert_pitch :: Except.MonadError Log.Msg m =>
     Score.Event -> m (Maybe Types.Pitch)
 convert_pitch event = case Score.initial_pitch event of
-    Nothing -> return Nothing
-    Just pitch -> either (throw . ("convert_pitch: "<>)) (return . Just) $
+    Nothing -> pure Nothing
+    Just pitch -> either (throw . ("convert_pitch: "<>)) (pure . Just) $
         pitch_to_lily (Score.event_environ event) pitch
 
 -- * util

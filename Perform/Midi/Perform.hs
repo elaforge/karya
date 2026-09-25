@@ -568,7 +568,7 @@ keyswitch_messages midi_key maybe_old_inst new_inst wdev chan start =
         -- I apply the adjacent_note_gap to the ks note off too.  It's probably
         -- unnecessary, but this way the note and the ks go off at the same
         -- time.
-        return $ mapMaybe (ks_off (start-adjacent_note_gap))
+        pure $ mapMaybe (ks_off (start-adjacent_note_gap))
             (T.patch_keyswitches old)
 
     new_ks = T.patch_keyswitches new_inst

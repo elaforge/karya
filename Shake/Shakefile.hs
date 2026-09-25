@@ -177,7 +177,7 @@ options args = Shake.shakeOptions
     , Shake.shakeVerbosity = if version then Shake.Info else Shake.Warn
     , Shake.shakeReport = [build </> "report.html"]
     , Shake.shakeProgress =
-        if verbose then const (return ()) else Progress.report
+        if verbose then const (pure ()) else Progress.report
     -- Post ghc 9.4, ghc finally works on file contents rather than just
     -- modtime.
     --
@@ -703,11 +703,11 @@ configure = do
         then maybe
             (Util.errorIO "useCabalV2=True but no .ghc.environment,\
                 \ should have been created by cabal build --only-dep")
-            (return . Just) =<< Util.readGhcEnvironment ghcVersion
-        else return Nothing
+            (pure . Just) =<< Util.readGhcEnvironment ghcVersion
+        else pure Nothing
     -- TODO this breaks if you run from a different directory
     rootDir <- Directory.getCurrentDirectory
-    return $ \mode -> Config
+    pure $ \mode -> Config
         { buildMode = mode
         , hscDir = build </> "hsc"
         , chsDir = build </> "chs"
@@ -854,7 +854,7 @@ configureFltk fltkConfig = do
     fltkCs <- filter wantCflag . words <$> run fltkConfig ["--cflags"]
     fltkLds <- filter (`notElem` unwanted) . words <$>
         run (Config.fltkConfig localConfig) ["--ldflags"]
-    return (fltkVersion, fltkCs, fltkLds)
+    pure (fltkVersion, fltkCs, fltkLds)
     where
     -- TODO: newer fltk passes -pthread, which apparently just adds -lpthread
     -- and some defines, which are already in there.  This is extra weird
@@ -1002,11 +1002,11 @@ main = Concurrent.withConcurrentOutput $ Regions.displayConsoleRegions $ do
         ["opt"] -> printConfig $ modeConfig Opt
         ["test"] -> printConfig $ modeConfig Test
         ["profile"] -> printConfig $ modeConfig Profile
-        _ -> return ()
+        _ -> pure ()
     writeGhciFlags modeConfig
     makeDataLinks
     writeDeps (cabalDir </> "nix-packages") nixPackages
-    Shake.shakeArgsWith (options args) [] $ \[] targets -> return $ Just $ do
+    Shake.shakeArgsWith (options args) [] $ \[] targets -> pure $ Just $ do
         cabalRule "karya.cabal"
         faustRules
         generateKorvais
@@ -1067,15 +1067,15 @@ type instance Shake.RuleResult (Question MidiQ) = String
 
 setupOracle :: [(String, String)] -> Config -> Shake.Rules ()
 setupOracle env config = do
-    Shake.addOracle $ \(_ :: Question GhcQ) -> return (ghcLib config)
-    Shake.addOracle $ \(_ :: Question FltkQ) -> return (fltkVersion config)
+    Shake.addOracle $ \(_ :: Question GhcQ) -> pure (ghcLib config)
+    Shake.addOracle $ \(_ :: Question FltkQ) -> pure (fltkVersion config)
     -- Previously, linking ghc took so long it was worth linking without the
     -- REPL.  But dynamic linking is fast enough that I can reverse it, and
     -- eventually remove norepl if I never wind up using it.
     Shake.addOracle $ \(_ :: Question ReplQ) ->
-        return ("norepl" `notElem` map fst env)
-    Shake.addOracle $ \(_ :: Question MidiQ) -> return (midiDriver :: String)
-    return ()
+        pure ("norepl" `notElem` map fst env)
+    Shake.addOracle $ \(_ :: Question MidiQ) -> pure (midiDriver :: String)
+    pure ()
     where
     midiDriver = case midiFromEnv env of
         StubMidi -> "STUB_MIDI"
@@ -1113,7 +1113,7 @@ hsconfigHRule fn = do
     -- rebuilding, so let's just run it.
     Shake.alwaysRerun
     useRepl <- Shake.askOracle (Question () :: Question ReplQ)
-    useRepl <- return $ useRepl && targetToMode fn /= Just Test
+    useRepl <- pure $ useRepl && targetToMode fn /= Just Test
     midiDriver <- Shake.askOracle (Question () :: Question MidiQ)
     Shake.writeFileChanged fn $ unlines
         [ "/* Created automatically by the shakefile. */"
@@ -1159,7 +1159,7 @@ dispatch modeConfig targets
         | Just tests <- dropPrefix "tests-" target = action $ do
             need [runTestsTarget (Just tests)]
             Util.system "tools/run_tests" [runTestsTarget (Just tests)]
-        | otherwise = return False
+        | otherwise = pure False
     specialTargets = Map.fromList
         -- I should probably run this in keepGoing mode, -k.
         [ ("validate",) $ action $ do
@@ -1184,7 +1184,7 @@ dispatch modeConfig targets
         , ("typecheck-ci",) $ action needEverythingCI
         , ("binaries",) $ do
             Shake.want $ map (modeToDir Opt </>) allBinaries
-            return True
+            pure True
         , ("clean",) $ action $ do
             -- The shake database will remain because shake creates it after the
             -- shakefile runs, but that's probably ok.
@@ -1207,7 +1207,7 @@ dispatch modeConfig targets
         -- Run tests with no tags.
         , ("tests-normal",) $ action fastTests
         ]
-    action act = Shake.action act >> return True
+    action act = Shake.action act >> pure True
     runTestsTarget tests = runTests ++ maybe "" ('-':) tests
     needEverything more = do
         criterion <- getCriterionTargets (modeConfig Profile)
@@ -1254,7 +1254,7 @@ makeAllDocumentation modeConfig = do
     docs <- getMarkdown
     need $ extractableDocs ++ map docToHtml docs
     _ <- makeHaddock modeConfig
-    return ()
+    pure ()
 
 -- | Docs produced by extract_doc.
 extractableDocs :: [FilePath]
@@ -1281,7 +1281,7 @@ makeHaddock modeConfig = do
     need $ hsconfigPath config : hs
     let flags = configFlags config
     interfaces <- liftIO $ getHaddockInterfaces (packageFlags flags Nothing)
-    entry <- liftIO $ either Util.errorIO return =<< SourceControl.current "."
+    entry <- liftIO $ either Util.errorIO pure =<< SourceControl.current "."
     let title = mconcat
             [ "Karya, built on "
             , SourceControl.showDate (SourceControl._date entry)
@@ -1314,7 +1314,7 @@ makeHaddock modeConfig = do
         , map ("--optghc="<>) ghcFlags
         , hs
         ]
-    return hs
+    pure hs
 
 -- | Get paths to haddock interface files for all the packages.
 getHaddockInterfaces :: [Flag] -> IO [String]
@@ -1434,12 +1434,12 @@ cabalFile = unlines $ concat
 hsBinaryRule :: InferConfig -> HsBinary -> Shake.Rules ()
 hsBinaryRule infer binary = matchBuildDir (hsName binary) ?> \fn -> do
     let config = infer fn
-    hs <- maybe (Util.errorIO $ "no main module for " ++ fn) return
+    hs <- maybe (Util.errorIO $ "no main module for " ++ fn) pure
         (Map.lookup (FilePath.takeFileName fn) nameToMain)
     buildHs config (hsRtsFlags binary) (map (oDir config </>) (hsDeps binary))
         hs fn
     case hsGui binary of
-        NoGui -> return ()
+        NoGui -> pure ()
         MakeBundle -> makeBundle False fn
         HasIcon -> makeBundle True fn
 
@@ -1474,7 +1474,7 @@ makeBundle_ makeWrapper bundleType hasIcon binary = case Util.platform of
             [ "--type=" <> show bundleType
             , binary
             ]
-    _ -> return ()
+    _ -> pure ()
 
 -- * tests and profiles
 
@@ -1517,7 +1517,7 @@ generateTestHs suffix fn = do
             =<< dropSuffixError ".hs" fn
     tests <- if null testName
         then filter wantsTest <$> Util.findHs ('*' : suffix ++ ".hs") "."
-        else return [moduleToPath testName ++ suffix ++ ".hs"]
+        else pure [moduleToPath testName ++ suffix ++ ".hs"]
     let generate = modeToDir Opt </> "generate_run_tests"
     need $ generate : tests
     Util.system generate (fn : tests)
@@ -1713,7 +1713,7 @@ hsOHiRule infer = matchHsObjHi &?> \fns -> do
     Shake.askOracle (Question () :: Question GhcQ)
     let config = infer obj
     isHsc <- liftIO $ Directory.doesFileExist (objToHsc config obj)
-    isChs <- if isHsc then return False else liftIO $
+    isChs <- if isHsc then pure False else liftIO $
         Directory.doesFileExist (objToChs config obj)
     let hs  | isHsc = objToHscHs config obj
             | isChs = objToChsHs config obj
@@ -1722,7 +1722,7 @@ hsOHiRule infer = matchHsObjHi &?> \fns -> do
     -- TODO no config.h?  what about hsconfig.h?
 
     includes <- if Maybe.isJust (cppFlags config hs)
-        then includesOf "hsOHiRule" config [] hs else return []
+        then includesOf "hsOHiRule" config [] hs else pure []
     let his = map (objToHi . srcToObj config) imports
     -- I depend on the .hi files instead of the .hs.o files.  GHC avoids
     -- updaing the timestamp on the .hi file if its .o didn't need to be
@@ -1825,7 +1825,7 @@ makeDataLinks = do
     Directory.createDirectoryIfMissing True buildDocDir
     run $ Posix.createSymbolicLink "../../../data/www" (buildDocDir </> "data")
     run $ Posix.createSymbolicLink "../../doc/img" (buildDocDir </> "img")
-    return ()
+    pure ()
     where run = Exceptions.ignoreError IO.Error.isAlreadyExistsError
 
 -- | Get the file-independent flags for a haskell compile.  This is disjunct
@@ -2065,7 +2065,7 @@ moduleToPath = map $ \c -> if c == '.' then '/' else c
 
 logDeps :: Config -> String -> FilePath -> [FilePath] -> Shake.Action ()
 logDeps config stage fn deps
-    | null deps = return ()
+    | null deps = pure ()
     | otherwise = do
         need deps
         Shake.putLoud $ ">>> " ++ stage ++ ": " ++ fn ++ " <- "
@@ -2074,7 +2074,7 @@ logDeps config stage fn deps
 -- | logDeps for Mode-independent build products.
 logDepsGeneric :: String -> FilePath -> [FilePath] -> Shake.Action ()
 logDepsGeneric stage fn deps
-    | null deps = return ()
+    | null deps = pure ()
     | otherwise = do
         need deps
         Shake.putLoud $ ">>> " ++ stage ++ ": " ++ fn ++ " <- " ++ unwords deps
@@ -2089,7 +2089,7 @@ includesOf caller config moreIncludes fn = do
         liftIO $ putStrLn $ caller
             ++ ": WARNING: c includes not found: " ++ show notFound
             ++ " (looked in " ++ unwords dirs ++ ")"
-    return includes
+    pure includes
     where
     -- hsconfig.h is the only automatically generated header.  Because the
     -- #include line doesn't give the path (and can't, since each build dir

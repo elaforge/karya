@@ -57,15 +57,15 @@ c_sh_pitch = Derive.transformer Module.prelude "sh" mempty
     $ Sig.callt Speed.arg $ \speed _args deriver -> do
         (sig, (start, end), logs) <- Post.pitch_range deriver
         starts <- Speed.starts speed (start, end) True
-        return $ Stream.from_event_logs (sample_hold_pitch starts sig) logs
+        pure $ Stream.from_event_logs (sample_hold_pitch starts sig) logs
 
 -- TODO(polymorphic-signals): this is the same as 'sample_hold_control'
 sample_hold_pitch :: [RealTime] -> PSignal.PSignal -> PSignal.PSignal
 sample_hold_pitch points sig = PSignal.from_pairs $ do
     (x1, n) <- Lists.zipNext points
-    Just y <- return $ PSignal.at sig x1
+    Just y <- pure $ PSignal.at sig x1
     x <- x1 : maybe [] (:[]) n
-    return (x, y)
+    pure (x, y)
 
 
 -- * control
@@ -76,14 +76,14 @@ c_sh_control = Derive.transformer Module.prelude "sh" mempty
     $ Sig.callt Speed.arg $ \speed _args deriver -> do
         (sig, (start, end), logs) <- Post.control_range deriver
         starts <- Speed.starts speed (start, end) True
-        return $ Stream.from_event_logs (sample_hold_control starts sig) logs
+        pure $ Stream.from_event_logs (sample_hold_control starts sig) logs
 
 sample_hold_control :: [RealTime] -> Signal.Control -> Signal.Control
 sample_hold_control points sig = Signal.from_pairs $ do
     (x1, n) <- Lists.zipNext points
     let y = Signal.at sig x1
     x <- x1 : maybe [] (:[]) n
-    return (x, y)
+    pure (x, y)
 
 c_quantize :: Derive.Transformer Derive.Control
 c_quantize = Derive.transformer Module.prelude "quantize" mempty
@@ -154,7 +154,7 @@ c_redirect merger =
         (sig, logs) <- Post.derive_signal deriver
         merger <- Derive.resolve_merge merger control
         Derive.modify_control merger control sig
-        return $ Stream.from_logs logs
+        pure $ Stream.from_logs logs
     where
     merge_name Derive.DefaultMerge = "the default merger for the control"
     merge_name (Derive.Merge merger) = ShowVal.doc merger

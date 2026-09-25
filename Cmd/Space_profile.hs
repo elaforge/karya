@@ -37,7 +37,7 @@ load :: FilePath -> IO Ui.State
 load fname = do
     result <- Thread.printTimer ("unserialize " <> showt fname)
         (const "") (Save.read_state_ fname)
-    return $ expect_right result
+    pure $ expect_right result
 
 print_memory_diff :: (Memory.Size, Memory.Size) -> (Memory.Size, Memory.Size)
     -> IO ()

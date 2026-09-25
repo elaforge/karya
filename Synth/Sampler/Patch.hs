@@ -91,7 +91,7 @@ simple name filename sampleNn = (patch name)
     { _convert = \note -> do
         pitch <- tryJust "no pitch" $ Note.initialPitch note
         dyn <- tryJust "no dyn" $ Note.initial Control.dynamic note
-        return $ (Sample.make filename)
+        pure $ (Sample.make filename)
             { Sample.envelope = Signal.constant dyn
             , Sample.ratios = Signal.constant $
                 Sample.pitchToRatio sampleNn pitch

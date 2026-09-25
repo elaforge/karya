@@ -96,8 +96,8 @@ is_zero_duration args
         environ <- Derive.get_environ
         zero <- (==0) <$> Args.real_duration args
         let flags = Note.note_flags zero stack environ
-        return $ zero && not (flags `Flags.has` Flags.infer_duration)
-    | otherwise = return False
+        pure $ zero && not (flags `Flags.has` Flags.infer_duration)
+    | otherwise = pure False
 
 -- | Just like the default note call, except apply a function to the output.
 postproc_note :: Derive.CallName -> Doc.Doc -> (Score.Event -> Score.Event)
@@ -355,14 +355,14 @@ add_symbolic_pitch_convert convert event = Log.run_id $
     case Score.transposed_at (Score.event_start event) event of
         Nothing -> do
             Log.warn $ "no symbolic pitch for " <> Score.short_event event
-            return event
+            pure event
         Just pitch -> case convert pitch of
             Left err -> do
                 Log.warn $ "converting symbolic pitch for "
                     <> Score.short_event event <> ": " <> err
-                return event
+                pure event
             Right note ->
-                return $ set_environ EnvKey.element (Pitch.note_text note) event
+                pure $ set_environ EnvKey.element (Pitch.note_text note) event
 
 set_environ :: Typecheck.ToVal key => EnvKey.Key -> key -> Score.Event
     -> Score.Event

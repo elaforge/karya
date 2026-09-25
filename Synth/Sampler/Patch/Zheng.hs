@@ -115,7 +115,7 @@ convert note = do
     let vol = Num.scale 0 1 (1 - (sampleDyn - dynVal))
     let dampTime = maybe defaultDampTime RealTime.seconds $
             Note.controlAt (Note.end note) c_damp_time note
-    return $ (Sample.make filename)
+    pure $ (Sample.make filename)
         { Sample.envelope = Signal.from_pairs
             [ (Note.start note, vol), (Note.end note, vol)
             , (Note.end note + dampTime, 0)
@@ -137,7 +137,7 @@ toFilename nn art dyn var = do
     (sampleVel, filenames) <- Map.lookupGE
         (round (Num.clamp 0 127 (Num.scale 0 127 dyn)))
         velToFiles
-    return
+    pure
         ( key
         , Num.normalize 0 127 (fromIntegral sampleVel)
         , Util.pickVariation filenames var
@@ -219,10 +219,10 @@ parseFilename ('S':'C':'G':'Z':key1:key2:_:art:'-':rest) = do
                 Read.readMaybe (takeWhile Char.isDigit rest)
             _ -> Nothing
     -- One sample is mislabeled.
-    key <- return $ if key == 80 then 81 else key
+    key <- pure $ if key == 80 then 81 else key
     -- Harmonics are given an octave below their sounding pitch.
-    key <- return $ if art == Harmonic then key + 12 else key
-    return $ Sample key art var maxVel
+    key <- pure $ if art == Harmonic then key + 12 else key
+    pure $ Sample key art var maxVel
 parseFilename _ = Nothing
 
 makeSampleMap :: [FilePath]

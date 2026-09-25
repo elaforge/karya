@@ -69,7 +69,7 @@ c_set = generator1 "set" mempty "Emit a pitch with no interpolation." $
     Sig.call (required "pitch" "Set this pitch.") $ \pitch_ args -> do
         let pitch = either PSignal.nn_pitch id pitch_
         pos <- Args.real_start args
-        return $ PSignal.from_sample pos pitch
+        pure $ PSignal.from_sample pos pitch
 
 c_set_or_move :: Derive.Generator Derive.Pitch
 c_set_or_move = generator1 "set-or-move" mempty
@@ -88,7 +88,7 @@ c_set_or_move = generator1 "set-or-move" mempty
                     end (Left pitch)
             True -> do
                 pos <- Args.real_start args
-                return $ PSignal.from_sample pos pitch
+                pure $ PSignal.from_sample pos pitch
 
 event_at :: TrackTime -> Events.Events -> Bool
 event_at pos events = Maybe.isJust (Events.at pos Types.Positive events)
@@ -110,7 +110,7 @@ c_set_prev = Derive.generator Module.prelude "set-prev" Tags.prev
     "Re-set the previous pitch.  This can be used to extend a breakpoint."
     $ Sig.call0 $ \args -> do
         start <- Args.real_start args
-        return $ case Args.prev_pitch args of
+        pure $ case Args.prev_pitch args of
             Just (x, y) | start > x ->
                 Stream.from_event $ PSignal.from_sample start y
             _ -> Stream.empty
@@ -128,7 +128,7 @@ c_multiply = generator1 "multiply" mempty
         let transposed = Pitches.modify_hz (Pitches.scale scale) (*interval)
                 pitch
         start <- Args.real_start args
-        return $ PSignal.from_sample start transposed
+        pure $ PSignal.from_sample start transposed
     where
     intervals = JustScales.default_named_intervals
 
@@ -163,7 +163,7 @@ approach args curve start end = do
     case (Args.prev_pitch args, maybe_next) of
         (Just (_, prev), Just next) ->
             PitchUtil.make_segment curve start prev end next
-        _ -> return mempty
+        _ -> pure mempty
 
 c_up :: Derive.Generator Derive.Pitch
 c_up = generator1 "up" Tags.prev
@@ -180,7 +180,7 @@ slope word sign = Sig.call ((,,)
         (word <> " this many steps per second.")
     <*> PitchUtil.from_env <*> ControlUtil.curve_env
     ) $ \(slope, from, curve) args -> case PitchUtil.prev_val from args of
-        Nothing -> return mempty
+        Nothing -> pure mempty
         Just prev_pitch -> do
             start <- Args.real_start args
             next <- Derive.real (Args.next args)
@@ -204,7 +204,7 @@ c_porta = generator1 "porta" mempty
     ) $ \(to, Typecheck.DefaultReal time, place, from, curve) args -> do
         let maybe_from = from <|> (snd <$> Args.prev_pitch args)
         time <- if Args.duration args == 0
-            then return time
+            then pure time
             else DeriveT.RealDuration <$> Args.real_duration args
         (start, end) <- ControlUtil.place_range place (Args.start args) time
         PitchUtil.make_segment_from curve start maybe_from end to

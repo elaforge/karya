@@ -205,8 +205,8 @@ harmonic attr_map config hmap args = do
             natural_harmonic (has Attrs.gliss) $
                 List.find has (hmap_strings hmap)
         -- VSL has its artificial harmonics pitched one octave too high.
-        | has Attrs.harm -> return $ Call.add_constant Controls.octave (-1)
-        | otherwise -> return id
+        | has Attrs.harm -> pure $ Call.add_constant Controls.octave (-1)
+        | otherwise -> pure id
     with_pitch $ Note.default_note config args
     where
     natural_harmonic gliss maybe_string = do
@@ -216,7 +216,7 @@ harmonic attr_map config hmap args = do
         case find_harmonic hmap gliss pitch maybe_string of
             Nothing -> Derive.throw $ pretty pitch <> " unplayable on "
                 <> maybe (pretty (hmap_strings hmap)) pretty maybe_string
-            Just key -> return $
+            Just key -> pure $
                 Call.with_pitch (PSignal.nn_pitch (Midi.from_key key))
 
 -- * keyswitches
@@ -282,7 +282,7 @@ matrix keys = add . Lists.chunked 12 . concatMap (Lists.chunked 12)
         (col_ks, cell) <- zip x_axis row
         (ab_ks, attrs) <- maybe [([], cell)] (zip (map (:[]) ab)) $
             expand_ab cell
-        return (attrs, matrix_ks : row_ks : col_ks : ab_ks)
+        pure (attrs, matrix_ks : row_ks : col_ks : ab_ks)
     x_axis = keys_from (VslInst.key_x_axis keys)
     y_axis = keys_from (VslInst.key_y_axis keys)
     ab = keys_from (VslInst.key_ab keys)
@@ -380,7 +380,7 @@ harmonic_map strings = HarmonicMap
     make key_to_interval = Maps.multimap $ do
         (oct, (str, base)) <- zip [0..] strings
         (key, interval) <- key_to_interval
-        return (add base interval, (str, add key (oct * 12)))
+        pure (add base interval, (str, add key (oct * 12)))
         where add key n = Midi.to_key (Midi.from_key key + n)
 
 violin_harmonics, viola_harmonics, cello_harmonics, bass_harmonics

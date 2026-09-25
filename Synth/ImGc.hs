@@ -76,7 +76,7 @@ gc root = do
     -- seems not worth it.
     where
     check now (dir, fnames)
-        | FilePath.takeFileName dir /= checkpointDir = return mempty
+        | FilePath.takeFileName dir /= checkpointDir = pure mempty
         | otherwise = do
             garbage <- Set.fromList <$> findGarbage now dir fnames
             deleted <- fmap Num.sum $
@@ -84,7 +84,7 @@ gc root = do
             remaining <- fmap Num.sum $ mapM Directory.getFileSize $
                 filter (`Set.notMember` garbage) $ map (dir</>) fnames
             mapM_ Directory.removeFile garbage
-            return $ Stats
+            pure $ Stats
                 { _instruments = Set.singleton $ txt $
                     FilePath.takeFileName $ FilePath.takeDirectory dir
                 , _deletedFiles = length garbage
@@ -98,7 +98,7 @@ find root = do
     S.filter (/=mempty) $ S.mapM (check now) $ Files.walk (const True) root
     where
     check now (dir, fnames)
-        | FilePath.takeFileName dir /= checkpointDir = return mempty
+        | FilePath.takeFileName dir /= checkpointDir = pure mempty
         | otherwise = Set.fromList <$> liftIO (findGarbage now dir fnames)
 
 checkpointDir :: FilePath
@@ -117,11 +117,11 @@ findGarbage now checkpoint fnames = do
     let prefixes = map (FilePath.dropExtension . FilePath.takeFileName)
             (alive ++ young)
     let isAlive fn = any (`List.isPrefixOf` fn) prefixes
-    return $ map (checkpoint</>) $ filter (not . isAlive) fnames
+    pure $ map (checkpoint</>) $ filter (not . isAlive) fnames
 
 isYoung :: Time.UTCTime -> FilePath -> IO Bool
 isYoung now fname = (<= minimumAge) . (now `Time.diffUTCTime`) <$>
     Directory.getModificationTime fname
 
 foldMapM :: (Monad m, Monoid w) => (a -> m w) -> S.Stream (S.Of a) m r -> m w
-foldMapM f = S.foldM_ (\ !accum a -> (accum<>) <$> f a) (return mempty) return
+foldMapM f = S.foldM_ (\ !accum a -> (accum<>) <$> f a) (pure mempty) pure

@@ -83,7 +83,7 @@ instance Element T.Score where
         p_whitespace
         Control.loop1 config $ \loop config ->
             P.optional (lexeme (parse config)) >>= \case
-                Nothing -> return []
+                Nothing -> pure []
                 Just toplevel -> (toplevel:) <$>
                     loop (update_config (directives_of (snd toplevel)) config)
     unparse config (T.Score toplevels) =
@@ -127,7 +127,7 @@ instance Element (T.Block T.WrappedTracks) where
         block_directives <- P.many (lexeme (parse config))
         block_title <- P.option "" (lexeme p_string)
         block_tracks <- parse (update_config block_directives config)
-        return $ T.Block
+        pure $ T.Block
             { block_id, block_directives, block_title, block_tracks }
     unparse config (T.Block
             { block_id, block_directives, block_title, block_tracks }) =
@@ -144,7 +144,7 @@ instance Element Id.BlockId where
         mb <- P.optional $ P.try $ P.char '/' *> (P.takeWhile1 Id.is_id_char)
         let bid = maybe (Id.id default_namespace a)
                 (\b -> Id.id (Id.namespace a) b) mb
-        maybe (fail $ "invalid BlockId: " <> prettys bid) return (Id.make bid)
+        maybe (fail $ "invalid BlockId: " <> prettys bid) pure (Id.make bid)
         <?> "BlockId"
     unparse _ = show_block
 
@@ -184,7 +184,7 @@ instance Element (T.Track T.Call) where
             <*> fmap (">"<>) (p_string <|> P.takeWhile Id.is_id_char)
         track_directives <- P.many $ lexeme $ parse config
         track_tokens <- P.many $ lexeme $ parse config
-        return $ T.Track
+        pure $ T.Track
             { track_key, track_title, track_directives, track_tokens
             , track_pos
             }
@@ -233,7 +233,7 @@ p_directive spaces = do
         P.char '='
         when spaces p_whitespace
         p_multi_string <|> p_word
-    return $ T.Directive pos key val
+    pure $ T.Directive pos key val
 
 unparse_directive :: Bool -> T.Directive -> Text
 unparse_directive spaces (T.Directive _ lhs rhs) =
@@ -336,7 +336,7 @@ instance Element (T.Note T.Call (T.NPitch T.Pitch) T.NDuration) where
         make_note note_pos call pitch note_zero_duration note_duration = do
             -- If I allow "" as a note, I can't get P.many of them.
             guard (note { T.note_pos = T.Pos 0 } /= empty_note)
-            return note
+            pure note
             where
             note = T.Note
                 { note_call = fromMaybe (T.Call "") call

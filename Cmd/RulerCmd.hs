@@ -22,7 +22,7 @@ local_clip = do
     (block_id, _, _, pos) <- Selection.get_insert
     RulerUtil.local_meter RulerUtil.Block block_id $
         Meter.modify_sections (Meter.sections_take pos)
-    return ()
+    pure ()
 
 local_double :: Cmd.M m => m ()
 local_double = local $ Meter.modify_sections $ \sections -> sections <> sections
@@ -47,7 +47,7 @@ local :: Cmd.M m => (Meter.Meter -> Meter.Meter) -> m ()
 local action = do
     block_id <- Cmd.get_focused_block
     RulerUtil.local_meter RulerUtil.Block block_id action
-    return ()
+    pure ()
 
 -- TODO should it be configurable?
 default_section :: Meter.MSection

@@ -105,7 +105,7 @@ bind_release smods btn on = bind smods (Cmd.Release btn on)
 bind :: Cmd.M m => [SimpleMod] -> Cmd.Bindable -> Text
     -> (Msg.Msg -> m ()) -> [Binding m]
 bind smods bindable desc cmd =
-    bind_status smods bindable desc ((>> return Cmd.Done) . cmd)
+    bind_status smods bindable desc ((>> pure Cmd.Done) . cmd)
 
 -- | This is the most general Binding constructor: bind any Bindable with any
 -- modifiers, and don't assume the cmd returns Done.

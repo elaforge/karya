@@ -458,9 +458,9 @@ convert inst attrMap note = do
         FixedDyns fixedDyns dynamic ->
             convertFixedDyn fixedDyns dynamic pitch art note
         VarDyns varDyns -> convertVarDyn varDyns pitch art note
-    dynVal <- return $ dynVal
+    dynVal <- pure $ dynVal
         + Util.dbToDyn (Map.findWithDefault 0 fname dynamicTweaks)
-    return $ (Sample.make fname)
+    pure $ (Sample.make fname)
         { Sample.envelope = if
             | isMute art -> Signal.constant dynVal
             | otherwise -> Lib.Bali.variableMuteEnv dynVal note
@@ -503,11 +503,11 @@ findPitch tuning = either findSymPitch findNnPitch
         -- range.
         nn <- tryJust ("pitch out of range: " <> txt (showPitch pitch)) $
             Map.lookup pitch tuning
-        return (pitch, (nn, nn))
+        pure (pitch, (nn, nn))
     findNnPitch nn = do
         (sampleNn, pitch) <- tryJust "no pitches" $
             Maps.lookupClosest nn nnToPitch
-        return (pitch, (nn, sampleNn))
+        pure (pitch, (nn, sampleNn))
     nnToPitch = Maps.invert tuning
 
 -- If 0 variations, choose from next dyn up
@@ -594,7 +594,7 @@ showPitch (Pitch oct pc) = show oct <> drop 1 (show pc)
 
 parsePitch :: Text -> Maybe Pitch
 parsePitch t = do
-    [o, p] <- return $ Text.unpack t
+    [o, p] <- pure $ Text.unpack t
     oct <- Num.readDigit o
     guard $ Num.inRange 0 8 oct
     pc <- parsePitchClass =<< Num.readDigit p

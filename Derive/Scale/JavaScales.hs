@@ -348,7 +348,7 @@ show_dotted_cipher layout inst pitch = do
         =<< maybe (Left DeriveT.InvalidInput) Right (to_absolute layout pitch)
     let delta = oct - inst.center
     let degree = showt pc
-    return $ Pitch.Note $ if delta == 0 then degree else mconcat
+    pure $ Pitch.Note $ if delta == 0 then degree else mconcat
         [ "`", degree
         , Text.replicate (abs delta) (if delta > 0 then "^" else ".")
         , "`"
@@ -366,7 +366,7 @@ read_dotted_cipher layout center =
         A.char '`'
         let oct = Lists.count (=='^') octs - Lists.count (=='.') octs
         mkpitch oct pc
-    mkpitch oct pc = return $ from_absolute layout (Absolute (oct+center) pc)
+    mkpitch oct pc = pure $ from_absolute layout (Absolute (oct+center) pc)
     parse_pc = p_pc (c_per_oct layout.intervals)
 
 show_absolute :: Layout -> Pitch.Pitch -> Either PSignal.PitchError Pitch.Note
@@ -375,13 +375,13 @@ show_absolute layout pitch = do
     -- least.
     Absolute oct pc <- maybe (Left DeriveT.InvalidInput) Right $
         to_absolute layout pitch
-    return $ Pitch.Note $ showt oct <> showt pc
+    pure $ Pitch.Note $ showt oct <> showt pc
 
 read_absolute :: Layout -> Pitch.Note -> Either PSignal.PitchError Pitch.Pitch
 read_absolute layout note = do
     absolute <- parse
         (Absolute <$> p_octave <*> p_pc (c_per_oct layout.intervals)) note
-    return $ from_absolute layout absolute
+    pure $ from_absolute layout absolute
 
 from_absolute :: Layout -> Absolute -> Pitch.Pitch
 from_absolute layout (Absolute oct pc) =
@@ -413,4 +413,4 @@ p_digit :: Int -> Int -> A.Parser Int
 p_digit low high = do
     n <- maybe mzero pure . Num.readDigit =<< A.satisfy ParseText.is_digit
     guard $ Num.inRange low high n
-    return n
+    pure n

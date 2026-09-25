@@ -116,7 +116,7 @@ ngoret module_ late_damping damp_arg interval_arg =
         time <- Derive.real (time start)
         damp <- Derive.real (damp start)
         maybe_pitch <- case maybe_interval of
-            Nothing -> return Nothing
+            Nothing -> pure Nothing
             Just transpose ->
                 Just . Pitches.transpose transpose <$> Call.get_pitch start
         dyn <- (*dyn_scale) <$> Call.dynamic start
@@ -124,7 +124,7 @@ ngoret module_ late_damping damp_arg interval_arg =
         grace_start <- Derive.score (start - time)
         -- If there isn't room for the grace note, use the midpoint between the
         -- prev note and this one.
-        grace_start <- return $ case Args.prev_start args of
+        grace_start <- pure $ case Args.prev_start args of
             Nothing -> grace_start
             Just prev -> max grace_start $ (prev + Args.start args) / 2
         real_grace_start <- Derive.real grace_start
@@ -166,10 +166,10 @@ realize_ngoret =
     apply f = mapMaybeM (apply1 f) . Lists.zipNeighbors
         where
         apply1 f (prev, event, next) = case f prev event next of
-            Right event -> return $ Just event
+            Right event -> pure $ Just event
             Left err -> do
                 Derive.with_event_stack event $ Log.warn err
-                return Nothing
+                pure Nothing
     merge = Lists.mergeLists Score.event_start
 
 realize_infer_pitch :: Maybe Score.Event -> Score.Event
@@ -183,10 +183,10 @@ realize_infer_pitch maybe_prev event maybe_next
         -- note.
         let dur = min (Score.event_duration event)
                 (Score.event_end next - Score.event_start event)
-        return $ Score.remove_flags infer_pitch_flag $ Score.set_duration dur $
+        pure $ Score.remove_flags infer_pitch_flag $ Score.set_duration dur $
             Score.set_pitch (PSignal.constant pitch) event
-    | otherwise = return event
-    where require err = maybe (Left err) return
+    | otherwise = pure event
+    where require err = maybe (Left err) pure
 
 realize_damped :: Score.Event -> Maybe Score.Event -> Score.Event
 realize_damped event maybe_next =

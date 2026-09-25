@@ -175,7 +175,7 @@ track_blocks namespace make_ext_dur source = do
     (errs, blocks, config) <- track_blocks_ namespace make_ext_dur source
     unless (null errs) $
         Left $ Text.intercalate "; " errs
-    return (blocks, config)
+    pure (blocks, config)
 
 -- | Like 'track_blocks', but return the tracks that did resolve along with
 -- the errors, instead of failing entirely.  This is for 'standalone_duration',
@@ -186,18 +186,18 @@ track_blocks_ namespace make_ext_dur source = do
     (blocks, config) <- first (T.show_error source) $ parse_blocks source
     whenJust (check_recursion $ map (track_tokens <$>) blocks) Left
     case check_recursive_copy_from blocks of
-        [] -> return ()
+        [] -> pure ()
         errs -> Left $ "recursive %f: "
             <> mconcat (map (T.show_error source) errs)
     case concatMap check_unique_keys blocks of
-        [] -> return ()
+        [] -> pure ()
         errs -> Left $ mconcat (map (T.show_error source) errs)
     -- Parsing doesn't need durations, so the %ky is available before
     -- 'resolve_blocks', which is what needs it.
     get_ext_dur <- make_ext_dur (config_ky config)
-    (errs, blocks) <- return $
+    (errs, blocks) <- pure $
         partition_errors $ resolve_blocks get_ext_dur source blocks
-    return (errs, map (set_namespace namespace) blocks, config)
+    pure (errs, map (set_namespace namespace) blocks, config)
 
 check_unique_keys :: Block ParsedTrack -> [T.Error]
 check_unique_keys block =
@@ -261,8 +261,8 @@ lookup_call_duration transformers call = do
     result <- Cmd.require_right pretty result
     case result of
         Left err -> Cmd.throw $ pretty err
-        Right Derive.Unknown -> return Nothing
-        Right (Derive.CallDuration dur) -> return $ Just dur
+        Right Derive.Unknown -> pure Nothing
+        Right (Derive.CallDuration dur) -> pure $ Just dur
     where
     -- with_default_imported has to be outside global_transform, since GLOBAL
     -- is itself a ky definition, and hence in Module.local.
@@ -455,11 +455,11 @@ resolve_blocks get_ext_dur source blocks =
                         block_id tracknum from
                     first (T.Error (Check.from_pos from)
                         . ("can't copy from a broken track: "<>)) from_track
-                Nothing -> return Nothing
+                Nothing -> pure Nothing
             notes <- resolve_copy_from mb_from_track uncopied
             whenJust mb_asserts $ \prev ->
                 whenJust (match_asserts prev asserts notes) Left
-            return ((Check.config_negative config, notes, key, title), end)
+            pure ((Check.config_negative config, notes, key, title), end)
         where
         ((metas, uncopied), end) = first Either.partitionEithers $
             Check.check (get_dur (to_transformers block_title title) block_id)
@@ -491,7 +491,7 @@ resolve_blocks get_ext_dur source blocks =
                 (("can't get duration of broken track: "
                     <> pretty (block_id, tracknum :: TrackNum) <> ": ")<>)
                 track
-        return $ maximum $ 0 : map snd tracks
+        pure $ maximum $ 0 : map snd tracks
 
 -- | If an expected assert isn't found, or if I got one that wasn't expected,
 -- emit an error with the location.
@@ -533,7 +533,7 @@ check_recursive_copy_from blocks = concatMap check_block blocks
         track2 <- either (const Nothing) Just $
             resolve_from block_tracks block_id tracknum from
         from2 <- Check.config_from (track_config track2)
-        return $ T.Error (Check.from_pos from) $
+        pure $ T.Error (Check.from_pos from) $
             Parse.show_block_track block_id tracknum
             <> " has %f=" <> pretty from <> ", which has %f="
             <> pretty from2
@@ -676,14 +676,14 @@ parse_blocks :: Text -> Either T.Error ([Block ParsedTrack], ScoreConfig)
 parse_blocks source = do
     T.Score defs <- first (T.Error (T.Pos 0) . txt) $ Parse.parse_score source
     (blocks, config) <- foldM collect ([], Check.default_config) defs
-    return
+    pure
         ( blocks
         , ScoreConfig { config_ky = Check.config_ky config }
         )
     where
     collect (accum, config) (_pos, def) = do
         (blocks, config) <- interpret_toplevel config def
-        return (blocks ++ accum, config)
+        pure (blocks ++ accum, config)
 
 interpret_toplevel :: Check.Config -> T.Toplevel
     -> Either T.Error ([Block ParsedTrack], Check.Config)
@@ -691,16 +691,16 @@ interpret_toplevel config (T.ToplevelDirective dir) =
     ([],) <$> Check.parse_directive Check.Global dir config
 interpret_toplevel config (T.BlockDefinition block) = do
     block <- unwrap_block_tracks block
-    (block, subs) <- return $ resolve_sub_block block
+    (block, subs) <- pure $ resolve_sub_block block
     block <- interpret_block config False block
     subs <- mapM (interpret_block config True) subs
-    return (block : subs, config)
+    pure (block : subs, config)
 
 unwrap_block_tracks :: T.Block T.WrappedTracks
     -> Either T.Error (T.Block (T.Tracks T.Call))
 unwrap_block_tracks block = do
     tracks <- unwrap_tracks $ T.block_tracks block
-    return $ block { T.block_tracks = tracks }
+    pure $ block { T.block_tracks = tracks }
 
 -- | The number of tracks must match, and their titles must match.
 unwrap_tracks :: T.WrappedTracks -> Either T.Error (T.Tracks T.Call)
@@ -735,9 +735,9 @@ interpret_block config is_sub
     track_configs <- mapM
         (Check.parse_directives Check.Track block_config . T.track_directives)
         tracks
-    track_configs <- return $
+    track_configs <- pure $
         zipWith (Check.apply_block_from block_config) [1..] track_configs
-    return $ Block
+    pure $ Block
         { _block_id = block_id
         , _block_title = title
         , _is_sub = is_sub
@@ -762,7 +762,7 @@ resolve_sub_block :: T.Block (T.Tracks T.Call)
     -> (T.Block (T.Tracks T.CallText), [T.Block (T.Tracks T.CallText)])
 resolve_sub_block block = Logger.runId $ do
     tracks <- resolve_sub_tracks (T.block_id block) (T.block_tracks block)
-    return $ block { T.block_tracks = tracks }
+    pure $ block { T.block_tracks = tracks }
 
 type ResolveM a = Logger.Logger (T.Block (T.Tracks T.CallText)) a
 
@@ -775,7 +775,7 @@ resolve_sub_tracks block_id (T.Tracks tracks) =
     where
     resolve (tracknum, track) = do
         tokens <- resolve_sub_tokens block_id tracknum (T.track_tokens track)
-        return $ track { T.track_tokens = tokens }
+        pure $ track { T.track_tokens = tokens }
 
 resolve_sub_tokens :: BlockId -> TrackNum -> [T.Token T.Call pitch ndur rdur]
     -> ResolveM [T.Token T.CallText pitch ndur rdur]
@@ -785,11 +785,11 @@ resolve_sub_tokens block_id tracknum = fmap snd . Lists.mapAccumLM resolve [1..]
         T.SubBlock prefix subs -> do
             sub_calls <- resolve_sub_tracks_to_calls block_id tracknum n subs
             let call = pipe_tweak prefix `Texts.unwords2` Text.unwords sub_calls
-            return (ns, T.TNote pos (note { T.note_call = call }))
-        T.Call call -> return (n:ns, T.TNote pos (note { T.note_call = call }))
+            pure (ns, T.TNote pos (note { T.note_call = call }))
+        T.Call call -> pure (n:ns, T.TNote pos (note { T.note_call = call }))
     resolve [] (T.TNote {}) = error "unreached, infinite list"
-    resolve ns (T.TBarline pos bar) = return (ns, T.TBarline pos bar)
-    resolve ns (T.TRest pos rest) = return (ns, T.TRest pos rest)
+    resolve ns (T.TBarline pos bar) = pure (ns, T.TBarline pos bar)
+    resolve ns (T.TRest pos rest) = pure (ns, T.TRest pos rest)
 
 -- | Add a space so "foo|" -> "foo |", because of the xyz|[a] syntax.  But
 -- don't add a space if it looks like it's not coming from that syntax, e.g.
@@ -813,7 +813,7 @@ resolve_sub_tracks_to_calls parent_block_id tracknum callnum subs =
             , block_title = ""
             , block_tracks = tracks
             }
-        return $ Eval.block_id_to_call True parent_block_id block_id
+        pure $ Eval.block_id_to_call True parent_block_id block_id
     where
     sub_callnums
         | len == 1 = [Nothing]

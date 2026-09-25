@@ -133,12 +133,12 @@ eachAmpEachString strings amps dur =
 -- Strike with the finger right below each fret.
 fingerUp notes dur noteCount = do
     n <- notes
-    return $ Finger (nString n) (0.01, 0) $ concat $ do
+    pure $ Finger (nString n) (0.01, 0) $ concat $ do
         (t, fret) <- zip (drop 2 $ iterate (+dur) (nStart n))
             (take noteCount frets)
         let loc = fLocation fret - offset
         let end = t + dur
-        return
+        pure
             [ (t, loc, 0), (t+eta, loc, amp)
             , (end-eta-eta, loc, amp), (end-eta, loc, 0)
             ]
@@ -176,7 +176,7 @@ slideUp notes dur = do
     n <- notes
     let start = nStart n + 0.5
     let end = nStart n + dur
-    return $ Finger (nString n) (0.01, 0)
+    pure $ Finger (nString n) (0.01, 0)
         [ (start, 0.05, 0), (start+eta, 0.05, amp)
         , (end, 0.5, amp), (end + eta, 0.5, 0)
         ]

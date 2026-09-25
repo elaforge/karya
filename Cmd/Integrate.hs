@@ -92,8 +92,8 @@ cmd_integrate (Msg.DeriveStatus block_id (Msg.DeriveComplete perf _)) = do
             <> Text.intercalate ", "
                 (map (either pretty pretty . Derive.integrated_source) dups)
     mapM_ (integrate block_id) integrates
-    return Cmd.Continue
-cmd_integrate _ = return Cmd.Continue
+    pure Cmd.Continue
+cmd_integrate _ = pure Cmd.Continue
 
 -- | Integrate the track information into the current state.
 integrate :: Cmd.M m => BlockId -> Derive.Integrated -> m ()
@@ -140,7 +140,7 @@ integrate_block source_id tracks = do
         [] -> do
             (block_id, dests) <- Merge.create_block source_id tracks
             Create.view block_id
-            return [(block_id, dests)]
+            pure [(block_id, dests)]
         integrated -> forM integrated $ \(dest_id, track_dests) ->
             (,) dest_id <$> Merge.merge_block dest_id tracks track_dests
     Log.notice $ "derive integrated " <> showt source_id <> " to "
@@ -173,7 +173,7 @@ score_integrate updates state = Ui.run_id state $ do
         needs_track_score_integrate updates state
     block_logs <- mapM score_integrate_block $
         needs_block_score_integrate updates state
-    return $ map (Log.msg Log.Notice Nothing) (track_logs ++ block_logs)
+    pure $ map (Log.msg Log.Notice Nothing) (track_logs ++ block_logs)
 
 score_integrate_block :: Ui.M m => BlockId -> m Text
 score_integrate_block source_id = do
@@ -183,7 +183,7 @@ score_integrate_block source_id = do
         dests <- Merge.score_merge_block source_id dest_id dests
         Ui.set_integrated_block dest_id $
             Just (source_id, Block.ScoreDestinations dests)
-    return $ "score integrated " <> showt source_id <> " to: "
+    pure $ "score integrated " <> showt source_id <> " to: "
         <> pretty (map fst integrated)
     where
     integrated_from blocks =
@@ -204,7 +204,7 @@ score_integrate_tracks (block_id, track_id) = do
     new_dests <- mapM (Merge.score_merge_tracks block_id track_id) dests
     Ui.modify_integrated_tracks block_id $ replace track_id
         [(track_id, Block.ScoreDestinations dests) | dests <- new_dests]
-    return $ map msg new_dests
+    pure $ map msg new_dests
     where
     msg dests = "score integrated " <> showt track_id <> ": "
         <> Text.intercalate ", "

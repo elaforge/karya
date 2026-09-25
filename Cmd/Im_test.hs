@@ -36,7 +36,7 @@ test_respond = do
             }
         (db, warns) = Inst.db [DeriveTest.default_im_synth]
     equal warns []
-    results <- respond states (return ())
+    results <- respond states (pure ())
     ResponderTest.print_results results
     let config = Cmd.config_im $ Cmd.state_config DeriveTest.default_cmd_state
         Just synth_config = Map.lookup "im-synth" (Config.synths config)

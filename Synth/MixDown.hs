@@ -15,7 +15,7 @@ main :: IO ()
 main = do
     (out, dirs) <- Environment.getArgs >>= \case
         out : dirs
-            | ".wav" `List.isSuffixOf` out -> return (out, dirs)
+            | ".wav" `List.isSuffixOf` out -> pure (out, dirs)
             | otherwise -> usage "out arg should be .wav!"
         [] -> usage ""
     unlessM (allM Directory.doesDirectoryExist dirs) $

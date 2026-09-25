@@ -47,7 +47,7 @@ list :: Cmd.CmdL [(BlockId, Int)]
 list = do
     block_ids <- Ui.all_block_ids
     view_blocks <- Ui.gets $ map Block.view_block . Map.elems . Ui.state_views
-    return
+    pure
         [ (block_id, Lists.count (==block_id) view_blocks)
         | block_id <- block_ids
         ]
@@ -62,7 +62,7 @@ pretty block_id = do
     block <- Ui.get_block block_id
     tracks <- Ui.gets Ui.state_tracks
     view_blocks <- Ui.gets $ map Block.view_block . Map.elems . Ui.state_views
-    return $ Pretty.formatted $
+    pure $ Pretty.formatted $
         pretty_tracks view_blocks tracks block_id block
     where
     pretty_tracks view_blocks tracks block_id block =
@@ -84,7 +84,7 @@ find_f :: (Text -> Bool) -> Cmd.CmdL [(BlockId, Text)]
 find_f match = do
     block_ids <- Ui.all_block_ids
     titles <- mapM Ui.get_block_title block_ids
-    return [(block_id, title) | (block_id, title) <- zip block_ids titles,
+    pure [(block_id, title) | (block_id, title) <- zip block_ids titles,
         match title]
 
 -- | Transform all block titles.

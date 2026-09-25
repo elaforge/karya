@@ -48,7 +48,7 @@ play state sync name msgs repeat_at = do
     Transport.player_started (_players state)
     Thread.startLogged "render midi" $ thread now
         `Exception.finally` Transport.player_stopped (_players state)
-    return ()
+    pure ()
     where
     thread now = player_thread
         -- Don't send MMC if I'm repeating, it'll just confuse the DAW.
@@ -67,14 +67,14 @@ player_thread maybe_sync start name state msgs = do
     case maybe_sync of
         Just sync | not (Cmd.sync_mtc sync) ->
             state_write_midi state $ make_mmc sync start Mmc.Play
-        _ -> return ()
+        _ -> pure ()
     play_loop state msgs
         `Exception.catch` \(exc :: Exception.SomeException) ->
             Log.warn ("player died: " <> showt exc)
     case maybe_sync of
         Just sync | not (Cmd.sync_mtc sync) ->
             state_write_midi state $ make_mmc sync start Mmc.Stop
-        _ -> return ()
+        _ -> pure ()
     Log.debug $ "play complete: " <> name
 
 make_mmc :: Cmd.SyncConfig -> RealTime -> Mmc.Mmc -> Midi.WriteMessage
@@ -139,7 +139,7 @@ play_loop state msgs = do
         -- because it only sent specific note offs, but if I use a real
         -- AllNotesOff then it breaks im.  I could have im not use AllNotesOff,
         -- but let's just remove the reset_midi here.
-        (_, []) -> return () -- reset_midi
+        (_, []) -> pure () -- reset_midi
         _ -> play_loop state rest
     where
     get_end now chunk = fromMaybe now $ max

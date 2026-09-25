@@ -25,4 +25,4 @@ streamDir dir = do
         Directory.listDirectory dir
     when (null chunks) $
         IO.hPutStrLn IO.stderr $ "WARNING: no *.wav in " <> dir
-    return $ Audio.File.readCheckpoints Config.chunkSize (map (dir</>) chunks)
+    pure $ Audio.File.readCheckpoints Config.chunkSize (map (dir</>) chunks)

@@ -88,12 +88,12 @@ block = Cmd.get_focused_block
 track :: Cmd.CmdL TrackId
 track = do
     (_, _, track_id, _) <- Selection.get_insert
-    return track_id
+    pure track_id
 
 tracknum :: Cmd.CmdL TrackNum
 tracknum = do
     (_, tracknum, _, _) <- Selection.get_insert
-    return tracknum
+    pure tracknum
 
 -- | Get the current focused view.
 view :: Cmd.CmdL ViewId
@@ -155,10 +155,10 @@ s stackpos = maybe (Cmd.throw $ "can't parse stackpos: " <> showt stackpos)
 -- it, or move it around to find it.
 highlight_error :: Stack.UiFrame -> Cmd.CmdL ()
 highlight_error (maybe_bid, maybe_tid, maybe_range) = do
-    block_id <- maybe find_block return maybe_bid
+    block_id <- maybe find_block pure maybe_bid
     view_ids <- Map.keys <$> Ui.views_of block_id
     view_ids <- if null view_ids then (:[]) <$> Create.view block_id
-        else return view_ids
+        else pure view_ids
     mapM_ Cmd.focus view_ids
     case (maybe_tid, maybe_range) of
         (Nothing, _) -> forM_ view_ids $ \vid ->
@@ -189,14 +189,14 @@ highlight_error (maybe_bid, maybe_tid, maybe_range) = do
             "can't highlight stack frame with neither block nor track: "
             <> showt (maybe_bid, maybe_tid, maybe_range)
         Just track_id -> maybe (Cmd.throw $ "no block with " <> showt track_id)
-            (return . fst) . Lists.head =<< Ui.blocks_with_track_id track_id
+            (pure . fst) . Lists.head =<< Ui.blocks_with_track_id track_id
 
 -- * show / modify cmd state
 
 show_history :: Cmd.CmdL Text
 show_history = do
     hist <- Cmd.gets Cmd.state_history
-    return $ Pretty.formatted hist
+    pure $ Pretty.formatted hist
 
 -- * load / save
 

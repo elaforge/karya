@@ -109,7 +109,7 @@ refresh_selections state updates = concatMap selections view_ids
         let update selnum = Update.View view_id $
                 Update.Selection selnum
                     (Map.lookup selnum (Block.view_selections view))
-        return $ map update [0 .. Config.max_selnums - 1]
+        pure $ map update [0 .. Config.max_selnums - 1]
 
 -- | DestroyView, DestroyBlock, DestroyTrack, and DestroyRuler cancel out
 -- previous updates.
@@ -213,13 +213,13 @@ status_color state view =
 
 diff_selection :: (Update.View -> DiffM ())
     -> Sel.Num -> Lists.Paired Sel.Selection Sel.Selection -> DiffM ()
-diff_selection _ _ (Lists.Both sel1 sel2) | sel1 == sel2 = return ()
+diff_selection _ _ (Lists.Both sel1 sel2) | sel1 == sel2 = pure ()
 diff_selection emit selnum paired = case paired of
     Lists.Both sel1 sel2
         | sel1 /= sel2 -> emit $ Update.Selection selnum (Just sel2)
     Lists.Second sel2 -> emit $ Update.Selection selnum (Just sel2)
     Lists.First _ -> emit $ Update.Selection selnum Nothing
-    _ -> return ()
+    _ -> pure ()
 
 -- ** block / track / ruler
 
@@ -250,7 +250,7 @@ diff_block block_id block1 block2 = do
         Lists.Second track -> emit $ Update.InsertTrack i2 track
         Lists.Both track1 track2 | track1 /= track2 ->
             emit $ Update.BlockTrack i2 track2
-        _ -> return ()
+        _ -> pure ()
 
     let dpairs = Lists.diffIndexOn Block.dtracklike_id dtracks1 dtracks2
     forM_ dpairs $ \(i2, paired) -> case paired of
@@ -262,7 +262,7 @@ diff_block block_id block1 block2 = do
             Update.Block block_id (Update.InsertTrack i2 dtrack)
         Lists.Both dtrack1 dtrack2 | dtrack1 /= dtrack2 -> change_display $
             Update.Block block_id (Update.BlockTrack i2 dtrack2)
-        _ -> return ()
+        _ -> pure ()
 
 diff_track :: Ui.State -> TrackId -> Track.Track -> Track.Track -> DiffM ()
 diff_track state track_id track1 track2 = do
@@ -287,7 +287,7 @@ diff_track state track_id track1 track2 = do
 sibling_tracks :: Ui.State -> TrackId -> [TrackId]
 sibling_tracks state track_id = either (const []) id $ Ui.eval state $ do
     blocks <- Ui.blocks_with_track_id track_id
-    return [tid | (_, tracks) <- blocks, (_, Block.TId tid _) <- tracks]
+    pure [tid | (_, tracks) <- blocks, (_, Block.TId tid _) <- tracks]
 
 -- ** state
 
@@ -301,17 +301,17 @@ diff_state damage st1 st2 = do
         case paired of
             Lists.Second block -> emit $ Update.CreateBlock block_id block
             Lists.First _ -> emit $ Update.DestroyBlock block_id
-            _ -> return ()
+            _ -> pure ()
     forM_ (pairs Ui.state_tracks (Map.keysSet . Update._tracks)) $
         \(track_id, paired) -> case paired of
             Lists.Second track -> emit $ Update.CreateTrack track_id track
             Lists.First _ -> emit $ Update.DestroyTrack track_id
-            _ -> return ()
+            _ -> pure ()
     forM_ (pairs Ui.state_rulers Update._rulers) $ \(ruler_id, paired) ->
         case paired of
             Lists.Second ruler -> emit $ Update.CreateRuler ruler_id ruler
             Lists.First _ -> emit $ Update.DestroyRuler ruler_id
-            _ -> return ()
+            _ -> pure ()
 
 -- * derive diff
 
@@ -401,7 +401,7 @@ derive_diff_block block_id = \case
         forM_ tpairs $ \(_, pair) -> case pair of
             Lists.Both track1 track2
                 | flags_differ track1 track2 -> block_damage
-                | otherwise -> return ()
+                | otherwise -> pure ()
             _ -> block_damage
     -- This means I wind up with damage on a block that is gone.  I think this
     -- is correct, since the cache will still have recorded dependencies on

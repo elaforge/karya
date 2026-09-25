@@ -168,13 +168,13 @@ c_xstaff :: Library.Calls Derive.Note
 c_xstaff = emit_start "xstaff"
     "Emit lilypond to put the notes on a different staff."
     (Sig.required "staff" "Switch to this staff.") $ \staff ->
-        return (Ly.Position Constants.FreePrepend, change staff)
+        pure (Ly.Position Constants.FreePrepend, change staff)
     where change staff = "\\change Staff = " <> lily_str (to_lily staff)
 
 c_xstaff_around :: Library.Calls Derive.Note
 c_xstaff_around = attach_wrap_notes "xstaff-around"
     "Emit lilypond to put the notes on a different staff."
-    (Sig.required "staff" "Switch to this staff.") $ \staff -> return
+    (Sig.required "staff" "Switch to this staff.") $ \staff -> pure
         (change staff, change (other staff))
     where
     change staff = "\\change Staff = " <> lily_str (to_lily staff)
@@ -190,17 +190,17 @@ c_dyn = emit_start "dyn"
     "Emit a lilypond dynamic. If there are notes below, they are derived\
     \ unchanged."
     (Sig.required "dynamic" "Should be `p`, `ff`, etc.")
-    (return . (Ly.Position Constants.FreeAppend,) . ("\\"<>))
+    (pure . (Ly.Position Constants.FreeAppend,) . ("\\"<>))
 
 c_clef :: Library.Calls Derive.Note
 c_clef = emit_start "clef" "Emit lilypond clef change."
     (Sig.required "clef" "Should be `bass`, `treble`, etc.")
-    (return . (Ly.Position Constants.FreePrepend,) . ("\\clef "<>))
+    (pure . (Ly.Position Constants.FreePrepend,) . ("\\clef "<>))
 
 c_tempo :: Library.Calls Derive.Note
 c_tempo = emit_start "tempo" "Emit tempo marking."
     (Sig.required "text" "4 = 120, etc.")
-    (return . (Ly.Position Constants.FreePrepend,) . ("\\tempo "<>))
+    (pure . (Ly.Position Constants.FreePrepend,) . ("\\tempo "<>))
 
 c_meter :: Library.Calls Derive.Note
 c_meter = emit_global "meter"
@@ -210,7 +210,7 @@ c_meter = emit_global "meter"
     (Sig.required "meter" "Should be `4/4`, `6/8`, etc. An ambiguous meter like\
         \ `6/8` will default to 3+3, but you can explicitly set the\
         \ subdivision, e.g. `2+2+2/8`.") $
-    \meter -> return (Ly.SetEnviron Constants.v_meter, meter)
+    \meter -> pure (Ly.SetEnviron Constants.v_meter, meter)
 
 c_subdivision :: Library.Calls Derive.Note
 c_subdivision = emit_pair "subdivision"
@@ -228,7 +228,7 @@ c_movement :: Library.Calls Derive.Note
 c_movement = emit_global "movement"
     "Start a new movement with the given title."
     (Sig.required "title" "Title of this movement.") $
-    \title -> return (Ly.SetEnviron Constants.v_movement, title)
+    \title -> pure (Ly.SetEnviron Constants.v_movement, title)
 
 c_tie_direction :: Ly.Ly -> Library.Calls Derive.Note
 c_tie_direction code = attach0 "ly-tie-direction"
@@ -260,13 +260,13 @@ c_ly_pre :: Library.Calls Derive.Note
 c_ly_pre = emit_start "ly-pre"
     "Emit arbitrary lilypond code that will go before concurrent notes."
     (Sig.required "code" "A leading \\ will be prepended.") $
-    \code -> return (Ly.Position Constants.FreePrepend, "\\" <> code)
+    \code -> pure (Ly.Position Constants.FreePrepend, "\\" <> code)
 
 c_ly_post :: Library.Calls Derive.Note
 c_ly_post = emit_start "ly-post"
     "Emit arbitrary lilypond code that will go after concurrent notes."
     (Sig.required "code" "A leading \\ will be prepended.") $
-    \code -> return (Ly.Position Constants.FreeAppend, "\\" <> code)
+    \code -> pure (Ly.Position Constants.FreeAppend, "\\" <> code)
 
 c_ly_emit :: Library.Calls Derive.Note
 c_ly_emit = emit_start "ly-emit"
@@ -275,7 +275,7 @@ c_ly_emit = emit_start "ly-emit"
     <$> Sig.required "code" "Emit this code."
     <*> Sig.defaulted "pos" Constants.FreeAppend
         "Where to put it: 'Derive.Call.Ly.CodePosition'."
-    ) $ \(code, pos) -> return (Ly.Position pos, code)
+    ) $ \(code, pos) -> pure (Ly.Position pos, code)
 
 c_ly_attach :: Library.Calls Derive.Note
 c_ly_attach = attach All "ly-attach"
@@ -295,13 +295,13 @@ c_ly_key = emit_start "ly-key"
     (Sig.required "key" "You can use any of the keys from the Twelve scale.") $
     \key -> do
         key <- Derive.require_right id $ Process.parse_key key
-        return (Ly.Position Constants.FreePrepend, Types.to_lily key)
+        pure (Ly.Position Constants.FreePrepend, Types.to_lily key)
 
 c_ly_sustain :: Library.Calls Derive.Note
 c_ly_sustain = emit_start "ly-sus" "Emit \\sustainOn and \\sustainOff markup."
     (Sig.required "state" "t for \\sustainOn, f for \\sustainOff,\
         \ ft for \\sustainOff\\sustainOn.") $
-    \mode -> return $ case mode of
+    \mode -> pure $ case mode of
         Off -> (Ly.Position Constants.FreePrepend, "\\sustainOff")
         On -> (Ly.Position Constants.FreePrepend, "\\sustainOn")
         OffOn -> (Ly.Position Constants.FreePrepend, "\\sustainOff\\sustainOn")
@@ -335,11 +335,11 @@ c_ly_span = emit "ly-span"
 ly_span :: Maybe Ly.Ly -> (ScoreTime, ScoreTime)
     -> Derive.Deriver [(ScoreTime, Ly.FreeCode)]
 ly_span maybe_text (start, end)
-    | start == end = return $ case maybe_text of
+    | start == end = pure $ case maybe_text of
         Just text -> start_code text
         Nothing -> end_code
     | otherwise = case maybe_text of
-        Just text -> return $ start_code text ++ end_code
+        Just text -> pure $ start_code text ++ end_code
         Nothing -> Derive.throw "use zero dur to end a span"
     where
     start_code text =
@@ -433,13 +433,13 @@ emit_transform transform assert_0dur name doc_ sig get_events =
 emit0 :: Derive.CallName -> Doc.Doc -> Ly.FreeCode -> Library.Calls Derive.Note
 emit0 name doc code =
     emit name (doc <> "\nLilypond code: " <> Doc.Doc (pretty code))
-    Sig.no_args $ \() (start, _) -> return [(start, code)]
+    Sig.no_args $ \() (start, _) -> pure [(start, code)]
 
 -- | Like 'emit_start', except that the call can emit 2 Codes.  The second
 -- will be used at the end of the event if it has non-zero duration.
 emit_pair :: Derive.CallName -> Doc.Doc -> Sig.Parser a
     -> (a -> (Ly.FreeCode, Ly.FreeCode)) -> Library.Calls Derive.Note
-emit_pair name doc sig get_code = emit name doc sig (\val -> return . get val)
+emit_pair name doc sig get_code = emit name doc sig (\val -> pure . get val)
     where
     get val (start, end)
         | start == end = [(start, pre)]

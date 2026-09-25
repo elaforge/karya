@@ -87,7 +87,7 @@ test_resolve_postfix = do
     let f = fmap (map extract) . Gamakam.resolve_postfix . map make
         make name = Gamakam.Call
             (Gamakam.PitchCall "doc" 1 False empty, name) ""
-        empty = Gamakam.PCall Sig.no_args $ \() _ctx -> return mempty
+        empty = Gamakam.PCall Sig.no_args $ \() _ctx -> pure mempty
         extract (Gamakam.Call (pcall, name) _) =
             (name, Gamakam.pcall_duration pcall)
     equal (f "x_") (Right [('x', 2)])

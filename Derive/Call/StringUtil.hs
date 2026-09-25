@@ -66,7 +66,7 @@ string_val pitch val = do
     -- Coerce is ok because I don't want open strings in the environ to
     -- transpose.
     nn <- Pitches.pitch_nn (PSignal.coerce pitch)
-    return $ String
+    pure $ String
         { str_pitch = pitch
         , str_nn = nn
         , str_val = val

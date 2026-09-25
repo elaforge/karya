@@ -156,10 +156,10 @@ generateGraph =
         Lists.mapAccumLM get Set.empty =<< getAllHs
     where
     get seen fname
-        | Set.member fname seen = return (seen, Nothing)
+        | Set.member fname seen = pure (seen, Nothing)
         | otherwise = do
             deps <- HsDeps.importsOfIO generatedSrc (cppFlags fname) fname
-            return (Set.insert fname seen, Just (fname, deps))
+            pure (Set.insert fname seen, Just (fname, deps))
 
 -- From Shakefile, but simplified.
 

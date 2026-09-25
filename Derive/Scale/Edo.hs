@@ -50,9 +50,9 @@ make_edo scale_id env _ = do
     let default_key = Theory.key (Pitch.Degree 0 0) "" intervals layout
     let smap = (ChromaticScales.scale_map layout fmt mempty default_key)
             { ChromaticScales.smap_semis_to_nn = \_config ->
-                return . semis_to_nn divisions
+                pure . semis_to_nn divisions
             }
-    return $ ChromaticScales.make_scale scale_id smap "unused doc"
+    pure $ ChromaticScales.make_scale scale_id smap "unused doc"
 
 semis_to_nn :: Int -> Pitch.FSemi -> Pitch.NoteNumber
 semis_to_nn divisions = Pitch.NoteNumber . (+12) . (*step)

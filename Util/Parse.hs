@@ -86,7 +86,7 @@ offsetToSourcePos offset = do
 file :: a -> ParserS st a -> st -> FilePath -> IO (Either Text a)
 file deflt parser state fname = do
     mb_text <- Exceptions.ignoreEnoent (Text.IO.readFile fname)
-    return $ maybe (Right deflt) (parseS state fname parser) mb_text
+    pure $ maybe (Right deflt) (parseS state fname parser) mb_text
 
 -- -- | Format a ParseError assuming the input is just one line.
 -- format1 :: Text -> P.ParseError -> Text
@@ -106,7 +106,7 @@ file deflt parser state fname = do
 
 p_int :: ParserT m Int
 p_int = do
-    sign <- P.option 1 (P.char '-' >> return (-1))
+    sign <- P.option 1 (P.char '-' >> pure (-1))
     (*sign) <$> p_nat
     <?> "int"
 
@@ -115,7 +115,7 @@ p_nat :: ParserT m Int
 p_nat = do
     i <- P.takeWhile1P Nothing is_digit
     case Numeric.readDec (untxt i) of
-        (n, _) : _ -> return n
+        (n, _) : _ -> pure n
         _ -> mzero -- this should never happen
     <?> "nat"
 
@@ -123,13 +123,13 @@ p_nat = do
 p_positive :: ParserT m Int
 p_positive = do
     n <- p_nat
-    if n == 0 then mzero else return n
+    if n == 0 then mzero else pure n
 
 p_float :: ParserT m Double
 p_float = do
-    sign <- P.option 1 (P.char '-' >> return (-1))
+    sign <- P.option 1 (P.char '-' >> pure (-1))
     val <- p_unsigned_float
-    return (val * sign)
+    pure (val * sign)
     <?> "float"
 
 p_unsigned_float :: ParserT m Double
@@ -138,7 +138,7 @@ p_unsigned_float = do
     f <- P.option "" (P.char '.' >> P.takeWhile1P Nothing is_digit)
     if Text.null i && Text.null f then mzero else do
         case (dec i, dec f) of
-            (Just i', Just f') -> return $ fromIntegral i'
+            (Just i', Just f') -> pure $ fromIntegral i'
                 + fromIntegral f' / fromIntegral (10 ^ Text.length f)
             _ -> mzero
         <?> "unsigned float"
@@ -167,7 +167,7 @@ attoparse msg p = do
             P.setInput rest
             offset <- P.getOffset
             P.setOffset (offset + (pre - Text.length rest))
-            return val
+            pure val
         A.Fail _rest _contexts _msg ->
             -- The attoparsec msg is so useless I just ignore it and use my
             -- own.  E.g. it may be "Failed reading: takeWhile1".

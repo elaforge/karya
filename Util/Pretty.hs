@@ -425,4 +425,4 @@ readWord = Read.lift $ do
     ReadP.skipSpaces
     w <- ReadP.many1 (ReadP.satisfy (not . Char.isSpace))
     ReadP.skipSpaces
-    return w
+    pure w

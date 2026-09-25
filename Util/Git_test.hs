@@ -115,4 +115,4 @@ new_repo :: IO FilePath
 new_repo = do
     repo <- Testing.tmp_dir "git"
     io_equal (Git.init repo) False
-    return repo
+    pure repo

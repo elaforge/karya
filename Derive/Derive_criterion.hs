@@ -69,7 +69,7 @@ benchmarks = do
         , ("derive", derive_bench state)
         , ("perform", perform_bench state)
         ]
-    return $ Bench action code_name state_name (show size)
+    pure $ Bench action code_name state_name (show size)
     where
     sizes = [128, 1024, 4096]
     per_score = 32 -- sub events multiplied by this for total events
@@ -77,16 +77,16 @@ benchmarks = do
     -- Derive with track signals for all tracks, convert to Cmd.Performance,
     -- and force it as the background derivation threads do.
     cmd_derive_bench state name =
-        Criterion.env (return state) $ \state ->
+        Criterion.env (pure state) $ \state ->
             Criterion.bench name $ Criterion.nf Msg.force_performance $
             cmd_derive state
     -- Just derivation, where only the events are forced.
     derive_bench state name =
-        Criterion.env (return state) $ \state ->
+        Criterion.env (pure state) $ \state ->
             Criterion.bench name $ Criterion.nf id (derive state)
     -- Just the performance part, where derivation has already completed.
     perform_bench state name =
-        Criterion.env (return (state, derive state)) $ \ ~(state, events) ->
+        Criterion.env (pure (state, derive state)) $ \ ~(state, events) ->
             Criterion.bench name $ Criterion.nf id (perform state events)
 
 -- *2 instruments, *16 calls to 'sub'

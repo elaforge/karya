@@ -38,7 +38,7 @@ patches = alloca $ \patchpp -> do
     patches <- peekArray count =<< peek patchpp
     names <- mapM (FFI.peekCString . c_faust_name) patches
     -- I use hyphens, but C doesn't allow them in names.
-    return $ zip (map (Text.replace "_" "-") names) patches
+    pure $ zip (map (Text.replace "_" "-") names) patches
 
 -- int faust_patches(const Patch ***patches);
 foreign import ccall "faust_patches"
@@ -66,7 +66,7 @@ getMetadata patch = alloca $ \keyspp -> alloca $ \valuespp -> do
         <*> (peekTexts count =<< peek valuespp)
     free =<< peek keyspp
     free =<< peek valuespp
-    return $ Map.fromList kvs
+    pure $ Map.fromList kvs
 
 parseDescription :: Map Text Text -> Text
 parseDescription meta = Text.intercalate "\n" $ filter (/="") $
@@ -102,7 +102,7 @@ getUiControls patch = do
     free docsp
 
     -- Lead with "_" to suppress the whole control.  But "_" was turned to "-".
-    return $ filter (not . ("-" `Text.isPrefixOf`) . pretty . snd . fst) $
+    pure $ filter (not . ("-" `Text.isPrefixOf`) . pretty . snd . fst) $
         zip (zip paths controls) docs
 
 
@@ -122,12 +122,12 @@ allocate patch = do
         cptrsp <- peek cptrspp
         cptrs <- peekArray (fromIntegral count) cptrsp
         free cptrsp
-        return cptrs
+        pure cptrs
     -- I need an allocated instrument to get valid control pointers.  But since
     -- I already changed their order to put them in a Map, I have to get the
     -- control names again, which is inefficient but easy to do.
     uis <- getUiControls patch
-    return (ptr, zip (map fst uis) cptrs)
+    pure (ptr, zip (map fst uis) cptrs)
 
 -- Patch *faust_allocate(const Patch *patch, int srate);
 foreign import ccall "faust_allocate"
@@ -175,7 +175,7 @@ render controlSize controlsPerBlock inst controls inputs = do
                 (c_frames controlSize) (c_frames controlsPerBlock)
                 controlCount controlPtrs controlValsP
                 inputsP outputsP
-    return $ map (\fptr -> V.unsafeFromForeignPtr0 fptr (unframe blockSize))
+    pure $ map (\fptr -> V.unsafeFromForeignPtr0 fptr (unframe blockSize))
         outputFptrs
     where
     blockSize = controlSize * controlsPerBlock

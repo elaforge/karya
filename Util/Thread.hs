@@ -68,7 +68,7 @@ logged name thread = do
                 Exception.throwIO exc
         Right a -> do
             Log.debug $ threadName <> "completed"
-            return a
+            pure a
 
 -- | This is just NominalDiffTime, but with a name I might remember.
 type Seconds = Time.NominalDiffTime
@@ -108,7 +108,7 @@ poll time (Flag var)
 wait :: Flag -> IO ()
 wait (Flag var) = STM.atomically $ do
     val <- STM.readTVar var
-    if val then return () else STM.retry
+    if val then pure () else STM.retry
 
 -- * timing
 
@@ -122,7 +122,7 @@ timeAction action = do
     start <- Trans.liftIO metric
     !val <- action
     end <- Trans.liftIO metric
-    return (val, diffMetric start end)
+    pure (val, diffMetric start end)
 
 -- | Like 'timeAction', but return a Text msg instead of the values.
 timeActionText :: Trans.MonadIO m => m a -> m (a, Text)
@@ -137,12 +137,12 @@ printTimer msg showVal action = do
     IO.hFlush IO.stdout
     result <- Exception.try $ timeActionText $ do
         !val <- action
-        return val
+        pure val
     case result of
         Right (val, msg) -> do
             Text.IO.putStrLn $
                 "time: " <> msg <> " - " <> Text.pack (showVal val)
-            return val
+            pure val
         Left (exc :: Exception.SomeException) -> do
             -- Complete the line so the exception doesn't interrupt it.  This
             -- is important if it's a 'failure' line!
@@ -154,10 +154,10 @@ printTimer_ msg action = do
     (a, metric) <- timeAction action
     Trans.liftIO $ Text.IO.hPutStrLn IO.stderr $
         msg <> ": " <> showMetric metric
-    return a
+    pure a
 
 printTimerVal :: (DeepSeq.NFData a, Trans.MonadIO m) => Text -> a -> m a
-printTimerVal msg val = printTimer_ msg $ return $ DeepSeq.rnf val `seq` val
+printTimerVal msg val = printTimer_ msg $ pure $ DeepSeq.rnf val `seq` val
 
 currentCpu :: IO Seconds
 currentCpu = cpuToSec <$> CPUTime.getCPUTime

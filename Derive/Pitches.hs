@@ -48,12 +48,12 @@ transpose_c = transpose . Pitch.Chromatic . fromIntegral
 -- failed.
 pitch_nn :: PSignal.Transposed -> Derive.Deriver Pitch.NoteNumber
 pitch_nn = either (Derive.throw . ("evaluating pitch nn: " <>) . pretty)
-    return . PSignal.pitch_nn
+    pure . PSignal.pitch_nn
 
 -- | Like 'pitch_nn', but return the Note.
 pitch_note :: PSignal.Transposed -> Derive.Deriver Pitch.Note
 pitch_note = either (Derive.throw . ("evaluating symbolic pitch: " <>) . pretty)
-    return . PSignal.pitch_note
+    pure . PSignal.pitch_note
 
 -- | Modify a pitch by hz.  Its symbolic pitch will remain the same.
 modify_hz :: PSignal.Scale -> (Pitch.Hz -> Pitch.Hz) -> PSignal.Pitch
@@ -65,7 +65,7 @@ modify_hz scale modify pitch =
     pitch_nn modify pitch = \config -> do
         nn <- PSignal.pitch_nn $ PSignal.coerce $
             PSignal.apply_config config pitch
-        return $ Pitch.modify_hz modify nn
+        pure $ Pitch.modify_hz modify nn
 
 equal :: DeriveT.RawPitch a -> DeriveT.RawPitch a -> Bool
 equal = DeriveT.pitches_equal

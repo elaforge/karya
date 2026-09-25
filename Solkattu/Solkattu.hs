@@ -475,7 +475,7 @@ cancelKarvai ns = fst $ State.runState (go ns []) False
     go (note@(S.FNote _ (Space Rest)) : notes) future = ifM isSuppressed
         (go notes future) ((note:) <$> go notes future)
     go (n : ns) future = (n:) <$> go ns future
-    go [] _ = return []
+    go [] _ = pure []
 
     suppress = State.put True
     isSuppressed = State.get <* State.put False

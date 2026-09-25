@@ -93,15 +93,15 @@ set_selnum view_id selnum maybe_sel
     infer_orientation sel = case Sel.orientation sel of
         Sel.None -> do
             o <- get_orientation
-            return $ sel { Sel.orientation = o }
+            pure $ sel { Sel.orientation = o }
         Sel.Positive -> do
             Cmd.modify_edit_state $ \state ->
                 state { Cmd.state_note_orientation = Types.Positive }
-            return sel
+            pure sel
         Sel.Negative -> do
             Cmd.modify_edit_state $ \state ->
                 state { Cmd.state_note_orientation = Types.Negative }
-            return sel
+            pure sel
 
 get_orientation :: Cmd.M m => m Sel.Orientation
 get_orientation =
@@ -146,7 +146,7 @@ set_subs view_id sel = do
             Perf.sub_pos block_id track_id (Sel.cur_pos sel)
 
 set_block :: Ui.M m => BlockId -> [(TrackId, TrackTime)] -> m ()
-set_block _ [] = return ()
+set_block _ [] = pure ()
 set_block block_id ((_, pos) : _) = do
     view_ids <- Map.keys <$> Ui.views_of block_id
     forM_ view_ids $ \view_id ->
@@ -273,7 +273,7 @@ data Direction = R | L deriving (Eq, Show)
 find_note_track :: Cmd.M m => Direction -> Bool -> m (Maybe TrackNum)
 find_note_track dir one_before  = do
     tracks <- get_tracks_from_selection one_before dir
-    return $ Ui.track_tracknum <$>
+    pure $ Ui.track_tracknum <$>
         find (ParseTitle.is_note_track . Ui.track_title) tracks
     where
     find f
@@ -304,7 +304,7 @@ get_tracks_from_selection from_edge dir = do
     block_id <- Ui.block_id_of view_id
     tracks <- filter (Block.track_selectable . Ui.track_block) <$>
         TrackTree.tracks_of block_id
-    return $ case dir of
+    pure $ case dir of
         R -> dropWhile ((<= tracknum) . Ui.track_tracknum) tracks
         L -> dropWhile ((>= tracknum) . Ui.track_tracknum) (reverse tracks)
 
@@ -431,7 +431,7 @@ cmd_snap_selection btn extend msg = do
         -- Don't go past the end of the ruler.  Otherwise it's easy to
         -- accidentally select too much by dragging to the end of the block.
         end <- Ui.block_ruler_end block_id
-        return $ if not (Msg.mouse_down msg) && over && pos < end
+        pure $ if not (Msg.mouse_down msg) && over && pos < end
             then pos else snap
     threshold = 20
 
@@ -441,7 +441,7 @@ mouse_drag_pos :: Cmd.M m => Types.MouseButton -> Msg.Msg
 mouse_drag_pos btn msg = do
     ((num1, t1), (num2, t2)) <- mouse_drag btn msg
     case (t1, t2) of
-        (UiMsg.Track p1, UiMsg.Track p2) -> return ((num1, p1), (num2, p2))
+        (UiMsg.Track p1, UiMsg.Track p2) -> pure ((num1, p1), (num2, p2))
         _ -> Cmd.abort
 
 -- | Get the clicked or dragged range, or abort if this isn't a drag Msg.
@@ -468,7 +468,7 @@ mouse_drag btn msg = do
     -- tracks <- Ui.track_count =<< Cmd.get_focused_block
     -- let clamp (tnum, track) = (min (tracks-1) tnum, track)
     -- return (clamp down_at, clamp mouse_at)
-    return (first (max 1) down_at, first (max 1) mouse_at)
+    pure (first (max 1) down_at, first (max 1) mouse_at)
 
 -- * implementation
 
@@ -547,7 +547,7 @@ mouse_mod msg = do
         UiMsg.MouseUp btn -> Just (False, btn)
         _ -> Nothing
     track <- Msg.context_track msg
-    return (down, Cmd.MouseMod btn (Just track), track)
+    pure (down, Cmd.MouseMod btn (Just track), track)
 
 -- * util
 
@@ -557,7 +557,7 @@ step_from tracknum pos steps step = do
     block_id <- Cmd.get_focused_block
     end <- max <$> Ui.block_ruler_end block_id <*> Ui.block_event_end block_id
     next <- TimeStep.step_from steps step block_id tracknum pos
-    return $ case next of
+    pure $ case next of
         Just next | 0 <= next && next <= end -> next
         _ -> pos
 
@@ -631,7 +631,7 @@ lookup_selnum_insert selnum =
     justm (lookup_any_selnum_insert selnum) $
     \(view_id, (block_id, tracknum, pos)) ->
     justm (Ui.event_track_at block_id tracknum) $ \track_id ->
-    return $ Just (view_id, (block_id, tracknum, track_id, pos))
+    pure $ Just (view_id, (block_id, tracknum, track_id, pos))
 
 -- | Return the leftmost tracknum and trackpos, even if it's not an event
 -- track.
@@ -645,7 +645,7 @@ lookup_any_insert = lookup_any_selnum_insert Config.insert_selnum
 lookup_any_selnum_insert :: Cmd.M m => Sel.Num -> m (Maybe (ViewId, AnyPoint))
 lookup_any_selnum_insert selnum =
     justm (lookup_context_selnum selnum) $ \(Context view_id block_id sel) ->
-        return $ Just (view_id, (block_id, sel_point_track sel, sel_point sel))
+        pure $ Just (view_id, (block_id, sel_point_track sel, sel_point sel))
 
 -- | Given a block, get the selection on it, if any.  If there are multiple
 -- views, take the one with the alphabetically first ViewId.
@@ -655,11 +655,11 @@ lookup_block_insert :: Ui.M m => BlockId -> m (Maybe Point)
 lookup_block_insert block_id = do
     view_ids <- Map.keys <$> Ui.views_of block_id
     case view_ids of
-        [] -> return Nothing
+        [] -> pure Nothing
         view_id : _ ->
             justm (lookup_view view_id) $ \sel ->
             justm (sel_track block_id sel) $ \track_id ->
-            return $ Just
+            pure $ Just
                 (block_id, sel_point_track sel, track_id, sel_point sel)
 
 -- | Get the point track of a selection.
@@ -694,7 +694,7 @@ lookup_context_selnum selnum =
     justm Cmd.lookup_focused_view $ \view_id ->
     justm (Ui.get_selection view_id selnum) $ \sel -> do
         block_id <- Ui.block_id_of view_id
-        return $ Just $ Context view_id block_id sel
+        pure $ Just $ Context view_id block_id sel
 
 get :: Cmd.M m => m Sel.Selection
 get = Cmd.abort_unless =<< lookup
@@ -727,7 +727,7 @@ realtime = do
         Nothing -> local_realtime
         Just root_id -> do
             (s, e) <- relative_realtime root_id
-            return (root_id, s, e)
+            pure (root_id, s, e)
 
 -- | RealTime of the given ScoreTime, relative to the root block.  This is
 -- the closest we get to an absolute real time.
@@ -741,7 +741,7 @@ root_realtime block_id maybe_track_id pos =
 -- | This is like 'get_insert', except get the selection on the root block,
 -- falling back to the current one if there is none.
 get_root_insert :: Cmd.M m => m Point
-get_root_insert = maybe get_insert return =<< rootsel
+get_root_insert = maybe get_insert pure =<< rootsel
     where
     rootsel = justm Ui.lookup_root_id $ \root_id ->
         lookup_block_insert root_id
@@ -764,7 +764,7 @@ relative_realtime root_id = do
     let root_pos = point_to_real (Cmd.perf_tempo perf) maybe_root_sel
     let warp = Cmd.perf_closest_warp perf block_id track_id root_pos
     let (start, end) = Sel.range sel
-    return (Warp.warp warp start, Warp.warp warp end)
+    pure (Warp.warp warp start, Warp.warp warp end)
 
 -- | Get the RealTime range of the current selection, as derived from current
 -- selection's block.  This means that the top should be 0.
@@ -776,7 +776,7 @@ local_realtime = do
     perf <- Cmd.get_performance block_id
     let (start, end) = Sel.range sel
     let warp = Cmd.perf_closest_warp perf block_id track_id 0
-    return (block_id, Warp.warp warp start, Warp.warp warp end)
+    pure (block_id, Warp.warp warp start, Warp.warp warp end)
 
 -- | This is like 'relative_realtime' but gets a RealTime relative to a Point,
 -- not a range.
@@ -830,7 +830,7 @@ events_at_point = do
     pos <- point
     fmap (filter (not . null . snd)) $ forM track_ids $ \track_id -> do
         events <- Ui.get_events track_id
-        return $ (track_id,) $
+        pure $ (track_id,) $
             maybe [] (:[]) (Events.at pos Types.Negative events)
             ++ maybe [] (:[]) (Events.at pos Types.Positive events)
 
@@ -915,7 +915,7 @@ opposite_neighbor = do
     events <- forM tids $ \track_id ->
         select_opposite_neighbor (sel_point sel) (Sel.event_orientation sel) <$>
             Ui.get_events track_id
-    return [(track_id, event) | (track_id, Just event) <- zip tids events]
+    pure [(track_id, event) | (track_id, Just event) <- zip tids events]
 
 select_opposite_neighbor :: ScoreTime -> Types.Orientation -> Events.Events
     -> Maybe Event.Event
@@ -953,12 +953,12 @@ tracks = ctx_tracks =<< context
 track_ids :: Cmd.M m => m [TrackId]
 track_ids = do
     (_, _, track_ids, _) <- tracks
-    return track_ids
+    pure track_ids
 
 tracknums :: Cmd.M m => m (BlockId, [TrackNum])
 tracknums = do
     (block_id, tracknums, _, _) <- tracks
-    return (block_id, tracknums)
+    pure (block_id, tracknums)
 
 event_track :: Cmd.M m => m (BlockId, TrackId)
 event_track = ctx_event_track =<< context
@@ -967,7 +967,7 @@ ctx_event_track :: Ui.M m => Context -> m (BlockId, TrackId)
 ctx_event_track ctx = do
     (block_id, mb_track_id) <- ctx_track ctx
     track_id <- Ui.require "must select an event track" mb_track_id
-    return (block_id, track_id)
+    pure (block_id, track_id)
 
 track :: Cmd.M m => m (BlockId, Maybe TrackId)
 track = ctx_track =<< context
@@ -977,7 +977,7 @@ ctx_track ctx = do
     let block_id = ctx_block_id ctx
     maybe_track_id <-
         Ui.event_track_at block_id (sel_point_track (ctx_selection ctx))
-    return (block_id, maybe_track_id)
+    pure (block_id, maybe_track_id)
 
 -- | Selected tracks, including merged tracks.
 ctx_tracks :: Ui.M m => Context -> m Tracks
@@ -989,7 +989,7 @@ ctx_tracks ctx = do
     let merged = tracknums_of block (Set.toList merged_track_ids)
     let (all_tracknums, all_track_ids) = unzip $ Lists.uniqueSort $
             merged ++ zip tracknums track_ids
-    return (block_id, all_tracknums, all_track_ids, range)
+    pure (block_id, all_tracknums, all_track_ids, range)
 
 -- | Selected tracks, not including merged tracks.
 ctx_strict_tracks :: Ui.M m => Context -> m Tracks
@@ -998,11 +998,11 @@ ctx_strict_tracks ctx = do
     tracks <- Ui.track_count block_id
     let tracknums = Sel.tracknums tracks (ctx_selection ctx)
     tracklikes <- mapM (Ui.track_at block_id) tracknums
-    (tracknums, track_ids) <- return $ unzip
+    (tracknums, track_ids) <- pure $ unzip
         [ (i, track_id)
         | (i, Just (Block.TId track_id _)) <- zip tracknums tracklikes
         ]
-    return
+    pure
         ( block_id, tracknums, track_ids
         , Events.selection_range (ctx_selection ctx)
         )
@@ -1012,7 +1012,7 @@ tracknums_of block track_ids = do
     (tracknum, Block.TId tid _) <-
         zip [0..] (Block.block_tracklike_ids block)
     guard (tid `elem` track_ids)
-    return (tracknum, tid)
+    pure (tracknum, tid)
 
 -- * history
 
@@ -1046,7 +1046,7 @@ previous_selection change_views = do
                 }
             set_without_history view_id (Just sel)
             when (view_id /= old_view_id) $ Cmd.focus view_id
-        _ -> return ()
+        _ -> pure ()
 
 next_selection :: Cmd.M m => Bool -> m ()
 next_selection change_views = do
@@ -1061,7 +1061,7 @@ next_selection change_views = do
                 }
             set_without_history view_id (Just sel)
             when (view_id /= old_view_id) $ Cmd.focus view_id
-        _ -> return ()
+        _ -> pure ()
 
 modify_history :: Cmd.M m => (Cmd.SelectionHistory -> Cmd.SelectionHistory)
     -> m ()

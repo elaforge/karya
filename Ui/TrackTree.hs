@@ -32,13 +32,13 @@ tracks_of :: Ui.M m => BlockId -> m [Ui.TrackInfo]
 tracks_of block_id = do
     block <- Ui.get_block block_id
     state <- Ui.get
-    return $ track_info block (Ui.state_tracks state)
+    pure $ track_info block (Ui.state_tracks state)
     where
     track_info block tracks = do
         (i, btrack@(Block.Track { Block.tracklike_id = Block.TId tid _}))
             <- zip [0..] (Block.block_tracks block)
         track <- maybe [] (:[]) (Map.lookup tid tracks)
-        return $ Ui.TrackInfo
+        pure $ Ui.TrackInfo
             { track_title = Track.track_title track
             , track_id = tid
             , track_tracknum = i
@@ -52,23 +52,23 @@ parents_children_of block_id track_id = do
     tree <- track_tree_of block_id
     case List.find (\(t, _, _) -> Ui.track_id t == track_id)
             (Trees.flatPaths tree) of
-        Nothing -> return Nothing
+        Nothing -> pure Nothing
         Just (track, parents, children) ->
-            return $ Just (parents, track : children)
+            pure $ Just (parents, track : children)
 
 -- | This is like 'parents_children_of', but only the children, and it doesn't
 -- include the given TrackId.
 get_children_of :: Ui.M m => BlockId -> TrackId -> m [Ui.TrackInfo]
 get_children_of block_id track_id =
     parents_children_of block_id track_id >>= \case
-        Just (_, _ : children) -> return children
+        Just (_, _ : children) -> pure children
         _ -> Ui.throw $ "no children of " <> pretty (block_id, track_id)
 
 is_child_of :: Ui.M m => BlockId -> TrackNum -> TrackNum -> m Bool
 is_child_of block_id parent child = do
     children <- get_children_of block_id
         =<< Ui.get_event_track_at block_id parent
-    return $ child `elem` map Ui.track_tracknum children
+    pure $ child `elem` map Ui.track_tracknum children
 
 -- | Combine the skeleton with the tracks to create a TrackTree.
 --
@@ -92,7 +92,7 @@ track_tree_of block_id = do
     unless (null really_missing) $
         Ui.throw $ "skeleton of " <> showt block_id
             <> " names missing tracknums: " <> showt really_missing
-    return resolved
+    pure resolved
 
 -- | Resolve the TrackNum indices in a tree into whatever values as given by
 -- a map.
@@ -212,7 +212,7 @@ block_track_id :: Track -> Maybe (BlockId, TrackId)
 block_track_id track = do
     bid <- track_block_id track
     tid <- track_id track
-    return (bid, tid)
+    pure (bid, tid)
 
 events_tree_of :: Ui.M m => BlockId -> m EventsTree
 events_tree_of block_id = do
@@ -228,7 +228,7 @@ events_tree block_id end = mapM resolve . track_voices
         Tree.Node <$> make title track_id voice <*> mapM resolve subs
     make title track_id voice = do
         events <- Ui.get_events track_id
-        return $ (make_track title events end)
+        pure $ (make_track title events end)
             { track_id = Just track_id
             , track_block_id = Just block_id
             , track_voice = voice

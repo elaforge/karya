@@ -38,7 +38,7 @@ type Track m = BlockId -> TrackId -> [Event.Event] -> m (Maybe [Event.Event])
 track :: Monad m => Track m -> Tracks m
 track modify = \block_id track_events -> do
     outs <- mapM (uncurry (modify block_id)) track_events
-    return
+    pure
         [ (track_id, events)
         | (track_id, Just events) <- zip (map fst track_events) outs
         ]
@@ -49,7 +49,7 @@ events f _ _ = liftM Just . f
 
 -- | Map a function over a single event.
 event :: Monad m => (Event.Event -> Event.Event) -> Track m
-event f = events (return . map f)
+event f = events (pure . map f)
 
 text :: Monad m => (Text -> Text) -> Track m
 text = event . (\f -> Event.text_ %= f)
@@ -68,7 +68,7 @@ failable_text f block_id track_id events = do
             | (err, evt) <- failed]
     unless (null errs) $ Cmd.throw $
         "transformation failed: " <> Text.intercalate ", " errs
-    return $ Just ok
+    pure $ Just ok
     where
     failing_text f event = case f (Event.text event) of
         Left err -> Left (err, event)
@@ -129,7 +129,7 @@ modify_selected_block collapsed modify block_id selected = do
         Ui.insert_block_events block_id track_id new_events
     where
     wanted track_id = case collapsed of
-        IncludeCollapsed -> return True
+        IncludeCollapsed -> pure True
         ExcludeCollapsed -> do
             tracknum <- Ui.get_tracknum_of block_id track_id
             not <$> Ui.track_collapsed block_id tracknum
@@ -155,7 +155,7 @@ overlapping f = do
 tracks_named :: Cmd.M m => (Text -> Bool) -> Track m -> Track m
 tracks_named wanted f = \block_id track_id events ->
     ifM (wanted <$> Ui.get_track_title track_id)
-        (f block_id track_id events) (return Nothing)
+        (f block_id track_id events) (pure Nothing)
 
 selected_note :: Cmd.M m => Track m -> m ()
 selected_note = selection . tracks_named ParseTitle.is_note_track
@@ -175,7 +175,7 @@ block block_id f = do
     track_ids <- Block.block_track_ids <$> Ui.get_block block_id
     forM_ track_ids $ \track_id -> do
         events <- Events.ascending <$> Ui.get_events track_id
-        maybe (return ()) (Ui.modify_events track_id . const . Events.from_list)
+        maybe (pure ()) (Ui.modify_events track_id . const . Events.from_list)
             =<< f block_id track_id events
 
 all_blocks :: Cmd.M m => Track m -> m ()
@@ -259,7 +259,7 @@ instance Semigroup Parser where
     Parser p1 <> Parser p2 = Parser $ \tokens -> do
         (matches1, rest1) <- p1 tokens
         (matches2, rest2) <- p2 rest1
-        return (matches1 ++ matches2, rest2)
+        pure (matches1 ++ matches2, rest2)
 instance Monoid Parser where
     mempty = Parser $ \tokens -> [([], tokens)]
     mappend = (<>)

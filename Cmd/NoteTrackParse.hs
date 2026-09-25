@@ -31,12 +31,12 @@ track_block_calls look_in_args block_id track_id = do
     events <- Events.ascending <$> Ui.get_events track_id
     to_bid <- get_to_block_id (Just block_id)
     let bids = map (block_calls_of look_in_args to_bid . Event.text) events
-    return [(event, b :| bs) | (event, b:bs) <- zip events bids]
+    pure [(event, b :| bs) | (event, b:bs) <- zip events bids]
 
 expr_block_calls :: Ui.M m => Bool -> BlockId -> Text -> m [BlockId]
 expr_block_calls look_in_args caller expr = do
     to_bid <- get_to_block_id (Just caller)
-    return $ block_calls_of look_in_args to_bid expr
+    pure $ block_calls_of look_in_args to_bid expr
 
 -- | Try to to figure out any blocks that are referenced in the expression.
 --
@@ -58,7 +58,7 @@ get_to_block_id :: Ui.M m => Maybe BlockId -> m (Text -> Maybe BlockId)
 get_to_block_id caller = do
     blocks <- Ui.gets Ui.state_blocks
     ns <- Ui.get_namespace
-    return $ to_block_id blocks ns caller
+    pure $ to_block_id blocks ns caller
 
 -- | If the first word names a block, then it's probably a block call with
 -- args, so return just that.  Otherwise, return any argument that names

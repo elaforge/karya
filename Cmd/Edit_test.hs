@@ -29,7 +29,7 @@ test_cmd_clear_and_advance = do
         cmd = do
             Edit.cmd_clear_and_advance
             sel <- Selection.get
-            return (Sel.start_pos sel, Sel.cur_pos sel)
+            pure (Sel.start_pos sel, Sel.cur_pos sel)
         extract r = (e_start_dur_text1 r, expect_right $ CmdTest.result_val r)
     equal (run 0 0 [(0, 1)]) (Right ([], []), Just (1, 1))
     equal (run 0 0 [(0, 0), (1, 0)]) (Right ([(1, 0, "b")], []), Just (1, 1))

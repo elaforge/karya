@@ -127,9 +127,9 @@ inverting_args = flip inverting
 -- need this?  Try to make a problem without it.
 save_prev_val :: Derive.Taggable a => Derive.PassedArgs a -> Derive.Deriver ()
 save_prev_val args = case Args.prev_val args of
-    Nothing -> return ()
+    Nothing -> pure ()
     Just val -> Stack.block_track_of <$> Internal.get_stack >>= \case
-        Nothing -> return ()
+        Nothing -> pure ()
         Just block_track -> modify_threaded $ \th -> th
             { Derive.state_prev_val = Map.insert block_track
                 (Derive.to_tagged val) (Derive.state_prev_val th)
@@ -152,7 +152,7 @@ invert subs event next_start events_around = do
     whenJust (non_bottom_note_track sliced) $ \track -> Derive.throw $
         "inverting below a note track will lead to an endless loop: "
         <> pretty (TrackTree.track_id track)
-    return sliced
+    pure sliced
     where
     slice track_id =
         map (Slice.slice False (Event.start event) next_start
@@ -208,7 +208,7 @@ assert_no_subs :: Derive.PassedArgs d -> Derive.Deriver ()
 assert_no_subs args = do
     -- Due to laziness, checking null shouldn't require any actual slicing.
     events <- sub_events args
-    if null events then return () else case Derive.ctx_sub_events ctx of
+    if null events then pure () else case Derive.ctx_sub_events ctx of
         Just subs -> Derive.throw $ "expected no sub events, but got "
             <> pretty (map (map (\(s, d, _) -> (s, d))) subs)
         Nothing -> Derive.throw $ "expected no sub events, but got "
@@ -223,10 +223,10 @@ sub_events_ include_end args = map SubT._events <$> sub_tracks_ include_end args
 sub_tracks_ :: Bool -> Derive.PassedArgs d -> Derive.Deriver [SubT.Track]
 sub_tracks_ include_end args =
     case Derive.ctx_sub_events (Derive.passed_ctx args) of
-        Nothing -> either Derive.throw (return . mapMaybe mktrack) $
+        Nothing -> either Derive.throw (pure . mapMaybe mktrack) $
             Slice.checked_slice_notes include_end start end $
                 Derive.ctx_sub_tracks (Derive.passed_ctx args)
-        Just tracks -> return
+        Just tracks -> pure
             [ SubT.Track (Left $ "subevent:" <> showt i) $
                 map (\(s, d, n) -> SubT.EventT s d n) track
             | (i, track) <- zip [0..] tracks
@@ -298,7 +298,7 @@ derive_pitch :: SubT.Event -> Derive.Deriver (SubT.EventT (Maybe Pitch.Note))
 derive_pitch event = do
     stream <- SubT._note event
     let note = Score.initial_note =<< Lists.head (Stream.events_of stream)
-    return $ event { SubT._note = note }
+    pure $ event { SubT._note = note }
 
 -- | Re-fit the events from one range to another.
 fit :: (ScoreTime, ScoreTime) -- ^ fit this range

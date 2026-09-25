@@ -49,7 +49,7 @@ write adjust0 play_multiplier block_id lookup_inst filename events = do
     -- The play multiplier is a speed multiplier, so it's a note time divider.
     Note.serialize filename $ multiply_time adjust0 (1/play_multiplier) $
         map (uncurry trim_controls) $ Lists.zipNexts notes
-    return ()
+    pure ()
 
 multiply_time :: RealTime -> RealTime -> [Note.Note] -> [Note.Note]
 multiply_time adjust0 n
@@ -96,8 +96,8 @@ convert_event block_id event patch patch_name = run $ do
     let controls = Score.event_controls event
     pitch <- if Map.member Control.pitch supported
         then Just . convert_signal <$> convert_pitch event
-        else return Nothing
-    return $ Note.Note
+        else pure Nothing
+    pure $ Note.Note
         { patch = patch_name
         , instrument = Score.event_instrument event
         , trackId = event_track_id block_id event
@@ -152,4 +152,4 @@ convert_pitch event = do
     let (sig, warns) = Score.nn_signal event
     unless (null warns) $ Log.warn $
         "convert pitch: " <> Text.intercalate ", " (map pretty warns)
-    return sig
+    pure sig

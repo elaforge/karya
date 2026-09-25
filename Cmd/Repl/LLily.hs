@@ -98,7 +98,7 @@ set_staves :: Ui.M m => [(Text, Lilypond.Instrument, Lilypond.Instrument)]
     -> m (Lilypond.Config -> Lilypond.Config)
 set_staves staves
     | not (null dups) = Ui.throw $ "duplicate instruments: " <> pretty dups
-    | otherwise = return $ \config ->
+    | otherwise = pure $ \config ->
         config { Lilypond.config_staves = map mk staves }
     where
     dups = map fst $ snd $
@@ -172,11 +172,11 @@ compile_explicit title movements = do
     case result of
         Left err -> do
             Log.write err
-            return $ Log.msg_text err
+            pure $ Log.msg_text err
         Right output -> do
             filename <- Cmd.Lilypond.ly_filename title
             liftIO $ Cmd.Lilypond.compile_ly filename output
-            return ""
+            pure ""
 
 -- | Extract movements from the events and run lilypond.  Return any error.
 compile_extract :: Lilypond.Title -> [Score.Event] -> Cmd.CmdT IO Text
@@ -187,11 +187,11 @@ compile_extract title events = do
     case result of
         Left err -> do
             Log.write err
-            return $ Log.msg_text err
+            pure $ Log.msg_text err
         Right output -> do
             filename <- Cmd.Lilypond.ly_filename title
             liftIO $ Cmd.Lilypond.compile_ly filename output
-            return ""
+            pure ""
 
 block_id_title :: BlockId -> Lilypond.Title
 block_id_title = Id.ident_name
@@ -210,7 +210,7 @@ block_ly block_id = do
         Left err -> do
             Log.write err
             Cmd.throw $ Log.msg_text err
-        Right ly -> return ly
+        Right ly -> pure ly
 
 -- | Derive the block to ly events.
 convert :: Cmd.M m => BlockId -> m [Lilypond.Event]
@@ -219,7 +219,7 @@ convert block_id = do
     (score_events, derive_logs) <- LEvent.partition <$> derive block_id
     let (events, logs) = Cmd.Lilypond.convert config score_events
     mapM_ Log.write $ derive_logs ++ logs
-    return events
+    pure events
 
 e_note :: Lilypond.Event -> (Lilypond.Time, Lilypond.Time, Text)
 e_note e = (Lilypond.event_start e, Lilypond.event_duration e,
@@ -257,8 +257,8 @@ get_sel from_root derive_events = do
     (block_id, _, track_ids, range) <- Selection.tracks
     let (start, end) = Events.range_times range
     events <- derive_events
-        =<< if from_root then Ui.get_root_id else return block_id
+        =<< if from_root then Ui.get_root_id else pure block_id
     -- Lilypond derivation skips tempo tracks, so the usual ScoreTime ->
     -- RealTime map doesn't work.
-    return $ LPerf.in_score_range Score.event_stack [block_id] track_ids
+    pure $ LPerf.in_score_range Score.event_stack [block_id] track_ids
         start end events

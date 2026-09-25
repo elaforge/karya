@@ -47,4 +47,4 @@ transport config msg = do
         | config_play config msg -> Cmd.Play <$> Play.local_top
         | config_record config msg -> done Edit.cmd_toggle_val_edit
         | otherwise -> Cmd.abort
-    where done = (>> return Cmd.Done)
+    where done = (>> pure Cmd.Done)

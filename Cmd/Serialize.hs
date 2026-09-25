@@ -83,7 +83,7 @@ instance Serialize Ui.State where
                 tracks :: Map Types.TrackId Track.Track <- get
                 rulers :: Map Types.RulerId Ruler.Ruler <- get
                 config :: UiConfig.Config <- get
-                return $ Ui.State views blocks tracks rulers config
+                pure $ Ui.State views blocks tracks rulers config
             _ -> bad_version "Ui.State" v
 
 instance Serialize UiConfig.Config where
@@ -107,7 +107,7 @@ instance Serialize UiConfig.Config where
             let ky = upgrade_transform transform
                     (maybe "" (\fn -> "import '" <> txt fn <> "'\n") ky_file)
             ky <- either (fail . untxt) pure $ upgrade_ky insts ky
-            return $ UiConfig.Config ns meta root insts lilypond defaults
+            pure $ UiConfig.Config ns meta root insts lilypond defaults
                 saved_views ky ""
         12 -> do
             ns :: Id.Namespace <- get
@@ -120,7 +120,7 @@ instance Serialize UiConfig.Config where
             saved_views :: UiConfig.SavedViews <- get
             ky :: Text <- get
             ky <- either (fail . untxt) pure $ upgrade_ky insts ky
-            return $ UiConfig.Config ns meta root insts lilypond
+            pure $ UiConfig.Config ns meta root insts lilypond
                 defaults saved_views (upgrade_transform transform ky)
                 ""
         13 -> do
@@ -133,7 +133,7 @@ instance Serialize UiConfig.Config where
             saved_views :: UiConfig.SavedViews <- get
             ky :: Text <- get
             ky <- either (fail . untxt) pure $ upgrade_ky insts ky
-            return $ UiConfig.Config ns meta root insts lilypond defaults
+            pure $ UiConfig.Config ns meta root insts lilypond defaults
                 saved_views ky ""
         14 -> do
             ns :: Id.Namespace <- get
@@ -146,7 +146,7 @@ instance Serialize UiConfig.Config where
             ky :: Text <- get
             tscore :: Text <- get
             ky <- either (fail . untxt) pure $ upgrade_ky insts ky
-            return $ UiConfig.Config ns meta root insts lilypond defaults
+            pure $ UiConfig.Config ns meta root insts lilypond defaults
                 saved_views ky tscore
         15 -> do
             -- No more UiConfig.Allocations, stored in ky now.
@@ -160,7 +160,7 @@ instance Serialize UiConfig.Config where
             saved_views :: UiConfig.SavedViews <- get
             ky :: Text <- get
             tscore :: Text <- get
-            return $ UiConfig.Config ns meta root insts lilypond defaults
+            pure $ UiConfig.Config ns meta root insts lilypond defaults
                 saved_views ky tscore
         _ -> bad_version "UiConfig.Config" v
         where
@@ -185,7 +185,7 @@ instance Serialize UiConfig.Allocations where
         case v of
             1 -> do
                 configs :: Map ScoreT.Instrument UiConfig.Allocation <- get
-                return $ UiConfig.Allocations configs
+                pure $ UiConfig.Allocations configs
             _ -> bad_version "UiConfig.Allocations" v
 
 instance Serialize UiConfig.Allocation where
@@ -195,7 +195,7 @@ instance Serialize UiConfig.Allocation where
             qualified :: InstT.Qualified <- get
             config :: Common.Config <- get
             backend :: UiConfig.Backend <- get
-            return $ UiConfig.Allocation qualified config backend
+            pure $ UiConfig.Allocation qualified config backend
         v -> bad_version "UiConfig.Allocation" v
 
 instance Serialize UiConfig.Backend where
@@ -207,10 +207,10 @@ instance Serialize UiConfig.Backend where
     get = get_tag >>= \case
         0 -> do
             config :: Patch.Config <- get
-            return $ UiConfig.Midi config
-        1 -> return UiConfig.Im
-        2 -> return $ UiConfig.Dummy ""
-        3 -> return UiConfig.Sc
+            pure $ UiConfig.Midi config
+        1 -> pure UiConfig.Im
+        2 -> pure $ UiConfig.Dummy ""
+        3 -> pure UiConfig.Sc
         4 -> UiConfig.Dummy <$> (get :: Serialize.Get Text)
         tag -> bad_tag "UiConfig.Backend" tag
 
@@ -223,7 +223,7 @@ instance Serialize MidiConfigs where
     get = get_version >>= \case
         5 -> do
             insts :: Map ScoreT.Instrument Patch.Config <- get
-            return $ MidiConfigs insts
+            pure $ MidiConfigs insts
         v -> bad_version "Patch.MidiConfigs" v
 
 instance Serialize UiConfig.Meta where
@@ -236,7 +236,7 @@ instance Serialize UiConfig.Meta where
             notes :: Text <- get
             midi :: Map BlockId UiConfig.MidiPerformance <- get
             lily :: Map BlockId UiConfig.LilypondPerformance <- get
-            return $ UiConfig.Meta creation last_save notes midi lily mempty
+            pure $ UiConfig.Meta creation last_save notes midi lily mempty
         4 -> do
             creation :: Time.UTCTime <- get
             last_save :: Time.UTCTime <- get
@@ -244,7 +244,7 @@ instance Serialize UiConfig.Meta where
             midi :: Map BlockId UiConfig.MidiPerformance <- get
             lily :: Map BlockId UiConfig.LilypondPerformance <- get
             im :: Map BlockId UiConfig.ImPerformance <- get
-            return $ UiConfig.Meta creation last_save notes midi lily im
+            pure $ UiConfig.Meta creation last_save notes midi lily im
         v -> bad_version "UiConfig.Meta" v
 
 instance Serialize a => Serialize (UiConfig.Performance a) where
@@ -254,7 +254,7 @@ instance Serialize a => Serialize (UiConfig.Performance a) where
             perf :: a <- get
             creation :: Time.UTCTime <- get
             patch :: Text <- get
-            return $ UiConfig.Performance perf creation patch
+            pure $ UiConfig.Performance perf creation patch
         v -> bad_version "UiConfig.Performance" v
 
 instance Serialize UiConfig.Default where
@@ -262,7 +262,7 @@ instance Serialize UiConfig.Default where
     get = get_version >>= \case
         4 -> do
             tempo :: Signal.Y <- get
-            return $ UiConfig.Default tempo
+            pure $ UiConfig.Default tempo
         v -> bad_version "UiConfig.Default" v
 
 -- ** Block
@@ -282,7 +282,7 @@ instance Serialize Block.Block where
             iblock :: Maybe (BlockId, Block.TrackDestinations) <- get
             itracks :: [(TrackId, Block.TrackDestinations)] <- get
             meta :: Map Text Text <- get
-            return $ Block.Block title config tracks skel iblock itracks mempty
+            pure $ Block.Block title config tracks skel iblock itracks mempty
                 meta
         12 -> do
             title :: Text <- get
@@ -292,7 +292,7 @@ instance Serialize Block.Block where
             itracks :: [(TrackId, Block.TrackDestinations)] <- get
             manual :: Map Block.SourceKey [OldNoteDestination] <- get
             meta :: Map Text Text <- get
-            return $ Block.Block title config tracks skel iblock itracks
+            pure $ Block.Block title config tracks skel iblock itracks
                 (map upgrade_note_destination <$> manual) meta
         13 -> do
             title :: Text <- get
@@ -302,7 +302,7 @@ instance Serialize Block.Block where
             itracks :: [(TrackId, Block.TrackDestinations)] <- get
             dtracks :: Block.ManualDestinations <- get
             meta :: Map Text Text <- get
-            return $ Block.Block title config tracks skel iblock itracks
+            pure $ Block.Block title config tracks skel iblock itracks
                 dtracks meta
         14 -> do
             title :: Text <- get
@@ -313,7 +313,7 @@ instance Serialize Block.Block where
             dtracks :: Block.ManualDestinations <- get
             meta :: Map Text Text <- get
             skel_config :: Block.Skeleton <- get
-            return $ Block.Block title
+            pure $ Block.Block title
                 (config { Block.config_skeleton = skel_config })
                 tracks skel iblock itracks dtracks meta
         v -> bad_version "Block.Block" v
@@ -358,7 +358,7 @@ instance Serialize Block.NoteDestination where
             key :: Text <- get
             note :: (TrackId, Block.EventIndex) <- get
             controls :: (Map Text (TrackId, Block.EventIndex)) <- get
-            return $ Block.NoteDestination key note controls
+            pure $ Block.NoteDestination key note controls
         v -> bad_version "Block.Block" v
 
 instance Serialize Block.Track where
@@ -373,7 +373,7 @@ instance Serialize Block.Track where
             width :: Types.Width <- get
             flags :: Set Block.TrackFlag <- get
             merged :: Set Types.TrackId <- get
-            return $ Block.Track id width width flags merged
+            pure $ Block.Track id width width flags merged
         v -> bad_version "Block.Track" v
 
 instance Serialize Block.TrackFlag where
@@ -384,11 +384,11 @@ instance Serialize Block.TrackFlag where
         Block.Disable -> 3
         Block.Merge -> 4
     get = get_tag >>= \case
-        0 -> return Block.Collapse
-        1 -> return Block.Solo
-        2 -> return Block.Mute
-        3 -> return Block.Disable
-        4 -> return Block.Merge
+        0 -> pure Block.Collapse
+        1 -> pure Block.Solo
+        2 -> pure Block.Mute
+        3 -> pure Block.Disable
+        4 -> pure Block.Merge
         tag -> bad_tag "Block.TrackFlag" tag
 
 instance Serialize Block.TracklikeId where
@@ -401,13 +401,13 @@ instance Serialize Block.TracklikeId where
             0 -> do
                 tid :: TrackId <- get
                 rid :: RulerId <- get
-                return $ Block.TId tid rid
+                pure $ Block.TId tid rid
             1 -> do
                 rid :: RulerId <- get
-                return $ Block.RId rid
+                pure $ Block.RId rid
             2 -> do
                 div :: Block.Divider <- get
-                return $ Block.DId div
+                pure $ Block.DId div
             _ -> bad_tag "Block.TracklikeId" tag
 
 instance Serialize Block.Divider where
@@ -428,7 +428,7 @@ instance Serialize Block.View where
             zoom :: Zoom.Zoom <- get
             selections :: Map Sel.Num OldSelection <- get
             let padding = Block.Padding track_padding time_padding 0
-            return $ Block.View block rect padding status track_scroll zoom
+            pure $ Block.View block rect padding status track_scroll zoom
                 (upgrade <$> selections)
         6 -> do
             block :: Types.BlockId <- get
@@ -438,7 +438,7 @@ instance Serialize Block.View where
             track_scroll :: Types.Width <- get
             zoom :: Zoom.Zoom <- get
             selections :: Map Sel.Num OldSelection <- get
-            return $ Block.View block rect padding status track_scroll zoom
+            pure $ Block.View block rect padding status track_scroll zoom
                 (upgrade <$> selections)
         7 -> do
             block :: Types.BlockId <- get
@@ -448,7 +448,7 @@ instance Serialize Block.View where
             track_scroll :: Types.Width <- get
             zoom :: Zoom.Zoom <- get
             selections :: Map Sel.Num Sel.Selection <- get
-            return $ Block.View block rect padding status track_scroll zoom
+            pure $ Block.View block rect padding status track_scroll zoom
                 selections
         v -> bad_version "Block.View" v
         where
@@ -462,20 +462,20 @@ instance Serialize Block.Padding where
             left :: Int <- get
             top :: Int <- get
             bottom :: Int <- get
-            return $ Block.Padding left top bottom
+            pure $ Block.Padding left top bottom
         v -> bad_version "Block.Padding" v
 
 instance Serialize Rect.Rect where
     put r = put (Rect.x r) >> put (Rect.y r) >> put (Rect.w r) >> put (Rect.h r)
     get = get >>= \a -> get >>= \b -> get >>= \c -> get >>= \d ->
-        return (Rect.xywh a b c d)
+        pure (Rect.xywh a b c d)
 
 instance Serialize Zoom.Zoom where
     put (Zoom.Zoom a b) = put a >> put b
     get = do
         offset :: ScoreTime <- get
         factor :: Double <- get
-        return $ Zoom.Zoom offset factor
+        pure $ Zoom.Zoom offset factor
 
 data OldSelection = OldSelection TrackNum TrackTime TrackNum TrackTime
 
@@ -493,7 +493,7 @@ instance Serialize Sel.Selection where
             ctrack :: Int <- get
             ctime :: ScoreTime <- get
             orient :: Sel.Orientation <- get
-            return $ Sel.Selection strack stime ctrack ctime orient
+            pure $ Sel.Selection strack stime ctrack ctime orient
         v -> bad_version "Sel.Selection" v
 
 instance Serialize Sel.Orientation where
@@ -505,7 +505,7 @@ instance Serialize Sel.Orientation where
 instance Serialize Color.Color where
     put (Color.Color a b c d) = put a >> put b >> put c >> put d
     get = get >>= \a -> get >>= \b -> get >>= \c -> get >>= \d ->
-        return (Color.Color a b c d)
+        pure (Color.Color a b c d)
 
 -- ** Ruler
 
@@ -525,7 +525,7 @@ instance Serialize Ruler.Ruler where
             bg :: Color.Color <- get
             show_names :: Bool <- get
             align_to_bottom :: Bool <- get
-            return $ Ruler.Ruler (upgrade <$> marklists) bg show_names
+            pure $ Ruler.Ruler (upgrade <$> marklists) bg show_names
                 align_to_bottom
             where
             upgrade (_name, OldMarklist mlist) =
@@ -535,7 +535,7 @@ instance Serialize Ruler.Ruler where
             bg :: Color.Color <- get
             show_names :: Bool <- get
             align_to_bottom :: Bool <- get
-            return $ Ruler.Ruler (upgrade marklists) bg show_names
+            pure $ Ruler.Ruler (upgrade marklists) bg show_names
                 align_to_bottom
             where
             upgrade :: OldMarklists -> Ruler.Marklists
@@ -550,7 +550,7 @@ instance Serialize Ruler.Ruler where
             bg :: Color.Color <- get
             show_names :: Bool <- get
             align_to_bottom :: Bool <- get
-            return $ Ruler.Ruler (add <$> marklists) bg show_names
+            pure $ Ruler.Ruler (add <$> marklists) bg show_names
                 align_to_bottom
             where
             add (Just meter, _) = (Just meter, Meter.Make.make_marklist meter)
@@ -580,7 +580,7 @@ instance Serialize Meter.Meter where
         0 -> do
             config :: Meter.Config <- get
             sections :: [Meter.MSection] <- get
-            return $ Meter.Meter config sections
+            pure $ Meter.Meter config sections
         v -> bad_version "Meter.Meter" v
 
 instance Serialize Meter.MSection where
@@ -590,7 +590,7 @@ instance Serialize Meter.MSection where
             count :: Meter.Measures <- get
             measure_duration :: Meter.Duration <- get
             measure :: Meter.AbstractMeter <- get
-            return $ Meter.MSection count measure_duration measure
+            pure $ Meter.MSection count measure_duration measure
         v -> bad_version "Meter.MSection" v
 
 instance Serialize Meter.Config where
@@ -603,7 +603,7 @@ instance Serialize Meter.Config where
             start_measure :: Meter.Measures <- get
             min_depth :: Int <- get
             strip_depth :: Int <- get
-            return $ Meter.Config labeled_ranks label start_measure min_depth
+            pure $ Meter.Config labeled_ranks label start_measure min_depth
                 strip_depth
         v -> bad_version "Meter.Config" v
 
@@ -664,7 +664,7 @@ instance Serialize Mark.Marklist where
     get = get_version >>= \case
         0 -> do
             vec :: Mark.MarklistVector <- get
-            return $ Mark.marklist_from_vector vec
+            pure $ Mark.marklist_from_vector vec
         v -> bad_version "Mark.Marklist" v
 
 -- TODO I thought to make a new Mark with typed Mark.Rank, but it's
@@ -679,7 +679,7 @@ instance Serialize Mark.Mark where
         name :: Text <- get
         name_zoom :: Double <- get
         zoom :: Double <- get
-        return $ Mark.Mark (toEnum rank) width color name name_zoom zoom
+        pure $ Mark.Mark (toEnum rank) width color name name_zoom zoom
 
 -- ** Track
 
@@ -692,14 +692,14 @@ instance Serialize Track.Track where
             events :: Events.Events <- get
             color :: Color.Color <- get
             render :: Track.RenderConfig <- get
-            return $ Track.Track title events color render True
+            pure $ Track.Track title events color render True
         5 -> do
             title :: Text <- get
             events :: Events.Events <- get
             color :: Color.Color <- get
             render :: Track.RenderConfig <- get
             waveform :: Bool <- get
-            return $ Track.Track title events color render waveform
+            pure $ Track.Track title events color render waveform
         v -> bad_version "Track.Track" v
 
 instance Serialize Track.RenderConfig where
@@ -708,7 +708,7 @@ instance Serialize Track.RenderConfig where
         1 -> do
             style :: Track.RenderStyle <- get
             color :: Color.Color <- get
-            return $ Track.RenderConfig style color
+            pure $ Track.RenderConfig style color
         v -> bad_version "Track.RenderConfig" v
 
 instance Serialize Track.RenderStyle where
@@ -716,13 +716,13 @@ instance Serialize Track.RenderStyle where
     put (Track.Line a) = put_tag 1 >> put a
     put (Track.Filled a) = put_tag 2 >> put a
     get = get_tag >>= \case
-        0 -> return Track.NoRender
+        0 -> pure Track.NoRender
         1 -> do
             source :: Maybe Track.RenderSource <- get
-            return $ Track.Line source
+            pure $ Track.Line source
         2 -> do
             source :: Maybe Track.RenderSource <- get
-            return $ Track.Filled source
+            pure $ Track.Filled source
         tag -> bad_tag "Track.RenderStyle" tag
 
 instance Serialize Track.RenderSource where
@@ -736,10 +736,10 @@ instance Serialize Track.RenderSource where
     get = get_tag >>= \case
         0 -> do
             control :: ScoreT.Control <- get
-            return $ Track.Control control
+            pure $ Track.Control control
         1 -> do
             control :: Maybe ScoreT.PControl <- get
-            return $ Track.Pitch (fromMaybe ScoreT.default_pitch control)
+            pure $ Track.Pitch (fromMaybe ScoreT.default_pitch control)
         tag -> bad_tag "Track.RenderSource" tag
 
 -- ** Perform.Midi.Patch
@@ -755,7 +755,7 @@ instance Serialize Patch.Config where
                     { Patch.config_scale = scale
                     , Patch.config_control_defaults = nonempty control_defaults
                     }
-            return $ Patch.Config alloc Nothing settings
+            pure $ Patch.Config alloc Nothing settings
         8 -> do
             alloc :: [(Patch.Addr, Maybe Patch.Voices)] <- get
             scale :: Maybe Patch.Scale <- get
@@ -765,14 +765,14 @@ instance Serialize Patch.Config where
                     { Patch.config_scale = scale
                     , Patch.config_control_defaults = nonempty control_defaults
                     }
-            return $ Patch.Config alloc (upgrade_initialization initialization)
+            pure $ Patch.Config alloc (upgrade_initialization initialization)
                 settings
         9 -> do
             alloc :: [(Patch.Addr, Maybe Patch.Voices)] <- get
             control_defaults :: ScoreT.ControlValMap <- get
             initialization :: Set Patch.Initialization <- get
             settings :: Patch.Settings <- get
-            return $ Patch.Config alloc
+            pure $ Patch.Config alloc
                 (upgrade_initialization initialization)
                 (settings
                     { Patch.config_control_defaults = nonempty control_defaults
@@ -781,13 +781,13 @@ instance Serialize Patch.Config where
             alloc :: [(Patch.Addr, Maybe Patch.Voices)] <- get
             initialization :: Set Patch.Initialization <- get
             settings :: Patch.Settings <- get
-            return $ Patch.Config alloc (upgrade_initialization initialization)
+            pure $ Patch.Config alloc (upgrade_initialization initialization)
                 settings
         11 -> do
             alloc :: [(Patch.Addr, Maybe Patch.Voices)] <- get
             initialization :: Maybe Patch.Initialization <- get
             settings :: Patch.Settings <- get
-            return $ Patch.Config alloc initialization settings
+            pure $ Patch.Config alloc initialization settings
         v -> bad_version "Patch.Config" v
         where
         nonempty x = if x == mempty then Nothing else Just x
@@ -830,7 +830,7 @@ instance Serialize Patch.Settings where
             scale :: Maybe Patch.Scale <- get
             decay :: Maybe RealTime <- get
             _pitch_bend_range :: Midi.Control.PbRange <- get
-            return $ Patch.Settings
+            pure $ Patch.Settings
                 (if Set.null flags then Nothing else Just (upgrade flags))
                 scale decay Nothing Nothing
         1 -> do
@@ -838,7 +838,7 @@ instance Serialize Patch.Settings where
             scale :: Maybe Patch.Scale <- get
             decay :: Maybe RealTime <- get
             pitch_bend_range :: Maybe Midi.Control.PbRange <- get
-            return $ Patch.Settings (upgrade <$> flags) scale decay
+            pure $ Patch.Settings (upgrade <$> flags) scale decay
                 pitch_bend_range Nothing
         2 -> do
             flags :: Maybe (Set OldFlag) <- get
@@ -846,7 +846,7 @@ instance Serialize Patch.Settings where
             decay :: Maybe RealTime <- get
             pitch_bend_range :: Maybe Midi.Control.PbRange <- get
             control_defaults :: Maybe ScoreT.ControlValMap <- get
-            return $ Patch.Settings (upgrade <$> flags) scale decay
+            pure $ Patch.Settings (upgrade <$> flags) scale decay
                 pitch_bend_range control_defaults
         v -> bad_version "Patch.Settings" v
         where
@@ -873,10 +873,10 @@ newtype OldFlag = OldFlag Patch.Flag
 instance Serialize OldFlag where
     put _ = error "unimplemented"
     get = get >>= \(tag :: Int) -> OldFlag <$> case tag of
-        1 -> return Patch.Pressure
-        2 -> return Patch.HoldKeyswitch
-        3 -> return Patch.ResumePlay
-        4 -> return Patch.UseFinalNoteOff
+        1 -> pure Patch.Pressure
+        2 -> pure Patch.HoldKeyswitch
+        3 -> pure Patch.ResumePlay
+        4 -> pure Patch.UseFinalNoteOff
         _ -> bad_tag "Flag" (fromIntegral tag)
 
 -- ** Instrument.Common
@@ -891,13 +891,13 @@ instance Serialize Common.Config where
             controls :: ScoreT.ControlValMap <- get
             mute :: Bool <- get
             solo :: Bool <- get
-            return $ Common.Config environ controls mute solo
+            pure $ Common.Config environ controls mute solo
         1 -> do
             environ :: Maybe REnv.Environ <- get
             controls :: ScoreT.ControlValMap <- get
             mute :: Bool <- get
             solo :: Bool <- get
-            return $ Common.Config (fromMaybe mempty environ) controls mute solo
+            pure $ Common.Config (fromMaybe mempty environ) controls mute solo
         v -> bad_version "Common.Config" v
 
 instance Serialize Common.Flag where
@@ -905,7 +905,7 @@ instance Serialize Common.Flag where
         Common.Triggered -> 0
     get = get_version >>= \case
         0 -> get >>= \(t :: Int) -> case t of
-            0 -> return Common.Triggered
+            0 -> pure Common.Triggered
             _ -> bad_tag name (fromIntegral t)
         1 -> get_enum >>= \case
             0 -> pure Common.Triggered
@@ -926,7 +926,7 @@ instance Serialize Lilypond.Config where
                 quantize :: Lilypond.Duration <- get
                 dotted_rests :: Bool <- get
                 staves :: [(ScoreT.Instrument, Lilypond.StaffConfig)] <- get
-                return $ Lilypond.Config quarter quantize dotted_rests staves
+                pure $ Lilypond.Config quarter quantize dotted_rests staves
             _ -> bad_version "Lilypond.Config" v
 
 instance Serialize Lilypond.StaffConfig where
@@ -939,7 +939,7 @@ instance Serialize Lilypond.StaffConfig where
             code :: [Text] <- get
             display :: Bool <- get
             add_bass :: Bool <- get
-            return $ Lilypond.StaffConfig long short code display add_bass
+            pure $ Lilypond.StaffConfig long short code display add_bass
         v -> bad_version "Lilypond.StaffConfig" v
 
 instance Serialize Lilypond.Duration where

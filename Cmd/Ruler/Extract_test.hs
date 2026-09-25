@@ -27,7 +27,7 @@ test_pull_up = do
                 UiTest.mkruler 4 16 (mkmeter 4)
             Create.new_ruler b1 "r.b1" $ UiTest.mkruler 4 10 (mkmeter 4)
             Create.new_ruler b2 "r.b2" $ UiTest.mkruler 3 6 (mkmeter 3)
-            return (top, top_rid)
+            pure (top, top_rid)
     let state_post = UiTest.exec state_pre $ do
             meter <- Extract.pull_up top (UiTest.mk_tid_block top 1)
             RulerUtil.set_meter top_rid meter
@@ -54,7 +54,7 @@ test_push_down = do
                 ]
             Create.new_ruler top "r.top" $ UiTest.mkruler 4 16 (mkmeter 4)
             mapM_ (Create.set_block_ruler Ui.no_ruler) [b1, b2]
-            return top
+            pure top
     let (top, state_pre) = UiTest.run Ui.empty make
     let state_post = UiTest.exec state_pre $
             Extract.push_down True top (UiTest.mk_tid_block top 1)

@@ -61,4 +61,4 @@ p_str = ParseText.between (A.char '"') (A.char '"')
         chunk <- A.takeWhile (\c -> c /= '"' && c /= '\\')
         quoted <- A.option "" (A.string "\\\"" <|> A.string "\\\\")
         let res = chunk <> Text.drop 1 quoted
-        if Text.null res then Applicative.empty else return res
+        if Text.null res then Applicative.empty else pure res

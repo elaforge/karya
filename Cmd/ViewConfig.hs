@@ -87,15 +87,15 @@ zoom_by_rank direction = do
     mb_factor <- Control.loop1 ranks $ \loop -> \case
         rank : ranks -> dur_at rank >>= \case
             Just dur
-                | cmp f factor -> return $ Just f
+                | cmp f factor -> pure $ Just f
                 | otherwise -> loop ranks
                 where
                 cmp = case direction of
                     TimeStep.Advance -> (>)
                     TimeStep.Rewind -> (<)
                 f = time_to_zoom dur
-            Nothing -> return Nothing
-        [] -> return Nothing
+            Nothing -> pure Nothing
+        [] -> pure Nothing
     whenJust mb_factor $ cmd_zoom_around view_id pos . const
     where
     ranks = case direction of
@@ -150,7 +150,7 @@ set_suggested_track_widths view_id = do
             (track, tracknum) <- tracks
             let suggested = Block.track_suggested_width track
             guard (suggested /= Block.track_width track)
-            return (tracknum, suggested)
+            pure (tracknum, suggested)
     unless (null changes) $ do
         mapM_ (uncurry (Ui.set_track_width block_id)) changes
         Views.resize_to_fit False view_id
@@ -244,7 +244,7 @@ windows_by_screen = do
     let (screen_views, orphaned) = group_with
             (\s -> Rect.overlaps s . snd) screens view_rects
     mapM_ (Ui.destroy_view . fst) orphaned
-    return screen_views
+    pure screen_views
 
 horizontal_tile_rects :: Rect.Rect -> [Rect.Rect] -> [Rect.Rect]
 horizontal_tile_rects screen rects = zipWith place rects xs
@@ -305,7 +305,7 @@ views_covering view_id = do
             { factor = Zoom.factor (Block.view_zoom view)
             , offset = start
             }
-        return view_id
+        pure view_id
 
 views_covering_starts :: TrackTime -> Block.View -> [TrackTime]
 views_covering_starts block_dur view =

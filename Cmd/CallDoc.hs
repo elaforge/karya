@@ -384,7 +384,7 @@ scale_docs :: [(Pitch.ScaleId, Text, Derive.DocumentedCall)] -> [CallBindings]
 scale_docs = sort_calls . entries ValCall . map convert
     where
     convert (scale_id, pattern, doc) = Library.Pattern $
-        Derive.PatternCall desc doc (const (return Nothing))
+        Derive.PatternCall desc doc (const (pure Nothing))
         where desc = pretty scale_id <> ": " <> pattern
 
 -- * doc
@@ -493,13 +493,13 @@ entry_doc :: (call -> Derive.DocumentedCall) -> Library.Entry call -> Entry
 entry_doc extract_doc (Library.Single sym call) =
     Library.Single sym (extract_doc call)
 entry_doc _ (Library.Pattern pattern) =
-    Library.Pattern $ pattern { Derive.pat_function = const $ return Nothing }
+    Library.Pattern $ pattern { Derive.pat_function = const $ pure Nothing }
 
 call_map_doc :: Derive.CallMap (Derive.Call d) -> CallMap
 call_map_doc (Derive.CallMap calls patterns) = Derive.CallMap
     { call_map = Derive.extract_doc <$> calls
     , call_patterns =
-        map (\p -> p { Derive.pat_function = const $ return Nothing }) patterns
+        map (\p -> p { Derive.pat_function = const $ pure Nothing }) patterns
     }
 
 -- ** instrument doc
@@ -525,7 +525,7 @@ track block_id track_id = do
     dynamic <- Cmd.require "CallDoc.track: no root dynamic"
         =<< Perf.lookup_root_dynamic (block_id, Just track_id)
     ttype <- ParseTitle.track_type <$> Ui.get_track_title track_id
-    return $ track_sections ttype (Derive.state_scopes dynamic)
+    pure $ track_sections ttype (Derive.state_scopes dynamic)
 
 -- | This is an alternate doc extraction path which extracts the docs from
 -- 'Derive.Scopes' instead of 'Derive.Builtins'.

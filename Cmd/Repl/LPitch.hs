@@ -39,7 +39,7 @@ patch_scale :: Cmd.M m => Pitch.ScaleId -> m Patch.Scale
 patch_scale scale_id = (Cmd.require_right id <=< Perf.derive) $ do
     scale <- Derive.get_scale scale_id
     nns <- Scale.note_numbers scale mempty
-    return $ Scale.patch_scale scale_id nns
+    pure $ Scale.patch_scale scale_id nns
 
 
 -- * transpose
@@ -80,7 +80,7 @@ change_scale to_scale_id = do
     track <- Selection.track
     to_scale <- Cmd.require "scale not found"
         =<< Perf.lookup_scale track to_scale_id
-    return $ PitchTrack.pitch_tracks $ \from_scale env note -> do
+    pure $ PitchTrack.pitch_tracks $ \from_scale env note -> do
         pitch <- first pretty $ Scale.scale_read from_scale env note
         first pretty $ Scale.scale_show to_scale env pitch
 
@@ -95,7 +95,7 @@ to_relative diatonic base = PitchTrack.pitch_tracks $ \scale env note -> do
     let layout = Scale.scale_layout scale
     let d = if diatonic then Scale.diatonic_difference layout pitch base
             else Scale.chromatic_difference layout pitch base
-    return $ Pitch.Note $ ShowVal.show_val d
+    pure $ Pitch.Note $ ShowVal.show_val d
 
 
 -- * enharmonics
@@ -116,7 +116,7 @@ to_piano_input pitch = Pitch.Input Pitch.PianoKbd (to_sharps pitch) 0
 sharps_to_flats :: Cmd.M m => ModifyEvents.Track m
 sharps_to_flats = PitchTrack.pitch_tracks $ \scale env note -> first pretty $ do
     pitch <- Scale.scale_read scale env note
-    if Pitch.pitch_accidentals pitch <= 0 then return note else do
+    if Pitch.pitch_accidentals pitch <= 0 then pure note else do
         notes <- Scale.scale_enharmonics scale env note
         pitches <- mapM (Scale.scale_read scale env) notes
         justErr (DeriveT.PitchError $ "no flats for " <> pretty note) $

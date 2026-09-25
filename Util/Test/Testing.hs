@@ -167,12 +167,12 @@ data Tag
 -- * equal and diff
 
 equal :: (HasCallStack, Show a, Eq a) => a -> a -> Test
-equal a b = equal_ a b >> return ()
+equal a b = equal_ a b >> pure ()
 
 equal_ :: (HasCallStack, Show a, Eq a) => a -> a -> IO Bool
 equal_ a b
-    | a == b = success (cmp True) >> return True
-    | otherwise = failure (cmp False) >> return False
+    | a == b = success (cmp True) >> pure True
+    | otherwise = failure (cmp False) >> pure False
     where cmp = pretty_compare "==" "/=" True a b
 
 not_equal :: (HasCallStack, Show a, Eq a) => a -> a -> Test
@@ -356,7 +356,7 @@ io_human expected_msg op = do
         'y' -> success $ "saw " <> showt expected_msg
         'q' -> error "quit test"
         _ -> failure $ "didn't see " <> showt expected_msg
-    return result
+    pure result
 
 pause :: String -> IO ()
 pause msg = do
@@ -380,7 +380,7 @@ hedgehog prop = do
     (if ok then success else failure) msg
     where
     -- TODO if it's interactive, give a progress report?
-    updateUI _progress = return ()
+    updateUI _progress = pure ()
     config = Internal.Property.propertyConfig prop
     size = 0
 
@@ -389,7 +389,7 @@ format_hedgehog_report report = do
     name <- Text.unpack . config_test_name <$> IORef.readIORef test_config
     str <- Report.renderResult Internal.Config.EnableColor
         (Just (Internal.Property.PropertyName name)) report
-    return $ (, Text.pack str) $ case Report.reportStatus report of
+    pure $ (, Text.pack str) $ case Report.reportStatus report of
         Report.OK -> True
         Report.GaveUp -> False
         Report.Failed {} -> False
@@ -492,12 +492,12 @@ human_get_char :: IO Char
 human_get_char = do
     agreeable <- config_human_agreeable <$> IORef.readIORef test_config
     if agreeable
-        then return 'y'
+        then pure 'y'
         else do
             IO.hFlush IO.stdout
             mode <- IO.hGetBuffering IO.stdin
             IO.hSetBuffering IO.stdin IO.NoBuffering
-            do { c <- getChar; putChar ' '; return c }
+            do { c <- getChar; putChar ' '; pure c }
                 `Exception.finally` IO.hSetBuffering IO.stdin mode
 
 -- * pretty
@@ -530,7 +530,7 @@ tmp_dir prefix = do
     Directory.createDirectoryIfMissing True base_dir
     dir <- Temp.mkdtemp $ base_dir </> prefix ++ "-"
     putStrLn $ "** tmp dir: " ++ dir
-    return dir
+    pure dir
 
 -- | Run the computation with cwd in a new tmp dir.
 in_tmp_dir :: String -> IO a -> IO a

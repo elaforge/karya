@@ -91,14 +91,14 @@ orphan_tracks = do
     blocks <- Ui.gets (Map.elems . Ui.state_blocks)
     let ref_tracks = Set.fromList (concatMap Block.block_track_ids blocks)
     tracks <- Ui.gets (Set.fromAscList . Map.keys . Ui.state_tracks)
-    return $ tracks `Set.difference` ref_tracks
+    pure $ tracks `Set.difference` ref_tracks
 
 -- | Like 'orphan_tracks' but more efficiently check if a single track is an
 -- orphan.
 orphan_track :: Ui.M m => TrackId -> m Bool
 orphan_track track_id = do
     blocks <- Ui.gets (Map.elems . Ui.state_blocks)
-    return $ any ((track_id `elem`) . Block.block_track_ids) blocks
+    pure $ any ((track_id `elem`) . Block.block_track_ids) blocks
 
 -- | Find rulers which are not found in any block.
 orphan_rulers :: Ui.M m => m [RulerId]
@@ -106,7 +106,7 @@ orphan_rulers = do
     blocks <- Ui.gets (Map.elems . Ui.state_blocks)
     let ref_rulers = Set.fromList (concatMap Block.block_ruler_ids blocks)
     rulers <- Ui.gets (Set.fromAscList . Map.keys . Ui.state_rulers)
-    return $ Set.toList (rulers `Set.difference` ref_rulers)
+    pure $ Set.toList (rulers `Set.difference` ref_rulers)
 
 -- | Find blocks with no associated views.
 orphan_blocks :: Ui.M m => m [BlockId]
@@ -114,7 +114,7 @@ orphan_blocks = do
     views <- Ui.gets (Map.elems . Ui.state_views)
     let ref_blocks = Set.fromList (map Block.view_block views)
     blocks <- Ui.gets (Set.fromAscList . Map.keys . Ui.state_blocks)
-    return $ Set.toList (blocks `Set.difference` ref_blocks)
+    pure $ Set.toList (blocks `Set.difference` ref_blocks)
 
 -- | Modify track titles with a function.
 --
@@ -157,7 +157,7 @@ named_block_from_template copy_events template_id name = do
             Block.track_merged btrack
     whenM (Ui.has_explicit_skeleton block_id) $
         Ui.set_skeleton block_id =<< Ui.get_skeleton template_id
-    return block_id
+    pure block_id
 
     where
     add_track block_id (tracknum, btrack) = case Block.tracklike_id btrack of
@@ -169,7 +169,7 @@ named_block_from_template copy_events template_id name = do
                     (if copy_events then Track.track_events track else mempty))
         _ -> do
             Ui.insert_track block_id tracknum btrack
-            return Nothing
+            pure Nothing
 
 -- | BlockIds look like @ns\/b1@, @ns\/b2@, etc.
 block :: Ui.M m => RulerId -> m BlockId
@@ -230,7 +230,7 @@ sized_view block_id rect = do
             Just $ Sel.point tracknum 0 Sel.Positive
             -- TODO I should use the current orientation, but that would make
             -- this and all its callers dependent on Cmd, or need another arg.
-    return view_id
+    pure view_id
 
 -- | This is like 'unfitted_view', but tries to fit the view size to its
 -- contents.
@@ -251,14 +251,14 @@ view block_id = do
         . map Block.view_rect . Map.elems . Ui.state_views
     let (x, y) = find_rect (Just screen) (Rect.w rect, Rect.h rect) others
     Ui.set_view_rect view_id (Rect.place x y rect)
-    return view_id
+    pure view_id
 
 -- | Create a view, or focus on it if it already exists.
 view_or_focus :: Cmd.M m => BlockId -> m (Maybe ViewId)
     -- ^ Just ViewId if a new one was created.
 view_or_focus block_id = do
     views <- Ui.views_of block_id
-    maybe (Just <$> view block_id) (\vid -> Cmd.focus vid *> return Nothing)
+    maybe (Just <$> view block_id) (\vid -> Cmd.focus vid *> pure Nothing)
         (Lists.head (Map.keys views))
 
 view_screen :: Cmd.M m => ViewId -> m Rect.Rect
@@ -297,7 +297,7 @@ splice_below = do
         -- If you create from track 0, it'll be (1, 1) here.
         when (tracknum /= sel_tracknum) $
             Ui.splice_skeleton_below block_id tracknum sel_tracknum
-    return track_id
+    pure track_id
 
 splice_above :: Cmd.M m => m TrackId
 splice_above = do
@@ -307,7 +307,7 @@ splice_above = do
     track_id <- focused_track tracknum
     whenM (Ui.has_explicit_skeleton block_id) $
         Ui.splice_skeleton_above block_id tracknum (tracknum+1)
-    return track_id
+    pure track_id
 
 {-
 -- | Create a track and make it parent to the current one along with its
@@ -350,7 +350,7 @@ splice_above_ancestors = do
     track_id <- focused_track insert_at
     whenM (Ui.has_explicit_skeleton block_id) $
         Ui.add_edges block_id (map ((,) insert_at . (+1)) ancestors)
-    return track_id
+    pure track_id
     where
     ancestor tree tracknum = case List.find find (Trees.flatPaths tree) of
             Nothing -> Nothing
@@ -404,7 +404,7 @@ assign_tracknums tracknum tree =
     assign (Tree.Node track children) = do
         tracknum <- next
         children <- mapM assign children
-        return $ Tree.Node (tracknum, Ui.track_title track) children
+        pure $ Tree.Node (tracknum, Ui.track_title track) children
         where next = Monad.State.get <* Monad.State.modify (+1)
 
 -- | Insert a track after the selection, or just append one if there isn't one.
@@ -437,10 +437,10 @@ track_and_widen focus view_id tracknum = do
         Ui.damage $ mempty
             { Update._title_focus = Just (view_id, Just tracknum) }
         whenJustM (Selection.lookup_view view_id) $ \sel ->
-            if not (Sel.is_point sel) then return ()
+            if not (Sel.is_point sel) then pure ()
                 else Selection.set_view view_id $ Just $
                     Sel.modify_tracks (const tracknum) sel
-    return track_id
+    pure track_id
 
 -- | Expand the view horizontally to to fit all tracks.
 widen :: Ui.M m => ViewId -> m ()
@@ -466,8 +466,8 @@ track block_id tracknum title events = do
         (Track.track title events)
     where
     find_ruler tracknum
-        | tracknum < 0 = return Ui.no_ruler
-        | otherwise = maybe (find_ruler (tracknum-1)) return
+        | tracknum < 0 = pure Ui.no_ruler
+        | otherwise = maybe (find_ruler (tracknum-1)) pure
             =<< Ui.ruler_track_at block_id tracknum
 
 -- | Lowest level track creator.  The new TrackId will be in the same namespace
@@ -479,7 +479,7 @@ track_events block_id ruler_id tracknum width track = do
     tid <- Ui.create_track track_id track
     Ui.insert_track block_id tracknum
         (Block.track (Block.TId tid ruler_id) width)
-    return tid
+    pure tid
 
 -- | Create a track with the given name, in the same namespace as the BlockId.
 named_track :: Ui.M m =>
@@ -492,7 +492,7 @@ named_track block_id ruler_id tracknum name track = do
     tid <- Ui.create_track ident track
     Ui.insert_track block_id tracknum
         (Block.track (Block.TId tid ruler_id) Config.track_width)
-    return tid
+    pure tid
 
 remove_selected_tracks :: Cmd.M m => m ()
 remove_selected_tracks = do
@@ -524,7 +524,7 @@ swap_tracks block_id num0 num1 = do
     track0 <- Ui.block_track_at block_id num0
     track1 <- Ui.block_track_at block_id num1
     case (track0, track1) of
-        (Nothing, Nothing) -> return ()
+        (Nothing, Nothing) -> pure ()
         (Just t0, Nothing) -> remove num0 >> insert num1 t0
         (Nothing, Just t1) -> remove num1 >> insert num0 t1
         (Just t0, Just t1) -> do
@@ -540,7 +540,7 @@ swap_tracks block_id num0 num1 = do
 clip_tracknum :: Ui.M m => BlockId -> TrackNum -> m TrackNum
 clip_tracknum block_id tracknum = do
     tracks <- Ui.track_count block_id
-    return $ max 0 (min tracks tracknum)
+    pure $ max 0 (min tracks tracknum)
 
 -- | Get the track to the right of the given tracknum.  This isn't just (+1)
 -- because it skips collapsed tracks.
@@ -564,7 +564,7 @@ new_ruler :: Ui.M m => BlockId -> Text -> Ruler.Ruler -> m RulerId
 new_ruler block_id name r = do
     ruler_id <- ruler name r
     set_block_ruler ruler_id block_id
-    return ruler_id
+    pure ruler_id
 
 set_block_ruler :: Ui.M m => RulerId -> BlockId -> m ()
 set_block_ruler ruler_id block_id =

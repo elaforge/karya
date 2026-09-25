@@ -265,11 +265,11 @@ mkblock_named (spec, tracks) = do
             let len = event_end tracks
                 rid = Id.id test_ns ("r" <> showt len)
             ifM (Maybe.isJust <$> Ui.lookup_ruler (Id.RulerId rid))
-                (return (Id.RulerId rid))
+                (pure (Id.RulerId rid))
                 (Ui.create_ruler rid (mkruler_44 len 1))
         else maybe
             (Ui.create_ruler (Id.unpack_id default_ruler_id) default_ruler)
-            (const (return default_ruler_id))
+            (const (pure default_ruler_id))
                 =<< Ui.lookup_ruler default_ruler_id
     mkblock_ruler_id ruler_id block_id title tracks
     where
@@ -281,7 +281,7 @@ mkblocks_skel :: Ui.M m => [(BlockSpec, [Skeleton.Edge])] -> m ()
 mkblocks_skel blocks = forM_ blocks $ \(block, skel) -> do
     (block_id, track_ids) <- mkblock_named block
     Ui.set_skeleton block_id (Skeleton.make skel)
-    return (block_id, track_ids)
+    pure (block_id, track_ids)
 
 -- | Like 'mkblock', but uses the provided ruler instead of creating its
 -- own.  Important if you are creating multiple blocks and don't want
@@ -303,7 +303,7 @@ mkblock_ruler_id ruler_id block_id title tracks = do
     -- default midi config.  This saves some hassle since all tests can assume
     -- there are some instruments defined.
     Ui.modify set_default_allocations
-    return (block_id, tids)
+    pure (block_id, tids)
 
 mkblock_ruler :: Ui.M m => Ruler.Ruler -> BlockId -> Text -> [TrackSpec]
     -> m (BlockId, [TrackId])
@@ -322,7 +322,7 @@ create_block block_id title tracks =
 parse_skeleton :: Ui.M m => BlockId -> m Skeleton.Skeleton
 parse_skeleton block_id = do
     tracks <- TrackTree.tracks_of block_id
-    return $ ParseSkeleton.default_parser
+    pure $ ParseSkeleton.default_parser
         [ ParseSkeleton.Track (Ui.track_tracknum t) (Ui.track_title t)
         | t <- tracks
         ]
@@ -708,7 +708,7 @@ modify_midi_config inst modify =
     modify_alloc alloc = do
         config <- justErr ("not a midi alloc: " <> pretty inst) $
             UiConfig.midi_config (UiConfig.alloc_backend alloc)
-        return $ alloc
+        pure $ alloc
             { UiConfig.alloc_backend = UiConfig.Midi (modify config) }
 
 i1, i2, i3 :: ScoreT.Instrument

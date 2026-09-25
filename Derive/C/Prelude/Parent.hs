@@ -85,7 +85,7 @@ c_tuplet = Derive.generator Module.prelude "tuplet" mempty
 tuplet :: (ScoreTime, ScoreTime) -> [[SubT.Event]] -> Derive.NoteDeriver
 tuplet (start, end) tracks =
     case tuplet_note_end (map (map to_start_dur) tracks) of
-        Nothing -> return mempty
+        Nothing -> pure mempty
         Just note_end ->
             mconcat $ map (Sub.fit (start, note_end) (start, end)) tracks
     where to_start_dur e = (SubT._start e, SubT._duration e)
@@ -112,7 +112,7 @@ lily_tuplet :: (ScoreTime, ScoreTime) -> [[SubT.Event]] -> Derive.NoteDeriver
 lily_tuplet (start, end) track_notes = do
     track_notes <- case filter (not . null) track_notes of
         [] -> Derive.throw "no sub events"
-        notes -> return notes
+        notes -> pure notes
     track_events <- mapM Sub.derive track_notes
     let notes = map (filter (not . Ly.is_code0) . Stream.events_of) track_events
     notes_end <- case filter (not . null) notes of
@@ -123,7 +123,7 @@ lily_tuplet (start, end) track_notes = do
     real_end <- Derive.real end
     tuplet <- Derive.place start (end-start) $
         tuplet_event (notes_end - real_start) (real_end - real_start)
-    return $ mconcat (tuplet : track_events)
+    pure $ mconcat (tuplet : track_events)
     where to_start_dur e = (Score.event_start e, Score.event_duration e)
 
 -- | Emit the special event that tells lilypond to gather the following events
@@ -175,20 +175,20 @@ arpeggio arp time random tracks = do
     events <- fmap concat $ forM delay_tracks $ \(delay, track) ->
         forM track $ \(SubT.EventT start dur d) -> do
             delay <- Call.score_duration start delay
-            return $ SubT.EventT (start+delay) (dur-delay) d
+            pure $ SubT.EventT (start+delay) (dur-delay) d
     Sub.derive events
     where
     jitter tracks
-        | random == 0 = return tracks
+        | random == 0 = pure tracks
         | otherwise = do
             rs <- Call.randoms_in (-random) random
-            return $ zipWith nudge rs tracks
+            pure $ zipWith nudge rs tracks
     nudge r (delay, notes)
         | delay == 0 = (delay, notes)
         | otherwise = (delay + time/2 * RealTime.seconds r, notes)
     sort = case arp of
-        ToRight -> return
-        ToLeft -> return . reverse
+        ToRight -> pure
+        ToLeft -> pure . reverse
         Random -> Call.shuffle
 
 -- | This is the old version that shifts each note as a postproc.  This means
@@ -202,12 +202,12 @@ arpeggio_by_note :: Arpeggio -> RealTime -> Derive.NoteDeriver
 arpeggio_by_note arp time deriver = do
     (events, logs) <- Stream.partition <$> deriver
     let sort = case arp of
-            ToRight -> return . Lists.reverseSortOn Score.initial_nn
-            ToLeft -> return . Lists.sortOn Score.initial_nn
+            ToRight -> pure . Lists.reverseSortOn Score.initial_nn
+            ToLeft -> pure . Lists.sortOn Score.initial_nn
             Random -> Call.shuffle
     arpeggiated <- zipWith (Score.move_start 0) (Lists.range_ 0 time)
         <$> sort events
-    return $ Stream.merge_logs logs $ Stream.from_sorted_events arpeggiated
+    pure $ Stream.merge_logs logs $ Stream.from_sorted_events arpeggiated
 
 -- * interpolate
 
@@ -288,14 +288,14 @@ resolve_derivers2 :: Derive.NoteArgs
     -> (Text, Maybe DeriveT.Quoted) -> (Text, Maybe DeriveT.Quoted)
     -> Derive.Deriver (Derive.NoteDeriver, Derive.NoteDeriver)
 resolve_derivers2 args sym1 sym2 = resolve_derivers args [sym1, sym2] >>= \case
-    [d1, d2] -> return (d1, d2)
+    [d1, d2] -> pure (d1, d2)
     ds -> Derive.throw $ "expected 2, got " <> showt (length ds)
 
 -- TODO this is awkward... maybe it should be built into Derive.Sig.
 resolve_derivers :: Derive.NoteArgs -> [(Text, Maybe DeriveT.Quoted)]
     -> Derive.Deriver [Derive.NoteDeriver]
 resolve_derivers args syms
-    | all (Maybe.isJust . snd) syms = return $ map eval $ mapMaybe snd syms
+    | all (Maybe.isJust . snd) syms = pure $ map eval $ mapMaybe snd syms
     | otherwise = do
         tracks <- Sub.sub_events args
         go syms tracks
@@ -304,11 +304,11 @@ resolve_derivers args syms
     go ((_, Just sym) : syms) tracks = (eval sym :) <$> go syms tracks
     go ((_, Nothing) : syms) (track : tracks) =
         (Sub.derive track :) <$> go syms tracks
-    go [] [] = return []
+    go [] [] = pure []
     go ((arg_name, Nothing) : _) [] =
         Derive.throw $ "arg not given, expected a track: " <> arg_name
     go [] tracks
-        | null (filter (not . null) tracks) = return []
+        | null (filter (not . null) tracks) = pure []
         | otherwise = Derive.throw $ "extra tracks: " <> showt (length tracks)
 
 -- * cycle

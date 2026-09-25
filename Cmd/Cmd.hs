@@ -147,7 +147,7 @@ call handler = \msg ->
         Keymap keymap -> do
             bindable <- abort_unless (msg_to_bindable msg)
             mods <- mods_down
-            maybe (return Continue) run $
+            maybe (pure Continue) run $
                 Map.lookup (KeySpec mods bindable) keymap
 
 -- | Return the mods currently down, stripping out non-modifier keys and notes,
@@ -366,7 +366,7 @@ run abort_val ustate cstate cmd = do
     -- Any kind of error rolls back state and discards midi, but not log msgs.
     -- Normally 'abort_val' will be Continue, but obviously if 'cmd' doesn't
     -- return Status it can't be.
-    return $ case ui_result of
+    pure $ case ui_result of
         Left Ui.Abort -> (cstate, [], logs, Right (abort_val, ustate, mempty))
         Left _ -> (cstate, [], logs, ui_result)
         _ -> (cstate2, midi, logs, ui_result)
@@ -377,7 +377,7 @@ run_ :: Monad m => Ui.State -> State -> CmdT m a
 run_ ui_state cmd_state cmd = do
     (cmd_state, _thru, logs, result) <-
         run Nothing ui_state cmd_state (liftM Just cmd)
-    return $ (, logs) $ case result of
+    pure $ (, logs) $ case result of
         Left err -> Left $ prettys err
         Right (val, ui_state, _damage) -> case val of
             Nothing -> Left "aborted"
@@ -400,7 +400,7 @@ run_id ui_state cmd_state cmd =
 -- run in IO).
 run_id_io :: RunCmd Identity.Identity IO Status
 run_id_io ui_state cmd_state cmd =
-    return $ Identity.runIdentity (run Continue ui_state cmd_state cmd)
+    pure $ Identity.runIdentity (run Continue ui_state cmd_state cmd)
 
 run_io :: RunCmd IO IO Status
 run_io = run Continue
@@ -420,18 +420,18 @@ lift_id cmd = do
                 mapM_ write_thru thru
                 Ui.damage damage
                 Ui.unsafe_put ui_state
-                return val
+                pure val
 
 -- | Run a set of Cmds as a single Cmd.  The first one to return non-Continue
 -- will return.  Cmds can use this to dispatch to other Cmds.
 sequence_cmds :: M m => [a -> m Status] -> a -> m Status
-sequence_cmds [] _ = return Continue
+sequence_cmds [] _ = pure Continue
 sequence_cmds (cmd:cmds) msg = do
     status <- catch_abort (cmd msg)
     case status of
         Nothing -> sequence_cmds cmds msg
         Just Continue -> sequence_cmds cmds msg
-        Just status -> return status
+        Just status -> pure status
 
 -- * CmdT and operations
 
@@ -463,7 +463,7 @@ instance Monad m => M (CmdT m) where
     abort = Except.throwError Ui.Abort
     catch_abort m = Except.catchError (fmap Just m) catch
         where
-        catch Ui.Abort = return Nothing
+        catch Ui.Abort = pure Nothing
         catch err = Except.throwError err
 
 data Thru
@@ -515,22 +515,22 @@ ignore_abort m = void $ catch_abort m
 -- | Run an IO action, rethrowing any IO exception as a Cmd exception.
 rethrow_io :: IO a -> CmdT IO a
 rethrow_io =
-    either throw return <=< liftIO . Exception.handle handle . (Right <$>)
+    either throw pure <=< liftIO . Exception.handle handle . (Right <$>)
     where
     handle :: Exception.SomeException -> IO (Either Text a)
-    handle = return . Left . ("io exception: "<>) . showt
+    handle = pure . Left . ("io exception: "<>) . showt
 
 -- | Extract a Just value, or 'abort'.  Generally used to check for Cmd
 -- conditions that don't fit into a Keymap.
 abort_unless :: M m => Maybe a -> m a
-abort_unless = maybe abort return
+abort_unless = maybe abort pure
 
 -- | Throw an exception with the given msg on Nothing.
 require :: (HasCallStack, M m) => Text -> Maybe a -> m a
-require msg = maybe (throw msg) return
+require msg = maybe (throw msg) pure
 
 require_right :: (HasCallStack, M m) => (err -> Text) -> Either err a -> m a
-require_right fmt_err = either (throw . fmt_err) return
+require_right fmt_err = either (throw . fmt_err) pure
 
 -- * State
 
@@ -886,7 +886,7 @@ running_threads :: CmdT IO [BlockId]
 running_threads = do
     threads <- gets $ Map.toAscList . state_performance_threads . state_play
     alive <- liftIO $ filterM (is_alive . snd) threads
-    return $ map fst alive
+    pure $ map fst alive
     where
     is_alive (Thread async) = Maybe.isNothing <$> Async.poll async
 
@@ -1359,7 +1359,7 @@ strip_modifier mod = mod
 gets :: M m => (State -> a) -> m a
 gets f = do
     state <- get
-    return $! f state
+    pure $! f state
 
 modify :: M m => (State -> State) -> m ()
 modify f = do
@@ -1376,7 +1376,7 @@ get_screen mb_point = do
     -- There are no screens yet during setup, so pick something somewhat
     -- reasonable so windows don't all try to crunch themselves down to
     -- nothing.
-    return $ fromMaybe (Rect.xywh 0 0 800 600) $ case mb_point of
+    pure $ fromMaybe (Rect.xywh 0 0 800 600) $ case mb_point of
         Nothing -> Lists.head screens
         Just point -> Lists.minimumOn (Rect.distance point) screens
 
@@ -1407,7 +1407,7 @@ clear_im_cache block_id = do
             Shared.Config.notesDirectory imDir path block_id
         Exceptions.ignoreEnoent $ Directory.removeDirectoryRecursive $
             Shared.Config.outputDirectory imDir path block_id
-    return ()
+    pure ()
 
 -- | Keys currently held down, as in 'state_keys_down'.
 keys_down :: M m => m (Map Modifier Modifier)
@@ -1429,7 +1429,7 @@ lookup_focused_block = do
     case maybe_view_id of
         -- It's still an error if the view id doesn't exist.
         Just view_id -> fmap (Just . Block.view_block) (Ui.get_view view_id)
-        Nothing -> return Nothing
+        Nothing -> pure Nothing
 
 -- | Request focus.  'state_focused_view' will be updated once fltk reports the
 -- focus change.
@@ -1439,7 +1439,7 @@ focus view_id = do
     case view of
         Nothing ->
             Ui.throw $ "Cmd.focus on non-existent view: " <> showt view_id
-        _ -> return ()
+        _ -> pure ()
     Ui.damage $ mempty { Update._bring_to_front = Set.singleton view_id }
 
 get_current_step :: M m => m TimeStep.TimeStep
@@ -1454,7 +1454,7 @@ get_insert_tracknum = do
     -- Selection.shift can put the selection on or before the ruler track, so
     -- it doesn't get squished by going off the edge, but I don't want to ever
     -- act like <=0 is selected.
-    return $ max 1 . Sel.start_track <$> sel
+    pure $ max 1 . Sel.start_track <$> sel
 
 -- *** status
 
@@ -1539,25 +1539,25 @@ get_midi_instrument inst =
 
 lookup_midi_config :: M m => ScoreT.Instrument -> m (Maybe Patch.Config)
 lookup_midi_config inst = justm (lookup_backend inst) $ \case
-    Midi _ config -> return $ Just config
-    _ -> return Nothing
+    Midi _ config -> pure $ Just config
+    _ -> pure Nothing
 
 lookup_backend :: M m => ScoreT.Instrument -> m (Maybe Backend)
 lookup_backend inst = justm (lookup_instrument inst) $
-    return . Just . inst_backend
+    pure . Just . inst_backend
 
 lookup_instrument :: M m => ScoreT.Instrument -> m (Maybe ResolvedInstrument)
 lookup_instrument inst = do
     ui_state <- Ui.get
     db <- gets $ config_instrument_db . state_config
     case Ui.allocation inst #$ ui_state of
-        Nothing -> return Nothing
+        Nothing -> pure Nothing
         Just alloc -> case resolve_instrument db alloc of
             Left err -> do
                 -- This is a broken allocation, so I should log it at least.
                 Log.warn $ "lookup " <> pretty inst <> ": " <> err
-                return Nothing
-            Right val -> return (Just val)
+                pure Nothing
+            Right val -> pure (Just val)
 
 get_instrument :: (HasCallStack, M m) => ScoreT.Instrument
     -> m ResolvedInstrument
@@ -1602,17 +1602,17 @@ resolve_instrument db alloc = do
         inst_lookup qualified db
     backend <- case (Inst.inst_backend inst, UiConfig.alloc_backend alloc) of
         (Inst.Midi patch, UiConfig.Midi config) ->
-            return $ Midi patch (Patch.merge_defaults patch config)
-        (Inst.Im patch, UiConfig.Im) -> return $ Im patch
-        (Inst.Sc patch, UiConfig.Sc) -> return $ Sc patch
+            pure $ Midi patch (Patch.merge_defaults patch config)
+        (Inst.Im patch, UiConfig.Im) -> pure $ Im patch
+        (Inst.Sc patch, UiConfig.Sc) -> pure $ Sc patch
         (Inst.Dummy msg1, UiConfig.Dummy msg2) ->
             -- If it's a dummy allocation of a dummy patch, then I can use ""
             -- to use the patch's msg.
-            return $ Dummy $ if msg2 /= "" then msg2 else msg1
+            pure $ Dummy $ if msg2 /= "" then msg2 else msg1
         -- 'UiConfig.verify_allocation' should have prevented this.
         (inst_backend, alloc_backend) -> Left $
             "inconsistent backends: " <> pretty (inst_backend, alloc_backend)
-    return $ ResolvedInstrument
+    pure $ ResolvedInstrument
         { inst_instrument = inst -- merge_attr_calls backend inst
         , inst_qualified = qualified
         , inst_common_config =

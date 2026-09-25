@@ -163,14 +163,14 @@ enharmonics :: Theory.Layout -> TheoryFormat.Format -> Derive.Enharmonics
 enharmonics layout fmt env note = do
     let key = Scales.environ_key env
     pitch <- TheoryFormat.read_pitch fmt key note
-    return $ map (TheoryFormat.show_pitch fmt key) $
+    pure $ map (TheoryFormat.show_pitch fmt key) $
         Theory.enharmonics_of layout pitch
 
 input_to_note :: ScaleMap -> Scales.InputToNote
 input_to_note smap env (Pitch.Input kbd_type pitch _frac) = do
     key <- read_key smap (Scales.environ_key env)
     pitch <- Scales.kbd_to_scale kbd_type pc_per_octave (key_tonic key) pitch
-    return $ TheoryFormat.show_pitch (smap_fmt smap) Nothing pitch
+    pure $ TheoryFormat.show_pitch (smap_fmt smap) Nothing pitch
     where pc_per_octave = TheoryFormat.fmt_pc_per_octave (smap_fmt smap)
 
 
@@ -178,7 +178,7 @@ input_to_note smap env (Pitch.Input kbd_type pitch _frac) = do
 
 transpose :: TheoryFormat.Format -> Derive.Transpose
 transpose fmt _transposition _key steps pitch =
-    return $ Pitch.add_pc per_oct steps pitch
+    pure $ Pitch.add_pc per_oct steps pitch
     where per_oct = TheoryFormat.fmt_pc_per_octave fmt
 
 -- * note_to_call
@@ -206,7 +206,7 @@ pitch_nn :: ScaleMap -> TheoryFormat.RelativePitch -> Scale.PitchNn
 pitch_nn smap relative (PSignal.PitchConfig env controls) = do
     key <- read_key smap $ Scales.environ_key env
     tuning <- case smap_default_tuning smap of
-        Nothing -> return ""
+        Nothing -> pure ""
         Just deflt -> Scales.read_environ id (Just deflt) EnvKey.tuning env
     ratios <- tryJust
         (DeriveT.EnvironError EnvKey.tuning
@@ -219,7 +219,7 @@ pitch_nn smap relative (PSignal.PitchConfig env controls) = do
     let hz = transpose_to_hz per_octave base_hz
             (key_tonic key) ratios
             (octave * fromIntegral per_octave + chromatic + diatonic) pitch
-    return $ Pitch.hz_to_nn hz
+    pure $ Pitch.hz_to_nn hz
     where
     per_octave = TheoryFormat.fmt_pc_per_octave (smap_fmt smap)
     octave = get Controls.octave

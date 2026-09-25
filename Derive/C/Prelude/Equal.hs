@@ -63,7 +63,7 @@ transform_expr :: Text -> Derive.Deriver a -> Derive.Deriver a
 transform_expr expr deriver = do
     parsed <- Derive.require_right id $ Parse.parse_expr expr
     transforms <- if is_empty_expr parsed
-        then return []
+        then pure []
         else mapM apply $ NonEmpty.toList parsed
     foldr ($) deriver transforms
     where
@@ -239,7 +239,7 @@ parse_equal merge lhs rhs = case rhs of
 -- | Unlike 'Derive.MergeDefault', the default is Derive.Set.
 get_merger :: ScoreT.Control -> Merge -> Derive.Deriver Derive.Merger
 get_merger control = \case
-    Set -> return Derive.Set
+    Set -> pure Derive.Set
     Default -> Derive.get_default_merger control
     Merge merge -> Derive.get_control_merge merge
 
@@ -289,13 +289,13 @@ override_val_call lhs rhs deriver = do
 resolve_source :: Derive.Callable call => (DeriveT.Quoted -> call)
     -> DeriveT.Val -> Derive.Deriver call
 resolve_source make_call rhs = case rhs of
-    DeriveT.VQuoted quoted -> return $ make_call quoted
+    DeriveT.VQuoted quoted -> pure $ make_call quoted
     DeriveT.VStr (Expr.Str sym) -> get_call (Expr.Symbol sym)
     _ -> get_call (Expr.Symbol (ShowVal.show_val rhs))
 
 get_call :: forall call. Derive.Callable call => Expr.Symbol
     -> Derive.Deriver call
-get_call sym = maybe (Derive.throw $ Eval.unknown_symbol name sym) return
+get_call sym = maybe (Derive.throw $ Eval.unknown_symbol name sym) pure
     =<< Derive.lookup_call sym
     where name = Derive.callable_name (Proxy :: Proxy call)
 
@@ -327,7 +327,7 @@ quoted_val_call quoted = Derive.val_call quoted_module "quoted-call" mempty
     ("Created from expression: " <> ShowVal.doc quoted)
     $ Sig.call0 $ \args -> do
         call <- case quoted of
-            DeriveT.Quoted (call :| []) -> return $ Expr.ValCall call
+            DeriveT.Quoted (call :| []) -> pure $ Expr.ValCall call
             _ -> Derive.throw $
                 "expected a val call, but got a full expression: "
                 <> ShowVal.show_val quoted

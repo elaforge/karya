@@ -128,7 +128,7 @@ run_skel m ntracks skel (start_track, end_track) =
     replace n = do
         tid <- Ui.get_event_track_at UiTest.default_block_id n
         title <- Track.track_title <$> Ui.get_track tid
-        return $ Text.head $
+        pure $ Text.head $
             if Text.null (Text.strip title) then "x" else title
 
 test_find_rect :: Test

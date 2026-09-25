@@ -142,7 +142,7 @@ c_kampita start_dir end_dir = generator1 "kam" mempty
         transpose <- kampita start_dir end_dir adjust neighbor speed
             transition hold lilt args
         start <- Args.real_start args
-        return $ PSignal.apply_control
+        pure $ PSignal.apply_control
             (Typecheck.transpose_control transpose_t)
             (ScoreT.untyped transpose)
             (PSignal.from_sample start pitch)
@@ -193,7 +193,7 @@ c_dip = generator1 "dip" mempty
         transpose <- dip high low speed dyn_scale transition
             (Args.range_or_next args)
         start <- Args.real_start args
-        return $ PSignal.apply_control control (ScoreT.untyped transpose) $
+        pure $ PSignal.apply_control control (ScoreT.untyped transpose) $
             PSignal.from_sample start pitch
 
 c_jaru :: Derive.Generator Derive.Pitch
@@ -212,11 +212,11 @@ c_jaru = generator1 "jaru" mempty
         (intervals, control) <- parse intervals
         let transition = fromMaybe time maybe_transition
         let sig = jaru srate start time transition (NonEmpty.toList intervals)
-        return $ PSignal.apply_control control (ScoreT.untyped sig) $
+        pure $ PSignal.apply_control control (ScoreT.untyped sig) $
             PSignal.from_sample start pitch
     where
     parse intervals
-        | all (==control) controls = return (xs, control)
+        | all (==control) controls = pure (xs, control)
         | otherwise = Derive.throw "all intervals must have the same type"
         where
         (xs, control :| controls) = NonEmpty.unzip $ NonEmpty.map
@@ -237,7 +237,7 @@ c_jaru_intervals transpose intervals = generator1 "jaru" mempty
         srate <- Call.get_srate
         let sig = jaru srate start time (fromMaybe time maybe_transition)
                 intervals
-        return $ PSignal.apply_control (Typecheck.transpose_control transpose)
+        pure $ PSignal.apply_control (Typecheck.transpose_control transpose)
             (ScoreT.untyped sig) (PSignal.from_sample start pitch)
 
 
@@ -278,7 +278,7 @@ smooth_trill :: RealTime -> ScoreT.Function -> ScoreT.Function
     -> [RealTime] -> Derive.Deriver Signal.Control
 smooth_trill time val1 val2 transitions = do
     srate <- Call.get_srate
-    return $ ControlUtil.smooth_absolute ControlUtil.Linear srate time $
+    pure $ ControlUtil.smooth_absolute ControlUtil.Linear srate time $
         trill_from_transitions val1 val2 transitions
 
 convert_directions :: RealTime -> ScoreT.Function -> Maybe Trill.Direction
@@ -362,7 +362,7 @@ dip high low speed dyn_scale transition (start, end) = do
             trill_from_transitions (const 1) (const dyn_scale) transitions
     end <- Derive.real end
     ControlUtil.multiply_dyn end dyn
-    return transpose
+    pure transpose
 
 jaru_transition_c :: Derive.CallName -> Maybe RealTime -> Doc.Doc
     -> Derive.Generator Derive.Control
@@ -377,7 +377,7 @@ jaru_transition_c name default_transition transition_doc =
         start <- Args.real_start args
         srate <- Call.get_srate
         let transition = fromMaybe time maybe_transition
-        return $ jaru srate start time transition (NonEmpty.toList intervals)
+        pure $ jaru srate start time transition (NonEmpty.toList intervals)
 
 c_jaru_intervals_c :: [Signal.Y] -> Derive.Generator Derive.Control
 c_jaru_intervals_c intervals = generator1 "jaru" mempty
@@ -389,7 +389,7 @@ c_jaru_intervals_c intervals = generator1 "jaru" mempty
     ) $ \(time, maybe_transition) args -> do
         start <- Args.real_start args
         srate <- Call.get_srate
-        return $ jaru srate start time (fromMaybe time maybe_transition)
+        pure $ jaru srate start time (fromMaybe time maybe_transition)
             intervals
 
 jaru :: RealTime -> RealTime -> RealTime -> RealTime -> [Signal.Y]

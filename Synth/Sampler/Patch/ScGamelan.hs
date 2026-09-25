@@ -169,7 +169,7 @@ makeFileList :: FilePath -> IO [(Gong, [((Int, Int), FilePath)])]
 makeFileList inst = do
     fnames <- Directory.listDirectory $
         Config.unsafeSamplerRoot </> baseDir </> inst
-    return $ groupSamples $ Lists.keyOn parseFilename fnames
+    pure $ groupSamples $ Lists.keyOn parseFilename fnames
 
 -- Gongs: $instName-{A,B,C}$maxVel.flac
 parseFilename :: FilePath -> (String, Char, Int)

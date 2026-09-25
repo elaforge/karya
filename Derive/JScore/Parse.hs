@@ -76,18 +76,18 @@ instance Parse.Element (T.Toplevel T.ParsedBlock) where
 instance Parse.Element T.Meta where
     parse _ = do
         TScore.T.Directive _pos key mb_val <- Parse.p_directive True
-        val <- maybe (fail $ "directive with no val: " <> untxt key) return
+        val <- maybe (fail $ "directive with no val: " <> untxt key) pure
             mb_val
         let unknown = fail $ "unknown " <> untxt key <> ": " <> untxt val
         case key of
             "source" -> pure $ T.Source val
             "piece" -> pure $ T.Piece val
             "section" -> pure $ T.Section val
-            "laras" -> maybe unknown (return . T.Laras) $
+            "laras" -> maybe unknown (pure . T.Laras) $
                 parse_enum laras_enum val
-            "instrument" -> maybe unknown (return . T.Instrument) $
+            "instrument" -> maybe unknown (pure . T.Instrument) $
                 parse_enum instrument_enum val
-            "irama" -> maybe unknown (return . T.Irama) $
+            "irama" -> maybe unknown (pure . T.Irama) $
                 parse_enum irama_enum val
             _ -> fail $ "unknown meta: " <> untxt key <> " = " <> untxt val
     unparse _ = \case
@@ -167,7 +167,7 @@ instance Parse.Element (T.Track T.ParsedToken) where
         track_pos <- Parse.get_pos
         Parse.keyword ">"
         track_tokens <- P.many $ Parse.parse config
-        return $ T.Track { track_tokens, track_pos }
+        pure $ T.Track { track_tokens, track_pos }
     unparse config (T.Track { track_tokens }) =
         -- Text.unwords $ ">" : map (Parse.unparse config) track_tokens
         -- Rely on HasSpace to preserving spacing between notes.
@@ -204,7 +204,7 @@ instance Parse.Element (T.Note T.ParsedPitch T.HasSpace) where
         note_zero_duration <- P.option False (P.char '/' *> pure True)
         -- Parse.lexeme is omitted from the calling parser to support this.
         note_duration <- p_has_space
-        return $ T.Note
+        pure $ T.Note
             { note_pitch
             , note_zero_duration
             , note_duration

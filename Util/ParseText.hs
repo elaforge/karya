@@ -136,9 +136,9 @@ lexeme p = p <* A.skipSpace
 
 p_float :: Parser Double
 p_float = do
-    sign <- A.option 1 (A.char '-' >> return (-1))
+    sign <- A.option 1 (A.char '-' >> pure (-1))
     val <- p_unsigned_float
-    return (val * sign)
+    pure (val * sign)
     <?> "float"
 
 p_unsigned_float :: Parser Double
@@ -147,7 +147,7 @@ p_unsigned_float = do
     f <- A.option "" (A.char '.' >> A.takeWhile1 is_digit)
     if Text.null i && Text.null f then mzero else do
     case (dec i, dec f) of
-        (Just i', Just f') -> return $ fromIntegral i'
+        (Just i', Just f') -> pure $ fromIntegral i'
             + fromIntegral f' / fromIntegral (10 ^ Text.length f)
         _ -> mzero
     <?> "unsigned float"
@@ -163,13 +163,13 @@ p_int :: Parser Int
 p_int = do
     sign <- A.option '+' (A.satisfy (\c -> c == '+' || c == '-'))
     val <- p_nat
-    return $ (if sign == '-' then -1 else 1) * val
+    pure $ (if sign == '-' then -1 else 1) * val
 
 p_nat :: Parser Int
 p_nat = do
     i <- A.takeWhile1 is_digit
     case Text.Read.decimal i of
-        Right (d, _) -> return d
+        Right (d, _) -> pure d
         Left _ -> mzero
 
 is_digit :: Char -> Bool

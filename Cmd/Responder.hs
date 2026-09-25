@@ -166,12 +166,12 @@ run_setup_cmd cmd state = fmap snd $ run_responder state $ do
                     <|> Just (Cmd.Load Nothing ["setup"])
                 }
             }
-        return Cmd.Continue
+        pure Cmd.Continue
     whenJust result $ \(_, ui_state, cmd_state) -> do
         Monad.State.modify $ \st ->
             st { rstate_ui_to = ui_state, rstate_cmd_to = cmd_state }
         run_sync_status
-    return $ Right Cmd.Continue
+    pure $ Right Cmd.Continue
 
 send_derive_status :: Loopback -> BlockId -> Msg.DeriveStatus -> IO ()
 send_derive_status loopback block_id status =
@@ -185,7 +185,7 @@ create_msg_reader ::
 create_msg_reader remap_rmsg midi_chan repl_socket ui_chan loopback_chan = do
     repl_chan <- TChan.newTChanIO
     Thread.startLogged "accept repl socket" $ accept_loop repl_socket repl_chan
-    return $ STM.atomically $
+    pure $ STM.atomically $
         (Msg.Ui <$> TChan.readTChan ui_chan)
         `STM.orElse` (Msg.Midi . remap_rmsg <$> TChan.readTChan midi_chan)
         `STM.orElse` (uncurry Msg.Socket <$> TChan.readTChan repl_chan)
@@ -297,7 +297,7 @@ run_responder state action = do
         Left err -> do
             Log.warn (pretty err)
             -- Exception rolls back changes to ui_state and cmd_state.
-            return (False, state { state_ui = ui_from, state_cmd = cmd_from })
+            pure (False, state { state_ui = ui_from, state_cmd = cmd_from })
         Right status -> do
             -- overload "turned on debug" to dump fltk debugging
             when (not (Cmd.state_debug cmd_from) && Cmd.state_debug cmd_to) $
@@ -320,7 +320,7 @@ post_cmd state ui_from ui_to cmd_to ui_damage status = do
     Trace.trace "ky"
     !cmd_to <- handle_special_status (state_ui_channel state) ui_to cmd_to
         (state_transport_info state) status
-    !cmd_to <- return $ fix_cmd_state ui_to cmd_to
+    !cmd_to <- pure $ fix_cmd_state ui_to cmd_to
     (updates, ui_to) <- ResponderSync.sync (state_sync state)
         ui_from ui_to cmd_to ui_damage
         (Transport.info_state (state_transport_info state))
@@ -331,7 +331,7 @@ post_cmd state ui_from ui_to cmd_to ui_damage status = do
         cmd_state <- Performance.update_performance
             (send_derive_status (state_loopback state)) ui_to cmd_to
             (Diff.derive_diff (state_ui state) ui_to ui_damage updates)
-        return $ cmd_state { Cmd.state_derive_immediately = mempty }
+        pure $ cmd_state { Cmd.state_derive_immediately = mempty }
     Trace.trace "derive_diff"
 
     cmd_to <- Undo.maintain_history ui_to cmd_to updates
@@ -344,7 +344,7 @@ post_cmd state ui_from ui_to cmd_to ui_damage status = do
                 -- Otherwise there's no way to quit!
                 Log.error $ "failed to write views while quitting: "
                     <> showt exc
-    return
+    pure
         ( is_quit status
         , state { state_ui = ui_to, state_cmd = cmd_to }
         )
@@ -369,7 +369,7 @@ handle_special_status ui_chan ui_state cmd_state transport_info = \case
             Cmd.state_play_control (Cmd.state_play cmd_state)
         play_ctl <- PlayC.play ui_chan ui_state transport_info args
         let play = Cmd.state_play cmd_state
-        return $! cmd_state
+        pure $! cmd_state
             { Cmd.state_play = play
                 { Cmd.state_play_control =
                     play_ctl : Cmd.state_play_control play
@@ -378,11 +378,11 @@ handle_special_status ui_chan ui_state cmd_state transport_info = \case
     Cmd.FloatingInput action -> do
         Fltk.send_action ui_chan "floating_input" $
             Sync.floating_input ui_state action
-        return $! cmd_state
+        pure $! cmd_state
             { Cmd.state_edit = (Cmd.state_edit cmd_state)
                 { Cmd.state_floating_input = True }
             }
-    _ -> return cmd_state
+    _ -> pure cmd_state
 
 respond :: State -> Msg.Msg -> IO (Bool, State)
 respond state msg = run_responder state $ do
@@ -392,22 +392,22 @@ respond state msg = run_responder state $ do
         Trace.trace "handle_unsynced"
         run_core_cmds msg
         Trace.trace "core_cmds"
-        return $ Right Cmd.Done
+        pure $ Right Cmd.Done
     case result of
         Right _ -> run_sync_status
-        Left _ -> return ()
+        Left _ -> pure ()
     Trace.trace "sync_status"
-    return result
+    pure result
     where unerror = either (\(Done r) -> r) id
 
 -- * keycaps
 
 sync_keycaps :: Fltk.Channel -> Cmd.State -> IO Cmd.State
 sync_keycaps ui_chan cmd_to = case Cmd.state_keycaps_update cmd_to of
-    Nothing -> return cmd_to
+    Nothing -> pure cmd_to
     Just Cmd.KeycapsClose -> do
         Sync.destroy_keycaps ui_chan
-        return $ cmd_to
+        pure $ cmd_to
             { Cmd.state_keycaps = Nothing
             , Cmd.state_keycaps_update = Nothing
             }
@@ -415,7 +415,7 @@ sync_keycaps ui_chan cmd_to = case Cmd.state_keycaps_update cmd_to of
         whenJust mb_window $ \(pos, layout) ->
             Sync.create_keycaps ui_chan pos layout
         Sync.update_keycaps ui_chan bindings
-        return $ cmd_to
+        pure $ cmd_to
             { Cmd.state_keycaps = Just state
             , Cmd.state_keycaps_update = Nothing
             }
@@ -510,11 +510,11 @@ run_continue log_to_stderr caller cmd = do
             liftIO $ Log.error $ caller <> ": " <> pretty err
             when log_to_stderr $ liftIO $
                 Text.IO.hPutStrLn IO.stderr $ caller <> ": " <> pretty err
-            return Nothing
+            pure Nothing
         Right (status, ui_state) -> do
             when (not_continue status) $ liftIO $
                 Log.error $ caller <> ": expected Continue: " <> showt status
-            return $ Just (status, ui_state, cmd_state)
+            pure $ Just (status, ui_state, cmd_state)
 
 -- | Run a Cmd, throwing the 'Cmd.Status' if it wasn't Continue.
 run_throw :: EitherCmd -> ErrorResponderM ()
@@ -541,10 +541,10 @@ run_cmd cmd = do
         mapM_ Log.write logs
         mapM_ (write_thru (Cmd.state_midi_writer (rstate_cmd_to rstate))) thru
     case result of
-        Left err -> return (Left err, cmd_state)
+        Left err -> pure (Left err, cmd_state)
         Right (status, ui_state, ui_damage) -> do
             save_damage ui_damage
-            return (Right (status, ui_state), cmd_state)
+            pure (Right (status, ui_state), cmd_state)
 
 write_thru :: (Interface.Message -> IO ()) -> Cmd.Thru -> IO ()
 write_thru midi_writer = \case

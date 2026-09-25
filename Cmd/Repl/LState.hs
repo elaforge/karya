@@ -60,7 +60,7 @@ find search = do
     blocks <- LBlock.find search
     tracks <- LTrack.find search
     events <- Repl.LEvent.find search
-    return $ Text.unlines $ concatMap section $ concat
+    pure $ Text.unlines $ concatMap section $ concat
         [ [("blocks:", Pretty.formatted blocks) | not (null blocks)]
         , [("tracks:", Pretty.formatted tracks) | not (null tracks)]
         , [("events:", Pretty.formatted events) | not (null events)]
@@ -72,7 +72,7 @@ summary :: Cmd.CmdL Text
 summary = do
     Ui.State views blocks tracks rulers _ <- Ui.get
     let f fm = PPrint.list (map show (Map.keys fm))
-    return $ txt $ PPrint.record
+    pure $ txt $ PPrint.record
         [ ("views", f views), ("blocks", f blocks)
         , ("tracks", f tracks), ("rulers", f rulers)
         ]
@@ -97,7 +97,7 @@ set_default_tempo t = Ui.modify_config $ UiConfig.default_#UiConfig.tempo #= t
 ky :: Ui.M m => m ReplProtocol.Result
 ky = do
     ky <- get_ky
-    return $ ReplProtocol.Edit $ (:| []) $ ReplProtocol.Editor
+    pure $ ReplProtocol.Edit $ (:| []) $ ReplProtocol.Editor
         { _file = ReplProtocol.Text ReplProtocol.Ky ky
         , _line_number = 0
         , _on_save = Just "LState.set_ky %s"
@@ -132,11 +132,11 @@ save_perf :: Cmd.CmdT IO Text
 save_perf = do
     config <- Ui.get_config id
     midi <- if UiConfig.has_midi (UiConfig.config_allocations config)
-        then save_midi >> return (Just "saved midi") else return Nothing
+        then save_midi >> pure (Just "saved midi") else pure Nothing
     im <- if UiConfig.has_im (UiConfig.config_allocations config)
-        then save_im >> return (Just "saved im") else return Nothing
+        then save_im >> pure (Just "saved im") else pure Nothing
     -- TODO sc
-    return $ Text.intercalate ", " $ Maybe.catMaybes [midi, im]
+    pure $ Text.intercalate ", " $ Maybe.catMaybes [midi, im]
 
 -- | Save the current root MIDI performance as \"correct\".
 save_midi :: Cmd.CmdT IO ()
@@ -169,7 +169,7 @@ verify_performance = do
         =<< Cmd.gets Cmd.state_save_dir
     (maybe_diff, _) <- liftIO $
         DiffPerformance.diff_midi (untxt name) dir perf midi
-    return $ fromMaybe "ok!" maybe_diff
+    pure $ fromMaybe "ok!" maybe_diff
 
 save_performance :: Lens UiConfig.Meta (Map BlockId (UiConfig.Performance a))
     -> (BlockId -> Cmd.CmdT IO a) -> Cmd.CmdT IO ()
@@ -190,7 +190,7 @@ perform_im :: Cmd.M m => BlockId -> m (Vector.Vector Shared.Note.Note)
 perform_im block_id = do
     perf <- Cmd.get_performance block_id
     lookup_inst <- Cmd.get_lookup_instrument
-    return $ Vector.fromList $ LEvent.events_of $
+    pure $ Vector.fromList $ LEvent.events_of $
         Im.Convert.convert block_id lookup_inst $
         Vector.toList (Msg.perf_events perf)
 
@@ -202,8 +202,8 @@ perform_lilypond block_id = do
     result <- LEvent.write_snd $
         Cmd.Lilypond.extract_movements config "title" events
     case result of
-        Left err -> Log.write err >> return (Log.msg_text err)
-        Right ly -> return $ Text.Lazy.toStrict ly
+        Left err -> Log.write err >> pure (Log.msg_text err)
+        Right ly -> pure $ Text.Lazy.toStrict ly
 
 
 -- * transform
@@ -217,7 +217,7 @@ rename :: Id.Namespace -> Cmd.CmdL ()
 rename ns = do
     Create.rename_project ns
     Cmd.gets Cmd.state_save_file >>= \case
-        Nothing -> return ()
+        Nothing -> pure ()
         Just (_, Cmd.SaveState fn) -> do
             new_path <- liftIO $ Path.canonical $
                 replace_dir ns (Path.to_path fn)

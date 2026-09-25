@@ -101,9 +101,9 @@ convert tuning note = do
     symPitch <- Util.symbolicPitch note
     (pitch, (noteNn, sampleNn)) <- tryRight $ findPitch tuning symPitch
     let filenames = toFilenames tuning art pitch dyn (Note.duration note)
-    dynVal <- return $ dynVal * tweakDynamic tuning art pitch dyn
+    dynVal <- pure $ dynVal * tweakDynamic tuning art pitch dyn
     fname <- tryJust "no samples" $ Util.noteVariation filenames note
-    return $ (Sample.make fname)
+    pure $ (Sample.make fname)
         -- TODO duplicate from Wayang
         { Sample.envelope = if
             | isMute art -> Signal.constant dynVal
@@ -200,7 +200,7 @@ findSymPitch tuning (Pitch.Note pitch) = do
         Lib.Bali.parsePitch (untxt pitch)
     (umbang, isep) <- tryJust ("pitch out of range: " <> pretty pitch) $
         Map.lookup pitch rambatTuning
-    return $ case tuning of
+    pure $ case tuning of
         Umbang -> (pitch, (umbang, umbang))
         Isep -> (pitch, (isep, isep))
 
@@ -211,7 +211,7 @@ findNnPitch tuning nn = do
         case tuning of
             Umbang -> umbangs
             Isep -> iseps
-    return (pitch, (nn, sampleNn))
+    pure (pitch, (nn, sampleNn))
     where
     umbangs = Map.fromList
         [(umbang, p) | (p, (umbang, _)) <- Map.toList rambatTuning]
@@ -290,7 +290,7 @@ getVariations = do
     samples <- (++)
         <$> (mapMaybe (get Umbang) <$> Files.list (dir </> "umbang"))
         <*> (mapMaybe (get Isep) <$> Files.list (dir </> "isep"))
-    return
+    pure
         [ ( dir </> tuningDir tuning </> unparseFilename pitch art dyn var
           , Map.fromList
             [ (tuningA, showt tuning), (pitchA, pretty pitch)
@@ -326,7 +326,7 @@ _getDurations = fmap group $ (++)
         Just (pitch, OpenShort, dyn, _var) -> do
             frames <- Audio.Frames . Sndfile.frames <$>
                 (Audio.File.throwEnoent fname =<< Audio.File.getInfo fname)
-            return $ Just ((tuning, pitch, dyn), frames)
+            pure $ Just ((tuning, pitch, dyn), frames)
         _ -> pure Nothing
 
 _makeDurationOf :: IO ()

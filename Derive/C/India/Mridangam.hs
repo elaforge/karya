@@ -74,7 +74,7 @@ c_sequence sequence_arg = Derive.with_score_duration score_duration $
     signature = (,) <$> sequence_arg <*> dur_arg
     score_duration args = do
         (sequence, matra_dur) <- Sig.parse_or_throw signature args
-        return $ Derive.CallDuration $ if
+        pure $ Derive.CallDuration $ if
             | matra_dur == 0 -> Args.duration args
             | otherwise -> (if Args.negative args then negate else id) $
                 fromIntegral (length sequence) * matra_dur
@@ -134,10 +134,10 @@ c_pattern = Derive.with_score_duration score_duration $
     "Like `seq`, but pick a standard pattern."
     $ Sig.call signature $ \(maybe_strokes, variation, matra_dur) ->
     Sub.inverting $ \args -> do
-        strokes <- maybe (infer_strokes matra_dur (Args.duration args)) return
+        strokes <- maybe (infer_strokes matra_dur (Args.duration args)) pure
             maybe_strokes
         notes <- Derive.require_right id $ infer_pattern strokes variation
-        notes <- return $
+        notes <- pure $
             map (second (realize_mstroke (Args.context args))) notes
         m_sequence notes matra_dur (Args.range args) (Args.orientation args)
     where
@@ -152,7 +152,7 @@ c_pattern = Derive.with_score_duration score_duration $
         <*> dur_arg
     score_duration args = do
         (maybe_strokes, _, matra_dur) <- Sig.parse_or_throw signature args
-        return $ Derive.CallDuration $ case maybe_strokes of
+        pure $ Derive.CallDuration $ case maybe_strokes of
             Nothing -> Args.duration args
             Just strokes -> fromIntegral strokes * matra_dur
 
@@ -167,7 +167,7 @@ infer_pattern dur variation = do
         (Realize.lookupPattern (Solkattu.pattern dur) patterns)
     -- (*4) because each note is 1 matra, which is 1/4 Duration, and I want
     -- duration in matras.
-    return $ map (first (*4)) $ S.flattenedNotes $
+    pure $ map (first (*4)) $ S.flattenedNotes $
         S.withDurations $ S.flatten notes
 
 realize_mstroke :: Derive.Context Score.Event -> Realize.Note Mridangam.Stroke
@@ -176,7 +176,7 @@ realize_mstroke ctx = fmap (Eval.eval_expr_val ctx) . ToScore.toExpr
 
 infer_strokes :: ScoreTime -> ScoreTime -> Derive.Deriver Int
 infer_strokes dur event_dur
-    | dur > 0 = return $ floor (event_dur / dur)
+    | dur > 0 = pure $ floor (event_dur / dur)
     | otherwise = Derive.throw "can't infer both number of strokes and\
         \ duration of strokes simultaneously"
 
@@ -211,7 +211,7 @@ c_tirmanam = Derive.with_score_duration score_duration $
         <*> dur_arg -- TODO nadai arg?
     score_duration args = do
         (sequence, karvai, matra_dur) <- Sig.parse_or_throw signature args
-        return $ Derive.CallDuration $ if
+        pure $ Derive.CallDuration $ if
             | matra_dur == 0 -> Args.duration args
             | otherwise -> (if Args.negative args then negate else id) $
                 fromIntegral (length sequence * 3 + length karvai * 2)
@@ -234,18 +234,18 @@ tirmanam :: [Stroke] -> [Stroke] -> ScoreTime -> ScoreTime
 tirmanam sequence karvai matra_dur event_dur = (add_final=<<) $ if
     | matra_dur == 0 ->
         let p = sequence ++ karvai ++ sequence ++ karvai ++ sequence
-        in return $ map (abs event_dur / fromIntegral (length p),) p
+        in pure $ map (abs event_dur / fromIntegral (length p),) p
     | otherwise -> do
         karvai_durs <- first (("event dur " <> pretty event_dur <> ": ")<>) $
             stretch_karvai sequence karvai matra_dur (abs event_dur)
         let p = map (matra_dur,) sequence
-        return $ p ++ karvai_durs ++ p ++ karvai_durs ++ p
+        pure $ p ++ karvai_durs ++ p ++ karvai_durs ++ p
     where
     add_final sequence
         | event_dur < 0 = case Lists.head karvai of
-            Just s | s /= Rest -> return $ sequence ++ [(0, s)]
+            Just s | s /= Rest -> pure $ sequence ++ [(0, s)]
             _ -> Left "karvai should start with non-rest for a negative event"
-        | otherwise = return sequence
+        | otherwise = pure sequence
 
 realize_stroke :: Derive.Context Score.Event -> Stroke
     -> Maybe Derive.NoteDeriver

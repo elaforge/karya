@@ -125,21 +125,21 @@ process :: Types.Config -> Time -> [Meter.Meter] -- ^ one for each measure
     -> [Event] -> Either Log.Msg [Either Voices Ly]
 process config start meters events_ = first to_log $ do
     let (free_codes, events) = Lists.partitionOn free_code events_
-    chunks <- either (Left . ConvertError Nothing) return $
+    chunks <- either (Left . ConvertError Nothing) pure $
         collect_chunks events
     let end = start + Num.sum (map Meter.measure_time meters)
     -- Debug.tracepM "meters" (start, end, length meters,
     --     zip [1 :: Int ..] (_meter_starts start meters))
-    chunks <- return $ merge_note_code_chunks $
+    chunks <- pure $ merge_note_code_chunks $
         insert_rests_chunks start end chunks
     let state = make_state config start meters default_key
-    key <- maybe (return default_key)
+    key <- maybe (pure default_key)
         (fmap fst . run_convert state . lookup_key) (Lists.head events)
-    state <- return $ state { state_key = key }
+    state <- pure $ state { state_key = key }
     (lys, _) <- run_convert state $ convert chunks
     lys <- pure $ merge_free_code start free_codes lys
     let meter = fromMaybe Meter.default_meter (Lists.head meters)
-    return $ Right (LyCode $ "\\time " <> to_lily meter)
+    pure $ Right (LyCode $ "\\time " <> to_lily meter)
         : Right (LyCode $ to_lily key)
         : lys
         ++ [Right (LyCode "\\bar \"|.\"")]
@@ -152,7 +152,7 @@ _meter_starts start meters = snd $ List.mapAccumL add start meters
 collect_chunks :: [Event] -> Either Error [Chunk]
 collect_chunks = go
     where
-    go [] = return []
+    go [] = pure []
     go events = do
         (no_voice, events) <- without_voice events
         (voice, events) <- with_voice events
@@ -168,7 +168,7 @@ collect_chunks = go
             whenJust (List.find (Types.event_overlaps e) tails) $ \over ->
                 Left $ "last voice " <> pretty over
                     <> " overlaps first non-voice " <> pretty e
-        return (voice, remain)
+        pure (voice, remain)
     without_voice events = do
         let (without, remain) = span ((==Nothing) . event_voice) events
         whenJust ((,) <$>
@@ -176,7 +176,7 @@ collect_chunks = go
                 when (Types.event_overlaps e1 e2) $
                     Left $ "last non-voice " <> pretty e1
                         <> " overlaps first voice " <> pretty e2
-        return (without, remain)
+        pure (without, remain)
 
 -- | Span events until they don't have a 'Constants.v_voice' val.
 --
@@ -189,7 +189,7 @@ collect_voices :: [Event] -> Either Text (VoiceMap Event, [Event])
 collect_voices events = do
     let (voice, remain) = Lists.spanWhile (\e -> (,e) <$> event_voice e) events
     voice <- forM voice $ \(err_or_voice, event) -> (,event) <$> err_or_voice
-    return (Lists.groupFst voice, remain)
+    pure (Lists.groupFst voice, remain)
 
 insert_rests_chunks :: Time -> Time -> [Chunk] -> [Chunk]
 insert_rests_chunks start end = Then.mapAccumL insert start final
@@ -324,7 +324,7 @@ apply_free_code codes ly = case ly of
     LyNested nested -> do
         lys <- apply_nested $ NonEmpty.toList (nested_contents nested)
         lys <- NonEmpty.nonEmpty lys
-        return $ LyNested $ nested { nested_contents = lys }
+        pure $ LyNested $ nested { nested_contents = lys }
     _ -> Nothing
     where
     (prepend, append) = bimap (map snd) (map snd) $
@@ -346,7 +346,7 @@ free_code event
 until_complete :: Monad m => ([a] -> m ([b], [a])) -> [a] -> m [b]
 until_complete f = go
     where
-    go [] = return []
+    go [] = pure []
     go as = do
         (bs, as) <- f as
         (bs++) <$> go as
@@ -358,7 +358,7 @@ until_complete f = go
 -- events.
 -- TODO the name should change, now that Chunk is something else
 convert_chunk :: Bool -> [Event] -> ConvertM ([Ly], [Event])
-convert_chunk _ [] = return ([], [])
+convert_chunk _ [] = pure ([], [])
 convert_chunk metered (event : events) = with_event event $ if
     | Just ((score_dur, real_dur), (_, remain))
             <- find Constants.get_tuplet -> do
@@ -422,7 +422,7 @@ convert_tuplet start score_dur real_dur events = do
     -- score_dur = 3/8s.
     let is_duplet = Ratio.numerator (Types.to_whole score_dur) == 1
     let factor = if is_duplet then 1 else 2
-    score_dur <- return $ if is_duplet then score_dur else score_dur * 2
+    score_dur <- pure $ if is_duplet then score_dur else score_dur * 2
     when (real_dur <= 0) $
         throw $ "tuplet with a real_dur of 0: "
             <> pretty (start, score_dur, real_dur)
@@ -438,7 +438,7 @@ convert_tuplet start score_dur real_dur events = do
     lys <- until_complete (convert_chunk False) $
         snd $ insert_rests (Just (start + score_dur)) start $
         map (stretch factor start) in_tuplet
-    lys <- maybe (throw "empty tuplet") return $ NonEmpty.nonEmpty lys
+    lys <- maybe (throw "empty tuplet") pure $ NonEmpty.nonEmpty lys
 
     -- Rewind time back to before the tuplet.
     State.modify' $ \state -> state
@@ -451,7 +451,7 @@ convert_tuplet start score_dur real_dur events = do
         advance_measure (start + real_dur)
     let code = tuplet_code real_dur divisor
             (count_notes_rests (NonEmpty.toList lys)) lys
-    return (code : maybe [] (:[]) barline, out)
+    pure (code : maybe [] (:[]) barline, out)
 
 -- | Convention is that the number on the tuplet is at least the number of
 -- notes inside, but lilypond doesn't do that automatically.
@@ -471,7 +471,7 @@ tuplet_code dur ratio notes contents = LyNested $ Nested
 real_to_time :: RealTime -> ConvertM Time
 real_to_time t = do
     quarter <- State.gets $ Types.config_quarter_duration . state_config
-    return $ Types.real_to_time quarter t
+    pure $ Types.real_to_time quarter t
 
 stretch :: Int -> Time -> Event -> Event
 stretch factor start event
@@ -516,11 +516,11 @@ convert_tremolo tremolo_event events = do
             | dur >= total_dur = []
             | otherwise = mapMaybe (clip_event (start + dur))
                 (tremolo_event : in_tremolo)
-    notes <- maybe (throw "no notes in tremolo") return $
+    notes <- maybe (throw "no notes in tremolo") pure $
         NonEmpty.nonEmpty notes
     let note = tremolo_note dur times notes
             (prepend ++ nprepend) (nappend ++ append)
-    return (LyNested note : maybe [] (:[]) barline, clipped ++ out)
+    pure (LyNested note : maybe [] (:[]) barline, clipped ++ out)
 
     where
     start = event_start tremolo_event
@@ -528,7 +528,7 @@ convert_tremolo tremolo_event events = do
     get_allowed_dur = do
         meter <- get_subdivision
         measure_start <- State.gets state_measure_start
-        return $ Types.note_dur_to_time $ Meter.allowed_duration use_dot meter
+        pure $ Types.note_dur_to_time $ Meter.allowed_duration use_dot meter
             (start - measure_start)
             (start - measure_start + event_duration tremolo_event)
         where use_dot = True
@@ -590,40 +590,40 @@ convert_chord metered events = do
             (NonEmpty.tail events)
         next = event_start <$> List.find (not . zero_dur) there
     here <- consume_subdivisions (NonEmpty.head events : here)
-    meter <- if metered then Just <$> get_subdivision else return Nothing
+    meter <- if metered then Just <$> get_subdivision else pure Nothing
     case NonEmpty.nonEmpty here of
-        Nothing -> return ([], there)
+        Nothing -> pure ([], there)
         Just here -> do
             let (chord_ly, end, last_attrs, clipped) = make_note
                     config (state_measure_start state) (state_prev_attrs state)
                     meter here next
             barline <- if metered then advance_measure end
-                else advance_unmetered end >> return Nothing
+                else advance_unmetered end >> pure Nothing
             -- Rests don't affect the key, or emit key changes.  This is
             -- because rests are created with an empty environ, so otherwise
             -- they would be constantly unsetting the key.
             key_change <- case chord_ly of
-                LyRest {} -> return []
+                LyRest {} -> pure []
                 _ -> do
                     State.modify' $ \state -> state
                         { state_key = key
                         , state_prev_attrs = last_attrs
                         }
-                    return [LyCode (to_lily key) | key /= state_key state]
-            return
+                    pure [LyCode (to_lily key) | key /= state_key state]
+            pure
                 ( key_change ++ [chord_ly] ++ maybe [] (:[]) barline
                 , clipped ++ there
                 )
 
 -- | Handle any Constants.v_subdivision events and filter them out.
 consume_subdivisions :: [Event] -> ConvertM [Event]
-consume_subdivisions events = mapM_ update subdivisions >> return normal
+consume_subdivisions events = mapM_ update subdivisions >> pure normal
     where
     (subdivisions, normal) = Lists.partitionOn lookup_subdivision events
     update "" = State.modify' $ \state ->
         state { state_subdivision = Nothing }
     update m = do
-        meter <- either throw return $ first
+        meter <- either throw pure $ first
             (("can't parse meter in " <> pretty Constants.v_subdivision
                 <> ": " <> showt m <> ": ")<>)
             (Meter.parse_meter m)
@@ -667,7 +667,7 @@ make_note config measure_start prev_attrs maybe_meter chord next =
         let tie = note_tie event
         let (prepend, append) = event_note_code Constants.Note
                 (is_first event) (is_last event) event
-        return $ NotePitch
+        pure $ NotePitch
             { pitch_pitch = pitch
             , pitch_tie = tie
             , pitch_prepend = prepend
@@ -785,7 +785,7 @@ attrs_to_code prev current =
 -- | Like 'convert_chunk', but converts within a voice, which means no nested
 -- voices are expected.
 voices_to_ly :: VoiceMap Event -> ConvertM (VoiceMap Ly)
-voices_to_ly [] = return []
+voices_to_ly [] = pure []
 voices_to_ly voices = do
     state <- State.get
     (states, voice_lys) <- unzip <$> mapM (convert state) voices
@@ -794,13 +794,13 @@ voices_to_ly voices = do
             unless (all ((== state_time st) . state_time) sts) $
                 throw $ "inconsistent states after voices: " <> pretty (st:sts)
             State.put st
-        [] -> return ()
-    return voice_lys
+        [] -> pure ()
+    pure voice_lys
     where
     convert state (v, events) = do
         (measures, final_state) <- tryRight $ run_convert state $
             until_complete (convert_chunk True) events
-        return (final_state, (v, measures))
+        pure (final_state, (v, measures))
 
 -- | If a whole measure of a voice is empty, omit the voice for that measure.
 --
@@ -884,7 +884,7 @@ advance_measure time = advance =<< State.get
                 <> " < " <> pretty (state_time state)
         | time < state_measure_end state = do
             State.put $ state { state_time = time }
-            return Nothing
+            pure Nothing
         | time == state_measure_end state =
             case state_meters state of
                 prev_meter : meters -> advance1 prev_meter meters
@@ -901,7 +901,7 @@ advance_measure time = advance =<< State.get
                 + Meter.measure_time (fromMaybe prev_meter (Lists.head meters))
             , state_time = time
             }
-        return $ case Lists.head meters of
+        pure $ case Lists.head meters of
             Just meter -> Just $ LyBarline $
                 if to_lily prev_meter == to_lily meter
                     then Nothing else Just meter
@@ -922,14 +922,14 @@ advance_unmetered time = advance =<< State.get
 get_subdivision :: ConvertM Meter.Meter
 get_subdivision = do
     meters <- State.gets state_meters
-    meter <- maybe (throw "out of meters") return $ Lists.head meters
+    meter <- maybe (throw "out of meters") pure $ Lists.head meters
     subdivision <- State.gets state_subdivision
     case subdivision of
         Just sub
-            | Meter.measure_time meter == Meter.measure_time sub -> return sub
+            | Meter.measure_time meter == Meter.measure_time sub -> pure sub
             | otherwise -> throw $ "subdivision " <> to_lily sub
                 <> " incompatible with meter " <> to_lily meter
-        Nothing -> return meter
+        Nothing -> pure meter
 
 -- * ConvertM
 
@@ -1016,7 +1016,7 @@ lookup_val key parse deflt event = prefix $ do
     maybe_val <- Env.checked_val key (event_environ event)
     maybe (Right deflt) parse maybe_val
     where
-    prefix = either (throw . ((pretty key <> ": ") <>)) return
+    prefix = either (throw . ((pretty key <> ": ") <>)) pure
 
 
 -- * types
@@ -1180,7 +1180,7 @@ parse_key key_name = do
     let tonic = to_lily pc <> to_lily acc
     mode <- justErr ("unknown mode: " <> Theory.key_name key) $
         Map.lookup (Theory.key_name key) modes
-    return $ Key tonic mode
+    pure $ Key tonic mode
     where
     modes = Map.fromList
         [ ("min", "minor"), ("locrian", "locrian"), ("maj", "major")

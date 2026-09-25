@@ -107,20 +107,20 @@ insert_expr thru note_entry_map = handler $ \msg -> do
             -- could just replace it entirely.  But I still want to mask out
             -- those PhysicalKey.pitch_map keys because it seems to confusing
             -- to fall through to an editing key.
-            | Map.member char PhysicalKey.pitch_map -> return Cmd.Done
-            | otherwise -> return Cmd.Continue
+            | Map.member char PhysicalKey.pitch_map -> pure Cmd.Done
+            | otherwise -> pure Cmd.Continue
         Just expr -> do
             case thru of
-                NoThru -> return ()
+                NoThru -> pure ()
                 MidiThru -> expr_midi_thru kstate expr
                 ImThru thru_f -> case kstate of
                     UiMsg.KeyDown ->
                         mapM_ Cmd.write_thru =<< expr_im_thru thru_f expr
-                    _ -> return ()
+                    _ -> pure ()
             case kstate of
                 UiMsg.KeyDown -> keydown expr
-                _ -> return ()
-            return Cmd.Done
+                _ -> pure ()
+            pure Cmd.Done
     where
     handler = Cmd.Handler
         (Just $ merge_kbd_entry "" $ to_keycap <$> note_entry_map)
@@ -148,7 +148,7 @@ expr_im_thru :: Cmd.M m => Thru.ThruFunction -> DeriveT.Expr -> m [Cmd.Thru]
 expr_im_thru thru_f expr = do
     notes <- eval_thru_notes expr
     msg <- Cmd.require_right ("thru_f: "<>) $ thru_f notes
-    return [Cmd.ImThru msg]
+    pure [Cmd.ImThru msg]
 
 eval_thru_notes :: Cmd.M m => DeriveT.Expr -> m [Thru.Note]
 eval_thru_notes expr = do
@@ -158,7 +158,7 @@ eval_thru_notes expr = do
     events <- Cmd.require_right ("CUtil.expr_attributes: "<>) result
     when (null events) $ Cmd.throw $ "expected events when evaluating: "
         <> ShowVal.show_val expr
-    return $ map make events
+    pure $ map make events
     where
     make event = Thru.Note
         { _pitch = fromMaybe 0 (Score.initial_nn event)
@@ -182,7 +182,7 @@ eval_thru_notes expr = do
 -}
 expr_midi_thru :: Cmd.M m => UiMsg.KbdState -> DeriveT.Expr -> m ()
 expr_midi_thru kstate expr = case kstate of
-    UiMsg.KeyRepeat -> return ()
+    UiMsg.KeyRepeat -> pure ()
     UiMsg.KeyDown -> do
         (block_id, _, track_id, pos) <- Selection.get_insert
         msgs <- expr_to_midi block_id track_id pos expr
@@ -241,7 +241,7 @@ keyswitches inputs = handler $ \msg -> do
     MidiThru.channel_messages Nothing False
         [Midi.NoteOn key 64, Midi.NoteOff key 64]
     Cmd.set_note_text (Expr.unsym call)
-    return Cmd.Done
+    pure Cmd.Done
     where
     handler = Cmd.Handler (Just note_entry_map) . Cmd.NamedCmd "keyswitches"
     note_entry_map = Cmd.WithoutOctave $ Expr.unsym . fst <$> to_call
@@ -325,7 +325,7 @@ make_keymap base_keyswitch base_key range root_pitch groups = Map.fromList $ do
     (group, low) <- zip groups [base_key, base_key+range ..]
     (attrs, ks) <- zip group $ maybe (repeat [])
         (\base -> map ((:[]) . Patch.Keyswitch) [base..]) base_keyswitch
-    return (attrs, (ks, low, low + (range-1), root_pitch))
+    pure (attrs, (ks, low, low + (range-1), root_pitch))
 
 -- | This is like 'make_keymap', except with the arguments rearranged to more
 -- closely match the sample utils I use.

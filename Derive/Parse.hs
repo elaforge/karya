@@ -166,12 +166,12 @@ p_lex1 =
             <|> word)
         *> (A.skipWhile is_whitespace)
     where
-    str = p_single_quote_string >> return ()
+    str = p_single_quote_string >> pure ()
     parens = do
         A.char '('
-        A.many $ parens <|> str <|> (A.takeWhile1 content_char >> return ())
+        A.many $ parens <|> str <|> (A.takeWhile1 content_char >> pure ())
         A.char ')'
-        return ()
+        pure ()
     word = A.skipWhile (\c -> c /= '(' && is_word_char c)
     content_char c = c /= '(' && c /= ')' && c /= '\''
     unparsed = A.string (Expr.unsym unparsed_call)
@@ -193,7 +193,7 @@ p_macros :: (Text -> Text) -> A.Parser Text
 p_macros replace = do
     chunks <- A.many1 $ p_macro replace <|> p_chunk
         <|> (("\""<>) . (<>"\"") <$> p_hs_string)
-    return $ mconcat chunks
+    pure $ mconcat chunks
     where
     p_chunk = A.takeWhile1 (\c -> c /= '"' && c /= '@')
 
@@ -227,7 +227,7 @@ p_expr :: Bool -> A.Parser DeriveT.Expr
 p_expr toplevel = do
     -- It definitely matches at least one, because p_null_call always matches.
     c : cs <- A.sepBy1 (p_toplevel_call toplevel) p_pipe
-    return $ c :| cs
+    pure $ c :| cs
 
 -- | A toplevel call has a few special syntactic forms, other than the plain
 -- @call arg arg ...@ form parsed by 'p_call'.
@@ -241,7 +241,7 @@ p_unparsed_expr = do
     A.string $ Expr.unsym unparsed_call
     text <- A.takeWhile $ \c -> c /= '|' && c /= ')'
     let arg = Expr.Str $ Text.strip $ strip_comment text
-    return $ Expr.Call unparsed_call [Expr.Literal $ DeriveT.VStr arg]
+    pure $ Expr.Call unparsed_call [Expr.Literal $ DeriveT.VStr arg]
     where
     -- Normally comments are considered whitespace by 'spaces_to_eol'.  Normal
     -- tokenization is suppressed for 'unparsed_call' so that doesn't happen,
@@ -261,7 +261,7 @@ p_pipe = void $ lexeme (A.char '|')
 p_equal :: A.Parser (Expr.Call DeriveT.Val)
 p_equal = do
     (lhs, sym, rhs) <- p_equal_generic (lexeme p_term)
-    return $ Expr.Call Symbols.equal $
+    pure $ Expr.Call Symbols.equal $
         literal lhs : rhs ++ maybe [] (:[]) (literal <$> sym)
     where literal = Expr.Literal . DeriveT.VStr
 
@@ -272,7 +272,7 @@ p_equal_generic rhs_term = do
     mb_sym <- p_equal_operator
     spaces
     rhs <- A.many1 rhs_term
-    return (Expr.Str lhs, Expr.Str . Text.singleton <$> mb_sym, rhs)
+    pure (Expr.Str lhs, Expr.Str . Text.singleton <$> mb_sym, rhs)
 
 p_equal_operator :: A.Parser (Maybe Char)
 p_equal_operator = A.char '=' *> optional (A.satisfy (A.inClass merge_symbols))
@@ -290,7 +290,7 @@ p_call toplevel = Expr.Call
     <*> lexeme (A.sepBy p_term spaces1)
 
 p_null_call :: A.Parser (Expr.Call a)
-p_null_call = return (Expr.Call "" []) <?> "null call"
+p_null_call = pure (Expr.Call "" []) <?> "null call"
 
 -- | Any word in call position is considered a Str.  This means that
 -- you can have calls like @4@ and @>@, which are useful names for notes or
@@ -319,16 +319,16 @@ p_val unquoted =
     <|> DeriveT.VControlRef <$> p_control_ref
     <|> DeriveT.VPControlRef <$> p_pcontrol_ref
     <|> DeriveT.VQuoted <$> p_quoted
-    <|> (A.char '_' >> return DeriveT.VNotGiven)
-    <|> (A.char ';' >> return DeriveT.VSeparator)
+    <|> (A.char '_' >> pure DeriveT.VNotGiven)
+    <|> (A.char ';' >> pure DeriveT.VSeparator)
     <|> DeriveT.VStr <$> p_unquoted_str unquoted
 
 p_num :: A.Parser (ScoreT.Typed Signal.Y)
 p_num = do
     num <- p_untyped_num
-    let suffix (typ, suf) = A.string suf >> return typ
+    let suffix (typ, suf) = A.string suf >> pure typ
     typ <- A.choice $ map suffix codes
-    return $ ScoreT.Typed typ num
+    pure $ ScoreT.Typed typ num
     where
     codes = zip ScoreT.all_types $ map ScoreT.type_to_code ScoreT.all_types
 
@@ -344,19 +344,19 @@ p_ratio = do
     num <- ParseText.p_nat
     A.char '/'
     denom <- ParseText.p_nat
-    return $ (if sign == '-' then -1 else 1)
+    pure $ (if sign == '-' then -1 else 1)
         * fromIntegral num / fromIntegral denom
 
 -- | Parse numbers of the form @`0x`00@ or @0x00@, with an optional @-@ prefix
 -- for negation.
 p_hex :: A.Parser Signal.Y
 p_hex = do
-    sign <- A.option 1 (A.char '-' >> return (-1))
+    sign <- A.option 1 (A.char '-' >> pure (-1))
     A.string ShowVal.hex_prefix <|> A.string "0x"
     let higit c = '0' <= c && c <= '9' || 'a' <= c && c <= 'f'
     c1 <- A.satisfy higit
     c2 <- A.satisfy higit
-    return $ fromIntegral (parse_hex c1 c2) / 0xff * sign
+    pure $ fromIntegral (parse_hex c1 c2) / 0xff * sign
 
 parse_hex :: Char -> Char -> Int
 parse_hex c1 c2 = higit c1 * 16 + higit c2
@@ -374,7 +374,7 @@ p_single_quote_string :: A.Parser Text
 p_single_quote_string = do
     chunks <- A.many1 $
         ParseText.between (A.char '\'') (A.char '\'') (A.takeTill (=='\''))
-    return $ Text.intercalate "'" chunks
+    pure $ Text.intercalate "'" chunks
 
 -- There's no particular reason to restrict attrs to idents, but this will
 -- force some standardization on the names.
@@ -387,7 +387,7 @@ p_control_ref = do
     A.char '%'
     control <- ScoreT.Control <$> A.option "" (p_identifier False ",")
     deflt <- ParseText.optional (A.char ',' >> p_num)
-    return $ DeriveT.Ref control (fmap Signal.constant <$> deflt)
+    pure $ DeriveT.Ref control (fmap Signal.constant <$> deflt)
     <?> "control"
 
 -- | Unlike 'p_control_ref', this doesn't parse a comma and a default value,
@@ -424,7 +424,7 @@ p_unquoted_str unquoted = do
     -- a quote in it, which is confusing.  So let's outlaw that.
     when ("'" `Text.isInfixOf` sym) $
         fail $ "quote in unquoted string: " <> show sym
-    return $ Expr.Str sym
+    pure $ Expr.Str sym
     where
     range x y c = x <= c && c <= y
 
@@ -453,7 +453,7 @@ p_identifier null_ok until = do
     unless ((null_ok && Text.null ident) || Id.valid_symbol ident) $
         fail $ "invalid chars in identifier, expected "
             <> untxt Id.symbol_description <> ": " <> show ident
-    return ident
+    pure ident
 
 -- | A word is as permissive as possible, and is terminated by whitespace.
 -- That's because this determines how calls are allowed to be named, and for

@@ -67,7 +67,7 @@ main = do
     Limit.set Limit.ResourceOpenFiles 4096
     args <- Environment.getArgs
     (flags, args) <- case GetOpt.getOpt GetOpt.Permute options args of
-        (flags, args, []) -> return (flags, args)
+        (flags, args, []) -> pure (flags, args)
         (_, _, errs) -> usage $ "flag errors:\n" ++ Lists.join ", " errs
     logFname <- Config.getLogFilename "sampler.log"
     logHdl <- Log.rotate logFname
@@ -121,14 +121,14 @@ main = do
         [notesFilename, outputDir] -> do
             Log.notice $ Text.unwords
                 ["sampler-im", txt notesFilename, txt outputDir]
-            notes <- either (errorIO . pretty) return
+            notes <- either (errorIO . pretty) pure
                 =<< Note.unserialize notesFilename
             process emitProgress PatchDb.db quality notes outputDir
         _ -> usage ""
     where
     dumpNotes useShow range tracks notesFilename =
         dump useShow range tracks PatchDb.db
-            =<< either (errorIO . pretty) return
+            =<< either (errorIO . pretty) pure
             =<< Note.unserialize notesFilename
     usage msg = do
         unless (null msg) $
@@ -298,12 +298,12 @@ convertNotes :: Patch.Db -> [Note.Note]
 convertNotes db notes =
     fmap concat $ forM (byPatchInst notes) $ \(patchName, notes) ->
     getPatch db patchName >>= \case
-        Nothing -> return []
+        Nothing -> pure []
         Just (patch, mbEffect) -> fmap (map (patch,)) $ forM notes $
             \(inst, notes) -> do
                 let converted = convert db patch notes
                 sampleNotes <- makeSampleNotes emit mbEffect converted
-                return
+                pure
                     ( inst
                     , [ (note, snote)
                       | ((_, _, note), Just snote) <- zip converted sampleNotes
@@ -313,7 +313,7 @@ convertNotes db notes =
     emit = \case
         Config.Warn _ err -> put err
         Config.Failure err -> put err
-        _ -> return ()
+        _ -> pure ()
         where put = Text.IO.putStrLn . ("warning while converting: "<>)
 
 inRange :: (RealTime, RealTime) -> [(Note.Note, a)] -> [(Note.Note, a)]
@@ -364,7 +364,7 @@ process emitProgress db quality allNotes outputDir
             , _instrument = inst
             , _payload = payload
             }
-        | otherwise = return ()
+        | otherwise = pure ()
     trackIdsOf = Set.fromList . mapMaybe Note.trackId
 
 
@@ -373,24 +373,24 @@ getPatch :: Patch.Db -> Note.PatchName
 getPatch db name = case Map.lookup name (Patch._patches db) of
     Nothing -> do
         Log.warn $ "patch not found: " <> name
-        return Nothing
+        pure Nothing
     Just patch | Just {} <- ImInst.patch_dummy (Patch._karyaPatch patch) -> do
         Log.warn $ "dummy patch: " <> name
-        return Nothing
+        pure Nothing
     Just patch -> case Patch._effect patch of
-        Nothing -> return $ Just (patch, Nothing)
+        Nothing -> pure $ Just (patch, Nothing)
         Just effectConf -> case Map.lookup ename EffectC.patches of
             Nothing -> do
                 Log.warn $ name <> ": effect not found: " <> ename
-                return Nothing
+                pure Nothing
             Just (Left err) -> do
                 Log.warn $ name <> ": effect " <> ename <> " error: " <> err
-                return Nothing
+                pure Nothing
             Just (Right effect)
                 | not (null warnings) -> do
                     mapM_ (Log.warn . ((name <> ": ") <>)) warnings
-                    return Nothing
-                | otherwise -> return $ Just
+                    pure Nothing
+                | otherwise -> pure $ Just
                     ( patch
                     , Just $ Render.InstrumentEffect
                         { _effectPatch = effect
@@ -437,27 +437,27 @@ makeSampleNote :: (Config.Payload -> IO ())
 makeSampleNote emitMessage _ _ (Left err, logs, note) = do
     mapM_ Log.write logs
     emitMessage $ Config.Warn (Note.stack note) err
-    return Nothing
+    pure Nothing
 makeSampleNote emitMessage mbEffect prevStart (Right sample, logs, note) = do
     mapM_ Log.write logs
     Exception.try (actualDuration (Note.start note) sample) >>= \case
         Left exc -> do
             emitMessage $
                 Config.Warn (Note.stack note) (Audio.exceptionText exc)
-            return Nothing
+            pure Nothing
         Right dur | dur <= 0 -> do
             -- Omit samples with 0 duration.  This can happen naturally if they
             -- have 0 volume.
             emitMessage $ Config.Warn (Note.stack note) $
                 "sample with 0 envelope: " <> pretty sample
-            return Nothing
+            pure Nothing
         -- The notes should have been sorted prior to serialization.
         _ | Note.start note < prevStart -> do
             emitMessage $ Config.Warn (Note.stack note) $
                 "note start " <> pretty (Note.start note)
                 <> " < previous " <> pretty prevStart
-            return Nothing
-        Right dur -> return $ Just $
+            pure Nothing
+        Right dur -> pure $ Just $
             Sample.note start dur (effectControls mbEffect note) sample
             where
             -- Round the frame up.  Otherwise, since frames are integral, I
@@ -487,7 +487,7 @@ actualDuration start sample = do
         (Sample.filename sample)
     let envDur = AUtil.toFrames <$>
             RenderSample.envelopeDuration start (Sample.envelope sample)
-    return $ case envDur of
+    pure $ case envDur of
         Just dur -> min fileDur dur
         Nothing -> fileDur
 

@@ -43,7 +43,7 @@ p_allocation alloc_qualified fields = run $ do
     rest <- State.get
     unless (Map.null rest) $
         Except.throwError ["extra fields: " <> Text.unwords (Map.keys rest)]
-    return $ UiConfig.Allocation
+    pure $ UiConfig.Allocation
         { alloc_qualified, alloc_config, alloc_backend }
     where
     run = first (Text.intercalate " -> ") . Except.runExcept
@@ -58,7 +58,7 @@ p_config :: Parse Common.Config
 p_config = do
     env <- field "env" mempty p_env
     controls <- field "controls" mempty p_controls
-    return $ Common.Config env controls False False
+    pure $ Common.Config env controls False False
 
 un_config :: Common.Config -> Record.Record
 un_config (Common.Config { config_environ, config_controls }) = concat
@@ -95,7 +95,7 @@ p_midi_config :: Parse Patch.Config
 p_midi_config = do
     initialization <- fieldm "initialization" p_enum
     settings <- p_settings
-    return $ Patch.Config
+    pure $ Patch.Config
         { config_allocation = [] -- filled in from the top line
         , config_initialization = initialization
         , config_settings = settings
@@ -108,7 +108,7 @@ p_settings = do
     config_decay <- fieldm "decay" (fmap RealTime.seconds . p_num)
     config_pitch_bend_range <- fieldm "pb_range" (p_pair p_int)
     config_control_defaults <- fieldm "control_defaults" p_controls
-    return $ Patch.Settings
+    pure $ Patch.Settings
         { config_flags, config_scale, config_decay
         , config_pitch_bend_range, config_control_defaults
         }
@@ -171,25 +171,25 @@ fieldm name parse = field name Nothing (fmap Just . parse)
 field :: Text -> a -> (Record.RVal -> Parse a) -> Parse a
 field name deflt parse =
     State.get >>= \fields -> case Map.lookup name fields of
-        Nothing -> return deflt
+        Nothing -> pure deflt
         Just val -> do
             State.put (Map.delete name fields)
             annotate name (parse val)
 
 p_record :: Record.RVal -> Parse Record.Record
 p_record = \case
-    Record.Record rec -> return rec
+    Record.Record rec -> pure rec
     a@(Record.Val _) -> throw "record" a
 
 p_str :: Record.RVal -> Parse Text
 p_str = \case
-    Record.Val (DeriveT.VStr (Expr.Str s)) -> return s
+    Record.Val (DeriveT.VStr (Expr.Str s)) -> pure s
     a -> throw "str" a
 
 p_num :: Record.RVal -> Parse Double
 p_num = \case
     Record.Val (DeriveT.VSignal (ScoreT.Typed _ sig))
-        | Just a <- Signal.constant_val sig -> return a
+        | Just a <- Signal.constant_val sig -> pure a
     a -> throw "num" a
 
 un_num :: Double -> Record.RVal
@@ -197,12 +197,12 @@ un_num = Record.Val . DeriveT.num
 
 p_int :: Record.RVal -> Parse Int
 p_int val = properFraction <$> p_num val >>= \case
-    (n, 0) -> return n
+    (n, 0) -> pure n
     _ -> throw "int" val
 
 p_enum :: forall a. (Enum a, Bounded a, Show a) => Record.RVal -> Parse a
 p_enum val = p_str val >>= \str -> case lookup str to of
-    Just a -> return a
+    Just a -> pure a
     Nothing -> throw "enum" val
     where to = Lists.keyOn showt [minBound :: a ..]
 

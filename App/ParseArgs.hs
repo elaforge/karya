@@ -19,16 +19,16 @@ import           Global
 -- | By default, this winds up in 'App.StaticConfig.setup_cmd'.
 parse_args :: [String] -> Either Text (Cmd.CmdT IO Cmd.Status)
 parse_args = \case
-    [] -> Right $ Save.load_template "save/default" >> return Cmd.Done
+    [] -> Right $ Save.load_template "save/default" >> pure Cmd.Done
     -- Load a template.
-    ["-t", fn] -> Right $ Save.load_template fn >> return Cmd.Done
+    ["-t", fn] -> Right $ Save.load_template fn >> pure Cmd.Done
     ["midi", fn] -> Right $ load_midi fn
-    [fn] -> Right $ Save.load fn >> return Cmd.Done
+    [fn] -> Right $ Save.load fn >> pure Cmd.Done
     [fn, ref_or_commit] -> Right $ do
         commit <- Cmd.require ("not a ref or commit: " <> txt ref_or_commit)
             =<< Trans.liftIO (SaveGit.infer_commit fn ref_or_commit)
         Save.load_git fn (Just commit)
-        return Cmd.Done
+        pure Cmd.Done
     args -> Left $ Text.unlines
         [ "Expected:"
         , "<filename>       - load score"
@@ -45,4 +45,4 @@ load_midi :: FilePath -> Cmd.CmdT IO Cmd.Status
 load_midi fn = do
     block_id <- Load.Midi.load fn
     Create.unfitted_view block_id
-    return Cmd.Done
+    pure Cmd.Done

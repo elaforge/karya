@@ -105,13 +105,13 @@ load_ky paths content = Except.runExceptT $ do
     ky <- tryRight $ first (ParseText.prefix "<score>: ") $
         parse_ky "" content
     kys <- load_ky_file paths Set.empty (ky_imports ky)
-    return $ mconcat $ ky { ky_imports = [Loaded "" content] } : kys
+    pure $ mconcat $ ky { ky_imports = [Loaded "" content] } : kys
 
 load_ky_file :: [FilePath] -> Set FilePath -> [Import]
     -> Except.ExceptT ParseText.Error IO [Ky Loaded]
-load_ky_file _ _ [] = return []
+load_ky_file _ _ [] = pure []
 load_ky_file paths loaded (Import fname lib : imports)
-    | lib `Set.member` loaded = return []
+    | lib `Set.member` loaded = pure []
     | otherwise = do
         let prefix = txt lib <> ": "
         (fname, content) <- tryRight . first (ParseText.message . (prefix<>))
@@ -120,7 +120,7 @@ load_ky_file paths loaded (Import fname lib : imports)
             parse_ky fname content
         kys <- load_ky_file paths (Set.insert lib loaded)
             (imports ++ ky_imports ky)
-        return $ ky { ky_imports = [Loaded fname content] } : kys
+        pure $ ky { ky_imports = [Loaded fname content] } : kys
 
 -- | Find the file in the given paths and return its filename and contents.
 find_ky :: [FilePath] -> FilePath -> FilePath
@@ -176,7 +176,7 @@ read_file fn = Exception.try (Text.IO.readFile fn) >>= pure . \case
 parse_ky :: FilePath -> Code -> Either ParseText.Error (Ky Import)
 parse_ky fname text = do
     (imports, sections) <- first ParseText.message $ checked_sections text
-    (instrument_section, sections) <- return
+    (instrument_section, sections) <- pure
         ( Map.lookup Instruments.instrument_section sections
         , Map.delete Instruments.instrument_section sections
         )
@@ -199,7 +199,7 @@ parse_ky fname text = do
         _ -> Right mempty
     let add_fname = map (fname,)
         add_fname2 = bimap add_fname add_fname
-    return $ Ky
+    pure $ Ky
         { ky_definitions = Definitions
             { def_note = add_fname2 $ get2 note
             , def_control = add_fname2 $ get2 control
@@ -222,7 +222,7 @@ parse_ky fname text = do
         [ t1 <> " " <> t2
         | t1 <- [note, control, pitch], t2 <- [generator, transformer]
         ]
-    parse_section [] = return []
+    parse_section [] = pure []
     parse_section ((lineno, line0) : lines) =
         first (ParseText.offset (lineno, 0)) $ ParseText.parse p_section $
             Text.unlines (line0 : map snd lines)
@@ -319,7 +319,7 @@ p_definition = do
     Parse.spaces
     expr <- p_expr_ky
     A.skipMany Parse.empty_line
-    return (assignee, expr)
+    pure (assignee, expr)
 
 -- * types
 
@@ -360,7 +360,7 @@ p_expr_ky :: A.Parser Expr
 p_expr_ky = do
     -- It definitely matches at least one, because p_null_call always matches.
     c : cs <- A.sepBy1 p_toplevel_call_ky Parse.p_pipe
-    return $ Expr (c :| cs)
+    pure $ Expr (c :| cs)
 
 p_toplevel_call_ky :: A.Parser Call
 p_toplevel_call_ky =
@@ -378,7 +378,7 @@ call_to_ky (Expr.Call sym args) = Call sym (map convert args)
 p_equal_ky :: A.Parser Call
 p_equal_ky = do
     (lhs, sym, rhs) <- Parse.p_equal_generic p_term_ky
-    return $ Call Symbols.equal $
+    pure $ Call Symbols.equal $
         literal lhs : rhs ++ maybe [] (:[]) (literal <$> sym)
     where literal = Literal . DeriveT.VStr
 

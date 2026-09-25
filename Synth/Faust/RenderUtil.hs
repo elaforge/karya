@@ -47,7 +47,7 @@ takeControls :: Ord control => Audio.Frames -> Map control AUtil.Audio1
     -> Resource.ResourceT IO (Map control Audio.Block, Map control AUtil.Audio1)
 takeControls frames controlStreams = do
     nexts <- mapM (takeExtend frames) streams
-    return
+    pure
         ( Map.fromList
             [(c, block) | (c, Just (block, _)) <- zip controls nexts]
         , Map.fromList
@@ -69,7 +69,7 @@ takeExtend frames audio = do
     let final = case last blocks of
             Audio.Constant _ val -> val
             Audio.Block v -> V.last v
-    return $ if null blocks then Nothing
+    pure $ if null blocks then Nothing
         else if missing == 0 then Just (mconcat blocks, audio)
         else Just (mconcat (blocks ++ [Audio.Constant missing final]), audio)
 
@@ -90,7 +90,7 @@ controlBreakpoints controlSize control =
     where
     get ((start, controls), next) = do
         signal <- Map.lookup control controls
-        return $ (if controlSize == 1 then id else tweak) $
+        pure $ (if controlSize == 1 then id else tweak) $
             roundBreakpoints controlSize $ Signal.to_pairs $
             maybe id (Signal.clip_after_keep_last . fst) next $
             Signal.clip_before start signal

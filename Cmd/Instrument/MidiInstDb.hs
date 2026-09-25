@@ -57,9 +57,9 @@ load_synth get_code synth_name doc app_dir =
         Left err -> do
             Log.warn $ "Error loading instrument db " <> showt fname <> ": "
                 <> Text.strip (pretty err)
-            return Nothing
+            pure Nothing
         Right (Instrument.Serialize.InstrumentDb _time patch_map) ->
-            return $ Just $ Inst.SynthDecl
+            pure $ Just $ Inst.SynthDecl
                 { synthd_name = synth_name
                 , synthd_doc = doc
                 , synthd_patches
@@ -99,7 +99,7 @@ generate_names = -- This only touches the 'MidiInst.patch_patch' field.
         forM_ dups $ \(patch, dups) ->
             log ("dropped patches with the same initialization as "
                 <> details patch) dups
-        return (name, unique)
+        pure (name, unique)
     -- The remaining patches are probably different and just happened to get
     -- the same name, so number them to disambiguate.
     split :: (InstT.Name, [MidiInst.Patch])
@@ -107,10 +107,10 @@ generate_names = -- This only touches the 'MidiInst.patch_patch' field.
     split (name, patches@(_:_:_)) = do
         let named = zip (map ((name<>) . showt) [1..]) patches
         log ("split into " <> Text.intercalate ", " (map fst named)) patches
-        return named
-    split (name, patches) = return $ map (name,) patches
+        pure named
+    split (name, patches) = pure $ map (name,) patches
 
-    log _ [] = return ()
+    log _ [] = pure ()
     log msg patches = Logger.log $ msg <> ": "
         <> Text.intercalate ", " (map details patches)
     details patch =

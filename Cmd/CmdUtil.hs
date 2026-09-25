@@ -26,7 +26,7 @@ read_process cmd args = do
     case exit of
         Exit.ExitFailure code -> Cmd.throw $ "cmd failed: " <> showt code
             <> ", stderr: " <> decode_utf8 stderr
-        _ -> return $ decode_utf8 stdout
+        _ -> pure $ decode_utf8 stdout
 
 decode_utf8 :: ByteString.ByteString -> Text
 decode_utf8 = Encoding.decodeUtf8With Encoding.Error.lenientDecode

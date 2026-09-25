@@ -23,7 +23,7 @@ mixFloats minLen vs = V.create $ do
         withFPtrs vs $ \inspp lenspp ->
         c_mix_vectors (Foreign.castPtr vp) vp_len (Foreign.castPtr inspp) lenspp
             (fromIntegral (length vs))
-    return v
+    pure v
 
 -- void
 -- mix_vectors(float *out, size_t out_len,

@@ -240,11 +240,11 @@ catch collect deriver = do
     case result of
         Left err -> do
             Log.write $ error_to_warn err
-            return Nothing
+            pure Nothing
         Right val -> do
             when collect $ Internal.merge_collect (state_collect state2)
             Internal.set_threaded (state_threaded state2)
-            return $ Just val
+            pure $ Just val
 
 
 -- * state access
@@ -269,7 +269,7 @@ with_imported empty_ok module_ deriver = do
             | not empty_ok && scope_empty gen && scope_empty trans
                     && scope_empty track && empty val ->
                 throw $ "no calls in the imported module: " <> pretty module_
-        extracted -> return extracted
+        extracted -> pure extracted
     with_scopes (scopes<>) deriver
     where
     scope_empty (Scope a b c) = empty a && empty b && empty c
@@ -354,7 +354,7 @@ scope_symbols (Scopes gen trans track val) = mconcat
 -- | Lookup a scale_id or throw.
 get_scale :: Pitch.ScaleId -> Deriver Scale
 get_scale scale_id =
-    maybe (throw $ "get_scale: unknown scale: " <> pretty scale_id) return
+    maybe (throw $ "get_scale: unknown scale: " <> pretty scale_id) pure
     =<< lookup_scale scale_id
 
 lookup_scale :: Pitch.ScaleId -> Deriver (Maybe Scale)
@@ -362,17 +362,17 @@ lookup_scale scale_id = do
     LookupScale lookup <- gets (state_lookup_scale . state_constant)
     env <- Internal.get_environ
     case lookup env scale_id of
-        Nothing -> return Nothing
+        Nothing -> pure Nothing
         Just (Left err) -> throw $ "lookup " <> pretty scale_id <> ": "
             <> pretty err
-        Just (Right scale) -> return $ Just scale
+        Just (Right scale) -> pure $ Just scale
 
 
 -- ** environment
 
 lookup_val :: Typecheck.Typecheck a => Env.Key -> Deriver (Maybe a)
 lookup_val key =
-    either throw return . Env.checked_val key =<< Internal.get_environ
+    either throw pure . Env.checked_val key =<< Internal.get_environ
 
 is_val_set :: Env.Key -> Deriver Bool
 is_val_set key = Maybe.isJust . Env.lookup key <$> Internal.get_environ
@@ -381,7 +381,7 @@ is_val_set key = Maybe.isJust . Env.lookup key <$> Internal.get_environ
 get_val :: Typecheck.Typecheck a => Env.Key -> Deriver a
 get_val key = do
     val <- lookup_val key
-    maybe (throw $ "environ val not found: " <> pretty key) return val
+    maybe (throw $ "environ val not found: " <> pretty key) pure val
 
 {- | Set the given val dynamically within the given computation.  This is
     analogous to a dynamic let.
@@ -423,10 +423,10 @@ with_vals vals deriver
     | otherwise = Internal.localm with deriver
     where
     with state = do
-        environ <- either throw return $
+        environ <- either throw pure $
             foldr (\(k, v) env -> Env.put_val k v =<< env)
-                (return $ state_environ state) vals
-        environ `seq` return $! state { state_environ = environ }
+                (pure $ state_environ state) vals
+        environ `seq` pure $! state { state_environ = environ }
 
 -- | Merge the given environ into the environ in effect.  Unlike 'with_val' or
 -- 'with_vals', this won't set scopes for 'EnvKey.scale' and
@@ -463,7 +463,7 @@ modify_val :: (Typecheck.Typecheck val, Typecheck.ToVal val) => Env.Key
 modify_val key modify = Internal.localm $ \state -> do
     val <- modify <$>
         require_right id (Env.checked_val key (state_environ state))
-    return $! insert_env key val state
+    pure $! insert_env key val state
 
 insert_env :: Typecheck.ToVal val => Env.Key -> val -> Dynamic -> Dynamic
 insert_env key val state = state
@@ -490,7 +490,7 @@ scale_to_call scale convert = PatternCall
     { pat_description = description
     , pat_doc = scale_call_doc scale
     , pat_function = \sym ->
-        return $ convert <$> scale_note_to_call scale (to_note sym)
+        pure $ convert <$> scale_note_to_call scale (to_note sym)
     }
     where
     description = pretty (scale_id scale) <> ": " <> scale_pattern scale
@@ -526,7 +526,7 @@ default_pitch_call :: PassedArgs val -> PSignal.Pitch
 default_pitch_call args pitch = do
     -- This is Args.real, but I can't import it here.
     pos <- Internal.real $ Event.start $ ctx_event $ passed_ctx args
-    return $ Stream.from_event $ PSignal.from_sample pos pitch
+    pure $ Stream.from_event $ PSignal.from_sample pos pitch
 
 -- | Run the a deriver with the given instrument in scope.  In addition to
 -- assigning the instrument to the 'EnvKey.instrument' field where note calls
@@ -587,7 +587,7 @@ get_instrument score_inst = do
             <> "'" <> ShowVal.show_val real_inst <> "': " <> err
             <> if real_inst == score_inst then ""
                 else " (aliased from " <> ShowVal.show_val score_inst <> ")"
-        Right inst -> return (real_inst, inst)
+        Right inst -> pure (real_inst, inst)
 
 -- | Look up the instrument.  Also return the instrument name after resolving
 -- any alias.  This is what goes in 'Score.event_instrument', since it's what
@@ -598,7 +598,7 @@ lookup_instrument inst = do
     aliases <- Internal.get_dynamic state_instrument_aliases
     let real_inst = Map.findWithDefault inst inst aliases
     lookup_inst <- gets $ state_lookup_instrument . state_constant
-    return (real_inst, lookup_inst real_inst)
+    pure (real_inst, lookup_inst real_inst)
 
 -- | Get instantaneous tempo at the given time.
 get_tempo :: ScoreTime -> Deriver Double
@@ -639,8 +639,8 @@ get_control_map =
     where
     convert (key, val) = fmap (ScoreT.Control key,) <$> to_signal val
     to_signal val = case Typecheck.val_to_signal val of
-        Nothing -> return Nothing
-        Just (Right sig) -> return $ Just sig
+        Nothing -> pure Nothing
+        Just (Right sig) -> pure $ Just sig
         Just (Left dsig) -> Just <$> dsig
 
 -- | Like 'get_function', but get them all.
@@ -648,9 +648,9 @@ get_function_map :: Deriver ScoreT.FunctionMap
 get_function_map = do
     cf_dyn <- Internal.get_control_function_dynamic
     let to_function val = case Typecheck.val_to_function_dyn cf_dyn val of
-            Nothing -> return Nothing
+            Nothing -> pure Nothing
             Just (Left dtf) -> Just <$> dtf
-            Just (Right tf) -> return $ Just tf
+            Just (Right tf) -> pure $ Just tf
     let resolve (key, val) = fmap (ScoreT.Control key,) <$> to_function val
     Map.fromAscList <$>
         (mapMaybeM resolve . Env.to_list =<< Internal.get_environ)
@@ -705,7 +705,7 @@ modify_signal :: ScoreT.Control
 modify_signal (ScoreT.Control control) modify = Internal.localm $ \state -> do
     val <- require_right ((control <> ": ")<>) $
         Env.modify_signal modify control (state_environ state)
-    return $! insert_env control val state
+    pure $! insert_env control val state
 
 -- | Like 'with_controls', but merge them with their respective default
 -- 'Merger's.
@@ -722,7 +722,7 @@ with_merged_controls control_vals deriver
 
 resolve_merge :: Merge -> ScoreT.Control -> Deriver Merger
 resolve_merge DefaultMerge control = get_default_merger control
-resolve_merge (Merge merger) _ = return merger
+resolve_merge (Merge merger) _ = pure merger
 
 get_control_merge :: Expr.Symbol -> Deriver Merger
 get_control_merge name = do
@@ -734,7 +734,7 @@ get_control_merge name = do
 get_default_merger :: ScoreT.Control -> Deriver Merger
 get_default_merger control = do
     defaults <- Internal.get_dynamic state_control_merge_defaults
-    return $ Map.findWithDefault default_merge control defaults
+    pure $ Map.findWithDefault default_merge control defaults
     where
     default_merge = merge_mul
 
@@ -824,7 +824,7 @@ named_pitch_at name pos = (`PSignal.at` pos) <$> get_pitch_signal name
 resolve_pitch :: RealTime -> PSignal.Pitch -> Deriver PSignal.Transposed
 resolve_pitch pos pitch = do
     controls <- controls_at pos
-    return $ PSignal.apply controls pitch
+    pure $ PSignal.apply controls pitch
 
 -- | Unlike 'pitch_at', the transposition has already been applied, because you
 -- can't transpose any further once you have a NoteNumber.
@@ -860,8 +860,8 @@ logged_pitch_nn :: Text -> PSignal.Transposed
 logged_pitch_nn msg pitch = case PSignal.pitch_nn pitch of
     Left err -> do
         Log.warn $ "pitch_nn " <> msg <> ": " <> pretty err
-        return Nothing
-    Right nn -> return $ Just nn
+        pure Nothing
+    Right nn -> pure $ Just nn
 
 -- *** with signal
 
@@ -896,14 +896,14 @@ run_logs :: Log.LogId a -> Deriver a
 run_logs action = do
     let (val, logs) = Log.run_id action
     mapM_ Log.write logs
-    return val
+    pure val
 
 run_try :: (State -> State) -> Deriver a -> Deriver (Either Error a, State)
 run_try with_state deriver = do
     state <- get
     let (val, state2, logs) = run (with_state state) deriver
     mapM_ Log.write logs
-    return (val, state2)
+    pure (val, state2)
 
 -- * 'Mode'
 
@@ -914,7 +914,7 @@ is_lilypond_mode :: Deriver Bool
 is_lilypond_mode = Maybe.isJust <$> lookup_lilypond_config
 
 lookup_lilypond_config :: Deriver (Maybe Lilypond.Types.Config)
-lookup_lilypond_config = get_mode >>= \mode -> return $ case mode of
+lookup_lilypond_config = get_mode >>= \mode -> pure $ case mode of
     Lilypond config -> Just config
     _ -> Nothing
 
@@ -923,7 +923,7 @@ get_score_duration :: Deriver a
     -> Deriver (Either Error (CallDuration ScoreTime))
 get_score_duration deriver = do
     (val, out) <- run_try set_mode deriver
-    return $ case val of
+    pure $ case val of
         Left err -> Left err
         Right _ -> Right $ collect_score_duration $ state_collect out
     where
@@ -936,7 +936,7 @@ get_score_duration deriver = do
 get_real_duration :: Deriver a -> Deriver (Either Error (CallDuration RealTime))
 get_real_duration deriver = do
     (val, out) <- run_try set_mode deriver
-    return $ case val of
+    pure $ case val of
         Left err -> Left err
         Right _ -> Right $ collect_real_duration $ state_collect out
     where

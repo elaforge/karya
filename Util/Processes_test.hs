@@ -78,7 +78,7 @@ noInput :: IO (Chan.Chan Processes.TalkIn)
 noInput = do
     input <- Chan.newChan
     Chan.writeChan input Processes.EOF
-    return input
+    pure input
 
 test_multiple :: Test
 test_multiple = do

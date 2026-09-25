@@ -149,24 +149,24 @@ parse_time_step = Parse.parse p_time_step
             (ScoreTime.from_double
                 <$> (Parse.p_float <* P.char ScoreTime.suffix)))
         , str "r:" *> (RelativeMark <$> p_marklists <*> parse_rank)
-        , str "END" *> return BlockEdge
+        , str "END" *> pure BlockEdge
         , str "start" *> (EventStart <$> p_tracks)
         , str "end" *> (EventEnd <$> p_tracks)
         , AbsoluteMark <$> p_marklists <*> parse_rank
         ]
     p_marklists =
         P.try ((NamedMarklists <$> P.sepBy p_name (P.char ',')) <* P.char '|')
-        <|> return AllMarklists
+        <|> pure AllMarklists
     p_name = txt <$> P.some (P.lowerChar <|> P.char '-')
     p_tracks = P.option CurrentTrack $
         P.try (TrackNums <$> (str "s:" *> p_tracknums))
-        <|> P.char 's' *> return AllTracks
+        <|> P.char 's' *> pure AllTracks
     p_tracknums = P.sepBy Parse.p_nat (P.char ',')
     str = P.string
 
 parse_rank :: Parse.Parser Meter.Rank
 parse_rank = P.choice $ map P.try
-    [P.string name *> return rank | (rank, name) <- Meter.rank_names]
+    [P.string name *> pure rank | (rank, name) <- Meter.rank_names]
 
 show_direction :: Direction -> Text
 show_direction Advance = "+"
@@ -216,7 +216,7 @@ duration_at :: Ui.M m => BlockId -> TrackNum -> TrackTime -> TimeStep
 duration_at block_id tracknum pos tstep = do
     pre <- get_points_from Rewind block_id tracknum pos tstep
     post <- get_points_from Advance block_id tracknum pos tstep
-    return $ case (pre, dropWhile (==pos) post) of
+    pure $ case (pre, dropWhile (==pos) post) of
         (t0 : _, t1 : _) -> Just (t1 - t0)
         _ -> Nothing
 
@@ -252,7 +252,7 @@ ascending_points block_id tracknum start step =
     dropWhile (<start) <$> case step of
         Duration t -> do
             end <- Ui.block_ruler_end block_id
-            return $ Lists.range start end t
+            pure $ Lists.range start end t
         AbsoluteMark match rank ->
             get_marks Advance False match rank start <$>
                 get_ruler block_id tracknum
@@ -261,7 +261,7 @@ ascending_points block_id tracknum start step =
                 get_ruler block_id tracknum
         BlockEdge -> do
             end <- Ui.block_ruler_end block_id
-            return [0, end]
+            pure [0, end]
         EventStart tracks ->
             track_events Advance True block_id tracknum start tracks
         EventEnd tracks ->
@@ -278,7 +278,7 @@ descending_points :: Ui.M m => BlockId -> TrackNum -> TrackTime -> Step
     -> m [TrackTime]
 descending_points block_id tracknum start step =
     dropWhile (>start) <$> case step of
-        Duration t -> return $ Lists.range start 0 (-t)
+        Duration t -> pure $ Lists.range start 0 (-t)
         AbsoluteMark match rank ->
             get_marks Rewind True match rank start <$>
                 get_ruler block_id tracknum
@@ -287,7 +287,7 @@ descending_points block_id tracknum start step =
                 get_ruler block_id tracknum
         BlockEdge -> do
             end <- Ui.block_ruler_end block_id
-            return [end, 0]
+            pure [end, 0]
         EventStart tracks ->
             track_events Rewind True block_id tracknum start tracks
         EventEnd tracks ->

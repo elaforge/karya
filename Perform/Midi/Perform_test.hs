@@ -59,7 +59,7 @@ test_perform = do
             let (msgs, warns) = perform config2 $
                     Lists.sortOn Types.event_start (map mkevent events)
             equal warns []
-            return $ extract msgs
+            pure $ extract msgs
         extract = PerformTest.extract PerformTest.e_chan_msg
             . filter (Midi.is_note . Midi.wmsg_msg)
 
@@ -375,7 +375,7 @@ test_perform_lazy = do
     let endless = map mkevent [(patch1, Text.singleton n, ts, 4, [])
             | (n, ts) <- zip (cycle ['a'..'g']) (Lists.range_ 0 4)]
     let (msgs, _warns) = perform endless
-    res <- run_timeout 1 $ return (take 20 msgs)
+    res <- run_timeout 1 $ pure (take 20 msgs)
     equal (fmap length res) (Just 20)
 
 test_no_pitch :: Test
@@ -562,7 +562,7 @@ run_timeout timeout action = do
         Concurrent.putMVar mvar Nothing
     result <- Concurrent.takeMVar mvar
     mapM_ Concurrent.killThread [th1, th2]
-    return result
+    pure result
 
 note_key :: Midi.Message -> Maybe (Bool, Midi.Key)
 note_key = fmap (\(_, on, key) -> (on, key)) . PerformTest.e_note_on_off

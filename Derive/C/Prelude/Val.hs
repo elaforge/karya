@@ -96,16 +96,16 @@ next_val event start ttype = case ttype of
         signal <- eval event
         case PSignal.at signal start of
             Nothing -> Derive.throw "next pitch event didn't emit a pitch"
-            Just pitch -> return $ DeriveT.VPSignal $ PSignal.constant pitch
+            Just pitch -> pure $ DeriveT.VPSignal $ PSignal.constant pitch
     Just ParseTitle.NoteTrack ->
         Derive.throw "can't get next value for note tracks"
     Nothing -> Derive.throw "no track type"
     where
     eval_control start event = do
         signal <- eval event
-        return $ DeriveT.num $ Signal.at (signal :: Signal.Control) start
+        pure $ DeriveT.num $ Signal.at (signal :: Signal.Control) start
     eval event = mconcat . Stream.events_of <$>
-        (either Derive.throw return =<< Eval.eval_event event)
+        (either Derive.throw pure =<< Eval.eval_event event)
 
 c_prev_val :: Derive.ValCall
 c_prev_val = val_call "prev-val" Tags.prev
@@ -114,10 +114,10 @@ c_prev_val = val_call "prev-val" Tags.prev
         start <- Args.real_start args
         case Args.prev_val args of
             Just (Derive.TagControl sig) ->
-                return $ DeriveT.num $ Signal.at sig start
+                pure $ DeriveT.num $ Signal.at sig start
             Just (Derive.TagPitch sig) ->
                 maybe (Derive.throw "no previous pitch")
-                    (return . DeriveT.VPSignal . PSignal.constant)
+                    (pure . DeriveT.VPSignal . PSignal.constant)
                     (PSignal.at sig start)
             _ -> Derive.throw "no previous value"
 
@@ -154,9 +154,9 @@ c_env = val_call "env" mempty
         Nothing -> Derive.get_val name
         Just deflt -> check name deflt =<< Derive.lookup_val name
     where
-    check _ deflt Nothing = return deflt
+    check _ deflt Nothing = pure deflt
     check name deflt (Just val)
-        | DeriveT.types_equal deflt val = return val
+        | DeriveT.types_equal deflt val = pure val
         | otherwise = Derive.throw $ "env " <> pretty name
             <> " expected " <> pretty (ValType.general_type_of deflt)
             <> " but got " <> pretty (ValType.general_type_of val)
@@ -188,7 +188,7 @@ c_reciprocal = val_call "reciprocal" mempty
     "Find the reciprocal of a number. Useful for tempo, e.g. set the tempo to\
     \ 1/time." $ Sig.call (Sig.required "num" "") $ \num _ ->
         if num == 0 then Derive.throw "1/0"
-            else return (1 / num :: Double)
+            else pure (1 / num :: Double)
 
 c_nn :: Derive.ValCall
 c_nn = val_call "nn" mempty
@@ -196,7 +196,7 @@ c_nn = val_call "nn" mempty
     \ A pitch name looks like `[a-g]s?[-1-9]`."
     $ Sig.call (Sig.required "val" "") $ \val _ -> case val of
         Left pitch -> Pitches.pitch_nn (PSignal.coerce (pitch :: PSignal.Pitch))
-        Right (Left hz) -> return $ Pitch.hz_to_nn hz
+        Right (Left hz) -> pure $ Pitch.hz_to_nn hz
         Right (Right name) -> get_name_nn name
 
 c_hz :: Derive.ValCall
@@ -211,7 +211,7 @@ c_hz = val_call "hz" mempty
             -- Not transposed because they asked for a specific pitch.
         Right (Left name) -> Pitch.nn_to_hz <$> get_name_nn name
         Right (Right nn) ->
-            return (Pitch.nn_to_hz (Pitch.NoteNumber nn) :: Double)
+            pure (Pitch.nn_to_hz (Pitch.NoteNumber nn) :: Double)
 
 get_name_nn :: Expr.Str -> Derive.Deriver Pitch.NoteNumber
 get_name_nn name =
@@ -223,16 +223,16 @@ parse_pitch_name :: Text -> Maybe Pitch.NoteNumber
 parse_pitch_name = either (const Nothing) Just . ParseText.parse1 parse
     where
     parse = do
-        pc <- maybe mzero return . (`Map.lookup` pcs) =<< A.anyChar
-        sharp <- A.option 0 $ A.char 's' >> return 1
+        pc <- maybe mzero pure . (`Map.lookup` pcs) =<< A.anyChar
+        sharp <- A.option 0 $ A.char 's' >> pure 1
         oct <- A.option 1 $ ParseText.p_int
-        return $ Pitch.nn $ pc + sharp + (oct+1) * 12
+        pure $ Pitch.nn $ pc + sharp + (oct+1) * 12
     pcs = Map.fromList $ zip "cdefgab" (scanl (+) 0 Theory.piano_intervals)
 
 c_list :: Derive.ValCall
 c_list = val_call "list" mempty "Create a list." $
     Sig.call (Sig.many "val" "Value.") $ \vals _ ->
-        return $ DeriveT.VList vals
+        pure $ DeriveT.VList vals
 
 c_lrange :: Derive.ValCall
 c_lrange = val_call "range" mempty "Make a list range of numbers." $
@@ -241,21 +241,21 @@ c_lrange = val_call "range" mempty "Make a list range of numbers." $
     <*> Sig.required "step" "Step."
     <*> Sig.required "count" "Number of values."
     ) $ \(start, step, count) _ ->
-        return $ DeriveT.VList $ map DeriveT.num $ Lists.range start step count
+        pure $ DeriveT.VList $ map DeriveT.num $ Lists.range start step count
 
 c_scoretime :: Derive.ValCall
 c_scoretime = val_call "scoretime" mempty
     "Convert a number to ScoreTime. This just changes the type annotation, the\
     \ value remains the same." $
     Sig.call (Sig.required_env "val" Sig.None "") $ \val _ ->
-        return $ ScoreTime.from_double val
+        pure $ ScoreTime.from_double val
 
 c_realtime :: Derive.ValCall
 c_realtime = val_call "realtime" mempty
     "Convert a number to RealTime. This just changes the type annotation, the\
     \ value remains the same." $
     Sig.call (Sig.required_env "val" Sig.None "") $ \val _ ->
-        return $ RealTime.seconds val
+        pure $ RealTime.seconds val
 
 c_pitch :: Derive.ValCall
 c_pitch = val_call "pitch" mempty "Create a 'Perform.Pitch.Pitch'."
@@ -269,18 +269,18 @@ c_pitch = val_call "pitch" mempty "Create a 'Perform.Pitch.Pitch'."
 
 make_pitch :: Either Pitch.Octave (Either Text PSignal.Pitch)
     -> Pitch.PitchClass -> Pitch.Accidentals -> Derive.Deriver Pitch.Pitch
-make_pitch (Left oct) pc accs = return $ Pitch.Pitch oct (Pitch.Degree pc accs)
+make_pitch (Left oct) pc accs = pure $ Pitch.Pitch oct (Pitch.Degree pc accs)
 make_pitch (Right name_pitch) pc accs
     | pc /= 0 || accs /= 0 = Derive.throw $
         "pc and accs args must be 0 when a pitch is given: " <> showt (pc, accs)
     | otherwise = do
         (note, scale) <- case name_pitch of
-            Left name -> (,) <$> return (Pitch.Note name) <*> Call.get_scale
+            Left name -> (,) <$> pure (Pitch.Note name) <*> Call.get_scale
             Right pitch -> (,)
                 <$> Pitches.pitch_note (PSignal.coerce pitch)
                 <*> Derive.get_scale (PSignal.pitch_scale_id pitch)
         env <- Derive.get_environ
-        either (Derive.throw . pretty) return $
+        either (Derive.throw . pretty) pure $
             Scale.scale_read scale env note
 
 c_pcontrol_ref :: Derive.ValCall
@@ -293,7 +293,7 @@ c_pcontrol_ref = val_call "pcontrol-ref" mempty
     <$> Sig.required "name" "Name of pitch signal."
     <*> Sig.defaulted "default" (Nothing :: Maybe PSignal.Pitch)
         "Default pitch, if the signal is not set."
-    ) $ \(name, mb_default) _ -> return $
+    ) $ \(name, mb_default) _ -> pure $
         DeriveT.Ref (ScoreT.PControl name) (PSignal.constant <$> mb_default)
 
 -- | This should be the inverse of ShowVal (ScoreT.Typed Signal.Control).
@@ -307,7 +307,7 @@ c_signal = val_call "signal" mempty
     ) $ \(type_code, bps) _ -> do
         typ <- Derive.require ("unknown type code: " <> type_code)
             (ScoreT.code_to_type type_code)
-        return $ DeriveT.VSignal $ ScoreT.Typed typ $ Signal.from_pairs bps
+        pure $ DeriveT.VSignal $ ScoreT.Typed typ $ Signal.from_pairs bps
 
 -- | Like c_signal, should be the inverse of ShowVal PSignal.PSignal, except
 -- it can't because I can't show pitches.
@@ -315,7 +315,7 @@ c_signal = val_call "signal" mempty
 c_psignal :: Derive.ValCall
 c_psignal = val_call "psignal" mempty "Create a pitch signal."
     $ Sig.call (Sig.many_pairs "breakpoints" "Breakpoints.")
-    $ \bps _ -> return $ DeriveT.VPSignal $ PSignal.from_pairs bps
+    $ \bps _ -> pure $ DeriveT.VPSignal $ PSignal.from_pairs bps
 
 {-
 c_control :: Derive.ValCall
@@ -389,7 +389,7 @@ c_down_from = val_call "down-from" mempty
     <*> Sig.defaulted "speed" (1 :: Double) "Descend this amount per second."
     ) $ \(from, speed) args -> do
         (start, end) <- Args.real_range_or_next args
-        return $ ScoreT.untyped $
+        pure $ ScoreT.untyped $
             ControlUtil.slope_to_limit (Just 0) Nothing from (-speed) start end
 
 -- ** implementation
@@ -400,7 +400,7 @@ breakpoints argnum curve vals args = do
     (start, end) <- Args.real_range_or_next args
     srate <- Call.get_srate
     vals <- num_or_pitch (Args.start args) argnum vals
-    return $ case vals of
+    pure $ case vals of
         Left nums -> DeriveT.VSignal $
             ScoreT.untyped $ ControlUtil.breakpoints srate curve $
             ControlUtil.distribute start end nums
@@ -417,16 +417,16 @@ num_or_pitch :: ScoreTime -> Int -> NonEmpty DeriveT.Val
 num_or_pitch start argnum (val :| vals)
     | Just (ScoreT.Typed ScoreT.Untyped n) <- DeriveT.constant_val val = do
         vals <- mapM (expect tsig) (zip [argnum + 1 ..] vals)
-        return $ Left (n : vals)
+        pure $ Left (n : vals)
     | Just pitch <- PSignal.pitch_val val = do
         vals <- mapM (expect ValType.TPitch) (zip [argnum + 1 ..] vals)
-        return $ Right (pitch : vals)
+        pure $ Right (pitch : vals)
     | otherwise = type_error argnum "bp"
         (ValType.TEither tsig ValType.TPitch) val
     where
     tsig = ValType.TSignal ValType.TUntyped ValType.TAny
     expect typ (argnum, val) =
-        maybe (type_error argnum "bp" typ val) return
+        maybe (type_error argnum "bp" typ val) pure
             =<< Typecheck.from_val_eval start val
 
 type_error :: Int -> Derive.ArgName -> ValType.Type -> DeriveT.Val

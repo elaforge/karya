@@ -93,7 +93,7 @@ convert_event srate lookup patch config event = run $ do
         release_velocity = fromMaybe velocity $
             Env.maybe_val EnvKey.release_val env
         env = Score.event_environ event
-    return $ Types.Event
+    pure $ Types.Event
         { event_start = Score.event_start event
         , event_duration = Score.event_duration event
         , event_patch = perf_patch
@@ -141,7 +141,7 @@ convert_midi_pitch srate inst patch config controls event =
         Nothing -> ((perf_patch, []),) . round_sig <$> get_signal
         Just (_, (keyswitches, maybe_keymap)) -> do
             sig <- maybe get_signal set_keymap maybe_keymap
-            return (set_keyswitches keyswitches, round_sig sig)
+            pure (set_keyswitches keyswitches, round_sig sig)
     where
     set_keyswitches [] = (perf_patch, [])
     set_keyswitches keyswitches =
@@ -156,7 +156,7 @@ convert_midi_pitch srate inst patch config controls event =
             low_pitch <$> get_signal
     -- But UnpitchedKeymap is a constant.
     set_keymap (Patch.UnpitchedKeymap key) =
-        return $ MSignal.constant (Midi.from_key key)
+        pure $ MSignal.constant (Midi.from_key key)
     get_signal = apply_patch_scale scale
         =<< convert_event_pitch srate perf_patch controls event
     scale = Patch.config_scale (Patch.config_settings config)
@@ -205,7 +205,7 @@ convert_pitch env controls note_end psig = do
     unless (null nn_errs) $ Log.warn $ "convert pitch: "
         <> Text.intercalate ", " (Texts.ellipsisList 4
             [pretty x <> ": " <> err | (x, err) <- nn_errs])
-    return sig
+    pure sig
 
 apply_patch_scale :: Log.LogMonad m => Maybe Patch.Scale -> PitchSignal
     -> m PitchSignal
@@ -215,7 +215,7 @@ apply_patch_scale scale sig = do
         Log.warn $ "out of range for patch scale: "
             <> Text.intercalate ", "
                 (Texts.ellipsisList 10 (map pretty scale_errs))
-    return nn_sig
+    pure nn_sig
 
 -- | Round pitches to the nearest tenth of a cent.  Differences below this are
 -- probably imperceptible.  Due to floating point inaccuracy, pitches can wind

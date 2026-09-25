@@ -23,7 +23,7 @@ load_static_config = do
     app_dir <- Path.get_app_dir
     instrument_db <- LoadInstruments.load app_dir
     midi <- get_midi_config instrument_db
-    return $ StaticConfig.StaticConfig
+    pure $ StaticConfig.StaticConfig
         { instrument_db = instrument_db
         , global_cmds = global_cmds
         , builtins = C.All.builtins
@@ -40,7 +40,7 @@ global_cmds :: [Msg.Msg -> Cmd.CmdT IO Cmd.Status]
 global_cmds = []
 
 get_midi_config :: Cmd.InstrumentDb -> IO StaticConfig.Midi
-get_midi_config _db = return $ StaticConfig.Midi
+get_midi_config _db = pure $ StaticConfig.Midi
     { rdev_map = StaticConfig.make_rdev_map []
     -- This assumes OS X, and IAC ports named 1, 2, 3, 4.
     , wdev_map = StaticConfig.make_wdev_map

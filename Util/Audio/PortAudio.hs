@@ -78,10 +78,10 @@ write :: forall m rate chan. (MonadIO m, KnownNat chan)
 write pollQuit stream framesPerBuffer = go
     where
     go audio = liftIO pollQuit >>= \case
-        True -> return ()
+        True -> pure ()
         False -> do
             (blocks, audio) <- Audio.splitAt framesPerBuffer audio
-            if null blocks then return () else do
+            if null blocks then pure () else do
                 -- I could probably mapM_ writeVector, but this gives
                 -- predictable interrupt time and is the size I promised
                 -- Pa_OpenStream.
@@ -118,10 +118,10 @@ getDevice :: C.CInt -> IO Device
 getDevice id = do
     info <- getDeviceInfo id
     name <- C.peekCAString $ B.c'PaDeviceInfo'name info
-    return $ Device { _name = name, _id = id, _info = info }
+    pure $ Device { _name = name, _id = id, _info = info }
 
 getDeviceInfo :: C.CInt -> IO DeviceInfo
-getDeviceInfo = maybe (Exception.throwIO InvalidDevice) return <=< lookupDevice
+getDeviceInfo = maybe (Exception.throwIO InvalidDevice) pure <=< lookupDevice
 
 lookupDevice :: C.CInt -> IO (Maybe DeviceInfo)
 lookupDevice deviceId =

@@ -70,22 +70,22 @@ simple_pitch = do
     pitches <- Q.vectorOf (length ranges) gpitch
     let ptrack = [(p, 0, Pitch.note_text n)
             | (p, n) <- zip (map fst ranges) pitches]
-    return (("block", [(">", map (to_spec "") ranges), ("*", ptrack)]),
+    pure (("block", [(">", map (to_spec "") ranges), ("*", ptrack)]),
         [(1, 2)])
 
 granges :: Q.Gen [(ScoreTime, ScoreTime)]
 granges = Q.sized $ \n -> go 0 =<< Q.choose (0, n)
     where
-    go _ 0 = return []
+    go _ 0 = pure []
     go prev n = do
         dur <- abs <$> Q.arbitrary
-        gap <- Q.oneof [return 0, abs <$> Q.arbitrary]
+        gap <- Q.oneof [pure 0, abs <$> Q.arbitrary]
         let start = prev + gap
         rest <- go (start + dur) (n - 1)
-        return $ (start, start + dur) : rest
+        pure $ (start, start + dur) : rest
 
 gpitch :: Q.Gen Pitch.Note
-gpitch = Q.oneof $ map return (Map.keys note_to_nn)
+gpitch = Q.oneof $ map pure (Map.keys note_to_nn)
 
 -- | Random list of non-overlapping events, some of which are adjacent.
 gevents :: Q.Gen [Event.Event]
@@ -95,7 +95,7 @@ gevent :: Text -> Q.Gen Event.Event
 gevent text = do
     start <- Q.arbitrarySizedFractional
     dur <- Q.arbitrarySizedFractional
-    return $ Event.event (abs start) (abs dur) text
+    pure $ Event.event (abs start) (abs dur) text
 
 to_spec :: Text -> (ScoreTime, ScoreTime) -> (ScoreTime, ScoreTime, Text)
 to_spec text (start, dur) = (start, dur, text)
@@ -168,8 +168,8 @@ state_psignal = PSignal.constant . mknote . state_pitch
     where
     scale = PSignal.Scale Twelve.scale_id
         (Scale.scale_transposers Twelve.scale)
-    mknote nn = PSignal.pitch scale (const (return nn))
-        (const $ return $ Pitch.Note $ showt nn) mempty
+    mknote nn = PSignal.pitch scale (const (pure nn))
+        (const $ pure $ Pitch.Note $ showt nn) mempty
 
 update_state :: [Sample] -> RealTime -> State -> (State, [Sample])
 update_state samples pos state = (foldl' go state pre, post)
@@ -212,7 +212,7 @@ extract_notes skel tracks
         guard (is_note track)
         let tracks = children ++ parents
         let pitch = fromMaybe ("*", []) (List.find is_pitch tracks)
-        return (snd track, make_samples (pitch : filter is_control tracks))
+        pure (snd track, make_samples (pitch : filter is_control tracks))
     where
     (trees, missing) = TrackTree.resolve_track_tree
         (Map.fromList (zip [0..] tracks))

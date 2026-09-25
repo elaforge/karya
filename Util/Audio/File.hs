@@ -57,8 +57,8 @@ checkA _ = check (Proxy :: Proxy rate) (Proxy :: Proxy chan)
 
 getInfo :: FilePath -> IO (Maybe Sndfile.Info)
 getInfo fname =
-    Exception.bracket (openRead fname) (maybe (return ()) Sndfile.hClose)
-        (return . fmap Sndfile.hInfo)
+    Exception.bracket (openRead fname) (maybe (pure ()) Sndfile.hClose)
+        (pure . fmap Sndfile.hInfo)
 
 duration :: FilePath -> IO (Maybe Audio.Frames)
 duration = fmap (fmap (Audio.Frames . Sndfile.frames)) . getInfo
@@ -80,7 +80,7 @@ readFromClose :: forall rate chan.
     Audio.Frames -> FilePath -> IO (IO (), Audio.AudioIO rate chan)
 readFromClose frame fname = do
     handle <- openReadThrow fname
-    return $ (Sndfile.hClose handle,) $ Audio.Audio $ do
+    pure $ (Sndfile.hClose handle,) $ Audio.Audio $ do
         lift $ Resource.register (Sndfile.hClose handle)
         S.map Audio.Block $ readHandle rate chan frame fname handle
     where
@@ -98,7 +98,7 @@ readFrom_ :: forall rate chan. (TypeLits.KnownNat rate, TypeLits.KnownNat chan)
     -> Audio.AudioIO rate chan
 readFrom_ onEnoent frame fname = Audio.Audio $ do
     (_, mbHandle) <- lift $ Resource.allocate (openRead fname)
-        (maybe (return ()) Sndfile.hClose)
+        (maybe (pure ()) Sndfile.hClose)
     case mbHandle of
         Just handle
             -- If I would have seeked past the end, it's like onEnoent.
@@ -147,7 +147,7 @@ readUnknown fname = do
     case (Audio.someNat (Sndfile.samplerate info),
             Audio.someNat (Sndfile.channels info)) of
         (TypeLits.SomeNat (_::Proxy rate), TypeLits.SomeNat (_::Proxy chan)) ->
-            return
+            pure
                 ( Sndfile.format info
                 , Audio.UnknownAudio $ read @rate @chan fname
                 )
@@ -160,7 +160,7 @@ concat = mconcat . map read
 readCheckpoints :: forall rate chan.
     (TypeLits.KnownNat rate, TypeLits.KnownNat chan)
     => Audio.Frames -> [FilePath] -> Audio.AudioIO rate chan
-readCheckpoints = readCheckpointsFrom 0 (\_ -> return ())
+readCheckpoints = readCheckpointsFrom 0 (\_ -> pure ())
 
 -- | This is like 'concat', but it understands the 0-duration files written
 -- by 'writeCheckpoints', and turns them back into silence.
@@ -250,7 +250,7 @@ writeCheckpoints chunkSize getFilename chunkComplete format = go 0
         !fname <- liftIO $ getFilename state
         (blocks, audio) <- Audio.takeFramesGE chunkSize audio
         if null blocks
-            then return chunknum
+            then pure chunknum
             else do
                 -- The blocks should sum to 'chunkSize', except the last one,
                 -- which could be smaller.  But I can't pull from 'audio'
@@ -285,7 +285,7 @@ writeCheckpoints chunkSize getFilename chunkComplete format = go 0
 -- empty.
 writeBlock :: Sndfile.Handle -> [Audio.Block] -> IO ()
 writeBlock hdl blocks
-    | all isZero blocks = return ()
+    | all isZero blocks = pure ()
     | otherwise = mapM_ write $ concatMap Audio.blockSamples blocks
     where
     isZero (Audio.Constant _ 0) = True
@@ -297,7 +297,7 @@ writeBlock hdl blocks
 
 throwEnoent :: FilePath -> Maybe a -> IO a
 throwEnoent fname =
-    maybe (Audio.throwIO $ "file not found: " <> showt fname) return
+    maybe (Audio.throwIO $ "file not found: " <> showt fname) pure
 
 openReadThrow :: FilePath -> IO Sndfile.Handle
 openReadThrow fname = throwEnoent fname =<< openRead fname

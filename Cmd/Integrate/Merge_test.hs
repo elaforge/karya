@@ -95,7 +95,7 @@ apply last_integrate integrated events = map extract_event $ Events.ascending $
 
 test_derive_integrate :: Test
 test_derive_integrate = do
-    let f state integrated = return $ derive_integrate state integrated
+    let f state integrated = pure $ derive_integrate state integrated
     let events cs =
             [(n, 1, Text.singleton c) | (n, c) <- zip (Lists.range_ 0 2) cs]
         extract = UiTest.extract_tracks
@@ -169,7 +169,7 @@ make_convert_tracks =
 
 test_score_integrate_delete :: Test
 test_score_integrate_delete = do
-    let run state m = return $ run_score_integrate 1 (modify m state)
+    let run state m = pure $ run_score_integrate 1 (modify m state)
     let events cs =
             [(n, 1, Text.singleton c) | (n, c) <- zip (Lists.range_ 0 2) cs]
     state <- run Ui.empty $ UiTest.mkblock
@@ -183,7 +183,7 @@ test_score_integrate_delete = do
         Just [("a", Style.StyleId 1), ("b", Style.StyleId 1)]
 
     -- Deleting the source note track disowns the destinations.
-    state <- return $ UiTest.exec state $
+    state <- pure $ UiTest.exec state $
         mapM_ (Ui.remove_track UiTest.default_block_id) [2, 1]
     equal (UiTest.extract_tracks state)
         [ (">", events "ab"), ("c1", events "12")
@@ -202,7 +202,7 @@ e_event_styles =
 test_score_integrate :: Test
 test_score_integrate = do
     -- make a block with the source, then modify
-    let run state m = return $ run_score_integrate 1 (modify m state)
+    let run state m = pure $ run_score_integrate 1 (modify m state)
     let events cs =
             [(n, 1, Text.singleton c) | (n, c) <- zip (Lists.range_ 0 2) cs]
         extract = UiTest.extract_tracks

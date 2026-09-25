@@ -385,7 +385,7 @@ test_warp_ops = do
         record = do
             x0 <- Derive.real (0 :: ScoreTime)
             x1 <- Derive.real (2 :: ScoreTime)
-            return [x0, x1]
+            pure [x0, x1]
 
     equal (run id) $ Right [0, 2]
     equal (run (Derive.stretch 2)) $ Right [0, 4]
@@ -455,7 +455,7 @@ test_shift_controls = do
             get = do
                 conts <- Derive.get_control_map
                 psig <- Internal.get_dynamic Derive.state_pitch
-                return (conts, psig)
+                pure (conts, psig)
             extract (conts, pitch) =
                 (unsignal conts, first Signal.to_pairs (PSignal.to_nn pitch))
             unsignal =

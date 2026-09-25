@@ -52,7 +52,7 @@ type Effect = EffectT PatchC.InstrumentP (Ptr Float)
 
 get :: Text -> IO Patch
 get name = case Map.lookup name patches of
-    Just (Right patch) -> return patch
+    Just (Right patch) -> pure patch
     Just (Left err) -> errorIO $ "effect " <> name <> ": " <> err
     Nothing -> errorIO $ "no effect: " <> name
 
@@ -61,7 +61,7 @@ patches :: Map Text (Either Text Patch)
 patches = Unsafe.unsafePerformIO $ do
     namePatches <- filter (("effect-" `Text.isPrefixOf`) . fst) <$>
         PatchC.patches
-    return $ Map.fromList $
+    pure $ Map.fromList $
         zip (map (Text.drop (Text.length "effect-") . fst) namePatches)
             (map (uncurry getPatchP) namePatches)
     -- unsafePerformIO is ok for these since they are just looking up static
@@ -73,7 +73,7 @@ getPatchP name patch = Unsafe.unsafePerformIO $ do
     ui <- PatchC.getUiControls patch
     let inputs = PatchC.patchInputs patch
         outputs = PatchC.patchOutputs patch
-    return $ makePatch name meta (map (first snd) ui) inputs outputs patch
+    pure $ makePatch name meta (map (first snd) ui) inputs outputs patch
 
 makePatch :: Text -> Map Text Text -> [(Control.Control, Text)]
     -> Int -> Int -> PatchC.PatchP -> Either Text Patch
@@ -82,7 +82,7 @@ makePatch name meta uis inputs outputs ptr = first ((name <> ": ")<>) $ do
         Left $ "expected 2 inputs, got " <> showt inputs
     unless (outputs == 2) $
         Left $ "expected 2 outputs, got " <> showt outputs
-    return $ EffectT
+    pure $ EffectT
         { _name = name
         , _doc = PatchC.parseDescription meta
         , _controls =
@@ -95,7 +95,7 @@ makePatch name meta uis inputs outputs ptr = first ((name <> ": ")<>) $ do
 allocate :: Patch -> IO Effect
 allocate patch = do
     (ptr, controls) <- PatchC.allocate (_ptr patch)
-    return $ patch
+    pure $ patch
         { _ptr = ptr
         , _controls = Map.fromList
             [ (control, (cptr, getDoc control))

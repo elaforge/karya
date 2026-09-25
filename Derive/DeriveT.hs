@@ -171,7 +171,7 @@ interpolate (Segment.Sample x1 p1) (Segment.Sample x2 p2) x
     nn config = do
         p1_nn <- pitch_nn $ coerce $ apply_config config p1
         p2_nn <- pitch_nn $ coerce $ apply_config config p2
-        return $ Num.scale p1_nn p2_nn $
+        pure $ Num.scale p1_nn p2_nn $
             Pitch.NoteNumber $ RealTime.to_seconds $ Num.normalize x1 x2 x
     note config = pitch_note $ coerce $ apply_config config $
         if x < x1 then p1 else p2
@@ -220,7 +220,7 @@ pitch_nn :: Transposed -> Either PitchError Pitch.NoteNumber
 pitch_nn pitch = do
     nn <- pitch_eval_nn pitch (pitch_config pitch)
     first (annotate_out_of_range pitch (Just nn)) $
-        if 0 <= nn && nn <= 127 then return nn
+        if 0 <= nn && nn <= 127 then pure nn
             else Left $ OutOfRangeError out_of_range
 
 -- | Usually I only want to evaluate a fully transposed pitch.  Exceptions

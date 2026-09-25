@@ -66,8 +66,8 @@ while cond op = do
         True -> do
             val <- op
             rest <- while cond op
-            return (val:rest)
-        False -> return []
+            pure (val:rest)
+        False -> pure []
 
 while_ :: Monad m => m Bool -> m a -> m ()
 while_ cond op = do
@@ -113,14 +113,14 @@ concatMapM f = Monad.liftM mconcat . mapM f
 -- This is like MaybeT, but using MaybeT itself required lots of annoying
 -- explicit lifting.
 justm :: Monad m => m (Maybe a) -> (a -> m (Maybe b)) -> m (Maybe b)
-justm op1 op2 = maybe (return Nothing) op2 =<< op1
+justm op1 op2 = maybe (pure Nothing) op2 =<< op1
 
 -- | The Either equivalent of 'justm'.  EitherT solves the same problem, but
 -- requires a runEitherT and lots of hoistEithers.
 rightm :: Monad m => m (Either err a) -> (a -> m (Either err b))
     -> m (Either err b)
 rightm op1 op2 = op1 >>= \x -> case x of
-    Left err -> return (Left err)
+    Left err -> pure (Left err)
     Right val -> op2 val
 
 {-
@@ -135,11 +135,11 @@ rightm op1 op2 = op1 >>= \x -> case x of
 
 -- | Return the first action to return Just.
 firstJust :: Monad m => m (Maybe a) -> m (Maybe a) -> m (Maybe a)
-firstJust action alternative = maybe alternative (return . Just) =<< action
+firstJust action alternative = maybe alternative (pure . Just) =<< action
 
 -- | 'firstJust' applied to a list.
 firstJusts :: Monad m => [m (Maybe a)] -> m (Maybe a)
-firstJusts = foldr firstJust (return Nothing)
+firstJusts = foldr firstJust (pure Nothing)
 
 -- * errors
 
@@ -151,11 +151,11 @@ justErr err = maybe (Left err) Right
 
 -- | I usually call this @require@.
 tryJust :: Except.MonadError e m => e -> Maybe a -> m a
-tryJust err = maybe (Except.throwError err) return
+tryJust err = maybe (Except.throwError err) pure
 
 -- | I usually call this @require_right@.
 tryRight :: Except.MonadError e m => Either e a -> m a
-tryRight = either Except.throwError return
+tryRight = either Except.throwError pure
 
 rethrow :: Except.MonadError e m => (e -> e) -> m a -> m a
 rethrow modify action = action `Except.catchError` \e ->

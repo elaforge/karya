@@ -80,7 +80,7 @@ print_msgs (msgs, logs) = do
     -- Make failures visible.
     Testing.pprint (take 4 logs)
     Testing.pprint (take 4 msgs)
-    return $ show (length msgs) ++ " msgs"
+    pure $ show (length msgs) ++ " msgs"
 
 -- * implementation
 

@@ -44,7 +44,7 @@ full f val
 -- | Like 'full' but useful for the traceM and put family.
 fullM :: (Monad m, Eq a, Monoid a) => (a -> m ()) -> a -> m ()
 fullM f val
-    | val == mempty = return ()
+    | val == mempty = pure ()
     | otherwise = f val
 
 -- * forced by evaluation
@@ -110,13 +110,13 @@ traceStr = write . (prefix<>)
 
 -- | Print a value in a monad.  The monad will force it to be printed.
 traceM :: (HasCallStack, Show a, Monad m) => Text -> a -> m ()
-traceM msg val = write (withMsg msg (pshow val)) (return ())
+traceM msg val = write (withMsg msg (pshow val)) (pure ())
 
 tracepM :: (HasCallStack, Pretty a, Monad m) => Text -> a -> m ()
-tracepM msg val = write (withMsg msg (Pretty.formatted val)) (return ())
+tracepM msg val = write (withMsg msg (Pretty.formatted val)) (pure ())
 
 tracesM :: (HasCallStack, Monad m) => Text -> m ()
-tracesM msg = write msg (return ())
+tracesM msg = write msg (pure ())
 
 -- * in IO
 -- These are like putStrLn, but more easily greppable.
@@ -135,7 +135,7 @@ putp msg = writeIO . withMsg msg . Pretty.formatted
 
 {-# NOINLINE write #-}
 write :: HasCallStack => Text -> a -> a
-write msg val = Unsafe.unsafePerformIO $ writeIO msg >> return val
+write msg val = Unsafe.unsafePerformIO $ writeIO msg >> pure val
 
 writeIO :: (HasCallStack, Trans.MonadIO m) => Text -> m ()
 writeIO msg = Trans.liftIO $ do

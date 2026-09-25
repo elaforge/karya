@@ -271,7 +271,7 @@ make_absolute_format_keyed config key_config pattern degrees =
     , fmt_read = p_pitch config degrees
     , fmt_to_absolute = \maybe_key pitch -> do
         key <- key_parse key_config maybe_key
-        return $ to_abs key pitch
+        pure $ to_abs key pitch
     }
     where
     -- A note with no explicit accidentals gets the accidentals of the key
@@ -312,7 +312,7 @@ make_relative_format pattern degrees rel_fmt = Format
         (config_show_octave rel_config) degrees (config_accidental rel_config)
     fmt_to_absolute maybe_key pitch = do
         key <- key_parse rel_key_config maybe_key
-        return $ rel_to_absolute key degrees pitch
+        pure $ rel_to_absolute key degrees pitch
 
 acc_pattern :: Text
 acc_pattern = "(bb|b|n|#|x)?"
@@ -426,7 +426,7 @@ p_pitch config degrees =
         ((,) <$> p_degree <*> p_accidentals (config_accidental config))
     where
     p_degree = A.choice
-        [ A.string text >> return i
+        [ A.string text >> pure i
         | (i, text) <- zip [0..] (Vector.toList degrees)
         ]
 
@@ -440,14 +440,14 @@ parse_octave :: ParseOctave
 parse_octave parse = do
     oct <- ParseText.p_int
     (pc, acc) <- parse
-    return $ RelativePitch oct pc acc
+    pure $ RelativePitch oct pc acc
 
 -- | Require a single digit octave.
 parse_octave1 :: ParseOctave
 parse_octave1 parse = do
     oct <- maybe mzero pure . Num.readDigit =<< A.satisfy ParseText.is_digit
     (pc, acc) <- parse
-    return $ RelativePitch oct pc acc
+    pure $ RelativePitch oct pc acc
 
 -- ** accidentals
 
@@ -465,12 +465,12 @@ p_accidentals :: AccidentalFormat -> A.Parser (Maybe Pitch.Accidentals)
 p_accidentals (AccidentalFormat natural sharp1 sharp2 flat1 flat2) =
     p_natural <|> Just . Num.sum <$> A.many1 p_acc <|> pure Nothing
     where
-    p_natural = A.string natural *> return (Just 0)
+    p_natural = A.string natural *> pure (Just 0)
     p_acc = A.choice
-        [ A.string sharp1 *> return 1
-        , A.string sharp2 *> return 2
-        , A.string flat1 *> return (-1)
-        , A.string flat2 *> return (-2)
+        [ A.string sharp1 *> pure 1
+        , A.string sharp2 *> pure 2
+        , A.string flat1 *> pure (-1)
+        , A.string flat2 *> pure (-2)
         ]
 
 -- | Show accidentals relative to the key signature.

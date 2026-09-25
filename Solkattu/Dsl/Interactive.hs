@@ -73,7 +73,7 @@ readCwd :: FilePath -> FilePath -> [String] -> IO String
 readCwd cwd cmd args = do
     (_, stdout, _stderr) <- Process.readCreateProcessWithExitCode
         ((Process.proc cmd args) { Process.cwd = Just cwd }) ""
-    return stdout
+    pure stdout
 
 callCwd :: FilePath -> FilePath -> [String] -> IO ()
 callCwd cwd cmd args = do
@@ -84,7 +84,7 @@ callCwd cwd cmd args = do
             })
         (\_ _ _ p -> Process.waitForProcess p)
     case exit of
-        Exit.ExitSuccess -> return ()
+        Exit.ExitSuccess -> pure ()
         Exit.ExitFailure r -> errorIO $ "subprocess: " <> showt r
 
 gitRepo :: FilePath

@@ -35,10 +35,10 @@ fltk = Fltk
 
 -- | Send a Fltk action that doesn't quit.
 action :: Channel -> Fltk () -> IO ()
-action chan act = send_action chan (act >> return Continue)
+action chan act = send_action chan (act >> pure Continue)
 
 quit :: Channel -> IO ()
-quit chan = send_action chan (return Quit)
+quit chan = send_action chan (pure Quit)
 
 -- | Run an action directly, rather than over the 'Channel'.  Only use this if
 -- you're certain you're the main thread!
@@ -57,10 +57,10 @@ event_loop chan = do
     where
     loop chan = do
         done <- not . Foreign.toBool <$> c_has_windows
-        if done then return () else do
+        if done then pure () else do
             c_wait
             handle_actions chan >>= \case
-                Quit -> return ()
+                Quit -> pure ()
                 Continue -> loop chan
 
 handle_actions :: Channel -> IO Result
@@ -69,13 +69,13 @@ handle_actions (Channel chan) = Concurrent.modifyMVar chan $ go . reverse
     -- the right order.
     where
     go (Fltk act : acts) = act >>= \case
-        Quit -> return ([], Quit)
+        Quit -> pure ([], Quit)
         Continue -> go acts
-    go [] = return ([], Continue)
+    go [] = pure ([], Continue)
 
 send_action :: Channel -> Fltk Result -> IO ()
 send_action (Channel chan) act = do
-    Concurrent.modifyMVar_ chan (return . (act:))
+    Concurrent.modifyMVar_ chan (pure . (act:))
     c_awake
 
 foreign import ccall "initialize" c_initialize :: IO ()
@@ -102,7 +102,7 @@ create_window decode_type create_win x y w h title = do
     cb <- c_make_msg_callback (cb_msg_callback decode_type chan)
     winp <- C.withCString title $ \titlep ->
         create_win (c x) (c y) (c w) (c h) titlep cb
-    return (Window winp chan)
+    pure (Window winp chan)
     where c = fromIntegral
 
 read_msg :: Window a -> STM.STM (Msg a)
@@ -121,6 +121,6 @@ foreign import ccall "wrapper"
 
 peekCString :: C.CString -> IO Text.Text
 peekCString cstr
-    | cstr == Foreign.nullPtr = return Text.empty
+    | cstr == Foreign.nullPtr = pure Text.empty
     | otherwise = Text.Encoding.decodeUtf8With Encoding.Error.lenientDecode <$>
         ByteString.packCString cstr

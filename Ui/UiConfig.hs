@@ -208,7 +208,7 @@ modify_allocation instrument modify (Allocations allocs) = do
     new_alloc <- modify alloc
     unless (same_backend (alloc_backend alloc) (alloc_backend new_alloc)) $
         Left "modify_allocation changed the backend"
-    return $ Allocations $ Map.insert instrument new_alloc allocs
+    pure $ Allocations $ Map.insert instrument new_alloc allocs
 
 {- | This is the root of the dynamic (per-score) instrument config.  It's
     divided into common and backend-specific configuration.
@@ -409,8 +409,8 @@ data Performance a = Performance
 make_performance :: a -> IO (Performance a)
 make_performance events = do
     time <- Time.getCurrentTime
-    commit <- either (errorIO . txt) return =<< SourceControl.current "."
-    return $ Performance
+    commit <- either (errorIO . txt) pure =<< SourceControl.current "."
+    pure $ Performance
         { perf_events = events
         , perf_creation = time
         , perf_commit = Text.unlines $ map ($ commit)

@@ -436,9 +436,9 @@ realizeSection tala toStrokes smap postproc section = do
         Realize.realize smap toStrokes (Talas.aksharas tala) $ flatten $
         sectionSequence section
     let alignWarn = checkAlignment realized
-    (realized, durationWarns) <- return $ Realize.checkDuration realized
+    (realized, durationWarns) <- pure $ Realize.checkDuration realized
     startSpace <- spaces (inferNadai realized) (sectionStart section)
-    return
+    pure
         ( postproc $ startSpace ++ realized
         , maybe [] (:[]) alignWarn ++ durationWarns
         )
@@ -492,7 +492,7 @@ spaces nadai dur = do
     -- Cancel out the nadai.  So dur is now in s0 matras.
     let s0_matras = realToFrac dur * fromIntegral nadai
     speeds <- S.decomposeM s0_matras
-    return $ map (\s -> S.FNote (speed s) space) speeds
+    pure $ map (\s -> S.FNote (speed s) space) speeds
     where
     space = Realize.Space Solkattu.Offset
     speed s = S.defaultTempo { S._speed = s, S._nadai = nadai }

@@ -63,7 +63,7 @@ main :: IO ()
 main = Git.initialize $ do
     args <- Environment.getArgs
     (flags, args) <- case GetOpt.getOpt GetOpt.Permute options args of
-        (flags, args, []) -> return (flags, args)
+        (flags, args, []) -> pure (flags, args)
         (_, _, errs) -> usage $ "flag errors: " ++ unwords errs
     let mode = fromMaybe DumpAll (Lists.last [m | Mode m <- flags])
         pprint = any (==PPrint) flags
@@ -81,10 +81,10 @@ dump_file pprint mode fname = dump pprint mode fname >>= \case
         let prefix = txt fname <> ": "
         mapM_ Text.IO.putStrLn $
             if mode == DumpCalls then map (prefix<>) lines else lines
-        return True
+        pure True
     Left err -> do
         Text.IO.hPutStrLn IO.stderr $ txt fname <> ": " <> err
-        return False
+        pure False
 
 dump :: Bool -> Mode -> FilePath -> IO (Either Text [Text])
 dump pprint mode fname
@@ -97,7 +97,7 @@ dump pprint mode fname =
     try fname Cmd.Serialize.views_magic ((:[]) . format pprint) $
     try fname DiffPerformance.midi_magic dump_midi $
     try fname Synth.Shared.Note.notesMagic (map (format pprint)) $
-    return $ Left "no magic codes match"
+    pure $ Left "no magic codes match"
 
 format :: (Show a, Pretty a) => Bool -> a -> Text
 format pprint = if pprint then txt . PPrint.pshow else Pretty.formatted
@@ -109,25 +109,25 @@ try :: Serialize.Serialize a => FilePath -> Serialize.Magic a
 try fname magic dump next = do
     val <- Serialize.unserialize magic fname
     case val of
-        Right val -> return $ Right (dump val)
+        Right val -> pure $ Right (dump val)
         Left Serialize.BadMagic {} -> next
-        Left err -> return $ Left (pretty err)
+        Left err -> pure $ Left (pretty err)
 
 -- | Either a commit hash or a save point ref.
 dump_git :: Bool -> Mode -> FilePath -> Maybe String -> IO (Either Text [Text])
 dump_git pprint mode repo maybe_arg = Except.runExceptT $ do
     maybe_commit <- case maybe_arg of
-        Nothing -> return Nothing
+        Nothing -> pure Nothing
         Just arg -> do
             commit <- tryJust ("couldn't find commit for " <> showt arg)
                 =<< liftIO (SaveGit.infer_commit repo arg)
-            return (Just commit)
+            pure (Just commit)
     let prefix = "reading " <> showt repo <> ":"
     (state, commit, names) <- tryRight . first (prefix<>)
         =<< liftIO (SaveGit.load repo maybe_commit)
     let header = "commit: " <> pretty commit <> ", names: "
             <> Text.intercalate ", " names
-    return $ header : dump_score pprint mode state
+    pure $ header : dump_score pprint mode state
 
 dump_score :: Bool -> Mode -> Ui.State -> [Text]
 dump_score pprint mode state = case mode of

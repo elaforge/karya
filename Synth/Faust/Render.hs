@@ -72,14 +72,14 @@ write config outputDir trackIds patch notes = catch $ do
         renderPatch emitMessage patch config mbState notifyState notes start
     case result of
         Right (_, total) -> Checkpoint.clearRemainingOutput outputDir total
-        _ -> return ()
-    return result
+        _ -> pure ()
+    pure result
     where
     chunkSize = _chunkSize config
     catch io = Exception.catches io
-        [ Exception.Handler $ \(Audio.Exception err) -> return $ Left err
+        [ Exception.Handler $ \(Audio.Exception err) -> pure $ Left err
         , Exception.Handler $ \(exc :: IO.Error.IOError) ->
-            return $ Left $ txt $ Exception.displayException exc
+            pure $ Left $ txt $ Exception.displayException exc
         ]
     emitMessage :: GHC.Stack.HasCallStack => Config.Payload -> IO ()
     emitMessage payload
@@ -89,7 +89,7 @@ write config outputDir trackIds patch notes = catch $ do
             , _instrument = Config.dirToInstrument outputDir
             , _payload = payload
             }
-        | otherwise = return ()
+        | otherwise = pure ()
     emptyState = Checkpoint.State mempty
 
 -- | Emit a warning if the patch expects element-address controls and a note
@@ -105,7 +105,7 @@ checkElements emitMessage patch = mapM_ check
             <> ", but didn't have one"
         | elt `Set.notMember` elements = warn $ "element " <> elt <> " not in "
             <> pretty elements
-        | otherwise = return ()
+        | otherwise = pure ()
         where
         elt = Note.element note
         warn msg = emitMessage $ Config.Warn (Note.stack note) msg
@@ -235,7 +235,7 @@ _initialize :: Audio.Frames -> InstrumentC.Instrument
     -> Map InstrumentC.Control Float -> IO ()
 _initialize size inst controls = do
     _ <- InstrumentC.render size 1 inst controlVals inputSamples
-    return ()
+    pure ()
     where
     controlVals = RenderUtil.findControls (InstrumentC._controls inst)
         (Audio.Constant 1 <$> controls)
@@ -277,13 +277,13 @@ render emitMessage patch mbState notifyState controls inputs start end config =
             --     -- Perhaps the faust interpolation is IIR.
             --     liftIO $ initialize (_controlSize config * 2) inst
             --         ((V.! 0) <$> vals)
-        inputs <- return $ Audio._nstream $
+        inputs <- pure $ Audio._nstream $
             Audio.zeroPadN (_blockSize config) inputs
         Util.Control.loop1 (start, controls, inputs) $
             \loop (start, controls, inputs) -> do
                 -- Audio.zeroPadN should have made this infinite.
                 (inputSamples, nextInputs) <-
-                    maybe (Audio.throwIO "end of endless stream") return
+                    maybe (Audio.throwIO "end of endless stream") pure
                         =<< lift (S.uncons inputs)
                 -- For inputs I try to create the right block size, and then
                 -- InstrumentC.render will assert that they are the expected
@@ -312,7 +312,7 @@ renderBlock :: MonadIO m => (Config.Payload -> IO ()) -> Config
     -> Audio.Frames -> Audio.Frames
     -> S.Stream (S.Of [Audio.Block]) m (Maybe Audio.Frames)
 renderBlock emitMessage config notifyState inst controls inputSamples start end
-    | start >= end + _maxDecay config = return Nothing
+    | start >= end + _maxDecay config = pure Nothing
     | otherwise = do
         liftIO $ emitMessage $ Config.RenderingRange
             (AUtil.toSeconds start)
@@ -341,8 +341,8 @@ renderBlock emitMessage config notifyState inst controls inputSamples start end
                         || chunkEnd >= end + _maxDecay config
                         || chunkEnd >= end
                             && RenderUtil.isBasicallySilent output ->
-                    return Nothing
-                | otherwise -> return $ Just chunkEnd
+                    pure Nothing
+                | otherwise -> pure $ Just chunkEnd
                 where
                 chunkEnd = start + frames
                 frames = Audio.Frames $ V.length output

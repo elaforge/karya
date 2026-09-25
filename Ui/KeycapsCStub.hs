@@ -18,4 +18,4 @@ update :: KeycapsT.RawBindings -> Fltk.Fltk ()
 update _ = nop
 
 nop :: Fltk.Fltk ()
-nop = Fltk.fltk (return ())
+nop = Fltk.fltk (pure ())

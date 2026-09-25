@@ -114,7 +114,7 @@ delete_manual key = do
 track_sources :: Cmd.M m => m Text
 track_sources = do
     block <- Ui.get_block =<< Cmd.get_focused_block
-    return $ Text.unlines $ List.intercalate [""] $ map show_source $
+    pure $ Text.unlines $ List.intercalate [""] $ map show_source $
         Block.block_integrated_tracks block
     where
     show_source (source, dests) =
@@ -156,7 +156,7 @@ show_event e = mconcat
 dest_to_sources :: Cmd.M m => m [(TrackId, (Block.Source, Text))]
 dest_to_sources = do
     block <- Ui.get_block =<< Cmd.get_focused_block
-    return $ map (fmap (fmap Block.short_event_index)) $
+    pure $ map (fmap (fmap Block.short_event_index)) $
         Block.destination_to_source block
 
 sel_edits :: Cmd.M m => m ([Event.IndexKey], [Merge.Edit])
@@ -172,7 +172,7 @@ edits block_id track_id = do
             (Block.block_integrated_tracks block)
     events <- Ui.get_events track_id
     let (deleted, edits) = Merge.diff_events index (Events.ascending events)
-    return (Set.toList deleted, filter Merge.is_modified edits)
+    pure (Set.toList deleted, filter Merge.is_modified edits)
 
 -- | Show source UI events.
 indices :: Cmd.M m => m [(TrackId, (Block.Source, Block.EventIndex))]
@@ -197,7 +197,7 @@ indices_of integrated integrated_tracks =
 integrated :: Cmd.M m => m Text
 integrated = do
     integrated <- Cmd.perf_integrated <$> (Perf.get =<< Cmd.get_focused_block)
-    return $ Text.unlines $ concatMap fmt integrated
+    pure $ Text.unlines $ concatMap fmt integrated
     where
     fmt (Derive.Integrated source events) =
         pretty source : Stream.short_events events

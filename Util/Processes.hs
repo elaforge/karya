@@ -55,7 +55,7 @@ readProcessWithExitCode env cmd args stdin = do
     IO.hClose outh
     IO.hClose errh
     ex <- Process.waitForProcess hdl
-    return (ex, out, err)
+    pure (ex, out, err)
 
 -- | Start a subprocess, wait for it to complete, and kill it if this thread
 -- is killed.  This is like 'Async.withAsync', except for a subprocess, and
@@ -69,7 +69,7 @@ supervised proc = Exception.mask $ \restore -> do
     -- process but before installing the exception handler.
     (_, _, _, hdl) <- create proc
     Exception.onException (restore (waitAndLog proc hdl)) $ case hdl of
-        Nothing -> return ()
+        Nothing -> pure ()
         Just hdl -> do
             pid <- Process.getPid hdl
             Log.warn $ "received exception, killing " <> showt (cmdOf proc)
@@ -79,17 +79,17 @@ supervised proc = Exception.mask $ \restore -> do
 -- | Wait for the process (if it started) and log if it didn't exit
 -- successfully.
 waitAndLog :: Process.CreateProcess -> Maybe Process.ProcessHandle -> IO ()
-waitAndLog proc hdl = maybe (return ()) Log.warn =<< waitError proc hdl
+waitAndLog proc hdl = maybe (pure ()) Log.warn =<< waitError proc hdl
 
 waitError :: Process.CreateProcess -> Maybe Process.ProcessHandle
     -> IO (Maybe Text)
 waitError proc maybeHdl = fmap annotate <$> case maybeHdl of
     -- If the binary doesn't exist, sometimes 'create' notices, and sometimes
     -- waitForProcess notices.  I think it's dependent on GHC version.
-    Nothing -> return noBinary
+    Nothing -> pure noBinary
     Just hdl -> do
         result <- Exceptions.ignoreEnoent (Process.waitForProcess hdl)
-        return $ case result of
+        pure $ case result of
             Nothing -> Nothing
             Just code -> case code of
                 Exit.ExitSuccess -> Nothing
@@ -120,8 +120,8 @@ create :: Process.CreateProcess
     -> IO (Maybe IO.Handle, Maybe IO.Handle, Maybe IO.Handle,
         Maybe Process.ProcessHandle)
 create proc = Exceptions.ignoreEnoent (Process.createProcess proc) >>= \case
-    Nothing -> return (Nothing, Nothing, Nothing, Nothing)
-    Just (inh, outh, errh, hdl) -> return (inh, outh, errh, Just hdl)
+    Nothing -> pure (Nothing, Nothing, Nothing, Nothing)
+    Just (inh, outh, errh, hdl) -> pure (inh, outh, errh, Just hdl)
 
 -- * conversation
 
@@ -157,7 +157,7 @@ multipleOutput cmds action = do
     when (null cmds) $
         errorIO "no command given"
     output <- Chan.newChan
-    let run (cmd, args) = conversationWith cmd args Nothing (return EOF)
+    let run (cmd, args) = conversationWith cmd args Nothing (pure EOF)
             (Chan.writeChan output . ((cmd, args),))
     foldr run (action output) cmds
 
@@ -199,12 +199,12 @@ conversationWith cmd args env getInput notifyOutput action = do
                     Just Exit.ExitSuccess -> ExitCode 0
                     Nothing -> KillTimeout
             Async.cancel complete
-            return result
+            pure result
     case ok of
         Nothing -> do
             notifyOutput $ Exit BinaryNotFound
             action
-        Just a -> return a
+        Just a -> pure a
     where
     killTimeout = toUsec 4
     proc = (Process.proc cmd args)
@@ -236,8 +236,8 @@ binaryOf proc = case Process.cmdspec proc of
     Process.ShellCommand cmd -> takeWhile (/=' ') cmd
 
 isAlive :: Posix.ProcessID -> IO Bool
-isAlive pid = (Posix.signalProcess Posix.nullSignal pid >> return True)
-    `Exception.catch` (return . not . IO.Error.isDoesNotExistError)
+isAlive pid = (Posix.signalProcess Posix.nullSignal pid >> pure True)
+    `Exception.catch` (pure . not . IO.Error.isDoesNotExistError)
 
 commandName :: Posix.ProcessID -> IO (Maybe String)
 commandName pid = do
@@ -245,7 +245,7 @@ commandName pid = do
     -- exist.
     (_, output, _) <- Process.readProcessWithExitCode
         "ps" ["-p", show pid, "-o", "comm"] ""
-    return $ case lines output of
+    pure $ case lines output of
         [_, cmd] -> Just cmd
         _ -> Nothing
 

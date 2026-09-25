@@ -59,7 +59,7 @@ type SectionIndex = Int
 -- * search
 
 search :: Monad m => [Korvai.Score -> Bool] -> m Text
-search = return . Db.formats . Db.searchAll id
+search = pure . Db.formats . Db.searchAll id
 
 -- * realize
 
@@ -105,7 +105,7 @@ realize instrument realize_patterns korvai section_i akshara_dur at = do
             concatMap fst results
             -- snd is an alignment warning, which I can see well enough on the
             -- track already.
-    return $
+    pure $
         to_note_track (Korvai.instToScore instrument) akshara_dur at strokes
 
 to_note_track :: ToScore.ToScore stroke -> TrackTime -> TrackTime
@@ -166,7 +166,7 @@ edit key = do
         get_by_key key
     let (module_, line_number, _) = Metadata.korvaiLocation korvai
         fname = module_to_fname module_
-    return $ ReplProtocol.Edit $ (:| []) $ ReplProtocol.Editor
+    pure $ ReplProtocol.Edit $ (:| []) $ ReplProtocol.Editor
         { _file = ReplProtocol.FileName fname
         , _line_number = line_number
         , _on_save = Nothing
@@ -212,28 +212,28 @@ integrate_track korvai index instrument = do
     Ui.set_integrated_manual block_id key $
         Just [Block.empty_destination key track_id []]
     reintegrate key
-    return key
+    pure key
 
 korvai_key :: Korvai.Korvai -> SectionIndex -> Text -> Maybe Block.SourceKey
 korvai_key korvai index instrument = do
     let (module_, _, variable) = Metadata.korvaiLocation korvai
-    return $ Text.intercalate "/" [module_, variable, showt index, instrument]
+    pure $ Text.intercalate "/" [module_, variable, showt index, instrument]
 
 get_by_key :: Block.SourceKey
     -> Maybe (Korvai.Korvai, SectionIndex, Korvai.GInstrument)
 get_by_key key = do
     -- (mod, variable, index) <- split3 key
-    [mod, variable, index, instrument] <- return $ Text.splitOn "/" key
+    [mod, variable, index, instrument] <- pure $ Text.splitOn "/" key
     index <- ParseText.maybe_parse ParseText.p_nat index
     score <- List.find (matches mod variable) (map snd Db.scores)
     korvai <- case score of
-        Korvai.Single k -> return k
+        Korvai.Single k -> pure k
         Korvai.Tani {} -> error "Tani not supported yet"
     instrument <- List.find ((==instrument) . Korvai.ginstrumentName)
         Korvai.instruments
     -- This means reintegrate only works with a single section a single korvai.
     -- I can extend it if this turns out to be too restrictive.
-    return (korvai, index, instrument)
+    pure (korvai, index, instrument)
     where
     -- split3 t = case Text.splitOn "/" t of
     --     [a, b, c] -> Just (a, b, c)

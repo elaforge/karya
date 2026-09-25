@@ -280,7 +280,7 @@ writeWithStatus write scores = do
 
 writeCommit :: FilePath -> IO ()
 writeCommit dir = do
-    patch <- either (errorIO . txt) return =<< SourceControl.current "."
+    patch <- either (errorIO . txt) pure =<< SourceControl.current "."
     Text.IO.writeFile (dir </> "commit") (SourceControl._hash patch <> "\n")
 
 clearDir :: FilePath -> IO ()

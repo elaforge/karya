@@ -20,7 +20,7 @@ import qualified Text.Read as Read
 -- environment variable.  This is useful if you are running on a VM in CI
 -- and don't agree with how many cores it claims to have.
 physicalCores :: IO Int
-physicalCores = maybe getPhysicalCores return =<< envCores
+physicalCores = maybe getPhysicalCores pure =<< envCores
 
 getPhysicalCores :: IO Int
 getPhysicalCores = case System.Info.os of

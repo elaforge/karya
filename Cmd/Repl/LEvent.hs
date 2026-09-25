@@ -59,7 +59,7 @@ stretch_to dur = do
 sel_dur :: Cmd.M m => m TrackTime
 sel_dur = do
     sel <- Selection.get
-    return $ Sel.duration sel
+    pure $ Sel.duration sel
 
 modify_dur :: Cmd.M m => (ScoreTime -> ScoreTime) -> m ()
 modify_dur = Edit.modify_dur
@@ -77,7 +77,7 @@ find_f matches = fmap concat . concatMapM search =<< Ui.all_block_track_ids
             <$> Ui.get_track track_id
         let range e = Ui.Range (Just block_id) track_id
                 (Event.start e) (Event.end e)
-        return [(range event, Event.text event) |
+        pure [(range event, Event.text event) |
             event <- events, matches (Event.text event)]
 
 -- | Replace text on events.  Call with 'ModifyEvents.all_blocks' to replace it
@@ -147,7 +147,7 @@ quantize_timestep mode step block_id track_id events = do
         TimeStep.parse_time_step step
     tracknum <- Ui.get_tracknum_of block_id track_id
     points <- TimeStep.get_points_from TimeStep.Advance block_id tracknum 0 step
-    return $ Just $ resolve_conflicts points $
+    pure $ Just $ resolve_conflicts points $
         snd $ List.mapAccumL (quantize_event mode) points events
 
 -- | Quantize can put two events in the same spot.  Resolve the conflicts by

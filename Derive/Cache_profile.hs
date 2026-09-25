@@ -54,9 +54,9 @@ modify_pitch pitch_tid pos =
 -- | Run the state transform a few times and rederive each time.
 rederive :: Ui.State -> [Ui.StateId ()] -> IO ()
 rederive initial_state modifications = do
-    go initial_state mempty (return () : modifications)
+    go initial_state mempty (pure () : modifications)
     where
-    go _ _ [] = return ()
+    go _ _ [] = pure ()
     go state1 cache (modify:rest) = do
         let (_, state2, ui_damage) = Cache_test.run state1 modify
         cached <- time_section "cached" $
@@ -66,7 +66,7 @@ rederive initial_state modifications = do
                     DeriveTest.default_cmd_state mempty mempty state2
                     (UiTest.bid "b1")
             Thread.force $ Derive.r_events result
-            return result
+            pure result
         equal (Cache_test.diff_events cached uncached) []
         go state2 (Derive.r_cache cached) rest
 
@@ -76,13 +76,13 @@ time_section title op = do
     IO.hFlush IO.stdout
     (val, metric) <- Thread.timeAction op
     Printf.printf "%.2f\n" (realToFrac (Thread.metricCpu metric) :: Double)
-    return val
+    pure val
 
 eval_derivation :: Derive.Cache -> Ui.State -> Ui.State -> Update.UiDamage
     -> IO Derive.Result
 eval_derivation cache state1 state2 ui_damage = do
     Thread.force $ Derive.r_events result
-    return result
+    pure result
     where
     (ui_updates, _) = Diff.diff ui_damage state1 state2
     damage = Diff.derive_diff state1 state2 ui_damage ui_updates

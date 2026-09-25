@@ -57,7 +57,7 @@ parse_dir parsers dir = do
     results <- mapM (\fn -> parse_file parsers fn <$> B.readFile fn) fns
     sequence_ [Log.warn $ "parsing " <> txt fn <> ": " <> txt err
         | (fn, Left err) <- zip fns results]
-    return $ concat [patches | Right patches <- results]
+    pure $ concat [patches | Right patches <- results]
 
 parse_file :: [Parser [Patch]] -> FilePath -> ByteString
     -> Either String [Patch]
@@ -79,9 +79,9 @@ parse_builtins bank parser fn = do
     case parser bytes of
         Left err -> do
             Log.warn $ "parsing " <> txt fn <> ": " <> txt err
-            return []
+            pure []
         Right patches ->
-            return $ zipWith (initialize_program bank) [0..] patches
+            pure $ zipWith (initialize_program bank) [0..] patches
 
 -- | Try each parser in turn, and fail only if they all fail.
 try_parsers :: [Parser a] -> ByteString -> Either String a
@@ -328,26 +328,26 @@ run_encode m = case Writer.runWriter (Except.runExceptT m) of
 encode_spec :: Config -> [String] -> RMap -> (Name, Spec) -> EncodeM ()
 encode_spec config path rmap (name, spec) = case spec of
     Num range -> do
-        num <- either throw return . encode_range range
+        num <- either throw pure . encode_range range
             =<< lookup_field name
         Writer.tell $ Builder.byteString $
             encode_num config (num_range range) num
     Bits bits -> do
-        b <- either (uncurry throw_with) return $ encode_byte rmap bits
+        b <- either (uncurry throw_with) pure $ encode_byte rmap bits
         Writer.tell (Builder.word8 b)
     Str chars -> do
         str <- lookup_field name >>= \case
-            RStr str -> return str
+            RStr str -> pure str
             val -> throw $ "expected RStr, but got " <> show val
         let diff = chars - Text.length str
         padded <- if diff >= 0
-            then return $ str <> Text.replicate diff " "
+            then pure $ str <> Text.replicate diff " "
             else throw $ "too many characters, expected " <> show chars
                 <> ": " <> show str
         Writer.tell (Builder.string7 $ untxt padded)
     SubSpec specs -> do
         sub_record <- lookup_field name >>= \case
-            RMap rmap -> return rmap
+            RMap rmap -> pure rmap
             rec -> throw $ "non-RMap child of a SubSpec: " <> prettys rec
         mapM_ (encode_spec config (name:path) sub_record) specs
     List elts specs -> do
@@ -360,19 +360,19 @@ encode_spec config path rmap (name, spec) = case spec of
                     <> show (Map.size rmap)
             val -> throw $ "expected RMap list, but got " <> prettys val
         rmaps <- forM records $ \case
-            RMap rmap -> return rmap
+            RMap rmap -> pure rmap
             rec -> throw $ "non-RMap child of an RMap list: " <> prettys rec
         forM_ (zip [0..] rmaps) $ \(i, rmap) ->
             mapM_ (encode_spec config (name : show i : path) rmap) specs
     Union enum_name nbytes enum_specs -> do
         union_rmap <- lookup_field name >>= \case
-            RUnion union_rmap -> return union_rmap
+            RUnion union_rmap -> pure union_rmap
             val -> throw $ "expected RUnion RMap, but got " <> prettys val
         enum <- lookup_field enum_name >>= \case
-            RStr enum -> return enum
+            RStr enum -> pure enum
             val -> throw $ "expeted RStr, but got " <> prettys val
         specs <- case lookup enum enum_specs of
-            Just specs -> return specs
+            Just specs -> pure specs
             Nothing -> throw $ "not found in union "
                 <> show (map fst enum_specs) <> ": " <> untxt enum
         bytes <- tryRight $ run_encode $
@@ -387,16 +387,16 @@ encode_spec config path rmap (name, spec) = case spec of
                     | B.length bytes /= nbytes -> throw $
                         "Unparsed expected " <> show nbytes
                         <> " bytes but got " <> show (B.length bytes)
-                    | otherwise -> return bytes
+                    | otherwise -> pure bytes
                 val -> throw $ "expected RUnparsed, but got " <> prettys val
             Writer.tell (Builder.byteString bytes)
     Constant bytes -> Writer.tell (Builder.byteString bytes)
     where
-    lookup_map k rmap = maybe (throw (k <> " not found")) return $
+    lookup_map k rmap = maybe (throw (k <> " not found")) pure $
         Map.lookup k rmap
     lookup_field field = case rmap_lookup rmap field of
             Left err -> Except.throwError $ prefix <> err
-            Right val -> return val
+            Right val -> pure val
         where
         prefix
             | field == name = show_path (name : path)
@@ -409,12 +409,12 @@ encode_byte rmap bits = do
     let (names, fields) = unzip bits
     vals <- mapM (\name -> add_name name $ rmap_lookup rmap name) names
     bs <- zipWithM encode1 (zip names fields) vals
-    return $ encode_bits (map fst fields) bs
+    pure $ encode_bits (map fst fields) bs
     where
     add_name name = first ((,) name)
     encode1 (name, (width, range)) rec = add_name name $ do
         num <- encode_range range rec
-        return $ if range_signed range then from_signed width num
+        pure $ if range_signed range then from_signed width num
             -- encode_range should have already checked the range of 'num'.
             else fromIntegral num
 
@@ -441,7 +441,7 @@ decode config = decode_from []
     where
     decode_from path specs bytes = first Strings.strip $
         Get.runGetState (rmap path [] specs) bytes 0
-    rmap _ collect [] = return (Map.fromList collect)
+    rmap _ collect [] = pure (Map.fromList collect)
     rmap path collect (spec:specs) = do
         vals <- field path collect spec
         rmap path (vals ++ collect) specs
@@ -450,44 +450,44 @@ decode config = decode_from []
         -> Get.Get [(String, Record)]
     field path prev_record (name, spec) = case spec of
         Bits bits ->
-            either fail return . decode_byte path bits =<< Get.getWord8
+            either fail pure . decode_byte path bits =<< Get.getWord8
         Num range -> do
             bytes <- Get.getBytes $ range_bytes config (num_range range)
             let num = decode_num config (num_range range) bytes
-            either throw (return . (:[]) . (,) name) $ decode_range num range
+            either throw (pure . (:[]) . (,) name) $ decode_range num range
         Str chars -> do
             str <- Get.getByteString chars
-            return [(name, RStr $ Text.strip $ FFI.decodeUtf8 str)]
+            pure [(name, RStr $ Text.strip $ FFI.decodeUtf8 str)]
         SubSpec specs -> do
             subs <- rmap (name : path) [] specs
-            return [(name, RMap subs)]
+            pure [(name, RMap subs)]
         List elts specs -> do
             subs <- forM [0 .. elts-1] $ \i ->
                 RMap <$> rmap (show i : name : path) [] specs
-            return [(name, RMap $ Map.fromList $
+            pure [(name, RMap $ Map.fromList $
                 zip (map show [0..elts-1]) subs)]
         Union enum_name bytes enum_specs -> do
-            path <- return (name : path)
+            path <- pure (name : path)
             enum <- case lookup enum_name prev_record of
-                Just (RStr enum) -> return enum
+                Just (RStr enum) -> pure enum
                 _ -> throw $ "previous enum not found: " <> enum_name
             specs <- case lookup enum enum_specs of
-                Just specs -> return specs
+                Just specs -> pure specs
                 Nothing -> throw $ "union doesn't contain enum: " <> untxt enum
             bytes <- Get.getByteString bytes
-            record <- either fail (return . fst) $ decode_from path specs bytes
-            return [(name, RUnion record)]
+            record <- either fail (pure . fst) $ decode_from path specs bytes
+            pure [(name, RUnion record)]
         Unparsed nbytes
-            | null name -> Get.skip nbytes >> return []
+            | null name -> Get.skip nbytes >> pure []
             | otherwise -> do
                 bytes <- Get.getByteString nbytes
                 when (B.length bytes < nbytes) $
                     throw $ "expected " <> show nbytes <> " bytes, but got "
                         <> show (B.length bytes)
-                return [(name, RUnparsed bytes)]
+                pure [(name, RUnparsed bytes)]
         Constant expected -> do
             bytes <- Get.getByteString (B.length expected)
-            if bytes == expected then return []
+            if bytes == expected then pure []
                 else throw $ "expected " <> hex expected <> " but got "
                     <> hex bytes
         where
@@ -512,11 +512,11 @@ decode_byte path bits byte =
     signed = zipWith convert_signs (map snd bits) vals
     extract (name, (_, field)) val = case field of
         Range low high
-            | low <= val && val <= high -> return (name, RNum val)
+            | low <= val && val <= high -> pure (name, RNum val)
             | otherwise -> Left $
                 show_path (name:path) <> "out of range: " <> show val
         Enum enums
-            | Just enum <- Lists.at enums val -> return (name, RStr enum)
+            | Just enum <- Lists.at enums val -> pure (name, RStr enum)
             | otherwise -> Left $
                 show_path (name:path) <> "bit of byte " <> show byte
                     <> ": not a valid enum index: " <> show val

@@ -66,7 +66,7 @@ getConfig = config <$> Path.get_app_dir
 getLogFilename :: String -> IO FilePath
 getLogFilename name = do
     dir <- Path.to_absolute <$> Path.get_app_dir <*> pure App.Config.log_dir
-    return $ dir </> name
+    pure $ dir </> name
 
 config :: Path.AppDir -> Config
 config appDir = Config

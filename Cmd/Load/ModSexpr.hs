@@ -48,8 +48,8 @@ to_module val = do
     blocks <- forM patterns $ \pattern -> do
         tracks <- list pattern
         (lens, tracks) <- unzip <$> mapM (get_track <=< list) tracks
-        return $ ModT.Block (maximum (0:lens)) tracks
-    return $ ModT.Module
+        pure $ ModT.Block (maximum (0:lens)) tracks
+    pure $ ModT.Module
         { _instruments = IntMap.fromList insts
         , _default_tempo = ModT.Tempo bpm spd
         , _block_order = Map.singleton "score" order
@@ -62,7 +62,7 @@ to_module val = do
 get_track :: [Val] -> Either Error (Int, ModT.Track)
 get_track (VSymbol "track" : VNum rows : notes) = do
     lines <- mapM (to_line <=< list) notes
-    return (rows, ModT.make_track lines)
+    pure (rows, ModT.make_track lines)
 get_track vals = Left $ "expected track, got " <> pretty (map val_type vals)
 
 -- (row pitch inst vol (fx1 fx1param) (fx2 fx2param))
@@ -73,7 +73,7 @@ to_line [idx, pitch, inst, vol, fx1, fx2] = do
     inst <- num inst
     vol <- num vol
     fxs <- mapMaybeM to_cmd [fx1, fx2]
-    return $ (idx,) $ ModT.Line
+    pure $ (idx,) $ ModT.Line
         { _pitch = if 0 < pitch && pitch < 128
             -- c4 in schism tracker shows up as 49, instead of 60.
             then Just $ Pitch.nn $ pitch + 11

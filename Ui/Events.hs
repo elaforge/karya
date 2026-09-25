@@ -466,10 +466,10 @@ instance Serialize.Serialize Events where
         case v of
             3 -> do
                 events :: Map ScoreTime Event.Event <- Serialize.get
-                return $ from_asc_list $ Map.elems events
+                pure $ from_asc_list $ Map.elems events
             4 -> do
                 events :: Map Key Event.Event <- Serialize.get
-                return $ Events events
+                pure $ Events events
             _ -> Serialize.bad_version "Events" v
 
 -- Key has no version because there are a lot of them and they're all the same

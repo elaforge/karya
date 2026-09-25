@@ -115,14 +115,14 @@ convert_score_signal :: ScoreT.Function
     -> Derive.Deriver (ScoreTime -> ScoreTime)
 convert_score_signal f = do
     warp <- Internal.get_warp
-    return $ ScoreTime.from_double . (1/) . f . Warp.warp warp
+    pure $ ScoreTime.from_double . (1/) . f . Warp.warp warp
 
 duration_starts :: (Num a, Ord a, Show a) => (a -> a) -> a -> a
     -> Either Text [a]
 duration_starts dur_at start end = sample (dur_at start) 0 start
     where
     sample prev_dur n t0
-        | t > end = return []
+        | t > end = pure []
         | dur <= 0 = Left $ "duration <= 0: " <> showt dur <> " at " <> showt t
         -- Avoid loss of precision for the common case of a constant speed
         -- signal.

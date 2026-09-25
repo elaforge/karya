@@ -288,7 +288,7 @@ checkAlignment talaAksharas startOn endOn notes =
 checkDuration :: [Realized stroke] -> ([Realized stroke], [Warning])
 checkDuration = bimap snd List.reverse . Logger.runId . go 0
     where
-    go i [] = return (i, [])
+    go i [] = pure (i, [])
     go i (n : ns) = case n of
         S.FNote {} -> second (n:) <$> go (i+1) ns
         S.FGroup _tempo
@@ -355,7 +355,7 @@ strokeMap :: (Pretty sollu, Ord sollu, Pretty stroke) => PatternMap stroke
 strokeMap pmap strokes = do
     strokes <- mapM (traverse solkattuToRealize) strokes
     (smap, solluShadows) <- solluMap strokes
-    return $ StrokeMap
+    pure $ StrokeMap
         { smapSolluMap = smap
         , smapSolluShadows = solluShadows
         , smapPatternMap = pmap
@@ -448,11 +448,11 @@ verifySolluMap (sollus, strokes) = do
         (Just sollu : _, S.Note (Space {}) : _)
             | strictCheck ->
                 throw $ "sollu '" <> pretty sollu <> "' given rest stroke"
-            | otherwise -> return $ Just Nothing
+            | otherwise -> pure $ Just Nothing
         (Nothing : _, S.Note (Note stroke) : _) ->
             throw $ "rest sollu given non-rest stroke '" <> pretty stroke <> "'"
-        (Nothing : _, S.Note (Space {}) : _) -> return Nothing
-        (Just _ : _, S.Note (Note stroke) : _) -> return $ Just $ Just stroke
+        (Nothing : _, S.Note (Space {}) : _) -> pure Nothing
+        (Just _ : _, S.Note (Note stroke) : _) -> pure $ Just $ Just stroke
         (sollus, []) ->
             throw $ "more sollus than strokes at " <> pSollus sollus
         ([], strokes) ->
@@ -460,7 +460,7 @@ verifySolluMap (sollus, strokes) = do
         (sollu : _, stroke : _) ->
             throw $ "should have plain sollus and strokes: "
                 <> pretty (sollu, stroke)
-    return ((tag, Maybe.catMaybes mbSollus), Maybe.catMaybes strokes)
+    pure ((tag, Maybe.catMaybes mbSollus), Maybe.catMaybes strokes)
 
 zipTails :: [a] -> [b] -> [([a], [b])]
 zipTails as bs = filter (\(as, bs) -> not (null as && null bs)) $
@@ -481,7 +481,7 @@ verifySolluKey sollus_ = do
             Solkattu.Space {} -> Right $ Just (Nothing, Nothing)
             s -> throw $ "should only have plain sollus: " <> pretty s
     -- TODO warn if there are inconsistent tags?
-    return (Lists.head (Maybe.catMaybes tags), sollus)
+    pure (Lists.head (Maybe.catMaybes tags), sollus)
 
 
 -- * realize
@@ -538,11 +538,11 @@ realize_ realizePattern toStrokes talaAksharas =
     flatToState state =
         snd . S.flatToState Solkattu.flatDuration talaAksharas state
     realize1 (state, note@(S.FNote tempo n)) notes = case n of
-        Solkattu.Alignment n -> return
+        Solkattu.Alignment n -> pure
             (UF.singleton $ S.FNote tempo (Alignment n), notes)
-        Solkattu.Space space -> return
+        Solkattu.Space space -> pure
             (UF.singleton $ S.FNote tempo (Space space), notes)
-        Solkattu.Pattern p@(Solkattu.PatternM matras) -> return
+        Solkattu.Pattern p@(Solkattu.PatternM matras) -> pure
             ( case realizePattern tempo p of
                 Left err -> UF.Fail err
                 Right tempoNotes -> UF.singleton $ S.FGroup tempo group $
@@ -557,33 +557,33 @@ realize_ realizePattern toStrokes talaAksharas =
                 }
         Solkattu.Note {} ->
             case findSequence toStrokes ((state, note) : notes) of
-                Left err -> return (UF.Fail err, notes)
+                Left err -> pure (UF.Fail err, notes)
                 Right (matched, (strokes, remain)) -> do
                     Writer.tell $ Set.singleton matched
-                    return (UF.fromList (map (uncurry S.FNote) strokes), remain)
+                    pure (UF.fromList (map (uncurry S.FNote) strokes), remain)
     realize1 (state, S.FGroup tempo group children) notes =
         (,notes) <$> realizeGroup tempo group (flatToState state children)
     realizeGroup tempo
             (Solkattu.GMeta m@(Solkattu.Meta (Just matras) _ Solkattu.GSarva))
             children
-        | null children = return $
+        | null children = pure $
             -- The metadata is already in the group, but ToScore at least
             -- relies on an explicit Abstract since it flattens out groups.
             UF.singleton $ S.FGroup tempo (Solkattu.GMeta m)
                 [S.FNote tempo (Abstract m)]
         | otherwise =
             case realizeSarva toStrokes talaAksharas tempo matras children of
-                Left err -> return $ UF.Fail $ "sarva: " <> err
+                Left err -> pure $ UF.Fail $ "sarva: " <> err
                 Right (matched, strokes) -> do
                     Writer.tell $ Set.singleton matched
                     -- I keep this as a group so format can highlight it.  Also,
                     -- even though I realized the sarva, I might as well leave
                     -- the duration on.
-                    return $ UF.singleton $
+                    pure $ UF.singleton $
                         S.FGroup tempo (Solkattu.GMeta m) strokes
     realizeGroup tempo group children = do
         rest <- UF.toList <$> UF.processM realize1 children
-        return $ case rest of
+        pure $ case rest of
             -- I drop the group, so there will be extra notes in the output.
             -- But if I emit a partial group, then convertGroup may get an
             -- error, which will conceal the real one here.
@@ -613,7 +613,7 @@ realizeSarva toStrokes talaAksharas tempo matras children@((state, _) : _) = do
     (_, (_, strokes)) <- splitStrokes (offset `Num.fmod` cycleDur) $
         map (uncurry S.FNote) $ cycle (strokes ++ rests)
     (_, (strokes, _)) <- splitStrokes dur strokes
-    return (matched, strokes)
+    pure (matched, strokes)
     where
     offset = S.stateAbsoluteAkshara talaAksharas state
     getRest (S.FNote tempo (Solkattu.Space space)) = Just (tempo, Space space)
@@ -699,7 +699,7 @@ splitStrokes dur (note : notes) = case note of
                 let make = fmap (map (uncurry S.FNote)) . makeSpace tempo space
                 pre <- make dur
                 post <- make (dur - noteDur)
-                return (0, (pre, post ++ notes))
+                pure (0, (pre, post ++ notes))
         where
         noteDur = S.noteDuration tempo n
     where

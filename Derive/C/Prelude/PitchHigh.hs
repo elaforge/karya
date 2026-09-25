@@ -140,14 +140,14 @@ make_pitch_fade name doc pitch_dir =
                 Nothing -> time
                 Just (Typecheck.DefaultReal t) -> t
         case Args.prev_pitch args of
-            Nothing -> return mempty
+            Nothing -> pure mempty
             Just (_, prev_pitch) -> do
                 (slide, dyn) <- pitch_fade AlignEnd curve prev_pitch pitch_dir
                     interval =<< pitch_fade_ranges AlignStart AlignStart
                         fade time (Args.start args) (Args.start args)
                 next <- Derive.real (Args.next args)
                 ControlUtil.multiply_dyn next dyn
-                return slide
+                pure slide
 
 c_approach_dyn :: Derive.Generator Derive.Pitch
 c_approach_dyn = Derive.generator1 Module.prelude "approach-dyn"
@@ -218,14 +218,14 @@ pitch_fade_ranges align align_fade fade_time pitch_time start end = do
             AlignEnd ->
                 max (fade_end - pitch_time, fade_end)
                     (fade_start, fade_start + pitch_time)
-    return ((pitch_start, pitch_end), (fade_start, fade_end))
+    pure ((pitch_start, pitch_end), (fade_start, fade_end))
 
 segment :: ControlUtil.Curve -> RealTime -> Signal.Y -> RealTime
     -> Signal.Y -> Derive.Deriver Signal.Control
 segment curve x1 y1 x2 y2 = do
     sig <- ControlUtil.make_segment curve x1 y1 x2 y2
     -- TODO why do I need this leading sample?
-    return $ Signal.from_sample 0 y1 <> sig
+    pure $ Signal.from_sample 0 y1 <> sig
 
 pitch_segment :: Align -> ControlUtil.Curve
     -> RealTime -- ^ start pitch at this time

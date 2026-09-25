@@ -58,7 +58,7 @@ instance Monoid (Builder a) where
 build :: Builder a -> Lazy a
 build builder = Lazy $ ST.runST $ do
     buf <- newBuffer chunkSize
-    runBuilder (builder `append` flush) (const (return [])) buf
+    runBuilder (builder `append` flush) (const (pure [])) buf
 
 empty :: Builder a
 empty = Builder (\cont buf -> cont buf)
@@ -82,7 +82,7 @@ fromList xs = Builder build
                 mvec <- Mutable.new chunkSize
                 chunks <- ST.Unsafe.unsafeInterleaveST $
                     loop mvec 0 chunkSize (x:xs)
-                return $! chunk : chunks
+                pure $! chunk : chunks
             | otherwise = do
                 Mutable.unsafeWrite mvec offset x
                 loop mvec (offset+1) (left-1) xs
@@ -104,7 +104,7 @@ flush = Builder f
                 !chunk = Vector.take used vec
             -- Text uses inlineInterleaveST and says it's faster
             chunks <- ST.Unsafe.unsafeInterleaveST (cont buf2)
-            return $! chunk : chunks
+            pure $! chunk : chunks
 
 
 -- ** buffer
@@ -120,7 +120,7 @@ writeAtMost n f = ensureFree n `append` withBuffer (writeBuffer f)
 
 writeN :: Int -> (forall s. Mutable.MVector s a -> Int -> ST.ST s ())
     -> Builder a
-writeN n f = writeAtMost n (\mvec offset -> f mvec offset >> return n)
+writeN n f = writeAtMost n (\mvec offset -> f mvec offset >> pure n)
 
 ensureFree :: Int -> Builder a
 ensureFree !n = withSize $ \left ->
@@ -131,7 +131,7 @@ writeBuffer :: (Mutable.MVector s a -> Int -> ST.ST s Int) -> Buffer s a
     -> ST.ST s (Buffer s a)
 writeBuffer f (Buffer mvec used left) = do
     written <- f mvec used
-    return $! Buffer mvec (used + written) (left - written)
+    pure $! Buffer mvec (used + written) (left - written)
 
 withBuffer :: (forall s. Buffer s a -> ST.ST s (Buffer s a)) -> Builder a
 withBuffer f = Builder $ \cont buf -> cont =<< f buf
@@ -143,7 +143,7 @@ withSize f = Builder $ \cont buf@(Buffer _ _ left) ->
 newBuffer :: Int -> ST.ST s (Buffer s a)
 newBuffer size = do
     mvec <- Mutable.new size
-    return $! Buffer mvec 0 size
+    pure $! Buffer mvec 0 size
 
 -- 8 bytes for an int, so 4k = 512 elts, 1k = 128 elts
 chunkSize :: Int

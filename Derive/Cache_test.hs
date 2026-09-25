@@ -91,7 +91,7 @@ test_no_damage = do
             , ("sub", [(">i", [(0, 1, ""), (1, 1, "subsub")])])
             , ("subsub", [(">i", [(0, 1, "")])])
             ]
-    let (_, cached, uncached) = compare_cached create (return ())
+    let (_, cached, uncached) = compare_cached create (pure ())
     equal (diff_events cached uncached) []
 
     -- should not have rederived sub
@@ -494,7 +494,7 @@ test_sliced_score_damage = do
     -- ScoreDamage to invalidate it.
     let create = do
             UiTest.mkblocks_skel blocks
-            return $ UiTest.bid "b9"
+            pure $ UiTest.bid "b9"
     let (_prev, cached, uncached) = compare_cached create $
             insert_event "b9.t3" 4 0 "7c"
     equal (diff_events cached uncached) []
@@ -516,7 +516,7 @@ test_sliced_control_damage = do
     -- sliced and shifted.
     let create = do
             UiTest.mkblocks_skel blocks
-            return (UiTest.bid "top")
+            pure (UiTest.bid "top")
     let (_prev, cached, uncached) = compare_cached create $
             insert_event "top.t1" 6 0 "0"
     equal (diff_events cached uncached) []

@@ -63,7 +63,7 @@ cmd_val_edit msg = suppress "control track val edit" $ do
     (_, _, track_id, _) <- Selection.get_insert
     ifM (infer_normalized track_id)
         (edit_normalized msg) (edit_non_normalized msg)
-    return Cmd.Done
+    pure Cmd.Done
     where suppress = Cmd.suppress_history Cmd.ValEdit
 
 -- | Editing a tempo track is just like editing a normal control track, except
@@ -72,7 +72,7 @@ cmd_tempo_val_edit :: Cmd.M m => Msg.Msg -> m Cmd.Status
 cmd_tempo_val_edit msg = suppress "tempo track val edit" $ do
     EditUtil.fallthrough EditUtil.WantBackspace msg
     edit_non_normalized msg
-    return Cmd.Done
+    pure Cmd.Done
     where suppress = Cmd.suppress_history Cmd.ValEdit
 
 -- | A track is assumed to be normalized if its first event has a @`0x`@ in it.
@@ -115,7 +115,7 @@ edit_normalized = \case
         val_edit_at pos val
         -- Never advance for control input, because there are usually a lot
         -- of those at once.
-        whenM (andM [return (not control_input),
+        whenM (andM [pure (not control_input),
                 Cmd.gets (Cmd.state_advance . Cmd.state_edit)])
             Selection.advance
 
@@ -188,7 +188,7 @@ cmd_method_edit msg =
             , False
             )
         _ -> Cmd.abort
-    return Cmd.Done
+    pure Cmd.Done
 
 
 -- * implementation

@@ -111,13 +111,13 @@ import           Global
 cmd_midi_thru :: Msg.Msg -> Cmd.CmdId Cmd.Status
 cmd_midi_thru msg = do
     input <- case msg of
-        Msg.InputNote input -> return input
+        Msg.InputNote input -> pure input
         _ -> Cmd.abort
     score_inst <- Cmd.abort_unless =<< EditUtil.lookup_instrument
     attrs <- Cmd.get_instrument_attributes score_inst
     scale <- Perf.get_scale =<< Selection.track
     mapM_ Cmd.write_thru =<< for_instrument score_inst scale attrs input
-    return Cmd.Continue
+    pure Cmd.Continue
 
 for_instrument :: ScoreT.Instrument -> Cmd.ThruFunction
 for_instrument score_inst scale attrs input = do
@@ -145,7 +145,7 @@ osc_thru patch flags score_inst scale _attrs input = do
 
 input_to_osc :: Cmd.M m => Sc.Patch.Patch -> Set Common.Flag
     -> InputNote.InputNn -> m [OSC.OSC]
-input_to_osc patch flags = return . \case
+input_to_osc patch flags = pure . \case
     InputNote.NoteOn note_id nn vel ->
         Sc.Play.note_on patch triggered (unid note_id) nn vel
     InputNote.NoteOff note_id _ ->
@@ -169,7 +169,7 @@ midi_thru :: Patch.Patch -> Patch.Config -> ScoreT.Instrument
 midi_thru patch config score_inst scale attrs input = do
     input <- convert_input score_inst scale input
     let addrs = Patch.config_addrs config
-    if null addrs then return [] else do
+    if null addrs then pure [] else do
         (input_nn, ks) <- Cmd.require
             (pretty (Scale.scale_id scale) <> " doesn't have " <> pretty input)
             =<< input_to_nn score_inst (Patch.patch_attribute_map patch)
@@ -177,13 +177,13 @@ midi_thru patch config score_inst scale attrs input = do
         wdev_state <- Cmd.get_wdev_state
         pb_range <- Cmd.require "no pb range" $
             Patch.settings#Patch.pitch_bend_range #$ config
-        maybe (return []) (to_msgs ks) $
+        maybe (pure []) (to_msgs ks) $
             input_to_midi pb_range wdev_state addrs input_nn
     where
     to_msgs ks (thru_msgs, wdev_state) = do
         Cmd.modify_wdev_state (const wdev_state)
         let ks_msgs = concatMap (keyswitch_to_midi thru_msgs) ks
-        return $ map (uncurry Cmd.midi_thru) $ ks_msgs ++ thru_msgs
+        pure $ map (uncurry Cmd.midi_thru) $ ks_msgs ++ thru_msgs
 
 -- | The keyswitch winds up being simultaneous with the note on.  Especially
 -- stupid VSTs like kontakt will sometimes miss a keyswitch if it doesn't have
@@ -209,13 +209,13 @@ input_to_nn :: Cmd.M m => ScoreT.Instrument -> Patch.AttributeMap
     -> m (Maybe (InputNote.InputNn, [Patch.Keyswitch]))
 input_to_nn inst attr_map patch_scale attrs = \case
     InputNote.NoteOn note_id nn vel -> justm (convert nn) $ \(nn, ks) ->
-        return $ Just (InputNote.NoteOn note_id nn vel, ks)
+        pure $ Just (InputNote.NoteOn note_id nn vel, ks)
     InputNote.PitchChange note_id input -> justm (convert input) $ \(nn, _) ->
-        return $ Just (InputNote.PitchChange note_id nn, [])
-    input@(InputNote.NoteOff {}) -> return $ Just (input, ks)
+        pure $ Just (InputNote.PitchChange note_id nn, [])
+    input@(InputNote.NoteOff {}) -> pure $ Just (input, ks)
         where
         ks = maybe [] (fst . snd) $ Common.lookup_attributes attrs attr_map
-    input@(InputNote.Control {}) -> return $ Just (input, [])
+    input@(InputNote.Control {}) -> pure $ Just (input, [])
     where
     convert nn = do
         let (result, not_found) = convert_pitch attr_map patch_scale attrs nn
@@ -223,7 +223,7 @@ input_to_nn inst attr_map patch_scale attrs = \case
             Log.warn $ "inst " <> pretty inst <> " doesn't have attrs "
                 <> pretty attrs <> ", understood attrs are: "
                 <> pretty (Common.mapped_attributes attr_map)
-        return result
+        pure result
 
 -- | Convert a keyboard input into the NoteNumber desired by the scale.
 convert_input :: Cmd.M m => ScoreT.Instrument -> Scale.Scale -> InputNote.Input
@@ -231,12 +231,12 @@ convert_input :: Cmd.M m => ScoreT.Instrument -> Scale.Scale -> InputNote.Input
 convert_input inst scale = \case
     InputNote.NoteOn note_id input vel -> do
         nn <- convert input
-        return $ InputNote.NoteOn note_id nn vel
+        pure $ InputNote.NoteOn note_id nn vel
     InputNote.PitchChange note_id input ->
         InputNote.PitchChange note_id <$> convert input
-    InputNote.NoteOff note_id vel -> return $ InputNote.NoteOff note_id vel
+    InputNote.NoteOff note_id vel -> pure $ InputNote.NoteOff note_id vel
     InputNote.Control note_id control val ->
-        return $ InputNote.Control note_id control val
+        pure $ InputNote.Control note_id control val
     where
     convert = convert_input_pitch inst scale
 
@@ -255,7 +255,7 @@ convert_input_pitch inst scale input = do
         -- no need to shout about it.
         Right (Left DeriveT.InvalidInput) -> Cmd.abort
         Right (Left err) -> throw $ pretty err
-        Right (Right nn) -> return nn
+        Right (Right nn) -> pure nn
     where
     throw = Cmd.throw . (("scale_input_to_nn for " <> pretty input <> ": ") <>)
 
@@ -371,8 +371,8 @@ channel_messages maybe_inst first_addr msgs = do
 get_addrs :: Cmd.M m => Maybe ScoreT.Instrument -> m [Addr]
 get_addrs maybe_inst = do
     inst <- maybe (Cmd.abort_unless =<< EditUtil.lookup_instrument)
-        return maybe_inst
+        pure maybe_inst
     alloc <- Ui.allocation inst <#> Ui.get
-    return $ case UiConfig.alloc_backend <$> alloc of
+    pure $ case UiConfig.alloc_backend <$> alloc of
         Just (UiConfig.Midi config) -> Patch.config_addrs config
         _ -> []

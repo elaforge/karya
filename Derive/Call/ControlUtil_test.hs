@@ -48,7 +48,7 @@ test_modify = do
         (start, end) <- Args.real_range args
         let signal = Signal.from_sample start 0.5
         ControlUtil.modify_with Derive.DefaultMerge Controls.dynamic end signal
-        return mempty
+        pure mempty
 
 test_slope_to_limit :: Test
 test_slope_to_limit = do

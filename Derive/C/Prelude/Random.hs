@@ -60,7 +60,7 @@ c_omit = Derive.transformer Module.prelude "omit" Tags.random
     (Sig.defaulted "chance" (0.5 :: Double)
         "Chance, from 0 to 1, that the transformed note will be omitted."
     ) $ \omit _args deriver ->
-        ifM (Call.chance omit) (return Stream.empty) deriver
+        ifM (Call.chance omit) (pure Stream.empty) deriver
 
 c_log_seed :: Derive.CallableExpr d => Derive.Transformer d
 c_log_seed = Derive.transformer Module.prelude "log-seed" mempty
@@ -102,13 +102,13 @@ c_alternate_tracks = Derive.generator Module.prelude "alternate-tracks"
                 <> " > " <> showt (length subs) <> " tracks"
         sub_weights <- mapM (pair err) $ Lists.zipPadded weights subs
         case NonEmpty.nonEmpty sub_weights of
-            Nothing -> return mempty
+            Nothing -> pure mempty
             Just sub_weights ->
                 Sub.derive . Call.pick_weighted sub_weights =<< Call.random
     where
-    pair _ (Lists.Both weight sub) = return (weight, sub)
+    pair _ (Lists.Both weight sub) = pure (weight, sub)
     pair err (Lists.First _) = Derive.throw err
-    pair _ (Lists.Second sub) = return (1, sub)
+    pair _ (Lists.Second sub) = pure (1, sub)
 
 -- TODO This doesn't really belong in here since it's not random.  Also not in
 -- NoteTransformer since it's not a transformer.  Maybe all this stuff should
@@ -175,7 +175,7 @@ tempo_alternate_continuous bottom pairs timestep interval args = do
     real_starts <- mapM Derive.real starts
     let breakpoints = Lists.dropDups snd (zip real_starts alt_indices)
     -- Debug.tracepM "breakpoints" (starts, zip real_starts alt_indices)
-    return $ case breakpoints of
+    pure $ case breakpoints of
         -- Optimize a single breakpoint at the start.
         [(t, i)] | [t] == take 1 real_starts -> alts !! i
         _ -> switch alts breakpoints
@@ -208,7 +208,7 @@ alternate_indices starts timestep thresholds = do
     -- Debug.tracepM "reals" (zip starts reals)
     -- Get tempo at each start, in the duration of the timestep at each start.
     durs <- mapM (timestep_dur_at timestep) starts
-    return $ -- Debug.traceRetp "alt_indices" (thresholds, zip starts durs) $
+    pure $ -- Debug.traceRetp "alt_indices" (thresholds, zip starts durs) $
         map (index_under_threshold thresholds) durs
 
 timestep_dur_at :: Meter.Rank -> ScoreTime -> Derive.Deriver RealTime

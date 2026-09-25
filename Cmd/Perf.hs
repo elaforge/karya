@@ -82,7 +82,7 @@ derive_expr :: (Cmd.M m, Derive.CallableExpr d) => BlockId -> TrackId
 derive_expr block_id track_id pos expr = do
     (result, logs) <- derive_at block_id track_id
         (Eval.eval_one_at False pos 1 expr)
-    return $ case result of
+    pure $ case result of
         Left err -> (Left err, logs)
         Right stream -> (Right events, derive_logs ++ logs)
             where (events, derive_logs) = Stream.partition stream
@@ -101,7 +101,7 @@ derive_at_exc block_id track_id deriver = do
     dynamic <- fromMaybe (PlayUtil.initial_dynamic aliases) <$>
         find_dynamic (block_id, Just track_id)
     let (val, _, logs) = PlayUtil.run_with_constant constant dynamic deriver
-    return (val, logs)
+    pure (val, logs)
 
 -- | Like 'derive_at_exc', but with no block or track context.  This is for
 -- derivations that don't belong to any particular track, e.g. asking for the
@@ -116,7 +116,7 @@ derive_no_block deriver = do
     (constant, aliases) <- PlayUtil.get_constant ui_state mempty mempty
     let (val, _, logs) = PlayUtil.run_with_constant constant
             (PlayUtil.initial_dynamic aliases) deriver
-    return (val, logs)
+    pure (val, logs)
 
 -- | Like 'derive_at', but write logs and throw on a Left.
 derive_at_throw :: Cmd.M m => BlockId -> TrackId -> Derive.Deriver a -> m a
@@ -132,7 +132,7 @@ lookup_note_deriver :: Cmd.M m => BlockId -> TrackId -> Event.Event
     -> m (Maybe Derive.NoteDeriver)
 lookup_note_deriver block_id track_id event = do
     Tree.Node track subs <- find_track block_id track_id
-    return $ case ParseTitle.track_type (TrackTree.track_title track) of
+    pure $ case ParseTitle.track_type (TrackTree.track_title track) of
         ParseTitle.NoteTrack ->
             Just $ derive_event (Derive.Note.track_info track subs) event
         _ -> Nothing
@@ -161,14 +161,14 @@ global_environ = do
     events <- Stream.write_logs =<< Cmd.require_right pretty result
     event <- Cmd.require "Perf.global_environ: expected a single Event" $
         Lists.head events
-    return $ Score.event_environ event
+    pure $ Score.event_environ event
 
 -- | Smuggle the environ out in an event.  It's annoying to require such
 -- shennanigans, rationale in NOTE [transform-without-derive-callable].
 smuggle_environ :: Derive.NoteDeriver
 smuggle_environ = Prelude.Block.global_transform $ do
     env <- Internal.get_dynamic Derive.state_environ
-    return $! Stream.from_event $!
+    pure $! Stream.from_event $!
         Score.empty_event { Score.event_environ = env }
 
 {- NOTE [transform-without-derive-callable]
@@ -188,7 +188,7 @@ smuggle_environ = Prelude.Block.global_transform $ do
 derive :: Cmd.M m => Derive.Deriver a -> m (Either Text a)
 derive deriver = do
     (val, _, _) <- PlayUtil.run mempty mempty deriver
-    return $ case val of
+    pure $ case val of
         Left err -> Left $ pretty err
         Right val -> Right val
 
@@ -218,8 +218,8 @@ get_scale_id track@(block_id, maybe_track_id) =
     -- there so many places?
     (fromMaybe (Pitch.ScaleId Config.default_scale_id) <$>) $
     firstJust
-        (maybe (return Nothing) (scale_from_titles block_id) maybe_track_id) $
-    firstJust (find_scale_id track) $ return Nothing
+        (maybe (pure Nothing) (scale_from_titles block_id) maybe_track_id) $
+    firstJust (find_scale_id track) $ pure Nothing
 
 find_scale_id :: Cmd.M m => Track -> m (Maybe Pitch.ScaleId)
 find_scale_id (block_id, maybe_track_id) = (to_scale_id <$>) $
@@ -227,12 +227,12 @@ find_scale_id (block_id, maybe_track_id) = (to_scale_id <$>) $
     firstJust lookup_parents $
     firstJust (lookup Nothing) $
     firstJust (lookup_environ_val EnvKey.scale =<< global_environ) $
-    return Nothing
+    pure Nothing
     where
     to_scale_id = fmap Expr.str_to_scale_id
     lookup maybe_track_id = lookup_val (block_id, maybe_track_id) EnvKey.scale
     lookup_parents = case maybe_track_id of
-        Nothing -> return Nothing
+        Nothing -> pure Nothing
         Just track_id -> do
             parents <- map Ui.track_id . maybe [] fst <$>
                 TrackTree.parents_children_of block_id track_id
@@ -252,10 +252,10 @@ lookup_scale track scale_id = do
 lookup_scale_env :: Cmd.M m => Env.Environ -> Pitch.ScaleId
     -> m (Maybe Scale.Scale)
 lookup_scale_env env scale_id = case lookup env scale_id of
-    Nothing -> return Nothing
+    Nothing -> pure Nothing
     Just (Left err) -> Cmd.throw $ "lookup " <> pretty scale_id <> ": "
         <> pretty err
-    Just (Right scale) -> return $ Just scale
+    Just (Right scale) -> pure $ Just scale
     where
     Derive.LookupScale lookup = Cmd.lookup_scale
 
@@ -264,7 +264,7 @@ scale_from_titles :: Ui.M m => BlockId -> TrackId -> m (Maybe Pitch.ScaleId)
 scale_from_titles block_id track_id = do
     tracks <- maybe [] (uncurry (++)) <$>
         TrackTree.parents_children_of block_id track_id
-    return $ msum $ map scale_of tracks
+    pure $ msum $ map scale_of tracks
     where
     scale_of track = case ParseTitle.title_to_scale (Ui.track_title track) of
         Just scale_id | scale_id /= Pitch.empty_scale -> Just scale_id
@@ -288,7 +288,7 @@ lookup_val track name = justm (lookup_environ track) $ lookup_environ_val name
 lookup_environ_val :: (Ui.M m, Typecheck.Typecheck a) =>
     Env.Key -> Env.Environ -> m (Maybe a)
 lookup_environ_val name env =
-    either (Ui.throw . ("Perf.lookup_environ_val: "<>)) return
+    either (Ui.throw . ("Perf.lookup_environ_val: "<>)) pure
         (Env.checked_val name env)
 
 lookup_environ :: Cmd.M m => Track -> m (Maybe Env.Environ)
@@ -301,7 +301,7 @@ get_environ = fmap (fromMaybe mempty) . lookup_environ
 -- the root performance, and then in the block's performance.
 find_dynamic :: Cmd.M m => Track -> m (Maybe Derive.Dynamic)
 find_dynamic track = lookup_root_dynamic track >>= \case
-    Just dyn -> return $ Just dyn
+    Just dyn -> pure $ Just dyn
     Nothing -> lookup_dynamic (fst track) track
 
 lookup_root_dynamic :: Cmd.M m => Track -> m (Maybe Derive.Dynamic)
@@ -317,7 +317,7 @@ lookup_dynamic perf_block_id (block_id, maybe_track_id) =
         Nothing -> do
             (_, dyn) <- List.find ((==block_id) . fst . fst)
                 (Map.toAscList track_dyns)
-            return dyn
+            pure dyn
         Just track_id -> Map.lookup (block_id, track_id) track_dyns
 
 -- * muted instruments
@@ -330,13 +330,13 @@ muted_im_instruments block_id = do
     muted <- if UiConfig.has_im allocs
         then get_muted_instrument_tracks block_id
         else pure mempty
-    return $ PlayUtil.muted_instruments allocs <> muted
+    pure $ PlayUtil.muted_instruments allocs <> muted
 
 get_muted_instrument_tracks :: Cmd.M m => BlockId -> m (Set ScoreT.Instrument)
 get_muted_instrument_tracks block_id = do
     muted <- Set.toList <$> PlayUtil.get_muted_tracks
     track_instruments <- Cmd.perf_track_instruments <$> get_current block_id
-    return $ Set.unions $
+    pure $ Set.unions $
         map (fromMaybe mempty . (`Map.lookup` track_instruments)) muted
 
 -- | This is like 'Cmd.perf_track_instruments', except it uses the track titles
@@ -364,7 +364,7 @@ lookup_default_environ name = do
         Left err -> Cmd.throw $ caller <> ": " <> err
         Right val -> case Stream.events_of val of
             [] -> Cmd.throw $ caller <> " didn't get the fake event it wanted"
-            event : _ -> return $ Score.event_environ event
+            event : _ -> pure $ Score.event_environ event
     Cmd.require_right id $ Env.checked_val name environ
     where
     caller = "Perf.lookup_default_environ"
@@ -393,14 +393,14 @@ get_realtime :: Cmd.M m => Cmd.Performance -> BlockId -> Maybe TrackId
 get_realtime perf block_id maybe_track_id pos =
     maybe (Cmd.throw $ showt block_id <> " " <> pretty maybe_track_id
             <> " has no tempo information, so it probably failed to derive.")
-        return =<< lookup_realtime perf block_id maybe_track_id pos
+        pure =<< lookup_realtime perf block_id maybe_track_id pos
 
 lookup_realtime :: Cmd.M m => Cmd.Performance -> BlockId -> Maybe TrackId
     -> ScoreTime -> m (Maybe RealTime)
 lookup_realtime perf block_id maybe_track_id pos = do
-    track_ids <- maybe (Ui.track_ids_of block_id) (return . (:[]))
+    track_ids <- maybe (Ui.track_ids_of block_id) (pure . (:[]))
         maybe_track_id
-    return $ msum (map tempo track_ids)
+    pure $ msum (map tempo track_ids)
     where tempo tid = Lists.head $ Cmd.perf_tempo perf block_id tid pos
 
 -- | Like 'get_realtime', but do multiple at once.
@@ -433,8 +433,8 @@ convert :: Ui.M m => (BlockId, [(TrackId, ScoreTime)])
 convert (block_id, track_pos) = do
     view_ids <- Map.keys <$> Ui.views_of block_id
     Ui.lookup_block block_id >>= \case
-        Nothing -> return []
-        Just block -> return [(view_id, tracknum_pos) | view_id <- view_ids]
+        Nothing -> pure []
+        Just block -> pure [(view_id, tracknum_pos) | view_id <- view_ids]
             where tracknum_pos = concatMap (tracknums_of block) track_pos
 
 tracknums_of :: Block.Block -> (TrackId, ScoreTime) -> [(TrackNum, ScoreTime)]
@@ -454,7 +454,7 @@ sub_pos :: Cmd.M m => BlockId -> TrackId -> ScoreTime
 sub_pos block_id track_id pos = fmap (fromMaybe []) $
     justm (Cmd.lookup_performance block_id) $ \perf ->
     justm (lookup_realtime perf block_id (Just track_id) pos) $ \real ->
-    return $ Just $ filter ((/=block_id) . fst) $
+    pure $ Just $ filter ((/=block_id) . fst) $
         Cmd.perf_inv_tempo perf Transport.StopAtEnd real
     -- lookup_realtime gives Nothing if there's no tempo available which is
     -- likely for a newly added track.  Return [] in that case.

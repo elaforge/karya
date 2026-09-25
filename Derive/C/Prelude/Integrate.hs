@@ -54,7 +54,7 @@ c_block_integrate = Derive.transformer Module.prelude "block-integrate" mempty
     ) $ \keep_controls _ deriver -> do
         events <- deriver
         block_integrate keep_controls events
-        return events
+        pure events
 
 block_integrate :: Set ScoreT.Control -> Stream.Stream Score.Event
     -> Derive.Deriver ()
@@ -83,8 +83,8 @@ unwarp :: Ui.M m => BlockId -> Stream.Stream Score.Event
     -> m (Stream.Stream Score.Event)
 unwarp block_id events = ifM (uses_default_tempo block_id)
     (do tempo <- Ui.get_default UiConfig.default_tempo
-        return $ move (RealTime.seconds tempo) events)
-    (return events)
+        pure $ move (RealTime.seconds tempo) events)
+    (pure events)
     where
     move tempo = fmap $ Score.move (*tempo) . Score.duration (*tempo)
 
@@ -136,8 +136,8 @@ c_track_integrate = Derive.transformer Module.prelude "track-integrate" mempty
                 -- it intentionally doesn't retain 'Derive.collect_integrated'.
                 track_integrate block_id track_id $
                     fmap (strip_controls keep) events
-            Nothing -> return ()
-        return Stream.empty
+            Nothing -> pure ()
+        pure Stream.empty
 
 integrate_derive :: Derive.Deriver a -> Derive.Deriver a
 integrate_derive deriver = do
@@ -157,7 +157,7 @@ unwarp_events :: Stream.Stream Score.Event
     -> Derive.Deriver (Stream.Stream Score.Event)
 unwarp_events events = do
     warp <- Internal.get_dynamic Derive.state_warp
-    return $ fmap (unwarp_event (Warp.unwarp warp)) events
+    pure $ fmap (unwarp_event (Warp.unwarp warp)) events
 
 unwarp_event :: (RealTime -> ScoreTime) -> Score.Event -> Score.Event
 unwarp_event to_score event = Score.place start (end - start) event

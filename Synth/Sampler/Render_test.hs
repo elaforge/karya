@@ -98,7 +98,7 @@ testEffect = do
     (_, dir) <- tmpDb
     effect <- makeEffect "test-delay"
     let write = writeQuality Resample.ZeroOrderHold (Just effect) dir
-    return (dir, write)
+    pure (dir, write)
 
 _test_state_deterministic :: IO ()
 _test_state_deterministic = do
@@ -277,7 +277,7 @@ tmpDb = do
     dir <- Testing.tmp_dir "write"
     let write = write_ dir
     writeDb dir
-    return (write, dir)
+    pure (write, dir)
 
 rmPrefixes :: FilePath -> [String] -> IO ()
 rmPrefixes dir prefixes =
@@ -383,7 +383,7 @@ mkNoteEffect dbDir start control vals =
 makeEffect :: Text -> IO Render.InstrumentEffect
 makeEffect name = do
     patch <- EffectC.get name
-    return $ Render.InstrumentEffect
+    pure $ Render.InstrumentEffect
         { _effectPatch = patch
         , _effectConfig = Patch.effect name
         }

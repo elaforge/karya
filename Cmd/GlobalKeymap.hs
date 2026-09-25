@@ -98,7 +98,7 @@ all_keymap_errors :: [Text]
     Keymap.make_keymap (pure_bindings ++ map strip io_bindings)
     where
     strip = second $ \(Cmd.NamedCmd name _) ->
-        Cmd.NamedCmd name (const (return Cmd.Done))
+        Cmd.NamedCmd name (const (pure Cmd.Done))
 
 -- * io cmds
 
@@ -119,7 +119,7 @@ io_bindings = concat
 
 stop_or_play :: Cmd.CmdT IO Cmd.Status
 stop_or_play = Play.cmd_context_stop >>= \case
-    True -> return Cmd.Done
+    True -> pure Cmd.Done
     False -> Cmd.gets (Cmd.state_previous_play . Cmd.state_play) >>= \case
         Nothing -> Cmd.Play <$> Play.root_top
         Just (Cmd.PlayCmd _ cmd) -> Cmd.Play <$> Cmd.lift_id cmd

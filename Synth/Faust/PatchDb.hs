@@ -46,7 +46,7 @@ warnings :: [Text]
             [ "faust: patch code with no patch: " <> name
             | (name, Lists.Second _) <- Maps.pairs pmap patchCode
             ]
-    return $ (errors,)
+    pure $ (errors,)
         [ (name, makePatch imDir patch)
         | (name, Right patch) <- Map.toList pmap
         ]

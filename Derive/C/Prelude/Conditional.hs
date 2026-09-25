@@ -83,11 +83,11 @@ typecheck_tests start = go
     go [] = Derive.throw "not enough values"
     go [x] = do
         final <- typecheck x
-        return ([], final)
+        pure ([], final)
     go (val : result : rest) = do
         checked <- (,) <$> typecheck val <*> typecheck result
         (rest, final) <- go rest
-        return (checked : rest, final)
+        pure (checked : rest, final)
     typecheck :: Typecheck.Typecheck a => DeriveT.Val -> Derive.Deriver a
     typecheck = Typecheck.typecheck "" start
 
@@ -126,7 +126,7 @@ c_when_c inverted = Derive.transformer Module.prelude "when-c" mempty
     <*> Sig.defaulted "control" (0 :: Double) "Control."
     ) $ \(val :: Int, control :: Double) _args deriver ->
         if invert (round control == val)
-            then deriver else return Stream.empty
+            then deriver else pure Stream.empty
     where invert = if inverted then not else id
 
 c_when_e :: Derive.Taggable d => Bool -> Derive.Transformer d
@@ -141,15 +141,15 @@ c_when_e inverted = Derive.transformer Module.prelude "when-e" mempty
         \ only that the environ key is set."
     ) $ \(name, maybe_value) _args deriver ->
         ifM (invert $ has_environ name maybe_value) deriver
-            (return Stream.empty)
+            (pure Stream.empty)
     where invert = if inverted then (not <$>) else id
 
 has_environ :: Env.Key -> Maybe DeriveT.Val -> Derive.Deriver Bool
 has_environ name maybe_val = Derive.lookup_val name >>= \case
-    Nothing -> return False
+    Nothing -> pure False
     Just env_val -> case maybe_val of
-        Nothing -> return True
+        Nothing -> pure True
         Just val -> case DeriveT.vals_equal val env_val of
             Nothing -> Derive.throw $ "vals can't be compared: "
                 <> ShowVal.show_val val <> " " <> ShowVal.show_val env_val
-            Just t -> return t
+            Just t -> pure t

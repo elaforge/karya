@@ -49,12 +49,12 @@ test_move_to :: Test
 test_move_to = do
     res <- prepare_blocks UiTest.default_block_name simple_block
     let sel_from p = do
-        res <- return $ CmdTest.run_again res $ do
+        res <- pure $ CmdTest.run_again res $ do
             CmdTest.set_point_sel 1 p
             Cmd.modify_play_state $ \st -> st { Cmd.state_play_step =
                 TimeStep.time_step (TimeStep.Duration 1) }
             StepPlay.cmd_set False
-        return (e_midi res, CmdTest.extract_ui get_sel res)
+        pure (e_midi res, CmdTest.extract_ui get_sel res)
     -- Ensure that cmd_set picks the previous step pos, rounding downward
     -- if the match isn't exact.
     io_equal (sel_from 2) ([Midi.NoteOn Key.d4 127], Right ((Just 1), []))
@@ -66,32 +66,32 @@ test_move :: Test
 test_move = do
     res <- prepare_blocks UiTest.default_block_name simple_block
     -- run cmd_set, verify selection is there
-    res <- return $ CmdTest.run_again res $ do
+    res <- pure $ CmdTest.run_again res $ do
         CmdTest.set_point_sel 1 3
         StepPlay.cmd_set False
     equal (e_midi res) [Midi.NoteOn Key.e4 127]
     equal (CmdTest.extract_ui get_sel res) $ Right (Just 2, [])
 
-    res <- return $ CmdTest.run_again res StepPlay.cmd_advance
+    res <- pure $ CmdTest.run_again res StepPlay.cmd_advance
     equal (e_midi res) [Midi.NoteOff Key.e4 0, Midi.NoteOn Key.f4 127]
     equal (CmdTest.extract_ui get_sel res) $ Right (Just 3, [])
 
-    res <- return $ CmdTest.run_again res StepPlay.cmd_advance
+    res <- pure $ CmdTest.run_again res StepPlay.cmd_advance
     equal (e_midi res) [Midi.NoteOff Key.f4 0]
     equal (CmdTest.extract_ui get_sel res) $ Right (Just 4, [])
 
     -- Ran out of notes.
-    res <- return $ CmdTest.run_again res StepPlay.cmd_advance
+    res <- pure $ CmdTest.run_again res StepPlay.cmd_advance
     equal (e_midi res) []
     left_like (CmdTest.extract_ui get_sel res) "can't advance for step play"
 
     -- Rewind
-    res <- return $ CmdTest.run_again res StepPlay.cmd_rewind
+    res <- pure $ CmdTest.run_again res StepPlay.cmd_rewind
     equal (e_midi res) [Midi.NoteOn Key.f4 127]
     equal (CmdTest.extract_ui get_sel res) $ Right (Just 3, [])
 
     -- Go back forward to make sure zipping is zipping properly.
-    res <- return $ CmdTest.run_again res StepPlay.cmd_advance
+    res <- pure $ CmdTest.run_again res StepPlay.cmd_advance
     equal (e_midi res) [Midi.NoteOff Key.f4 0]
     equal (CmdTest.extract_ui get_sel res) $ Right (Just 4, [])
 
@@ -101,7 +101,7 @@ test_move_tracks = do
         [(UiTest.default_block_name,
             note_track ["4c", "4d", "4e"] ++ note_track ["5c", "5d", "5e"])]
     -- run cmd_set, verify selection is there
-    res <- return $ CmdTest.run_again res $ do
+    res <- pure $ CmdTest.run_again res $ do
         CmdTest.set_point_sel 2 3
         StepPlay.cmd_set True
     equal (e_midi res) [Midi.NoteOn 64 127]
@@ -126,7 +126,7 @@ note_track notes = UiTest.note_spec
 
 prepare_blocks :: Text -> [UiTest.BlockSpec] -> IO (CmdTest.Result ())
 prepare_blocks focus blocks =
-    CmdTest.update_perf ustate $ CmdTest.run ustate cstate (return ())
+    CmdTest.update_perf ustate $ CmdTest.run ustate cstate (pure ())
     where
     ustate = UiTest.exec Ui.empty (UiTest.mkviews blocks)
     cstate = CmdTest.default_cmd_state

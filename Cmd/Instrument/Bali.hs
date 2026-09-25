@@ -47,17 +47,17 @@ pasang_thru scale _attrs input = do
     polos <- Perf.lookup_val track Gangsa.inst_polos
     sangsih <- Perf.lookup_val track Gangsa.inst_sangsih
     p_thru <- case polos of
-        Nothing -> return []
+        Nothing -> pure []
         Just inst -> do
             attrs <- Cmd.get_instrument_attributes inst
             MidiThru.for_instrument inst scale attrs input
     s_thru <- case sangsih of
-        Nothing -> return []
+        Nothing -> pure []
         Just inst -> do
             attrs <- Cmd.get_instrument_attributes inst
             MidiThru.for_instrument inst scale attrs $
                 InputNote.offset_note_id 1 input
-    return $ p_thru ++ s_thru
+    pure $ p_thru ++ s_thru
 
 zero_dur_mute :: Signal.Y -> MidiInst.Code
 zero_dur_mute dyn = zero_dur_mute_with "" (\_ -> Call.multiply_dynamic dyn)

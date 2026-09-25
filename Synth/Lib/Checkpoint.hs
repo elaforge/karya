@@ -86,10 +86,10 @@ skipCheckpoints outputDir initialState hashes = do
     let (skipped, (remainingHashes, stateFname)) =
             findLastState (Set.fromList files) initialState hashes
     mbState <- if null stateFname
-        then return Nothing
+        then pure Nothing
         else Just . State
             <$> ByteString.readFile (outputDir </> checkpointDir </> stateFname)
-    return (skipped, remainingHashes, mbState)
+    pure (skipped, remainingHashes, mbState)
 
 -- | Find the first 'Note.Hash' that doesn't have a matching filename.
 --
@@ -141,7 +141,7 @@ write :: Bool -> FilePath -> Set Id.TrackId -> Config.ChunkNum -> Audio.Frames
     -- ^ Either Error (writtenChunks, total)
 write emitProgress outputDir trackIds skippedCount chunkSize hashes getState
         audio
-    | null hashes = return $ Right (0, skippedCount)
+    | null hashes = pure $ Right (0, skippedCount)
     | otherwise = do
         result <- AUtil.catchSndfile $ Resource.runResourceT $
             Audio.File.writeCheckpoints
@@ -149,7 +149,7 @@ write emitProgress outputDir trackIds skippedCount chunkSize hashes getState
                 AUtil.outputFormat (extendHashes hashes) $
                 Audio.clip emitWarning (fromIntegral skippedCount * chunkSize)
                     maxLevel audio
-        return $ case result of
+        pure $ case result of
             Left err -> Left err
             Right written -> Right (written, written + skippedCount)
     where
@@ -183,7 +183,7 @@ getFilename outputDir getState (chunknum, hash)
         -- XXX 'state' is actually an unsafe pointer to the underlying C state,
         -- so I have to make sure I'm done with it before returning.  This is
         -- super sketchy, but it works now and it is non-copying.
-        fname `DeepSeq.deepseq` return fname
+        fname `DeepSeq.deepseq` pure fname
 
 {- | Write synth state to the checkpointDir.  The filename is derived from the
     audio chunk filename, which presumably has already been written.
@@ -217,7 +217,7 @@ linkOutput updateMtime outputDir fname = do
     when updateMtime $
         Directory.setModificationTime (outputDir </> checkpointDir </> fname)
             =<< Time.getCurrentTime
-    return $ fromMaybe (error $ "no parse: " <> show current) $
+    pure $ fromMaybe (error $ "no parse: " <> show current) $
         Config.isOutputLink $ FilePath.takeFileName current
 
 -- | Remove any remaining output symlinks past the final chunk.

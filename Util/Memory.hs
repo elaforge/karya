@@ -93,7 +93,7 @@ rssVsize = do
     pid <- Posix.Process.getProcessID
     out <- Process.readProcess "ps" ["-p", show pid, "-orss,vsize"] ""
     let [_, [rss, vsize]] = map words (lines out)
-    return (fromK (read rss), fromK (read vsize))
+    pure (fromK (read rss), fromK (read vsize))
 
 -- * RTS
 
@@ -104,7 +104,7 @@ rtsAllocated :: IO Size
 rtsAllocated = do
     System.Mem.performMajorGC
     stats <- GHC.Stats.getRTSStats
-    return $ fromBytes $ GHC.Stats.gcdetails_live_bytes $ GHC.Stats.gc stats
+    pure $ fromBytes $ GHC.Stats.gcdetails_live_bytes $ GHC.Stats.gc stats
 
 stats :: IO GHC.Stats.RTSStats
 stats = do
@@ -116,7 +116,7 @@ stats = do
 rtsAllocated = do
     System.Mem.performMajorGC
     stats <- GHC.Stats.getGCStats
-    return $ fromBytes $ GHC.Stats.currentBytesUsed stats
+    pure $ fromBytes $ GHC.Stats.currentBytesUsed stats
 
 stats :: IO GHC.Stats.GCStats
 stats = do

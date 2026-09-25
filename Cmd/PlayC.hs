@@ -77,7 +77,7 @@ cmd_play_msg ui_chan msg = do
         Msg.Transport status -> transport_msg status
         Msg.DeriveStatus block_id status -> derive_status_msg block_id status
         _ -> Cmd.abort
-    return Cmd.Done
+    pure Cmd.Done
     where
     transport_msg status = case status of
         Transport.Playing -> set_all_play_boxes Config.play_color
@@ -118,7 +118,7 @@ cmd_play_msg ui_chan msg = do
                     liftIO $ update_track_signals ui_chan block_id
                         (Cmd.perf_ui_state perf) (Cmd.perf_track_signals perf)
                     update_highlights ui_chan block_id (Cmd.perf_events perf)
-            _ -> return ()
+            _ -> pure ()
         handle_im_status ui_chan block_id status
     derive_status_color status = case status of
         Msg.OutOfDate {} -> Just $ Color.brightness 1.5 Config.busy_color
@@ -142,7 +142,7 @@ handle_im_status :: Fltk.Channel -> BlockId -> Msg.DeriveStatus
 handle_im_status ui_chan root_block_id = \case
     Msg.DeriveComplete _ Msg.ImStarted ->
         start_im_progress ui_chan root_block_id
-    Msg.DeriveComplete _ Msg.ImUnnecessary -> return ()
+    Msg.DeriveComplete _ Msg.ImUnnecessary -> pure ()
     Msg.ImStatus block_id track_ids status -> case status of
         Msg.ImWaveformsCompleted waveforms ->
             im_waveforms_completed ui_chan block_id track_ids waveforms
@@ -169,7 +169,7 @@ handle_im_status ui_chan root_block_id = \case
                         -- TODO put this at the end?  Or just delete it.
                         Cmd.set_global_status "im cache" $
                             Pretty.bytes 0 (ImGc._remaining stats)
-    _ -> return ()
+    _ -> pure ()
 
 start_im_progress :: Fltk.Channel -> BlockId -> Cmd.CmdT IO ()
 start_im_progress ui_chan block_id = do
@@ -192,7 +192,7 @@ get_im_instrument_tracks block_id = do
     allocs <- Ui.config#UiConfig.allocations_map <#> Ui.get
     let is_im inst = maybe False UiConfig.is_im_allocation $
             Map.lookup inst allocs
-    return $ map fst $ filter (maybe False is_im . snd) $ zip track_ids insts
+    pure $ map fst $ filter (maybe False is_im . snd) $ zip track_ids insts
 
 im_waveforms_completed :: Fltk.Channel -> BlockId -> Set TrackId
     -> [Track.WaveformChunk] -> Cmd.CmdT IO ()
@@ -236,7 +236,7 @@ update_rendering_ranges block_id track_ids instrument range = do
         { Cmd.state_im_progress =
             Map.insert block_id merged $ Cmd.state_im_progress st
         }
-    return $ track_ranges merged track_ids
+    pure $ track_ranges merged track_ids
 
 track_ranges :: Map TrackId (Map ScoreT.Instrument (RealTime, RealTime))
     -> [TrackId] -> [(TrackId, (RealTime, RealTime))]
@@ -252,10 +252,10 @@ range_to_selection :: Cmd.M m => BlockId -> (TrackId, (RealTime, RealTime))
     -> m [((BlockId, TrackId), ((ScoreTime, ScoreTime), Color.Color))]
 range_to_selection block_id (track_id, (start, end)) = do
     inv_tempo <- Perf.get_inverse_tempo block_id
-    return $ fromMaybe [] $ do
+    pure $ fromMaybe [] $ do
         start <- to_score inv_tempo block_id track_id start
         end <- to_score inv_tempo block_id track_id end
-        return $ map ((block_id, track_id),)
+        pure $ map ((block_id, track_id),)
             [ ((start, end), Config.im_working_color)
             , ((end, end_of_track), Config.im_pending_color)
             ]
@@ -299,12 +299,12 @@ rendering_tracks block_id state = Ui.eval state $ do
     view_ids <- Map.keys <$> Ui.views_of block_id
     blocks <- mapM Ui.block_of view_ids
     btracks <- mapM get_tracks blocks
-    return $ do
+    pure $ do
         (view_id, tracks) <- zip view_ids btracks
         ((tracknum, track_id, flags), track) <- tracks
         -- I don't want to send even an empty signal to these.
         guard $ not $ Block.is_collapsed flags
-        return
+        pure
             ( view_id, track_id, tracknum
             , Block.track_wants_signal flags track
             )
@@ -349,7 +349,7 @@ resolve_tracks = concatMapM resolve
     resolve ((block_id, track_id), val) = do
         tracknum <- Ui.get_tracknum_of block_id track_id
         view_ids <- Map.keys <$> Ui.views_of block_id
-        return [((view_id, tracknum), val) | view_id <- view_ids]
+        pure [((view_id, tracknum), val) | view_id <- view_ids]
 
 event_highlights :: BlockId -> Map Color.Highlight Color.Color
     -> Vector.Vector Score.Event
@@ -395,7 +395,7 @@ play ui_chan ui_state transport_info
     -- Pass the current state in the MVar.  ResponderSync will keep it up
     -- to date afterwards, but only if blocks are added or removed.
     MVar.modifyMVar_ (Transport.info_state transport_info) $
-        const (return ui_state)
+        const (pure ui_state)
     whenJust play_im_direct $ \args -> do
         Transport.player_started players
         void $ Thread.start $ play_im_direct_thread play_ctl args
@@ -405,10 +405,10 @@ play ui_chan ui_state transport_info
             state <- monitor_state ui_chan transport_info play_ctl players
                 inv_tempo repeat_at
             play_monitor_thread state
-        Nothing -> return ()
+        Nothing -> pure ()
     Thread.start $ wait_for_players play_ctl
         (Transport.info_send_status transport_info) players
-    return play_ctl
+    pure play_ctl
 
 wait_for_players :: Transport.PlayControl -> (Transport.Status -> IO ())
     -> Transport.ActivePlayers -> IO ()
@@ -452,7 +452,7 @@ monitor_state ui_chan transport_info play_ctl players inv_tempo_func
     -- This won't be exactly the same as the renderer's ts offset, but
     -- it's probably close enough.
     offset <- get_now
-    return $ MonitorState
+    pure $ MonitorState
         { monitor_players = players
         , monitor_play_ctl = play_ctl
         , monitor_offset = offset
@@ -485,10 +485,10 @@ monitor_loop state = do
     now <- maybe id (flip Num.fmod) (monitor_repeat_at state)
         . subtract (monitor_offset state) <$> monitor_get_now state
     let fail err = Log.error ("state error in play monitor: " <> showt err)
-            >> return []
+            >> pure []
     ui_state <- MVar.readMVar (monitor_ui_state state)
     let block_pos = monitor_inv_tempo_func state Transport.StopAtEnd now
-    play_pos <- fmap extend_to_track_0 $ either fail return $
+    play_pos <- fmap extend_to_track_0 $ either fail pure $
         Ui.eval ui_state $ Perf.block_pos_to_play_pos block_pos
     Sync.set_play_position (monitor_ui_channel state) play_pos
 
@@ -496,7 +496,7 @@ monitor_loop state = do
             [(view_id, map fst num_pos) | (view_id, num_pos) <- play_pos]
     Sync.clear_play_position (monitor_ui_channel state) $ map fst $ Set.toList $
         Set.difference (monitor_active_sels state) active_sels
-    state <- return $ state { monitor_active_sels = active_sels }
+    state <- pure $ state { monitor_active_sels = active_sels }
 
     done <- orM
         -- out of score

@@ -56,7 +56,7 @@ run_pasang input =
         scale <- Perf.get_scale =<< Selection.track
         Cmd.lift_id $ mapM_ Cmd.write_thru
             =<< Bali.pasang_thru scale mempty input
-        return Cmd.Continue
+        pure Cmd.Continue
     where
     cmd_state = DeriveTest.setup_cmd setup CmdTest.default_cmd_state
     ui_state = DeriveTest.setup_ui setup $

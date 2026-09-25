@@ -143,13 +143,13 @@ checkpoint_sequence :: Git.Repo -> [(Text, Ui.StateId ())]
     -> IO [(Ui.State, SaveGit.Commit)]
 checkpoint_sequence repo actions = apply (Ui.empty, Nothing) actions
     where
-    apply _ [] = return []
+    apply _ [] = pure []
     apply (prev_state, prev_commit) ((name, action) : actions) = do
         let (state, ui_updates) = diff prev_state action
         Right commit <- SaveGit.checkpoint user repo
             (SaveGit.SaveHistory state prev_commit ui_updates [name])
         rest <- apply (state, Just commit) actions
-        return $ (strip state, commit) : rest
+        pure $ (strip state, commit) : rest
 
 diff :: Ui.State -> Ui.StateId a -> (Ui.State, [Update.UiUpdate])
 diff state modify = (state2, ui_updates)

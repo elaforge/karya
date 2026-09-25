@@ -51,10 +51,10 @@ convert_event :: RealTime -> Patch.Patch -> Bool -> Score.Event -> Note.Notes
 convert_event srate patch triggered event = run $ do
     pitch <- if Map.member Patch.c_pitch (Patch.controls patch)
         then Just <$> convert_pitch event
-        else return Nothing
+        else pure Nothing
     let controls = maybe id (add_control Patch.c_pitch) pitch $
             Score.event_controls event
-    return $ Note.Note
+    pure $ Note.Note
         { patch = Patch.name patch
         , start = Score.event_start event
         , controls = Map.insert Note.gate_id gate $
@@ -103,4 +103,4 @@ convert_pitch event = do
     let (sig, warns) = Score.nn_signal event
     unless (null warns) $ Log.warn $
         "convert pitch: " <> Text.intercalate ", " (map pretty warns)
-    return sig
+    pure sig

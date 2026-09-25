@@ -137,7 +137,7 @@ c_show_args = Derive.generator module_ "show-args" mempty "doc" $
     Sig.call (Sig.many_vals "arg" "doc") $ \_ args -> do
         Log.warn $ Text.intercalate ", " $
             map ShowVal.show_val (Derive.passed_vals args)
-        return Stream.empty
+        pure Stream.empty
 
 generator :: Derive.Taggable d =>
     (Derive.PassedArgs d -> Derive.Deriver (Stream.Stream d))

@@ -54,14 +54,14 @@ import           Types
 perform_file :: Cmd.Config -> FilePath -> IO [Midi.WriteMessage]
 perform_file cmd_config fname = do
     (ui_state, cmd_state) <- load_score_states cmd_config fname
-    root_id <- maybe (errorIO $ txt fname <> ": no root block") return $
+    root_id <- maybe (errorIO $ txt fname <> ": no root block") pure $
         Ui.config#UiConfig.root #$ ui_state
     ((events, logs), _cpu) <- timed_derive fname ui_state cmd_state root_id
     mapM_ Log.write logs
     ((msgs, logs), _cpu) <- timed_perform cmd_state ("perform " ++ fname)
         ui_state events
     mapM_ Log.write logs
-    return msgs
+    pure msgs
 
 timed_perform :: Cmd.State -> FilePath -> Ui.State
     -> Vector.Vector Score.Event -> IO (([Midi.WriteMessage], [Log.Msg]), CPU)
@@ -70,17 +70,17 @@ timed_perform cmd_state fname state events =
         let (msgs, logs) = LEvent.partition $
                 perform_midi cmd_state state events
         Testing.force (msgs, logs)
-        return (msgs, logs)
+        pure (msgs, logs)
 
 timed_derive :: FilePath -> Ui.State -> Cmd.State -> BlockId
     -> IO ((Vector.Vector Score.Event, [Log.Msg]), CPU)
 timed_derive fname ui_state cmd_state block_id = do
     let (perf, logs) = Performance.derive ui_state cmd_state block_id
     (_, cpu) <- time ("derive " <> txt fname) (timer_msg Vector.length) $ do
-        () <- return $ Msg.force_performance perf
-        return $! Cmd.perf_events perf
+        () <- pure $ Msg.force_performance perf
+        pure $! Cmd.perf_events perf
     let warns = filter ((>=Log.Warn) . Log.msg_priority) (Cmd.perf_logs perf)
-    return ((Cmd.perf_events perf, warns ++ logs), cpu)
+    pure ((Cmd.perf_events perf, warns ++ logs), cpu)
 
 -- | This is like 'timed_derive', except that it does more work itself
 -- rather than calling Performance.derive.  This can be more convenient to
@@ -89,14 +89,14 @@ timed_derive2 :: FilePath -> Ui.State -> Cmd.State -> BlockId
     -> IO ((Vector.Vector Score.Event, [Log.Msg]), CPU)
 timed_derive2 fname ui_state cmd_state block_id =
     case derive_block ui_state cmd_state block_id of
-        Left err -> return ((mempty, [Log.msg Log.Warn Nothing err]), 0)
+        Left err -> pure ((mempty, [Log.msg Log.Warn Nothing err]), 0)
         Right (result, cmd_logs) -> do
             let (events, derive_logs) = first Vector.fromList $
                     Stream.partition $ Derive.r_events result
                 msg = "derive " <> txt fname <> " " <> pretty block_id
             (events, cpu) <- time msg (timer_msg Vector.length)
-                (return $! events)
-            return
+                (pure $! events)
+            pure
                 ( (events, cmd_logs ++ filter (not . boring) derive_logs)
                 , cpu
                 )
@@ -110,15 +110,15 @@ timed_derive2 fname ui_state cmd_state block_id =
 timed_lilypond :: FilePath -> Ui.State -> Cmd.State -> BlockId
     -> IO ((Either Log.Msg Text, [Log.Msg]), CPU)
 timed_lilypond fname ui_state cmd_state block_id = case result of
-    Left err -> return ((Left $ Log.msg Log.Warn Nothing err, []), 0)
+    Left err -> pure ((Left $ Log.msg Log.Warn Nothing err, []), 0)
     Right (levents, cmd_logs) -> do
         let (events, derive_logs) = Stream.partition levents
         (events, cpu) <- time ("lilypond " <> txt fname)
-            (timer_msg length) (return $! events)
+            (timer_msg length) (pure $! events)
         let (result, ly_logs) = Cmd.Lilypond.extract_movements
                 config "title" events
         let logs = cmd_logs ++ filter (not . boring) derive_logs ++ ly_logs
-        return ((Lazy.toStrict <$> result, logs), cpu)
+        pure ((Lazy.toStrict <$> result, logs), cpu)
     where
     result = run_cmd ui_state cmd_state $
         Derive.r_events <$> Cmd.Lilypond.derive_block block_id
@@ -162,9 +162,9 @@ perform_midi cmd_state ui_state events =
 
 load_score_states :: Cmd.Config -> FilePath -> IO (Ui.State, Cmd.State)
 load_score_states cmd_config fname = do
-    (ui_state, library, aliases) <- either errorIO return
+    (ui_state, library, aliases) <- either errorIO pure
         =<< load_score fname
-    return (ui_state, add_library library aliases cmd_state)
+    pure (ui_state, add_library library aliases cmd_state)
     where
     cmd_state = Cmd.initial_state cmd_config
 
@@ -183,11 +183,11 @@ load_score fname =
             Cmd.SaveRepo repo -> do
                 (state, _, _) <- require_right $
                     SaveGit.load (Path.to_path repo) Nothing
-                return (state, FilePath.takeDirectory (Path.to_path repo))
+                pure (state, FilePath.takeDirectory (Path.to_path repo))
             Cmd.SaveState fname -> do
                 state <- require_right $ first pretty <$>
                     Save.read_state_ (Path.to_path fname)
-                return (state, FilePath.takeDirectory (Path.to_path fname))
+                pure (state, FilePath.takeDirectory (Path.to_path fname))
         app_dir <- liftIO Path.get_app_dir
         let paths = dir : map (Path.to_absolute app_dir) Config.ky_paths
         (builtins, aliases, allocs) <- require_right $
@@ -212,7 +212,7 @@ cmd_config inst_db = do
     interface <- StubMidi.interface
     app_dir <- Path.get_app_dir
     save_dir <- Path.canonical $ Path.to_absolute app_dir Config.save_dir
-    return $ Cmd.Config
+    pure $ Cmd.Config
         { config_app_dir = app_dir
         , config_save_dir = save_dir
         , config_midi_interface = interface
@@ -245,11 +245,11 @@ time msg show_val op = do
     IO.hFlush IO.stdout
     result <- Exception.try $ Thread.timeAction $ do
         !val <- op
-        return val
+        pure val
     case result of
         Right (val, metric) -> do
             putStrLn $ show_val metric val
-            return (val, Thread.metricCpu metric)
+            pure (val, Thread.metricCpu metric)
         Left (exc :: Exception.SomeException) -> do
             -- Complete the line so the exception doesn't interrupt it.  This
             -- is important if it's a 'failure' line!

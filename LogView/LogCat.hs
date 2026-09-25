@@ -23,7 +23,7 @@ main = do
     Encoding.setLocaleEncoding Encoding.utf8
     args <- Environment.getArgs
     hdl <- case args of
-        [] -> return IO.stdin
+        [] -> pure IO.stdin
         [fn] -> IO.openFile fn IO.ReadMode
         _ -> error "usage: logcat [filename]"
     IO.hSetBuffering hdl IO.LineBuffering

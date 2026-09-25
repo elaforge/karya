@@ -39,7 +39,7 @@ lookup_scale name args = do
     scale_calls <- Derive.gets $
         Derive.state_scale_calls . Derive.state_constant
     case Map.lookup name scale_calls of
-        Nothing -> return Nothing
+        Nothing -> pure Nothing
         Just scall -> Just <$> Derive.scall_call scall args
 
 -- | Scale calls always use Sig.Unprefixed.  This makes them inconsistent with
@@ -175,12 +175,12 @@ notes scale environ = go (pitches scale environ)
 note_numbers :: Scale -> Env.Environ -> Derive.Deriver [Pitch.NoteNumber]
 note_numbers scale environ = go (notes scale environ)
     where
-    go [] = return []
+    go [] = pure []
     go (note : notes) = do
         pitch <- Eval.eval_note scale note
         case PSignal.pitch_nn pitch of
             Right nn -> (nn:) <$> go notes
-            Left (DeriveT.OutOfRangeError {}) -> return []
+            Left (DeriveT.OutOfRangeError {}) -> pure []
             Left err -> Derive.throw $ "note_numbers: " <> pretty err
 
 -- | Make a patch scale from the NoteNumbers.

@@ -92,7 +92,7 @@ show_history = do
     hist <- Pretty.formatted <$> Cmd.gets Cmd.state_history
     config <- Pretty.formatted <$> Cmd.gets Cmd.state_history_config
     collect <- Pretty.formatted <$> Cmd.gets Cmd.state_history_collect
-    return $ Text.unlines $ map Text.strip [save_file, hist, config, collect]
+    pure $ Text.unlines $ map Text.strip [save_file, hist, config, collect]
 
 -- * extract from Performance
 
@@ -100,7 +100,7 @@ track_signal :: Cmd.CmdL (Maybe Track.TrackSignal)
 track_signal = do
     (block_id, _, track_id, _) <- Selection.get_insert
     perf <- LPerf.get block_id
-    return $ Map.lookup (block_id, track_id) (Cmd.perf_track_signals perf)
+    pure $ Map.lookup (block_id, track_id) (Cmd.perf_track_signals perf)
 
 -- | Get collected warps of a specific track.
 get_warps :: Cmd.M m => BlockId -> TrackId -> m [TrackWarp.TrackWarp]
@@ -109,7 +109,7 @@ get_warps block_id track_id = do
     let track_warps = Cmd.perf_warps perf
         warps = [tw | tw <- track_warps, TrackWarp.tw_block tw == block_id,
             Set.member track_id (TrackWarp.tw_tracks tw)]
-    return $ map (\w -> w { TrackWarp.tw_warp = Warp.identity }) warps
+    pure $ map (\w -> w { TrackWarp.tw_warp = Warp.identity }) warps
 
 -- | Get all raw uncollected TrackWarps from the root, and strip out the
 -- signals so they don't take up tons of space.
@@ -120,7 +120,7 @@ get_track_warps = do
             Derive.r_state result
     let strip (TrackWarp.Track s e _warp bid tid) =
             TrackWarp.Track s e Warp.identity bid tid
-    return $ strip <$> wmap
+    pure $ strip <$> wmap
 
 -- ** cache
 
@@ -129,7 +129,7 @@ cache_logs :: BlockId -> Cmd.CmdL Text
 cache_logs block_id = do
     perf <- Cmd.get_performance block_id
     let logs = filter wanted $ Cmd.perf_logs perf
-    return $ Text.unlines
+    pure $ Text.unlines
         [ Texts.join2 ": " (format_stack msg) (Log.msg_text msg)
         | msg <- logs
         ]
@@ -142,7 +142,7 @@ cache_stats :: BlockId -> Cmd.CmdL String
 cache_stats block_id = do
     block <- block_cache block_id
     track <- track_cache block_id
-    return $ unlines
+    pure $ unlines
         ["block:", format_stats block, "track:", format_stats track]
 
 -- | Get summarized stats for cached blocks.
@@ -157,7 +157,7 @@ track_cache block_id = do
     (rederived, cached) <- (bimap rederived_block cached_block)
         . Play.extract_cache_stats Play.get_track_id . Cmd.perf_logs
         <$> Cmd.get_performance block_id
-    return (rederived, cached)
+    pure (rederived, cached)
     where
     rederived_block = map (second $ map snd . filter ((==block_id) . fst))
     cached_block = map (first snd) . filter ((==block_id) . fst . fst)

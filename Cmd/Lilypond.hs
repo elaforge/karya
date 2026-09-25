@@ -65,7 +65,7 @@ derive deriver = do
     ui_state <- Ui.get
     (constant, aliases) <-
         PlayUtil.get_constant (add_ly_global ui_state) mempty mempty
-    return $ Derive.extract_result $
+    pure $ Derive.extract_result $
         Derive.derive (set_tempo constant)
             (set_mode config (PlayUtil.initial_dynamic aliases))
             (Derive.with_scopes lilypond_scope deriver)
@@ -150,7 +150,7 @@ ly_filename :: Cmd.M m => Lilypond.Title -> m FilePath
 ly_filename title = do
     dir <- Cmd.require "ly_filename: no save dir"
         =<< Cmd.gets Cmd.state_save_dir
-    return $ dir </> "ly" </> untxt (clean title) ++ ".ly"
+    pure $ dir </> "ly" </> untxt (clean title) ++ ".ly"
     where
     clean = Text.map replace . Text.toLower
     replace '/' = '-'

@@ -31,7 +31,7 @@ listenUnix fname = do
     Socket.withFdSocket socket Socket.setCloseOnExecIfNeeded
     Socket.bind socket (Socket.SockAddrUnix fname)
     Socket.listen socket 1
-    return socket
+    pure socket
 
 -- | Like 'withConnection', but use a high level IO.Handle.
 withHandle :: Addr -> (IO.Handle -> IO a) -> IO a
@@ -43,7 +43,7 @@ withHandle addr action = withConnection addr $ \socket ->
 -- exceptions pass through.
 withHandle_ :: Addr -> (IO.Handle -> IO ()) -> IO ()
 withHandle_ addr action =
-    Exception.handleJust isConnectError (const $ return ()) $
+    Exception.handleJust isConnectError (const $ pure ()) $
         withHandle addr action
 
 -- | Connect to the Addr and run the action with the socket.

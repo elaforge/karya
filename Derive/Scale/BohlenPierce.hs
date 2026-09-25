@@ -71,7 +71,7 @@ note_to_call smap note =
 -- TODO frac should always be 0, right?
 semis_to_nn :: ChromaticScales.SemisToNoteNumber
 semis_to_nn (PSignal.PitchConfig env controls) fsemi =
-    return $ Pitch.hz_to_nn $ Num.scale hz1 hz2 frac
+    pure $ Pitch.hz_to_nn $ Num.scale hz1 hz2 frac
     where
     hz1 = degree_to_hz base_hz tonic degree
     hz2 = degree_to_hz base_hz tonic (degree + 1)

@@ -52,7 +52,7 @@ scale_degree scale pitch_nn pitch_note = Derive.val_call Module.scale
         let config = PSignal.PitchConfig env controls
             controls = if frac == 0 then mempty
                 else Map.singleton Controls.chromatic (frac / 100)
-        return $! PSignal.pitch scale
+        pure $! PSignal.pitch scale
             (\config -> add_absolute_transposers config <$> pitch_nn config)
             pitch_note config
 
@@ -103,7 +103,7 @@ scale_degree_just scale named_intervals extra_interval pitch_nn pitch_note =
     $ \intervals _ -> do
         interval <- resolve_intervals named_intervals intervals
         env <- Derive.get_environ
-        return $! PSignal.pitch scale
+        pure $! PSignal.pitch scale
             (\config -> modify (extra_interval*interval) config <$>
                 pitch_nn config)
             pitch_note (PSignal.PitchConfig env mempty)
@@ -155,7 +155,7 @@ relative_scale_degree scale named_intervals initial_interval =
 resolve_intervals :: NamedIntervals -> [Either Pitch.Hz Text]
     -> Derive.Deriver Pitch.Hz
 resolve_intervals named_intervals intervals =
-    product . map unsign <$> mapM (either return resolve) intervals
+    product . map unsign <$> mapM (either pure resolve) intervals
     where
     resolve text = Derive.require ("unknown named interval: " <> showt text) $
         resolve_interval named_intervals text

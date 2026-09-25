@@ -123,11 +123,11 @@ apply_generator ctx call args = do
         Derive.ScoreDurationQuery -> do
             dur <- Derive.gfunc_score_duration (Derive.call_func call) passed
             set_score_duration dur
-            return Stream.empty
+            pure Stream.empty
         Derive.RealDurationQuery -> do
             dur <- Derive.gfunc_real_duration (Derive.call_func call) passed
             set_real_duration dur
-            return Stream.empty
+            pure Stream.empty
         _ -> do
             -- Ensure a unique serial number for each generator call, as
             -- documneted in 'Stack.Serial'.
@@ -169,7 +169,7 @@ eval_transform_expr name expr_str deriver
     | otherwise = do
         expr <- case Parse.parse_expr expr_str of
             Left err -> Derive.throw $ name <> ": " <> err
-            Right expr -> return expr
+            Right expr -> pure expr
         let ctx = Derive.dummy_context 0 1 name
         eval_transformers ctx (NonEmpty.toList expr) deriver
 
@@ -209,7 +209,7 @@ apply_transformers ctx calls deriver = foldr apply deriver calls
 {-# SCC eval #-}
 eval :: Derive.Taggable a => Derive.Context a -> DeriveT.Term
     -> Derive.Deriver DeriveT.Val
-eval _ (Expr.Literal val) = return val
+eval _ (Expr.Literal val) = pure val
 eval ctx (Expr.ValCall (Expr.Call sym terms)) = do
     call <- get_val_call sym
     apply (Derive.tag_context ctx) call terms
@@ -251,7 +251,7 @@ get_track_call sym =
     where name = Derive.callable_name (Proxy :: Proxy (Derive.TrackCall d))
 
 require_call :: Bool -> Expr.Symbol -> Text -> Maybe a -> Derive.Deriver a
-require_call _ _ _ (Just a) = return a
+require_call _ _ _ (Just a) = pure a
 require_call is_generator sym name Nothing = do
     -- If the call wasn't found, it can be seen as a block call whose block
     -- doesn't exist yet.  If it is created later, I have to know that this
@@ -341,7 +341,7 @@ eval_one_at collect start dur expr = eval_expr collect ctx expr
 eval_event :: Derive.CallableExpr d => Event.Event
     -> Derive.Deriver (Either Text (Stream.Stream d))
 eval_event event = case Parse.parse_expr (Event.text event) of
-    Left err -> return $ Left err
+    Left err -> pure $ Left err
     Right expr -> Right <$>
         -- TODO eval it separately to catch any exception?
         eval_one_at False (Event.start event) (Event.duration event) expr
@@ -389,7 +389,7 @@ eval_pitch :: ScoreTime -> DeriveT.PitchCall
 eval_pitch pos call = do
     pitch <- Typecheck.typecheck ("eval pitch " <> ShowVal.show_val call) pos
         =<< eval ctx (Expr.ValCall call)
-    return $ PSignal.coerce (pitch :: PSignal.Pitch)
+    pure $ PSignal.coerce (pitch :: PSignal.Pitch)
     where
     ctx :: Derive.Context Derive.Pitch
     ctx = Derive.dummy_context pos 0 "<eval_pitch>"
@@ -407,7 +407,7 @@ apply_pitch :: ScoreTime -> Derive.ValCall
     -> Derive.Deriver (PSignal.RawPitch a)
 apply_pitch pos call = do
     pitch <- Typecheck.typecheck msg pos =<< apply ctx call []
-    return $ PSignal.coerce (pitch :: PSignal.Pitch)
+    pure $ PSignal.coerce (pitch :: PSignal.Pitch)
     where
     msg = "apply pitch: " <> showt (Derive.call_name call)
     ctx = Derive.dummy_context pos 0 "<apply_pitch>"

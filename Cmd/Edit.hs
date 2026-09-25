@@ -275,7 +275,7 @@ modify_neighbor modify ctx
                 Ui.remove_event track_id event
                 Ui.insert_event track_id $ modify (pos, pos) event
     selection range = ModifyEvents.ctx_selection_visible
-        (ModifyEvents.events $ return . map (modify range)) ctx
+        (ModifyEvents.events $ pure . map (modify range)) ctx
 
 -- | Like 'Selection.events_around', but if a point selection is on an event
 -- start, find a neighbor instead of matching that event.
@@ -314,7 +314,7 @@ cmd_toggle_zero_timestep = do
 toggle_zero_timestep :: Cmd.M m => BlockId -> TrackNum
     -> TrackTime -> TrackTime -> Event.Event -> m Event.Event
 toggle_zero_timestep block_id tracknum start end event
-    | Event.duration event /= 0 = return $
+    | Event.duration event /= 0 = pure $
         Event.duration_ #= (if Event.is_negative event then -0 else 0) $ event
     | start == end && start == Event.start event = do
         step <- Cmd.get_current_step
@@ -322,11 +322,11 @@ toggle_zero_timestep block_id tracknum start end event
             (if Event.is_negative event then -1 else 1) step block_id tracknum
             start
         case maybe_pos of
-            Nothing -> return event
-            Just pos -> return $ Event.set_end pos event
+            Nothing -> pure event
+            Just pos -> pure $ Event.set_end pos event
     | Event.is_negative event =
-        return $ Event.duration_ #= (start - Event.start event) $ event
-    | otherwise = return $ Event.duration_ #= (end - Event.start event) $ event
+        pure $ Event.duration_ #= (start - Event.start event) $ event
+    | otherwise = pure $ Event.duration_ #= (end - Event.start event) $ event
 
 -- | Move only the beginning of an event.  As is usual for zero duration
 -- events, their duration will not be changed so this is equivalent to a move.
@@ -395,7 +395,7 @@ cmd_join_events = join_selected =<< Selection.events_around
             join track_id prev cur
             where nearest = (Event.start cur +) <$> distance
         (_, events@(_:_:_), _) -> join track_id (head events) (last events)
-        _ -> return ()
+        _ -> pure ()
     join track_id evt1 evt2 =
         case (Event.is_positive evt1, Event.is_positive evt2) of
             (True, True) -> do
@@ -407,7 +407,7 @@ cmd_join_events = join_selected =<< Selection.events_around
                 Ui.insert_event track_id $ if Event.duration evt2 == 0
                     then evt2
                     else Event.set_end (Event.end evt1) evt2
-            _ -> return () -- no sensible way to join these
+            _ -> pure () -- no sensible way to join these
 
 
 -- | Split the events under the cursor.
@@ -415,7 +415,7 @@ cmd_split_events :: Cmd.M m => m ()
 cmd_split_events = do
     p <- Selection.point
     ModifyEvents.overlapping $ ModifyEvents.events $
-        return . concatMap (split p)
+        pure . concatMap (split p)
     where
     split p event
         | not (Event.overlaps p event) || p == Event.start event = [event]
@@ -441,7 +441,7 @@ cmd_insert_time = do
     when (end > start) $ forM_ track_ids $ \track_id -> do
         events <- Ui.get_events track_id
         case Events.split_at_before start events of
-            (_, []) -> return ()
+            (_, []) -> pure ()
             (_, events@(event:_)) -> do
                 Ui.modify_events_from track_id (min (Event.start event) start)
                     (const mempty)
@@ -487,7 +487,7 @@ delete_time block_id track_id start dur = do
         Ui.throw $ "delete_time: negative dur " <> pretty dur
     events <- Ui.get_events track_id
     case Events.split_at_before start events of
-        (_, []) -> return ()
+        (_, []) -> pure ()
         (_, events@(event:_)) -> do
             Ui.modify_events_from track_id (min (Event.start event) start)
                 (const mempty)
@@ -532,9 +532,9 @@ point_to_timestep (tracknum:_) start end
         block_id <- Cmd.get_focused_block
         step <- Cmd.get_current_step
         pos <- TimeStep.advance step block_id tracknum end
-        return (start, fromMaybe end pos)
-    | otherwise = return (start, end)
-point_to_timestep [] start end = return (start, end)
+        pure (start, fromMaybe end pos)
+    | otherwise = pure (start, end)
+point_to_timestep [] start end = pure (start, end)
 
 -- | If the insertion selection is a point, clear any event under it.  If it's
 -- a range, clear all events within its half-open extent.
@@ -556,7 +556,7 @@ cmd_clear_and_advance = do
     removed <- if is_point
         then not . Events.null . Events.in_range range <$>
             Ui.get_events (head track_ids)
-        else return False
+        else pure False
     clear_range track_ids range
     when is_point $ do
         -- Originally Cmd.NoteTrack deleted the pitch track too, but it seems
@@ -624,11 +624,11 @@ lookup_call_duration :: Cmd.M m => BlockId -> TrackId -> Event.Event
     -> m (Maybe TrackTime)
 lookup_call_duration block_id track_id event =
     Perf.lookup_note_deriver block_id track_id event >>= \case
-        Nothing -> return Nothing
+        Nothing -> pure Nothing
         Just deriver -> do
             result <- Perf.derive_at_throw block_id track_id $
                 Derive.get_score_duration deriver
-            return $ case result of
+            pure $ case result of
                 Left _ -> Nothing
                 Right Derive.Unknown -> Just $ Event.duration event
                 Right (Derive.CallDuration dur) -> Just dur
@@ -785,7 +785,7 @@ open_floating selection = do
     let open_pos = pos - case orient of
             Types.Negative -> Zoom.to_time zoom Config.track_title_height
             Types.Positive -> 0
-    return $ Cmd.FloatingInput $ Cmd.FloatingOpen view_id tracknum open_pos text
+    pure $ Cmd.FloatingInput $ Cmd.FloatingOpen view_id tracknum open_pos text
         (selection text)
 
 event_text_at :: Ui.M m => TrackId -> TrackTime -> Types.Orientation
@@ -820,7 +820,7 @@ handle_floating_input always_zero_dur msg = do
         | otherwise -> Just dur
     when (old_text == Nothing) $
         try_set_call_duration block_id track_id start (Event.orientation_of dur)
-    return Cmd.Done
+    pure Cmd.Done
 
 -- | Set the event's duration to its CallDuration, if it has one.
 try_set_call_duration :: Cmd.M m => BlockId -> TrackId -> TrackTime

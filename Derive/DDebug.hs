@@ -21,9 +21,9 @@ apply_sub :: Functor f => (a -> f b) -> SubT.EventT a -> f (SubT.EventT b)
 apply_sub f (SubT.EventT s d n) = SubT.EventT s d <$> f n
 
 showr :: Maybe Derive.NoteDeriver -> Derive.Deriver Text
-showr = maybe (return "-") showd
+showr = maybe (pure "-") showd
 
 showd :: Derive.NoteDeriver -> Derive.Deriver Text
 showd d = do
     es <- Stream.events_of <$> d
-    return $ maybe "?" Pitch.note_text $ Score.initial_note =<< Lists.head es
+    pure $ maybe "?" Pitch.note_text $ Score.initial_note =<< Lists.head es

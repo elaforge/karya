@@ -17,18 +17,18 @@ initialize _app_name _want_message app = app . Right =<< interface
 interface :: IO (Interface.RawInterface a)
 interface = do
     chan <- STM.newTChanIO
-    return $ Interface.Interface
+    pure $ Interface.Interface
         { Interface.name = "Stub"
         , Interface.read_channel = chan
-        , Interface.read_devices = return []
-        , Interface.write_devices = return []
-        , Interface.connect_read_device = const (return False)
-        , Interface.disconnect_read_device = const (return False)
-        , Interface.connect_write_device = const (return False)
+        , Interface.read_devices = pure []
+        , Interface.write_devices = pure []
+        , Interface.connect_read_device = const (pure False)
+        , Interface.disconnect_read_device = const (pure False)
+        , Interface.connect_write_device = const (pure False)
         -- Return no error, otherwise I get lots of spam in the logs.
-        , Interface.write_message = const (return Nothing)
-        , Interface.abort = return ()
+        , Interface.write_message = const (pure Nothing)
+        , Interface.abort = pure ()
         , Interface.now = do
             t <- Time.getCurrentTime
-            return $ RealTime.seconds (realToFrac (Time.utctDayTime t))
+            pure $ RealTime.seconds (realToFrac (Time.utctDayTime t))
         }

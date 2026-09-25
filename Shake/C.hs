@@ -59,7 +59,7 @@ binary name objs = Binary
     , binCompile = const []
     , binLink = const []
     , binLibraries = const []
-    , binPostproc = const $ return ()
+    , binPostproc = const $ pure ()
     }
 
 binCompileFlags :: Binary config -> config -> [Flag]

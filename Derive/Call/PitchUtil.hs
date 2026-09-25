@@ -49,7 +49,7 @@ interpolator_call name_suffix (ControlUtil.CurveD name get_arg curve)
     ) $ \(to, time, curve_arg, from) args -> do
         time <- if Args.duration args == 0
             then case interpolator_time of
-                Left _ -> return time
+                Left _ -> pure time
                 Right (get_time, _) -> get_time args
             else DeriveT.RealDuration <$> Args.real_duration args
         (start, end) <- Call.duration_from_start args time
@@ -88,7 +88,7 @@ interpolator_variations = concat
 make_segment_from :: Curve -> RealTime -> Maybe PSignal.Pitch -> RealTime
     -> PitchOrTranspose -> Derive.Deriver PSignal.PSignal
 make_segment_from curve start maybe_from end to = case maybe_from of
-    Nothing -> return $ case to of
+    Nothing -> pure $ case to of
         Left to -> PSignal.from_sample start to
         Right _ -> mempty
     Just from -> make_segment curve start from end
@@ -98,7 +98,7 @@ make_segment :: Curve -> RealTime -> PSignal.Pitch -> RealTime
     -> PSignal.Pitch -> Derive.Deriver PSignal.PSignal
 make_segment curve x1 y1 x2 y2 = do
     srate <- Call.get_srate
-    return $ segment srate curve x1 y1 x2 y2
+    pure $ segment srate curve x1 y1 x2 y2
 
 type Interpolate = RealTime -> PSignal.Pitch -> RealTime -> PSignal.Pitch
     -- ^ start -> starty -> end -> endy

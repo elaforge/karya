@@ -73,14 +73,14 @@ set step_back play_selected_tracks = do
     tracks <- Ui.track_count block_id
     play_tracks <- if play_selected_tracks
         then Sel.tracknums tracks <$> Selection.get
-        else return []
+        else pure []
     initialize view_id block_id play_tracks
     start <- if step_back
         then do
             step <- Cmd.gets (Cmd.state_play_step . Cmd.state_play)
             fromMaybe sel_pos <$>
                 TimeStep.rewind step block_id tracknum sel_pos
-        else return sel_pos
+        else pure sel_pos
     move_to block_id start
 
 make_states :: [RealTime] -> [Midi.WriteMessage] -> [Midi.State.State]
@@ -217,15 +217,15 @@ zip_state step_state forward = do
     unless (null after) $
         put $ Just $
             step_state { Cmd.step_before = before, Cmd.step_after = after }
-    return $ if forward
+    pure $ if forward
         then do
             (_, prev) <- Lists.head before
             (p, next) <- Lists.head after
-            return (Cmd.step_view_id step_state, prev, p, next)
+            pure (Cmd.step_view_id step_state, prev, p, next)
         else do
             (p, next) <- Lists.head (fst zipper)
             (_, prev) <- Lists.head (snd zipper)
-            return (Cmd.step_view_id step_state, prev, p, next)
+            pure (Cmd.step_view_id step_state, prev, p, next)
 
 zip_forward :: ([a], [a]) -> ([a], [a])
 zip_forward (before, []) = (before, [])

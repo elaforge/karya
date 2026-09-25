@@ -142,7 +142,7 @@ alias_prefix :: Text -> Text -> [(Expr.Symbol, call)] -> [(Expr.Symbol, call)]
 alias_prefix from to calls = do
     (Expr.Symbol name, call) <- calls
     Just rest <- [Text.stripPrefix to name]
-    return (Expr.Symbol (from <> rest), call)
+    pure (Expr.Symbol (from <> rest), call)
 
 end_calls :: [(Expr.Symbol, Derive.Generator Derive.Pitch)]
 end_calls =
@@ -267,10 +267,10 @@ sequence_calls ctx (start, end) begin middles maybe_end =
             <- sequence_middles middle_start end_start middles
         (end_pitch, end_mods) <- maybe_eval
             (eval_end start end_start end) maybe_end
-        return (begin_pitch <> middle_pitch <> end_pitch,
+        pure (begin_pitch <> middle_pitch <> end_pitch,
             begin_mods <> middle_mods <> end_mods)
     where
-    maybe_eval = maybe (return (mempty, mempty))
+    maybe_eval = maybe (pure (mempty, mempty))
 
 -- | Special behaviour for the @fade-out@ call, as documented in 'sequence_doc'.
 eval_end :: ScoreTime -> ScoreTime -> ScoreTime -> Expr -> SequenceM Signals
@@ -287,27 +287,27 @@ detached m = do
     st <- Monad.State.get
     val <- m
     Monad.State.put st
-    return val
+    pure val
 
 -- | Give each middle call an even division of the time left.  The call can
 -- use less time if it wishes, and the remaining time will be divided among
 -- the remaining middle calls.  It shouldn't use more time, because then it
 -- could overlap with the end call, or go past the end of the note.
 sequence_middles :: ScoreTime -> ScoreTime -> [Expr] -> SequenceM Signals
-sequence_middles _ _ [] = return (mempty, mempty)
-sequence_middles start end _ | start >= end = return (mempty, mempty)
+sequence_middles _ _ [] = pure (mempty, mempty)
+sequence_middles start end _ | start >= end = pure (mempty, mempty)
 sequence_middles start end (expr:exprs) = do
     let dur = (end - start) / fromIntegral (length exprs + 1)
     (pitch, mods) <- eval middle_module start (start + dur) expr
     sig_end <- lift $ signal_end start pitch
     (pitch_rest, mods_rest) <- sequence_middles sig_end end exprs
-    return (pitch <> pitch_rest, mods <> mods_rest)
+    pure (pitch <> pitch_rest, mods <> mods_rest)
 
 signal_start :: ScoreTime -> PSignal.PSignal -> Derive.Deriver ScoreTime
-signal_start deflt = maybe (return deflt) (Derive.score . fst) .  PSignal.head
+signal_start deflt = maybe (pure deflt) (Derive.score . fst) .  PSignal.head
 
 signal_end :: ScoreTime -> PSignal.PSignal -> Derive.Deriver ScoreTime
-signal_end deflt = maybe (return deflt) (Derive.score . fst) .  PSignal.last
+signal_end deflt = maybe (pure deflt) (Derive.score . fst) .  PSignal.last
 
 eval :: Module.Module -> ScoreTime -> ScoreTime -> Expr -> SequenceM Signals
 eval module_ start end expr = do
@@ -318,7 +318,7 @@ eval module_ start end expr = do
     signal <- mconcat <$> Stream.write_logs result
     unless (PSignal.null signal) $
         Monad.State.put $ ctx { Derive.ctx_prev_val = Just signal }
-    return (signal, cmods)
+    pure (signal, cmods)
 
 place_event :: ScoreTime -> ScoreTime -> Derive.Context d -> Derive.Context d
 place_event start dur ctx = ctx
@@ -401,7 +401,7 @@ c_flat_start = generator1 "flat-start" mempty
         start <- Args.real_start args
         end <- get_end start time args
         pitch <- optional_pitch maybe_pitch <$> Call.get_pitch start
-        return $ PSignal.from_pairs [(start, pitch), (end, pitch)]
+        pure $ PSignal.from_pairs [(start, pitch), (end, pitch)]
 
 c_set_pitch :: Derive.Generator Derive.Pitch
 c_set_pitch = generator1 "set-pitch" mempty "Emit the current pitch.\
@@ -411,7 +411,7 @@ c_set_pitch = generator1 "set-pitch" mempty "Emit the current pitch.\
     $ Sig.call0 $ \args -> do
         start <- Args.real_start args
         pitch <- Call.get_pitch start
-        return $ PSignal.from_sample start pitch
+        pure $ PSignal.from_sample start pitch
 
 data PitchFrom = PitchFromPrev | PitchFromCurrent deriving (Eq, Show)
 data Fade = Fade | NoFade deriving (Eq, Show)
@@ -439,7 +439,7 @@ c_from pitch_from fade = generator1 "from" mempty
         case fade of
             Fade -> ControlUtil.multiply_dyn end
                 =<< ControlUtil.make_segment ControlUtil.Linear start 0 end 1
-            NoFade -> return ()
+            NoFade -> pure ()
         PitchUtil.make_segment curve start from end to_pitch
 
 -- | Get the end time, given a start and a duration.  Don't go beyond the
@@ -452,7 +452,7 @@ get_end start dur args = do
     max_end <- if Args.duration args == 0
         then Derive.real $ Args.next args
         else Args.real_end args
-    return $ min time_end max_end
+    pure $ min time_end max_end
 
 {-
     Reliance on the underlying pitch is awkward.  E.g. jaru and p go to 0, but
@@ -512,11 +512,11 @@ c_jaru append_zero = generator1 "jaru" mempty
         let transition = fromMaybe time maybe_transition
         let sig = jaru curve srate start time transition $
                 NonEmpty.toList intervals ++ if append_zero then [0] else []
-        return $ PSignal.apply_control control (ScoreT.untyped sig) $
+        pure $ PSignal.apply_control control (ScoreT.untyped sig) $
             PSignal.from_sample start pitch
     where
     parse intervals
-        | all (==control) controls = return (xs, control)
+        | all (==control) controls = pure (xs, control)
         | otherwise = Derive.throw "all intervals must have the same type"
         where
         (xs, control :| controls) = NonEmpty.unzip $ NonEmpty.map
@@ -542,8 +542,8 @@ c_flat = generator1 "flat" mempty "Emit a flat pitch."
             Nothing -> prev_pitch start args
             Just transpose -> do
                 pitch <- Call.get_pitch start
-                return $ PitchUtil.resolve_pitch_transpose pitch transpose
-        return $ PSignal.from_pairs [(start, pitch), (end, pitch)]
+                pure $ PitchUtil.resolve_pitch_transpose pitch transpose
+        pure $ PSignal.from_pairs [(start, pitch), (end, pitch)]
 
 -- ** kampita
 
@@ -617,7 +617,7 @@ resolve_pitches kam_args
     when (two_pitches && control1 /= control2) $ Derive.throw $
         "pitch1 and pitch2 signals should have the same type: "
         <> pretty control1 <> " /= " <> pretty control2
-    return ((pitch1, pitch2), control1)
+    pure ((pitch1, pitch2), control1)
 
 kampita_pitch_args :: KampitaArgs
     -> Sig.Parser
@@ -655,7 +655,7 @@ kampita :: RealTime -> Derive.PitchArgs -> ScoreT.Control -> Signal.Control
     -> Derive.Deriver PSignal.PSignal
 kampita start args control transpose = do
     pitch <- prev_pitch start args
-    return $ PSignal.apply_control control (ScoreT.untyped transpose) $
+    pure $ PSignal.apply_control control (ScoreT.untyped transpose) $
         PSignal.from_sample start pitch
 
 -- | You don't think there are too many arguments, do you?
@@ -673,7 +673,7 @@ smooth_trill :: ControlUtil.Curve -> RealTime -> ScoreT.Function
     -> ScoreT.Function -> [RealTime] -> Derive.Deriver Signal.Control
 smooth_trill curve time val1 val2 transitions = do
     srate <- Call.get_srate
-    return $ ControlUtil.smooth_absolute curve srate time $
+    pure $ ControlUtil.smooth_absolute curve srate time $
         trill_from_transitions val1 val2 transitions
 
 -- | Make a trill signal from a list of transition times.
@@ -724,7 +724,7 @@ c_flat_end = generator1 "flat-end" mempty
         (start, end) <- Args.real_range args
         start <- align_to_end start end time
         pitch <- optional_pitch maybe_pitch <$> prev_pitch start args
-        return $ PSignal.from_pairs [(start, pitch), (end, pitch)]
+        pure $ PSignal.from_pairs [(start, pitch), (end, pitch)]
 
 c_to :: Fade -> Derive.Generator Derive.Pitch
 c_to fade = generator1 "to" mempty "Go to a pitch, and possibly fade out."
@@ -739,7 +739,7 @@ c_to fade = generator1 "to" mempty "Go to a pitch, and possibly fade out."
         case fade of
             Fade -> ControlUtil.multiply_dyn end
                 =<< ControlUtil.make_segment ControlUtil.Linear start 1 end 0
-            NoFade -> return ()
+            NoFade -> pure ()
         PitchUtil.make_segment ControlUtil.Linear start pitch end
             (PitchUtil.resolve_pitch_transpose pitch to_pitch)
 
@@ -752,11 +752,11 @@ c_fade fade_in = generator1 "fade" mempty
     $ \(Typecheck.DefaultReal time) args -> do
         (start, end) <- Args.real_range args
         (start, end) <- if fade_in
-            then (,) <$> return start <*> get_end start time args
-            else (,) <$> align_to_end start end time <*> return end
+            then (,) <$> pure start <*> get_end start time args
+            else (,) <$> align_to_end start end time <*> pure end
         ControlUtil.multiply_dyn end
             =<< ControlUtil.make_segment ControlUtil.Linear start 1 end 0
-        return mempty
+        pure mempty
 
 -- | Subtract the duration from the given end time, but don't go past the
 -- start.
@@ -764,7 +764,7 @@ align_to_end :: RealTime -> RealTime -> DeriveT.Duration
     -> Derive.Deriver RealTime
 align_to_end start end dur = do
     dur <- min (end - start) <$> Call.real_duration start dur
-    return $ end - dur
+    pure $ end - dur
 
 -- * misc
 
@@ -772,7 +772,7 @@ c_sahitya :: Derive.Taggable a => Derive.Transformer a
 c_sahitya = Derive.transformer module_ "sahitya" mempty
     "Ignore the transformed deriver. Put this on a track to ignore its\
     \ contents, and put in sahitya."
-    $ Sig.call0t $ \_args _deriver -> return Stream.empty
+    $ Sig.call0t $ \_args _deriver -> pure Stream.empty
 
 -- * util
 
@@ -782,7 +782,7 @@ c_sahitya = Derive.transformer module_ "sahitya" mempty
 prev_pitch :: RealTime -> Derive.PitchArgs -> Derive.Deriver PSignal.Pitch
 prev_pitch start args = case Args.prev_pitch args of
     Nothing -> Call.get_pitch start
-    Just (_, pitch) -> return pitch
+    Just (_, pitch) -> pure pitch
 
 resolve_pitch :: Derive.PitchArgs -> PSignal.Pitch
     -> Maybe PitchUtil.PitchOrTranspose -> PSignal.Pitch

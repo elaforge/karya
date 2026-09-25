@@ -37,7 +37,7 @@ update_callers_rulers :: Ui.M m => BlockId -> TrackTime -> TrackTime
 update_callers_rulers block_id pos delta = do
     updates <- update_callers block_id pos delta
     update_rulers block_id pos delta (concatMap bottoms updates)
-    return $ map fst $ concatMap Foldable.toList updates
+    pure $ map fst $ concatMap Foldable.toList updates
 
 -- | The block has changed size by adding or removing time at the given point.
 -- Find its callers and update the event durations.  This doesn't update any
@@ -48,7 +48,7 @@ update_callers block_id pos delta = do
     modify_time block_id pos delta
     updates <- caller_updates [pos] block_id
     apply_updates delta (concatMap Foldable.toList updates)
-    return updates
+    pure updates
 
 push_down_rulers :: Ui.M m => [Tree.Tree Update] -> m ()
 push_down_rulers updates =
@@ -152,7 +152,7 @@ callers_of callee = strip <$> do
         track_ids <- filterM is_note_track track_ids
         fmap (block_id,) $ forM track_ids $ \track_id -> do
             calls <- NoteTrackParse.track_block_calls False block_id track_id
-            return (track_id,
+            pure (track_id,
                 [event | (event, call :| _) <- calls, call == callee])
     where
     strip = filter (not . null . snd) . map (second (filter (not . null . snd)))
@@ -175,7 +175,7 @@ is_note_track = fmap ParseTitle.is_note_track . Ui.get_track_title
 update_rulers :: Ui.M m => BlockId -> TrackTime -> TrackTime -> [Update] -> m ()
 update_rulers block_id pos delta top_updates = do
     fragment <- if delta > 0 then extract_meter block_id pos delta
-        else return []
+        else pure []
     let msg = "ruler modification is ambiguous due to multiple updated tracks: "
             <> pretty top_updates
     inserts <- Ui.require msg $ insert_points top_updates
@@ -218,4 +218,4 @@ extract_meter :: Ui.M m => BlockId -> TrackTime -> TrackTime
     -> m [Meter.MSection]
 extract_meter block_id pos delta = do
     meter <- RulerUtil.get_meter =<< Ui.ruler_of block_id
-    return $ RulerUtil.extract pos (pos + delta) (Meter.meter_sections meter)
+    pure $ RulerUtil.extract pos (pos + delta) (Meter.meter_sections meter)

@@ -186,7 +186,7 @@ c_break naturalBpm beatMap perMeasure mbFrame =
     ) $ \(beatOrFrame, Typecheck.DefaultScore pre, pitch, pitchShift, mbBpm,
         bpmMode) ->
     Sub.inverting $ \args -> do
-        frame <- either (lookupBeat beatMap) return beatOrFrame
+        frame <- either (lookupBeat beatMap) pure beatOrFrame
         -- TODO: the theory was to unwarp irregular beats but this just makes
         -- it worse.  I would have to extend the curve into the future.  At
         -- this point I should probably just pre-warp the sample to straighten
@@ -258,7 +258,7 @@ pitchOffset = "pitch-offset"
 
 convert :: FilePath -> Pitch.NoteNumber -> Note.Note
     -> Patch.ConvertM Sample.Sample
-convert filename pitchAdjust note = return $ (Sample.make filename)
+convert filename pitchAdjust note = pure $ (Sample.make filename)
     { Sample.envelope = Util.dynEnvelope minDyn 0.15 note
     , Sample.offset = offset
     , Sample.ratios = Signal.constant $

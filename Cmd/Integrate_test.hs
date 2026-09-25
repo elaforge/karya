@@ -82,7 +82,7 @@ test_block_integrate2 = do
         source = "b1"
         dest = "b2"
         pitch_track = fmap (snd . last) . lookup dest . e_tracks
-    res <- start states (return ())
+    res <- start states (pure ())
     res <- next res $ do
         UiTest.insert_event_in dest 2 (0.5, 0, "4a")
         UiTest.insert_event_in source 2 (0.25, 0, "4d")
@@ -113,7 +113,7 @@ test_block_integrate_call_map = do
                   ]
                 , []
                 )
-    res <- start (ui_state, cmd_state) $ return ()
+    res <- start (ui_state, cmd_state) $ pure ()
     -- prettyp (e_integrated res)
     equal (e_tracks res)
         [ ( "b1 -- <<"
@@ -155,7 +155,7 @@ test_track_integrate_subblock = do
             [ ("top", [(">", [(0, 2, "sub")])])
             , ("sub", [(">i1 | <", [(0, 1, ""), (1, 1, "")])])
             ]
-    res <- start states (return ())
+    res <- start states (pure ())
     equal (e_events res) []
     pprint (e_integrated res)
     let ui = ResponderTest.result_ui_state res
@@ -166,7 +166,7 @@ test_track_integrate_subblock = do
 
 test_track_integrate_unwarp :: Test
 test_track_integrate_unwarp = do
-    let run tracks = start (ResponderTest.mkstates tracks) (return ())
+    let run tracks = start (ResponderTest.mkstates tracks) (pure ())
     let track = (">i1 | < c", [(0, 0.5, "c=(next-event) |"), (0.5, 1, "")])
     res <- run [("tempo", [(0, 0, "1")]), track]
     -- Avoid stdout mixing with any debug trace from the last performance
@@ -192,7 +192,7 @@ test_track_modify = do
     let states = ResponderTest.mkstates $ UiTest.note_spec
             ("i1 | < | reverse", [(0, 1, "4c"), (1, 1, "4d")], [])
 
-    res <- start states $ return ()
+    res <- start states $ pure ()
     equal (e_tracks res)
         [(UiTest.default_block_name,
             [ (">i1 | < | reverse", [(0, 1, ""), (1, 1, "")])
@@ -405,7 +405,7 @@ test_manual_integrate = do
     equal (extract initial) ([(">", []), (">", [])], [])
     let state = f initial (">i", [(0, 1, "hi")]) []
     equal (extract state) ([(">", [(0, 1, "hi")]), (">", [(0, 1, "hi")])], [])
-    state <- return $ f state (">i", [(0, 1, "hi"), (1, 1, "there")])
+    state <- pure $ f state (">i", [(0, 1, "hi"), (1, 1, "there")])
         [("c", [(0, 1, "1")])]
     equal (extract state)
         ( [ (">", [(0, 1, "hi"), (1, 1, "there")]), ("c", [(0, 1, "1")])

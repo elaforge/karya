@@ -36,7 +36,7 @@ profile_edits_middle = do
             Derive_profile.make_nested_controls 15 3 60
             view_id <- Create.unfitted_view edit_block_id
             UiTest.select_point view_id 1 0.0
-            return view_id
+            pure view_id
     let cmd_state = modify_edit_state
             (ResponderTest.mk_cmd_state ui_state view_id) $ \st ->
                 st { Cmd.state_edit_mode = Cmd.ValEdit }
@@ -47,7 +47,7 @@ profile_edits_middle = do
         alter_note = [(CmdTest.m_note_on 64, 1), (CmdTest.m_note_off 64, 1)]
         keys = concat $ replicate 4 alter_note
     ResponderTest.thread_delay True (ui_state, cmd_state) (wait ++ keys)
-    return ()
+    pure ()
 
 profile_null_cmd = do
     -- Test a msg that matches no cmds so I can see how much garbage it

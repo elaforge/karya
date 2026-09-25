@@ -44,7 +44,7 @@ split_time = do
     to_block_id <- split_time_at block_id pos to_block
     Create.view to_block_id
     Create.rename_block block_id from_block
-    return to_block_id
+    pure to_block_id
 
 -- | Create a new block from template, then copy over all the events below the
 -- given time.  Clear the source track, and trim events that overlap the split
@@ -56,7 +56,7 @@ split_time_at from_block_id pos block_name = do
     track_events <- forM tracks $ \(track_id, tracknum) -> do
         events <- Events.at_after pos <$> Ui.get_events track_id
         let shifted = map (Event.start_ %= subtract pos) events
-        return (tracknum, shifted)
+        pure (tracknum, shifted)
     -- Trim the old events.
     forM_ tracks $ \(track_id, _) -> do
         events <- fst . Events.split pos <$> Ui.get_events track_id
@@ -71,7 +71,7 @@ split_time_at from_block_id pos block_name = do
     let dur = Meter.time_to_duration pos
     local_sections from_block_id $ RulerUtil.extract 0 dur
     local_sections to_block_id $ RulerUtil.delete 0 dur
-    return to_block_id
+    pure to_block_id
 
 split_names :: BlockId -> (Id.Id, Id.Id)
 split_names block_id =
@@ -88,7 +88,7 @@ split_track = do
     to_block_id <- split_track_at block_id tracknum
         (snd (split_names block_id))
     Create.view to_block_id
-    return to_block_id
+    pure to_block_id
 
 split_track_at :: Ui.M m => BlockId -> TrackNum -> Id.Id -> m BlockId
 split_track_at from_block_id split_at block_name = do
@@ -107,7 +107,7 @@ split_track_at from_block_id split_at block_name = do
             | (from, to) <- Skeleton.flatten skeleton
             , from >= split_at && to >= split_at
             ]
-    return to_block_id
+    pure to_block_id
 
 -- | Copy the selection into a new block, and replace it with a call to that
 -- block.
@@ -115,7 +115,7 @@ selection :: Cmd.M m => Id.Id -> m BlockId
 selection name = do
     block_id <- selection_ True False name
     Create.view block_id
-    return block_id
+    pure block_id
 
 -- | Copy the selection to a relative block, and replace it with a relative
 -- block call.
@@ -123,7 +123,7 @@ selection_relative :: Cmd.M m => Id.Id -> m BlockId
 selection_relative name = do
     block_id <- selection_ True True name
     Create.view block_id
-    return block_id
+    pure block_id
 
 -- | Same as 'selection_relative' because I always type the wrong one.
 relative_selection :: Cmd.M m => Id.Id -> m BlockId
@@ -133,7 +133,7 @@ relative_selection = selection_relative
 -- an @alt@ call.
 selection_alts :: Cmd.M m => Bool -> Int -> Id.Id -> m [BlockId]
 selection_alts relative alts name
-    | alts <= 0 = return []
+    | alts <= 0 = pure []
     | otherwise = do
         alt1 <- selection_ True relative $ Id.modify_name (<>"1") name
         (block_id, _, track_ids, range) <- Selection.tracks
@@ -147,7 +147,7 @@ selection_alts relative alts name
         let (start, end) = Events.range_times range
         whenJust (Lists.head track_ids) $ \track_id ->
             Ui.insert_event track_id $ Event.event start (end-start) call
-        return alts
+        pure alts
     where
     alt_name block_id name =
         if relative then make_relative block_id name else name
@@ -160,12 +160,12 @@ selection_ :: Cmd.M m => Bool
     -> Id.Id -> m BlockId
 selection_ replace relative name = do
     (block_id, tracknums, track_ids, range) <- Selection.tracks
-    name <- return $ if relative
+    name <- pure $ if relative
         then make_relative block_id name else name
     to_block_id <- extract name block_id tracknums track_ids range
     when replace $
         replace_with_call block_id track_ids range to_block_id relative
-    return to_block_id
+    pure to_block_id
 
 make_relative :: BlockId -> Id.Id -> Id.Id
 make_relative caller name =
@@ -193,7 +193,7 @@ extract name block_id tracknums track_ids range = do
     local_sections to_block_id $
         RulerUtil.extract (Meter.time_to_duration start)
             (Meter.time_to_duration end)
-    return to_block_id
+    pure to_block_id
 
 -- | Clear selected range and put in a call to the new block.
 replace_with_call :: Ui.M m => BlockId -> [TrackId] -> Events.Range -> BlockId
@@ -248,7 +248,7 @@ block_template_from_selection =
     Selection.tracks >>= \(block_id, _, track_ids, range) -> do
         to_block_id <- block_template block_id track_ids range
         Create.view to_block_id
-        return to_block_id
+        pure to_block_id
 
 -- | Create a new block with the given tracks and ruler clipped to the given
 -- range.
@@ -266,7 +266,7 @@ block_template block_id track_ids range = do
     local_sections to_block_id $
         RulerUtil.extract (Meter.time_to_duration start)
             (Meter.time_to_duration end)
-    return to_block_id
+    pure to_block_id
 
 clipped_skeleton :: Ui.M m => BlockId -> BlockId -> [TrackNum] -> m ()
 clipped_skeleton from_block to_block tracknums =
@@ -278,7 +278,7 @@ clipped_skeleton from_block to_block tracknums =
                     [ (from-low + 1, to-low + 1) | (from, to) <- edges
                     , Num.inRange low (high+1) from, Num.inRange low (high+1) to
                     ]
-            _ -> return ()
+            _ -> pure ()
 
 -- * order block
 
@@ -288,7 +288,7 @@ order_block name block_ids = do
     block_id <- Create.named_block name Ui.no_ruler
     order_track block_id block_ids
     Create.view block_id
-    return block_id
+    pure block_id
 
 -- | Append a track to the given block with calls to the given BlockIds.  The
 -- calling track will have a 1:1 time relationship with the calls, which is
@@ -319,4 +319,4 @@ local_sections block_id = local_block block_id . Meter.modify_sections
 local_block :: Ui.M m => BlockId -> (Meter.Meter -> Meter.Meter) -> m ()
 local_block block_id modify = do
     RulerUtil.local_block block_id (Right . Ruler.modify_meter modify)
-    return ()
+    pure ()

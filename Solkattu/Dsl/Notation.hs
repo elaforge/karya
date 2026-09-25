@@ -204,7 +204,7 @@ splitM_either matras =
             S.Group (Solkattu.GMeta
                         meta@(Solkattu.Meta (Just sMatras) _ Solkattu.GSarva))
                     children
-                | Just imatras <- Num.asIntegral matras -> return
+                | Just imatras <- Num.asIntegral matras -> pure
                     (0, ([make imatras], make (sMatras - imatras) : ns))
                 | otherwise ->
                     Left $ "can't split sarva of non-integral matras: "
@@ -222,7 +222,7 @@ splitM_either matras =
             S.Note (Solkattu.Space space) -> do
                 pre <- spaces tempo space matras
                 post <- spaces tempo space (noteMatras - matras)
-                return (0, (pre, post <> ns))
+                pure (0, (pre, post <> ns))
             _ -> Left $ "can't split a note: " <> pretty matras
                 <> " of " <> pretty noteMatras <> ": " <> pretty n
         where
@@ -238,7 +238,7 @@ splitM_either matras =
 
     spaces tempo space matras = do
         speeds <- S.decomposeM matras
-        return $ S.toList $ mconcatMap make speeds
+        pure $ S.toList $ mconcatMap make speeds
         where
         make s = speed (s - S._speed tempo) $
             S.singleton $ S.Note (Solkattu.Space space)

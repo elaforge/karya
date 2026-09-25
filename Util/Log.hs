@@ -232,11 +232,11 @@ rotate_config keep max_size log_fn = do
         ignore $ Directory.renameFile log_fn fn
         Process.waitForProcess =<< Process.runProcess "gzip" [fn]
             Nothing Nothing Nothing Nothing Nothing
-        return ()
+        pure ()
     hdl <- IO.openFile log_fn IO.AppendMode
     -- Logs are per-line, so ensure they go out promptly.
     IO.hSetBuffering hdl IO.LineBuffering
-    return hdl
+    pure hdl
     where ignore = Exceptions.ignoreEnoent
 
 -- | Configure the logging system by modifying its internal state.
@@ -246,7 +246,7 @@ configure f = MVar.modifyMVar_ global_state (with_log_config . f)
 with_log_config :: State -> IO State
 with_log_config state = do
     config_str <- fromMaybe "" <$> Environment.lookupEnv "LOG_CONFIG"
-    either errorIO return $ parse_log_config config_str state
+    either errorIO pure $ parse_log_config config_str state
 
 parse_log_config :: String -> State -> Either Text State
 parse_log_config str state
@@ -264,8 +264,8 @@ parse_log_config str state
 -- a lock for them doesn't seem like a big deal.
 with_stdio_lock :: IO () -> IO ()
 with_stdio_lock action = do
-    MVar.withMVar global_state $ \state -> action >> return state
-    return ()
+    MVar.withMVar global_state $ \state -> action >> pure state
+    pure ()
 
 data Priority
     -- | Logs to determine where things are hanging when debugging
@@ -362,8 +362,8 @@ add_time :: Msg -> IO Msg
 add_time log_msg
     | msg_date log_msg == no_date_yet = do
         utc <- Time.getCurrentTime
-        return $! log_msg { msg_date = utc }
-    | otherwise = return $! log_msg
+        pure $! log_msg { msg_date = utc }
+    | otherwise = pure $! log_msg
 
 instance Monad m => LogMonad (LogT m) where
     write = write_msg
@@ -454,7 +454,7 @@ instance Serialize.Serialize Data where
     put (Text a) = put_tag 2 >> put a
     put (Dynamic a) = put (Text (showt a))
     get = get_tag >>= \tag -> case tag of
-        0 -> return NoData
+        0 -> pure NoData
         1 -> Int <$> get
         2 -> Text <$> get
         _ -> Serialize.bad_tag "Data" tag

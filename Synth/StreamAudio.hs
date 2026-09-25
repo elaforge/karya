@@ -79,7 +79,7 @@ streamToPortAudio :: Bool -> PortAudio.Device -> Thread.Flag -> FilePath
 streamToPortAudio verbose dev quit dir muted start = do
     MVar.modifyMVar_ currentlyPlaying $ \prevQuit -> do
         whenJust prevQuit Thread.set
-        return $ Just quit
+        pure $ Just quit
     Resource.runResourceT . PortAudio.play (Thread.poll 0 quit) dev
         =<< streamTracks verbose dir muted (AUtil.toFrames start)
 
@@ -103,7 +103,7 @@ streamTracks verbose dir muted start = do
     dirnames <- sampleDirs dir muted
     when verbose $
         putStrLn $ "stream " <> show dirnames <> " from " <> show start
-    return $ Audio.mix $ map
+    pure $ Audio.mix $ map
         (Audio.File.readCheckpointsFrom start
             (if verbose then putStrLn . ("open "<>) else const (pure ()))
             Config.chunkSize . dirChunks)
@@ -119,7 +119,7 @@ sampleDirs dir muted = do
         =<< Directory.listDirectory dir
     when (null subdirs) $
         putStrLn $ "no sample dirs in " <> show dir
-    return $ map (dir</>) $
+    pure $ map (dir</>) $
         filter ((`Set.notMember` muted) . Config.dirToInstrument) subdirs
 
 -- | Use sox to stream audio to the hardware.  This is easy and portable but
@@ -135,7 +135,7 @@ playSox verbose waitQuit audio = do
         IO.hClose stdin
     code <- Process.waitForProcess pid
     case code of
-        Exit.ExitSuccess -> return ()
+        Exit.ExitSuccess -> pure ()
         Exit.ExitFailure code
             | code == -15 -> when verbose $ putStrLn "sox terminated"
             | otherwise -> errorIO $ "sox failed: " <> showt code

@@ -213,7 +213,7 @@ read_ident = do
     guard (sym == constructor_name (Proxy :: Proxy a))
     Read.String str <- Read.lexP
     Read.Punc ")" <- Read.lexP
-    return $ make (read_id (txt str))
+    pure $ make (read_id (txt str))
 
 -- | SomethingId -> "ns/name"
 ident_text :: Ident a => a -> Text
@@ -286,7 +286,7 @@ instance Read TrackId where readPrec = require read_ident
 instance Read RulerId where readPrec = require read_ident
 
 require :: Read.ReadPrec (Maybe a) -> Read.ReadPrec a
-require = (maybe Read.pfail return =<<)
+require = (maybe Read.pfail pure =<<)
 
 instance Ident BlockId where
     unpack_id (BlockId a) = a

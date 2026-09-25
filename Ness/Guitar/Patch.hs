@@ -182,7 +182,7 @@ eachPitch str dur open pitches = Finger (sName str) (0, 0) notes
     notes = concat $ do
         (p, t) <- zip pitches (iterate (+dur) 0)
         let loc = pitchLocation open p
-        return [(t - 0.025, loc, 0.6), (t+dur-eta, loc, 0.6)]
+        pure [(t - 0.025, loc, 0.6), (t+dur-eta, loc, 0.6)]
         -- return [(t+eta, loc, 0.6), (t+dur, loc, 0.6)]
     eta = 0.15
 

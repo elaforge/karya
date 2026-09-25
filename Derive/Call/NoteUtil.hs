@@ -47,7 +47,7 @@ make_event_control_vals :: ScoreT.ControlValMap -> Derive.PassedArgs a
 make_event_control_vals cvmap args dyn start dur integrate flags = do
     offset <- get_start_offset start
     Internal.increment_event_serial
-    return $! Score.Event
+    pure $! Score.Event
         { event_start = start
         , event_duration = dur
         , event_text = Event.text (Args.event args)
@@ -101,7 +101,7 @@ get_start_offset start = do
     start_t <- maybe 0 ScoreTime.from_double <$>
         Derive.untyped_control_at Controls.start_t start
     start_t <- Call.real_duration start start_t
-    return $ start_s + start_t
+    pure $ start_s + start_t
 
 -- | For inverted tracks, this trimming should already be done by
 -- 'Derive.Control.trim_signal'.

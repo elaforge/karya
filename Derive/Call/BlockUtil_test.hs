@@ -97,7 +97,7 @@ test_pitch_map_pitch = do
             then Args.lookup_next_pitch args
             else Args.lookup_prev_pitch args
         start <- Args.real_start args
-        return $ PSignal.from_pairs $ maybe [] (\p -> [(start, p)]) pitch
+        pure $ PSignal.from_pairs $ maybe [] (\p -> [(start, p)]) pitch
 
 test_control_call :: Test
 test_control_call = do

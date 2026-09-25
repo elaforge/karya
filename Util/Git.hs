@@ -123,12 +123,12 @@ from_commit (Commit bs) = OID bs
 
 -- | True if it already existed.
 init :: Repo -> IO Bool
-init repo = ifM is_git (return True) $ do
+init repo = ifM is_git (pure True) $ do
     alloca $ \repopp -> withCString repo $ \pathp -> do
         check ("init " ++ repo) $ G.c'git_repository_init repopp pathp 1
         repop <- peek repopp
         G.c'git_repository_free repop
-    return False
+    pure False
     where
     is_git = andM [Directory.doesDirectoryExist repo,
         Directory.doesDirectoryExist (repo </> "objects")]
@@ -140,7 +140,7 @@ with_repo path action = withCString path $ \pathp -> alloca $ \repopp -> do
     result <- Exception.try $ action repop
     G.c'git_repository_free repop
     case result of
-        Right ok -> return ok
+        Right ok -> pure ok
         Left (GitException err) ->
             throw $ "repo " ++ show path ++ ": " ++ err
 
@@ -170,7 +170,7 @@ read_blob_repo repop (Blob blob) =
         len <- G.c'git_blob_rawsize blobp
         bytes <- Char8.packCStringLen (castPtr bufp, fromIntegral len)
         G.c'git_blob_free blobp
-        return bytes
+        pure bytes
 
 -- * tree
 
@@ -219,7 +219,7 @@ write_tree repo maybe_from files = with_repo repo $ \repop ->
                 G.c'git_treebuilder_write oidp repop builderp
             peek_oid oidp
         G.c'git_treebuilder_free builderp
-        return $ Tree oid
+        pure $ Tree oid
     where
     maybe_with repop io = case maybe_from of
         Just tree -> with_tree repop tree io
@@ -245,7 +245,7 @@ modify_tree repo tree mods = with_repo repo $ \repop ->
                     G.c'git_treebuilder_write oidp repop builderp
                 peek_oid oidp
             G.c'git_treebuilder_free builderp
-            return $ Tree oid
+            pure $ Tree oid
     with_maybe_tree _ Nothing io = io nullPtr
     with_maybe_tree repop (Just tree) io = with_tree repop tree io
 
@@ -259,7 +259,7 @@ modify_tree repo tree mods = with_repo repo $ \repop ->
         withCString name $ \namep -> do
             entryp <- G.c'git_treebuilder_get builderp namep
             maybe_tree <- if entryp == nullPtr
-                then return Nothing
+                then pure Nothing
                 else Just . Tree <$> (peek_oid =<< G.c'git_tree_entry_id entryp)
             tree <- go repop maybe_tree entries
             -- Delete empty directories automatically.  This shouldn't be
@@ -299,15 +299,15 @@ read_tree repo tree = with_repo repo $ \repop ->
         typ <- G.c'git_tree_entry_type entryp
         name <- peekCString =<< G.c'git_tree_entry_name entryp
         oid <- peek_oid =<< G.c'git_tree_entry_id entryp
-        val <- if typ == G.c'GIT_OBJ_TREE then return (Right (Tree oid)) else
-            if typ == G.c'GIT_OBJ_BLOB then return (Left (Blob oid)) else
+        val <- if typ == G.c'GIT_OBJ_TREE then pure (Right (Tree oid)) else
+            if typ == G.c'GIT_OBJ_BLOB then pure (Left (Blob oid)) else
             throw $ show oid ++ " expected tree or blob: " ++ show typ
-        return (name, val)
+        pure (name, val)
 
 empty_tree_repo :: RepoP -> Tree -> IO Bool
 empty_tree_repo repop tree = with_tree repop tree $ \treep -> do
     count <- G.c'git_tree_entrycount treep
-    return $ count == 0
+    pure $ count == 0
 
 with_tree :: RepoP -> Tree -> (Ptr G.C'git_tree -> IO a) -> IO a
 with_tree repop (Tree oid) io = with_oid oid $ \oidp -> alloca $ \treepp -> do
@@ -364,12 +364,12 @@ read_commit_repo repop commit = with_commit repop commit $ \commitp -> do
         =<< mapM (G.c'git_commit_parent_id commitp)
             (if parents_len == 0 then [] else [0..parents_len-1])
     desc <- peekCString =<< G.c'git_commit_message commitp
-    return $ CommitData (Tree tree) (map to_commit parents) author desc
+    pure $ CommitData (Tree tree) (map to_commit parents) author desc
     where
     peek_user sig = do
         name <- peekCString (G.c'git_signature'name sig)
         email <- peekCString (G.c'git_signature'email sig)
-        return $ name ++ " <" ++ email ++ ">"
+        pure $ name ++ " <" ++ email ++ ">"
 
 with_commit :: RepoP -> Commit -> (Ptr G.C'git_commit -> IO a) -> IO a
 with_commit repop commit io = with_oid (from_commit commit) $
@@ -411,10 +411,10 @@ diff_tree_repo repop old new =
     where
     -- I'm only interested in which files were deleted, added, or modified.
     to_mod (status, path, oid)
-        | status == G.c'GIT_DELTA_DELETED = return [Remove path]
+        | status == G.c'GIT_DELTA_DELETED = pure [Remove path]
         | status == G.c'GIT_DELTA_ADDED || status == G.c'GIT_DELTA_MODIFIED = do
             bytes <- read_blob_repo repop (Blob oid)
-            return [Add path bytes]
+            pure [Add path bytes]
         | otherwise = throw $ "diff_trees " ++ show (old, new)
             ++ ": unknown status: " ++ show status
     diff_cb ref deltap _rangep _line_origin _contentp _content_len _data = do
@@ -426,7 +426,7 @@ diff_tree_repo repop old new =
         path <- peekCString pathp
         oid <- cuchar_to_oid oid_bytes
         IORef.modifyIORef ref ((status, path, oid):)
-        return 0
+        pure 0
 
     -- Used for libgit2 0.20
     -- diff_cb ref deltap _hunkp _linep _payloadp = do
@@ -456,9 +456,9 @@ read_ref_repo :: RepoP -> Ref -> IO (Maybe Commit)
 read_ref_repo repop ref = with_ref_name ref $ \namep ->
     alloca $ \oidp -> do
         code <- G.c'git_reference_name_to_id oidp repop namep
-        if code /= G.c'GIT_OK then return Nothing else do
+        if code /= G.c'GIT_OK then pure Nothing else do
         oid <- peek_oid oidp
-        return (Just (to_commit oid))
+        pure (Just (to_commit oid))
 
 with_ref :: RepoP -> Ref -> (Ptr G.C'git_reference -> IO a) -> IO a
 with_ref repop ref io =
@@ -478,14 +478,14 @@ read_refs repop = alloca $ \arrayp -> do
     strps <- peekArray (fromIntegral count) stringsp
     refs <- mapM (peek_ref_name "") strps
     G.c'git_strarray_free arrayp
-    return refs
+    pure refs
 
 -- | Read all refs along with their commits.
 read_ref_map :: Repo -> IO (Map Ref Commit)
 read_ref_map repo = with_repo repo $ \repop -> do
     refs <- read_refs repop
     commits <- mapM (read_ref_repo repop) refs
-    return $ Map.fromList
+    pure $ Map.fromList
         [(ref, commit) | (ref, Just commit) <- zip refs commits]
 
 with_ref_name :: Ref -> (CString -> IO a) -> IO a
@@ -495,7 +495,7 @@ peek_ref_name :: String -> CString -> IO Ref
 peek_ref_name prefix str = do
     (name, stripped) <- Lists.dropPrefix "refs/" <$> peekCString str
     unless stripped $ throw $ prefix ++ "wasn't in refs/: " ++ show name
-    return name
+    pure name
 
 -- ** symbolic refs
 
@@ -515,7 +515,7 @@ read_symbolic_ref repo sym = with_repo repo $ \repop ->
     with_ref repop sym $ \symp -> alloca $ \refpp -> do
         refp <- check_lookup "reference_resolve" refpp $
             G.c'git_reference_resolve refpp symp
-        if refp == nullPtr then return Nothing
+        if refp == nullPtr then pure Nothing
             else fmap Just $ peek_ref_name ("ref of " ++ show sym ++ " ")
                 =<< G.c'git_reference_name refp
 
@@ -540,7 +540,7 @@ write_head :: Repo -> Ref -> IO ()
 write_head repo = write_symbolic_ref repo "HEAD"
 
 read_head :: Repo -> IO Ref
-read_head repo = maybe (throw "HEAD symbolic ref missing") return =<<
+read_head repo = maybe (throw "HEAD symbolic ref missing") pure =<<
     read_symbolic_ref repo "HEAD"
 
 -- * revwalk
@@ -575,17 +575,17 @@ walk walkp flags = do
     where
     next oidp = do
         errno <- G.c'git_revwalk_next oidp walkp
-        if errno == G.c'GIT_ITEROVER then return Nothing else do
-        check "revwalk_next" (return errno)
+        if errno == G.c'GIT_ITEROVER then pure Nothing else do
+        check "revwalk_next" (pure errno)
         oid <- peek_oid oidp
-        return (Just (to_commit oid))
+        pure (Just (to_commit oid))
     while_just io = do
         maybe_val <- io
         case maybe_val of
-            Nothing -> return []
+            Nothing -> pure []
             Just val -> do
                 vals <- while_just io
-                return (val : vals)
+                pure (val : vals)
     flag f = case f of
         SortTopological -> git_sort_topological
         SortTime -> git_sort_time
@@ -616,15 +616,15 @@ make_dir = foldM merge Map.empty
     -- System.FilePath is incorrect because git always uses /s.
     merge dir (path, bytes) = insert dir (Lists.split (=='/') path) bytes
     insert _ [] bytes = Left $ "can't insert into empty path: " ++ show bytes
-    insert files [name] bytes = return $ Map.insert name (File bytes) files
+    insert files [name] bytes = pure $ Map.insert name (File bytes) files
     insert files (name : names) bytes = do
         subs <- case Map.lookup name files of
-            Just (Dir subs) -> return subs
+            Just (Dir subs) -> pure subs
             Just (File _) ->
                 Left $ "can't insert below a file: " ++ show name
-            Nothing -> return Map.empty
+            Nothing -> pure Map.empty
         subs <- insert subs names bytes
-        return $ Map.insert name (Dir subs) files
+        pure $ Map.insert name (Dir subs) files
 
 flatten_dir :: Dir -> [(FilePath, ByteString)]
 flatten_dir = concatMap flatten . Map.toList
@@ -645,7 +645,7 @@ read_dir :: Repo -> Tree -> IO Dir
 read_dir repo tree = do
     (names, files) <- unzip <$> read_tree repo tree
     files <- mapM read files
-    return $ Map.fromList $ zip names files
+    pure $ Map.fromList $ zip names files
     where
     read (Left blob) = File <$> read_blob repo blob
     read (Right tree) = Dir <$> read_dir repo tree
@@ -655,7 +655,7 @@ read_dir repo tree = do
 -- | GC the repo.  As far as I know, there's no way to do this with libgit2, so
 -- it invokes the standalone git command.
 gc :: Repo -> IO ()
-gc repo = git repo ["gc", "--aggressive"] "" >> return ()
+gc repo = git repo ["gc", "--aggressive"] "" >> pure ()
 
 git :: Repo -> [String] -> ByteString -> IO ByteString
 git repo = git_env repo []
@@ -673,7 +673,7 @@ git_env repo env args stdin = do
         Exit.ExitFailure code -> throw $
             repo ++ " -- " ++ unwords ("git" : args) ++ ": " ++ show code
             ++ " " ++ Strings.strip (Char8.unpack err)
-        _ -> return out
+        _ -> pure out
 
 -- * error
 
@@ -707,13 +707,13 @@ check :: String -> IO Error -> IO ()
 check caller action = do
     errno <- action
     case error_msg errno of
-        Nothing -> return ()
+        Nothing -> pure ()
         Just msg -> throw $ caller ++ ": " ++ msg
 
 check_lookup :: String -> Ptr (Ptr a) -> IO Error -> IO (Ptr a)
 check_lookup caller ptrptr io = do
     errno <- io
-    if errno == G.c'GIT_ENOTFOUND then return nullPtr else do
+    if errno == G.c'GIT_ENOTFOUND then pure nullPtr else do
     case error_msg errno of
         Nothing -> peek ptrptr
         Just msg -> throw $ caller ++ ": " ++ msg

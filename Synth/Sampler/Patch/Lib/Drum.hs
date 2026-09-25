@@ -249,10 +249,10 @@ convert attributeMap cmap = \note -> do
             Just dynRange ->
                 Util.dynamicAutoScale (minDyn, maxDyn) dynRange dyn
     ratio <- case naturalNn of
-        Nothing -> return 1
+        Nothing -> pure 1
         Just artNn -> Sample.pitchToRatio (artNn articulation) <$>
             Util.initialPitch note
-    return $ (Sample.make filename)
+    pure $ (Sample.make filename)
         { Sample.envelope = case muteTime of
             Nothing -> Signal.constant noteDyn
             Just time -> Util.sustainRelease noteDyn time note
@@ -379,7 +379,7 @@ strokeMap stops strokes attributeMap = StrokeMap
         stroke <- strokes
         art <- maybe [] ((:[]) . snd) $
             Common.lookup_attributes (Drums._attributes stroke) attributeMap
-        return (art, Drums._group stroke)
+        pure (art, Drums._group stroke)
 
 stopMap :: Ord art => [(art, Drums.Group)]
     -> [(Drums.Group, [Drums.Group])] -> Map art (Set art)

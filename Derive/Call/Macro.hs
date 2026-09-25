@@ -112,13 +112,13 @@ substitute_vars vals (Ky.Expr calls) = run vals (mapM sub_call calls)
     sub_call (Ky.Call sym args) = Expr.Call sym <$> mapM sub_arg args
     sub_arg term = case term of
         Ky.VarTerm (Ky.Var _) -> Expr.Literal <$> pop
-        Ky.Literal val -> return (Expr.Literal val)
+        Ky.Literal val -> pure (Expr.Literal val)
         Ky.ValCall call -> Expr.ValCall <$> sub_call call
     pop = do
         vals <- Monad.State.get
         case vals of
             [] -> Except.throwError "ran out of vals"
-            v : vs -> Monad.State.put vs >> return v
+            v : vs -> Monad.State.put vs >> pure v
     run state = check . Identity.runIdentity . Except.runExceptT
         . flip Monad.State.runStateT state
     check (Left e) = Left e
@@ -148,7 +148,7 @@ make_signature vars = Sig.required_vals (map doc vars)
 require_val :: Sig.Arg -> Derive.Deriver DeriveT.Val
 require_val (Sig.SubTrack {}) =
     Derive.throw "child tracks don't work for macros yet"
-require_val (Sig.LiteralArg arg) = return arg
+require_val (Sig.LiteralArg arg) = pure arg
 
 ordinal :: Int -> Doc.Doc
 ordinal n = Doc.Doc $ showt n <> case n of

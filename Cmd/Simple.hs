@@ -116,7 +116,7 @@ dump_state :: Ui.M m => m State
 dump_state = do
     state <- Ui.get
     blocks <- mapM dump_block (Map.keys (Ui.state_blocks state))
-    return
+    pure
         ( Ui.config#UiConfig.ky #$ state
         , dump_allocations $ Ui.config#UiConfig.allocations #$ state
         , blocks
@@ -136,7 +136,7 @@ dump_block block_id = do
     block <- Ui.get_block block_id
     tracks <- mapM dump_tracklike (Block.block_tracklike_ids block)
     tree <- TrackTree.track_tree_of block_id
-    return (Id.ident_text block_id, Block.block_title block, tracks,
+    pure (Id.ident_text block_id, Block.block_title block, tracks,
         to_skel tree)
     where
     to_skel = concatMap go
@@ -160,14 +160,14 @@ make_block (id_name, title, tracks, skel) = do
     tracks <- mapM load_tracklike tracks
     block_id <- Ui.create_block (Id.read_id id_name) title tracks
     Ui.set_skeleton block_id (Skeleton.make skel)
-    return block_id
+    pure block_id
 
 dump_tracklike :: Ui.M m => Block.TracklikeId -> m (Maybe Track)
 dump_tracklike =
-    maybe (return Nothing) (fmap Just . dump_track) . Block.track_id_of
+    maybe (pure Nothing) (fmap Just . dump_track) . Block.track_id_of
 
 load_tracklike :: Ui.M m => Maybe Track -> m Block.Track
-load_tracklike Nothing = return $ Block.track (Block.RId Ui.no_ruler) 0
+load_tracklike Nothing = pure $ Block.track (Block.RId Ui.no_ruler) 0
 load_tracklike (Just track) = load_track track
 
 -- * track
@@ -175,7 +175,7 @@ load_tracklike (Just track) = load_track track
 dump_track :: Ui.M m => TrackId -> m Track
 dump_track track_id = do
     track <- Ui.get_track track_id
-    return (simplify_track track_id track)
+    pure (simplify_track track_id track)
 
 simplify_track :: TrackId -> Track.Track -> Track
 simplify_track track_id track =
@@ -186,7 +186,7 @@ load_track :: Ui.M m => Track -> m Block.Track
 load_track (id_name, title, events) = do
     track_id <- Ui.create_track (Id.read_id id_name) $
         Track.track title (Events.from_list (map load_event events))
-    return $ Block.track (Block.TId track_id Ui.no_ruler) Config.track_width
+    pure $ Block.track (Block.TId track_id Ui.no_ruler) Config.track_width
 
 load_event :: Event -> Event.Event
 load_event (start, dur, text) =
@@ -206,7 +206,7 @@ dump_allocations (UiConfig.Allocations allocs) = do
             UiConfig.Dummy {} -> Dummy
             UiConfig.Sc -> Sc
     let qualified = InstT.show_qualified $ UiConfig.alloc_qualified alloc
-    return (ScoreT.instrument_name inst, (qualified, simple_alloc))
+    pure (ScoreT.instrument_name inst, (qualified, simple_alloc))
     where
     addrs_of config =
         [ (Midi.write_device_text dev, chan)
@@ -256,7 +256,7 @@ load_exact_perf_event :: (InstT.Qualified -> Maybe Midi.Types.Patch)
 load_exact_perf_event lookup_patch (inst, start, dur, controls, pitch,
         (svel, evel), stack) = do
     patch <- lookup_patch (InstT.parse_qualified inst)
-    return $ Midi.Types.Event
+    pure $ Midi.Types.Event
         { event_patch = patch
         , event_start = start
         , event_duration = dur

@@ -87,14 +87,14 @@ play_instrument
     => Korvai.Instrument stroke
     -> InstT.Qualified -> Text -> RealTime -> Korvai.Korvai -> IO Bool
 play_instrument instrument im_instrument transform akshara_dur korvai = do
-    state <- either errorIO return $
+    state <- either errorIO pure $
         to_state instrument im_instrument transform akshara_dur korvai
     (procs, output_dir) <- derive_to_disk "solkattu" state
     Log.debug $ "procs: " <> showt procs <> " out_dir: " <> txt output_dir
     play_procs procs output_dir
 
 play_procs :: [Performance.Process] -> FilePath -> IO Bool
-play_procs [] _ = return True -- I think this shouldn't happen?
+play_procs [] _ = pure True -- I think this shouldn't happen?
 play_procs procs output_dir = do
     ready <- MVar.newEmptyMVar
     Log.debug $ "start render: " <> pretty procs
@@ -111,7 +111,7 @@ play_procs procs output_dir = do
 derive_to_disk :: FilePath -> Ui.State -> IO ([Performance.Process], FilePath)
 derive_to_disk score_path ui_state = do
     cmd_state <- load_cmd_state
-    block_id <- either (errorIO . pretty) return $
+    block_id <- either (errorIO . pretty) pure $
         Ui.eval ui_state Ui.get_root_id
     let (events, logs) = derive cmd_state ui_state block_id
     mapM_ Log.write $ filter ((>Log.Debug) . Log.msg_priority) logs
@@ -124,7 +124,7 @@ derive_to_disk score_path ui_state = do
     unless (null non_im) $
         Log.warn $ "non-im events: " <> pretty non_im
     config <- Config.getConfig
-    return
+    pure
         ( procs
         , Config.outputDirectory (Config.imDir config) score_path block_id
         )

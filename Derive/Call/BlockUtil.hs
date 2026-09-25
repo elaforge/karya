@@ -93,7 +93,7 @@ control_deriver block_id = do
     block_range <- Ui.block_logical_range block_id
     case check_control_tree (snd block_range) tree of
         Left err -> Ui.throw $ "control block skeleton malformed: " <> err
-        Right tree -> return $ with_per_block_state (snd block_range) $
+        Right tree -> pure $ with_per_block_state (snd block_range) $
             derive_control_tree block_range tree
 
 -- | Name of the call for the control deriver hack.
@@ -113,7 +113,7 @@ check_control_tree block_end forest = case forest of
             <> showt (TrackTree.track_title track)
     [Tree.Node track subs] -> do
         subs <- check_control_tree block_end subs
-        return [Tree.Node track subs]
+        pure [Tree.Node track subs]
     tracks -> Left $ "skeleton must have only a single branch, "
         <> "but there are multiple children: "
         <> showt (map (TrackTree.track_title . Tree.rootLabel) tracks)
@@ -131,13 +131,13 @@ derive_control_tree block_range tree = do
     case Stream.partition events of
         ([event], logs) -> case Score.event_control Controls.null event of
             Nothing -> Derive.throw "control call didn't emit Controls.null"
-            Just signal -> return $ Stream.from_sorted_list $
+            Just signal -> pure $ Stream.from_sorted_list $
                 -- The calling control itself will be providing the type since
                 -- types are at the level of the signal as a whole.
                 LEvent.Event (ScoreT.val_of signal) : map LEvent.Log logs
         (events, logs) -> do
             msg <- complain events
-            return $ Stream.from_logs $ msg : logs
+            pure $ Stream.from_logs $ msg : logs
     where
     -- Or I could throw, but this way any other logs the block emitted will
     -- also be visible, and they might have something interesting.
@@ -163,7 +163,7 @@ derive_tree block_range tree
     get_tempo = Derive.lookup_val EnvKey.tempo >>= \case
         Nothing -> Derive.get_ui_config $
             UiConfig.default_tempo . UiConfig.config_default
-        Just tempo -> return tempo
+        Just tempo -> pure tempo
 
 -- | Derive an EventsTree.
 derive_tracks :: TrackTree.EventsTree -> Derive.NoteDeriver
@@ -185,7 +185,7 @@ derive_track toplevel node@(Tree.Node track subs)
                 defragment
             mapM_ (Note.stash_signal_if_wanted events)
                 (note_signal_tracks track subs)
-            return events
+            pure events
     | otherwise = with_stack $
         Control.d_control_track (Control.Config toplevel True) track
             (derive_tracks subs)
@@ -249,10 +249,10 @@ get_pitch_map :: TrackTree.EventsTree
 get_pitch_map subs = case pitch_map_track subs of
     Just pitch_track -> do
         state <- Derive.get
-        return $ derive_pitch_map state pitch_track
+        pure $ derive_pitch_map state pitch_track
     Nothing -> do
         sig <- Internal.get_dynamic Derive.state_pitch
-        return (Just sig, [])
+        pure (Just sig, [])
 
 -- | Derive the given pitch track lazily.
 --
@@ -282,7 +282,7 @@ derive_pitch_map state pitch_track = case result of
     capture :: Derive.NoteDeriver
     capture = do
         pitch <- Internal.get_dynamic Derive.state_pitch
-        return $ Stream.from_event $
+        pure $ Stream.from_event $
             Score.empty_event { Score.event_pitch = pitch }
 
 pitch_map_track :: TrackTree.EventsTree -> Maybe TrackTree.Track

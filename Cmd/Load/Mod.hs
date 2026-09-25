@@ -60,7 +60,7 @@ convert ns mod = Ui.exec Ui.empty $ do
             Ui.set_render_style (Track.Line Nothing) tid
         -- Now skeleton is implicit by default.
         -- Ui.set_skeleton bid skel
-        return bid
+        pure bid
     mapM_ Ui.destroy_ruler =<< Create.orphan_rulers
 
     let block_ends = [t | (_, t, _) <- blocks]
@@ -74,7 +74,7 @@ convert ns mod = Ui.exec Ui.empty $ do
             Create.track_events score ruler_id 1 40 $
                 score_track block_map indices
             Create.unfitted_view score
-            return score
+            pure score
     whenJust (Lists.head scores) Ui.set_root_id
     Ui.modify_config $ UiConfig.ky #= ky
     where

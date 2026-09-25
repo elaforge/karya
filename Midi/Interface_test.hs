@@ -75,4 +75,4 @@ track msgs = do
 make_writer :: IO (IORef.IORef [a], a -> IO (Maybe Text))
 make_writer = do
     msgs <- IORef.newIORef []
-    return (msgs, \msg -> IORef.modifyIORef msgs (msg:) >> return Nothing)
+    pure (msgs, \msg -> IORef.modifyIORef msgs (msg:) >> pure Nothing)

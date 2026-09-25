@@ -68,7 +68,7 @@ cmds_with_input kbd_entry maybe_config cmds msg =
             InputNote.NoteOn note_id _ _ ->
                 Cmd.modify_wdev_state $ \wdev -> wdev
                     { Cmd.wdev_last_note_id = Just note_id }
-            _ -> return ()
+            _ -> pure ()
         Cmd.sequence_cmds cmds (Msg.InputNote input)
 
 -- | Like 'cmds_with_input', but figure out kbd_entry and patch on my own.
@@ -78,7 +78,7 @@ run_cmds_with_input cmds msg = do
     kbd_entry <- Cmd.gets $ Cmd.state_kbd_entry . Cmd.state_edit
     maybe_config <- justm EditUtil.lookup_instrument $ \inst ->
         justm (Cmd.lookup_instrument inst) $
-        return . fmap snd . Cmd.midi_patch
+        pure . fmap snd . Cmd.midi_patch
     cmds_with_input kbd_entry maybe_config cmds msg
 
 -- | Convert a Msg to 'Msg.InputNote's, if applicable.  Returns Nothing if
@@ -94,9 +94,9 @@ msg_to_inputs kbd_entry maybe_config msg = do
             octave <- Cmd.gets (Cmd.state_kbd_entry_octave . Cmd.state_edit)
             let is_pressure = maybe False
                     (`Patch.has_flag` Patch.Pressure) maybe_config
-            return $ kbd_input is_pressure octave msg
-        else return Nothing
-    maybe (midi_input msg) (return . Just) new_msgs
+            pure $ kbd_input is_pressure octave msg
+        else pure Nothing
+    maybe (midi_input msg) (pure . Just) new_msgs
 
 are_modifiers_down :: Cmd.M m => m Bool
 are_modifiers_down = fmap (not . Set.null) Cmd.mods_down
@@ -128,7 +128,7 @@ key_to_input :: Bool -> Pitch.Octave -> Bool -> Key.Key
     -> Maybe [InputNote.Input]
 key_to_input is_pressure octave is_down (Key.Char c) = do
     pitch <- Map.lookup c PhysicalKey.pitch_map
-    return $ inputs_of (Pitch.add_octave octave pitch)
+    pure $ inputs_of (Pitch.add_octave octave pitch)
     where
     inputs_of pitch = case InputNote.from_ascii is_down pitch of
         input@(InputNote.NoteOn note_id _ _) | is_pressure ->
@@ -148,9 +148,9 @@ midi_input (Msg.Midi (Midi.ReadMessage rdev _ midi_msg)) = do
     case InputNote.from_midi rstate rdev midi_msg of
         Just (input, rstate2) -> do
             Cmd.modify $ \st -> st { Cmd.state_rdev_state = rstate2 }
-            return $ Just [input]
-        Nothing -> return (Just [])
-midi_input _ = return Nothing
+            pure $ Just [input]
+        Nothing -> pure (Just [])
+midi_input _ = pure Nothing
 
 -- * floating_input_insert
 
@@ -160,7 +160,7 @@ floating_input_insert = \case
         Cmd.gets (Cmd.state_floating_input . Cmd.state_edit) >>= \case
             True -> do
                 note <- EditUtil.input_to_note input
-                return $ Cmd.FloatingInput $ Cmd.FloatingInsert $
+                pure $ Cmd.FloatingInput $ Cmd.FloatingInsert $
                     " (" <> Pitch.note_text note <> ")"
             False -> pure Cmd.Continue
     _ -> pure Cmd.Continue

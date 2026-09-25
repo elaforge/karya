@@ -102,7 +102,7 @@ poll_player_stopped timeout ctl@(ActivePlayers running)
 wait_player_stopped :: ActivePlayers -> IO ()
 wait_player_stopped (ActivePlayers running) = STM.atomically $ do
     val <- STM.readTVar running
-    if val <= 0 then return () else STM.retry
+    if val <= 0 then pure () else STM.retry
 
 
 -- * play timing

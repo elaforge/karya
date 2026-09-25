@@ -72,7 +72,7 @@ process config patch mbState notifyState controls input = Audio.Audio $ do
     (key, effect) <- lift $
         Resource.allocate (EffectC.allocate patch) EffectC.destroy
     whenJust mbState $ liftIO . EffectC.putState effect
-    input <- return $ Audio._nstream $ -- Audio.zeroPadN (_blockSize config) $
+    input <- pure $ Audio._nstream $ -- Audio.zeroPadN (_blockSize config) $
         Audio.splitChannels input
     Util.Control.loop1 (controls, input) $ \loop (controls, input) ->
         lift (S.uncons input) >>= \case
@@ -125,6 +125,6 @@ renderBlock config notifyState effect controls inputBlocks = do
     -- Checkpoint.writeBs.
     notifyState =<< EffectC.unsafeGetState effect
     case outputs of
-        [_, _] -> return $ Audio.interleaveV outputs
+        [_, _] -> pure $ Audio.interleaveV outputs
         -- This should have already been checked by EffectC.makePatch.
         _ -> Audio.throwIO "patch with outputs /= 2"

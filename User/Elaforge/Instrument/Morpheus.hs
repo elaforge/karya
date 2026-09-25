@@ -30,7 +30,7 @@ make_db app_dir = do
     let fname = Path.to_absolute app_dir Config.instrument_dir
             </> untxt synth_name
     patches <- map MidiInst.patch_from_pair <$> Parse.patch_file fname
-    patches <- return $
+    patches <- pure $
         map (MidiInst.patch#Patch.defaults#Patch.pitch_bend_range
                 #= Just (-12, 12))
             patches

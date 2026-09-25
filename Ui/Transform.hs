@@ -154,7 +154,7 @@ map_ruler_ids f = do
 safe_map_keys :: (Ui.M m, Ord k, Show k) =>
     String -> (k -> k) -> Map k v -> m (Map k v)
 safe_map_keys name f fm0
-    | Map.size fm1 == Map.size fm0 = return fm1
+    | Map.size fm1 == Map.size fm0 = pure fm1
     | otherwise = Ui.throw $ "keys collided in " <> showt name <> ": "
         <> showt (Map.keys (Map.difference fm0 fm1))
     where fm1 = Map.mapKeys f fm0
@@ -197,7 +197,7 @@ map_code modify state = Logger.runId $ do
         (Map.toList (Ui.state_tracks state))
     blocks <- mapM (\(bid, block) -> (bid,) <$> u_block bid block)
         (Map.toList (Ui.state_blocks state))
-    return $ state
+    pure $ state
         { Ui.state_tracks = Map.fromList tracks
         , Ui.state_blocks = Map.fromList blocks
         }
@@ -208,21 +208,21 @@ map_code modify state = Logger.runId $ do
         log (pretty track_id) old new
         events <- Events.from_list <$>
             mapM u_event (Events.ascending (Track.track_events track))
-        return $ track { Track.track_title = new, Track.track_events = events }
+        pure $ track { Track.track_title = new, Track.track_events = events }
     u_event event = do
         let old = Event.text event
         let new = modify old
         log (pretty (Event.start event)) old new
-        return $ Event.set_text_raw new event
+        pure $ Event.set_text_raw new event
     u_block block_id block = do
         let old = Block.block_title block
         let new = modify old
         log (pretty block_id) old new
-        return $ block { Block.block_title = new }
+        pure $ block { Block.block_title = new }
     log place old new
         | new /= old = Logger.log $ place <> ": "
             <> ShowVal.show_val old <> " -> " <> ShowVal.show_val new
-        | otherwise = return ()
+        | otherwise = pure ()
 
 -- * merge
 
@@ -242,7 +242,7 @@ merge_states st0 st1 = Ui.exec st0 $ do
 safe_union :: (Ui.M m, Ord k, Show k) => String
     -> Map k a -> Map k a -> m (Map k a)
 safe_union name fm0 fm1
-    | Map.null overlapping = return fm
+    | Map.null overlapping = pure fm
     | otherwise = Ui.throw $ "keys collided in " <> showt name <> ": "
         <> showt (Map.keys overlapping)
     where (fm, overlapping) = Maps.uniqueUnion fm0 fm1

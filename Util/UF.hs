@@ -76,7 +76,7 @@ processM f = go
     go (a : as) = do
         (bs, remain) <- f a as
         append remain bs
-    go [] = return Done
+    go [] = pure Done
     append as (b :+ bs) = (b :+) <$> append as bs
     append as Done = go as
-    append _ (Fail err) = return $ Fail err
+    append _ (Fail err) = pure $ Fail err

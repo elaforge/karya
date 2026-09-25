@@ -125,7 +125,7 @@ instance DeepSeq.NFData Message where
 track_interface :: RawInterface Midi.WriteMessage -> IO Interface
 track_interface interface = do
     tracker <- note_tracker use_all_notes_off (write_message interface)
-    return $ interface { write_message = tracker }
+    pure $ interface { write_message = tracker }
 
 reset_pitch :: RealTime -> Message
 reset_pitch time = AllDevices time $ all_channels (Midi.PitchBend 0)
@@ -155,25 +155,25 @@ note_tracker :: Bool -> (Midi.WriteMessage -> IO (Maybe err))
     -> IO (Message -> IO (Maybe err))
 note_tracker use_all_notes_off write = do
     mstate <- MVar.newMVar Map.empty
-    return $ \msg -> MVar.modifyMVar mstate $ \state -> run state $ do
+    pure $ \msg -> MVar.modifyMVar mstate $ \state -> run state $ do
         new_msgs <- handle_msg msg
         liftIO $ do
             mapM_ write new_msgs
             case msg of
                 Midi wmsg -> write wmsg
-                _ -> return Nothing
+                _ -> pure Nothing
     where
     handle_msg (Midi wmsg) = do
         case Midi.wmsg_msg wmsg of
             Midi.ChannelMessage chan _
-                | not (Num.inRange 0 15 chan) -> return ()
+                | not (Num.inRange 0 15 chan) -> pure ()
             Midi.ChannelMessage chan (Midi.NoteOn key vel)
                 | vel == 0 -> note_off dev chan key
                 | otherwise -> note_on dev chan key
             Midi.ChannelMessage chan (Midi.NoteOff key _) ->
                 note_off dev chan key
-            _ -> return ()
-        return []
+            _ -> pure ()
+        pure []
         where dev = Midi.wmsg_dev wmsg
     handle_msg (AllNotesOff time) = all_notes_off use_all_notes_off time
     handle_msg (AllDevices time msgs) = send_devices time msgs
@@ -208,7 +208,7 @@ note_on dev chan key = when (Num.inRange 0 128 key) $ do
 send_devices :: RealTime -> [Midi.Message] -> TrackerM [Midi.WriteMessage]
 send_devices time msgs = do
     state <- State.get
-    return $ concatMap mkmsgs (Map.keys state)
+    pure $ concatMap mkmsgs (Map.keys state)
     where
     mkmsgs dev = map (Midi.WriteMessage dev time) msgs
 
@@ -218,7 +218,7 @@ all_notes_off use_all_notes_off time = do
     -- Debug.traceM "state" =<< traverse (traverse Unboxed.freeze) state
     msgs <- liftIO $ forM (Map.toList state) $ \(dev, chans) ->
         forM (zip [0..] (Vector.toList chans)) $ \(chan, notes) ->
-            if use_all_notes_off then return
+            if use_all_notes_off then pure
                 [ Midi.WriteMessage dev time $
                     Midi.ChannelMessage chan Midi.AllNotesOff
                 ]
@@ -226,13 +226,13 @@ all_notes_off use_all_notes_off time = do
                 keys <- Unboxed.toList <$> Unboxed.freeze notes
                 liftIO $ Mutable.set notes 0
                 -- Emit a NoteOff for each current NoteOn I've seen.
-                return $ map (note_off dev chan)
+                pure $ map (note_off dev chan)
                     [ Midi.Key (fromIntegral i)
                     | (i, count) <- zip [0..] keys
                     , _ <- [0 .. count-1]
                     ]
     -- Debug.tracepM "msgs" $ concat $ concat msgs
-    return $ concat (concat msgs)
+    pure $ concat (concat msgs)
     where
     note_off dev chan key = Midi.WriteMessage dev time $
         Midi.ChannelMessage chan $ Midi.NoteOff key 0

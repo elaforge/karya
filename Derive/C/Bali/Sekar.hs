@@ -102,7 +102,7 @@ check_patterns patterns = do
         | pattern_length pattern /= n = Left $
             "expected pattern of length " <> showt n <> " but got "
             <> showt ptext
-        | otherwise = return ()
+        | otherwise = pure ()
 
 -- ** even subdivision
 
@@ -243,7 +243,7 @@ make_pattern :: Text -> Derive.Deriver Pattern
 make_pattern pattern = do
     when (Text.null pattern || Text.any (not . a_to_z . Char.toLower) pattern) $
         Derive.throw $ "pattern chars must be a-z: " <> showt pattern
-    return
+    pure
         [ (fromEnum (Char.toLower c) - fromEnum 'a',
             if Char.isUpper c then Rest else Note)
         | c <- Text.unpack pattern

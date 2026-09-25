@@ -33,7 +33,7 @@ testKorvai :: Int -> Korvai.Korvai -> Test
 testKorvai i korvai =
     forM_ (Korvai.korvaiInstruments korvai) $ \(Korvai.GInstrument inst) ->
     realizeCatch inst korvai >>= \case
-        Right _ -> return ()
+        Right _ -> pure ()
         Left errs -> failure $ location korvai i <> ": "
             <> Korvai.instrumentName inst <> ": " <> Text.unlines errs
 
@@ -66,10 +66,10 @@ realizeCatch :: (Solkattu.Notation stroke, Ord stroke)
     => Korvai.Instrument stroke -> Korvai.Korvai
     -> IO (Either [Text] [[Realize.Note stroke]])
 realizeCatch inst korvai =
-    Exception.handle (\(Solkattu.Exception msg) -> return (Left [msg])) $ do
+    Exception.handle (\(Solkattu.Exception msg) -> pure (Left [msg])) $ do
         let result = realize inst korvai
         Testing.force result
-        return result
+        pure result
 
 realize :: (Solkattu.Notation stroke, Ord stroke)
     => Korvai.Instrument stroke -> Korvai.Korvai

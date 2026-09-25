@@ -102,14 +102,14 @@ list :: Ui.M m => m [(RulerId, [BlockId])]
 list = do
     ruler_ids <- Ui.all_ruler_ids
     block_ids <- mapM Ui.blocks_with_ruler_id ruler_ids
-    return $ zip ruler_ids (map (map fst) block_ids)
+    pure $ zip ruler_ids (map (map fst) block_ids)
 
 -- | Destroy all unrefereced rulers, and return their now-invalid RulerIds.
 gc :: Ui.M m => m [RulerId]
 gc = do
     ruler_ids <- Create.orphan_rulers
     mapM_ Ui.destroy_ruler ruler_ids
-    return ruler_ids
+    pure ruler_ids
 
 -- | Group together rulers that are the same, replace all the duplicates with
 -- the first ruler in each group, then gc away the duplicates.  Return the
@@ -120,7 +120,7 @@ unify = do
         Ui.gets (Map.toAscList . Ui.state_rulers)
     mapM_ merge groups
     gc
-    return $ filter ((>1) . length) $ map (map fst . NonEmpty.toList) groups
+    pure $ filter ((>1) . length) $ map (map fst . NonEmpty.toList) groups
     where
     merge ((rid, _) :| dups) = forM_ (map fst dups) $ \dup_rid ->
         replace_ruler_id dup_rid rid
@@ -142,7 +142,7 @@ sync_ids = do
     let renamed = if null renames then "" else Text.unlines $
             "Renamed:" : [ pretty from <> " -> "
                 <> pretty (Id.RulerId to) | (from, to) <- renames]
-    return $ unified <> renamed
+    pure $ unified <> renamed
 
 list_misnamed :: Ui.M m => m [(RulerId, BlockId)]
 list_misnamed = go <$> list
@@ -179,7 +179,7 @@ set ruler_id block_id scope = do
     ruler_ids <- case scope of
         RulerUtil.Block -> do
             count <- Ui.track_count block_id
-            return $ replicate count (Just ruler_id)
+            pure $ replicate count (Just ruler_id)
         RulerUtil.Section tracknum -> replace_tracknums
             =<< map fst <$> RulerUtil.get_section block_id tracknum
         RulerUtil.Tracks tracknums -> replace_tracknums tracknums
@@ -191,13 +191,13 @@ set ruler_id block_id scope = do
         let replace tracknum old_ruler
                 | tracknum `elem` tracknums = Just ruler_id
                 | otherwise = old_ruler
-        return $ zipWith replace [0..] old
+        pure $ zipWith replace [0..] old
 
 -- | Replace the ruler.
 ruler :: Cmd.M m => Meter.Meter -> m Modify
 ruler meter = do
     (block_id, tracknum) <- get_block_track
-    return $ make_modify block_id tracknum $ const $ Right $
+    pure $ make_modify block_id tracknum $ const $ Right $
         Ruler.meter_ruler meter
 
 lruler :: Cmd.M m => Meter.Meter -> m [RulerId]
@@ -235,7 +235,7 @@ selected_marks :: Cmd.M m => Meter.Rank -> m [(TrackTime, Mark.Mark)]
 selected_marks rank = do
     ruler <- Ui.get_ruler =<< selected
     (start, end) <- selection_range
-    return $ filter ((<=rank) . Mark.mark_rank . snd) $
+    pure $ filter ((<=rank) . Mark.mark_rank . snd) $
         takeWhile ((<=end) . fst) $ Mark.ascending start $
         Ruler.get_marklist Ruler.meter_name ruler
 
@@ -285,9 +285,9 @@ replace_meter force upgrade ruler_id = do
             | force || old_meter == Nothing -> do
                 let (meter, msg) = upgrade mlist
                 RulerUtil.set_meter ruler_id meter
-                return $ "replaced: " <> msg
-            | otherwise -> return "already has meter"
-        Nothing -> return "no meter?"
+                pure $ "replaced: " <> msg
+            | otherwise -> pure "already has meter"
+        Nothing -> pure "no meter?"
 
 -- * Modify
 
@@ -378,7 +378,7 @@ pull_up :: Cmd.M m => m Modify
 pull_up = do
     (block_id, tracknum, track_id, _) <- Selection.get_insert
     meter <- Extract.pull_up block_id track_id
-    return $ make_modify block_id tracknum $
+    pure $ make_modify block_id tracknum $
         const $ Right $ Ruler.meter_ruler meter
 
 push_down :: Cmd.M m => Bool -> m ()
@@ -395,13 +395,13 @@ tracks :: Cmd.M m => m Modify -> m Modify
 tracks modify = do
     modify <- modify
     (_, tracknums, _, _) <- Selection.tracks
-    return $ modify { m_scope = RulerUtil.Tracks tracknums }
+    pure $ modify { m_scope = RulerUtil.Tracks tracknums }
 
 -- | Change a Modify so it modifies all rulers on the block.
 block :: Cmd.M m => m Modify -> m Modify
 block modify = do
     modify <- modify
-    return $ modify { m_scope = RulerUtil.Block }
+    pure $ modify { m_scope = RulerUtil.Block }
 
 -- | Enough information to modify a ruler.
 --
@@ -423,7 +423,7 @@ set_start_measure n = modify_selected $ Meter.modify_config $ \c ->
 modify_selected :: Cmd.M m => (Meter.Meter -> Meter.Meter) -> m Modify
 modify_selected modify = do
     (block_id, tracknum) <- get_block_track
-    return $ make_modify block_id tracknum (Right . Ruler.modify_meter modify)
+    pure $ make_modify block_id tracknum (Right . Ruler.modify_meter modify)
 
 make_modify :: BlockId -> TrackNum -> RulerUtil.ModifyRuler -> Modify
 make_modify block_id tracknum = Modify block_id (RulerUtil.Section tracknum)
@@ -431,7 +431,7 @@ make_modify block_id tracknum = Modify block_id (RulerUtil.Section tracknum)
 get_block_track :: Cmd.M m => m (BlockId, TrackNum)
 get_block_track = do
     (block_id, tracknum, _, _) <- Selection.get_insert
-    return (block_id, tracknum)
+    pure (block_id, tracknum)
 
 local :: Cmd.M m => m Modify -> m [RulerId]
 local = (local_m =<<)

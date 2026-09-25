@@ -188,7 +188,7 @@ parse_or_throw :: Derive.Taggable d => Parser a -> Derive.PassedArgs d
 parse_or_throw parser args = require_right =<< parse parser args
 
 require_right :: Either Error a -> Derive.Deriver a
-require_right = either (Derive.throw_error . Derive.CallError) return
+require_right = either (Derive.throw_error . Derive.CallError) pure
 
 -- | Run a parser against the current derive state.
 parse :: Derive.Taggable d => Parser a -> Derive.PassedArgs d
@@ -587,7 +587,7 @@ check_arg state arg_doc place name = \case
 from_val :: Typecheck.Typecheck a => State -> DeriveT.Val
     -> Either Derive.Error (Maybe a)
 from_val state val = run state $ case Typecheck.from_val val of
-    Typecheck.Val result -> return $ case result of
+    Typecheck.Val result -> pure $ case result of
         Typecheck.Failure -> Nothing
         Typecheck.Success a -> Just a
         Typecheck.Derive deriver -> Just $ deriver (state_context state)
@@ -633,7 +633,7 @@ eval_quoted state (DeriveT.Quoted expr) = result
     where
     (result, _state, _logs) = Derive.run (state_derive state) $ do
         call <- case expr of
-            call :| [] -> return call
+            call :| [] -> pure call
             _ -> Derive.throw "expected a val call, but got a full expression"
         Eval.eval (state_context state) (Expr.ValCall call)
 

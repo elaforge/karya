@@ -24,4 +24,4 @@ profile_cancel = do
     -- With force, run with -K2905K
     Thread.force events
     Thread.printTimer "force" ("done: "<>) $
-        return $! either show (show . length . Stream.to_list) $ f events
+        pure $! either show (show . length . Stream.to_list) $ f events

@@ -121,7 +121,7 @@ make_config :: ScoreT.TypedFunction -> ScoreT.TypedFunction
 make_config attack_dur release_delay release_dur open_strings = do
     srate <- Call.get_srate
     let linear = PitchUtil.segment srate ControlUtil.Linear
-    return $ Config
+    pure $ Config
         { _open_strings =
             Map.fromList $ Lists.keyOn StringUtil.str_nn open_strings
         , _attack_curve = (linear, attack_dur)
@@ -160,7 +160,7 @@ string_idiom config = do
         let lowest = Pitch.nn $ Signal.minimum nns
         string <- Derive.require ("below lowest string: " <> pretty lowest) $
             snd <$> Map.lookupLE lowest (_open_strings config)
-        return
+        pure
             ( Score.modify_environ (StringUtil.insert_string string) event
             , string
             )
@@ -181,7 +181,7 @@ process config event string (Just next_event) = do
     attack_dur <- Call.real_duration_at (snd (_attack_curve config)) next
     event <- add_release config (StringUtil.str_pitch string)
         (Just (next - attack_dur)) event
-    return $ add_attack config attack_dur next_event event
+    pure $ add_attack config attack_dur next_event event
 
 -- | After releasing a note, you release your hand, which means the pitch
 -- should bend down to the open string.
@@ -196,10 +196,10 @@ add_release config open_string maybe_next event = do
     let enough_time = case maybe_next of
             Nothing -> True
             Just next -> next - end > delay + dur
-    return $ fromMaybe event $ if not enough_time
+    pure $ fromMaybe event $ if not enough_time
         then Nothing else do
             from_pitch <- Score.pitch_at (end+delay) event
-            return $ merge_curve (fst (_release_curve config))
+            pure $ merge_curve (fst (_release_curve config))
                 (end + delay) from_pitch
                 (end + delay + dur) open_string
                 event
@@ -216,7 +216,7 @@ add_attack config dur next_event event
         let start_x = max (Score.event_start event) (next - dur)
         start_pitch <- Score.pitch_at start_x event
         next_pitch <- Score.pitch_at next next_event
-        return $ merge_curve (fst (_attack_curve config)) start_x start_pitch
+        pure $ merge_curve (fst (_attack_curve config)) start_x start_pitch
             next next_pitch event
     where next = Score.event_start next_event
 
@@ -327,7 +327,7 @@ gliss_pitches open_strings dest_pitch gliss_start = do
     open_nns <- mapM (Pitches.pitch_nn . PSignal.coerce) open_strings
     let strings = Lists.sortOn snd $ zip open_strings open_nns
     -- 0 2 4 6 8 10
-    return $ if gliss_start >= 0
+    pure $ if gliss_start >= 0
         -- 5 -> 6 8 10 -> 10 8 6 5
         then reverse $ take gliss_start $ map fst $
             dropWhile ((<=dest_nn) . snd) strings

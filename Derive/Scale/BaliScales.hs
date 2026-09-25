@@ -246,7 +246,7 @@ set_relative_octaves (high, middle, low) center =
                 | c == low = -1
                 | otherwise = 0
         let oct = Num.sum $ map oct_value oct_str
-        return $ TheoryFormat.RelativePitch (center + oct) pc acc
+        pure $ TheoryFormat.RelativePitch (center + oct) pc acc
     t = Text.singleton
 
 cipher_relative_dotted :: Pitch.Octave -> Theory.Key -> ChromaticScales.Keys
@@ -278,7 +278,7 @@ dotted_octaves center = TheoryFormat.set_octave show_octave parse_octave
         octs <- A.many' $ A.satisfy $ \c -> c == '.' || c == '^'
         A.char '`'
         let oct = Lists.count (=='^') octs - Lists.count (=='.') octs
-        return $ TheoryFormat.RelativePitch (center + oct) pc acc
+        pure $ TheoryFormat.RelativePitch (center + oct) pc acc
 
 -- * tuning
 
@@ -314,7 +314,7 @@ semis_to_nn layout laras_map default_laras =
                 umbang <- get_nn (laras_umbang laras) fsemis
                 isep <- get_nn (laras_isep laras) fsemis
                 let avg = (Pitch.nn_to_hz umbang + Pitch.nn_to_hz isep) / 2
-                return $ Pitch.hz_to_nn $ case tuning of
+                pure $ Pitch.hz_to_nn $ case tuning of
                     Umbang -> avg - ombak / 2
                     Isep -> avg + ombak / 2
 
@@ -329,5 +329,5 @@ get_nn nns fsemis
     | otherwise = do
         low <- nns !? semis
         high <- nns !? (semis + 1)
-        return $ Num.scale low high (Pitch.nn frac)
+        pure $ Num.scale low high (Pitch.nn frac)
     where (semis, frac) = properFraction fsemis

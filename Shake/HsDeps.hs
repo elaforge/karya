@@ -79,7 +79,7 @@ importsPackagagesOf_ :: PackageDb
 importsPackagagesOf_ packageDb generated cppFlags fn = do
     mods <- parseImports <$> preprocess cppFlags fn
     files <- Maybe.catMaybes <$> mapM (fileOf generated) mods
-    return (files, Maybe.mapMaybe (`Map.lookup` packageDb) mods)
+    pure (files, Maybe.mapMaybe (`Map.lookup` packageDb) mods)
 
 -- | Load cached module to package db.
 loadPackageDb :: FilePath -> Shake.Action PackageDb
@@ -87,7 +87,7 @@ loadPackageDb fn = do
     Shake.need [fn]
     Trans.liftIO $ do
         result <- Serialize.decode <$> B.readFile fn
-        either (Util.errorIO . (("load from " ++ fn ++ ":")++)) return result
+        either (Util.errorIO . (("load from " ++ fn ++ ":")++)) pure result
 
 -- | Call 'getModuleToPackage' and save its contents to the file.
 -- If there are colliding modules, throw an IO exception.
@@ -104,7 +104,7 @@ getModuleToPackage :: [Package]
     -- ^ also return any modules found under multiple packages
 getModuleToPackage packages = do
     packageMods <- zip packages <$> mapM getExposedModules packages
-    return $ Maps.unique2
+    pure $ Maps.unique2
         [(mod, package) | (package, mods) <- packageMods, mod <- mods]
 
 getExposedModules :: Package -> IO [ModuleName]
@@ -133,11 +133,11 @@ transitiveImportsOf generated cppFlagsOf fn = do
             imports <- importsOf generated (cppFlagsOf fn) fn
             let checked' = Set.insert fn checked
             go checked' (fns ++ filter (`Set.notMember` checked') imports)
-    go checked [] = return $ Set.toList checked
+    go checked [] = pure $ Set.toList checked
 
 fileOf :: Generated -> ModuleName -> IO (Maybe FilePath)
 fileOf generated mod
-    | fn `Set.member` _generatedHs generated = return $ Just fn
+    | fn `Set.member` _generatedHs generated = pure $ Just fn
     | otherwise = findExistingFile $
         fn : map (FilePath.replaceExtension fn) (_generatedExtensions generated)
     where
@@ -167,7 +167,7 @@ processStdout cmd args = Exception.bracket open IO.hClose B.hGetContents
     open = do
         (_, Just stdout, _, _) <- loggedProcess $
             (Process.proc cmd args) { Process.std_out = Process.CreatePipe }
-        return stdout
+        pure stdout
 
 -- | Like 'Process.createProcess', but actually report when the binary isn't
 -- found.
@@ -181,8 +181,8 @@ loggedProcess create = do
             Exit.ExitFailure c -> IO.hPutStrLn IO.stderr $
                 "subprocess " ++ show (binaryOf create) ++ " failed: "
                 ++ if c == 127 then "binary not found" else show c
-            _ -> return ()
-    return r
+            _ -> pure ()
+    pure r
     where
     binaryOf create = case Process.cmdspec create of
         Process.RawCommand fn _ -> fn
@@ -190,6 +190,6 @@ loggedProcess create = do
 
 findExistingFile :: [FilePath] -> IO (Maybe FilePath)
 findExistingFile (fn:fns) =
-    Util.ifM (Directory.doesFileExist fn) (return (Just fn))
+    Util.ifM (Directory.doesFileExist fn) (pure (Just fn))
         (findExistingFile fns)
-findExistingFile [] = return Nothing
+findExistingFile [] = pure Nothing

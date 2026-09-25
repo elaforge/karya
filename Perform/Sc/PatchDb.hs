@@ -60,13 +60,13 @@ load_dir :: FilePath -> IO (Maybe PatchDb)
 load_dir dir = Exceptions.ignoreEnoent (Files.list dir) >>= \case
     Nothing -> do
         Log.notice $ "no supercollider patch dir: " <> showt dir
-        return Nothing
+        pure Nothing
     Just fnames -> do
         (errors, patches) <- Either.partitionEithers <$> mapM load_file fnames
         mapM_ Log.warn errors
         -- If you ran normalize_patches, there should be no collisions, since
         -- the filesystem disallows them.
-        return $ Just $ Map.unions patches
+        pure $ Just $ Map.unions patches
 
 load_file :: FilePath -> IO (Either Text PatchDb)
 load_file fname =
@@ -81,12 +81,12 @@ parse fname bytes = do
 
 convert :: FilePath -> Literally.LiteralSynthDef -> Either String Patch.Patch
 convert fname def = do
-    gate_id <- maybe (Left $ "no 'gate' control: " <> prettys controls) return $
+    gate_id <- maybe (Left $ "no 'gate' control: " <> prettys controls) pure $
         Map.lookup c_gate controls
     unless (gate_id == Note.gate_id) $
         Left $ "gate control ID should be " <> prettys Note.gate_id <> ", was "
             <> prettys gate_id
-    return $ Patch.Patch
+    pure $ Patch.Patch
         { name = Literally._synthDefName def
         , filename = fname
         , controls = Map.delete c_gate controls
@@ -107,7 +107,7 @@ normalize_patches in_dir out_dir = do
     fnames <- Files.list in_dir
     forM_ fnames $ \fname -> normalize_patch out_dir fname >>= \case
         Left err -> putStrLn $ fname <> ": " <> err
-        Right () -> return ()
+        Right () -> pure ()
 
 normalize_patch :: FilePath -> FilePath -> IO (Either String ())
 normalize_patch out_dir fname = Except.runExceptT $ do

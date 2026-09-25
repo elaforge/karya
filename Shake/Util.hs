@@ -111,7 +111,7 @@ doCmdline fancyOutput keepGoing (abbr, output, cmd_:args) = do
                 -- itself.
                 ++ ellipsis 80 (unwords (map quote (cmd : args)))
                 -- ++ (unwords (map quote (cmd : args)))
-        return ghcNotRequired
+        pure ghcNotRequired
         ) `Exception.onException` do
             timing <- showMetric start
             put $ unwords [desc, timing, "(aborted)"]
@@ -120,7 +120,7 @@ doCmdline fancyOutput keepGoing (abbr, output, cmd_:args) = do
     where
     showMetric start = do
         end <- metric
-        return $ unwords ["-", diffMetric end start]
+        pure $ unwords ["-", diffMetric end start]
     cmd = FilePath.toNative cmd_
     desc = ellipsis 127 abbr <> if null output then "" else ": " <> output
     put | fancyOutput = Concurrent.outputConcurrent . (<>"\n")
@@ -164,7 +164,7 @@ createProcessConcurrent cmd args = do
                 -- This shows up on ghc's stdout.
                 if line == "compilation IS NOT required"
                     then IORef.writeIORef ghcNotRequired True
-                    else if ignoreLine line then return ()
+                    else if ignoreLine line then pure ()
                     else Concurrent.outputConcurrent (line <> "\n")
                 loop
     ignoreLine line =
@@ -205,7 +205,7 @@ findFiles acceptDir filePattern dir = do
         Shake.getDirectoryFiles dir [filePattern]
     dirs <- map (dir </>) . filter acceptDir <$> Shake.getDirectoryDirs dir
     rest <- mapM (findFiles acceptDir filePattern) dirs
-    return $ concat (fns:rest)
+    pure $ concat (fns:rest)
 
 findHs :: Shake.FilePattern -> FilePath -> Shake.Action [FilePath]
 findHs = findFiles $ all Char.isUpper . take 1

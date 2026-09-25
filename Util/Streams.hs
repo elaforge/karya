@@ -27,7 +27,7 @@ mapAccumL_ :: Monad m => (state -> a -> m state) -> state
 mapAccumL_ f = go
     where
     go state0 xs = S.next xs >>= \case
-        Left r -> return r
+        Left r -> pure r
         Right (x, xs) -> do
             state1 <- f state0 x
             go state1 xs

@@ -85,7 +85,7 @@ sync ui_chan track_signals set_style state updates = do
     Trace.trace "sync.sort"
     -- Debug.fullM (Debug.putp "sync updates") updates
     case Ui.run_id state $ sync_actions track_signals set_style updates of
-        Left err -> return $ Just err
+        Left err -> pure $ Just err
         -- I reuse Ui.StateT for convenience, but run_update should
         -- not modify the State and hence shouldn't produce any updates.
         -- TODO Try to split StateT into ReadStateT and ReadWriteStateT to
@@ -97,7 +97,7 @@ sync ui_chan track_signals set_style state updates = do
                     ("sync actions: " <> showt (length actions))
                     (sequence_ actions)
             Trace.trace "sync.send"
-            return Nothing
+            pure Nothing
 
 -- | Filter out updates that will cause the BlockC level to throw an exception,
 -- and log an error instead.  BlockC could log itself, but if BlockC gets a bad
@@ -108,13 +108,13 @@ check_updates :: Ui.State -> [Update.DisplayUpdate] -> IO [Update.DisplayUpdate]
 check_updates state = filterM $ \update -> case update of
     Update.View view_id u -> case u of
         -- Already destroyed, so I don't expect it to exist.
-        Update.DestroyView -> return True
-        _ | view_id `Map.member` Ui.state_views state -> return True
+        Update.DestroyView -> pure True
+        _ | view_id `Map.member` Ui.state_views state -> pure True
         _ -> do
             Log.warn $ "Update for nonexistent " <> showt view_id <> ": "
                 <> pretty u
-            return False
-    _ -> return True
+            pure False
+    _ -> pure True
 
 sync_actions :: Track.TrackSignals -> Track.SetStyleHigh
     -> [Update.DisplayUpdate] -> Ui.StateId [Fltk.Fltk ()]
@@ -147,7 +147,7 @@ set_play_position chan view_sels = unless (null view_sels) $
         (view_id, tracknum_pos) <- Lists.groupFst view_sels
         (tracknums, pos) <- Lists.groupFst $
             Lists.groupSnd (concat tracknum_pos)
-        return $ set_selection_carefully view_id
+        pure $ set_selection_carefully view_id
             Config.play_position_selnum (Just tracknums) (map sel pos)
     where
     sel p = BlockC.Selection
@@ -183,7 +183,7 @@ clear_im_progress = clear_selections Config.im_progress_selnum
 set_waveforms :: Fltk.Channel
     -> [((ViewId, TrackNum), [Track.WaveformChunk])] -> IO ()
 set_waveforms chan by_view
-    | all (null . snd) by_view = return ()
+    | all (null . snd) by_view = pure ()
     | otherwise = Fltk.send_action chan "set_waveforms" $ sequence_
         [ BlockC.set_waveform view_id tracknum waveform
         | ((view_id, tracknum), waveforms) <- by_view
@@ -191,7 +191,7 @@ set_waveforms chan by_view
         ]
 
 clear_waveforms :: Fltk.Channel -> [ViewId] -> IO ()
-clear_waveforms _ [] = return ()
+clear_waveforms _ [] = pure ()
 clear_waveforms chan view_ids = Fltk.send_action chan "clear_waveforms" $
     mapM_ BlockC.clear_waveforms view_ids
 
@@ -206,7 +206,7 @@ set_selections selnum chan view_sels = unless (null view_sels) $
     Fltk.send_action chan "set_highlights" $ sequence_ $ do
         (view_id, tracknum_sels) <- group_by_view view_sels
         (tracknum, range_colors) <- tracknum_sels
-        return $ set_selection_carefully view_id selnum
+        pure $ set_selection_carefully view_id selnum
             (Just [tracknum]) (map make_sel range_colors)
     where
     make_sel ((start, end), color) = BlockC.Selection
@@ -309,7 +309,7 @@ run_update views_of track_signals set_style update = case update of
         update_track views_of set_style track_id update
     Update.Ruler ruler_id ->
         update_ruler views_of set_style ruler_id
-    Update.State () -> return []
+    Update.State () -> pure []
 
 update_view :: Track.TrackSignals -> Track.SetStyleHigh -> ViewId
     -> Update.View -> Ui.StateId [Fltk.Fltk ()]
@@ -336,7 +336,7 @@ update_view track_signals set_style view_id Update.CreateView = do
     -- repetition to let Diff.diff do that by diffing against a state with an
     -- empty view, but this way seems less complicated if more error-prone.
     -- Sync: title, tracks, selection, skeleton
-    return $ (:[]) $ do
+    pure $ (:[]) $ do
         let title = block_window_title
                 (UiConfig.config_namespace (Ui.state_config state))
                 view_id (Block.view_block view)
@@ -361,21 +361,21 @@ update_view track_signals set_style view_id Update.CreateView = do
         BlockC.set_track_scroll view_id (Block.view_track_scroll view)
 
 update_view _ _ view_id update = case update of
-    Update.DestroyView -> return [BlockC.destroy_view view_id]
-    Update.ViewSize rect -> return [BlockC.set_size view_id rect]
+    Update.DestroyView -> pure [BlockC.destroy_view view_id]
+    Update.ViewSize rect -> pure [BlockC.set_size view_id rect]
     Update.Status status color ->
-        return [BlockC.set_status view_id (Block.show_status status) color]
+        pure [BlockC.set_status view_id (Block.show_status status) color]
     Update.TrackScroll offset ->
-        return [BlockC.set_track_scroll view_id offset]
-    Update.Zoom zoom -> return [BlockC.set_zoom view_id zoom]
-    Update.Selection selnum maybe_sel -> return $ (:[]) $ do
+        pure [BlockC.set_track_scroll view_id offset]
+    Update.Zoom zoom -> pure [BlockC.set_zoom view_id zoom]
+    Update.Selection selnum maybe_sel -> pure $ (:[]) $ do
         tracks <- BlockC.tracks view_id
         let tracknums_sels = track_selections selnum tracks maybe_sel
         forM_ tracknums_sels $ \(tracknums, sels) ->
             BlockC.set_selection view_id selnum tracknums sels
-    Update.BringToFront -> return [BlockC.bring_to_front view_id]
+    Update.BringToFront -> pure [BlockC.bring_to_front view_id]
     Update.TitleFocus tracknum ->
-        return $ (:[]) $ maybe (BlockC.set_block_title_focus view_id)
+        pure $ (:[]) $ maybe (BlockC.set_block_title_focus view_id)
             (BlockC.set_track_title_focus view_id) tracknum
 
 -- | Block ops apply to every view with that block.
@@ -383,15 +383,15 @@ update_block :: (BlockId -> [ViewId]) -> Track.TrackSignals
     -> Track.SetStyleHigh -> BlockId -> Update.Block Block.DisplayTrack
     -> Ui.StateId [Fltk.Fltk ()]
 update_block views_of track_signals set_style block_id update = case update of
-    Update.BlockTitle title -> return $
+    Update.BlockTitle title -> pure $
         map (flip BlockC.set_title title) view_ids
-    Update.BlockConfig config -> return $
+    Update.BlockConfig config -> pure $
         map (flip BlockC.set_config config) view_ids
-    Update.BlockSkeleton skel integrate_edges -> return
+    Update.BlockSkeleton skel integrate_edges -> pure
         [ BlockC.set_skeleton view_id skel integrate_edges
         | view_id <- view_ids
         ]
-    Update.RemoveTrack tracknum -> return $
+    Update.RemoveTrack tracknum -> pure $
         map (flip BlockC.remove_track tracknum) view_ids
     Update.InsertTrack tracknum dtrack -> create_track tracknum dtrack
     Update.BlockTrack tracknum dtrack -> do
@@ -399,7 +399,7 @@ update_block views_of track_signals set_style block_id update = case update of
         state <- Ui.get
         let set_style_low = update_set_style state block_id
                 (Block.dtracklike_id dtrack) set_style
-        return $ for view_ids $ \view_id -> do
+        pure $ for view_ids $ \view_id -> do
             BlockC.set_display_track view_id tracknum dtrack
             let merged = events_of_track_ids state
                     (Block.dtrack_merged dtrack)
@@ -418,7 +418,7 @@ update_block views_of track_signals set_style block_id update = case update of
             ("InsertTrack with tracknum not in the block: " <> pretty update)
             =<< fmap (\b -> Lists.at (Block.block_tracks b) tracknum)
                 (Ui.get_block block_id)
-        return $ for view_ids $ \view_id ->
+        pure $ for view_ids $ \view_id ->
             insert_track state set_style block_id view_id tracknum dtrack
                 tlike_id tlike track_signals (Block.track_flags btrack)
 
@@ -427,7 +427,7 @@ update_track :: (BlockId -> [ViewId]) -> Track.SetStyleHigh
 update_track views_of set_style track_id update = do
     block_ids <- map fst <$> dtracks_with_track_id track_id
     state <- Ui.get
-    return $ do
+    pure $ do
         block_id <- block_ids
         Just block <- [Map.lookup block_id (Ui.state_blocks state)]
         (tracknum, tracklike_id) <- tracklikes track_id block
@@ -445,7 +445,7 @@ update_track views_of set_style track_id update = do
         where
         tracks = map Block.dtracklike_id (Block.block_display_tracks block)
     track_update set_style view_id tracklike tracknum merged update =
-        return $ case update of
+        pure $ case update of
             Update.TrackEvents low high ->
                 BlockC.update_track False view_id tracknum tracklike merged
                     set_style low high
@@ -467,14 +467,14 @@ update_ruler :: (BlockId -> [ViewId]) -> Track.SetStyleHigh -> RulerId
 update_ruler views_of set_style ruler_id = do
     block_tracks <- dtracks_with_ruler_id ruler_id
     state <- Ui.get
-    return $ do
+    pure $ do
         (block_id, tracks) <- block_tracks
         Just block <- [Map.lookup block_id (Ui.state_blocks state)]
         view_id <- views_of block_id
         (tracknum, tracklike_id) <- tracks
         tracklike <- get_tracklike state tracklike_id
         let merged = merged_events_of state block tracknum
-        return $ BlockC.update_entire_track True view_id tracknum tracklike
+        pure $ BlockC.update_entire_track True view_id tracknum tracklike
             merged (update_set_style state block_id tracklike_id set_style)
 
 for :: [a] -> (a -> b) -> [b]
@@ -525,8 +525,8 @@ insert_track state set_style block_id view_id tracknum dtrack tlike_id tlike
             case Map.lookup (block_id, tid) track_signals of
                 Just tsig | Block.track_wants_signal flags t ->
                     BlockC.set_track_signal view_id tracknum tsig
-                _ -> return ()
-        _ -> return ()
+                _ -> pure ()
+        _ -> pure ()
     where
     set_style_low = update_set_style state block_id tlike_id set_style
     merged = events_of_track_ids state (Block.dtrack_merged dtrack)
@@ -552,7 +552,7 @@ update_set_style state block_id tlike (Track.SetStyleHigh track_bg set_style) =
 has_note_children :: Ui.M m => BlockId -> TrackId -> m Bool
 has_note_children block_id track_id = do
     children <- TrackTree.get_children_of block_id track_id
-    return $ any (ParseTitle.is_note_track . Ui.track_title) children
+    pure $ any (ParseTitle.is_note_track . Ui.track_title) children
 
 merged_events_of :: Ui.State -> Block.Block -> TrackNum -> [Events.Events]
 merged_events_of state block tracknum =
@@ -628,7 +628,7 @@ find_dtracks f blocks = do
     (bid, b) <- Map.assocs blocks
     let tracks = get_tracks b
     guard (not (null tracks))
-    return (bid, tracks)
+    pure (bid, tracks)
     where
     all_tracks block = Lists.enumerate (Block.block_display_tracks block)
     get_tracks block =

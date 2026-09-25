@@ -104,7 +104,7 @@ run :: Cmd.M m => Derive.Cache -> Derive.ScoreDamage -> Derive.Deriver a
 run cache damage deriver = do
     ui_state <- Ui.get
     (constant, aliases) <- get_constant ui_state cache damage
-    return $ Derive.derive constant (initial_dynamic aliases) deriver
+    pure $ Derive.derive constant (initial_dynamic aliases) deriver
 
 -- | 'run_with_dynamic' but extract just the value.
 eval_with_dynamic :: Cmd.M m => Derive.Dynamic -> Derive.Deriver a -> m a
@@ -121,7 +121,7 @@ run_with_dynamic dynamic deriver = do
     ui_state <- Ui.get
     -- Trust they already put the ky aliases in.
     (constant, _aliases) <- get_constant ui_state mempty mempty
-    return $ run_with_constant constant dynamic deriver
+    pure $ run_with_constant constant dynamic deriver
 
 run_with_constant :: Derive.Constant -> Derive.Dynamic
     -> Derive.Deriver a -> Derive.RunResult a
@@ -141,9 +141,9 @@ get_constant :: Cmd.M m => Ui.State -> Derive.Cache -> Derive.ScoreDamage
 get_constant ui_state cache damage = do
     cmd_state <- Cmd.get
     (builtins, aliases) <- case Cmd.state_ky_cache cmd_state of
-        Nothing -> return (mempty, mempty)
+        Nothing -> pure (mempty, mempty)
         Just ky_cache -> Cmd.require_right id $ ky_builtins ky_cache
-    return
+    pure
         ( initial_constant ui_state (Cmd.state_config cmd_state)
             builtins cache damage
         , aliases
@@ -188,7 +188,7 @@ perform_from start events = do
     let events_list = filter_track_muted muted $
             filter_instrument_muted allocs $
             extra ++ Vector.toList events
-    return
+    pure
         ( perform_midi lookup_inst allocs events_list
         , perform_sc lookup_inst allocs events_list
         )
@@ -203,7 +203,7 @@ perform_raw :: Cmd.M m => [Score.Event] -> m Perform.MidiEvents
 perform_raw events = do
     allocs <- Ui.gets $ UiConfig.config_allocations . Ui.state_config
     lookup_inst <- Cmd.get_lookup_instrument
-    return $ perform_midi lookup_inst allocs events
+    pure $ perform_midi lookup_inst allocs events
 
 perform_midi :: (ScoreT.Instrument -> Maybe Cmd.ResolvedInstrument)
     -> UiConfig.Allocations -> [Score.Event] -> Perform.MidiEvents
@@ -334,7 +334,7 @@ get_muted_tracks :: Ui.M m => m (Set TrackId)
 get_muted_tracks = do
     blocks <- Ui.gets (Map.toList . Ui.state_blocks)
     tree <- concat <$> mapM (TrackTree.track_tree_of . fst) blocks
-    return $ muted_tracks tree blocks
+    pure $ muted_tracks tree blocks
 
 muted_tracks :: TrackTree.TrackTree -> [(BlockId, Block.Block)] -> Set TrackId
 muted_tracks tree blocks
@@ -406,5 +406,5 @@ make_midi_lookup lookup_inst = Convert.MidiLookup
             Cmd.Midi _ config -> Patch.config_control_defaults $
                 Patch.config_settings config
             _ -> Nothing
-        return defaults
+        pure defaults
     }

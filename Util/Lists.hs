@@ -223,7 +223,7 @@ updateAt deflt i f xs
 move :: Int -> Int -> [a] -> Maybe [a]
 move from to xs = do
     (x, dropped) <- takeAt from xs
-    return $ insertAt to x dropped
+    pure $ insertAt to x dropped
 
 -- * enumeration
 
@@ -341,11 +341,11 @@ mapAccumLM :: Monad m => (state -> x -> m (state, y)) -> state -> [x]
     -> m (state, [y])
 mapAccumLM f = go
     where
-    go !state [] = return (state, [])
+    go !state [] = pure (state, [])
     go !state (x:xs) = do
         (state, y) <- f state x
         (state, ys) <- go state xs
-        return (state, y : ys)
+        pure (state, y : ys)
 
 -- * min / max
 

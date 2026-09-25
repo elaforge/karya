@@ -83,7 +83,7 @@ compact screen =
 saved :: Cmd.CmdL Text
 saved = do
     saved <- Ui.config#UiConfig.saved_views <#> Ui.get
-    return $ Pretty.formatted $ Map.map pretty saved
+    pure $ Pretty.formatted $ Map.map pretty saved
     where
     pretty (views, focused) =
         map (\view_id -> Pretty.text $

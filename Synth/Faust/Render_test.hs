@@ -208,8 +208,8 @@ controlSize = Render._controlSize config
 
 getPatch :: Text -> IO InstrumentC.Patch
 getPatch name = do
-    patches <- mapM (either errorIO return) =<< InstrumentC.getPatches
-    return $ fromMaybe (error $ "no patch: " <> show name) $
+    patches <- mapM (either errorIO pure) =<< InstrumentC.getPatches
+    pure $ fromMaybe (error $ "no patch: " <> show name) $
         Map.lookup name patches
 
 mkNotes :: Note.PatchName -> RealTime -> [Pitch.NoteNumber] -> [Note.Note]

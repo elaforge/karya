@@ -27,7 +27,7 @@ pull_up block_id track_id = do
     meters <- mapM (RulerUtil.get_meter <=< Ui.ruler_of . snd) subs
     -- TODO previously I would scale the meters by the size of the event,
     -- but if I assume calls are 1:1 then this isn't necessary
-    return $ mconcat meters
+    pure $ mconcat meters
 
 block_calls :: Ui.M m => BlockId -> TrackId -> m [(Event.Event, BlockId)]
 block_calls block_id track_id = map (second NonEmpty.head) <$>
@@ -59,7 +59,7 @@ push_down not_1to1_ok block_id track_id = do
     let sub_blocks = Lists.dropDups fst subs
     forM_ sub_blocks $ \(block_id, meter) ->
         RulerUtil.local_meter RulerUtil.Block block_id (const meter)
-    return $ map fst sub_blocks
+    pure $ map fst sub_blocks
 
 push_down_recursive :: Ui.M m => Bool -> BlockId -> TrackId -> m ()
 push_down_recursive not_1to1_ok block_id track_id = do
@@ -79,8 +79,8 @@ sub_meters block_id track_id = do
         subs
     subs <- forM subs $ \(event, sub_block) -> do
         meter <- extract_meter block_id (Event.start event) (Event.end event)
-        return (sub_block, meter)
-    return (subs, map snd not_1to1)
+        pure (sub_block, meter)
+    pure (subs, map snd not_1to1)
 
 extract_meter :: Ui.M m => BlockId -> TrackTime -> TrackTime -> m Meter.Meter
 extract_meter block_id start end = do
@@ -88,7 +88,7 @@ extract_meter block_id start end = do
     -- TODO previously I would set config_start_measure to attempt to make the
     -- sub-meter start at an appropriate count, but now I won't bother unless I
     -- need it.
-    return $ Meter.modify_sections (RulerUtil.extract start end) meter
+    pure $ Meter.modify_sections (RulerUtil.extract start end) meter
 
 is_1to1 :: Ui.M m => TrackTime -> BlockId -> m Bool
 is_1to1 dur block_id = (==dur) <$> Ui.block_end block_id

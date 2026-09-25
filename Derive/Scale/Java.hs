@@ -57,7 +57,7 @@ s_pelog = Derive.scale_call "pelog" "doc" $
             (\inst -> Derive.require ("unknown scale-inst: " <> inst) $
                 Map.lookup inst instruments)
             mb_inst
-        return $ make_scale "pelog" layout mb_inst
+        pure $ make_scale "pelog" layout mb_inst
 
 -- TODO name and "doc" are now redundant, they now come from ScaleCall
 make_scale :: Text -> JavaScales.Layout -> Maybe JavaScales.Instrument

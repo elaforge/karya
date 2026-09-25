@@ -74,7 +74,7 @@ empty_scale scale_id pattern doc = Scale.Scale
     , scale_enharmonics = no_enharmonics
     , scale_note_to_call = const Nothing
     , scale_input_to_note = \_ _ -> Left DeriveT.NotImplemented
-    , scale_input_to_nn = \ _ _ -> return $ Left DeriveT.NotImplemented
+    , scale_input_to_nn = \ _ _ -> pure $ Left DeriveT.NotImplemented
     , scale_call_doc = doc
     }
 
@@ -100,7 +100,7 @@ data DegreeMap = DegreeMap
 instance Pretty DegreeMap where
     format dmap = Pretty.format $ Map.fromList $ do
         (note, semis) <- Map.toList (dm_to_semis dmap)
-        return (semis, (note, dm_to_nn dmap !? semis))
+        pure (semis, (note, dm_to_nn dmap !? semis))
 
 degree_map :: Pitch.PitchClass
     -> Pitch.Octave -- ^ The first Note is this Octave and PitchClass.
@@ -216,7 +216,7 @@ input_to_note :: DegreeMap -> InputToNote
 input_to_note dmap _environ (Pitch.Input kbd pitch frac) = do
     steps <- simple_kbd_to_scale dmap kbd pitch
     note <- justErr DeriveT.InvalidInput $ dm_to_note dmap !? steps
-    return $ ScaleDegree.pitch_expr frac note
+    pure $ ScaleDegree.pitch_expr frac note
 
 type InputToNn = ScoreTime -> Pitch.Input
     -> Derive.Deriver (Either DeriveT.PitchError Pitch.NoteNumber)
@@ -224,7 +224,7 @@ type InputToNn = ScoreTime -> Pitch.Input
 -- | Input to NoteNumber for scales that have a direct relationship between
 -- Degree and NoteNumber.
 mapped_input_to_nn :: DegreeMap -> InputToNn
-mapped_input_to_nn dmap = \_pos (Pitch.Input kbd pitch frac) -> return $ do
+mapped_input_to_nn dmap = \_pos (Pitch.Input kbd pitch frac) -> pure $ do
     semis <- simple_kbd_to_scale dmap kbd pitch
     justErr (DeriveT.OutOfRangeError DeriveT.out_of_range) $
         to_nn semis frac
@@ -234,11 +234,11 @@ mapped_input_to_nn dmap = \_pos (Pitch.Input kbd pitch frac) -> return $ do
         | frac > 0 = do
             nn <- lookup semis
             next <- lookup (semis + 1)
-            return $ Num.scale nn next (Pitch.NoteNumber frac)
+            pure $ Num.scale nn next (Pitch.NoteNumber frac)
         | otherwise = do
             nn <- lookup semis
             prev <- lookup (semis - 1)
-            return $ Num.scale prev nn (Pitch.NoteNumber (frac + 1))
+            pure $ Num.scale prev nn (Pitch.NoteNumber (frac + 1))
     lookup semis = dm_to_nn dmap !? semis
 
 set_direct_input_to_nn :: Scale.Scale -> Scale.Scale
@@ -257,7 +257,7 @@ direct_input_to_nn :: InputToNn
 direct_input_to_nn pos (Pitch.Input _ pitch frac) = do
     controls <- Derive.controls_at =<< Derive.real pos
     let octaves = Map.findWithDefault 0 Controls.octave controls
-    return $ Right $ nn + Pitch.nn (frac + octaves * 12)
+    pure $ Right $ nn + Pitch.nn (frac + octaves * 12)
     where
     nn = fromIntegral $ Theory.semis_to_nn $
         Theory.pitch_to_semis Theory.piano_layout pitch
@@ -269,7 +269,7 @@ computed_input_to_nn :: InputToNote -> (Pitch.Note -> Maybe Derive.ValCall)
 computed_input_to_nn input_to_note note_to_call pos input = do
     env <- Derive.get_environ
     case get_call env of
-        Left err -> return $ Left err
+        Left err -> pure $ Left err
         Right (note, call) -> do
             pitch <- Eval.apply_pitch pos call
             controls <- Derive.controls_at =<< Derive.real pos
@@ -277,7 +277,7 @@ computed_input_to_nn input_to_note note_to_call pos input = do
                     ((("evaluating note " <> pretty note <> ": ")<>) . pretty) $
                 PSignal.pitch_nn $
                 PSignal.apply_config (PSignal.PitchConfig env controls) pitch
-            return $ Right nn
+            pure $ Right nn
     where
     get_call env = do
         note <- input_to_note env input

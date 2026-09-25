@@ -253,13 +253,13 @@ integrate_skeleton block = map integrate_edges (block_integrated_tracks block)
             (_, (dest_id, _)) <- Lists.head dests
             dest <- tracknum_of dest_id
             source <- tracknum_of source_id
-            return (source, dest)
+            pure (source, dest)
     integrate_edges (source_id, DeriveDestinations dests) =
         (Config.integrate_skeleton, edges_of source_id dests)
     edges_of source_id dests = do
         source <- maybe [] (:[]) $ tracknum_of source_id
         dest <- mapMaybe (tracknum_of . fst . dest_note) dests
-        return (source, dest)
+        pure (source, dest)
     tracknum_of = flip Map.lookup tracknums
     tracknums = Map.fromList
         [ (track_id, tracknum)

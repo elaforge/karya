@@ -131,7 +131,7 @@ renames dir groups = do
     unless (length groups == length samples) $
         putStrLn $ "expected " <> show (length groups)
             <> " samples, but found " <> show (length samples)
-    return $ zip (map FilePath.takeFileName samples) groups
+    pure $ zip (map FilePath.takeFileName samples) groups
 
 listSampleDir :: FilePath -> IO [FilePath]
 listSampleDir dir =

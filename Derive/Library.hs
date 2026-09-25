@@ -187,7 +187,7 @@ compile (Derive.Scopes lgen ltrans ltrack lval) = Logger.runId $ Derive.Scopes
             ( (kind, module_)
             , map (second (map Derive.call_name)) dups
             )
-        return $ (module_,) $ Derive.CallMap
+        pure $ (module_,) $ Derive.CallMap
             { call_map = cmap
             , call_patterns = patterns
             }
@@ -200,4 +200,4 @@ compile_log lib = do
     let (builtins, shadows) = compile lib
     forM_ shadows $ \((call_type, _module), calls) ->
         Log.warn $ call_type <> " shadowed: " <> pretty calls
-    return builtins
+    pure builtins

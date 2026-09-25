@@ -589,7 +589,7 @@ make_convert_lookup :: UiConfig.Allocations -> Cmd.InstrumentDb -> Lookup
 make_convert_lookup allocs db =
     run_cmd (setup_ui setup Ui.empty) (setup_cmd setup default_cmd_state) $ do
         lookup_inst <- Cmd.get_lookup_instrument
-        return (lookup_inst, PlayUtil.make_midi_lookup lookup_inst)
+        pure (lookup_inst, PlayUtil.make_midi_lookup lookup_inst)
     where setup = with_instrument_db allocs db
 
 -- ** extract
@@ -876,7 +876,7 @@ c_note s_start dur = do
     environ <- Derive.get_environ
     st <- Derive.gets Derive.state_dynamic
     cmap <- Derive.get_control_map
-    return $! Stream.from_event $! Score.empty_event
+    pure $! Stream.from_event $! Score.empty_event
         { Score.event_start = start
         , Score.event_duration = end - start
         , Score.event_text = "evt"

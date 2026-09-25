@@ -354,7 +354,7 @@ at_negative :: V.Vector v (Sample y) => Interpolate y -> Signal v y -> X
     -> Maybe y
 at_negative interpolate signal x = do
     Segment x1 y1 x2 y2 <- segment_at_orientation Types.Negative signal x
-    return $ interpolate (Sample x1 y1) (Sample x2 y2) x
+    pure $ interpolate (Sample x1 y1) (Sample x2 y2) x
 
 segment_at :: V.Vector v (Sample y) => Signal v y -> X -> Maybe (Segment y)
 segment_at = segment_at_orientation Types.Positive

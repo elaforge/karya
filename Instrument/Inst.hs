@@ -176,7 +176,7 @@ db synth_decls = (Db db, synth_errors ++ inst_errors ++ validate_errors)
                 [ "duplicate inst: " <> pretty (InstT.Qualified synth name)
                 | name <- map fst dups
                 ]
-        return ((synth, Synth synth_doc inst_map), warns ++ errors)
+        pure ((synth, Synth synth_doc inst_map), warns ++ errors)
     (db, dups) = Maps.unique inst_maps
     synth_errors = ["duplicate synth: " <> showt synth | synth <- map fst dups]
     validate_errors = concat
@@ -214,4 +214,4 @@ modify_inst :: InstT.SynthName -> InstT.Name -> (Inst code -> Inst code)
     -> Db code -> Maybe (Db code)
 modify_inst synth name modify (Db db) = Db <$> do
     inst <- Map.lookup name . synth_insts =<< Map.lookup synth db
-    return $ Map.adjust (insts %= Map.insert name (modify inst)) synth db
+    pure $ Map.adjust (insts %= Map.insert name (modify inst)) synth db

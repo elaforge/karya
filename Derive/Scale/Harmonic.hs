@@ -71,7 +71,7 @@ read_pitch note = justErr (DeriveT.UnparseableNote note) $
     where
     p_octave = do
         c <- A.anyChar
-        maybe mzero (return . (+1)) $ List.elemIndex c octaves
+        maybe mzero (pure . (+1)) $ List.elemIndex c octaves
 
 octaves :: [Char]
 octaves = "一二三四五六七八久十"

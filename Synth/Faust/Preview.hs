@@ -144,8 +144,8 @@ renderNotes fname patch notes = do
     where
     emitMessage (Config.Warn _ msg) = Text.IO.putStrLn msg
     emitMessage (Config.Failure msg) = Text.IO.putStrLn msg
-    emitMessage _ = return ()
-    notifyState = const $ return ()
+    emitMessage _ = pure ()
+    notifyState = const $ pure ()
 
 makeNote :: RealTime -> RealTime -> Note.Element -> Double -> Pitch.NoteNumber
     -> Note.Note

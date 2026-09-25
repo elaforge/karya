@@ -46,21 +46,21 @@ linkify haddock_dir input_file text = do
     unless (null logs) $
         Text.IO.hPutStrLn IO.stderr $ "** " <> txt input_file
             <> ": broken link: " <> Text.intercalate ", " logs
-    return out
+    pure out
 
 get_files :: FilePath -> IO Texts.Files
 get_files dir = do
     files <- Files.listRecursive (maybe False Char.isUpper . Lists.head) dir
-    return $ Set.fromList files
+    pure $ Set.fromList files
 
 link_quoted :: Texts.Files -> FilePath -> Text -> Logger.Logger Text Text
 link_quoted files haddock_dir text
     | looks_like_link text = case Texts.haddockUrl files haddock_dir text of
         Nothing -> do
             Logger.log text
-            return $ "'" <> text <> "'"
-        Just url -> return $ markdown_link text url
-    | otherwise = return $ "'" <> text <> "'"
+            pure $ "'" <> text <> "'"
+        Just url -> pure $ markdown_link text url
+    | otherwise = pure $ "'" <> text <> "'"
 
 looks_like_link :: Text -> Bool
 looks_like_link text =

@@ -79,7 +79,7 @@ defaultConfig :: Quality -> Config
 defaultConfig quality = Config
     { _quality = quality
     , _state = Nothing
-    , _notifyState = const $ return ()
+    , _notifyState = const $ pure ()
     , _now = 0
     , _blockSize = Audio.blockSize
     , _name = "default"
@@ -135,7 +135,7 @@ resampleBy config ratios audio = Audio.Audio $ do
         liftIO $ _notifyState config Nothing
         Resource.release key
     yield state now used collect blockLeft block audio
-        | blockLeft - generated > 0 = return
+        | blockLeft - generated > 0 = pure
             ( now + generated
             , audio
             , block : collect
@@ -151,7 +151,7 @@ resampleBy config ratios audio = Audio.Audio $ do
                 rState <- SampleRateC.unsafeGetState state
                 _notifyState config $ Just (used, rState)
             S.yield $ Audio.Block $ mconcat (reverse (block : collect))
-            return
+            pure
                 ( now + generated
                 , audio
                 , []
@@ -225,7 +225,7 @@ resampleBlock chan rate state start maxFrames prevSegment segment audio = do
             , end_of_input = atEnd
             }
         outFP <- Foreign.newForeignPtr Foreign.finalizerFree outp
-        return
+        pure
             ( Audio.Frames $ fromIntegral $
                 SampleRateC.input_frames_used result
             , Audio.Frames $ fromIntegral $
@@ -246,7 +246,7 @@ resampleBlock chan rate state start maxFrames prevSegment segment audio = do
 
     let framesRead = Audio.countFrames chan $
             maybe 0 V.length inputBlock - V.length left
-    return $ if Maybe.isNothing inputBlock && generated == 0
+    pure $ if Maybe.isNothing inputBlock && generated == 0
         then Nothing
         else Just (framesRead, outputBlock, recons audio)
     where

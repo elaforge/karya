@@ -196,7 +196,7 @@ realize_tumpuk prev event_start event_end place prev_pitch event_pitch dur
         start <- Derive.score real_start
         end <- Derive.score (real_start + dur)
         pitch <- case tpitch of
-            Transpose steps -> return $ Pitches.transpose_d steps event_pitch
+            Transpose steps -> pure $ Pitches.transpose_d steps event_pitch
             Prev -> Derive.require "no prev pitch" prev_pitch
         Derive.place start (end-start) $ Call.multiply_dynamic dyn $
             Call.add_attributes attrs $ Call.pitched_note pitch
@@ -331,14 +331,14 @@ c_norot default_prepare =
                 (Maybe.isJust next_pitch) note_dur initial_final
                 orientation (Args.range args)
         sustain <- case sustain_params of
-            Nothing -> return mempty
+            Nothing -> pure mempty
             Just (initial_final, range) ->
                 realize_positions
                     (realize_notes range orientation initial_final
                         show_pitch Gangsa.Repeat note_dur)
                     voices norot_patterns pitch
         prepare <- case (,) <$> next_pitch <*> prepare_params of
-            Nothing -> return Nothing
+            Nothing -> pure Nothing
             Just (next, (initial_final, range)) ->
                 Just <$> realize_positions
                     (realize_notes range orientation initial_final
@@ -353,7 +353,7 @@ realize_positions realize voices patterns pitch = do
     positions <- Derive.require
         ("no pattern for pitch: " <> pretty pitch)
         (Map.lookup (Pitch.pitch_pc pitch) patterns)
-    return $ mconcatMap realize (filter_voices voices positions)
+    pure $ mconcatMap realize (filter_voices voices positions)
 
 -- | Kilitan is implemented as a set of patterns indexed by an absolute pitch
 -- degree.  The patterns are similar to kotekan, except with absolute pitches,
@@ -439,7 +439,7 @@ kernel_to_pattern direction kernel = do
         sangsih = map (fmap (+offset) . infer_sangsih) kernel
     sangsih_last <- msum (reverse sangsih)
     polos_last <- msum (reverse polos)
-    return $ case direction of
+    pure $ case direction of
         Call.Up -> KotekanPattern
             { kotekan_above = (sangsih, sangsih_last)
             , kotekan_below = (polos, polos_last)
@@ -479,7 +479,7 @@ get_parsed_pitch :: Derive.PassedArgs a
 get_parsed_pitch args = do
     (parse_pitch, show_pitch, _) <- Call.get_pitch_functions
     pitch <- Call.get_parsed_pitch parse_pitch =<< Args.real_start args
-    return (pitch, show_pitch)
+    pure (pitch, show_pitch)
 
 -- | Like 'Gangsa.infer_prepare', except return a parsed Pitch.Pitch.
 infer_prepare :: Derive.PassedArgs a -> Maybe Bool
@@ -487,7 +487,7 @@ infer_prepare :: Derive.PassedArgs a -> Maybe Bool
 infer_prepare args prepare = do
     (parse_pitch, _, _) <- Call.get_pitch_functions
     justm (Gangsa.infer_prepare args prepare) $ \_ ->
-        maybe (return Nothing) (Args.lookup_parsed_pitch_at parse_pitch)
+        maybe (pure Nothing) (Args.lookup_parsed_pitch_at parse_pitch)
             (Args.next_start args)
 
 -- * articulation
@@ -787,7 +787,7 @@ infer_damp_voices damped_insts dur_at early_at events = do
     unless (null skipped) $
         Log.warn $ "skipped events without pitch: "
             <> Score.short_events skipped
-    return damped
+    pure damped
     where
     (skipped, damped) = bimap concat (Post.merge_asc . map Post.merge_asc)
         . unzip . map infer_voice . Lists.keyedGroupSort Post.voice_key $

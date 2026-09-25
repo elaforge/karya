@@ -209,4 +209,4 @@ mkstate :: [UiTest.TrackSpec] -> [Skeleton.Edge] -> Ui.State
 mkstate tracks skel = UiTest.exec Ui.empty $ do
     UiTest.mkblocks_skel [((UiTest.default_block_name, tracks), skel)]
     UiTest.mkview UiTest.default_block_id
-    return ()
+    pure ()

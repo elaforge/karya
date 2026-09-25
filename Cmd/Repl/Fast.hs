@@ -82,7 +82,7 @@ lex_all text
         [] -> Nothing
         (tok, rest) : _ -> do
             toks <- lex_all rest
-            return (tok : toks)
+            pure (tok : toks)
 
 -- | A version of 'lex' that understands qualified names.
 --

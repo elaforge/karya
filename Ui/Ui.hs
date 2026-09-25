@@ -210,7 +210,7 @@ empty = State
 create :: IO State
 create = do
     now <- Time.getCurrentTime
-    return $ (config#UiConfig.meta#UiConfig.creation #= now) empty
+    pure $ (config#UiConfig.meta#UiConfig.creation #= now) empty
 
 -- | Clear out data that shouldn't be saved.
 clear :: State -> State
@@ -379,7 +379,7 @@ run :: Monad m => State -> StateT m a
 run state action = do
     res <- (Except.runExceptT . flip State.runStateT mempty
         . flip State.runStateT state . (\(StateT x) -> x)) action
-    return $ case res of
+    pure $ case res of
         Left err -> Left err
         Right ((val, state), damage) ->
             Right (val, state, block_to_view_damage (state_views state) damage)
@@ -439,10 +439,10 @@ instance Pretty Error where
     pretty Abort = "(abort)"
 
 require :: (HasCallStack, M m) => Text -> Maybe a -> m a
-require err = maybe (throw err) return
+require err = maybe (throw err) pure
 
 require_right :: (HasCallStack, M m) => (err -> Text) -> Either err a -> m a
-require_right fmt_err = either (throw . fmt_err) return
+require_right fmt_err = either (throw . fmt_err) pure
 
 -- * config
 
@@ -498,7 +498,7 @@ with_config f action = do
     -- exception, and there's no way to catch an exception.
     result <- action
     modify_config $ const old
-    return result
+    pure result
 
 -- | TODO use this for read only.  If used for write it bypasses
 -- 'UiConfig.allocate'.
@@ -550,7 +550,7 @@ set_view_status view_id key val = modify_view view_id $ \view -> view
 _update_view_status :: M m => Block.View -> m Block.View
 _update_view_status view = do
     block <- get_block (Block.view_block view)
-    return $ case Block.block_integrated block of
+    pure $ case Block.block_integrated block of
         Just (source_block, _) -> view
             { Block.view_status = Map.insert Config.status_integrate_source
                 (Id.ident_text source_block) (Block.view_status view)
@@ -587,7 +587,7 @@ set_view_padding view_id padding = modify_view view_id $ \view ->
 get_selection :: M m => ViewId -> Sel.Num -> m (Maybe Sel.Selection)
 get_selection view_id selnum = do
     view <- get_view view_id
-    return (Map.lookup selnum (Block.view_selections view))
+    pure (Map.lookup selnum (Block.view_selections view))
 
 -- | Replace any selection on @view_id@ at @selnum@ with @sel@.
 set_selection :: M m => ViewId -> Sel.Num -> Maybe Sel.Selection -> m ()
@@ -618,7 +618,7 @@ get_block :: M m => BlockId -> m Block.Block
 get_block block_id = get >>= lookup_id block_id . state_blocks
 
 lookup_block :: M m => BlockId -> m (Maybe Block.Block)
-lookup_block block_id = get >>= return . Map.lookup block_id . state_blocks
+lookup_block block_id = get >>= pure . Map.lookup block_id . state_blocks
 
 all_block_ids :: M m => m [BlockId]
 all_block_ids = gets (Map.keys . state_blocks)
@@ -642,7 +642,7 @@ create_config_block id block = do
                     then Just (Id.BlockId id) else UiConfig.config_root c }
             }
     update_skeleton bid
-    return bid
+    pure bid
 
 -- | Make a new block with the default 'Block.Config'.
 create_block :: M m => Id.Id -> Text -> [Block.Track] -> m BlockId
@@ -678,7 +678,7 @@ block_id_of view_id = Block.view_block <$> get_view view_id
 views_of :: M m => BlockId -> m (Map ViewId Block.View)
 views_of block_id = do
     views <- gets state_views
-    return $ Map.filter ((==block_id) . Block.view_block) views
+    pure $ Map.filter ((==block_id) . Block.view_block) views
 
 get_block_title :: M m => BlockId -> m Text
 get_block_title = fmap Block.block_title . get_block
@@ -761,7 +761,7 @@ block_ruler_end :: M m => BlockId -> m TrackTime
 block_ruler_end block_id = do
     block <- get_block block_id
     case Block.block_ruler_ids block of
-        [] -> return 0
+        [] -> pure 0
         ruler_id : _ -> Ruler.time_end <$> get_ruler ruler_id
 
 -- | Get the end of the block according to the last event of the block.
@@ -769,7 +769,7 @@ block_event_end :: M m => BlockId -> m TrackTime
 block_event_end block_id = do
     block <- get_block block_id
     track_ends <- mapM track_event_end (Block.block_track_ids block)
-    return $ maximum (0 : track_ends)
+    pure $ maximum (0 : track_ends)
 
 -- | Get the maximum of ruler end and event end.  The end may still be 0 if the
 -- block is totally empty.
@@ -786,8 +786,8 @@ block_logical_range block_id = do
         [] -> (,) 0 <$> block_event_end block_id
         ruler_id : _ -> do
             (start, end) <- Ruler.bounds_of <$> get_ruler ruler_id
-            end <- maybe (block_event_end block_id) return end
-            return (start, end)
+            end <- maybe (block_event_end block_id) pure end
+            pure (start, end)
 
 -- ** skeleton
 
@@ -842,10 +842,10 @@ toggle_skeleton_edge allow_multiple_parents block_id edge@(_, child) = do
     whenJust (edges_in_range block edge) (throw . ("toggle: "<>))
     let skel = drop_parents (Block.block_skeleton block)
     case Skeleton.toggle_edge edge skel of
-        Nothing -> return False
+        Nothing -> pure False
         Just new_skel -> do
             set_skeleton block_id new_skel
-            return True
+            pure True
     where
     drop_parents skel
         | allow_multiple_parents || Skeleton.has_edge skel edge = skel
@@ -925,7 +925,7 @@ insert_track block_id tracknum track = do
         -- Make sure the views are up to date.
         views' = Map.map (insert_into_view block tracknum) views
     skel <- case Block.config_skeleton (Block.block_config block) of
-        Block.Explicit -> return $
+        Block.Explicit -> pure $
             Skeleton.insert tracknum (Block.block_skeleton block)
         Block.Implicit -> infer_skeleton tracks
     set_block block_id $ block
@@ -959,7 +959,7 @@ remove_track block_id tracknum = do
     mapM_ damage_view (Map.keys views)
     -- Clear any orphaned integration destinations.
     fix_integrated_tracks block_id =<< get_block block_id
-    return ()
+    pure ()
 
 -- | Move a track from one tracknum to another.
 move_track :: M m => BlockId -> TrackNum -> TrackNum -> m ()
@@ -973,7 +973,7 @@ move_track block_id from to = do
         guard (from /= 0 && to /= 0)
         Lists.move from to (Block.block_tracks block)
     skel <- case Block.config_skeleton (Block.block_config block) of
-        Block.Explicit -> return $
+        Block.Explicit -> pure $
             Skeleton.move from to (Block.block_skeleton block)
         Block.Implicit -> infer_skeleton tracks
     modify_block block_id $ const $ block
@@ -1000,7 +1000,7 @@ update_skeleton block_id = do
     case Block.config_skeleton (Block.block_config block) of
         Block.Implicit -> _set_skeleton block_id block
             =<< infer_skeleton (Block.block_tracks block)
-        _ -> return ()
+        _ -> pure ()
 
 -- *** tracks by TrackNum
 
@@ -1009,7 +1009,7 @@ update_skeleton block_id = do
 track_count :: M m => BlockId -> m TrackNum
 track_count block_id = do
     block <- get_block block_id
-    return $ length (Block.block_tracks block)
+    pure $ length (Block.block_tracks block)
 
 -- | Get the Track at @tracknum@, or Nothing if its out of range.
 block_track_at :: M m => BlockId -> TrackNum -> m (Maybe Block.Track)
@@ -1018,7 +1018,7 @@ block_track_at block_id tracknum
         throw $ "block_track_at: negative tracknum: " <> showt tracknum
     | otherwise = do
         block <- get_block block_id
-        return $ Lists.at (Block.block_tracks block) tracknum
+        pure $ Lists.at (Block.block_tracks block) tracknum
 
 get_block_track_at :: M m => BlockId -> TrackNum -> m Block.Track
 get_block_track_at block_id tracknum =
@@ -1028,18 +1028,18 @@ get_block_track_at block_id tracknum =
         count <- track_count block_id
         throw $ "track " <> pretty (Track block_id tracknum)
             <> " out of range 0--" <> showt count
-    tracknum_in_range _ _ (Just a) = return a
+    tracknum_in_range _ _ (Just a) = pure a
 
 track_at :: M m => BlockId -> TrackNum -> m (Maybe Block.TracklikeId)
 track_at block_id tracknum = do
     maybe_track <- block_track_at block_id tracknum
-    return $ fmap Block.tracklike_id maybe_track
+    pure $ fmap Block.tracklike_id maybe_track
 
 -- | Like 'track_at', but only for event tracks.
 event_track_at :: M m => BlockId -> TrackNum -> m (Maybe TrackId)
 event_track_at block_id tracknum = do
     maybe_track <- track_at block_id tracknum
-    return $ Block.track_id_of =<< maybe_track
+    pure $ Block.track_id_of =<< maybe_track
 
 -- | Like 'event_track_at' but throws if it's not there or not an event track.
 get_event_track_at :: M m => BlockId -> TrackNum -> m TrackId
@@ -1054,7 +1054,7 @@ get_event_track_at block_id tracknum = do
 ruler_track_at :: M m => BlockId -> TrackNum -> m (Maybe RulerId)
 ruler_track_at block_id tracknum = do
     maybe_track <- track_at block_id tracknum
-    return $ Block.ruler_id_of =<< maybe_track
+    pure $ Block.ruler_id_of =<< maybe_track
 
 -- | 0 is the conventional ruler tracknum.
 block_ruler :: M m => BlockId -> m RulerId
@@ -1213,7 +1213,7 @@ get_tracklike :: M m => Block.TracklikeId -> m Block.Tracklike
 get_tracklike track = case track of
     Block.TId tid rid -> Block.T <$> get_track tid <*> get_ruler rid
     Block.RId rid -> Block.R <$> get_ruler rid
-    Block.DId divider -> return (Block.D divider)
+    Block.DId divider -> pure (Block.D divider)
 
 modify_block_track :: M m => BlockId -> TrackNum
     -> (Block.Track -> Block.Track) -> m ()
@@ -1491,7 +1491,7 @@ remove_event track_id event = _modify_events track_id $ \events ->
 -- | Just like @mapM_ (remove_event track_id)@ but more efficient.
 -- TODO at least I hope, it got sort of complicated.
 remove_events :: M m => TrackId -> [Event.Event] -> m ()
-remove_events _ [] = return ()
+remove_events _ [] = pure ()
 remove_events track_id [event] = remove_event track_id event
 remove_events track_id events = do
     remove_events_range track_id $
@@ -1567,11 +1567,11 @@ events_range events = case minmax events of
 
 get_ruler :: M m => RulerId -> m Ruler.Ruler
 get_ruler ruler_id
-    | ruler_id == no_ruler = return Ruler.empty
+    | ruler_id == no_ruler = pure Ruler.empty
     | otherwise = get >>= lookup_id ruler_id . state_rulers
 
 lookup_ruler :: M m => RulerId -> m (Maybe Ruler.Ruler)
-lookup_ruler ruler_id = get >>= return . Map.lookup ruler_id . state_rulers
+lookup_ruler ruler_id = get >>= pure . Map.lookup ruler_id . state_rulers
 
 all_ruler_ids :: M m => m [RulerId]
 all_ruler_ids = gets (Map.keys . state_rulers)
@@ -1646,7 +1646,7 @@ find_tracks f blocks = do
     (bid, b) <- Map.assocs blocks
     let tracks = get_tracks b
     guard (not (null tracks))
-    return (bid, tracks)
+    pure (bid, tracks)
     where
     all_tracks block = Lists.enumerate (Block.block_tracks block)
     get_tracks block =
@@ -1658,7 +1658,7 @@ find_tracks f blocks = do
 lookup_id :: (HasCallStack, Ord k, Show k, M m) => k -> Map k a -> m a
 lookup_id key map = case Map.lookup key map of
     Nothing -> throw $ "State.lookup: unknown " <> showt key
-    Just val -> return val
+    Just val -> pure val
 
 -- | Insert @val@ at @key@ in @get_map state@, throwing if it already exists.
 -- Put the map back into @state@ by applying @set_map new_map state@ to it.
@@ -1674,14 +1674,14 @@ insert key val updated get_map set_map = do
         throw $ showt key <> " already exists"
     unsafe_put (set_map (Map.insert key val (get_map state)) state)
     updated key
-    return key
+    pure key
 
 -- | Modify the @i@th element of @xs@ by applying @f@ to it.
 modify_at :: M m => Text -> [a] -> Int -> (a -> a) -> m [a]
 modify_at msg xs i f = case post of
     [] -> throw $ msg <> ": can't replace index " <> showt i
         <> " of list with length " <> showt (length xs)
-    (elt:rest) -> return (pre ++ f elt : rest)
+    (elt:rest) -> pure (pre ++ f elt : rest)
     where (pre, post) = splitAt i xs
 
 {-
@@ -1710,7 +1710,7 @@ require_valid caller verify = do
     case run_id state verify of
         Left err -> throw $ caller <> ": error validating: " <> showt err
         Right (errs, state, _)
-            | null errs -> return ()
+            | null errs -> pure ()
             | otherwise -> do
                 -- The exception should cause the state to be rolled back, but
                 -- I might as well not let a known broken state stick around.
@@ -1760,17 +1760,17 @@ fix_state = do
     view_errs <- concatMapM (uncurry verify_view) views
     blocks <- gets (Map.toList . state_blocks)
     block_errs <- concatMapM (uncurry fix_block) blocks
-    return $ view_errs ++ block_errs
+    pure $ view_errs ++ block_errs
 
 -- | Drop views with invalid BlockIds.
 verify_view :: M m => ViewId -> Block.View -> m [Text]
 verify_view view_id view = do
     block <- lookup_block (Block.view_block view)
     case block of
-        Just _ -> return []
+        Just _ -> pure []
         Nothing -> do
             destroy_view view_id
-            return [showt view_id <> ": dropped because of invalid "
+            pure [showt view_id <> ": dropped because of invalid "
                 <> showt (Block.view_block view)]
 
 fix_block :: M m => BlockId -> Block.Block -> m [Text]
@@ -1793,12 +1793,12 @@ fix_track_ids block_id block = do
     let is_valid = (`Map.member` all_track_ids)
     let invalid = filter (not . is_valid . snd) (block_event_tracknums block)
     mapM_ (remove_track block_id . fst) invalid
-    return ["tracknum " <> showt tracknum <> ": dropped invalid "
+    pure ["tracknum " <> showt tracknum <> ": dropped invalid "
         <> showt track_id | (tracknum, track_id) <- invalid]
 
 -- | Replace invalid ruler ids with no_ruler.
 fix_ruler_ids :: M m => BlockId -> Block.Block -> m [Text]
-fix_ruler_ids _block_id _block = return [] -- TODO
+fix_ruler_ids _block_id _block = pure [] -- TODO
 
 -- | Each TrackId of a block is unique.
 unique_track_ids :: M m => BlockId -> Block.Block -> m [Text]
@@ -1806,12 +1806,12 @@ unique_track_ids block_id block = do
     let invalid = concatMap snd $ snd $
             Lists.partitionDups snd (block_event_tracknums block)
     mapM_ (remove_track block_id . fst) invalid
-    return ["tracknum " <> showt tracknum <> ": dropped duplicate "
+    pure ["tracknum " <> showt tracknum <> ": dropped duplicate "
         <> showt track_id | (tracknum, track_id) <- invalid]
 
 -- | Skeleton tracknums in range.
 fix_skeleton :: M m => BlockId -> Block.Block -> m [Text]
-fix_skeleton _block_id _block = return [] -- TODO
+fix_skeleton _block_id _block = pure [] -- TODO
 
 -- | Strip invalid Block.track_merged.
 fix_merged :: M m => BlockId -> (TrackNum, Block.Track) -> m [Text]
@@ -1822,7 +1822,7 @@ fix_merged block_id (tracknum, track) = do
     unless (Set.null invalid) $
         modify_block_track block_id tracknum
             (const $ track { Block.track_merged = valid })
-    return ["tracknum " <> showt tracknum <> ": stripped invalid merged "
+    pure ["tracknum " <> showt tracknum <> ": stripped invalid merged "
         <> showt track_id | track_id <- Set.toList invalid]
 
 -- | Drop block_integrated if the source BlockId doesn't exist, and strip out
@@ -1838,7 +1838,7 @@ fix_integrated_block block_id block = do
             { Block.block_integrated = integrated }
     when source_gone $
         mapM_ clear_integration (Block.block_track_ids block)
-    return errs
+    pure errs
     where
     track_ids = Block.block_track_ids block
     fix _ Nothing = (False, Nothing, [])
@@ -1874,7 +1874,7 @@ fix_integrated_tracks block_id block = do
         modify_block block_id $ \block -> block
             { Block.block_integrated_tracks = dests }
         mapM_ clear_integration gone
-    return errs
+    pure errs
     where
     track_ids = Block.block_track_ids block
     fix (track_id, dests)
@@ -1928,7 +1928,7 @@ namespace :: M m => Text -> m Id.Namespace
 namespace ns = do
     unless (Id.valid_symbol ns) $
         throw $ "invalid characters in namespace: " <> showt ns
-    return $ Id.namespace ns
+    pure $ Id.namespace ns
 
 -- * damage
 

@@ -28,7 +28,7 @@ ignoreIOError = ignoreError (\(_ :: IO.Error.IOError) -> True)
 
 ignoreError :: Exception.Exception e => (e -> Bool) -> IO a -> IO (Maybe a)
 ignoreError ignore action = Exception.handleJust (guard . ignore)
-    (const (return Nothing)) (fmap Just action)
+    (const (pure Nothing)) (fmap Just action)
 
 -- | 'Exception.try' specialized to IOError.
 tryIO :: IO a -> IO (Either IO.Error.IOError a)

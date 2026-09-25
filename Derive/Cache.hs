@@ -139,7 +139,7 @@ caching_deriver typ range call = do
         -- had been actually derived.
         Internal.merge_collect $
             mempty { Derive.collect_cache_stats = stats } <> collect
-        return cached
+        pure cached
     generate stack (Left (inflict_control_damage, reason)) = do
         (result, collect) <- with_collect inflict_control_damage call
         Log.write $ cache_miss_msg reason
@@ -147,7 +147,7 @@ caching_deriver typ range call = do
             { Derive.collect_cache =
                 make_cache (Derive.CacheKey stack) collect result
             }
-        return result
+        pure result
 
     -- To get the deps of just the deriver below me, I have to clear out
     -- the local deps.  But this call is itself collecting deps for another
@@ -159,7 +159,7 @@ caching_deriver typ range call = do
         (result, collect) <- with_empty_collect
             (is_block typ && inflict_control_damage) deriver
         Internal.merge_collect collect
-        return (result, collect)
+        pure (result, collect)
     is_block (Block {}) = True
     is_block _ = False
 
@@ -167,7 +167,7 @@ hit_stats :: Type -> Range -> Derive.Deriver Derive.CacheStats
 hit_stats typ (Range start end _) = do
     start <- Derive.real start
     end <- Derive.real end
-    return $ mempty
+    pure $ mempty
         { Derive.cstats_hits = [(id, (start, end))]
         }
     where
@@ -203,7 +203,7 @@ with_empty_collect inflict_control_damage deriver = do
     result <- deriver
     collect <- Derive.gets Derive.state_collect
     Derive.put old
-    return (result, collect)
+    pure (result, collect)
 
 -- | Find the cached value, or a reason why there is no cache entry.  This
 -- is the function that determines whether you hit the cache or not.
@@ -226,11 +226,11 @@ find_generator_cache typ key range score (ControlDamage control) (Cache cache)
                     Left (True, "direct block damage")
                 | this_block `Set.member` sdamage_track_blocks score ->
                     Left (False, "track block damage")
-            _ -> return ()
+            _ -> pure ()
         Track _track_id children
             | any (`Set.member` children) (Map.keys (sdamage_tracks score)) ->
                 Left (False, "track damage")
-            | otherwise -> return ()
+            | otherwise -> pure ()
     Derive.CallType collect stream <- case cached of
         Invalid -> Left (False, "cache invalidated by score damage")
         Cached entry -> justErr (False, "cache has wrong type") $
@@ -247,7 +247,7 @@ find_generator_cache typ key range score (ControlDamage control) (Cache cache)
             else Ranges.overlapping
     when (overlapping control (Ranges.range (_start range) (_end range))) $
         Left (True, "control damage")
-    return (collect, stream)
+    pure (collect, stream)
 
 -- | Make a single cache entry.  This will go into 'Derive.collect_cache'
 -- and be merged in with the rest.
@@ -375,7 +375,7 @@ get_tempo_damage block_id track_id track_end events = do
     st <- Derive.get
     let control = Derive.state_control_damage (Derive.state_dynamic st)
         score = Derive.state_score_damage (Derive.state_constant st)
-    return $ extend $ control <> score_to_control block_id track_id score
+    pure $ extend $ control <> score_to_control block_id track_id score
     where
     extend (Derive.ControlDamage ranges) = Derive.ControlDamage $
         case Ranges.extract ranges of
@@ -400,10 +400,10 @@ score_to_control block_id track_id score = ControlDamage $
 extend_damage :: TrackId -> (ScoreTime, ScoreTime) -> ControlDamage
     -> Derive.Deriver ControlDamage
 extend_damage track_id track_range (ControlDamage damage)
-    | damage == mempty = return mempty
+    | damage == mempty = pure mempty
     | otherwise = do
         events <- Track.track_events <$> Derive.get_track track_id
-        return $ ControlDamage $ extend events
+        pure $ ControlDamage $ extend events
     where
     extend events
         | Events.null events = damage

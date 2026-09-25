@@ -80,7 +80,7 @@ foreign import ccall "wrapper"
 -- | Send the UI to the ui thread to run asynchronously.
 send_action :: Channel -> Text -> Fltk () -> IO ()
 send_action ui_chan description act = do
-    MVar.modifyMVar_ ui_chan $ return . ((act, description) :)
+    MVar.modifyMVar_ ui_chan $ pure . ((act, description) :)
     MVar.tryPutMVar initialized () >>= \case
         True -> pure ()
         False -> awake
@@ -156,7 +156,7 @@ handle_actions ui_chan = MVar.modifyMVar_ ui_chan $ \actions -> do
             when action_timing $ FFI.withText name $ \namep ->
                 c_timing 1 namep
             action
-    return []
+    pure []
     where
     handle :: Exception.SomeException -> IO ()
     handle exc = Log.error $ "exception in event_loop: " <> showt exc

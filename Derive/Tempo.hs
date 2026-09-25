@@ -63,7 +63,7 @@ with_tempo toplevel range maybe_track_id signal deriver = do
                 * if toplevel then 1 else end - start
         place <- require_nonzero (end - start) real_dur $
             Derive.stretch stretch . Derive.at (- RealTime.to_score real_start)
-        return (place, real_dur)
+        pure (place, real_dur)
     stretch_to_1 $ Internal.warp warp $ do
         Internal.add_new_track_warp maybe_track_id
         deriver
@@ -80,10 +80,10 @@ tempo_to_warp sig
 
 require_nonzero :: ScoreTime -> RealTime -> (a -> a) -> Derive.Deriver (a -> a)
 require_nonzero block_dur real_dur ok
-    | block_dur == 0 = return id
+    | block_dur == 0 = pure id
     | real_dur == 0 = Derive.throw $
         "real time of block with dur " <> showt block_dur <> " was zero"
-    | otherwise = return ok
+    | otherwise = pure ok
 
 {- | If a tempo track is the block's topmost, it needs to do some special
     stretching to normalize to a length of 1, regardless of the tempo.  This is
@@ -114,15 +114,15 @@ get_stretch_to_1 :: Monoid a => Maybe (ScoreTime, ScoreTime)
     -- ^ Take the block range, and return a transformer to properly place the
     -- block, and the RealTime duration of the block.
     -> Derive.Deriver (Derive.Deriver a -> Derive.Deriver a)
-get_stretch_to_1 Nothing _ = return id
+get_stretch_to_1 Nothing _ = pure id
 get_stretch_to_1 (Just range) compute =
-    ifM Internal.is_root_block (return id) $ do
+    ifM Internal.is_root_block (pure id) $ do
         (transform, dur) <- compute range
         Derive.get_mode >>= \mode -> case mode of
             Derive.RealDurationQuery -> do
                 set_real_duration dur
-                return $ const $ return mempty
-            _ -> return transform
+                pure $ const $ pure mempty
+            _ -> pure transform
 
 set_real_duration :: RealTime -> Derive.Deriver ()
 set_real_duration dur = Internal.modify_collect $ \collect ->
@@ -149,7 +149,7 @@ with_absolute toplevel range maybe_track_id signal deriver = do
         let real_dur = real_end - Warp.warp warp block_start
         place <- require_nonzero (block_end - block_start) real_dur $
             Internal.place start ((end - start) / RealTime.to_score real_dur)
-        return (place, real_dur)
+        pure (place, real_dur)
     Internal.in_real_time $ place $ Internal.warp warp $ do
         Internal.add_new_track_warp maybe_track_id
         deriver

@@ -132,7 +132,7 @@ print_results = mapM_ $ \result -> do
     case result_msg result of
         Msg.DeriveStatus _ (Msg.DeriveComplete perf _) ->
             mapM_ Pretty.pprint (Cmd.perf_logs perf)
-        _ -> return ()
+        _ -> pure ()
     let logs = CmdTest.result_logs (result_cmd result)
     unless (null logs) $ do
         putStrLn "\tcmd logs:"
@@ -160,7 +160,7 @@ get_perf chan = do
     case msg of
         Nothing -> errorIO "get_perf: time out reading chan"
         Just (Msg.DeriveStatus block_id (Msg.DeriveComplete perf _)) ->
-            return (block_id, perf)
+            pure (block_id, perf)
         Just _ -> get_perf chan
 
 -- | Continue feeding loopback msgs into the responder until I see
@@ -190,7 +190,7 @@ continue_all blocks_gone timeout prev_result =
     expected_blocks = Performance.derive_blocks (result_ui_state prev_result)
         `Set.difference` Set.fromList blocks_gone
     go complete_blocks states
-        | complete_blocks == expected_blocks = return []
+        | complete_blocks == expected_blocks = pure []
         | otherwise = do
             maybe_msg <- read_msg timeout loopback
             Log.with_stdio_lock $ Text.IO.putStrLn $
@@ -200,7 +200,7 @@ continue_all blocks_gone timeout prev_result =
                         <> pretty complete_blocks
                     Just msg -> pretty msg
             case maybe_msg of
-                Nothing -> return []
+                Nothing -> pure []
                 Just msg -> do
                     result <- respond1 (Just loopback) states Nothing msg
                     let completed = maybe id Set.insert (complete msg)
@@ -221,7 +221,7 @@ thread print_timing states msgs =
     thread_delay print_timing states [(m, 0) | m <- msgs]
 
 thread_delay :: Bool -> States -> [(Msg.Msg, Thread.Seconds)] -> IO [Result]
-thread_delay _ _ [] = return []
+thread_delay _ _ [] = pure []
 thread_delay print_timing states ((msg, delay) : msgs) = do
     Printf.printf "thread msg: %s\n" (prettys msg)
     result <- respond_msg states msg
@@ -241,7 +241,7 @@ configure_logging logs_ref = do
         -- Otherwise the status updates get spammy.
         , Log.state_priority = Log.Notice
         }
-    return ()
+    pure ()
 
 -- | Respond to a single Cmd.  This can be used to test cmds in the full
 -- responder context without having to fiddle around with keymaps.
@@ -251,8 +251,8 @@ respond_cmd states cmd = respond1 Nothing states (Just (mkcmd cmd)) magic
     -- I run a cmd by adding a cmd that responds only to a specific Msg, and
     -- then sending that Msg.
     mkcmd cmd msg
-        | is_magic msg = cmd >> return Cmd.Done
-        | otherwise = return Cmd.Continue
+        | is_magic msg = cmd >> pure Cmd.Done
+        | otherwise = pure Cmd.Continue
     is_magic (Msg.Socket _ (ReplProtocol.QCommand "MAGIC!!")) = True
     is_magic _ = False
     magic = Msg.Socket IO.stdout (ReplProtocol.QCommand "MAGIC!!")
@@ -270,7 +270,7 @@ respond1 reuse_loopback (ui_state, cmd_state) maybe_cmd msg = do
     logs_ref <- IORef.newIORef []
     configure_logging logs_ref
     update_chan <- new_chan
-    loopback_chan <- maybe Chan.newChan return reuse_loopback
+    loopback_chan <- maybe Chan.newChan pure reuse_loopback
     (interface, midi_chan) <- make_midi_interface
     ui_chan <- MVar.newMVar []
     let rstate = make_rstate ui_chan update_chan loopback_chan
@@ -281,7 +281,7 @@ respond1 reuse_loopback (ui_state, cmd_state) maybe_cmd msg = do
         Thread.force midi
         updates <- concat <$> get_vals update_chan
         Thread.force updates
-        return (rstate, midi, updates)
+        pure (rstate, midi, updates)
     logs <- reverse <$> IORef.readIORef logs_ref
     -- Updates and MIDI are normally forced by syncing with the UI and MIDI
     -- driver, so force explicitly here.  Not sure if this really makes
@@ -294,7 +294,7 @@ respond1 reuse_loopback (ui_state, cmd_state) maybe_cmd msg = do
             , CmdTest.result_logs = []
             , CmdTest.result_thru = map Cmd.MidiThru midi
             }
-    return $ Result
+    pure $ Result
         { result_msg = msg
         , result_cmd = cmd_result
         , result_updates = updates
@@ -331,15 +331,15 @@ make_rstate ui_chan update_chan loopback_chan ui_state cmd_state maybe_cmd =
         { StaticConfig.global_cmds = maybe [] (:[]) maybe_cmd }
     dummy_sync _ _ _ updates = do
         put_val update_chan updates
-        return Nothing
+        pure Nothing
     loopback = Chan.writeChan loopback_chan
 
 make_midi_interface :: IO (Interface.Interface, TVar.TVar [Interface.Message])
 make_midi_interface = do
     midi_chan <- new_chan
     int <- StubMidi.interface
-    let write msg = put_val midi_chan msg >> return Nothing
-    return (int { Interface.write_message = write }, midi_chan)
+    let write msg = put_val midi_chan msg >> pure Nothing
+    pure (int { Interface.write_message = write }, midi_chan)
 
 -- Use a TVar as a kind of non-blocking channel.
 new_chan :: IO (TVar.TVar [a])

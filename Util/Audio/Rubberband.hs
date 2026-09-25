@@ -106,7 +106,7 @@ deinterleave chan = map (mconcat . map Audio.blockVector) . Lists.rotate
 
 offlineStream :: Audio.Rate -> Audio.Channels -> Config -> [Samples]
     -> S.Stream (S.Of [Samples]) (Resource.ResourceT IO) ()
-offlineStream _ _ _ [] = return ()
+offlineStream _ _ _ [] = pure ()
 offlineStream srate chan config inputs@(input0:_) = do
     (key, state) <- lift $ Resource.allocate new RubberbandC.rubberband_delete
     -- Debug.traceM "set_expected" totalFrames
@@ -142,7 +142,7 @@ offlineStream srate chan config inputs@(input0:_) = do
                 (fromIntegral available)
             outFPs <- mapM (Foreign.newForeignPtr Foreign.finalizerFree)
                 outputsps
-            return $ map
+            pure $ map
                 (flip V.unsafeFromForeignPtr0 (fromIntegral retrieved))
                 outFPs
 
@@ -163,7 +163,7 @@ incrementPtrs vs increment action = Foreign.withMany V.unsafeWith vs $ \vps ->
 -- I have to collect the whole input, but then I can stream the output.
 -- So I could output as a callback, or I could just return a stream.
 offlineList :: Audio.Rate -> Config -> [Samples] -> IO [[Samples]]
-offlineList _ _ [] = return []
+offlineList _ _ [] = pure []
 offlineList srate config inputs =
     Exception.bracket new RubberbandC.rubberband_delete $ \state -> do
         RubberbandC.rubberband_set_expected_input_duration state totalFrames
@@ -179,7 +179,7 @@ offlineList srate config inputs =
                 RubberbandC.rubberband_process state inputpp wanted
                     (now + wanted >= totalFrames)
         available <- RubberbandC.rubberband_available state
-        if available == -1 then return (reverse accum) else do
+        if available == -1 then pure (reverse accum) else do
             outputsps <- replicateM chan (Foreign.mallocArray available)
             (outputs, retrieved)<-Foreign.withArray outputsps $ \outputspp -> do
                 retrieved <- RubberbandC.rubberband_retrieve state outputspp
@@ -189,7 +189,7 @@ offlineList srate config inputs =
                 let outputs = map
                         (flip V.unsafeFromForeignPtr0 (fromIntegral retrieved))
                         outFPs
-                return (outputs, retrieved)
+                pure (outputs, retrieved)
             loop (outputs:accum) (now + retrieved)
 
     totalFrames = fromIntegral (V.length (head inputs))

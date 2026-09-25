@@ -84,7 +84,7 @@ get_pitch :: (PitchState -> Nn) -> M PSignal.Transposed
 get_pitch get = do
     nn <- State.gets get
     cur <- State.gets _current
-    return $ Pitches.transpose_nn (Pitch.nn nn) cur
+    pure $ Pitches.transpose_nn (Pitch.nn nn) cur
 
 -- ** initial state
 
@@ -105,7 +105,7 @@ initial_pitch_state transition args = do
             Pitches.transpose_nn (Pitch.nn prev_step) <$> from
         next <- steps_from_current next
 
-        return $ Just $ PitchState
+        pure $ Just $ PitchState
             { _current = current
             , _from = from
             , _prev = prev
@@ -121,7 +121,7 @@ get_neighbor_pitches start = do
     pitch <- Derive.get_pitch
     let prev = PSignal.at_negative pitch start
     let next = snd <$> next_sample start pitch
-    return (prev, next, prev)
+    pure (prev, next, prev)
 
 next_sample :: RealTime -> PSignal.PSignal -> Maybe (RealTime, PSignal.Pitch)
 next_sample x pitch = do
@@ -145,7 +145,7 @@ c_pitch_sequence = Derive.generator1 (module_ <> "pitch")
         end <- infer_end args
         maybe_state <- initial_pitch_state transition args
         case maybe_state of
-            Nothing -> return mempty
+            Nothing -> pure mempty
             Just state -> do
                 transpose <- Derive.at (Args.start args) $
                     pitch_sequence state (end - Args.start args) code
@@ -162,7 +162,7 @@ c_pitch_sequence = Derive.generator1 (module_ <> "pitch")
                 -- precision.  TODO ugh.
                 let next_gamakam = maybe False
                         ((<=end) . subtract ScoreTime.eta) (next_event args)
-                return $ mconcat $ transpose
+                pure $ mconcat $ transpose
                     ++ if next_gamakam then []
                         else [Signal.from_sample real_end 0]
     where
@@ -199,13 +199,13 @@ next_event = fmap Event.start . Lists.head . Args.next_events
 -- which should correspond to the next explicit swaram.
 infer_end :: Derive.PassedArgs a -> Derive.Deriver TrackTime
 infer_end args
-    | Args.end args /= Args.start args = return $ Args.end args
+    | Args.end args /= Args.start args = pure $ Args.end args
     | otherwise = do
         pitch <- Derive.get_pitch
         start <- Args.real_start args
         next_pitch <- traverse (Derive.score . fst) (next_sample start pitch)
         let next = Args.next args
-        return $ maybe next (min next) next_pitch
+        pure $ maybe next (min next) next_pitch
 
 pitch_sequence :: PitchState -> ScoreTime -> Code
     -> Derive.Deriver [Signal.Control]
@@ -216,7 +216,7 @@ pitch_sequence state total_dur code = do
     starts <- mapM Derive.real $ slice_time total_dur $ map call_duration calls
     let ranges = zip starts (drop 1 starts)
     (sigs, _) <- State.runStateT (mapM eval_call (zip ranges calls)) state
-    return sigs
+    pure sigs
 
 slice_time :: ScoreTime -> [Double] -> [ScoreTime]
 slice_time dur slices =
@@ -227,7 +227,7 @@ eval_call :: ((RealTime, RealTime), Call) -> M Signal.Control
 eval_call ((start, end), call) = case call of
     SetFrom pitch -> do
         set_from =<< resolve_pitch pitch
-        return mempty
+        pure mempty
     Move (Movement to _) -> do
         to <- resolve_pitch to
         from <- get_pitch _from
@@ -247,7 +247,7 @@ resolve_pitch (Pitch from steps nn) = do
         From -> get_pitch _from
         Prev -> get_pitch _prev
         Next -> get_pitch _next
-    return $ apply (Pitches.transpose . Pitch.Diatonic . fromIntegral) steps $
+    pure $ apply (Pitches.transpose . Pitch.Diatonic . fromIntegral) steps $
         apply Pitches.transpose_nn (Pitch.nn nn) $
         base
     where
@@ -273,7 +273,7 @@ type Error = Text
 resolve_aliases :: [Either Alias Call] -> Either Error [Call]
 resolve_aliases = concatMapM (resolve 0)
     where
-    resolve _ (Right call) = return [call]
+    resolve _ (Right call) = pure [call]
     resolve depth (Left (Alias alias))
         | depth >= 5 = Left "too many levels of aliases"
         | otherwise = do
@@ -357,10 +357,10 @@ p_duration = p_longer <|> p_shorter
     where
     p_longer = do
         n <- A.takeWhile1 (=='_')
-        return $ Relative $ fromIntegral $ Text.length n + 1
+        pure $ Relative $ fromIntegral $ Text.length n + 1
     p_shorter = do
         n <- A.takeWhile1 (=='.')
-        return $ Relative $ 1 / 2^(fromIntegral (Text.length n))
+        pure $ Relative $ 1 / 2^(fromIntegral (Text.length n))
 
 -- | [=<>] [+\^v]? | #?[0-9a-d]? [+\^v]?
 p_pitch :: Parser Pitch
@@ -368,7 +368,7 @@ p_pitch = do
     (matched, pitch) <- A.match $ p_pitch_from
         <|> (Pitch <$> p_from <*> (p_steps <|> pure 0) <*> p_nn)
     when (Text.null matched) $ fail "empty pitch"
-    return pitch
+    pure pitch
 
 p_pitch_from :: Parser Pitch
 p_pitch_from = Pitch <$> from <*> pure 0 <*> p_nn
@@ -404,14 +404,14 @@ p_from = A.option Current (A.char '#' *> pure From)
 
 p_number :: Parser Int
 p_number = do
-    sign <- A.option 1 (A.char '-' >> return (-1))
+    sign <- A.option 1 (A.char '-' >> pure (-1))
     digit <- A.satisfy $ \c -> '0' <= c && c <= '9'
-    return $ sign * (fromEnum digit - fromEnum '0')
+    pure $ sign * (fromEnum digit - fromEnum '0')
 
 p_letter_negative :: Parser Int
 p_letter_negative = do
     digit <- A.satisfy $ \c -> 'a' <= c && c <= last_letter_negative
-    return $ fromEnum 'a' - fromEnum digit - 1
+    pure $ fromEnum 'a' - fromEnum digit - 1
 
 last_letter_negative :: Char
 last_letter_negative = 'd'
@@ -426,4 +426,4 @@ c_sahitya :: Derive.Taggable a => Derive.Transformer a
 c_sahitya = Derive.transformer module_ "sahitya" mempty
     ("Ignore the transformed deriver. Put this on a track to ignore its"
     <> " contents, and put in sahitya.")
-    $ Sig.call0t $ \_args _deriver -> return Stream.empty
+    $ Sig.call0t $ \_args _deriver -> pure Stream.empty

@@ -19,14 +19,14 @@ run d = (result, state, map Log.msg_text logs)
 
 test_monad_error :: Test
 test_monad_error = do
-    equal (run $ return "a") (Right "a", 0, [])
+    equal (run $ pure "a") (Right "a", 0, [])
     equal (run $ Except.throwError "x") (Left "x", 0, [])
-    equal (run $ Except.throwError "x" `Except.catchError` return)
+    equal (run $ Except.throwError "x" `Except.catchError` pure)
         (Right "x", 0, [])
     -- Logs and state are preserved.
     let notice = DeriveM.write (Log.msg Log.Notice Nothing "notice")
     equal (run $ DeriveM.modify (+1) >> notice >> Except.throwError "x")
         (Left "x", 1, ["notice"])
     equal (run $ DeriveM.modify (+1) >> notice
-            >> Except.throwError "x" `Except.catchError` return)
+            >> Except.throwError "x" `Except.catchError` pure)
         (Right "x", 1, ["notice"])

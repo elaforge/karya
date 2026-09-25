@@ -33,13 +33,13 @@ dump_perf_events fname events =
 read_perf_events :: [Simple.ExactPerfEvent] -> IO [Types.Event]
 read_perf_events events = do
     db <- LoadInstruments.load =<< Path.get_app_dir
-    return $ mapMaybe (Simple.load_exact_perf_event (lookup_patch db)) events
+    pure $ mapMaybe (Simple.load_exact_perf_event (lookup_patch db)) events
 
 lookup_patch :: Cmd.InstrumentDb -> InstT.Qualified -> Maybe Types.Patch
 lookup_patch db qualified = do
     patch <- Inst.inst_midi =<< Inst.lookup qualified db
     let score_inst = ScoreT.Instrument (InstT.show_qualified qualified)
-    return $ Types.patch_from_settings score_inst mempty patch
+    pure $ Types.patch_from_settings score_inst mempty patch
 
 empty_event :: Types.Event
 empty_event = Types.Event

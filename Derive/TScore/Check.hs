@@ -102,10 +102,10 @@ parse_directive scope (T.Directive pos name maybe_val) config =
         -- f for from.  This is abbreviated because it shows up per-track.
         "f" -> do
             from <- parse_from scope pos =<< with_arg
-            return $ config { config_from = Just from }
+            pure $ config { config_from = Just from }
         "meter" -> set_config (\c a -> c { config_meter = a }) parse_meter
             =<< with_arg
-        "negative" -> without_arg >> return (config { config_negative = True })
+        "negative" -> without_arg >> pure (config { config_negative = True })
         "scale" -> set_config (\c a -> c { config_scale = a })
             (`Map.lookup` scale_map) =<< with_arg
         "ky" -> do
@@ -119,7 +119,7 @@ parse_directive scope (T.Directive pos name maybe_val) config =
         _ -> Left $ "unknown directive: " <> name
     where
     require_toplevel = case scope of
-        Global -> return ()
+        Global -> pure ()
         _ -> Left "must be at global scope"
     with_arg = tryJust "expected arg" maybe_val
     without_arg = maybe (Right ()) (Left . ("unexpected arg: "<>)) maybe_val
@@ -132,7 +132,7 @@ parse_from scope pos arg = case scope of
     Block -> do
         block_id <- tryJust ("not a valid block_id: " <> arg) $
             Id.make $ Id.read_short Parse.default_namespace arg
-        return $ From
+        pure $ From
             { from_block = Just block_id
             , from_tracknum = 0
             , from_pos = pos
@@ -140,7 +140,7 @@ parse_from scope pos arg = case scope of
     Track -> do
         tracknum <- tryJust ("not a tracknum: " <> arg) $ ParseText.int arg
         when (tracknum <= 0) $ Left "tracknums start at 1"
-        return $ From
+        pure $ From
             { from_block = Nothing
             , from_tracknum = tracknum
             , from_pos = pos
@@ -210,13 +210,13 @@ carry_call_duration = flip State.evalState False . EList.mapM (T.map_note carry)
         dur <- case T.note_duration note of
             T.CallDuration -> do
                 State.put True
-                return T.CallDuration
+                pure T.CallDuration
             T.NDuration dur
                 | can_carry note dur -> ifM State.get
-                    (return T.CallDuration)
-                    (return $ T.NDuration dur)
-                | otherwise -> State.put False >> return (T.NDuration dur)
-        return $ note { T.note_duration = dur }
+                    (pure T.CallDuration)
+                    (pure $ T.NDuration dur)
+                | otherwise -> State.put False >> pure (T.NDuration dur)
+        pure $ note { T.note_duration = dur }
     can_carry note dur = T.note_call note /= ""
         && all Maybe.isNothing [T.dur_int1 dur, T.dur_int2 dur]
 
@@ -368,7 +368,7 @@ Just meter_44 = simple_meter 4 4
 simple_meter :: Int -> Int -> Maybe Meter
 simple_meter n1 n2 = do
     abs_meter <- Meters.simple n1 n2
-    return $ Meter
+    pure $ Meter
         { meter_pattern = 1 : replicate (n1-1) 0
         , meter_step = 1 / fromIntegral n2
         , meter_negative = False
@@ -480,7 +480,7 @@ check_barlines meter =
     check_token (i, token) = do
         now <- State.get
         State.put $! now + dur
-        return $ EList.Elt token : warning now
+        pure $ EList.Elt token : warning now
         where
         dur = duration_of token
         warning now = case token of
@@ -556,8 +556,8 @@ multiplicative =
             Just int2 -> fromIntegral int1 / fromIntegral int2
         dot_dur = Num.sum $ take dots $ drop 1 $ iterate (/2) dur
     carry Nothing Nothing = State.get
-    carry Nothing (Just int2) = return (int2, Nothing)
-    carry (Just int1) mb_int2 = return (int1, mb_int2)
+    carry Nothing (Just int2) = pure (int2, Nothing)
+    carry (Just int1) mb_int2 = pure (int1, mb_int2)
 
 -- | Each number is just the number of Time beats.  If there are two numbers,
 -- int1 corresponds to a higher level of division, which is meter specific.
@@ -573,7 +573,7 @@ additive =
         dot_dur = Num.sum $ take dots $ drop 1 $ iterate (/2) dur
     carry int1 int2 = do
         (p_int1, p_int2) <- State.get
-        return (fromMaybe p_int1 int1, fromMaybe p_int2 int2)
+        pure (fromMaybe p_int1 int1, fromMaybe p_int2 int2)
 
 map_duration :: State.MonadState (int1, int2) m
     => (Maybe Int -> Maybe Int -> m (int1, int2))
@@ -581,22 +581,22 @@ map_duration :: State.MonadState (int1, int2) m
     -> T.Token call pitch (Either time T.Duration) T.Duration
     -> m (EList.Elt Meta (T.Token call pitch (time, Bool) (time, Bool)))
 map_duration carry time_of = \case
-    T.TBarline pos a -> return $ EList.Elt $ T.TBarline pos a
+    T.TBarline pos a -> pure $ EList.Elt $ T.TBarline pos a
     T.TNote pos note -> do
         result <- case T.note_duration note of
-            Left time -> return $ Right (time, False)
+            Left time -> pure $ Right (time, False)
             Right (T.Duration mb_int1 mb_int2 dots tie) -> do
                 (int1, int2) <- carry mb_int1 mb_int2
                 State.put (int1, int2)
-                return $ Right (time_of int1 int2 dots, tie)
-        return $ case result of
+                pure $ Right (time_of int1 int2 dots, tie)
+        pure $ case result of
             Left err -> mkerror pos err
             Right (time, tie) -> EList.Elt $ T.TNote pos $
                 note { T.note_duration = (time, tie) }
     T.TRest pos (T.Rest (T.Duration mb_int1 mb_int2 dots tie)) -> do
         (int1, int2) <- carry mb_int1 mb_int2
         State.put (int1, int2)
-        return $ EList.Elt $ T.TRest pos $ T.Rest (time_of int1 int2 dots, tie)
+        pure $ EList.Elt $ T.TRest pos $ T.Rest (time_of int1 int2 dots, tie)
 
 -- * pitch
 
@@ -619,18 +619,18 @@ resolve_pitch scale =
         . EList.mapEM token
     where
     token (start, note) = fmap set <$> case T.note_pitch note of
-        T.CopyFrom -> return $ EList.Elt T.CopyFrom
+        T.CopyFrom -> pure $ EList.Elt T.CopyFrom
         T.NPitch pitch -> fmap T.NPitch <$> resolve (T.note_pos note) pitch
         where set pitch = (start, note { T.note_pitch = pitch })
     resolve pos pitch = case parse_pitch pos (scale_parse scale) pitch of
-        EList.Meta m -> return $ EList.Meta m
-        EList.Elt Nothing -> return $ EList.Elt Nothing
+        EList.Meta m -> pure $ EList.Meta m
+        EList.Elt Nothing -> pure $ EList.Elt Nothing
         EList.Elt (Just pitch) -> do
             prev <- State.get
-            pitch@(Pitch.Pitch oct degree) <- return $
+            pitch@(Pitch.Pitch oct degree) <- pure $
                 infer_octave per_octave prev pitch
             State.put (oct, Just degree)
-            return $ Just <$> pitch_to_symbolic pos scale pitch
+            pure $ Just <$> pitch_to_symbolic pos scale pitch
     per_octave = Theory.layout_pc_per_octave (scale_layout scale)
 
 parse_pitch :: T.Pos -> (T.PitchText -> Maybe pitch) -> T.Pitch
@@ -714,7 +714,7 @@ scale_twelve = Scale
     p_degree = do
         pc <- P.choice [P.string c *> pure i | (i, c) <- zip [0..] degrees]
         accs <- P.choice $ map (\(n, c) -> P.string c *> pure n) accidentals
-        return $ Pitch.Degree pc accs
+        pure $ Pitch.Degree pc accs
     unparse (Pitch.Degree pc accs) = (<>)
         <$> Lists.at degrees pc <*> lookup accs accidentals
     accidentals =

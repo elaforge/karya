@@ -89,7 +89,7 @@ read_pitch per_octave note = justErr (DeriveT.UnparseableNote note) $
         c <- Attoparsec.Text.anyChar
         let pc = Char.ord c - Char.ord 'a'
         guard (pc < per_octave)
-        return pc
+        pure pc
 
 show_pitch :: Pitch.Pitch -> Pitch.Note
 show_pitch (Pitch.Pitch oct (Pitch.Degree pc _)) =

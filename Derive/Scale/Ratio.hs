@@ -73,8 +73,8 @@ note_call note ratio = Derive.val_call Module.scale "ratio" mempty
             ("ratio scale requires " <> ShowVal.show_val pcontrol_ref)
             =<< Derive.named_nn_at pcontrol start
         let out_nn = Pitch.hz_to_nn $ ratio (Pitch.nn_to_hz nn) + hz
-        return $ PSignal.pitch
-            pscale (const $ return out_nn) (const $ return note)
+        pure $ PSignal.pitch
+            pscale (const $ pure out_nn) (const $ pure note)
             (PSignal.PitchConfig env mempty)
     where
     pcontrol_ref = DeriveT.Ref control Nothing :: DeriveT.PControlRef
@@ -90,4 +90,4 @@ p_note = do
     A.char '/'
     denom <- ParseText.p_nat
     let ratio = fromIntegral (abs num) / fromIntegral denom
-    return $ if num < 0 then (/ ratio) else (* ratio)
+    pure $ if num < 0 then (/ ratio) else (* ratio)

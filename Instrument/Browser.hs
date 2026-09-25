@@ -72,7 +72,7 @@ main :: IO ()
 main = ReplProtocol.initialize $ do
     args <- System.Environment.getArgs
     (flags, args) <- case GetOpt.getOpt GetOpt.Permute options args of
-        (flags, args, []) -> return (flags, args)
+        (flags, args, []) -> pure (flags, args)
         (_, _, errs) -> usage $ "flag errors:\n" ++ Lists.join ", " errs
     unless (null args) $
         usage ("unparsed args: " ++ show args)
@@ -135,7 +135,7 @@ show_info chan win db qualified = Fltk.action chan $ BrowserC.set_info win info
         let InstT.Qualified synth_name inst_name = qualified
         synth <- Inst.lookup_synth synth_name (db_db db)
         inst <- Map.lookup inst_name (Inst.synth_insts synth)
-        return $ InstDoc.info_of qualified (Inst.synth_doc synth) inst tags
+        pure $ InstDoc.info_of qualified (Inst.synth_doc synth) inst tags
     tags = fromMaybe [] $ Search.tags_of (db_index db) qualified
 
 -- | Send the chosen instrument to the sequencer.  This will send
@@ -164,5 +164,5 @@ process_query chan win db displayed query = do
             BrowserC.insert_line win (i+1) (InstT.show_qualified inst)
         Lists.First _inst -> Fltk.action chan $
             BrowserC.remove_line win (i+1)
-        _ -> return ()
-    return matches
+        _ -> pure ()
+    pure matches

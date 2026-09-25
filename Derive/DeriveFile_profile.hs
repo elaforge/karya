@@ -29,7 +29,7 @@ profile_file = do
         putStrLn $ "events: " <> show (Vector.length (Cmd.perf_events perf))
         putStrLn "logs:"
         mapM_ prettyp $ filter (not . Cache.is_cache_log) (Cmd.perf_logs perf)
-    return ()
+    pure ()
 
 perform :: Cmd.Config -> FilePath -> IO [ResponderTest.Result]
 perform cmd_config fname = do
@@ -39,4 +39,4 @@ perform cmd_config fname = do
     results1 <- continue result
     -- The first one is cancelled because of loading the defs file.
     results2 <- continue (last results1)
-    return $ results1 ++ results2
+    pure $ results1 ++ results2

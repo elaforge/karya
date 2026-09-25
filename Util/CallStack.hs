@@ -31,7 +31,7 @@ instance Aeson.ToJSON Caller where
     toJSON NoCaller = Aeson.Null
 instance Aeson.FromJSON Caller where
     parseJSON val = case val of
-        Aeson.Null -> return NoCaller
+        Aeson.Null -> pure NoCaller
         _ -> uncurry Caller <$> Aeson.parseJSON val
 
 caller :: Stack.CallStack -> Caller

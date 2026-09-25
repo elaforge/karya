@@ -41,11 +41,11 @@ parse_annotations :: FilePath
     -> IO (Either String (Map InstT.Qualified [Annotation]))
 parse_annotations fn = do
     result <- Parse.file mempty p_annotation_file () fn
-    return $ bimap show (Map.fromListWith (++)) result
+    pure $ bimap show (Map.fromListWith (++)) result
 
 p_annotation_file :: Parser st [(InstT.Qualified, [Annotation])]
 p_annotation_file = concat <$> P.many line <* P.eof
-    where line = ((:[]) <$> P.try p_annotation_line) <|> (p_eol >> return [])
+    where line = ((:[]) <$> P.try p_annotation_line) <|> (p_eol >> pure [])
 
 p_annotation_line :: Parser st (InstT.Qualified, [Annotation])
 p_annotation_line =
@@ -89,7 +89,7 @@ p_whitespace = P.skipMany (P.oneOfC " \t") >> P.option () comment
     Comments start with @#@, and blank lines are ignored.
 -}
 patch_file :: FilePath -> IO [Sysex.Patch]
-patch_file fn = either (errorIO . ("parse patches: " <>)) return
+patch_file fn = either (errorIO . ("parse patches: " <>)) pure
     =<< parse_patch_file fn
 
 parse_patch_file :: String -> IO (Either Text [Sysex.Patch])
@@ -115,7 +115,7 @@ data PatchLine = PatchLine
 p_patch_file :: Parser State [Sysex.Patch]
 p_patch_file = do
     patches <- Maybe.catMaybes <$> P.many p_line
-    return $ map (make_patch (-2, 2)) (inherit_prev_category patches)
+    pure $ map (make_patch (-2, 2)) (inherit_prev_category patches)
     where
     inherit_prev_category = snd . List.mapAccumL inherit Nothing
     inherit maybe_prev patch = case lookup Tag.category tags of
@@ -137,8 +137,8 @@ make_patch pb_range (PatchLine name bank patch_num tags) = (patch, common)
 
 p_line :: Parser State (Maybe PatchLine)
 p_line =
-    (p_bank_decl >> return Nothing)
-    <|> (p_eol >> return Nothing)
+    (p_bank_decl >> pure Nothing)
+    <|> (p_eol >> pure Nothing)
     <|> fmap Just p_patch_line
 
 p_patch_line :: Parser State PatchLine
@@ -148,7 +148,7 @@ p_patch_line = do
     p_eol
     st <- State.get
     State.put $ st { state_patch_num = state_patch_num st + 1 }
-    return $ PatchLine name (state_bank st) (state_patch_num st) tags
+    pure $ PatchLine name (state_bank st) (state_patch_num st) tags
     where
     comma = lexeme (P.char ',')
 

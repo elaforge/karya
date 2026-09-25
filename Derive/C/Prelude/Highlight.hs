@@ -88,7 +88,7 @@ open_strings pos highlight deriver = do
     maybe_pitches <- Derive.lookup_val EnvKey.open_strings
     maybe_pitches <- case maybe_pitches of
         Just pitches -> Just <$> mapM (Derive.resolve_pitch pos) pitches
-        Nothing -> return Nothing
+        Nothing -> pure Nothing
     maybe id (\pitches -> fmap (Post.emap1_ (apply pitches))) maybe_pitches
         deriver
     where
@@ -129,7 +129,7 @@ out_of_range pos deriver = do
         where
         is_oor = fromMaybe False $ do
             nn <- Score.initial_nn event
-            return $ maybe False (<nn) maybe_top
+            pure $ maybe False (<nn) maybe_top
                 || maybe False (>nn) maybe_bottom
 
 get_instrument_range :: ScoreTime
@@ -138,11 +138,11 @@ get_instrument_range pos = do
     (_parse_p, show_p, _) <- Call.get_pitch_functions
     maybe_top <- get show_p EnvKey.instrument_top
     maybe_bottom <- get show_p EnvKey.instrument_bottom
-    return (maybe_top, maybe_bottom)
+    pure (maybe_top, maybe_bottom)
     where
     get show_p key =
-        maybe (return Nothing)
-            (fmap Just . either (resolve_pitch show_p pos) return)
+        maybe (pure Nothing)
+            (fmap Just . either (resolve_pitch show_p pos) pure)
         =<< Derive.lookup_val key
 
 resolve_pitch :: (Pitch.Pitch -> Maybe Pitch.Note) -> ScoreTime -> Pitch.Pitch

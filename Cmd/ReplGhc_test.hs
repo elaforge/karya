@@ -26,7 +26,7 @@ test_repl_ghc = do
     where
     go session = do
         expr <- getLine
-        if expr == "quit" then return () else do
+        if expr == "quit" then pure () else do
             cmd <- ReplGhc.interpret session (txt expr)
             result <- run_io cmd
             case result of
@@ -38,7 +38,7 @@ run_io :: Cmd.CmdT IO ReplProtocol.CmdResult -> IO (Either String Text)
 run_io cmd = do
     (_cstate, _midi, _logs, result) <-
         Cmd.run (ReplProtocol.raw "") ui_state cmd_state cmd
-    return $ case result of
+    pure $ case result of
         Left err -> Left (prettys err)
         Right (cmd_result, _ustate, _updates) ->
             Right $ ReplProtocol.format_result cmd_result

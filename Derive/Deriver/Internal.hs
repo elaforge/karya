@@ -48,7 +48,7 @@ get_constant f = gets (f . state_constant)
 -- (i.e. except Collect) from the sub derivation is discarded, whatever state
 -- it's in after the exception shouldn't matter.
 local :: (Dynamic -> Dynamic) -> Deriver a -> Deriver a
-local modify_dynamic = localm (return . modify_dynamic)
+local modify_dynamic = localm (pure . modify_dynamic)
 
 localm :: (Dynamic -> Deriver Dynamic) -> Deriver a -> Deriver a
 localm modify_dynamic deriver = do
@@ -57,7 +57,7 @@ localm modify_dynamic deriver = do
     put $ st { state_dynamic = new }
     result <- deriver
     modify $ \new -> new { state_dynamic = state_dynamic st }
-    return result
+    pure result
 
 -- | A version of 'local' that catches exceptions and ignores any changes to
 -- Collect.  This is appropriate for sub-calls that are below normal track
@@ -68,7 +68,7 @@ detached_local modify_dynamic deriver = do
     let (result, _, logs) = run
             (st { state_dynamic = modify_dynamic (state_dynamic st) }) deriver
     mapM_ Log.write logs
-    return result
+    pure result
 
 set_threaded :: Threaded -> Deriver ()
 set_threaded threaded = modify $ \st -> st { state_threaded = threaded }
@@ -94,7 +94,7 @@ local_collect deriver = do
     result <- deriver
     sub_collect <- gets state_collect
     modify $ \st -> st { state_collect = old }
-    return (result, sub_collect)
+    pure (result, sub_collect)
 
 -- | Modify the 'collect_warp_map' to reduce the start and end by the given
 -- times.  This is useful if you're going to clip off some events.  The
@@ -113,7 +113,7 @@ with_collect :: (Collect -> Collect) -> Deriver a -> Deriver a
 with_collect modify deriver = do
     (a, collect) <- local_collect deriver
     merge_collect (modify collect)
-    return a
+    pure a
 
 -- | TODO this is sketchy, you're supposed to use 'merge_collect'.
 modify_collect :: (Collect -> Collect) -> Deriver ()
@@ -184,40 +184,40 @@ eval_ui :: HasCallStack => Ui.StateId a -> Deriver a
 eval_ui action = do
     ui_state <- get_ui_state id
     let rethrow exc = throw $ pretty exc
-    either rethrow return (Ui.eval ui_state action)
+    either rethrow pure (Ui.eval ui_state action)
 
 -- | Lookup @map!key@, throwing if it doesn't exist.
 lookup_id :: (Ord k, Show k) => k -> Map k a -> Deriver a
 lookup_id key map = case Map.lookup key map of
     Nothing -> throw $ "unknown " <> showt key
-    Just val -> return val
+    Just val -> pure val
 
 -- * stack
 
 lookup_current_block_id :: Deriver (Maybe BlockId)
 lookup_current_block_id = do
     stack <- get_stack
-    return $ case [bid | Stack.Block bid <- Stack.innermost stack] of
+    pure $ case [bid | Stack.Block bid <- Stack.innermost stack] of
         [] -> Nothing
         bid : _ -> Just bid
 
 get_current_block_id :: Deriver BlockId
 get_current_block_id =
-    maybe (throw "get_current_block_id: no blocks in stack") return
+    maybe (throw "get_current_block_id: no blocks in stack") pure
         =<< lookup_current_block_id
 
 lookup_current_tracknum :: Deriver (Maybe (BlockId, TrackNum))
 lookup_current_tracknum = do
     stack <- get_stack
     case Stack.block_track_of stack of
-        Nothing -> return Nothing
+        Nothing -> pure Nothing
         Just (block_id, track_id) -> do
             tracknum <- eval_ui $ Ui.get_tracknum_of block_id track_id
-            return $ Just (block_id, tracknum)
+            pure $ Just (block_id, tracknum)
 
 get_current_tracknum :: Deriver (BlockId, TrackNum)
 get_current_tracknum =
-    maybe (throw "get_current_tracknum") return =<< lookup_current_tracknum
+    maybe (throw "get_current_tracknum") pure =<< lookup_current_tracknum
 
 -- | Make a quick trick block stack.
 {-# SCC with_stack_block #-}
@@ -246,7 +246,7 @@ with_stack frame = localm $ \st -> do
     stack <- get_stack
     when (Stack.length stack >= max_depth) $
         throw $ "call stack too deep: " <> pretty frame
-    return $ add_stack_frame frame st
+    pure $ add_stack_frame frame st
     where
     -- A recursive loop will result in an unfriendly hang.  So limit the total
     -- nesting depth to catch those.  I could disallow all recursion, but this
@@ -303,11 +303,11 @@ class Time a where
 
 instance Time ScoreTime where
     real = score_to_real
-    score = return
+    score = pure
     to_duration = DeriveT.ScoreDuration
 
 instance Time RealTime where
-    real = return
+    real = pure
     score = real_to_score
     to_duration = DeriveT.RealDuration
 
@@ -386,7 +386,7 @@ block_event_end = eval_ui . Ui.block_event_end
 -- which means they don't have tempo or a playback monitor, which makes them
 -- annoying.
 record_empty_tracks :: [TrackId] -> Deriver ()
-record_empty_tracks [] = return ()
+record_empty_tracks [] = pure ()
 record_empty_tracks track_ids = do
     block_id <- get_current_block_id
     mapM_ (record_empty_track block_id) track_ids
@@ -401,7 +401,7 @@ get_control_function_dynamic :: Deriver DeriveT.Dynamic
 get_control_function_dynamic = do
     ruler <- get_ruler
     state <- get
-    return $ convert_dynamic ruler (state_dynamic state)
+    pure $ convert_dynamic ruler (state_dynamic state)
         (state_event_serial (state_threaded state))
 
 convert_dynamic :: Ruler.Marklists -> Dynamic -> Stack.Serial
@@ -419,10 +419,10 @@ convert_dynamic ruler dyn serial = DeriveT.Dynamic
 -- to not require a ruler.
 get_ruler :: Deriver Ruler.Marklists
 get_ruler = lookup_current_tracknum >>= \case
-    Nothing -> return mempty
+    Nothing -> pure mempty
     Just (block_id, tracknum) -> do
         state <- get_ui_state id
-        return $ either (const mempty) id $ Ui.eval state $ do
+        pure $ either (const mempty) id $ Ui.eval state $ do
             ruler_id <- fromMaybe Ui.no_ruler <$>
                 Ui.ruler_track_at block_id tracknum
             Ruler.ruler_marklists <$> Ui.get_ruler ruler_id

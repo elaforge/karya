@@ -83,15 +83,15 @@ complete_identefier addr =
     where
     complete prefix = do
         words <- ReplProtocol.query_completion addr (txt prefix)
-        return $ map (Haskeline.simpleCompletion . untxt) words
+        pure $ map (Haskeline.simpleCompletion . untxt) words
     word_break_chars = " \t\n(),;[]`{}!#$%&*+/<=>?@\\^|-~"
 
 main :: IO ()
 main = ReplProtocol.initialize $ do
     args <- System.Environment.getArgs
     addr <- case args of
-        [] -> return $ Network.Unix Config.repl_socket_name
-        [fn] -> return $ Network.Unix fn
+        [] -> pure $ Network.Unix Config.repl_socket_name
+        [fn] -> pure $ Network.Unix fn
         _ -> errorIO "usage: repl [ unix-socket ]"
     -- I don't want to see "thread started" logs.
     Log.configure $ \state -> state { Log.state_priority = Log.Notice }
@@ -137,35 +137,35 @@ repl addr settings = Exception.mask $ \restore ->
             read_eval_print addr connection_error
                 (Haskeline.historyFile settings)
         continue <- case status of
-            Continue -> return True
+            Continue -> pure True
             Command cmd -> do
                 status <- liftIO $ send_command addr cmd
                 case status of
-                    Continue -> return True
+                    Continue -> pure True
                     Command cmd -> do
                         -- Or maybe I should just keep having this conversation?
                         putStrLn $ "two Commands in a row: " <> show cmd
-                        return True
-                    Quit -> return False
-            Quit -> return False
+                        pure True
+                    Quit -> pure False
+            Quit -> pure False
         when continue $ loop settings
     where
     read_eval_print addr connection_error history =
-        maybe (return Quit) (liftIO . eval addr history . Text.strip)
+        maybe (pure Quit) (liftIO . eval addr history . Text.strip)
             =<< get_input connection_error history
-    catch = return Continue
+    catch = pure Continue
 
 eval :: Network.Addr -> Maybe FilePath -> Text -> IO Status
 eval addr maybe_history expr = case Text.stripPrefix ":" (Text.toLower expr) of
     Just "h" -> case maybe_history of
-        Nothing -> putStrLn "no history to edit" >> return Continue
-        Just history -> maybe (return Continue) (send_command addr)
+        Nothing -> putStrLn "no history to edit" >> pure Continue
+        Just history -> maybe (pure Continue) (send_command addr)
             =<< edit_line history
     Just "r" -> send_command addr ":reload" -- reload handled in ReplGhc
-    Just "?" -> Text.IO.putStr repl_doc >> return Continue
+    Just "?" -> Text.IO.putStr repl_doc >> pure Continue
     Just _ -> do
         putStrLn $ "unknown colon command " <> show expr <> ", :? for help"
-        return Continue
+        pure Continue
     _ -> send_command addr expr
 
 colon_doc :: Text
@@ -180,7 +180,7 @@ colon_doc =
 
 send_command :: Network.Addr -> Text -> IO Status
 send_command addr expr
-    | Text.null expr = return Continue
+    | Text.null expr = pure Continue
     | otherwise = do
         result <- ReplProtocol.query_cmd addr (Text.strip expr)
         result <- print_logs result
@@ -191,16 +191,16 @@ handle_result addr = \case
     ReplProtocol.Raw text -> do
         unless (Text.null (Text.strip text)) $
             Text.IO.putStrLn (Text.stripEnd text)
-        return Continue
+        pure Continue
     ReplProtocol.Format text -> do
         unless (Text.null (Text.strip text)) $
             putStr $ PPrint.format_str $ untxt text
-        return Continue
+        pure Continue
     ReplProtocol.Edit editors -> do
         ReplProtocol.notify addr ReplProtocol.NEditorOpened
         edit_multiple editors
         ReplProtocol.notify addr ReplProtocol.NEditorClosed
-        return Continue
+        pure Continue
 
 print_logs :: ReplProtocol.CmdResult -> IO ReplProtocol.Result
 print_logs (ReplProtocol.CmdResult val logs_) = do
@@ -211,7 +211,7 @@ print_logs (ReplProtocol.CmdResult val logs_) = do
         putStrLn "Logs:"
         mapM_ Pretty.pprint logs
         putChar '\n'
-    return val
+    pure val
 
 get_input :: Bool -> Maybe FilePath -> Input (Maybe Text)
 get_input connection_error history =
@@ -270,8 +270,8 @@ edit_multiple edits_ = with_files (map ReplProtocol._file edits) $ \fnames ->
             ]
         when ok $ forM_ (zip fnames (map ReplProtocol._on_save edits)) $ \case
             (fname, Just on_save) -> send_file fname on_save
-            _ -> return ()
-        return ()
+            _ -> pure ()
+        pure ()
     where
     edits = NonEmpty.toList edits_
     make_cmds fnames = Text.unlines $
@@ -305,7 +305,7 @@ send_file fname cmd = do
     content <- if "%s" `Text.isInfixOf` cmd
         -- vim will add a final newline.
         then Text.stripEnd <$> Text.IO.readFile fname
-        else return ""
+        else pure ""
     -- Sometimes I forget to build it and it's annoying to crash the REPL.
     unlessM (Directory.doesFileExist send_binary) $
         Process.callProcess "bin/mk" [send_binary]
@@ -334,7 +334,7 @@ edit_line fname = with_temp "repl-edit-history-" "" "" $ \tmp -> do
             ]
     ifM (wait_for_command "vim" cmdline)
         (Just . Text.strip <$> Text.IO.readFile tmp)
-        (return Nothing)
+        (pure Nothing)
 
 -- | This will abort the editor on a force-quit from karya.  If I leave it
 -- open, it's too easy to forget, and then load another score, and it wants
@@ -358,14 +358,14 @@ wait_for_command cmd args = do
                 \ state restored."
             putStrLn "Any unsaved edits saved as log/*.swp, vim -r log/*.swp\
                 \ to recover."
-            return False
-        Right Exit.ExitSuccess -> return True
+            pure False
+        Right Exit.ExitSuccess -> pure True
         Right (Exit.ExitFailure code) -> do
             -- Maybe the binary wasn't found, but vim seems to return 1
             -- unpredictably.
             Log.warn $ "non-zero exit code from "
                 <> showt (cmd : args) <> ": " <> showt code
-            return False
+            pure False
 
 -- This can't use readProcess, which always pipes stdin, which stty doesn't
 -- like.
@@ -375,6 +375,6 @@ capture cmd args =
         stdout <- Text.IO.hGetContents outh
         -- TODO check for error
         Process.waitForProcess pid
-        return stdout
+        pure stdout
     where
     proc = (Process.proc cmd args) { Process.std_out = Process.CreatePipe }

@@ -70,7 +70,7 @@ with_socket app = do
     try_socket (fname : fnames) =
         Exceptions.ignoreIOError (Network.listenUnix fname) >>= \case
             Nothing -> try_socket fnames
-            Just socket -> return (fname, socket)
+            Just socket -> pure (fname, socket)
     try_socket [] = errorIO "no socket files?"
 
 -- | This is the persistent interpreter session which is stored in the global
@@ -88,16 +88,16 @@ interpreter = ReplImpl.interpreter
 respond :: Session -> Msg.Msg -> Cmd.CmdT IO Cmd.Status
 respond session msg = do
     (response_hdl, query) <- case msg of
-        Msg.Socket hdl s -> return (hdl, s)
+        Msg.Socket hdl s -> pure (hdl, s)
         _ -> Cmd.abort
     (mb_response, status) <- case query of
         ReplProtocol.QSaveFile -> do
             save_file <- fmap (name_of . snd) <$> Cmd.gets Cmd.state_save_file
-            return (Just $ ReplProtocol.RSaveFile save_file, Cmd.Done)
+            pure (Just $ ReplProtocol.RSaveFile save_file, Cmd.Done)
         ReplProtocol.QCommand expr -> command session (Text.strip expr)
         ReplProtocol.QCompletion prefix -> do
             words <- liftIO $ ReplImpl.complete session prefix
-            return (Just $ ReplProtocol.RCompletion words, Cmd.Done)
+            pure (Just $ ReplProtocol.RCompletion words, Cmd.Done)
         ReplProtocol.QNotify notify -> do
             case notify of
                 ReplProtocol.NEditorOpened -> Cmd.modify $ \st -> st
@@ -108,11 +108,11 @@ respond session msg = do
                     { Cmd.state_saved = (Cmd.state_saved st)
                         { Cmd._editor_open = False }
                     }
-            return (Nothing, Cmd.Done)
+            pure (Nothing, Cmd.Done)
     liftIO $ Exception.handle warn_io_errors $ do
         whenJust mb_response $ ReplProtocol.seq_send response_hdl
         IO.hClose response_hdl
-    return status
+    pure status
     where
     name_of (Cmd.SaveState fname) = Path.to_path fname
     name_of (Cmd.SaveRepo fname) = Path.to_path fname
@@ -126,10 +126,10 @@ command session expr = do
     expr <- Cmd.require_right ("expand_macros: "<>) $ expand_macros ns expr
     Log.debug $ "repl input: " <> showt expr
     cmd <- case Fast.fast_interpret (untxt expr) of
-        Just cmd -> return cmd
+        Just cmd -> pure cmd
         Nothing -> liftIO $ ReplImpl.interpret session expr
     (response, status) <- run_cmdio $ Cmd.name ("repl: " <> expr) cmd
-    return (Just $ ReplProtocol.RCommand response, status)
+    pure (Just $ ReplProtocol.RCommand response, status)
 
 -- | Replace \@some-id with @(make_id ns \"some-id\")@
 expand_macros :: Id.Namespace -> Text -> Either Text Text
@@ -149,19 +149,19 @@ run_cmdio cmd = do
             Cmd.run (ReplProtocol.raw "<aborted>") ui_state
                 (cmd_state { Cmd.state_repl_status = Cmd.Done }) cmd
         case cmd_result of
-            Left _ -> return ()
+            Left _ -> pure ()
             -- Try to force out any async exceptions.  UI state may also have
             -- some, but I try to force those out in Ui.State functions.
             -- Otherwise, if an error gets out of this try block it can kill
             -- the responder when serializes the value for the socket.
-            Right (val, _state, _updates) -> val `DeepSeq.deepseq` return ()
+            Right (val, _state, _updates) -> val `DeepSeq.deepseq` pure ()
         mapM_ Log.write logs
-        return (cmd_state, midi, cmd_result, logs)
+        pure (cmd_state, midi, cmd_result, logs)
     case run_result of
-        Left (exc :: Exception.SomeException) -> return
+        Left (exc :: Exception.SomeException) -> pure
             (ReplProtocol.raw $ "IO exception: " <> showt exc, Cmd.Done)
         Right (cmd_state, thru, cmd_result, logs) -> case cmd_result of
-            Left err -> return
+            Left err -> pure
                 (ReplProtocol.raw $ "State error: " <> pretty err, Cmd.Done)
             Right (ReplProtocol.CmdResult response eval_logs, ui_state,
                     damage) -> do
@@ -171,7 +171,7 @@ run_cmdio cmd = do
                 Ui.unsafe_put ui_state
                 Ui.damage damage
                 mapM_ Log.write eval_logs
-                return
+                pure
                     ( ReplProtocol.CmdResult response (eval_logs ++ logs)
                     , Cmd.state_repl_status cmd_state
                     )
@@ -184,8 +184,8 @@ accept_msg socket = Exception.handle handle $ do
     (socket, _peer) <- Socket.accept socket
     hdl <- Socket.socketToHandle socket IO.ReadWriteMode
     msg <- ReplProtocol.seq_receive hdl
-    return $ Just (hdl, msg)
+    pure $ Just (hdl, msg)
     where
     handle (exc :: IOError) = do
         Log.warn $ "caught exception from socket read: " <> showt exc
-        return Nothing
+        pure Nothing

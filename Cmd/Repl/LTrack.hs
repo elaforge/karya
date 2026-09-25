@@ -33,13 +33,13 @@ list :: Cmd.CmdL [(TrackId, Int)]
 list = do
     track_ids <- Ui.all_track_ids
     counts <- map length <$> mapM Ui.blocks_with_track_id track_ids
-    return $ zip track_ids counts
+    pure $ zip track_ids counts
 
 gc :: Cmd.CmdL [TrackId]
 gc = do
     tids <- orphans
     mapM_ Ui.destroy_track tids
-    return tids
+    pure tids
 
 -- | Tracks that don't appear in any block.
 orphans :: Cmd.CmdL [TrackId]
@@ -89,7 +89,7 @@ find_f :: Cmd.M m => (Text -> Bool) -> m [(TrackId, Text)]
 find_f matches = do
     tids <- Ui.all_track_ids
     titles <- mapM Ui.get_track_title tids
-    return [(tid, title) | (tid, title) <- zip tids titles, matches title]
+    pure [(tid, title) | (tid, title) <- zip tids titles, matches title]
 
 -- * manipulation
 
@@ -121,7 +121,7 @@ selected_notation :: Cmd.M m => TrackTime -> m Text
 selected_notation step = do
     events <- selected
     (start, end) <- Events.range_times <$> Selection.range
-    return $ to_notation start step end events
+    pure $ to_notation start step end events
 
 -- | Reduce event text to notation at a fixed time increment.  It only works
 -- out if each event only has a single letter.
@@ -145,7 +145,7 @@ format_measures =
 
 drop_dups :: Cmd.CmdL ()
 drop_dups = ModifyEvents.selection $ ModifyEvents.events $
-    return . Lists.dropDups Event.text
+    pure . Lists.dropDups Event.text
 
 -- * waveform
 

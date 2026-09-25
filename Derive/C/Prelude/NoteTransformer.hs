@@ -70,7 +70,7 @@ c_sequence = Derive.with_score_duration score_duration $
     score_duration args = do
         calls <- Sig.parse_or_throw calls_arg args
         durs <- mapM get_score_duration (calls_to_derivers args calls)
-        return $ Derive.CallDuration (Num.sum durs)
+        pure $ Derive.CallDuration (Num.sum durs)
 
 sequence_derivers :: ScoreTime -> ScoreTime -> [Derive.NoteDeriver]
     -> [ScoreTime] -> Derive.NoteDeriver
@@ -104,7 +104,7 @@ c_sequence_realtime = Derive.with_score_duration score_duration $
         calls <- Sig.parse_or_throw calls_arg args
         durs <- mapM get_real_duration (calls_to_derivers args calls)
         end <- Call.score_duration (Args.start args) (Num.sum durs)
-        return $ Derive.CallDuration $ end - Args.start args
+        pure $ Derive.CallDuration $ end - Args.start args
 
 sequence_derivers_realtime :: ScoreTime -> ScoreTime -> [Derive.NoteDeriver]
     -> [RealTime] -> Derive.NoteDeriver
@@ -133,7 +133,7 @@ c_parallel = Derive.with_score_duration score_duration $ Derive.generator
     score_duration args = do
         calls <- Sig.parse_or_throw calls_arg args
         durs <- mapM get_score_duration (calls_to_derivers args calls)
-        return $ Derive.CallDuration $ fromMaybe 0 (Lists.maximum durs)
+        pure $ Derive.CallDuration $ fromMaybe 0 (Lists.maximum durs)
 
 parallel_derivers :: ScoreTime -> ScoreTime -> [Derive.NoteDeriver]
     -> [ScoreTime] -> Derive.NoteDeriver
@@ -159,7 +159,7 @@ get_score_duration (quoted, d) = Derive.get_score_duration d >>= \case
     Left err -> Derive.throw $ "get score dur: " <> pretty err
     Right Derive.Unknown -> Derive.throw $ "unknown score duration for "
         <> ShowVal.show_val quoted
-    Right (Derive.CallDuration dur) -> return dur
+    Right (Derive.CallDuration dur) -> pure dur
 
 get_real_duration :: (DeriveT.Quoted, Derive.Deriver a)
     -> Derive.Deriver RealTime
@@ -167,7 +167,7 @@ get_real_duration (quoted, d) = Derive.get_real_duration d >>= \case
     Left err -> Derive.throw $ "get real dur: " <> pretty err
     Right Derive.Unknown -> Derive.throw $ "unknown real duration for "
         <> ShowVal.show_val quoted
-    Right (Derive.CallDuration dur) -> return dur
+    Right (Derive.CallDuration dur) -> pure dur
 
 
 -- * transformers
@@ -192,7 +192,7 @@ c_debug = Derive.transformer Module.prelude "debug" mempty
         events <- deriver
         Log.write $ Log.with_dyn tag (Stream.events_of events) $
             Log.msg Log.Debug Nothing "debug call"
-        return events
+        pure events
 
 -- ** clip
 
@@ -266,7 +266,7 @@ trim_events :: Maybe RealTime -> Maybe RealTime
     -> Derive.NoteDeriver -> Derive.NoteDeriver
 trim_events start end deriver = do
     events <- Internal.trim_track_warps start end deriver
-    return $ maybe id trim_end end $
+    pure $ maybe id trim_end end $
         maybe id (Stream.drop_while . event_before) start events
     where
     trim_end e = fmap (clip e) . Stream.take_while (event_before e)
@@ -293,9 +293,9 @@ unstretch :: ScoreTime -> ScoreTime
     -> Derive.Deriver a -> Derive.Deriver a
 unstretch start event_dur process deriver = do
     dur <- Derive.get_score_duration deriver >>= \case
-        Left _ -> return event_dur
-        Right Derive.Unknown -> return event_dur
-        Right (Derive.CallDuration dur) -> return dur
+        Left _ -> pure event_dur
+        Right Derive.Unknown -> pure event_dur
+        Right (Derive.CallDuration dur) -> pure dur
     process dur $ flatten dur deriver
     where
     flatten dur = Derive.stretch (1 / (event_dur/dur)) . Derive.at (-start)

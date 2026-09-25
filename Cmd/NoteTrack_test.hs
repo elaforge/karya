@@ -212,4 +212,4 @@ extract_sel (ustate, cstate) = CmdTest.eval ustate cstate get_sel
     where
     get_sel = do
         (_, tracknum, _, pos) <- Selection.get_insert
-        return (tracknum, pos)
+        pure (tracknum, pos)

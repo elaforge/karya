@@ -172,7 +172,7 @@ get_pitch_functions = do
     env <- Derive.get_environ
     let transpose transposition steps =
             to_maybe . Scale.scale_transpose scale transposition env steps
-    return
+    pure
         ( to_maybe . Scale.scale_read scale env
         , to_maybe . Scale.scale_show scale env
         , transpose
@@ -325,18 +325,18 @@ random = head <$> randoms
 
 random_in :: (Random a, Real a) => a -> a -> Derive.Deriver a
 random_in low high
-    | low == high = return low
+    | low == high = pure low
     | otherwise = head <$> randoms_in low high
 
 -- | If the chance is 1, return true all the time, if it's 0.5, return it half
 -- of the time.
 chance :: Double -> Derive.Deriver Bool
 chance v
-    | v >= 1 = return True
-    | v <= 0 = return False
+    | v >= 1 = pure True
+    | v <= 0 = pure False
     | otherwise = do
         r <- random_in 0 1
-        return $ r <= v
+        pure $ r <= v
 
 shuffle :: [a] -> Derive.Deriver [a]
 shuffle xs = Random.shuffle xs <$> randoms
@@ -347,7 +347,7 @@ _make_randoms f = List.unfoldr (Just . f) <$> _random_generator
 _random_generator :: Derive.Deriver Pure64.PureMT
 _random_generator = do
     seed <- fromMaybe 0 <$> Derive.lookup_val EnvKey.seed
-    return $ Pure64.pureMT (floor (seed :: Double))
+    pure $ Pure64.pureMT (floor (seed :: Double))
 
 pick_weighted :: NonEmpty (Double, a) -> Double -> a
 pick_weighted weights rnd_ = go 0 weights
@@ -417,9 +417,9 @@ when_env key val transformer deriver =
 real_duration :: (Derive.Time t1, Derive.Time t2) => t1 -> t2
     -> Derive.Deriver RealTime
 real_duration start dur = case Derive.to_duration dur of
-    DeriveT.RealDuration t -> return t
+    DeriveT.RealDuration t -> pure t
     DeriveT.ScoreDuration t
-        | t == 0 -> return 0
+        | t == 0 -> pure 0
         | otherwise -> do
             -- I'm adding score to real, so I want the amount of real time in
             -- the future I am if I advance the given amount of score time from
@@ -427,7 +427,7 @@ real_duration start dur = case Derive.to_duration dur of
             score_start <- Derive.score start
             real_start <- Derive.real start
             end <- Derive.real $ score_start + t
-            return $ end - real_start
+            pure $ end - real_start
 
 -- | Like 'real_duration', but get the duration in ScoreTime.  If you are
 -- manipulating deriver abstractly instead of directly emitting events then you
@@ -435,9 +435,9 @@ real_duration start dur = case Derive.to_duration dur of
 score_duration :: (Derive.Time t1, Derive.Time t2) => t1 -> t2
     -> Derive.Deriver ScoreTime
 score_duration start dur = case Derive.to_duration dur of
-    DeriveT.ScoreDuration t -> return t
+    DeriveT.ScoreDuration t -> pure t
     DeriveT.RealDuration t
-        | t == 0 -> return 0
+        | t == 0 -> pure 0
         | otherwise -> do
             -- I'm adding real to score, so I want the amount of amount of
             -- score time I'd have to advance in order for the given amount
@@ -445,7 +445,7 @@ score_duration start dur = case Derive.to_duration dur of
             score_start <- Derive.score start
             real_start <- Derive.real start
             end <- Derive.score $ real_start + t
-            return $ end - score_start
+            pure $ end - score_start
 
 -- | A time range from the event start until a given duration.
 duration_from_start :: Derive.Time t => Derive.PassedArgs d -> t
@@ -453,7 +453,7 @@ duration_from_start :: Derive.Time t => Derive.PassedArgs d -> t
 duration_from_start args t = do
     start <- Args.real_start args
     dur <- real_duration start t
-    return (start, start + dur)
+    pure (start, start + dur)
 
 -- | Like 'duration_from_start', but subtract a duration from the end.
 duration_from_end :: Derive.Time t => Derive.PassedArgs d -> t
@@ -461,7 +461,7 @@ duration_from_end :: Derive.Time t => Derive.PassedArgs d -> t
 duration_from_end args t = do
     end <- Args.real_end args
     dur <- real_duration end t
-    return (end - dur, end)
+    pure (end - dur, end)
 
 -- | This is 'real_duration', but takes a ScoreT.Typed Signal.Y.
 typed_real_duration :: Derive.Time t => ScoreT.TimeT -> t
@@ -469,7 +469,7 @@ typed_real_duration :: Derive.Time t => ScoreT.TimeT -> t
 typed_real_duration default_type from (ScoreT.Typed typ val)
     | typ == ScoreT.Real
         || typ == ScoreT.Untyped && default_type == ScoreT.TReal =
-            return (RealTime.seconds val)
+            pure (RealTime.seconds val)
     | typ == ScoreT.Score
         || typ == ScoreT.Untyped && default_type == ScoreT.TScore =
             real_duration from (ScoreTime.from_double val)
@@ -501,7 +501,7 @@ meter_duration :: ScoreTime -> Meter.Rank -> Int
     -> Derive.Deriver ScoreTime
 meter_duration start rank steps = do
     end <- timestep start ts (map (*steps) [1, -1])
-    return $ abs (end - start)
+    pure $ abs (end - start)
     where
     ts = TimeStep.time_step $ TimeStep.RelativeMark TimeStep.match_meter rank
 

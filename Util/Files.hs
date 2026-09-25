@@ -73,7 +73,7 @@ sameContents :: FilePath -> FilePath -> IO Bool
 sameContents fn1 fn2 = do
     c1 <- Exceptions.ignoreEnoent $ Lazy.readFile fn1
     c2 <- Exceptions.ignoreEnoent $ Lazy.readFile fn2
-    return $ c1 == c2
+    pure $ c1 == c2
 
 -- | Throw if this file exists but isn't writable.
 requireWritable :: FilePath -> IO ()
@@ -95,7 +95,7 @@ writable fn = orM
 list :: FilePath -> IO [FilePath]
 list dir = do
     fns <- Directory.listDirectory dir
-    return $ map (strip . (dir </>)) $
+    pure $ map (strip . (dir </>)) $
         filter (not . ("." `List.isPrefixOf`)) fns
     where
     strip ('.' : '/' : path) = path
@@ -104,13 +104,13 @@ list dir = do
 listRecursive :: (FilePath -> Bool) -> FilePath -> IO [FilePath]
 listRecursive descend dir = do
     is_file <- Directory.doesFileExist dir
-    if is_file then return [dir]
+    if is_file then pure [dir]
         else maybeDescend (dir == "." || descend dir) descend dir
     where
     maybeDescend True descend dir = do
         fns <- list dir
         fmap concat $ mapM (listRecursive descend) fns
-    maybeDescend False _ _ = return []
+    maybeDescend False _ _ = pure []
 
 -- | Walk the filesystem and stream (dir, fname).
 walk :: (FilePath -> Bool) -> FilePath
@@ -122,8 +122,8 @@ walk wantDir = go
             partitionM (Directory.doesDirectoryExist . (dir</>))
                 =<< Directory.listDirectory dir
         S.yield (dir, fnames)
-        dirs <- return $ map (dir</>) $ filter wantDir dirs
-        dirs <- liftIO $ if followLinks then return dirs
+        dirs <- pure $ map (dir</>) $ filter wantDir dirs
+        dirs <- liftIO $ if followLinks then pure dirs
             else filterM (fmap not . Directory.pathIsSymbolicLink) dirs
         mapM_ go dirs
     followLinks = False
@@ -136,7 +136,7 @@ readGz fn = decompress =<< Lazy.readFile fn
 
 decompress :: Lazy.ByteString -> IO (Either String ByteString.ByteString)
 decompress bytes =
-    Exception.handle (return . handle) $
+    Exception.handle (pure . handle) $
         Right <$> Exception.evaluate (Lazy.toStrict (GZip.decompress bytes))
     where handle (exc :: Zlib.Internal.DecompressError) = Left (show exc)
 
@@ -159,7 +159,7 @@ writeGz rotations fn bytes = do
     rm tmp
     Lazy.writeFile tmp $ GZip.compress $ Lazy.fromStrict bytes
     ifM (sameContents fn tmp)
-        (Directory.removeFile tmp >> return False) $
+        (Directory.removeFile tmp >> pure False) $
         do
             -- out.2 -> out.3, out.1 -> out.2, out.0 -> out.1
             forM_ [rotations-1, rotations-2 .. 1] $ \n ->
@@ -176,7 +176,7 @@ writeGz rotations fn bytes = do
                 Posix.Files.createLink fn tmp0
                 Directory.renameFile tmp0 (rotation 0)
             Directory.renameFile tmp fn
-            return True
+            pure True
     where
     rotation n = fn <> "." <> show n
     rm = Exceptions.ignoreEnoent_ . Directory.removeFile

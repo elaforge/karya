@@ -387,7 +387,7 @@ normalizeSpeed toSpeed talaAksharas flattened = fst $
     addState (FNote tempo stroke) = do
         state <- State.get
         State.modify' $ advanceStateBy talaAksharas (matraDuration tempo)
-        return $ FNote tempo (state { stateTempo = tempo }, stroke)
+        pure $ FNote tempo (state { stateTempo = tempo }, stroke)
     addState (FGroup tempo g children) =
         FGroup tempo g <$> mapM addState children
     expand (FGroup tempo g children) =

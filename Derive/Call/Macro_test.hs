@@ -52,7 +52,7 @@ with_id = CallTest.with_val_call "id" c_id
 c_id :: Derive.ValCall
 c_id = Derive.val_call "test" "id" mempty "doc" $
     Sig.call (Sig.required "a" "arg") $ \val _args ->
-        return (val :: DeriveT.Val)
+        pure (val :: DeriveT.Val)
 
 test_transformer :: Test
 test_transformer = do

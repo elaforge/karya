@@ -116,7 +116,7 @@ die msg = do
 get_device :: String -> IO StreamAudio.Device
 get_device name = do
     (devs, _) <- StreamAudio.getDevices
-    maybe (errorIO $ "unknown device: " <> showt name) (return . snd) $
+    maybe (errorIO $ "unknown device: " <> showt name) (pure . snd) $
         List.find ((==name) . fst) devs
 
 initialize_midi :: (Interface.Interface -> IO a) -> IO a
@@ -201,10 +201,10 @@ play_score mb_device fname = PortAudio.initialize $ initialize_midi $
         \midi_interface -> do
     source <- Text.IO.readFile fname
     cmd_config <- load_cmd_config midi_interface
-    (ui_state, cmd_state) <- either die return =<< load_score cmd_config source
+    (ui_state, cmd_state) <- either die pure =<< load_score cmd_config source
     initialize_instruments ui_state cmd_state
 
-    block_id <- maybe (die "no root block") return $
+    block_id <- maybe (die "no root block") pure $
         Ui.config#UiConfig.root #$ ui_state
     let (im_events, logs) = derive ui_state cmd_state block_id
     mapM_ Log.write logs
@@ -248,7 +248,7 @@ initialize_instruments ui_state cmd_state = do
     (result, logs) <- Cmd.eval ui_state cmd_state sc_initialize
     case result of
         Left err -> Log.warn $ txt err
-        Right () -> return ()
+        Right () -> pure ()
     mapM_ Log.write logs
 
 -- | Ask scsynth to load the patches.  TODO: if this gets slow, is there some
@@ -328,7 +328,7 @@ perform_im score_path cmd_state ui_state events block_id = do
             . Cmd.state_lookup_instrument ui_state cmd_state
     (procs, non_im) <- Performance.evaluate_im im_config lookup_inst score_path
         0 1 block_id events
-    return (procs, non_im)
+    pure (procs, non_im)
 
 play_im :: Maybe StreamAudio.Device -> FilePath -> Transport.ActivePlayers
     -> Transport.PlayControl -> BlockId -> RealTime
@@ -354,7 +354,7 @@ play_im mb_device score_path players play_ctl block_id start events
     Thread.startLogged "stream_audio" $
         StreamAudio.play False mb_device quit score_path block_id muted start
             `Exception.finally` Transport.player_stopped players
-    return ()
+    pure ()
     where
     -- This is a bit too tricky.  I want to make sure all instruments have
     -- the chunk at 'start' rendered.  But I can only wait for im instruments,
@@ -381,7 +381,7 @@ load_cmd_config midi_interface = do
     static_config <- Local.Config.load_static_config
     app_dir <- Path.get_app_dir
     save_dir <- Path.canonical $ Path.to_absolute app_dir App.Config.save_dir
-    return $ StaticConfig.cmd_config app_dir save_dir midi_interface
+    pure $ StaticConfig.cmd_config app_dir save_dir midi_interface
         static_config (SaveGitT.User "user" "name")
 
 load_score :: Cmd.Config -> Text -> IO (Either Error (Ui.State, Cmd.State))
@@ -392,7 +392,7 @@ load_score cmd_config source = Except.runExceptT $ do
         =<< liftIO (Ky.load ky_paths (Ui.config#UiConfig.ky #$ ui_state))
     let cmd_state = DeriveSaved.add_library builtins aliases $
             Cmd.initial_state cmd_config
-    return (Ui.config#UiConfig.allocations #= allocs $ ui_state, cmd_state)
+    pure (Ui.config#UiConfig.allocations #= allocs $ ui_state, cmd_state)
     where
     -- For now, I don't support ky import.
     ky_paths = []

@@ -46,7 +46,7 @@ main :: IO ()
 main = do
     args <- Environment.getArgs
     (flags, args) <- case GetOpt.getOpt GetOpt.Permute options args of
-        (flags, args, []) -> return (flags, args)
+        (flags, args, []) -> pure (flags, args)
         (_, _, errs) -> usage $ "flag errors:\n" ++ Lists.join ", " errs
     logFname <- Config.getLogFilename "faust.log"
     logHdl <- Log.rotate logFname
@@ -100,14 +100,14 @@ main = do
         ["render-preview"] ->
             mapM_ Preview.renderPreview $ Either.rights (Map.elems patches)
         ["dump", notesFilename] -> do
-            notes <- either (errorIO . pretty) return
+            notes <- either (errorIO . pretty) pure
                 =<< Note.unserialize notesFilename
             patches <- traverse (either errorIO pure) patches
             dump patches notes
         [notesFilename, outputDir] -> do
             Log.notice $ Text.unwords
                 ["faust-im", txt notesFilename, txt outputDir]
-            notes <- either (errorIO . pretty) return
+            notes <- either (errorIO . pretty) pure
                 =<< Note.unserialize notesFilename
             patches <- traverse (either errorIO pure) patches
             process (Progress `elem` flags) patches notes outputDir
@@ -138,7 +138,7 @@ getPatch :: String -> Map Text (Either Text InstrumentC.Patch)
 getPatch name patches = case Map.lookup (txt name) patches of
     Nothing -> errorIO $ "no such patch: " <> txt name
     Just (Left err) -> errorIO $ "patch: " <> txt name <> ": " <> err
-    Just (Right patch) -> return patch
+    Just (Right patch) -> pure patch
 
 usage :: String -> IO a
 usage msg = do
@@ -255,7 +255,7 @@ process emitProgress patches notes outputDir = do
         ]
 
 touch :: FilePath -> IO ()
-touch fname = IO.withFile fname IO.WriteMode (const (return ()))
+touch fname = IO.withFile fname IO.WriteMode (const (pure ()))
 
 lookupPatches :: Map Note.PatchName patch -> [Note.Note]
     -> ([Note.PatchName], [(patch, [(ScoreT.Instrument, [Note.Note])])])

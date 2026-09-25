@@ -81,7 +81,7 @@ melakarta_ragams = zip melakarta_names $ do
     guard $ da == Da3 |- ni == Ni3
     guard $ ri == Ri2 |- ga /= Ga1
     guard $ ri == Ri3 |- ga == Ga3
-    return $ Same [ri, ga, ma, Pa, da, ni]
+    pure $ Same [ri, ga, ma, Pa, da, ni]
     where
     infixr 3 |-
     x |- y = not x || y
@@ -100,7 +100,7 @@ melakarta_intervals = zip melakarta_names $ do
     guard $ ri == ri2 |- ga /= ga1
     guard $ ri == ri3 |- ga == ga3
     let indices = [sa, ri, ga, ma, pa, da, ni, 12]
-    return $ zipWith (-) (tail indices) indices
+    pure $ zipWith (-) (tail indices) indices
     where
     [sa, ri1, ri2, ri3, ga3, ma1, ma2, pa, da1, da2, da3, ni3]
         = take 12 [0..]

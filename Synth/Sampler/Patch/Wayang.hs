@@ -92,7 +92,7 @@ pitchConvert pitch = do
     note <- first pretty $ PSignal.pitch_note pitch
     if scale_id == "wayang-srg"
         then Pitch.Note <$> pitchSrgpd (Pitch.note_text note)
-        else return note
+        else pure note
     where
     scale_id = DeriveT.pscale_scale_id $ DeriveT.pitch_scale pitch
 
@@ -105,7 +105,7 @@ pitchSrgpd pitch = case Map.lookup pc to_ioe of
     Nothing -> Left $ "not in srgpd: " <> pitch
     Just (offset, pc) -> do
         let Right (octi, _) = Text.Read.signed Text.Read.decimal oct
-        return $ showt (octi + offset) <> pc
+        pure $ showt (octi + offset) <> pc
     where
     (oct, pc) = Text.span (\c -> c == '-' || Char.isDigit c) pitch
     to_ioe = Map.fromList
@@ -194,7 +194,7 @@ convert instrument tuning note = do
     Log.debug $ "note at " <> pretty (Note.start note) <> ": "
         <> pretty ((dyn, dynVal), (symPitch, sampleNn), var)
         <> ": " <> txt filename
-    return $ (Sample.make filename)
+    pure $ (Sample.make filename)
         { Sample.envelope = if
             | isMute articulation -> Signal.constant dynVal
             | otherwise -> Lib.Bali.variableMuteEnv dynVal note
@@ -247,7 +247,7 @@ toFilename instrument tuning articulation symPitch dyn variation = do
                 -- Just forgot to sample this one.
                 (Kantilan, Umbang, CalungMute, Util.FF, 52) -> Util.MF
                 _ -> dyn
-    return
+    pure
         ( panggul
             </> Lists.join "-"
                 [show sampleKey, show lowVel, show highVel, group]
@@ -299,8 +299,8 @@ findPitch instrument tuning articulation = \case
     Left sym -> do
         (sampleNn, (key, _)) <- tryJust ("invalid pitch: " <> pretty sym) $
             List.find ((==sym) . snd . snd) $ Map.toList keys
-        return (sampleNn, sampleNn, key)
-    Right noteNn -> return (sampleNn, noteNn, key)
+        pure (sampleNn, sampleNn, key)
+    Right noteNn -> pure (sampleNn, noteNn, key)
         where
         -- Only Nothing if keys was empty.
         Just (sampleNn, (key, _)) = Maps.lookupClosest noteNn keys

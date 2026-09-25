@@ -152,7 +152,7 @@ d_block block_id = do
     -- I can give more specific error msgs.
     title <- case Map.lookup block_id blocks of
         Nothing -> Derive.throw "block_id not found"
-        Just block -> return $ Block.block_title block
+        Just block -> pure $ Block.block_title block
     -- Record a dependency on this block.  This should happen even if the
     -- derivation throws, because a dependency on a block with an error is
     -- still a dependency.
@@ -178,10 +178,10 @@ call_to_block_id sym = do
     caller <- Internal.lookup_current_block_id
     ns <- Derive.get_ui_state $ UiConfig.config_namespace . Ui.state_config
     case Eval.call_to_block_id ns caller sym of
-        Nothing -> return Nothing
+        Nothing -> pure Nothing
         Just block_id -> do
             blocks <- Derive.get_ui_state Ui.state_blocks
-            return $ if Map.member block_id blocks then Just block_id
+            pure $ if Map.member block_id blocks then Just block_id
                 else Nothing
 
 -- * control calls
@@ -227,5 +227,5 @@ c_capture_null_control = Derive.generator1 Module.internal
         sig <- Derive.require "no null control to capture"
             =<< Derive.lookup_signal Controls.null
         stack <- Derive.get_stack
-        return $! Score.set_control Controls.null sig Score.empty_event
+        pure $! Score.set_control Controls.null sig Score.empty_event
             { Score.event_stack = stack }

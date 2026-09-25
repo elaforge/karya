@@ -110,16 +110,16 @@ parse_pairs :: [Note.Element]
 parse_pairs elements =
     fmap (fmap Map.fromList . Maps.multimap) . concatMapM parse
     where
-    parse (_, []) = return []
+    parse (_, []) = pure []
     parse (control, [val]) = do
         val <- resolve val
-        return [(fromMaybe "" (Lists.head elements), (control, val))]
+        pure [(fromMaybe "" (Lists.head elements), (control, val))]
     parse (control, vals)
         | length vals /= length elements = Left $ showt (length vals)
             <> " values for " <> showt (length elements) <> " elements: "
             <> pretty vals <> " vs. " <> pretty elements
         | otherwise = do
             vals <- mapM resolve vals
-            return $ zip elements (map (control,) vals)
+            pure $ zip elements (map (control,) vals)
     resolve (Left nn) = Right nn
     resolve (Right p) = bimap pretty Pitch.nn_to_double $ DeriveT.pitch_nn p

@@ -32,7 +32,7 @@ note_controls = do
     block_id <- Cmd.get_focused_block
     events <- Cmd.perf_events <$> Cmd.get_performance block_id
     note_track_ids <- notes
-    return $ ModifyNotes.find_controls note_track_ids events
+    pure $ ModifyNotes.find_controls note_track_ids events
 
 -- * modify
 
@@ -45,7 +45,7 @@ merge = ModifyNotes.selection $ ModifyNotes.note $ ModifyNotes.index #= 0
 -- notes that rely on control values carried forward, the values will be
 -- different in the new tracks.
 distribute_n :: Int -> Cmd.CmdL ()
-distribute_n tracks = ModifyNotes.selection $ \_ notes -> return $
+distribute_n tracks = ModifyNotes.selection $ \_ notes -> pure $
         zipWith (modify tracks) [0..] (map fst notes)
     where
     modify tracks n = ModifyNotes.index #= n `mod` tracks
@@ -62,7 +62,7 @@ distribute = do
 compact :: Cmd.CmdL ()
 compact =
     ModifyNotes.selection $ const $
-        return . snd . List.mapAccumL allocate [] . map fst
+        pure . snd . List.mapAccumL allocate [] . map fst
     where
     allocate state note = (next, ModifyNotes.index #= i $ note)
         where
@@ -89,7 +89,7 @@ find_index start end = go 0
 split_on_pitch :: ModifyNotes.Index -> Pitch.NoteNumber -> Cmd.CmdL ()
 split_on_pitch high_index break_nn =
     ModifyNotes.selection $ ModifyNotes.annotate_nns $ \notes ->
-        return $ split notes
+        pure $ split notes
     where
     split = snd . List.mapAccumL allocate ([], [])
     allocate (low_alloc, high_alloc) (note, maybe_nn)
@@ -106,7 +106,7 @@ split_on_pitch high_index break_nn =
 -- | Sort by pitch and compact.
 sort_on_pitch :: Cmd.M m => Bool -> m ()
 sort_on_pitch high_left = ModifyNotes.selection $ ModifyNotes.annotate_nns $
-    return . extract . foldl' insert mempty
+    pure . extract . foldl' insert mempty
     where
     insert state note =
         insert_ordered (\n1 n2 -> cmp (snd n1) (snd n2)) note state

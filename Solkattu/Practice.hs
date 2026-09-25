@@ -77,10 +77,10 @@ practicedDb :: FilePath
 practicedDb = "data/practiced.json"
 
 pick :: [a] -> IO (Maybe a)
-pick [] = return Nothing
+pick [] = pure Nothing
 pick ks = do
     i <- Random.randomRIO (0, length ks - 1)
-    return $ Just $ ks !! i
+    pure $ Just $ ks !! i
 
 data Practiced = Practiced
     { name :: Text
@@ -99,7 +99,7 @@ loadPracticed = do
     lines <- Text.lines <$> Text.IO.readFile practicedDb
     case sequence (map (Aeson.eitherDecode . Texts.toLazyByteString) lines) of
         Left err -> errorIO $ txt err
-        Right ps -> return ps
+        Right ps -> pure ps
 
 -- | Display practice record.
 display :: IO ()

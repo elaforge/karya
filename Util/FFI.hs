@@ -64,7 +64,7 @@ bytesToCString0 bs = Unsafe.unsafeUseAsCStringLen bs $ \(str, len) -> do
     new <- Foreign.mallocBytes (len+1)
     Foreign.copyBytes new str len
     Foreign.poke (new `Foreign.plusPtr` len) (0 :: Word.Word8)
-    return new
+    pure new
 
 -- | Allocate a new UTF8-encoded null-terminated CString.
 --
@@ -77,12 +77,12 @@ newCString0 = bytesToCString0 . Encoding.encodeUtf8
 -- be prepared for this.
 newCStringNull0 :: Text -> IO CString
 newCStringNull0 t
-    | Text.null t = return Foreign.nullPtr
+    | Text.null t = pure Foreign.nullPtr
     | otherwise = newCString0 t
 
 peekCString :: CString -> IO Text
 peekCString cstr
-    | cstr == Foreign.nullPtr = return Text.empty
+    | cstr == Foreign.nullPtr = pure Text.empty
     | otherwise = fmap decodeUtf8 $ ByteString.packCString cstr
 
 withText :: Text -> (CString -> IO a) -> IO a
@@ -110,7 +110,7 @@ makeFunPtr :: String -> IO (Foreign.FunPtr a) -> IO (Foreign.FunPtr a)
 makeFunPtr _name make = do
     fptr <- make
     -- putStrLn $ "+ " ++ show fptr ++ " " ++ _name
-    return fptr
+    pure fptr
 
 freeFunPtr :: Foreign.FunPtr a -> IO ()
 freeFunPtr fptr = do
@@ -123,4 +123,4 @@ new :: ForeignC.CStorable a => a -> IO (Foreign.Ptr a)
 new val  = do
     ptr <- ForeignC.malloc
     ForeignC.poke ptr val
-    return ptr
+    pure ptr

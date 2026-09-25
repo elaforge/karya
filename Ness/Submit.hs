@@ -79,7 +79,7 @@ main :: IO ()
 main = do
     [instrument, score, out] <- System.Environment.getArgs
     submitDownload False instrument score out
-    return ()
+    pure ()
 
 type Url = String
 
@@ -92,7 +92,7 @@ submitDownload isDemo instrument score out = do
     Thread.delay $ realToFrac estimatedTime
     ok <- printTime "=== download time" $ download 5 out url
     unless ok $ putStrLn "=== gave up"
-    return (ok, url)
+    pure (ok, url)
 
 printTime :: String -> IO a -> IO a
 printTime name action = do
@@ -100,7 +100,7 @@ printTime name action = do
     v <- action
     end <- Clock.POSIX.getPOSIXTime
     putStrLn $ name ++ ": " ++ show (end - start)
-    return v
+    pure v
 
 submit :: Bool -> FilePath -> FilePath -> IO (Url, Double)
     -- ^ (urlWithResult, estimatedTime)
@@ -118,16 +118,16 @@ submit isDemo instrument score = do
         ]
         ""
     -- writeFile "ness-data/submit.result" json
-    either (errorIO . txt) return $ parseJson $ ByteString.Lazy.Char8.pack json
+    either (errorIO . txt) pure $ parseJson $ ByteString.Lazy.Char8.pack json
 
 download :: Double -> FilePath -> Url -> IO Bool
 download timeout out url = go =<< Time.getCurrentTime
     where
-    go start = ifM (poll out url) (return True) $ do
+    go start = ifM (poll out url) (pure True) $ do
         now <- Time.getCurrentTime
         let elapsed = realToFrac (now `Time.diffUTCTime` start)
         if elapsed > timeout
-            then return False
+            then pure False
             else do
                 putStrLn $ "elapsed " <> prettys elapsed <> " < "
                     <> prettys timeout
@@ -144,7 +144,7 @@ poll out url = do
         , "--fail" -- exit failure on 404
         , url
         ]
-    return $ exit == Exit.ExitSuccess
+    pure $ exit == Exit.ExitSuccess
 
 formatError :: Text -> Text -> Text -> String
 formatError dir text html = untxt $ Text.unlines
@@ -182,7 +182,7 @@ parseJson json = do
             else do
                 dir <- obj .: "serverResultDir"
                 time <- obj .: "runEstRunTime"
-                return
+                pure
                     ( dir <> "/output-mix.wav"
                     , fromMaybe 0 $ ParseText.float time
                     )

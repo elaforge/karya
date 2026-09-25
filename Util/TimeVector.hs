@@ -234,7 +234,7 @@ map_err :: V.Vector v a => (a -> Either err a) -> v a -> (v a, [err])
 map_err f vec = second reverse $ State.runState (V.mapM go vec) []
     where
     go sample =
-        either (\err -> State.modify (err:) >> return sample) return (f sample)
+        either (\err -> State.modify (err:) >> pure sample) pure (f sample)
 
 {-# INLINE resample1 #-}
 resample1 :: (V.Vector v1 (Sample y1), V.Vector v2 (Sample y2)) => y1 -> y2

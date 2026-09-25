@@ -124,7 +124,7 @@ make_stop_groups stop_groups groups = do
     ngroups = length groups
     realize group = do
         stops <- mapM get stops
-        return $ take ngroups $ stops ++ repeat none
+        pure $ take ngroups $ stops ++ repeat none
         where stops = fromMaybe [] $ lookup group stop_groups
     get g = justErr ("no group: " <> showt g) $ List.elemIndex g groups
 

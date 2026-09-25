@@ -69,7 +69,7 @@ transitiveIncludesOf generated dirs fn = go Set.empty Set.empty [fn]
             let checked' = Set.insert fn checked
             go checked' (Set.union notFound (Set.fromList notFounds))
                 (fns ++ filter (`Set.notMember` checked') includes)
-    go checked notFound [] = return
+    go checked notFound [] = pure
         (map FilePath.normalise (Set.toList checked), Set.toList notFound)
 
 includesOfIO :: Generated -> [FilePath] -> FilePath
@@ -79,17 +79,17 @@ includesOfIO generated dirs fn = do
     -- @#include "x"@ starts searching from the same directory as the source
     -- file.
     paths <- mapM find1 includes
-    return $ Either.partitionEithers
+    pure $ Either.partitionEithers
         [maybe (Right inc) Left path | (path, inc) <- zip paths includes]
     where
     find1 include
-        | include `Set.member` generated = return $ Just include
+        | include `Set.member` generated = pure $ Just include
         | otherwise = find (FilePath.dropFileName fn : dirs) include
 
 find :: [FilePath] -> FilePath -> IO (Maybe FilePath)
-find [] _ = return Nothing
+find [] _ = pure Nothing
 find (dir:dirs) fn = Util.ifM (Directory.doesFileExist (dir </> fn))
-    (return $ Just $ FilePath.normalise $ dir </> fn)
+    (pure $ Just $ FilePath.normalise $ dir </> fn)
     (find dirs fn)
 
 -- | TODO #includes can be anywhere, but stop parsing as soon as a function

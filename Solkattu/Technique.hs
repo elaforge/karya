@@ -55,4 +55,4 @@ plain :: Technique stroke -> Technique (Realize.Stroke stroke)
 plain technique prevs cur nexts = do
     s <- technique (map Realize._stroke prevs) (Realize._stroke cur)
         (map Realize._stroke nexts)
-    return $ cur { Realize._stroke = s }
+    pure $ cur { Realize._stroke = s }

@@ -240,7 +240,7 @@ test_integrate = do
     equal (e_marks state)
         [("top", [(0, (0, "1")), (1, (1, "2")), (2, (1, "3")), (3, (0, "4"))])]
 
-    state <- return $ expect_right $ Ui.exec state $ do
+    state <- pure $ expect_right $ Ui.exec state $ do
         Ui.insert_event (tid "top" 2) (Event.event 1 0 "5p")
         integrate "top = \"block title\" [s r s]"
     equal (extract state)
@@ -262,9 +262,9 @@ test_integrate_block_duration = do
             Ui.state_blocks ui
     let state = expect_right $ run Ui.empty "b = [s r g]"
     right_equal (extract state) [3]
-    state <- return $ expect_right $ Ui.exec state $ integrate "b = [s r g m]"
+    state <- pure $ expect_right $ Ui.exec state $ integrate "b = [s r g m]"
     right_equal (extract state) [4]
-    state <- return $ expect_right $ Ui.exec state $ integrate "b = [s r]"
+    state <- pure $ expect_right $ Ui.exec state $ integrate "b = [s r]"
     right_equal (extract state) [2]
 
 test_integrate_misc :: Test
@@ -273,7 +273,7 @@ test_integrate_misc = do
     let extract = UiTest.extract_blocks
     let state = expect_right $ run Ui.empty "top = [s]"
     equal (extract state) [("top", UiTest.note_track [(0, 1, "4s")])]
-    state <- return $ expect_right $ Ui.exec state $
+    state <- pure $ expect_right $ Ui.exec state $
         integrate "top = \"block title\" [s]"
     equal (extract state)
         [("top -- block title", UiTest.note_track [(0, 1, "4s")])]
@@ -292,7 +292,7 @@ test_integrate_2_tracks = do
             ]
           )
         ]
-    state <- return $ expect_right $ Ui.exec state $
+    state <- pure $ expect_right $ Ui.exec state $
         integrate "top = [g r > g m]"
     equal (extract state)
         [ ( "top"
@@ -312,12 +312,12 @@ test_integrate_rename = do
     -- The rename is detected, even if you changed the track title.
     let state = expect_right $ run Ui.empty "b1 = [>i1 s]"
     equal (extract state) [("b1", UiTest.inst_note_track1 "i1" ["4s"])]
-    state <- return $ expect_right $ Ui.exec state $ integrate "b2 = [>i2 s]"
+    state <- pure $ expect_right $ Ui.exec state $ integrate "b2 = [>i2 s]"
     equal (extract state) [("b2", UiTest.inst_note_track1 "i2" ["4s"])]
 
     -- But if you changed notes at the same time, it can't find the rename.
     let state = expect_right $ run Ui.empty "b1 = [>i1 s]"
-    state <- return $ expect_right $ Ui.exec state $ integrate "b2 = [>i2 r]"
+    state <- pure $ expect_right $ Ui.exec state $ integrate "b2 = [>i2 r]"
     equal (extract state)
         [ ("b1", UiTest.inst_note_track1 "i1" ["4s"])
         , ("b2", UiTest.inst_note_track1 "i2" ["4r"])
@@ -326,7 +326,7 @@ test_integrate_rename = do
 test_integrate_move_track :: Test
 test_integrate_move_track = do
     let extract = UiTest.extract_blocks
-    state <- either (errorIO . pretty) return $ Ui.exec Ui.empty $ do
+    state <- either (errorIO . pretty) pure $ Ui.exec Ui.empty $ do
         integrate "b1 = [>i1 s >i2 r]"
         forM_ [1, 2] $ \i ->
             Ui.modify_events (tid "b1" i) (Events.move 2)
@@ -355,7 +355,7 @@ test_integrate_sub_block = do
         [ ("top", UiTest.note_track [(0, 1, "4s"), (1, 1, "-t1c1 --")])
         , ("top-t1c1", UiTest.note_track [(0, 1, "4r")])
         ]
-    state <- return $ expect_right $ Ui.exec state $
+    state <- pure $ expect_right $ Ui.exec state $
         integrate "top = [s [g]/ [r]/]"
     equal (extract state)
         [ ("top", UiTest.note_track

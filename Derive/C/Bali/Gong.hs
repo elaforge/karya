@@ -76,7 +76,7 @@ pokok start octave insts range = do
     from_pitch <- Call.get_parsed_pitch parse_pitch =<< Derive.real start
     to_note <- Derive.require ("can't show pitch: " <> showt from_pitch) $
         show_pitch (restrict range octave from_pitch)
-    return $ realize_note start insts to_note
+    pure $ realize_note start insts to_note
 
 -- How to choose high and low ding?
 -- I should infer it based on the octave of the melody, but also be able to
@@ -212,14 +212,14 @@ make_cycle name default_strokes default_dur =
     <*> Sig.maybe_defaulted "dur" default_dur "Duration of each stroke.\
         \ A string is taken as a timestep."
     ) $ \(strokes, dur) args -> do
-        strokes <- return $ case strokes of
+        strokes <- pure $ case strokes of
             Left str -> map (DeriveT.quoted0 . Expr.Symbol . Text.singleton)
                 (Text.unpack str)
             Right strs -> strs
         dur <- case dur of
             Left ts -> DeriveT.ScoreDuration <$>
                 Call.timestep_duration args ts
-            Right (Typecheck.DefaultScore dur) -> return dur
+            Right (Typecheck.DefaultScore dur) -> pure dur
         dur <- Derive.score dur
         Args.normalized_start args $
             call_cycle (Args.context args) (Args.range args)

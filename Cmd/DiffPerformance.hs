@@ -103,7 +103,7 @@ diff_lines name dir expected got = do
     let abbreviated
             | null diff = Nothing
             | otherwise = Just $ show_diffs (txt diff)
-    return (abbreviated, [expected_fn, got_fn])
+    pure (abbreviated, [expected_fn, got_fn])
     where
     expected_fn = dir </> name ++ ".expected"
     got_fn = dir </> name ++ ".got"

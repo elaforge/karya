@@ -63,7 +63,7 @@ create tracks skel = do
     block_id <- Create.block Ui.no_ruler
     mapM_ (add_track block_id) tracks
     Ui.set_skeleton block_id skel
-    return block_id
+    pure block_id
     where
     add_track block_id (title, track) =
         Create.track block_id 9999 title $

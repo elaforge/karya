@@ -80,7 +80,7 @@ selection ignore_errors = do
     (scale, errs) <- scale_at block_id track_id
     unless (ignore_errors || null errs) $
         Cmd.throw $ Text.unlines errs
-    return scale
+    pure scale
 
 -- | Figure out a 'Patch.Scale' by enumerating all inputs to the scale in
 -- scope.
@@ -92,12 +92,12 @@ scale_at block_id track_id = do
         (val, logs) <- Perf.derive_at block_id track_id $
             Scale.scale_input_to_nn scale at_time input
         let prefix = (("key " <> pretty key <> ": ") <>)
-        return $ second (map prefix . (++ map pretty logs)) $ case val of
+        pure $ second (map prefix . (++ map pretty logs)) $ case val of
             Left err -> (Nothing, [err])
             Right (Left err) -> (Nothing, [pretty err])
             Right (Right nn) -> (Just (key, nn), [])
     let name = pretty (Scale.scale_id scale)
-    return (Patch.make_scale name (Maybe.catMaybes key_nns), concat errs)
+    pure (Patch.make_scale name (Maybe.catMaybes key_nns), concat errs)
 
 -- | Create a Patch.Scale for the named scale.
 named :: Cmd.M m => Bool
@@ -108,7 +108,7 @@ named ignore_errors name transform = do
     (scale, errs) <- make_patch_scale scale transform
     unless (ignore_errors || null errs) $
         Cmd.throw $ Text.unlines errs
-    return scale
+    pure scale
 
 get_scale :: Cmd.M m => Text -> m Scale.Scale
 get_scale name =
@@ -122,17 +122,17 @@ make_patch_scale scale transform = do
         (val, logs) <- derive $ Equal.transform_expr transform $
             Scale.scale_input_to_nn scale at_time input
         let prefix = (("key " <> pretty key <> ": ") <>)
-        return $ second (map prefix . (++ logs)) $ case val of
+        pure $ second (map prefix . (++ logs)) $ case val of
             Nothing -> (Nothing, [])
             Just (Left err) -> (Nothing, [pretty err])
             Just (Right nn) -> (Just (key, nn), [])
     let name = pretty (Scale.scale_id scale)
-    return (Patch.make_scale name (Maybe.catMaybes key_nns), concat errs)
+    pure (Patch.make_scale name (Maybe.catMaybes key_nns), concat errs)
 
 derive :: Cmd.M m => Derive.Deriver a -> m (Maybe a, [Text])
 derive deriver = do
     (val, _, logs) <- PlayUtil.run mempty mempty deriver
-    return $ case val of
+    pure $ case val of
         Left err -> (Nothing, pretty err : map pretty logs)
         Right val -> (Just val, map pretty logs)
 
@@ -148,9 +148,9 @@ retune scale = do
     insts <- LInst.list_midi
     inits <- mapM (LInst.inst_initialization . Util.instrument) insts
     fmap concat $ forM (zip insts inits) $ \(inst, init) -> case init of
-        Nothing -> return []
-        Just Patch.Tuning -> realtime inst scale >> return [inst]
-        Just Patch.NrpnTuning -> nrpn inst scale >> return [inst]
+        Nothing -> pure []
+        Just Patch.Tuning -> realtime inst scale >> pure [inst]
+        Just Patch.NrpnTuning -> nrpn inst scale >> pure [inst]
 
 -- | Show tuning map for debugging.
 get_tuning :: Cmd.M m => Util.Instrument -> Patch.Scale -> m Text
@@ -158,7 +158,7 @@ get_tuning inst scale = do
     attr_map@(Common.AttributeMap amap) <- Patch.patch_attribute_map . fst <$>
         Cmd.get_midi_instrument (Util.instrument inst)
     let tuning = Patch.scale_tuning (Just attr_map) scale
-    return $ Text.unlines $ concat
+    pure $ Text.unlines $ concat
         [ map pretty amap
         , [""]
         , map (Text.unwords . map pretty) (Lists.chunked 6 tuning)
@@ -193,12 +193,12 @@ nrpn inst scale = do
 write_ksp :: Maybe Util.Instrument -> FilePath -> Patch.Scale -> Cmd.CmdT IO ()
 write_ksp maybe_inst filename scale = do
     attr_map <- case maybe_inst of
-        Nothing -> return Nothing
+        Nothing -> pure Nothing
         Just inst -> Just . Patch.patch_attribute_map . fst <$>
             Cmd.get_midi_instrument (Util.instrument inst)
     ksp <- Cmd.require_right id $ Kontakt.Util.tuning_ksp attr_map scale
     liftIO $ Text.IO.writeFile filename ksp
-    return ()
+    pure ()
 
 write_bali_scales_ksp :: Cmd.CmdT IO ()
 write_bali_scales_ksp = do

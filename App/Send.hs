@@ -39,7 +39,7 @@ main = ReplProtocol.initialize $ do
     Encoding.setLocaleEncoding Encoding.utf8
     args <- Environment.getArgs
     (flags, args) <- case GetOpt.getOpt GetOpt.Permute options args of
-        (flags, args, []) -> return (flags, args)
+        (flags, args, []) -> pure (flags, args)
         (_, _, errs) -> usage $ "flag errors:\n" ++ unlines errs
     when (Help `elem` flags) (usage "usage:")
     when (null args) (usage "usage:")
@@ -67,8 +67,8 @@ substitute :: [Text] -> IO [Text]
 substitute args
     | any ("%s" `Text.isInfixOf`) args = do
         content <- Text.IO.getContents
-        return $ map (Text.replace "%s" (showt content)) args
-    | otherwise = return args
+        pure $ map (Text.replace "%s" (showt content)) args
+    | otherwise = pure args
 
 query :: Text -> IO Text
 query = ReplProtocol.query_cmd_simple
@@ -77,9 +77,9 @@ timed :: DeepSeq.NFData a => IO a -> IO (a, Double)
 timed action = do
     start <- now
     result <- action
-    () <- return $ DeepSeq.rnf result
+    () <- pure $ DeepSeq.rnf result
     end <- now
-    return (result, realToFrac (end - start))
+    pure (result, realToFrac (end - start))
 
 now :: IO Time.DiffTime
 now = fmap Time.utctDayTime Time.getCurrentTime

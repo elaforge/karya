@@ -283,11 +283,11 @@ castRate (Audio stream) = Audio stream
 
 take :: forall m rate chan. (Monad m, KnownNat chan)
     => Frames -> Audio m rate chan -> Audio m rate chan
-take = takeClose (return ())
+take = takeClose (pure ())
 
 takeS :: forall m rate chan. (Monad m, KnownNat rate, KnownNat chan)
     => Seconds -> Audio m rate chan -> Audio m rate chan
-takeS = takeCloseS (return ())
+takeS = takeCloseS (pure ())
 
 -- | This is like 'take', but it takes a close action to run when the audio
 -- stream is terminated.  This is because streaming can't otherwise close
@@ -550,7 +550,7 @@ interleaveV vs = V.create $ do
     forM_ (zip [0..] vs) $ \(vi, v) ->
         forM_ (Lists.range' 0 (V.length v) 1) $ \i ->
             VM.write out (i*stride + vi) (V.unsafeIndex v i)
-    return out
+    pure out
     where stride = length vs
 
 -- | Synchronize block size for two streams.  If one stream runs out ahead of
@@ -588,7 +588,7 @@ synchronizeList = S.unfoldr unfold . map _stream
     where
     unfold audios = do
         pairs <- Maybe.catMaybes <$> mapM S.uncons audios
-        return $ case Lists.minimum $ map (blockCount . fst) pairs of
+        pure $ case Lists.minimum $ map (blockCount . fst) pairs of
             Nothing -> Left ()
             Just shortest -> Right $ unzip $ map (recons shortest) pairs
     recons size (block, tail)
@@ -612,7 +612,7 @@ nonInterleaved now size audios = NAudio (length audios) $
         pairs <- mapM S.uncons streams
         let heads = map (fmap fst) pairs
             tails = [tail | Just (_, tail) <- pairs]
-        return $ if null tails then Left ()
+        pure $ if null tails then Left ()
             else Right (map (fromMaybe mempty) heads, tails)
 
 -- | Convert a non-interleaved NAudio with an unknown number of channels
@@ -640,7 +640,7 @@ synchronizeToSize now size = Audio . S.unfoldr unfold . (True,)
     where
     unfold (initial, audio) = do
         (blocks, audio) <- splitAt (if initial then align else size) audio
-        return $ if null blocks
+        pure $ if null blocks
             then Left ()
             else Right (mconcat blocks, (False, audio))
     align = if now `mod` size == 0 then size else size - now `mod` size
@@ -651,11 +651,11 @@ takeN frames naudio
     | otherwise = NAudio (_nchannels naudio) $
         Control.loop1 (0, _nstream naudio) $ \loop (now, audio) ->
             lift (S.uncons audio) >>= \case
-                Nothing -> return ()
+                Nothing -> pure ()
                 Just ([], audio) -> loop (now, audio)
                 Just (blocks@(block:_), audio)
                     | end <= frames -> S.yield blocks >> loop (end, audio)
-                    | now >= frames -> return ()
+                    | now >= frames -> pure ()
                     | otherwise -> S.yield $ map (fst . blockSplit left) blocks
                     where
                     end = now + blockFrames_ chan block
@@ -668,7 +668,7 @@ takeN frames naudio
 zeroPadN :: Monad m => Frames -> NAudio m rate -> NAudio m rate
 zeroPadN size_ naudio = naudio { _nstream = S.unfoldr unfold (_nstream naudio) }
     where
-    unfold audio = S.uncons audio >>= return . \case
+    unfold audio = S.uncons audio >>= pure . \case
         Nothing ->
             Right (replicate (_nchannels naudio) (Constant size 0), audio)
         Just (blocks, audio) -> Right (map pad blocks, audio)
@@ -763,7 +763,7 @@ throwIO = liftIO . Exception.throwIO . Exception
     . ((CallStack.getStack <> ": ") <>)
 
 assert :: (Stack.HasCallStack, MonadIO m) => Bool -> Text -> m ()
-assert True _ = return ()
+assert True _ = pure ()
 assert False msg = throwIO $ "assertion: " <> msg
 
 -- | Insert an assertion into the audio stream.
@@ -806,7 +806,7 @@ takeFramesGE :: forall m rate chan. (Monad m, KnownNat chan)
 takeFramesGE frames (Audio audio) = do
     blocks S.:> rest <- S.toList $
         breakAfter (\n -> (+n) . blockFrames chan) 0 (>=frames) audio
-    return (blocks, Audio rest)
+    pure (blocks, Audio rest)
     where
     chan = Proxy :: Proxy chan
 
@@ -814,14 +814,14 @@ takeFramesGE frames (Audio audio) = do
 splitAt :: forall m rate chan. (Monad m, KnownNat chan)
     => Frames -> Audio m rate chan -> m ([Block], Audio m rate chan)
 splitAt frames (Audio audio)
-    | frames <= 0 = return ([], Audio audio)
+    | frames <= 0 = pure ([], Audio audio)
     | otherwise = S.next audio >>= \case
-        Left () -> return ([], mempty)
+        Left () -> pure ([], mempty)
         Right (block, audio)
             | produced < frames ->
                 first (block:) <$> splitAt (frames - produced) (Audio audio)
-            | produced == frames -> return ([block], Audio audio)
-            | otherwise -> return ([pre], Audio $ S.cons post audio)
+            | produced == frames -> pure ([block], Audio audio)
+            | otherwise -> pure ([pre], Audio $ S.cons post audio)
             where
             produced = blockFrames chan block
             (pre, post) = blockSplit (framesCount chan frames) block
@@ -830,16 +830,16 @@ splitAt frames (Audio audio)
 
 next :: Monad m => Audio m rate chan -> m (Maybe (Block, Audio m rate chan))
 next (Audio audio) = S.next audio >>= \case
-    Left () -> return Nothing
-    Right (block, audio) -> return $ Just (block, Audio audio)
+    Left () -> pure Nothing
+    Right (block, audio) -> pure $ Just (block, Audio audio)
 
 -- | Nothing if the Audio stream is completed.  Otherwise, it returns
 -- the same stream but with the first chunk evaluated, to avoid duplicating
 -- effects.
 isEmpty :: Monad m => Audio m rate chan -> m (Maybe (Audio m rate chan))
 isEmpty (Audio audio) = S.next audio >>= \case
-    Left () -> return Nothing
-    Right (block, audio) -> return $ Just $ Audio $ S.cons block audio
+    Left () -> pure Nothing
+    Right (block, audio) -> pure $ Just $ Audio $ S.cons block audio
 
 -- * util
 
@@ -858,8 +858,8 @@ breakAfter :: Monad m => (accum -> a -> accum) -> accum -> (accum -> Bool)
 breakAfter combine accum check = loop accum
     where
     loop accum as = lift (S.next as) >>= \case
-        Left r -> return (return r)
+        Left r -> pure (pure r)
         Right (a, as)
-            | check next -> S.yield a >> return as
+            | check next -> S.yield a >> pure as
             | otherwise -> S.yield a >> loop next as
             where next = combine accum a

@@ -104,7 +104,7 @@ main = Git.initialize $ do
         , Log.state_write_msg = Log.write_formatted IO.stderr
         }
     (flags, args) <- case GetOpt.getOpt GetOpt.Permute options args of
-        (flags, args, []) -> return (flags, args)
+        (flags, args, []) -> pure (flags, args)
         (_, _, errs) -> usage $ "flag errors:\n" ++ Lists.join ", " errs
     unless (null [Help | Help <- flags]) $ usage ""
     let out_dir = fromMaybe default_out_dir $ Lists.last [d | Output d <- flags]
@@ -119,46 +119,46 @@ main = Git.initialize $ do
                 putStrLn $ if fails == 0
                     then "+++++++++++++++++++++++++ OK!"
                     else "_________________________ FAILED!"
-                return (fname, fails)
+                pure (fname, fails)
             when (length results > 1) $ do
                 let (failed, ok) = List.partition ((>0) . snd) results
                 unless (null ok) $
                     putStr $ "    passed:\n" <> unlines (map fst ok)
                 unless (null failed) $
                     putStr $ "    failed:\n" <> unlines (map fst failed)
-            return $ Num.sum $ map snd results
+            pure $ Num.sum $ map snd results
         UpdateMidi -> do
             _ <- run_error0 $ mapM_ (update_midi cmd_config) args
-            return 0
+            pure 0
         Save -> do
             when (null args) $ usage "no inputs"
             run_error $ concat <$> mapM (save out_dir) args
         Profile -> do
             when (null args) $ usage "no inputs"
-            run_error $ mapM_ (perform Nothing cmd_config) args >> return []
+            run_error $ mapM_ (perform Nothing cmd_config) args >> pure []
         ProfileDerive -> do
             when (null args) $ usage "no inputs"
-            run_error $ mapM_ (derive Nothing cmd_config) args >> return []
+            run_error $ mapM_ (derive Nothing cmd_config) args >> pure []
         Derive -> do
             when (null args) $ usage "no inputs"
             run_error $ mapM_ (derive (Just out_dir) cmd_config) args
-                >> return []
+                >> pure []
         Perform -> do
             when (null args) $ usage "no inputs"
             run_error $ mapM_ (perform (Just out_dir) cmd_config) args
-                >> return []
+                >> pure []
         DumpMidi -> do
             when (null args) $ usage "no inputs"
-            run_error $ mapM_ dump_midi args >> return []
+            run_error $ mapM_ dump_midi args >> pure []
         CommitInfo -> do
-            patch <- either (errorIO . txt) return
+            patch <- either (errorIO . txt) pure
                 =<< SourceControl.current "."
             ByteString.Lazy.Char8.putStrLn $ Aeson.encode $ Map.fromList
                 [ ("date" :: Text, Aeson.toJSON $ SourceControl._date patch)
                 , ("hash", Aeson.toJSON $ SourceControl._hash patch)
                 , ("name", Aeson.toJSON $ SourceControl._summary patch)
                 ]
-            return 0
+            pure 0
     Processes.exit failures
     where
     usage msg = do
@@ -176,7 +176,7 @@ expand_verify_me :: FilePath -> IO [FilePath]
 expand_verify_me fname = do
     m_contents <- Exceptions.ignoreIOError $
         Text.IO.readFile (fname </> verify_me_txt)
-    return $ case m_contents of
+    pure $ case m_contents of
         Nothing -> [fname]
         Just contents -> map ((fname</>) . untxt) $ Text.lines contents
 
@@ -184,16 +184,16 @@ type ErrorM a = Except.ExceptT Text IO a
 
 run_error :: ErrorM [Text] -> IO Int
 run_error m = do
-    errors <- either (\err -> return [err]) return =<< Except.runExceptT m
+    errors <- either (\err -> pure [err]) pure =<< Except.runExceptT m
     mapM_ Text.IO.putStrLn errors
-    return (length errors)
+    pure (length errors)
 
 run_error0 :: ErrorM () -> IO Int
 run_error0 m = Except.runExceptT m >>= \case
     Left err -> do
         Text.IO.putStrLn err
-        return 1
-    Right () -> return 0
+        pure 1
+    Right () -> pure 0
 
 require_right :: IO (Either Text a) -> Except.ExceptT Text IO a
 require_right io = tryRight =<< liftIO io
@@ -207,20 +207,20 @@ save out_dir fname = do
     let meta = Ui.config#UiConfig.meta #$ state
         look = Map.lookup block_id
     midi <- case look (UiConfig.meta_midi_performances meta) of
-        Nothing -> return False
+        Nothing -> pure False
         Just perf -> liftIO $ do
             out <- get_output out_dir fname ".midi"
             putStrLn $ "write " <> out
             DiffPerformance.save_midi out (UiConfig.perf_events perf)
-            return True
+            pure True
     ly <- case look (UiConfig.meta_lilypond_performances meta) of
-        Nothing -> return False
+        Nothing -> pure False
         Just perf -> liftIO $ do
             out <- get_output out_dir fname ".midi"
             putStrLn $ "write " <> out
             Text.IO.writeFile out (UiConfig.perf_events perf)
-            return True
-    return $ if midi || ly then []
+            pure True
+    pure $ if midi || ly then []
         else [txt fname <> ": no midi or ly performance"]
 
 -- | Perform to MIDI and possibly write to disk.
@@ -250,12 +250,12 @@ derive maybe_out_dir cmd_config fname = do
         putStrLn $ "write " <> out
         Text.IO.writeFile out $ Text.unlines $
             map Pretty.formatted (Vector.toList events)
-    return (events, derive_cpu)
+    pure (events, derive_cpu)
 
 get_output :: FilePath -> FilePath -> String -> IO FilePath
 get_output out_dir fname extension = do
     Directory.createDirectoryIfMissing True (FilePath.takeDirectory out)
-    return out
+    pure out
     where
     out = out_dir </> basename fname <> extension
 
@@ -272,7 +272,7 @@ verify_performance out_dir cmd_config fname = do
     let meta = Ui.config#UiConfig.meta #$ ui_state
     let cmd_state = make_cmd_state library aliases cmd_config
     let verify1 verify field =
-            maybe (return (Nothing, []))
+            maybe (pure (Nothing, []))
                 (verify out_dir fname cmd_state ui_state block_id)
                 (Map.lookup block_id (field meta))
     (midi_err, midi_timings) <-
@@ -282,11 +282,11 @@ verify_performance out_dir cmd_config fname = do
         UiConfig.meta_lilypond_performances
     let timings = midi_timings ++ im_timings ++ ly_timings
     if null timings
-        then return ["no saved performances"]
+        then pure ["no saved performances"]
         else do
             liftIO $ write_timing (out_dir </> basename fname <> ".json")
                 timings
-            return $ Maybe.catMaybes [midi_err, im_err, ly_err]
+            pure $ Maybe.catMaybes [midi_err, im_err, ly_err]
 
 update_midi :: Cmd.Config -> FilePath -> ErrorM ()
 update_midi cmd_config fname = do
@@ -294,7 +294,7 @@ update_midi cmd_config fname = do
     let cmd_state = make_cmd_state library aliases cmd_config
     (msgs, _, _) <- perform_block fname cmd_state ui_state block_id
     perf <- liftIO $ UiConfig.make_performance (Vector.fromList msgs)
-    ui_state <- return $ (Ui.config#UiConfig.meta#UiConfig.midi_performances
+    ui_state <- pure $ (Ui.config#UiConfig.meta#UiConfig.midi_performances
             %= Map.insert block_id perf)
         ui_state
     liftIO $ Save.write_state fname ui_state
@@ -308,7 +308,7 @@ verify_midi out_dir fname cmd_state ui_state block_id performance = do
     (maybe_diff, wrote_files) <- liftIO $
         DiffPerformance.diff_midi (basename fname ++ ".midi")
             out_dir performance msgs
-    return
+    pure
         ( (<> ("\nwrote " <> txt (unwords wrote_files))) <$> maybe_diff
         , [("derive", derive_cpu), ("perform", perform_cpu)]
         )
@@ -325,7 +325,7 @@ verify_im out_dir fname cmd_state ui_state block_id performance = do
     (maybe_diff, wrote_files) <- liftIO $
         DiffPerformance.diff_im (basename fname ++ ".im")
             out_dir performance notes
-    return
+    pure
         ( (<> ("\nwrote " <> txt (unwords wrote_files))) <$> maybe_diff
         , [("derive", derive_cpu)]
         )
@@ -335,7 +335,7 @@ convert_im :: Cmd.State -> Ui.State -> BlockId -> [Score.Event]
 convert_im cmd_state ui_state block_id events =
     extract $ DeriveSaved.run_cmd ui_state cmd_state $ do
         lookup_inst <- Cmd.get_lookup_instrument
-        return $ Im.Convert.convert block_id lookup_inst events
+        pure $ Im.Convert.convert block_id lookup_inst events
     where
     extract (Left err) = ([], [Log.msg Log.Error Nothing err])
     extract (Right (levents, logs)) = (events, logs ++ perf_logs)
@@ -350,7 +350,7 @@ perform_block fname cmd_state state block_id = do
     ((msgs, logs), perform_cpu) <- liftIO $
         DeriveSaved.timed_perform cmd_state fname state events
     liftIO $ mapM_ Log.write logs
-    return (msgs, derive_cpu, perform_cpu)
+    pure (msgs, derive_cpu, perform_cpu)
 
 verify_lilypond :: FilePath -> FilePath -> Cmd.State -> Ui.State
     -> BlockId -> UiConfig.LilypondPerformance -> ErrorM (Maybe Text, Timings)
@@ -359,12 +359,12 @@ verify_lilypond out_dir fname cmd_state state block_id performance = do
         DeriveSaved.timed_lilypond fname state cmd_state block_id
     liftIO $ mapM_ Log.write logs
     case result of
-        Left err -> return (Just $ "error deriving: " <> Log.format_msg err, [])
+        Left err -> pure (Just $ "error deriving: " <> Log.format_msg err, [])
         Right got -> do
             (maybe_diff, wrote_files) <- liftIO $
                 DiffPerformance.diff_lilypond (basename fname ++ ".ly") out_dir
                     performance got
-            return
+            pure
                 ( (<> ("\nwrote " <> txt (unwords wrote_files))) <$> maybe_diff
                 , [("lilypond", cpu)]
                 )
@@ -376,8 +376,8 @@ load :: FilePath
     -> ErrorM (Ui.State, Derive.Builtins, Derive.InstrumentAliases, BlockId)
 load fname = do
      (state, builtins, aliases) <- require_right $ DeriveSaved.load_score fname
-     block_id <- require_right $ return $ get_root state
-     return (state, builtins, aliases, block_id)
+     block_id <- require_right $ pure $ get_root state
+     pure (state, builtins, aliases, block_id)
 
 make_cmd_state :: Derive.Builtins -> Derive.InstrumentAliases -> Cmd.Config
     -> Cmd.State

@@ -31,7 +31,7 @@ import           Global
 log_filename :: IO FilePath
 log_filename = do
     app_dir <- Path.get_app_dir
-    return $ Path.to_absolute app_dir (Config.log_dir Path.</> "seq.log")
+    pure $ Path.to_absolute app_dir (Config.log_dir Path.</> "seq.log")
 
 -- * tail
 
@@ -50,18 +50,18 @@ open filename seek = do
     hdl <- IO.openFile filename IO.ReadWriteMode
     IO.hSetBuffering hdl IO.LineBuffering -- See read_line.
     case seek of
-        Nothing -> return ()
+        Nothing -> pure ()
         Just n -> do
             IO.hSeek hdl IO.SeekFromEnd (-n * 200)
             when (n /= 0) $
                 void $ IO.hGetLine hdl -- make sure I'm at a line boundary
     size <- IO.hFileSize hdl
-    return $ Handle filename hdl size
+    pure $ Handle filename hdl size
 
 tail :: Handle -> IO (Log.Msg, Handle)
 tail hdl = do
     (line, hdl) <- read_line hdl
-    return (deserialize_line line, hdl)
+    pure (deserialize_line line, hdl)
 
 deserialize_line :: ByteString.ByteString -> Log.Msg
 deserialize_line line = case Log.deserialize (Lazy.fromStrict line) of
@@ -80,10 +80,10 @@ read_line (Handle filename hdl size) = go (hdl, size)
             new_size <- IO.hFileSize hdl
             -- Check if the file was truncated.
             state <- if new_size < size
-                then IO.hSeek hdl IO.AbsoluteSeek 0 >> return state
+                then IO.hSeek hdl IO.AbsoluteSeek 0 >> pure state
                 else ifM (file_renamed filename new_size)
                     (reopen hdl new_size filename)
-                    (Thread.delay 2 >> return state)
+                    (Thread.delay 2 >> pure state)
             go state
         False -> do
             -- Since hGetLine in its infinite wisdom chops the newline it's
@@ -91,30 +91,30 @@ read_line (Handle filename hdl size) = go (hdl, size)
             -- LineBuffering and hope for the best.
             line <- ByteString.Char8.hGetLine hdl
             new_size <- IO.hFileSize hdl
-            return (line, Handle filename hdl new_size)
+            pure (line, Handle filename hdl new_size)
 
 -- | If the filename exists, open it and close the old file.
 reopen :: IO.Handle -> Integer -> FilePath -> IO TailState
 reopen old size filename = do
     fp <- ignoreException "reopen" (IO.openFile filename IO.ReadMode)
     case fp of
-        Nothing -> return (old, size)
+        Nothing -> pure (old, size)
         Just new -> do
             IO.hClose old
             IO.hSetBuffering new IO.LineBuffering
             size <- IO.hFileSize new
-            return (new, size)
+            pure (new, size)
 
 ignoreException :: String -> IO a -> IO (Maybe a)
 ignoreException name action = Exception.try action >>= \result -> case result of
     Left exc
         | Just e <- Exception.fromException exc, Error.isDoesNotExistError e ->
-            return Nothing
+            pure Nothing
         | otherwise -> do
             putStrLn $ name ++ ": ignoring hopefully transient exception: "
                 ++ show exc
-            return Nothing
-    Right val -> return $ Just val
+            pure Nothing
+    Right val -> pure $ Just val
 
 -- | Check if it looks like the file has been renamed.
 file_renamed :: FilePath -> Integer -> IO Bool
@@ -123,7 +123,7 @@ file_renamed filename size = do
     -- since handleToFd closes the handle.
     file_size <- maybe 0 Posix.fileSize <$>
         ignoreException "file_renamed" (Posix.getFileStatus filename)
-    return $ fromIntegral file_size /= size && file_size /= 0
+    pure $ fromIntegral file_size /= size && file_size /= 0
 
 -- * magic
 

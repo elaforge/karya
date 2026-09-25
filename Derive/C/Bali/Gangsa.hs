@@ -477,19 +477,19 @@ norot_sequence start_prepare sustain_cycle prepare_cycle cur_pitch next_pitch
     prepare_this <- case (start_prepare, cur_pitch) of
         (True, Just pitch) -> do
             pitch_t <- Derive.resolve_pitch start pitch
-            return $ Just $ PitchedCycle pitch (prepare_cycle pitch_t)
-        _ -> return Nothing
+            pure $ Just $ PitchedCycle pitch (prepare_cycle pitch_t)
+        _ -> pure Nothing
     sustain <- case cur_pitch of
-        Nothing -> return Nothing
+        Nothing -> pure Nothing
         Just pitch -> do
             pitch_t <- Derive.resolve_pitch start pitch
-            return $ Just $ PitchedCycle pitch (sustain_cycle pitch_t)
+            pure $ Just $ PitchedCycle pitch (sustain_cycle pitch_t)
     prepare_next <- case next_pitch of
-        Nothing -> return Nothing
+        Nothing -> pure Nothing
         Just next -> do
             next_t <- Derive.resolve_pitch start next
-            return $ Just $ PitchedCycle next (prepare_cycle next_t)
-    return (prepare_this, sustain, prepare_next)
+            pure $ Just $ PitchedCycle next (prepare_cycle next_t)
+    pure (prepare_this, sustain, prepare_next)
 
 data PitchedCycle = PitchedCycle !PSignal.Pitch !Cycle
 
@@ -533,11 +533,11 @@ infer_prepare :: Derive.PassedArgs a -> Maybe Bool
     -- ^ True to prepare, False to not, Nothing to prepare if this note touches
     -- the next one.
     -> Derive.Deriver (Maybe PSignal.Pitch)
-infer_prepare _ (Just False) = return Nothing
+infer_prepare _ (Just False) = pure Nothing
 infer_prepare args (Just True) = Args.lookup_next_pitch args
 infer_prepare args Nothing
     | Args.next_start args /= Just (Event.max (Args.event args)) =
-        return Nothing
+        pure Nothing
     | otherwise = Args.lookup_next_pitch args
 
 gangsa_norot :: NorotStyle -> Pasang ScoreT.Instrument
@@ -849,7 +849,7 @@ end_on_zero realization = Realization
         note { note_steps = steps + note_steps note }
     steps = fromMaybe 0 $ do
         final : _ <- Lists.last (non_interlocking realization)
-        return $ note_steps final
+        pure $ note_steps final
 
 kernel_to_pattern :: Kernel -> Call.UpDown -> KotekanStyle
     -> Pasang ScoreT.Instrument -> Cycle
@@ -1000,7 +1000,7 @@ under_threshold_function :: (RealTime -> RealTime) -> ScoreTime
     -- with the given duration would be under the kotekan threshold
 under_threshold_function kotekan dur = do
     to_real <- Derive.real_function
-    return $ \t ->
+    pure $ \t ->
         let real = to_real t
         in to_real (t+dur) - real < kotekan real
 
@@ -1214,7 +1214,7 @@ c_noltol = Derive.transformer module_ "noltol" Tags.delayed
         max_dur <- Call.real_duration (Args.start args) max_dur
         events <- deriver
         let times = Post.real_time_control threshold events
-        return $ Post.emap1_ (put damp_dyn max_dur) $ Stream.zip times events
+        pure $ Post.emap1_ (put damp_dyn max_dur) $ Stream.zip times events
         where
         put damp_dyn max_dur (threshold, event) =
             Score.put_arg noltol_arg
@@ -1233,7 +1233,7 @@ realize_noltol_call =
         (event, maybe_arg) <- Derive.require_right id $
             Score.take_arg noltol_arg event
         case maybe_arg of
-            Nothing -> return $ Stream.from_event event
+            Nothing -> pure $ Stream.from_event event
             Just arg -> realize_noltol arg event next
 
 -- | If the next note of the same instrument is below a threshold, the note's
@@ -1241,7 +1241,7 @@ realize_noltol_call =
 realize_noltol :: NoltolArg -> Score.Event -> Maybe Score.Event
     -> Derive.NoteDeriver
 realize_noltol (threshold, max_dur, damp_dyn) event next =
-    return (Stream.from_event event) <> muted
+    pure (Stream.from_event event) <> muted
     where
     muted
         | should_noltol = do
@@ -1352,7 +1352,7 @@ note_too_high scale maybe_top pitchv = fromMaybe False $ do
     top <- maybe_top
     note <- either (const Nothing) Just $ PSignal.pitch_note pitchv
     pitch <- either (const Nothing) Just $ Scale.scale_read scale mempty note
-    return $ pitch > top
+    pure $ pitch > top
 
 pitch_too_high :: Scale.Scale -> Maybe Pitch.Pitch -> Score.Event -> Bool
 pitch_too_high scale maybe_top =

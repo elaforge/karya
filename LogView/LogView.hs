@@ -118,7 +118,7 @@ main = do
     Encoding.setLocaleEncoding Encoding.utf8
     args <- System.Environment.getArgs
     (flags, args) <- case GetOpt.getOpt GetOpt.Permute options args of
-        (flags, args, []) -> return (flags, args)
+        (flags, args, []) -> pure (flags, args)
         (_, _, errs) -> usage $ "flag errors:\n" ++ Lists.join ", " errs
     unless (null args) $
         usage ("unparsed args: " ++ show args)
@@ -139,11 +139,11 @@ logview flags = do
     let seek = fromMaybe (Just 0) $ Lists.last [s | Seek s <- flags]
         history = fromMaybe default_history $
             Lists.last [n | History n <- flags]
-    filename <- maybe Tail.log_filename return $
+    filename <- maybe Tail.log_filename pure $
         Lists.last [n | File n <- flags]
     hdl <- Tail.open filename seek
     log_chan <- STM.newTChanIO
-    gui_chan <- if Print `elem` flags then return Nothing
+    gui_chan <- if Print `elem` flags then pure Nothing
         else Just <$> Fltk.new_channel
     main_thread <- Concurrent.myThreadId
     Concurrent.forkFinally (tail_loop log_chan hdl) $ \result -> do
@@ -170,14 +170,14 @@ write_pid = do
     existing <- case ByteString.readInt =<< pid_str of
         Just (pid_, _) -> do
             maybe_cmd <- Processes.commandName pid
-            return $ if maybe False ("logview" `List.isSuffixOf`) maybe_cmd
+            pure $ if maybe False ("logview" `List.isSuffixOf`) maybe_cmd
                 then Just pid else Nothing
             where pid = fromIntegral pid_
-        _ -> return Nothing
+        _ -> pure Nothing
     when (existing == Nothing) $ do
         pid <- Posix.getProcessID
         ByteString.writeFile pid_file (ByteString.pack (show pid) <> "\n")
-    return existing
+    pure existing
 
 gui :: Maybe FltkUtil.Geometry -> Fltk.Channel -> LogChan -> FilePath -> Int
     -> IO ()
@@ -241,7 +241,7 @@ handle_new_msg chan win msg = do
             -- there's an interesting log msg.
             when (Log.msg_priority msg >= Log.Warn) $
                 LogViewC.bring_to_front win
-        Nothing -> return ()
+        Nothing -> pure ()
     let new_status = Process.state_status new_state
     when (Process.state_status state /= new_status) $ do
         let (Process.StyledText status style) = Process.render_status new_status

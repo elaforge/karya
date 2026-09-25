@@ -124,7 +124,7 @@ process_msg state msg = run $ do -- suppress_last msg $ do
     let styled = format_msg msg
     -- I match the filter on the styled output so that the filter is on
     -- the msg as actually displayed.
-    return $ if eval_filter filt msg $
+    pure $ if eval_filter filt msg $
             Text.Encoding.decodeUtf8 (style_text styled)
         then Just styled else Nothing
     where
@@ -148,12 +148,12 @@ suppress_last msg process = do
         Just (last_msg, times) | matches last_msg msg -> do
             State.modify $ \st ->
                 st { state_last_displayed = Just (msg, times+1) }
-            return Nothing
+            pure Nothing
         _ -> do
             result <- process
             whenJust result $ \_ -> State.modify $ \st ->
                 st { state_last_displayed = Just (msg, 0) }
-            return result
+            pure result
     where matches m1 m2 = Log.msg_text m1 == Log.msg_text m2
 
 -- | This searches the log msg text for a regex and puts it in the status bar
@@ -223,7 +223,7 @@ format_msg msg = run_formatter $ do
     let style = if Log.msg_priority msg < Log.Warn
             then style_plain else style_warn
     case Log.msg_caller msg of
-        CallStack.NoCaller -> return ()
+        CallStack.NoCaller -> pure ()
         caller@(CallStack.Caller {}) ->
             with_style style_filename $ CallStack.showCaller caller <> " "
     whenJust (Log.msg_stack msg) $ \stack -> emit_stack stack >> with_plain " "
@@ -253,7 +253,7 @@ run_formatter = build . Writer.execWriter
 
 emit_stack :: Stack.Stack -> Formatter
 emit_stack stack = do
-    if stack == Stack.empty then return ()
+    if stack == Stack.empty then pure ()
         -- This likely means the global transform failed.
         else if null ui_stack then with_plain $
             "[" <> Text.intercalate " / " (map pretty (Stack.outermost stack))
@@ -300,7 +300,7 @@ with_plain :: Text -> Formatter
 with_plain = with_style style_plain
 
 with_style :: Style -> Text -> Formatter
-with_style _ text | Text.null text = return ()
+with_style _ text | Text.null text = pure ()
 with_style style text = Writer.tell $
     Builder (Builder.byteString utf8)
         (Builder.byteString (B.replicate (B.length utf8) style))

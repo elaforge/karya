@@ -107,7 +107,7 @@ prev_val = Derive.ctx_prev_val . context
 
 prev_note_pitch :: RealTime -> Derive.Deriver (Maybe PSignal.Pitch)
 prev_note_pitch start = justm prev_note $
-    return . (`PSignal.at_negative` start) . Score.event_pitch
+    pure . (`PSignal.at_negative` start) . Score.event_pitch
 
 -- | Get the previous note.  Unlike 'prev_val', this always gets the previous
 -- Score.Event, even if you're evaluating a control track under the note track.
@@ -126,10 +126,10 @@ prev_note = do
 
 -- | Pitch at the time of the next event in this track.
 lookup_next_pitch :: PassedArgs a -> Derive.Deriver (Maybe PSignal.Pitch)
-lookup_next_pitch = maybe (return Nothing) lookup_pitch_at . next_start
+lookup_next_pitch = maybe (pure Nothing) lookup_pitch_at . next_start
 
 lookup_prev_pitch :: PassedArgs a -> Derive.Deriver (Maybe PSignal.Pitch)
-lookup_prev_pitch = maybe (return Nothing) lookup_pitch_at . prev_start
+lookup_prev_pitch = maybe (pure Nothing) lookup_pitch_at . prev_start
 
 -- | Pitch at the time of the next note event of this track's
 -- 'Derive.state_note_track'.
@@ -166,7 +166,7 @@ lookup_pitch_at pos = justm (Internal.get_dynamic Derive.state_pitch_map) $
         mapM_ (Log.write . Log.add_prefix ("lookup_pitch_at " <> pretty pos)) $
             filter ((>=Log.Warn) . Log.msg_priority) logs
         -- PSignal is actually in TrackTime, see 'Derive.state_pitch_map'.
-        return $ flip PSignal.at (RealTime.from_score pos) =<< maybe_sig
+        pure $ flip PSignal.at (RealTime.from_score pos) =<< maybe_sig
 
 -- | Like 'lookup_pitch_at', except for parsed pitches.  Normally you'd pass
 -- 'Derive.Call.get_pitch_functions' to make a 'Pitch.Pitch'.
@@ -208,12 +208,12 @@ eval ctx event prev = case Parse.parse_expr (Event.text event) of
 -- But 'Derive.Control.trim_signal' will clip that sample off to avoid
 -- a spurious pitch change at the end of the note.
 eval_next_pitch :: Derive.PitchArgs -> Derive.Deriver (Maybe PSignal.Pitch)
-eval_next_pitch = maybe (return Nothing) eval_pitch . Lists.head . next_events
+eval_next_pitch = maybe (pure Nothing) eval_pitch . Lists.head . next_events
 
 eval_pitch :: Event.Event -> Derive.Deriver (Maybe PSignal.Pitch)
 eval_pitch event = justm (to_maybe <$> Eval.eval_event event) $ \stream -> do
     start <- Derive.real (Event.start event)
-    return $ PSignal.at (mconcat $ Stream.events_of stream) start
+    pure $ PSignal.at (mconcat $ Stream.events_of stream) start
     where to_maybe = either (const Nothing) Just
 
 -- * event timing
@@ -318,11 +318,11 @@ range_or_note_end args
         note_end <- Derive.lookup_val EnvKey.note_end
         case (note_start, note_end) of
             (Just note_start, Just note_end)
-                | start < note_start -> return (note_start, note_start)
+                | start < note_start -> pure (note_start, note_start)
                 | otherwise ->
-                    return (start, min (next args) (max end note_end))
-            _ -> return (start, next args)
-    | otherwise = return (start, end)
+                    pure (start, min (next args) (max end note_end))
+            _ -> pure (start, next args)
+    | otherwise = pure (start, end)
     where (start, end) = range args
 
 -- | Start and duration of the event.  This is probably the right thing for
@@ -336,7 +336,7 @@ real_extent args = do
     let e = event args
     start <- Derive.real (Event.start e)
     end <- Derive.real (Event.end e)
-    return (start, end - start)
+    pure (start, end - start)
 
 -- | Event range as it appears on the track, regardless of slicing.
 range_on_track :: PassedArgs a -> (TrackTime, TrackTime)

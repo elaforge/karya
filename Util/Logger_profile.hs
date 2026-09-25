@@ -14,7 +14,7 @@ depth = 10
 -- to_logs = (:[])
 -- from_logs = id
 
-profile_no_anything = runprof (return ())
+profile_no_anything = runprof (pure ())
 profile_logging_no_state = runprof (Logger.log 1)
 profile_no_logging = runprof increment
 profile_logging = runprof (increment >> Logger.log 1)
@@ -38,10 +38,10 @@ run = Identity.runIdentity . Logger.run . flip State.runStateT 0
 
 run_lots :: Int -> Log () -> Log Int
 run_lots depth m
-    | depth <= 0 = m >> (return $! 1)
+    | depth <= 0 = m >> (pure $! 1)
     | otherwise = do
         x1 <- run_lots (depth-1) m
         x2 <- run_lots (depth-1) m
         x3 <- run_lots (depth-1) m
         x4 <- run_lots (depth-1) m
-        return $! (1 + x1 + x2 + x3 + x4)
+        pure $! (1 + x1 + x2 + x3 + x4)

@@ -27,7 +27,7 @@ test_process = do
 process :: EffectC.Patch -> [[Audio.Sample]] -> [[Audio.Sample]]
     -> IO [Audio.Sample]
 process patch delay input =
-    toSamples $ Effect.process config patch Nothing (const (return ()))
+    toSamples $ Effect.process config patch Nothing (const (pure ()))
         (Map.singleton "delay" (Audio.fromSampleLists delay))
         (Audio.fromSampleLists input)
 

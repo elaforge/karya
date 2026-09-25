@@ -72,7 +72,7 @@ symbolicPitch :: Except.MonadError Text m => Note.Note
     -> m (Either Pitch.Note Pitch.NoteNumber)
 symbolicPitch note
     | Text.null (Note.element note) = Right <$> initialPitch note
-    | otherwise = return $ Left $ Pitch.Note $ Note.element note
+    | otherwise = pure $ Left $ Pitch.Note $ Note.element note
 
 initialPitch :: Except.MonadError Text m => Note.Note -> m Pitch.NoteNumber
 initialPitch = tryJust "no pitch" . Note.initialPitch
@@ -91,7 +91,7 @@ articulation :: Except.MonadError Text m => Common.AttributeMap a
     -> Attrs.Attributes -> m a
 articulation attributeMap attrs =
     maybe (Except.throwError $ "attributes not found: " <> pretty attrs)
-        (return . snd) $
+        (pure . snd) $
     Common.lookup_attributes attrs attributeMap
 
 articulationDefault :: a -> Common.AttributeMap a -> Attrs.Attributes -> a
@@ -259,7 +259,7 @@ thruFunction sampleDir convert = fmap Thru.Plays . mapM note
                     Signal.constant (fromIntegral offset))
                 ]
             }
-        return $ Sample.toThru sampleDir sample
+        pure $ Sample.toThru sampleDir sample
 
 -- * util
 

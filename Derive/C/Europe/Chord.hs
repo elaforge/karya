@@ -104,14 +104,14 @@ resolve_intervals :: PSignal.Pitch -> [Interval]
     -> Derive.Deriver [PSignal.Pitch]
 resolve_intervals b = fmap snd . Lists.mapAccumLM resolve b
     where
-    resolve _ (Left pitch) = return (pitch, pitch)
-    resolve base (Right (Left steps)) = return (p, p)
+    resolve _ (Left pitch) = pure (pitch, pitch)
+    resolve base (Right (Left steps)) = pure (p, p)
         where p = Pitches.transpose_d (steps - 1) base
     resolve base (Right (Right sym)) = do
         p <- maybe
             (Derive.throw $ "can't parse: " <> ShowVal.show_val sym)
-            (return . flip Pitches.transpose_c base) (parse_interval sym)
-        return (p, p)
+            (pure . flip Pitches.transpose_c base) (parse_interval sym)
+        pure (p, p)
 
 parse_interval :: Text -> Maybe Pitch.Step
 parse_interval = flip Map.lookup intervals

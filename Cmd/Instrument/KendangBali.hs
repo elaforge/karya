@@ -38,7 +38,7 @@ pasang_code =
 tunggal_strokes :: [Drums.Stroke]
 tunggal_strokes = do
     (key, note@(Note _ attrs), group) <- tunggal_table
-    return $ Drums.Stroke
+    pure $ Drums.Stroke
         { _name = to_call note
         , _attributes = attrs
         , _char = if key == ' ' then Nothing else Just key

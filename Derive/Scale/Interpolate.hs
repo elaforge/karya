@@ -35,7 +35,7 @@ scales = scale_make $ \env (Scale.LookupScale lookup) -> do
         env2 = Env.delete scale_from $ Env.delete scale_to env
     from <- find ("from scale " <> pretty from_id) from_id
     to <- find ("to scale " <> pretty to_id) to_id
-    return $ make from to
+    pure $ make from to
     where
     scale_make = (:[]) . Scale.Make scale_id ("same as from scale", doc)
 
@@ -65,7 +65,7 @@ doc :: Derive.DocumentedCall
 doc = Derive.extract_doc $ interpolated_degree dummy dummy
     where
     dummy = Derive.val_call Module.scale "dummy" mempty "" $
-        Sig.call0 $ \_args -> return (0 :: Double)
+        Sig.call0 $ \_args -> pure (0 :: Double)
 
 scale_id :: Pitch.ScaleId
 scale_id = "interpolate"
@@ -100,7 +100,7 @@ interpolated_degree from to = Derive.val_call Module.scale "pitch" mempty
             else do
                 p1 <- apply key_from from
                 p2 <- apply key_to to
-                return $ Pitches.interpolated p1 p2 n
+                pure $ Pitches.interpolated p1 p2 n
     where
     doc :: ShowVal.ShowVal a => a -> Doc.Doc
     doc = ShowVal.doc
@@ -120,7 +120,7 @@ environ_from_to env = do
         scale_from env
     to <- Scales.read_environ (Just . Expr.str_to_scale_id) (Just from)
         scale_to env
-    return (from, to)
+    pure (from, to)
 
 key_from, key_to :: Env.Key
 key_from = "key-from"

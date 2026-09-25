@@ -60,7 +60,7 @@ check_results times states mods = do
     Text.IO.putStrLn $ "diffs: " <> pretty diffs
     -- The first run takes extra memory for some reason, but it seems to
     -- stabilize after that.  TODO maybe track that one down too some day.
-    diffs <- return $ drop 1 diffs
+    diffs <- pure $ drop 1 diffs
     -- If it's too lazy, memory will leak.
     equal (filter (>= max_memory_growth) diffs) []
     check ("< 1mb: " <> pretty diffs) $ all ((<1) . Memory.toM) diffs
@@ -78,7 +78,7 @@ check_results times states mods = do
         , secs >= max_cmd_latency
         ]
         []
-    return ()
+    pure ()
 
 load_file :: FilePath -> IO ResponderTest.States
 load_file fname = do
@@ -91,7 +91,7 @@ type Latency = (Text, ResponderTest.Seconds)
 thread :: ResponderTest.States -> [Cmd.CmdT IO ()]
     -> IO [([Latency], Memory.Size)]
 thread states (mod:mods) = do
-    states <- return $ strip_states states
+    states <- pure $ strip_states states
     (latency, result) <- strip_results <$>
         ResponderTest.respond_all [] timeout states mod
     force_performances result
@@ -99,7 +99,7 @@ thread states (mod:mods) = do
     ((latency, mem):) <$> thread (ResponderTest.result_states result) mods
     where
     timeout = 64
-thread _ [] = return []
+thread _ [] = pure []
 
 -- | Get rid of intermediate Results, otherwise I get the memory leak right
 -- here!

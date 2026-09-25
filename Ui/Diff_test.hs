@@ -52,7 +52,7 @@ test_merge_updates = do
     let ([tid1, tid2], st) = UiTest.run Ui.empty $ do
             tids <- UiTest.mkblock [(">", []), ("*", [])]
             Ui.merge_track bid 1 2
-            return tids
+            pure tids
     let update = mempty
             { Update._tracks = Map.singleton tid2 Ranges.everything }
     equal (Diff.diff update st st) $

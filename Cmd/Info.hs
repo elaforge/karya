@@ -74,7 +74,7 @@ get_track_type block_id tracknum = Ui.require
 lookup_track_type :: Ui.M m => BlockId -> TrackNum -> m (Maybe Track)
 lookup_track_type block_id tracknum = do
     track_tree <- TrackTree.track_tree_of block_id
-    return $ make_track <$>
+    pure $ make_track <$>
         Trees.findWithParents ((==tracknum) . Ui.track_tracknum) track_tree
 
 -- | Get all the Tracks in a block, sorted by tracknum.
@@ -114,7 +114,7 @@ track_type_of (Tree.Node track subs, parents)
 pitch_of_note :: Ui.M m => BlockId -> TrackNum -> m (Maybe Ui.TrackInfo)
 pitch_of_note block_id tracknum = do
     maybe_track <- lookup_track_type block_id tracknum
-    return $ case maybe_track of
+    pure $ case maybe_track of
         Just (Track _ (Note controls _)) ->
             List.find (ParseTitle.is_pitch_track . Ui.track_title) controls
         _ -> Nothing
@@ -123,7 +123,7 @@ pitch_of_note block_id tracknum = do
 note_of_pitch :: Ui.M m => BlockId -> TrackNum -> m (Maybe Ui.TrackInfo)
 note_of_pitch block_id tracknum = do
     maybe_track <- lookup_track_type block_id tracknum
-    return $ case maybe_track of
+    pure $ case maybe_track of
         Just (Track _ (Pitch note)) -> note
         _ -> Nothing
 
@@ -171,7 +171,7 @@ get_default_instrument :: Cmd.M m => BlockId -> TrackId
 get_default_instrument block_id track_id inst
     | inst == ScoreT.empty_instrument =
         fromMaybe inst <$> Perf.lookup_instrument (block_id, Just track_id)
-    | otherwise = return inst
+    | otherwise = pure inst
 
 
 -- * inst info
@@ -219,7 +219,7 @@ get_track_status block_id tracknum = do
         Just (track, inst) -> do
             inst <- get_default_instrument block_id (Ui.track_id track) inst
             Just <$> status block_id tree (Ui.track_tracknum track) inst
-        Nothing -> return Nothing
+        Nothing -> pure Nothing
     where
     status block_id tree note_tracknum inst = do
         let controls = control_tracks_of tree note_tracknum
@@ -229,7 +229,7 @@ get_track_status block_id tracknum = do
                 Just (UiConfig.Midi config) -> Patch.config_addrs config
                 _ -> []
         let title = ParseTitle.instrument_to_title inst
-        return $ txt $ Printf.printf "%s at %d: %s -- [%s]" (untxt title)
+        pure $ txt $ Printf.printf "%s at %d: %s -- [%s]" (untxt title)
             note_tracknum (untxt (show_addrs addrs))
             (Lists.join ", " track_descs)
 
@@ -279,7 +279,7 @@ show_track_status block_id status = forM status $ \info -> do
             Just flags
                 | Block.Collapse `Set.member` flags -> "expand"
                 | otherwise -> "collapse"
-    return $ Printf.printf "%s {%s %d}"
+    pure $ Printf.printf "%s {%s %d}"
         (untxt $ ParseTitle.strip_expr $ Ui.track_title info)
         cmd_text tracknum
 

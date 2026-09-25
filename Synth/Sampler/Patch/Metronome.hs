@@ -41,7 +41,7 @@ convert note = do
     pitch <- Util.initialPitch note
     let (fname, ratio) = Util.findPitchRatio nnToSample pitch
     let dynVal = Note.initial0 Control.dynamic note
-    return $ (Sample.make fname)
+    pure $ (Sample.make fname)
         { Sample.envelope = Signal.constant (dynVal + 0.35)
         , Sample.ratios = Signal.constant ratio
         }

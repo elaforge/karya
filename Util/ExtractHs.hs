@@ -29,7 +29,7 @@ process :: [String] -> (Text -> a)
 process args extract generate = do
     progName <- System.Environment.getProgName
     (outFname, inFnames) <- case args of
-        outFname : inFnames -> return (outFname, inFnames)
+        outFname : inFnames -> pure (outFname, inFnames)
         _ -> die $ "usage: " <> txt progName
             <> " output.hs input1.hs input2.hs ..."
     extracted <- extractFiles extract inFnames

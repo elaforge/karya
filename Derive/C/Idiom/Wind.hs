@@ -45,14 +45,14 @@ c_wind_idiom = Derive.transformer module_ "wind-idiom"
     $ Sig.callt fundamentals_env $ \fundamentals args deriver -> do
         start <- Args.real_start args
         fundamentals <- mapM
-            (either return (Pitches.pitch_nn <=< Derive.resolve_pitch start))
+            (either pure (Pitches.pitch_nn <=< Derive.resolve_pitch start))
             fundamentals
         wind_idiom (map Pitch.nn_to_hz fundamentals) =<< deriver
 
 type Fundamentals = [Pitch.Hz]
 
 wind_idiom :: Fundamentals -> Stream.Stream Score.Event -> Derive.NoteDeriver
-wind_idiom fundamentals = return . Post.emap1_ (process fundamentals)
+wind_idiom fundamentals = pure . Post.emap1_ (process fundamentals)
     . Stream.zip_on (map Lists.head . Post.nexts)
 
 fundamentals_env :: Sig.Parser [Either Pitch.NoteNumber PSignal.Pitch]
@@ -72,7 +72,7 @@ process fundamentals (maybe_next, event) = fromMaybe event $ do
     next <- maybe_next
     (next_fundamental, _) <- harmonic_of fundamentals next
     (_, this_harmonic) <- harmonic_of fundamentals event
-    return $ tweak_pitch (Score.event_start next)
+    pure $ tweak_pitch (Score.event_start next)
         (next_fundamental *# this_harmonic) event
 
 harmonic_of :: Fundamentals -> Score.Event -> Maybe (Pitch.Hz, Int)

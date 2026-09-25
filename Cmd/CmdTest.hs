@@ -129,7 +129,7 @@ run_io ustate1 cstate1 cmd = do
     let (val, ustate2, update) = case result of
             Left err -> (Left (pretty err), ustate1, mempty)
             Right (v, ustate2, update) -> (Right v, ustate2, update)
-    return $ Result val cstate2 ustate2 update logs thru
+    pure $ Result val cstate2 ustate2 update logs thru
 
 run_ui :: Ui.State -> Cmd.CmdId a -> Result a
 run_ui ustate = run ustate default_cmd_state
@@ -161,7 +161,7 @@ update_perf :: Ui.State -> Result val -> IO (Result val)
 update_perf ui_from res = do
     cmd_state <- update_performance ui_from (result_ui_state res)
         (result_cmd_state res) (result_ui_damage res)
-    return $ res { result_cmd_state = cmd_state }
+    pure $ res { result_cmd_state = cmd_state }
 
 -- | Run a DeriveTest extractor on a CmdTest Result.
 extract_derive :: (Score.Event -> a) -> Result x -> ([a], [Text])
@@ -183,7 +183,7 @@ extract_derive_result res =
             } <- Perf.get_root
         let stream = Stream.merge_logs perf_logs $
                 Stream.from_sorted_events (Vector.toList perf_events)
-        return $ Derive.Result
+        pure $ Derive.Result
             { r_events = stream
             , r_cache = perf_derive_cache
             , r_track_warps = perf_warps
@@ -211,7 +211,7 @@ update_performance ui_from ui_to cmd_state ui_damage = do
     (block_id, perf) <- read_perf chan
     let insert st = st { Cmd.state_performance = Map.insert block_id perf
             (Cmd.state_performance st) }
-    return $ cstate { Cmd.state_play = insert (Cmd.state_play cstate) }
+    pure $ cstate { Cmd.state_play = insert (Cmd.state_play cstate) }
     where
     -- Get rid of the derive wait to avoid making tests slow.
     set_immediate state = state
@@ -220,7 +220,7 @@ update_performance ui_from ui_to cmd_state ui_damage = do
     read_perf chan = do
         (block_id, status) <- Chan.readChan chan
         case status of
-            Msg.DeriveComplete perf _ -> return (block_id, perf)
+            Msg.DeriveComplete perf _ -> pure (block_id, perf)
             _ -> read_perf chan
 
 -- | Run several cmds, threading the state through.  The first cmd that fails
@@ -290,7 +290,7 @@ set_sel_on view_id start_track start_pos cur_track cur_pos = do
 set_point_sel :: Ui.M m => Types.TrackNum -> ScoreTime -> m Cmd.Status
 set_point_sel tracknum pos = do
     set_point_sel_block UiTest.default_block_name tracknum pos
-    return Cmd.Done
+    pure Cmd.Done
 
 -- | Set a point selection on the default view of the given block name.
 set_point_sel_block :: Ui.M m => Text -> Types.TrackNum -> ScoreTime -> m ()
@@ -498,7 +498,7 @@ set_env :: Cmd.M m => BlockId -> BlockId -> TrackId
 set_env root_id block_id track_id environ =
     Cmd.modify_play_state $ \st -> st
         { Cmd.state_performance_threads = Map.insert root_id
-            (Cmd.Thread $ Unsafe.unsafePerformIO $ Async.async (return ()))
+            (Cmd.Thread $ Unsafe.unsafePerformIO $ Async.async (pure ()))
             (Cmd.state_performance_threads st)
         , Cmd.state_performance = Map.insert root_id perf
             (Cmd.state_performance st)

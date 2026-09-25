@@ -42,7 +42,7 @@ render :: Resample.Config -> RealTime -> Sample.Sample -> IO AUtil.Audio
 render config start (Sample.Sample filename offset envelope pan ratios
         stretch) = do
     (close, audio) <- File.readFromClose offset filename
-    return $
+    pure $
         applyPan nowS pan $
         applyEnvelope close nowS envelope $
         resample config ratios start $

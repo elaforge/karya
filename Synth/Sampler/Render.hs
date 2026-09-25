@@ -96,7 +96,7 @@ write config outputDir trackIds mbEffect notes = catch $ do
             }
 
     case maybe (Right emptyState) unserializeState mbState of
-        Left err -> return $ Left $
+        Left err -> pure $ Left $
             "unserializing " <> pretty mbState <> ": " <> err
         Right initialState -> do
             Log.debug $ txt outputDir <> ": skipped " <> pretty skipped
@@ -114,19 +114,19 @@ write config outputDir trackIds mbEffect notes = catch $ do
             case result of
                 Right (_, total) ->
                     Checkpoint.clearRemainingOutput outputDir total
-                _ -> return ()
-            return result
+                _ -> pure ()
+            pure result
     where
     catch io = Exception.catches io
         -- Exceptions in haskell are really disorganized.
-        [ Exception.Handler $ \(Audio.Exception err) -> return $ Left err
+        [ Exception.Handler $ \(Audio.Exception err) -> pure $ Left err
         , Exception.Handler $ \(exc :: IO.Error.IOError) ->
-            return $ Left $ txt $ Exception.displayException exc
+            pure $ Left $ txt $ Exception.displayException exc
         , Exception.Handler $ \exc ->
-            return $ Left $ txt $ Sndfile.errorString exc
+            pure $ Left $ txt $ Sndfile.errorString exc
         , Exception.Handler $ \(Resource.ResourceCleanupException origExc
                 firstExc _) ->
-            return $ Left $ txt $ Exception.displayException
+            pure $ Left $ txt $ Exception.displayException
                 (fromMaybe firstExc origExc)
         ]
 
@@ -234,7 +234,7 @@ renderNotes config outputDir initialStates notifyState trackIds start
                     -- I could use an Audio.mixB in case there are Constants in
                     -- there, but resample will never produce Constants so
                     -- don't bother.
-        return (playing, metric)
+        pure (playing, metric)
     complete (_, maxVoices) =
         liftIO $ Log.notice $ txt (FilePath.takeFileName outputDir)
             <> " max voices: " <> pretty maxVoices
@@ -258,7 +258,7 @@ renderNotes config outputDir initialStates notifyState trackIds start
             }
         let !voices = max (maybe 0 snd prevMetric)
                 (length playing + length starting)
-        return (metric, voices)
+        pure (metric, voices)
 
 -- | Get chunkSize from each Playing, and remove Playings which no longer are.
 pull :: Audio.Frames -> Audio.Frames -> [Playing]
@@ -287,7 +287,7 @@ pull blockSize now = fmap (trim . unzip) . mapM get
             <> pretty (_noteRange playing)
             <> " diff: " <> pretty diff
             <> " " <> pretty (AUtil.toSeconds diff)
-        return
+        pure
             ( chunk
             , if AUtil.blockFrames2 chunk < blockSize
                 then Nothing
@@ -388,7 +388,7 @@ startSample config now mbState note = do
             Just (Resample state) -> Just state)
         (AUtil.toSeconds start)
         (sample { Sample.offset = offset + Sample.offset sample })
-    return $ Playing
+    pure $ Playing
         { _noteHash = Sample.hash note
         , _getState = IORef.readIORef sampleStateRef
         , _audio = audio
@@ -473,9 +473,9 @@ instance Serialize.Serialize PlayState where
     put (Resample state) = Serialize.put_tag 1 >> Serialize.put state
     put Complete = Serialize.put_tag 2
     get = Serialize.get_tag >>= \case
-        0 -> return NoResample
+        0 -> pure NoResample
         1 -> Resample <$> Serialize.get
-        2 -> return Complete
+        2 -> pure Complete
         n -> Serialize.bad_tag "Render.PlayState" n
 
 -- | The saved state of a note that had to resample.

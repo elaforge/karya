@@ -118,7 +118,7 @@ mergeable block_id =
 is_control_or_pitch :: Ui.M m => TrackNum -> BlockId -> TrackNum -> m Bool
 is_control_or_pitch parent block_id tracknum =
     Ui.event_track_at block_id tracknum >>= \case
-        Nothing -> return False
+        Nothing -> pure False
         Just track_id -> andM
             [ (`elem` [ParseTitle.ControlTrack, ParseTitle.PitchTrack]) <$>
                 ParseTitle.track_type <$> Ui.get_track_title track_id
@@ -206,9 +206,9 @@ append dest source = do
     -- By convention the first track is just a ruler.
     tracks <- drop 1 . Block.block_tracks <$> Ui.get_block source
     tracknum <- Ui.track_count dest
-    tracknum <- if tracknum <= 1 then return tracknum else do
+    tracknum <- if tracknum <= 1 then pure tracknum else do
         Ui.insert_track dest tracknum Block.divider
-        return (tracknum + 1)
+        pure (tracknum + 1)
     forM_ (zip [tracknum..] tracks) $ \(i, track) ->
         Ui.insert_track dest i track
     skel <- Ui.get_skeleton dest
@@ -306,15 +306,15 @@ move_tracks block_id sources dest = do
     -- Avoid splitting a track from its merged neighbor.
     dest <- if Just dest > Lists.maximum sources
         then ifM (is_merged_from_right block_id dest)
-            (return (dest+1)) (return dest)
+            (pure (dest+1)) (pure dest)
         else ifM (is_merged_from_right block_id (dest-1))
-            (return (dest-1)) (return dest)
+            (pure (dest-1)) (pure dest)
     mapM_ (uncurry (Ui.move_track block_id)) $ if any (<dest) sources
         -- Start at the last source, then insert at the dest counting down.
         then zip (List.sortBy (flip compare) sources) [dest, dest-1 ..]
         -- Start at the first source, then insert at the dest counting up.
         else zip (List.sort sources) [dest ..]
-    return dest
+    pure dest
 
 -- | True if this has a merged track to its right.  Presumably that track will
 -- be collapsed, but I don't check that.
@@ -323,4 +323,4 @@ is_merged_from_right block_id tracknum = do
     merged <- Block.track_merged <$>
         Ui.get_block_track_at block_id tracknum
     tracknums <- mapMaybeM (Ui.tracknum_of block_id) (Set.toList merged)
-    return $ any (== tracknum+1) tracknums
+    pure $ any (== tracknum+1) tracknums

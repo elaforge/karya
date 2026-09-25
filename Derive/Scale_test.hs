@@ -24,7 +24,7 @@ scale_degrees :: Pitch.ScaleId -> Env.Environ
 scale_degrees scale_id environ = do
     scale <- Derive.get_scale scale_id
     nns <- Scale.note_numbers scale environ
-    return $ zip3 (Scale.pitches scale environ) (Scale.notes scale environ) nns
+    pure $ zip3 (Scale.pitches scale environ) (Scale.notes scale environ) nns
 
 test_assign_keys :: Test
 test_assign_keys = do

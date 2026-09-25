@@ -229,6 +229,6 @@ test_breakAfter = do
     let f check = extract . Audio.breakAfter (+) 0 check . S.each
         extract xs = Identity.runIdentity $ do
             as S.:> bs <- S.toList xs
-            return (as, Identity.runIdentity $ S.toList_ bs)
+            pure (as, Identity.runIdentity $ S.toList_ bs)
     equal (f (>=5) [5, 5]) ([5], [5])
     equal (f (>=5) [3, 2, 3]) ([3, 2], [3])

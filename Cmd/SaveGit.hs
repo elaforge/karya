@@ -85,11 +85,11 @@ set_save_tag repo commit = try "set_save_tag" $ do
         Nothing -> do
             save <- find_next_save repo (SavePoint [])
             write_save_ref repo save commit
-            return save
+            pure save
         Just (last_save, save_commit) -> do
             save <- find_next_save repo last_save
-            if commit == save_commit then return last_save
-                else write_save_ref repo save commit >> return save
+            if commit == save_commit then pure last_save
+                else write_save_ref repo save commit >> pure save
 
 -- | Stored in reverse order as in the ref name.
 newtype SavePoint = SavePoint [Int] deriving (Eq, Show, Pretty)
@@ -112,9 +112,9 @@ read_last_save repo maybe_commit = do
     refs <- Git.read_ref_map repo
     let commit_to_save = Map.fromList $ do
             (ref, commit) <- Map.toList refs
-            Just save <- return $ ref_to_save ref
-            return (commit, save)
-    return $ Lists.head [(save, commit) | (Just save, commit)
+            Just save <- pure $ ref_to_save ref
+            pure (commit, save)
+    pure $ Lists.head [(save, commit) | (Just save, commit)
         <- zip (map (`Map.lookup` commit_to_save) commits) commits]
 
 -- | Find the SavePoint that should be added after the given SavePoint.
@@ -125,7 +125,7 @@ find_next_save repo save =
     save_free save = Maybe.isNothing <$> Git.read_ref repo (save_to_ref save)
     from_just = maybe -- This should never happen since iterate tries forever.
         (Git.throw $ "couldn't find a free save name after " ++ show save)
-        return
+        pure
     split (SavePoint xs) = SavePoint (0 : xs)
     increment (SavePoint []) = SavePoint [0]
     increment (SavePoint (x:xs)) = SavePoint (x + 1 : xs)
@@ -158,7 +158,7 @@ checkpoint user repo (SaveHistory state (Just commit) updates names) =
         Log.warn $ "ignored updates for nonexistent "
             <> Text.intercalate ", " not_found
             <> "; this probably means 'Ui.Diff.cancel_updates didn't do its job"
-    if null mods then return commit else do
+    if null mods then pure commit else do
         unlessM (Files.writable repo) $
             Git.throw $ "git repo is not writable: " <> show repo
         last_tree <- Git.commit_tree <$> Git.read_commit repo commit
@@ -171,7 +171,7 @@ save :: SaveGitT.User -> Git.Repo -> Ui.State -> [Text] -> IO Commit
 save user repo state cmd_names = do
     whenM (Git.init repo) $
         Git.throw "refusing to overwrite a repo that already exists"
-    dir <- either (Git.throw . ("make_dir: "<>)) return $
+    dir <- either (Git.throw . ("make_dir: "<>)) pure $
         Git.make_dir (dump state)
     tree <- Git.write_dir repo dir
     commit_tree user repo tree Nothing (unparse_names "save" cmd_names)
@@ -189,7 +189,7 @@ commit_tree user repo tree maybe_parent desc = do
     commit <- Git.write_commit repo (SaveGitT.name user) (SaveGitT.email user)
         (maybe [] (:[]) maybe_parent) tree desc
     Git.update_head repo commit
-    return commit
+    pure commit
 
 -- ** events update
 
@@ -239,10 +239,10 @@ load repo maybe_commit = try_e "load" $ do
     dirs <- Git.read_dir repo (Git.commit_tree commit_data)
     names <- parse_names (Git.commit_text commit_data)
     either_views <- load_views repo
-    return $ do
+    pure $ do
         state <- undump dirs
         views <- with_msg "views" either_views
-        return (state { Ui.state_views = views }, commit, names)
+        pure (state { Ui.state_views = views }, commit, names)
 
 -- | Try to go get the previous history entry.
 load_previous_history :: Git.Repo -> Ui.State -> Commit
@@ -250,7 +250,7 @@ load_previous_history :: Git.Repo -> Ui.State -> Commit
 load_previous_history repo state commit = try_e "load_previous_history" $ do
     commit_data <- Git.read_commit repo commit
     case Lists.head (Git.commit_parents commit_data) of
-        Nothing -> return $ Right Nothing
+        Nothing -> pure $ Right Nothing
         Just parent -> load_history repo state commit parent
 
 -- | Try to a commits that has this one as a parent.
@@ -261,7 +261,7 @@ load_next_history repo state commit = try_e "load_next_history" $ do
     -- the checkpoint I started from so I can start from there instead of HEAD.
     commits <- Git.read_log_head repo
     case find_before commit commits of
-        Nothing -> return $ Right Nothing
+        Nothing -> pure $ Right Nothing
         Just child -> load_history repo state commit child
     where
     find_before val (x1:x2:xs)
@@ -284,8 +284,8 @@ load_history repo state from_commit to_commit = do
         =<< Git.read_commit repo to_commit
     result <- load_from repo from_commit (Just to_commit) state
     case result of
-        Left err -> return $ Left err
-        Right (new_state, damage) -> return $ Right $ Just $
+        Left err -> pure $ Left err
+        Right (new_state, damage) -> pure $ Right $ Just $
             LoadHistory new_state to_commit damage names
 
 load_from :: Git.Repo -> Commit -> Maybe Commit -> Ui.State
@@ -293,13 +293,13 @@ load_from :: Git.Repo -> Commit -> Maybe Commit -> Ui.State
 load_from repo commit_from maybe_commit_to state = do
     commit_to <- default_head repo maybe_commit_to
     mods <- Git.diff_commits repo commit_from commit_to
-    return $ undump_diff state mods
+    pure $ undump_diff state mods
 
 default_head :: Git.Repo -> Maybe Commit -> IO Commit
-default_head _ (Just commit) = return commit
+default_head _ (Just commit) = pure commit
 default_head repo Nothing =
     maybe (Git.throw $ "repo with no HEAD commit: " ++ show repo)
-        return =<< Git.read_head_commit repo
+        pure =<< Git.read_head_commit repo
 
 -- | Each commit saves the name of the command, so when you load it, it still
 -- has the proper name.
@@ -323,9 +323,9 @@ load_views :: Git.Repo -> IO (Either Text (Map ViewId Block.View))
 load_views repo =
     Serialize.unserialize Cmd.Serialize.views_magic (repo </> "views") >>= \case
         Left (Serialize.IOError exc) | IO.Error.isDoesNotExistError exc ->
-            return $ Right mempty
-        Left err -> return $ Left (pretty err)
-        Right views -> return $ Right views
+            pure $ Right mempty
+        Left err -> pure $ Left (pretty err)
+        Right views -> pure $ Right views
 
 -- * dump / undump
 
@@ -338,7 +338,7 @@ dump_map :: (Ident id, Serialize.Serialize a) =>
     Map id a -> [(FilePath, ByteString)]
 dump_map m = do
     (ident, val) <- Map.toAscList m
-    return (id_to_path ident, Serialize.encode val)
+    pure (id_to_path ident, Serialize.encode val)
 
 -- | This will tend to create redundant files, e.g. a block will be written
 -- twice if two updates occur on it.  But 'Git.modify_dir' will filter out the
@@ -389,16 +389,16 @@ undump dir = do
     tracks <- undump_map Id.TrackId =<< get_dir "tracks"
     rulers <- undump_map Id.RulerId =<< get_dir "rulers"
     config <- decode "config" =<< get_file "config"
-    return $ Ui.State mempty blocks tracks rulers config
+    pure $ Ui.State mempty blocks tracks rulers config
     where
     get_dir name = case Map.lookup name dir of
-        Nothing -> return Map.empty
+        Nothing -> pure Map.empty
         Just (Git.File _) -> Left $ "expected dir but got file: " <> showt name
-        Just (Git.Dir dir) -> return dir
+        Just (Git.Dir dir) -> pure dir
     get_file name = case Map.lookup name dir of
         Nothing -> Left $ "file not found: " <> showt name
         Just (Git.Dir _) -> Left $ "expected file but got dir: " <> showt name
-        Just (Git.File bytes) -> return bytes
+        Just (Git.File bytes) -> pure bytes
 
 undump_map :: (Serialize.Serialize a, Ord id) =>
     (Id.Id -> id) -> Map Git.FileName Git.File -> Either Text (Map id a)
@@ -426,7 +426,7 @@ undump_diff state = foldM apply (state, mempty)
         delete ns name mkid lens = do
             let ident = path_to_id mkid ns name
             vals <- delete_key ident (lens #$ state)
-            return ((lens #= vals) state, update)
+            pure ((lens #= vals) state, update)
     apply (state, update) (Git.Add path bytes) = case split path of
         ["blocks", ns, name] -> (, update) <$> add ns name Id.BlockId Ui.blocks
         ["tracks", ns, name] -> do
@@ -437,20 +437,20 @@ undump_diff state = foldM apply (state, mempty)
             -- just on the track.  It shouldn't be too expensive because it's
             -- only on one track at a time.
             let event_updates = Diff.track_diff state state_to tid
-            return (state_to, event_updates <> update)
+            pure (state_to, event_updates <> update)
         ["rulers", ns, name] -> do
             state_to <- add ns name Id.RulerId Ui.rulers
             let rid = Set.singleton $ path_to_id Id.RulerId ns name
-            return (state_to, mempty { Update._rulers = rid } <> update)
+            pure (state_to, mempty { Update._rulers = rid } <> update)
         ["config"] -> do
             val <- decode (txt path) bytes
-            return ((Ui.config #= val) state, update)
+            pure ((Ui.config #= val) state, update)
         _ -> Left $ "unknown file modified: " <> showt path
         where
         add ns name mkid lens = do
             let ident = path_to_id mkid ns name
             val <- decode (txt path) bytes
-            return $ (lens %= Map.insert ident val) state
+            pure $ (lens %= Map.insert ident val) state
     split = FilePath.splitDirectories
 
 class Ident id where id_to_path :: id -> FilePath
@@ -479,27 +479,27 @@ path_to_id mkid ns name = mkid (Id.id save_ns (txt name))
 -- for a ref in tags\/.
 infer_commit :: Git.Repo -> String -> IO (Maybe Commit)
 infer_commit repo ref_or_commit = case Git.parse_commit ref_or_commit of
-    Just commit -> return $ Just commit
+    Just commit -> pure $ Just commit
     Nothing -> Git.read_ref repo ("tags" </> ref_or_commit)
 
 catch :: IO a -> IO (Maybe a)
 catch io = do
     result <- Exception.try io
-    return $ case result of
+    pure $ case result of
         Left (Git.GitException _) -> Nothing
         Right val -> Just val
 
 try :: Text -> IO a -> IO (Either Text a)
 try caller io = do
     result <- Exception.try io
-    return $ case result of
+    pure $ case result of
         Left (Git.GitException err) -> Left $ caller <> ": " <> txt err
         Right val -> Right val
 
 try_e :: Text -> IO (Either Text a) -> IO (Either Text a)
 try_e caller io = do
     result <- Exception.try io
-    return $ case result of
+    pure $ case result of
         Left (Git.GitException err) -> Left $ caller <> ": " <> txt err
         Right (Left err) -> Left $ caller <> ": " <> err
         Right (Right val) -> Right val
@@ -525,12 +525,12 @@ get_user = Exception.handle handle $ do
     lines <- Text.lines . txt <$> Process.readProcess "git"
         ["config", "--get-regexp", "user\\.(name|email)"] ""
     let m = Text.strip <$> Map.fromList (map (Text.break (==' ')) lines)
-    return $ case (Map.lookup "user.name" m, Map.lookup "user.email" m) of
+    pure $ case (Map.lookup "user.name" m, Map.lookup "user.email" m) of
         (Just name, Just email)
             | not (Text.null name) && not (Text.null email) ->
                 Right $ SaveGitT.User name email
         _ -> Left $ "user.name and user.email not set in git config output: "
             <> showt lines
     where
-    handle exc = return $
+    handle exc = pure $
         Left $ "error getting git config: " <> showt (exc :: IO.Error.IOError)

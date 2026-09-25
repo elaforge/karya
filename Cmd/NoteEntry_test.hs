@@ -44,7 +44,7 @@ test_key_to_input = do
 
 test_cmds_with_input :: Test
 test_cmds_with_input = do
-    let cmd_dummy msg = Log.warn (showt msg) >> return Cmd.Done
+    let cmd_dummy msg = Log.warn (showt msg) >> pure Cmd.Done
     let high_c = '\''
         ctrl_key = CmdTest.make_key_mods [Key.Control] UiMsg.KeyDown
         run cstate cmd = CmdTest.extract id $ CmdTest.run Ui.empty cstate cmd

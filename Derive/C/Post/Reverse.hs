@@ -31,7 +31,7 @@ c_reverse = Derive.transformer Module.prelude "reverse" Tags.postproc
     Sig.call0t $ \args deriver -> do
         start <- Args.real_start args
         (events, logs) <- Stream.partition <$> deriver
-        return $ Stream.merge_logs logs $
+        pure $ Stream.merge_logs logs $
             Stream.from_sorted_events (reverse_tracks start events)
 
 reverse_tracks :: RealTime -> [Score.Event] -> [Score.Event]

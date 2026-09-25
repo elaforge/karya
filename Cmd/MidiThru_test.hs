@@ -36,7 +36,7 @@ test_midi_thru_instrument = do
     -- Use *just instead of *twelve, because *twelve has a special thru that
     -- just passes the NN directly.
     let run cmd_state title =
-            run_thru cmd_state (" | scale=just" <> title) (return ())
+            run_thru cmd_state (" | scale=just" <> title) (pure ())
             . (mempty,)
         e_note =
             first (mapMaybe Midi.channel_message . filter Midi.is_note)

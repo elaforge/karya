@@ -37,7 +37,7 @@ test_derive_to_disk = do
     (events, logs) <- derive ui_state
     prettyp (map Log.msg_text logs)
     let extract e = (DeriveTest.e_start_dur e, DeriveTest.e_attributes e)
-    events <- return $ filter ((==Play.inst_name) . Score.event_instrument)
+    events <- pure $ filter ((==Play.inst_name) . Score.event_instrument)
         events
     equal (map extract events) [((0, 0), "+ki"), ((0.25, 0), "+ta")]
 
@@ -46,9 +46,9 @@ derive ui_state = do
     cmd_state <- Play.load_cmd_state
     -- pprint $ Inst.synth_names $ Cmd.config_instrument_db $
     --     Cmd.state_config cmd_state
-    block_id <- either (errorIO . pretty) return $
+    block_id <- either (errorIO . pretty) pure $
         Ui.eval ui_state Ui.get_root_id
-    return $ first Vector.toList $ Play.derive cmd_state ui_state block_id
+    pure $ first Vector.toList $ Play.derive cmd_state ui_state block_id
 
 
 extract :: Ui.State -> [UiTest.TrackSpec]

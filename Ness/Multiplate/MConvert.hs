@@ -32,7 +32,7 @@ convert inst notes = do
     let errors = Multiplate.verify inst score
     unless (null errors) $
         Left $ Multiplate.iName inst <> ": " <> Text.intercalate "; " errors
-    return score
+    pure score
 
 makeScore :: [Multiplate.Strike] -> Multiplate.Score
 makeScore strikes = Multiplate.Score
@@ -52,7 +52,7 @@ convertNote inst note = first ((pretty note <> ": ")<>) $ do
     dyn <- getStart Control.dynamic
     (x, y) <- (,) <$> getStart Patch.c_x <*> getStart Patch.c_y
     dur <- getStart Patch.c_duration
-    return $ Multiplate.Strike
+    pure $ Multiplate.Strike
         { sObject = object
         , sStart = RealTime.to_seconds $ Note.start note
         , sDuration = dur

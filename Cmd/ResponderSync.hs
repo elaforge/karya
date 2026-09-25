@@ -44,12 +44,12 @@ sync sync_func ui_from ui_to cmd_to ui_damage play_monitor_state = do
         Left err -> do
             Log.error $ "cmd caused a verify error, rejecting state change: "
                 <> txt err
-            return ui_from
+            pure ui_from
         Right (state, warns) -> do
             unless (null warns) $
                 Log.warn $ "verify fixed issues: "
                     <> Text.intercalate "; " warns
-            return state
+            pure state
     Trace.trace "sync.verify"
 
     let (ui_updates, display_updates) = Diff.diff ui_damage ui_from ui_to
@@ -63,12 +63,12 @@ sync sync_func ui_from ui_to cmd_to ui_damage play_monitor_state = do
         case Integrate.score_integrate ui_updates ui_to of
             Left err -> do
                 Log.error $ "score_integrate failed: " <> pretty err
-                return (ui_from, ui_updates, display_updates)
+                pure (ui_from, ui_updates, display_updates)
             Right (logs, state, updates) -> do
                 mapM_ Log.write logs
                 let (ui_updates', display_updates') =
                         Diff.diff updates ui_to state
-                return
+                pure
                     ( state
                     , ui_updates ++ ui_updates'
                     , display_updates ++ display_updates'
@@ -77,7 +77,7 @@ sync sync_func ui_from ui_to cmd_to ui_damage play_monitor_state = do
     Trace.trace "sync.score_integrate"
 
     when (any modified_view ui_updates) $
-        MVar.modifyMVar_ play_monitor_state (const (return ui_to))
+        MVar.modifyMVar_ play_monitor_state (const (pure ui_to))
     when (Cmd.state_debug cmd_to && not (null display_updates)) $
         Debug.putp "updates" display_updates
     err <- sync_func (get_track_signals cmd_to) Internal.set_style
@@ -85,7 +85,7 @@ sync sync_func ui_from ui_to cmd_to ui_damage play_monitor_state = do
     Trace.trace "sync.sync"
     whenJust err $ \err ->
         Log.error $ "syncing updates: " <> pretty err
-    return (ui_updates, ui_to)
+    pure (ui_updates, ui_to)
 
 -- | Get all track signals already derived.  TrackSignals are only collected
 -- for top level derives, so there should only be signals for visible windows.

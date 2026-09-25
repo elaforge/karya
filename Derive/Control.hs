@@ -76,7 +76,7 @@ d_control_track config track deriver
     | Text.all Char.isSpace title = deriver
     | otherwise = do
         (ctype, expr) <- either (\err -> Derive.throw $ "track title: " <> err)
-            return (ParseTitle.parse_control_title title)
+            pure (ParseTitle.parse_control_title title)
         eval_track config track expr ctype deriver
     where
     title = TrackTree.track_title track
@@ -89,7 +89,7 @@ eval_track config track expr ctype deriver = case ctype of
     ParseTitle.Tempo maybe_sym -> do
         is_ly <- Derive.is_lilypond_mode
         let sig_deriver
-                | is_ly = return (Signal.constant 1, [])
+                | is_ly = pure (Signal.constant 1, [])
                 | otherwise = with_control_env
                     Controls.tempo (Derive.Merger "compose" (const id) 0)
                     (in_normal_mode $ derive_control True track transform)
@@ -143,7 +143,7 @@ get_merger :: ScoreT.Control -> Maybe Expr.Symbol
     -> Derive.Deriver Derive.Merger
 get_merger control merge = case merge of
     Nothing
-        | control == Controls.null -> return Derive.Set
+        | control == Controls.null -> pure Derive.Set
         | otherwise -> Derive.get_default_merger control
     Just sym -> Derive.get_control_merge sym
 
@@ -159,11 +159,11 @@ tempo_call config sym track sig_deriver deriver = do
         -- Do this in real time, so 'stash_if_wanted' knows it can directly
         -- reuse the signal.
         stash_if_wanted track signal
-        return (signal, logs)
+        pure (signal, logs)
 
     -- The range is used by the tempo calls to normalize the block to 0--1.
     -- This should only happen for the tempo track at the top of the block.
-    range <- maybe (return Nothing) (fmap Just . Internal.block_logical_range) $
+    range <- maybe (pure Nothing) (fmap Just . Internal.block_logical_range) $
         TrackTree.track_block_id track
     -- 'with_damage' must be applied *inside* 'Tempo.with_tempo'.  If it were
     -- outside, it would get the wrong RealTimes when it tried to create the
@@ -269,7 +269,7 @@ derive_control is_tempo track transform = do
     (signal, logs) <- derive_track (track_info track track_type)
         (Cache.track track mempty . transform)
     signal <- trim_signal Signal.drop_after Signal.clip_after track signal
-    return (signal, logs)
+    pure (signal, logs)
 
 {-# SCC derive_pitch #-}
 derive_pitch :: Bool -> TrackTree.Track
@@ -280,7 +280,7 @@ derive_pitch use_cache track transform = do
     (psignal, logs) <- derive_track (track_info track ParseTitle.PitchTrack)
         (cache_track . transform)
     signal <- trim_signal PSignal.drop_after PSignal.clip_after track psignal
-    return (signal, logs)
+    pure (signal, logs)
 
 {- | The controls under a note track are intended to apply only to the note
     above them.  However, since signal calls frequently emit samples before,
@@ -298,7 +298,7 @@ trim_signal :: (RealTime -> sig -> sig) -> (RealTime -> sig -> sig)
     -> TrackTree.Track -> sig -> Derive.Deriver sig
 trim_signal drop_after clip_after track signal =
     case TrackTree.track_sliced track of
-        TrackTree.NotSliced -> return signal
+        TrackTree.NotSliced -> pure signal
         TrackTree.Inversion ->
             Derive.throw "unexpected Inversion of a control track"
         TrackTree.Sliced orientation -> do
@@ -308,7 +308,7 @@ trim_signal drop_after clip_after track signal =
             let trim
                     | start == end || orientation == Types.Negative = drop_after
                     | otherwise = clip_after
-            return $ trim end signal
+            pure $ trim end signal
     -- TODO(polymorphic-signals)
 
 {-# SCC derive_track #-}
@@ -322,11 +322,11 @@ derive_track tinfo transform = do
                 EvalTrack.derive_control_track state tinfo
         Internal.merge_collect collect
         Internal.set_threaded threaded
-        return $ compact $ concatMap Stream.to_list streams
+        pure $ compact $ concatMap Stream.to_list streams
     let (signal_chunks, logs) = Stream.partition stream
     -- I just merged the signals in 'compact', so this should just convert [x]
     -- to x.
-    return (mconcat signal_chunks, logs)
+    pure (mconcat signal_chunks, logs)
     where
     -- Merge the signal here so it goes in the cache as one signal event.
     -- I can use concat instead of merge_asc_events because the signals
@@ -366,7 +366,7 @@ stash_if_wanted track sig = whenM is_normal_mode $
                 (snd $ TrackTree.track_range track) sig
 
 is_normal_mode :: Derive.Deriver Bool
-is_normal_mode = Derive.get_mode >>= \mode -> return $ case mode of
+is_normal_mode = Derive.get_mode >>= \mode -> pure $ case mode of
     Derive.Normal -> True
     _ -> False
 
@@ -403,11 +403,11 @@ put_track_signal block_id track_id tsig = Internal.merge_collect $ mempty
 render_of :: TrackTree.Track
     -> Derive.Deriver (Maybe (BlockId, TrackId, Maybe Track.RenderSource))
 render_of track = case TrackTree.block_track_id track of
-    Nothing -> return Nothing
-    Just (block_id, track_id) -> ifM not_root (return Nothing) $ do
+    Nothing -> pure Nothing
+    Just (block_id, track_id) -> ifM not_root (pure Nothing) $ do
         (btrack, track) <- get_block_track block_id track_id
         let flags = Block.track_flags btrack
-        return $ if Block.track_wants_signal flags track
+        pure $ if Block.track_wants_signal flags track
             then Just (block_id, track_id,
                 extract (Track.render_style (Track.track_render track)))
             else Nothing
@@ -427,7 +427,7 @@ get_block_track block_id track_id = do
             <> showt track_id) $
         List.find ((== Just track_id) . Block.track_id)
             (Block.block_tracks block)
-    return (btrack, track)
+    pure (btrack, track)
 
 
 -- * util
@@ -438,7 +438,7 @@ psignal_to_nn :: PSignal.PSignal
     -> Derive.Deriver (Signal.NoteNumber, [(RealTime, PSignal.ErrorText)])
 psignal_to_nn sig = do
     controls <- Derive.get_control_map
-    return $ PSignal.to_nn $ PSignal.apply_controls controls sig
+    pure $ PSignal.to_nn $ PSignal.apply_controls controls sig
 
 with_control_env :: ScoreT.Control -> Derive.Merger -> Derive.Deriver a
     -> Derive.Deriver a

@@ -105,11 +105,11 @@ data UnserializeError = BadMagic ByteString ByteString
 unserialize :: Serialize a => Magic a -> FilePath
     -> IO (Either UnserializeError a)
 unserialize magic fname = catch $ do
-    bytes <- either (Exception.throw . IO.Error.userError) return
+    bytes <- either (Exception.throw . IO.Error.userError) pure
         =<< Files.readGz fname
     let (file_magic, rest) = ByteString.splitAt magicLength bytes
     if file_magic /= magicBytes magic
-        then return $ Left $ BadMagic (magicBytes magic) file_magic
+        then pure $ Left $ BadMagic (magicBytes magic) file_magic
         else first UnserializeError <$> Exception.evaluate (decode rest)
             -- Apparently decode can still throw an exception unless
             -- the contents of the Either is forced to whnf.
@@ -175,7 +175,7 @@ bad_tag typ tag = fail $ "unknown tag for " ++ typ ++ ": " ++ show tag
 -- compatibility doesn't matter.
 get_enum_unsafe :: (Bounded a, Enum a) => Serialize.Get a
 get_enum_unsafe = get >>= \n ->
-    maybe (fail $ "enum value out of range: " ++ show n) return (to_enum n)
+    maybe (fail $ "enum value out of range: " ++ show n) pure (to_enum n)
 
 put_enum_unsafe :: Enum a => a -> Serialize.Put
 put_enum_unsafe = put . fromEnum
@@ -201,8 +201,8 @@ bad_enum name val = fail $ "unknown enum val for " <> name <> ": " <> show val
 -- * basic types
 
 instance Serialize () where
-    put () = return ()
-    get = return ()
+    put () = pure ()
+    get = pure ()
 
 instance Serialize Bool where
     put False = put_tag 0
@@ -215,7 +215,7 @@ instance Serialize Char where
 
 instance Serialize Time.UTCTime where
     put time = put (show time)
-    get = get >>= return . read
+    get = get >>= pure . read
 
 -- * sums and products
 
@@ -231,7 +231,7 @@ instance Serialize a => Serialize (Maybe a) where
     put Nothing = put_tag 0
     put (Just a) = put_tag 1 >> put a
     get = get_tag >>= \case
-        0 -> return Nothing
+        0 -> pure Nothing
         1 -> Just <$> get
         tag -> bad_tag "Maybe" tag
 
@@ -307,7 +307,7 @@ instance Serialize CallStack.Caller where
     put CallStack.NoCaller = put_tag 1
     get = get_tag >>= \case
         0 -> CallStack.Caller <$> get <*> get
-        1 -> return CallStack.NoCaller
+        1 -> pure CallStack.NoCaller
         tag -> bad_tag "Caller" tag
 
 -- * versions

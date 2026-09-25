@@ -78,7 +78,7 @@ pattern_generator = pattern_call $ \val -> generator1 "set" mempty
     \ is divided by 255, so they represent a number between 0 and 1.\n" $
     Sig.call0 $ \args -> do
         pos <- Args.real_start args
-        return $! Signal.from_sample pos val
+        pure $! Signal.from_sample pos val
 
 pattern_transformer :: Derive.PatternCall (Derive.Transformer Derive.Control)
 pattern_transformer = pattern_call $ \val ->
@@ -94,7 +94,7 @@ pattern_call :: (Signal.Y -> Derive.Call d)
 pattern_call call = Derive.PatternCall
     { pat_description = "numbers and hex"
     , pat_doc = Derive.extract_doc (call 0)
-    , pat_function = \(Expr.Symbol sym) -> return $! case Parse.parse_num sym of
+    , pat_function = \(Expr.Symbol sym) -> pure $! case Parse.parse_num sym of
         Left _ -> Nothing
         Right val -> Just $ call val
     }
@@ -103,16 +103,16 @@ c_set :: Derive.Generator Derive.Control
 c_set = generator1 "set" mempty "Emit a sample with no interpolation." $
     Sig.call (Sig.required "to" "Destination value.") $ \to args -> do
         pos <- Args.real_start args
-        return $! Signal.from_sample pos to
+        pure $! Signal.from_sample pos to
 
 c_set_prev :: Derive.Generator Derive.Control
 c_set_prev = Derive.generator Module.prelude "set-prev" Tags.prev
     "Re-set the previous value. This can be used to extend a breakpoint."
     $ Sig.call0 $ \args -> case Args.prev_control args of
-        Nothing -> return Stream.empty
+        Nothing -> pure Stream.empty
         Just (x, y) -> do
             start <- Args.real_start args
-            return $ if start > x
+            pure $ if start > x
                 then Stream.from_event $ Signal.from_sample start y
                 else Stream.empty
 
@@ -131,7 +131,7 @@ c_porta = generator1 "porta" mempty
     ) $ \(to, time, place, from, curve) args -> do
         let maybe_from = from <|> (snd <$> Args.prev_control args)
         time <- if Args.duration args == 0
-            then return time
+            then pure time
             else DeriveT.RealDuration <$> Args.real_duration args
         (start, end) <- ControlUtil.place_range place (Args.start args) time
         ControlUtil.make_segment_from curve start maybe_from end to
@@ -155,13 +155,13 @@ set_absolute val pos = do
     control <- Derive.lookup_val EnvKey.control
     merge <- Derive.lookup_val EnvKey.merge
     out <- set control merge
-    return $ Signal.from_sample pos out
+    pure $ Signal.from_sample pos out
     where
-    set Nothing _ = return val
+    set Nothing _ = pure val
     set (Just control) Nothing =
         Derive.throw $ "merge not set for " <> pretty control
     set (Just control) (Just merge) =
-        maybe (return val) (Derive.require_right id . invert_merge merge val)
+        maybe (pure val) (Derive.require_right id . invert_merge merge val)
             =<< Derive.untyped_control_at (ScoreT.Control control) pos
 
 -- | Figure out what value to emit which, once merged with the signal in scope,
@@ -196,7 +196,7 @@ c_breakpoint_next = generator1 "breakpoint" mempty
     $ \vals args -> do
         (start, end) <- Args.real_range_or_next args
         srate <- Call.get_srate
-        return $ ControlUtil.breakpoints srate ControlUtil.Linear $
+        pure $ ControlUtil.breakpoints srate ControlUtil.Linear $
             ControlUtil.distribute start end (NonEmpty.toList vals)
 
 c_bpm :: Derive.Generator Derive.Control
@@ -205,7 +205,7 @@ c_bpm = generator1 "bpm" mempty
     $ Sig.call (Sig.required "bpm" "")
     $ \val args -> do
         pos <- Args.real_start args
-        return $! Signal.from_sample pos (val / 60)
+        pure $! Signal.from_sample pos (val / 60)
 
 c_neighbor :: Derive.Generator Derive.Control
 c_neighbor = generator1 "neighbor" mempty
@@ -269,10 +269,10 @@ make_slope :: Derive.ControlArgs -> Maybe Signal.Y -> Maybe Signal.Y
     -> Maybe Signal.Y -> Double -> Derive.Deriver Signal.Control
 make_slope args low high maybe_from slope =
     case maybe_from <|> ControlUtil.prev_val maybe_from args of
-        Nothing -> return mempty
+        Nothing -> pure mempty
         Just from -> do
             (start, end) <- Args.real_range_or_next args
-            return $ ControlUtil.slope_to_limit low high from slope start end
+            pure $ ControlUtil.slope_to_limit low high from slope start end
 
 c_pedal :: Derive.Generator Derive.Control
 c_pedal = generator1 "pedal" mempty
@@ -285,9 +285,9 @@ c_pedal = generator1 "pedal" mempty
         "Use this duration if the event duration is 0."
     ) $ \(val, dur) args -> do
         (start, end) <- Args.real_range args
-        end <- return $ if start == end then end + dur else end
+        end <- pure $ if start == end then end + dur else end
         let prev = maybe 0 snd $ Args.prev_control args
-        return $ Signal.from_pairs [(start, val), (end, val), (end, prev)]
+        pure $ Signal.from_pairs [(start, val), (end, val), (end, prev)]
 
 c_swell :: Derive.Generator Derive.Control
 c_swell = generator1 "swell" mempty
@@ -303,7 +303,7 @@ c_swell = generator1 "swell" mempty
         let middle = Num.clamp start end $
                 Num.scale start end (RealTime.seconds bias)
         srate <- Call.get_srate
-        return $ ControlUtil.breakpoints srate ControlUtil.Linear
+        pure $ ControlUtil.breakpoints srate ControlUtil.Linear
             [(start, val), (middle, peak), (end, val)]
 
 generator1 :: Derive.CallName -> Tags.Tags -> Doc.Doc

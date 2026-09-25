@@ -252,7 +252,7 @@ test_score_duration = do
         -- smuggle out the value in a log msg.
         trans = CallTest.transformer $ \_ deriver -> do
             Log.warn . showt =<< Derive.get_score_duration deriver
-            return Stream.empty
+            pure Stream.empty
     equal (run [("top", [(">", [(0, 1, "t |")])])])
         ["Right (CallDuration 1.0)"]
     equal (run
@@ -268,7 +268,7 @@ test_real_duration = do
                 (CallTest.with_note_transformer "t" trans)
         trans = CallTest.transformer $ \_ deriver -> do
             Log.warn . showt =<< Derive.get_real_duration deriver
-            return Stream.empty
+            pure Stream.empty
     equal (run [("top", [(">", [(0, 1, "t |")])])]) ["Right (CallDuration 1.0)"]
     equal (run [("top", [(">", [(0, 2, "t |")])])]) ["Right (CallDuration 2.0)"]
     equal (run [("top", [("tempo", [(0, 0, "2")]), (">", [(0, 2, "t |")])])])

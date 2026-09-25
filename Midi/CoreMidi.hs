@@ -159,7 +159,7 @@ notify_callback client namep _dev_id c_is_added c_is_read = do
         -- to it will fail, exactly as if it weren't connected.  CoreMIDI
         -- doesn't let me look up the name and ID of disconnected devices
         -- anyway.
-        _ -> return ()
+        _ -> pure ()
 
 data Client = Client
     -- | I don't need to deal with DeviceIds for reads.
@@ -180,7 +180,7 @@ connect_read_device client dev =
         Nothing -> do
             -- This means I want the device if it ever gets plugged in.
             IORef.modifyIORef (client_reads client) (Set.insert dev)
-            return False
+            pure False
         Just dev_id -> do
             -- CoreMIDI lets you attach an arbitrary pointer to each
             -- connection to identify msgs coming in on that connection.  So
@@ -190,9 +190,9 @@ connect_read_device client dev =
             sourcep <- Foreign.newStablePtr dev
             ok <- check =<< c_connect_read_device dev_id
                 (Foreign.castStablePtrToPtr sourcep)
-            if not ok then return False else do
+            if not ok then pure False else do
                 IORef.modifyIORef (client_reads client) (Set.insert dev)
-                return True
+                pure True
 
 foreign import ccall "core_midi_connect_read_device"
     c_connect_read_device :: CInt -> Ptr () -> IO OSStatus
@@ -203,9 +203,9 @@ disconnect_read_device client dev = do
     wanted <- Set.member dev <$> IORef.readIORef (client_reads client)
     IORef.modifyIORef (client_reads client) (Set.delete dev)
     case (maybe_dev_id, wanted) of
-        (Nothing, True) -> return True
+        (Nothing, True) -> pure True
         (Just dev_id, _) -> check =<< c_disconnect_read_device dev_id
-        _ -> return False
+        _ -> pure False
 
 foreign import ccall "core_midi_disconnect_read_device"
     c_disconnect_read_device :: DeviceId -> IO OSStatus
@@ -219,17 +219,17 @@ connect_write_device client dev = do
     case maybe_dev_id of
         Nothing -> do
             IORef.modifyIORef (client_writes client) (Map.insert dev Nothing)
-            return False
+            pure False
         Just dev_id -> do
             IORef.modifyIORef (client_writes client)
                 (Map.insert dev (Just dev_id))
-            return True
+            pure True
 
 lookup_device_id :: Bool -> Text -> IO (Maybe DeviceId)
 lookup_device_id is_read dev = Foreign.alloca $ \dev_idp -> do
     found <- FFI.withText dev $ \devp ->
         c_lookup_device_id (Foreign.fromBool is_read) devp dev_idp
-    if found == 0 then return Nothing
+    if found == 0 then pure Nothing
         else Just <$> Foreign.peek dev_idp
 
 foreign import ccall "core_midi_lookup_device_id"
@@ -243,7 +243,7 @@ get_devices is_read = Foreign.alloca $ \namesp -> do
     names <- mapM FFI.peekCString cnames
     mapM_ Foreign.free cnames
     Foreign.free name_array
-    return names
+    pure names
 
 foreign import ccall "core_midi_get_devices"
     c_get_devices :: CInt -> Ptr (Ptr CString) -> IO CInt
@@ -253,7 +253,7 @@ foreign import ccall "core_midi_get_devices"
 -- | RealTime will be ignored for sysex msgs.
 write_message :: Client -> Midi.WriteMessage -> IO (Maybe Error)
 write_message client (Midi.WriteMessage dev ts msg)
-    | not (Midi.valid_msg msg) = return $ Just $ "invalid msg: " <> showt msg
+    | not (Midi.valid_msg msg) = pure $ Just $ "invalid msg: " <> showt msg
     | otherwise = do
         -- I could probably avoid this copy by using unsafe unpack and then a
         -- ForeignPtr or something to keep the gc off it, but MIDI is so slow
@@ -264,7 +264,7 @@ write_message client (Midi.WriteMessage dev ts msg)
                 ByteString.useAsCStringLen (Encode.encode msg) $
                 \(bytesp, len) -> error_str =<< c_write_message dev_id
                     (encode_time ts) (fromIntegral len) (Foreign.castPtr bytesp)
-            _ -> return $ Just $ "device not in open WriteDevices: "
+            _ -> pure $ Just $ "device not in open WriteDevices: "
                 <> pretty (Map.keys writes) <> ": " <> pretty dev
 
 foreign import ccall "core_midi_write_message"
@@ -298,10 +298,10 @@ encode_time = fromIntegral . max 0 . RealTime.to_milliseconds
 -- is overkill.
 check :: HasCallStack => OSStatus -> IO Bool
 check err = error_str err >>= \case
-    Nothing -> return True
+    Nothing -> pure True
     Just msg -> do
         Log.error msg
-        return False
+        pure False
 
 type OSStatus = Int.Int32
 

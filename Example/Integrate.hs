@@ -46,7 +46,7 @@ integrate_file = do
     score <- read_score fname
     mb_block_id <- integrate_score (txt (FilePath.takeFileName fname)) score
     whenJust mb_block_id (void . Create.view)
-    return mb_block_id
+    pure mb_block_id
     where
     fname = "Example/integrate-score"
 

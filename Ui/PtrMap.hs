@@ -62,7 +62,7 @@ data Windows = Windows
 modify :: (Map ViewId (Ptr CView) -> IO (Map ViewId (Ptr CView))) -> IO ()
 modify modify = MVar.modifyMVar_ global_windows $ \windows -> do
     blocks <- modify (_blocks windows)
-    return $ windows { _blocks = blocks }
+    pure $ windows { _blocks = blocks }
 
 get_map :: IO (Map ViewId (Ptr CView))
 get_map = _blocks <$> MVar.readMVar global_windows
@@ -73,12 +73,12 @@ get view_id = do
     case Map.lookup view_id blocks of
         Nothing -> throw $ show view_id ++ " not in displayed view list: "
             ++ show (Map.assocs blocks)
-        Just viewp -> return viewp
+        Just viewp -> pure viewp
 
 lookup :: ViewId -> IO (Maybe (Ptr CView))
 lookup view_id = do
     blocks <- _blocks <$> MVar.readMVar global_windows
-    return $ Map.lookup view_id blocks
+    pure $ Map.lookup view_id blocks
 
 -- | Nothing indicates that the UI returned a view ptr I didn't know I had.
 -- It's rare, but it can happen if I close a window but a msg about it is still
@@ -86,7 +86,7 @@ lookup view_id = do
 lookup_id :: Ptr CView -> IO (Maybe ViewId)
 lookup_id viewp = do
     blocks <- _blocks <$> MVar.readMVar global_windows
-    return $ fst <$> List.find ((==viewp) . snd) (Map.toList blocks)
+    pure $ fst <$> List.find ((==viewp) . snd) (Map.toList blocks)
 
 view_exists :: ViewId -> IO Bool
 view_exists = fmap Maybe.isJust . lookup
@@ -98,4 +98,4 @@ lookup_keycaps = _keycaps <$> MVar.readMVar global_windows
 
 set_keycaps :: Maybe (Ptr KeycapsT.CWindow) -> IO ()
 set_keycaps keycaps = MVar.modifyMVar_ global_windows $ \windows ->
-    return $ windows { _keycaps = keycaps }
+    pure $ windows { _keycaps = keycaps }

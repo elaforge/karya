@@ -61,7 +61,7 @@ check _ (Right val) = val
 require_val :: Sig.Arg -> Derive.Deriver DeriveT.Val
 require_val (Sig.SubTrack {}) =
     Derive.throw "child tracks don't work for macros yet"
-require_val (Sig.LiteralArg arg) = return arg
+require_val (Sig.LiteralArg arg) = pure arg
 
 -- | Create a generator macro from a list of transformers and a generator.
 generator :: Derive.CallableExpr d => Module.Module -> Derive.CallName
@@ -71,7 +71,7 @@ generator module_ name tags doc trans gen = do
     trans_args <- concatMapM extract_args trans
     gen_args <- extract_args gen
     let args = trans_args ++ gen_args
-    return $ Derive.generator module_ name tags (make_doc doc call_docs) $
+    pure $ Derive.generator module_ name tags (make_doc doc call_docs) $
         Sig.call (Sig.required_vals args) $ \vals args -> do
             vals <- mapM require_val vals
             generator_macro trans gen vals (Derive.passed_ctx args)
@@ -82,9 +82,9 @@ generator_macro :: Derive.CallableExpr d => [Call (Derive.Transformer d)]
     -> Derive.Deriver (Stream.Stream d)
 generator_macro trans gen vals ctx = do
     let (tcalls, trans_args) = unzip (map split trans)
-    (vals, trans_args) <- return $
+    (vals, trans_args) <- pure $
         List.mapAccumL substitute_vars vals trans_args
-    (vals, gen_args) <- return $ substitute_vars vals (snd (split gen))
+    (vals, gen_args) <- pure $ substitute_vars vals (snd (split gen))
     unless (null vals) $ Derive.throw "more args than $vars"
     trans_args <- mapM (mapM (eval_term ctx)) trans_args
     gen_args <- mapM (eval_term ctx) gen_args
@@ -100,7 +100,7 @@ transformer :: Derive.CallableExpr d => Module.Module -> Derive.CallName
     -> Either Text (Derive.Transformer d)
 transformer module_ name tags doc trans = do
     args <- concatMapM extract_args trans
-    return $ Derive.transformer module_ name tags (make_doc doc call_docs) $
+    pure $ Derive.transformer module_ name tags (make_doc doc call_docs) $
         Sig.callt (Sig.required_vals args) $ \vals args deriver -> do
             vals <- mapM require_val vals
             transformer_macro trans vals (Derive.passed_ctx args) deriver
@@ -111,7 +111,7 @@ transformer_macro :: Derive.CallableExpr d => [Call (Derive.Transformer d)]
     -> Derive.Deriver (Stream.Stream d) -> Derive.Deriver (Stream.Stream d)
 transformer_macro trans vals ctx deriver = do
     let (tcalls, trans_args) = unzip (map split trans)
-    (vals, trans_args) <- return $
+    (vals, trans_args) <- pure $
         List.mapAccumL substitute_vars vals trans_args
     unless (null vals) $ Derive.throw "more args than $vars"
     trans_args <- mapM (mapM (eval_term ctx)) trans_args
@@ -121,7 +121,7 @@ transformer_macro trans vals ctx deriver = do
 
 eval_term :: Derive.Taggable a => Derive.Context a -> ResolvedTerm
     -> Derive.Deriver DeriveT.Val
-eval_term _ (RLiteral val) = return val
+eval_term _ (RLiteral val) = pure val
 eval_term ctx (RValCall call terms) = do
     vals <- mapM (eval_term ctx) terms
     let passed = Derive.PassedArgs
@@ -138,14 +138,14 @@ substitute_vars all_vals args = run (mapM subst_arg args)
     where
     subst_arg arg = case arg of
         Var -> RLiteral <$> pop
-        Given (Literal val) -> return (RLiteral val)
+        Given (Literal val) -> pure (RLiteral val)
         Given (ValCall call args) -> RValCall call <$> mapM subst_arg args
     pop = do
         vals <- Monad.State.get
         case vals of
             -- This allows the sub-call look in the environ for a default.
-            [] -> return DeriveT.VNotGiven
-            v : vs -> Monad.State.put vs >> return v
+            [] -> pure DeriveT.VNotGiven
+            v : vs -> Monad.State.put vs >> pure v
     run = Tuple.swap . Identity.runIdentity
         . flip Monad.State.runStateT all_vals
 

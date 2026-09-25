@@ -104,7 +104,7 @@ put_library :: Cmd.M m => Text -> m ()
 put_library text = do
     cache <- case Parse.Ky.parse_ky "fname.ky" text of
         Left err ->
-            return $ Cmd.KyCache (Left (ParseText.show_error err)) mempty
+            pure $ Cmd.KyCache (Left (ParseText.show_error err)) mempty
         Right (Parse.Ky.Ky defs imported _allocs) -> do
             -- This is not right for compile_library because it's imports
             -- and not imported paths, but it doesn't care because it's just
@@ -112,5 +112,5 @@ put_library text = do
             let imports = [imp | Parse.Ky.Import _ imp <- imported]
             let (builtins, _logs) = Ky.compile_library imports $
                     Ky.compile_definitions defs
-            return $ Cmd.KyCache (Right (builtins, mempty)) mempty
+            pure $ Cmd.KyCache (Right (builtins, mempty)) mempty
     Cmd.modify $ \st -> st { Cmd.state_ky_cache = Just cache }

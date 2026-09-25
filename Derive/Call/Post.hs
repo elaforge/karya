@@ -140,7 +140,7 @@ emap1m_ :: (a -> Score.Event) -> (a -> Derive.Deriver b) -> Stream a
 emap1m_ event_of f =
     fmap Stream.from_sorted_list . mapMaybeM process . Stream.to_list
     where
-    process (LEvent.Log log) = return $ Just $ LEvent.Log log
+    process (LEvent.Log log) = pure $ Just $ LEvent.Log log
     process (LEvent.Event a) =
         Derive.with_event (event_of a) $ LEvent.Event <$> f a
 
@@ -155,14 +155,14 @@ emap_m event_of f state =
     fmap (second (Stream.from_sorted_list . DList.toList)) . go state
         . Stream.to_list
     where
-    go state [] = return (state, mempty)
+    go state [] = pure (state, mempty)
     go state (LEvent.Log log : events) =
         fmap (DList.cons (LEvent.Log log)) <$> go state events
     go state (LEvent.Event event : events) = do
         (state, output) <- fromMaybe (state, []) <$>
             Derive.with_event (event_of event) (f state event)
         (final, outputs) <- go state events
-        return (final, DList.fromList (map LEvent.Event output) <> outputs)
+        pure (final, DList.fromList (map LEvent.Event output) <> outputs)
     -- TODO this could also take [(a, LEvent Score.Event)] and omit 'event_of'
     -- since it's always 'snd', but this is basically the same as the separate
     -- annots approach I had earlier, and forces you to have a () annotation
@@ -179,7 +179,7 @@ emap_asc_m event_of f state =
     go state (LEvent.Event event) =
         maybe (state, []) (second (map LEvent.Event)) <$>
             Derive.with_event (event_of event) (f state event)
-    go state (LEvent.Log log) = return (state, [LEvent.Log log])
+    go state (LEvent.Log log) = pure (state, [LEvent.Log log])
 
 -- | 'emap_m' without the state.
 emap_m_ :: (a -> Score.Event) -> (a -> Derive.Deriver [b]) -> Stream a
@@ -197,7 +197,7 @@ emap_s_ :: (a -> Score.Event) -> (a -> Derive.NoteDeriver) -> Stream a
     -> Derive.NoteDeriver
 emap_s_ event_of f = concatMapM go . Stream.to_list
     where
-    go (LEvent.Log log) = return $ Stream.from_logs [log]
+    go (LEvent.Log log) = pure $ Stream.from_logs [log]
     go (LEvent.Event a) = fromMaybe mempty <$>
         Derive.with_event (event_of a) (f a)
 
@@ -228,7 +228,7 @@ duration_control :: ScoreT.TimeT -> ScoreT.Function
 duration_control time_t f events = do
     let starts = map Score.event_start (Stream.events_of events)
     case time_t of
-        ScoreT.TReal -> return $ map (RealTime.seconds . f) starts
+        ScoreT.TReal -> pure $ map (RealTime.seconds . f) starts
         ScoreT.TScore ->
             mapM (\t -> Call.real_duration t (ScoreTime.from_double (f t)))
                 starts
@@ -294,7 +294,7 @@ map_first :: (a -> Derive.Deriver a) -> Stream a
     -> Derive.Deriver (Stream.Stream a)
 map_first f = map_head_tail $ \e es -> do
     e <- f e
-    return $ Stream.from_sorted_list $ LEvent.Event e : Stream.to_list es
+    pure $ Stream.from_sorted_list $ LEvent.Event e : Stream.to_list es
 
 -- | Transform the first event and the rest of the events.
 map_head_tail :: (a -> Stream.Stream a -> Derive.Deriver (Stream.Stream a))
@@ -302,7 +302,7 @@ map_head_tail :: (a -> Stream.Stream a -> Derive.Deriver (Stream.Stream a))
     -> Derive.Deriver (Stream.Stream a)
 map_head_tail f = go . Stream.to_list
     where
-    go [] = return Stream.empty
+    go [] = pure Stream.empty
     go (LEvent.Log log : rest) = Stream.merge_log log <$> go rest
     go (LEvent.Event event : rest) = f event (Stream.from_sorted_list rest)
 
@@ -315,7 +315,7 @@ control_range deriver = do
     let range = case (Signal.head sig, Signal.last sig) of
             (Just (s, _), Just (e, _)) -> (s, e)
             _ -> (0, 0)
-    return (sig, range, logs)
+    pure (sig, range, logs)
 
 pitch_range :: Derive.PitchDeriver
     -> Derive.Deriver (PSignal.PSignal, (RealTime, RealTime), [Log.Msg])
@@ -324,21 +324,21 @@ pitch_range deriver = do
     let range = case (PSignal.head sig, PSignal.last sig) of
             (Just (s, _), Just (e, _)) -> (s, e)
             _ -> (0, 0)
-    return (sig, range, logs)
+    pure (sig, range, logs)
 
 -- | Transform a pitch or control signal.
 signal :: Monoid sig => (sig -> sig)
     -> Derive.Deriver (Stream.Stream sig) -> Derive.Deriver (Stream.Stream sig)
 signal f deriver = do
     (sig, logs) <- derive_signal deriver
-    return $ Stream.from_sorted_list $
+    pure $ Stream.from_sorted_list $
         LEvent.Event (f sig) : map LEvent.Log logs
 
 derive_signal :: Monoid sig => Derive.Deriver (Stream.Stream sig)
     -> Derive.Deriver (sig, [Log.Msg])
 derive_signal deriver = do
     (chunks, logs) <- Stream.partition <$> deriver
-    return (mconcat chunks, logs)
+    pure (mconcat chunks, logs)
 
 -- * delayed events
 

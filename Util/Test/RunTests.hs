@@ -124,7 +124,7 @@ run allTests = do
     IO.hSetBuffering IO.stdout IO.LineBuffering
     args <- Environment.getArgs
     (flags, args) <- case GetOpt.getOpt GetOpt.Permute options args of
-        (opts, n, []) -> return (opts, n)
+        (opts, n, []) -> pure (opts, n)
         (_, _, errors) -> quitWithUsage errors
     when (Help `elem` flags) $ quitWithUsage []
     ok <- runTests allTests flags args
@@ -149,13 +149,13 @@ runTests allTests flags regexes = do
         whenJust mbOutputDir clearDirectory
     if  | List `elem` flags -> do
             mapM_ Text.IO.putStrLn $ List.sort $ map testName matches
-            return True
-        | Subprocess `elem` flags -> subprocess allTests >> return True
+            pure True
+        | Subprocess `elem` flags -> subprocess allTests >> pure True
         | Interactive `elem` flags -> do
             Testing.modify_test_config $ \config ->
                 config { Testing.config_human_agreeable = False }
             mapM_ runInSubprocess matches
-            return True
+            pure True
         | Just outputDir <- mbOutputDir -> do
             jobs <- getJobs $
                 fromMaybe (NJobs 1) $ Lists.last [n | Jobs n <- flags]
@@ -167,13 +167,13 @@ runTests allTests flags regexes = do
             when (null matches) $
                 putStrLn "warning: no tests matched"
             mapM_ runTest matches
-            return True
+            pure True
     where
     mbOutputDir = Lists.last [d | Output d <- flags]
     matches = if null regexes then allTests else matchingTests regexes allTests
 
 getJobs :: Jobs -> IO Int
-getJobs (NJobs n) = return n
+getJobs (NJobs n) = pure n
 getJobs Auto = Cpu.physicalCores
 
 runOutput :: FilePath -> Int -> [Test] -> Bool -> IO Bool
@@ -184,7 +184,7 @@ runOutput outputDir jobs tests checkOutput = do
     mapM_ (putStrLn . ("*** "<>)) failures
     if checkOutput
         then (&&) <$> checkOutputs outputs <*> pure (null failures)
-        else return $ null failures
+        else pure $ null failures
     -- TODO run hpc?
 
 -- | Isolate the test by running it in a subprocess.  I'm not sure if this is
@@ -200,19 +200,19 @@ runInSubprocess test = do
         Exit.ExitFailure code -> Testing.with_test_name (testName test) $
             void $ Testing.failure $
                 "test returned " <> showt code <> ": " <> testName test
-        _ -> return ()
+        _ -> pure ()
 
 -- * parallel jobs
 
 -- | Run tests in parallel, redirecting stdout and stderr to each output.
 runParallel :: [FilePath] -> [Test] -> IO [String]
-runParallel _ [] = return []
+runParallel _ [] = pure []
 runParallel outputs tests = do
     let byModule = Lists.keyedGroupAdjacent testFilename tests
     queue <- newQueue [(txt name, tests) | (name, tests) <- byModule]
     failures <- Async.forConcurrently (shortenBy outputs byModule) $
         \output -> jobThread output queue
-    return $ Maybe.catMaybes failures
+    pure $ Maybe.catMaybes failures
 
 shortenBy :: [a] -> [b] -> [a]
 shortenBy as bs = map fst (zip as bs)
@@ -228,26 +228,26 @@ jobThread output queue = Exception.bracket open IO.hClose $ \hdl -> do
     Processes.conversation argv0 ["--subprocess"]
             (Just (("HPCTIXFILE", output <> ".tix") : env)) to $ \from -> do
         earlyExit <- Fix.fix $ \loop -> takeQueue queue >>= \case
-            Nothing -> return Nothing
+            Nothing -> pure Nothing
             Just (name, tests) -> do
                 put $ untxt name
                 Chan.writeChan to $ Processes.Text $
                     Text.unwords (map testName tests) <> "\n"
                 earlyExit <- Fix.fix $ \loop -> Chan.readChan from >>= \case
                     Processes.Stdout line
-                        | line == testsCompleteLine -> return Nothing
+                        | line == testsCompleteLine -> pure Nothing
                         | otherwise -> Text.IO.hPutStrLn hdl line >> loop
                     Processes.Stderr line ->
                         Text.IO.hPutStrLn hdl line >> loop
                     Processes.Exit n -> do
                         put $ "completed early: " <> show n
-                        return $ Just n
-                maybe loop (return . Just) earlyExit
+                        pure $ Just n
+                maybe loop (pure . Just) earlyExit
         final <- case earlyExit of
             Nothing -> do
                 Chan.writeChan to Processes.EOF
                 Chan.readChan from
-            Just n -> return $ Processes.Exit n
+            Just n -> pure $ Processes.Exit n
         let failure = case final of
                 Processes.Exit (Processes.ExitCode n)
                     | n == 0 -> Nothing
@@ -256,7 +256,7 @@ jobThread output queue = Exception.bracket open IO.hClose $ \hdl -> do
                     Just $ "binary not found: " <> argv0
                 _ -> Just $ "expected Exit, but got " <> show final
         whenJust failure put
-        return $ (prefix<>) <$> failure
+        pure $ (prefix<>) <$> failure
     where
     -- This uses AppendMode because I want to aggregate results from multiple
     -- runs, in tools/run_test.
@@ -304,7 +304,7 @@ runTest test = Testing.with_test_name name $ isolate $ do
     -- Grep for timing to make a histogram.
     Text.IO.putStrLn $ Text.unwords [metaPrefix, "timing", testName test,
         txt $ Numeric.showFFloat (Just 3) secs ""]
-    return ()
+    pure ()
     where name = last (Text.split (=='.') (testName test))
 
 -- | Try to save and restore any process level state in case the test messes
@@ -323,8 +323,8 @@ catch name action = do
             -- after ^C or out of memory.
             case Exception.fromException exc of
                 Just (exc :: Exception.AsyncException) -> Exception.throwIO exc
-                Nothing -> return ()
-        Right _ -> return ()
+                Nothing -> pure ()
+        Right _ -> pure ()
 
 -- * queue
 
@@ -336,7 +336,7 @@ newQueue :: [a] -> IO (Queue a)
 newQueue = fmap Queue . MVar.newMVar
 
 takeQueue :: Queue a -> IO (Maybe a)
-takeQueue (Queue mvar) = MVar.modifyMVar mvar $ \as -> return $ case as of
+takeQueue (Queue mvar) = MVar.modifyMVar mvar $ \as -> pure $ case as of
     [] -> ([], Nothing)
     a : as -> (as, Just a)
 
@@ -361,7 +361,7 @@ checkOutputs outputs = do
     mapM_ Text.IO.putStrLn failureContext
     Text.IO.putStrLn $ showt failures <> " failed / "
         <> showt checks <> " checks / " <> showt tests <> " tests"
-    return $ failures == 0
+    pure $ failures == 0
 
 readFileEmpty :: FilePath -> IO Text.Lazy.Text
 readFileEmpty = fmap (fromMaybe "") . Exceptions.ignoreEnoent

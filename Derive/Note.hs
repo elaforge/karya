@@ -98,7 +98,7 @@ derive_notes derive_tracks tinfo = do
             EvalTrack.derive_note_track derive_tracks state tinfo
     Internal.merge_collect collect
     Internal.set_threaded threaded
-    return $ Stream.merge_asc_lists streams
+    pure $ Stream.merge_asc_lists streams
 
 track_info :: TrackTree.Track -> [TrackTree.EventsNode]
     -> EvalTrack.TrackInfo Score.Event

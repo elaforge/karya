@@ -86,14 +86,14 @@ ly_file config title movements = run_output $ do
         output ">>\n}\n"
         output "}\n\n"
     write_staves (StaffGroup _ staves, config)
-        | not (Types.staff_display config) = return ()
+        | not (Types.staff_display config) = pure ()
         | Types.staff_add_bass_staff config =
             write_staff_group "StaffGroup" config $ \config -> do
                 case staves of
                     staff : staves -> do
                         normal_staff config (Just "up") staff
                         mapM_ (normal_staff config Nothing) staves
-                    [] -> return ()
+                    [] -> pure ()
                 whenJust (Lists.head staves) $ write_empty_staff config
         | otherwise = case staves of
             [staff] -> normal_staff config Nothing staff
@@ -179,7 +179,7 @@ write_ly ly = do
     case ly of
         Process.LyNote note -> State.modify $ \state -> state
             { output_last_stack = Process.note_stack note }
-        _ -> return ()
+        _ -> pure ()
 
 show_stack :: Maybe Stack.UiFrame -> Text
 show_stack (Just stack) =  Stack.unparse_ui_frame stack <> "; "
@@ -250,17 +250,17 @@ explicit_movements config sections = forM sections $ \(title, events) -> do
             ((==Constants.ly_global) . Types.event_instrument) events
     -- TODO filter out the v_movements since I won't be using them?
     staves <- convert_staff_groups config 0 global normal
-    return (title, staves)
+    pure (title, staves)
 
 extract_movements :: Types.Config -> [Types.Event] -> Either Log.Msg [Movement]
 extract_movements config events = do
     let (global, normal) = List.partition
             ((==Constants.ly_global) . Types.event_instrument) events
-    (movements, global) <- either warn return $
+    (movements, global) <- either warn pure $
         partition_key Constants.v_movement global
     forM (split_movements movements normal) $ \(start, title, events) -> do
         staves <- convert_staff_groups config start global events
-        return (title, staves)
+        pure (title, staves)
 
 -- | Group a stream of events into individual staves based on instrument, and
 -- for keyboard instruments, left or right hand.  Then convert each staff of
@@ -270,7 +270,7 @@ convert_staff_groups :: Types.Config -> Types.Time -> [Types.Event]
 convert_staff_groups config start global events = do
     let staff_groups = split_events events
     let staff_end = fromMaybe 0 $ Lists.maximum (map Types.event_end events)
-    (meters, global) <- either warn return $ parse_meters start staff_end global
+    (meters, global) <- either warn pure $ parse_meters start staff_end global
     -- It would be nicer to partition_on Process.free_code so I don't have to
     -- re-parse it in each Process.process, but then process would have to
     -- take an Either FreeCode Event or something.
@@ -307,7 +307,7 @@ staff_group :: Types.Config -> Types.Time -> [Meter.Meter] -> ScoreT.Instrument
 staff_group config start meters inst staves = do
     staff_measures <- forM (zip [1..] staves) $ \(i, es) ->
         annotate i $ Process.process config start meters es
-    return $ StaffGroup inst staff_measures
+    pure $ StaffGroup inst staff_measures
     where
     annotate i = first (Log.add_prefix (pretty inst <> ":" <> showt i))
 
@@ -345,7 +345,7 @@ parse_meters :: Types.Time -> Types.Time -> [Types.Event]
 parse_meters start staff_end events = do
     (meters, remain) <- partition_key Constants.v_meter events
     meters <- mapM (\(pos, meter) -> (pos,) <$> Meter.parse_meter meter) meters
-    return (generate start Meter.default_meter meters, remain)
+    pure (generate start Meter.default_meter meters, remain)
     where
     generate prev prev_meter ((pos, meter) : meters) | pos < staff_end =
         replicate measures prev_meter ++ generate next meter meters
@@ -369,7 +369,7 @@ partition_key :: EnvKey.Key -> [Types.Event]
     -> Either Error ([(Types.Time, Text)], [Types.Event])
 partition_key key = go
     where
-    go [] = return ([], [])
+    go [] = pure ([], [])
     go (e : es) = case Env.checked_val2 key (Types.event_environ e) of
         Nothing -> second (e:) <$> go es
         Just (Left err) -> Left $ pretty Constants.ly_global <> " event at "

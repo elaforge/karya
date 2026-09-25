@@ -90,7 +90,7 @@ replace block_id modify = do
     whenM (Maybe.isNothing <$> Ui.lookup_ruler ruler_id) $
         void $ Ui.create_ruler (Id.unpack_id ruler_id) Ruler.empty
     Ui.modify_ruler ruler_id modify
-    return ruler_id
+    pure ruler_id
     where
     ruler_id = Id.RulerId $ Id.unpack_id block_id
 
@@ -138,12 +138,12 @@ local_ruler scope block_id ruler_id modify = do
     if ruler_id /= Ui.no_ruler && not out_scope
         then do
             Ui.modify_ruler ruler_id modify
-            return ruler_id
+            pure ruler_id
         else do
             new_ruler_id <- modify_copy block_id ruler_id modify
             forM_ in_scope $ \tracknum ->
                 Ui.set_track_ruler block_id tracknum new_ruler_id
-            return new_ruler_id
+            pure new_ruler_id
 
 rulers_in_scope :: Ui.M m => Scope -> BlockId -> RulerId
     -> m ([TrackNum], Bool) -- ^ (tracknums with the RulerId and in the scope,
@@ -154,14 +154,14 @@ rulers_in_scope scope block_id ruler_id = do
         (in_block, out_block) = (bimap (map fst . concatMap snd) (not . null)) $
             List.partition ((==block_id) . fst) blocks
     case scope of
-        Block -> return (in_block, out_block)
+        Block -> pure (in_block, out_block)
         Section tracknum -> do
             section <- map fst <$> get_section block_id tracknum
             let (in_section, out_section) = List.partition
                     (`elem` section) in_block
-            return (in_section, out_block || not (null out_section))
+            pure (in_section, out_block || not (null out_section))
         Tracks tracknums ->
-            return (in_track, out_block || not (null out_track))
+            pure (in_track, out_block || not (null out_track))
             where
             (in_track, out_track) = List.partition (`elem` tracknums) in_block
 
@@ -173,10 +173,10 @@ modify_copy block_id ruler_id modify = do
     -- This can happen if this block is a copy of another with a local
     -- RulerId.
     new_ruler_id <- block_id_to_free_ruler <$>
-        Ui.gets Ui.state_rulers <*> return block_id
+        Ui.gets Ui.state_rulers <*> pure block_id
     new_ruler_id <- copy new_ruler_id ruler_id
     Ui.modify_ruler new_ruler_id modify
-    return new_ruler_id
+    pure new_ruler_id
 
 -- ** modify
 
@@ -201,7 +201,7 @@ modify_section block_id tracknum modify = do
     ruler_id <- section_ruler_id block_id tracknum
     tracknums <- if ruler_id == Ui.no_ruler
         then map fst <$> get_section block_id tracknum
-        else return [tracknum]
+        else pure [tracknum]
     modify_ruler block_id tracknums ruler_id modify
 
 modify_tracks :: Ui.M m => BlockId -> [TrackNum] -> ModifyRuler -> m ()
@@ -240,7 +240,7 @@ get_section block_id tracknum = do
     tracks <- map snd <$> block_tracks block_id
     let sections = Lists.splitBefore (Maybe.isJust . ruler_id_of . snd)
             (zip [0..] tracks)
-    return $ fromMaybe [] $ List.find ((tracknum `elem`) . map fst) sections
+    pure $ fromMaybe [] $ List.find ((tracknum `elem`) . map fst) sections
     where
     ruler_id_of (Block.RId rid) = Just rid
     ruler_id_of _ = Nothing

@@ -79,7 +79,7 @@ parseRecording s = case Text.words s of
     parseRange [start, end] = do
         start <- parseTime start
         end <- parseTime end
-        return $ Just (start, end)
+        pure $ Just (start, end)
     parseRange _ = Nothing
 
 parseTime :: Text -> Maybe Time

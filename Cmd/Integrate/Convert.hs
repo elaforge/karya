@@ -94,7 +94,7 @@ convert source_block stream = do
         Cmd.throw "aborting integrate due to warnings"
     unless (null errs) $
         Cmd.throw $ "integrating events: " <> Text.intercalate "; " errs
-    return tracks
+    pure tracks
 
 -- | Convert derived score events back into UI events.
 integrate :: Config -> Map TrackId TrackNum -> [Score.Event]
@@ -160,11 +160,11 @@ integrate_track :: Config -> (TrackKey, [Score.Event])
 integrate_track (get_call_map, default_scale_id)
         ((_, inst, scale_id, voice, hand), events) = do
     pitch_track <- if no_pitch_signals events || no_scale
-        then return []
+        then pure []
         else case pitch_events sid $ events of
-            (track, []) -> return [track]
+            (track, []) -> pure [track]
             (_, errs) -> Left $ Text.intercalate "; " errs
-    return
+    pure
         ( note_events inst (voice, hand) (get_call_map inst) events
         , pitch_track ++ control_events events
         )

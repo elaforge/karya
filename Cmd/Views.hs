@@ -35,11 +35,11 @@ zoom_to_ruler view_id = do
 -- | Figure out the zoom factor to display the given amount of TrackTime.
 zoom_factor :: Ui.M m => ViewId -> TrackTime -> m Double
 zoom_factor view_id dur
-    | dur == 0 = return 1
+    | dur == 0 = pure 1
     | otherwise = do
         view <- Ui.get_view view_id
         let pixels = Block.view_visible_time view
-        return $ fromIntegral pixels / ScoreTime.to_double dur
+        pure $ fromIntegral pixels / ScoreTime.to_double dur
 
 set_zoom :: Cmd.M m => ViewId -> Zoom.Zoom -> m ()
 set_zoom view_id = modify_zoom view_id . const
@@ -89,7 +89,7 @@ contents_rect view = do
     let (x, y) = Rect.upper_left (Block.track_rect view)
         w = Num.sum $ map Block.display_track_width (Block.block_tracks block)
         h = Zoom.to_pixels (Block.view_zoom view) block_end
-    return $ Block.set_track_rect view $ Rect.xywh x y (max w 40) (max h 40)
+    pure $ Block.set_track_rect view $ Rect.xywh x y (max w 40) (max h 40)
 
 set_track_rect :: Ui.M m => ViewId -> Rect.Rect -> m ()
 set_track_rect view_id rect = do

@@ -100,7 +100,7 @@ set_pitch_bend = modify
     ]
 
 modify :: Monad m => [a -> m a] -> a -> m a
-modify = foldr (<=<) return
+modify = foldr (<=<) pure
 
 put_int :: String -> Int -> Sysex.RMap -> Either String Sysex.RMap
 put_int path int = Sysex.put_rmap path int
@@ -109,7 +109,7 @@ parse_builtins :: FilePath -> IO [MidiInst.Patch]
 parse_builtins fn = do
     (warns, patches) <- Either.partitionEithers <$> parse_file fn
     mapM_ (Log.warn . txt) warns
-    return $ zipWith initialize [0..] patches
+    pure $ zipWith initialize [0..] patches
     where
     initialize n = MidiInst.patch#Patch.initialize
         #= Patch.initialize_midi (Midi.program_change 0 n)
@@ -119,7 +119,7 @@ parse_dir dir = do
     fns <- Files.listRecursive (const True) dir
     (warns, patches) <- Either.partitionEithers . concat <$> mapM parse_file fns
     mapM_ (Log.warn . txt) warns
-    return patches
+    pure patches
 
 parse_file :: FilePath -> IO [Either String MidiInst.Patch]
 parse_file fn = do
@@ -127,7 +127,7 @@ parse_file fn = do
     doc <- fromMaybe "" <$> Exceptions.ignoreEnoent
         (Text.IO.readFile (FilePath.replaceExtension fn ".txt"))
     let results = map (record_to_patch <=< decode_sysex) syxs
-    return
+    pure
         [ bimap (failed i) (combine fn doc syx) result
         | (i, syx, result) <- zip3 [1..] syxs results
         ]
@@ -153,9 +153,9 @@ file_to_syx fn = map add_extra_zero <$> case FilePath.takeExtension fn of
     ".1vc" -> split_1vc <$> B.readFile fn
     ".1bk" -> split_1bk Nothing <$> B.readFile fn
     ".syx" -> split_syx <$> B.readFile fn
-    ".txt" -> return []
-    ".rec" -> return []
-    _ -> Log.warn ("skipping " <> showt fn) >> return []
+    ".txt" -> pure []
+    ".rec" -> pure []
+    _ -> Log.warn ("skipping " <> showt fn) >> pure []
     where
     -- | Convert .1vc format to .syx format.  Derived by looking at vlone70
     -- conversions with od.
@@ -217,8 +217,8 @@ record_to_patch rmap = do
     elt1 <- extract_element 0 rmap
     maybe_elt2 <- ifM ((== ("dual" :: Text)) <$> get "voice mode")
         (Just <$> extract_element 1 rmap)
-        (return Nothing)
-    return $ vl1_patch name elt1 maybe_elt2
+        (pure Nothing)
+    pure $ vl1_patch name elt1 maybe_elt2
     where
     get :: Sysex.RecordVal a => String -> Either String a
     get = flip Sysex.get_rmap rmap
@@ -249,13 +249,13 @@ extract_element n rmap = do
             then do
                 upper <- get ["control", name, "upper depth"]
                 lower <- get ["control", name, "lower depth"]
-                return [upper, lower]
+                pure [upper, lower]
             else (:[]) <$> get ["control", name, "depth"]
-        return (clean name, cc, depths)
+        pure (clean name, cc, depths)
     pb_up <- get ["control", "pitch", "upper depth"]
     pb_down <- get ["control", "pitch", "lower depth"]
     name <- get ["name"]
-    return ((pb_up, pb_down), name, process_controls controls)
+    pure ((pb_up, pb_down), name, process_controls controls)
     where
     get :: (Sysex.RecordVal a) => [Text] -> Either String a
     get k = Sysex.get_rmap

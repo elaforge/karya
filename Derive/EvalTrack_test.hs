@@ -101,7 +101,7 @@ test_threaded_last_val = do
         Just (x, y) -> do
             start <- Args.real_start args
             -- Log.warn $ show (start, (x, y))
-            return $ Signal.from_pairs $ if start > x
+            pure $ Signal.from_pairs $ if start > x
                 then [(start - 0.25, y - 0.25), (start, y),
                     (start + 0.25, y + 0.25)]
                 else []
@@ -129,7 +129,7 @@ test_threaded_last_event = do
         Nothing -> Derive.throw "no prev val"
         Just prev -> do
             Log.warn $ showt (Score.event_start prev)
-            return Stream.empty
+            pure Stream.empty
 
 test_assign_controls :: Test
 test_assign_controls = do
@@ -232,7 +232,7 @@ test_val_call = do
     add_one :: Derive.ValCall
     add_one = Derive.val_call module_ "add" mempty "doc" $ Sig.call
         (Sig.required "v" "doc") $
-        \val _ -> return (val + 1 :: Double)
+        \val _ -> pure (val + 1 :: Double)
 
 test_inst_call :: Test
 test_inst_call = do
@@ -269,7 +269,7 @@ test_events_around = do
     c_around = CallTest.generator $ Sub.inverting $ \args -> do
         Log.warn $ "prev: " <> showt (map Event.start (Args.prev_events args))
         Log.warn $ "next: " <> showt (map Event.start (Args.next_events args))
-        return Stream.empty
+        pure Stream.empty
 
 test_track_dynamic :: Test
 test_track_dynamic = do
@@ -396,7 +396,7 @@ test_note_end = do
         (start, end) <- Args.range_or_note_end args
         start <- Derive.real start
         end <- Derive.real end
-        return $ Signal.from_pairs [(start, 0), (end, 1)]
+        pure $ Signal.from_pairs [(start, 0), (end, 1)]
 
 -- * test orphans
 
@@ -437,7 +437,7 @@ test_orphans = do
     show_subs = CallTest.generator $ \args -> do
         let subs = Derive.ctx_sub_tracks (Derive.passed_ctx args)
         Log.warn $ pretty subs
-        return Stream.empty
+        pure Stream.empty
 
 test_record_empty_tracks :: Test
 test_record_empty_tracks = do

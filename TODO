@@ -124,7 +124,7 @@ external:
     . using tscore, especially standalone
 
 UNSORTED
-  - switch all 'return' to 'pure'
+  * switch all 'return' to 'pure'
   * im can't mute a track because it mutes the whole instrument
     and can't comment out the track:
       track title: parse error: "⎣-- >kw": 'Failed reading: empty'

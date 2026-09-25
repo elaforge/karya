@@ -26,10 +26,10 @@ type Channel = MVar.MVar [(Fltk (), Text)]
 type QuitRequest = MVar.MVar ()
 
 event_loop :: Channel -> QuitRequest -> STM.TChan UiMsg.UiMsg -> IO ()
-event_loop ui_chan quit_request msg_chan = return ()
+event_loop ui_chan quit_request msg_chan = pure ()
 
 send_action :: Channel -> Text -> Fltk () -> IO ()
-send_action ui_chan description act = return ()
+send_action ui_chan description act = pure ()
 
 quit_ui_thread :: QuitRequest -> IO ()
-quit_ui_thread quit_request = return ()
+quit_ui_thread quit_request = pure ()

@@ -71,7 +71,7 @@ apC :: Deriver st err (a -> b) -> Deriver st err a -> Deriver st err b
 apC mf ma = do
     f <- mf
     a <- ma
-    return (f a)
+    pure (f a)
 
 instance Monad (Deriver st err) where
     (>>=) = bindC
@@ -91,7 +91,7 @@ instance Except.MonadError err (Deriver st err) where
 gets :: (st -> a) -> Deriver st err a
 gets f = do
     st <- get
-    return $! f st
+    pure $! f st
 
 -- | Catch and rethrow an error, presumably to annotate it with more
 -- information.

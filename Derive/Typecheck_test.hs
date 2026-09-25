@@ -136,26 +136,26 @@ test_val_to_function :: Test
 test_val_to_function = do
     let result = DeriveTest.eval Ui.empty $ do
             fs <- mapM (to_function . make_cf) [42, 43]
-            return $ map (fmap (fmap ($ 0))) fs
+            pure $ map (fmap (fmap ($ 0))) fs
     right_equal result [Just (ScoreT.untyped 42), Just (ScoreT.untyped 43)]
     where
     to_function cf = case Typecheck.val_to_function cf of
-        Nothing -> return Nothing
+        Nothing -> pure Nothing
         Just (Left dtf) -> Just <$> dtf
-        Just (Right tf) -> return $ Just tf
+        Just (Right tf) -> pure $ Just tf
 
 test_val_to_function_dyn :: Test
 test_val_to_function_dyn = do
     let result = DeriveTest.eval Ui.empty $ do
             cf_dyn <- Internal.get_control_function_dynamic
             fs <- mapM (to_function cf_dyn . make_cf) [42, 43]
-            return $ map (fmap (fmap ($ 0))) fs
+            pure $ map (fmap (fmap ($ 0))) fs
     right_equal result [Just (ScoreT.untyped 42), Just (ScoreT.untyped 43)]
     where
     to_function cf_dyn val = case Typecheck.val_to_function_dyn cf_dyn val of
-        Nothing -> return Nothing
+        Nothing -> pure Nothing
         Just (Left dtf) -> Just <$> dtf
-        Just (Right tf) -> return $ Just tf
+        Just (Right tf) -> pure $ Just tf
 
 make_cf :: Double -> DeriveT.Val
 make_cf = DeriveT.VSignal . ScoreT.untyped . Signal.constant

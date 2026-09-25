@@ -137,7 +137,7 @@ run_msg wmsg@(Midi.WriteMessage dev ts (Midi.ChannelMessage chan msg)) = do
         Midi.ChannelPressure val -> control addr ts MState.Pressure val
         Midi.PitchBend val -> pitch_bend addr ts val
         _ -> warn "unhandled msg"
-run_msg _ = return ()
+run_msg _ = pure ()
 
 update_channel_state :: Midi.WriteMessage -> State -> State
 update_channel_state wmsg state =

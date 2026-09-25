@@ -65,7 +65,7 @@ instance Read.Read Stack where
     readPrec = do
         Pretty.readWord
         frames <- Read.readPrec
-        return (from_outermost frames)
+        pure (from_outermost frames)
 
 empty :: Stack
 empty = Stack []
@@ -130,7 +130,7 @@ block_track_of = find . innermost
     find frames = do
         (track_id, frames) <- find_rest track_of frames
         (block_id, _) <- find_rest block_of frames
-        return (block_id, track_id)
+        pure (block_id, track_id)
 
 -- | Get each block and the tracks under it, starting from the innermost.
 block_tracks_of :: Stack -> [(BlockId, [TrackId])]
@@ -151,7 +151,7 @@ block_track_region_of = find . innermost
         (region, frames) <- find_rest region_of frames
         (track_id, frames) <- find_rest track_of frames
         (block_id, _) <- find_rest block_of frames
-        return (block_id, track_id, region)
+        pure (block_id, track_id, region)
 
 track_ids_of :: Stack -> [TrackId]
 track_ids_of = mapMaybe track_of . innermost
@@ -214,23 +214,23 @@ instance Serialize.Serialize Frame where
         case tag of
             0 -> do
                 bid :: BlockId <- Serialize.get
-                return $ Block bid
+                pure $ Block bid
             1 -> do
                 tid :: TrackId <- Serialize.get
-                return $ Track tid
+                pure $ Track tid
             2 -> do
                 s :: TrackTime <- Serialize.get
                 e :: TrackTime <- Serialize.get
-                return $ Region s e
+                pure $ Region s e
             3 -> do
                 s :: String <- Serialize.get
-                return $ Call (txt s)
+                pure $ Call (txt s)
             4 -> do
                 s :: Text <- Serialize.get
-                return $ Call s
+                pure $ Call s
             5 -> do
                 n :: Int <- Serialize.get
-                return $ Serial n
+                pure $ Serial n
             _ -> Serialize.bad_tag "Stack.Frame" tag
 
 instance Seed.Seed Frame where
@@ -376,12 +376,12 @@ parse_ui_frame = ParseText.maybe_parse_string $ do
         from <- ParseText.p_float
         A.char '-'
         to <- ParseText.p_float
-        return (ScoreTime.from_double from, ScoreTime.from_double to)
-    return
+        pure (ScoreTime.from_double from, ScoreTime.from_double to)
+    pure
         ( Id.BlockId . Id.read_id <$> bid
         , Id.TrackId . Id.read_id <$> tid
         , range
         )
     where
-    optional p = (A.char '*' >> A.skipSpace >> return Nothing)
+    optional p = (A.char '*' >> A.skipSpace >> pure Nothing)
         <|> fmap Just p

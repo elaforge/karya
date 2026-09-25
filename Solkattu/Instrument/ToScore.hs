@@ -40,7 +40,7 @@ toScore strokes = (events, [])
         -- Debug.traceM "s, d, n" (start, dur, note)
         -- Debug.tracepM "expr" expr
         let d = if S.hasSustain note then dur else 0
-        return (start, d, ShowVal.show_val expr)
+        pure (start, d, ShowVal.show_val expr)
     starts = scanl (+) 0 durs
     (durs, notes) = unzip strokes
 

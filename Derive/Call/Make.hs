@@ -171,7 +171,7 @@ constant_val :: (Typecheck.ToVal a, ShowVal.ShowVal a) =>
     Module.Module -> Derive.CallName -> Doc.Doc -> a -> Derive.ValCall
 constant_val module_ name doc val = Derive.val_call module_  name mempty
     (Texts.unlines2 doc ("Constant: " <> ShowVal.doc val)) $
-    Sig.call0 $ \_args -> return val
+    Sig.call0 $ \_args -> pure val
 
 -- | Make a new ValCall from an existing one, by mapping over its output.
 modify_vcall :: Derive.ValCall -> Module.Module -> Derive.CallName -> Doc.Doc

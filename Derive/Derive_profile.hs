@@ -139,7 +139,7 @@ profile_file :: FilePath -> Profile
 profile_file fname = do
     cmd_config <- DeriveSaved.load_cmd_config
     DeriveSaved.perform_file cmd_config fname
-    return ()
+    pure ()
 
 
 -- * make states
@@ -167,7 +167,7 @@ make_nested bottom_tracks size depth bottom_size = do
     go ruler_id block_name 1 = do
         UiTest.mkblock_ruler_id ruler_id (UiTest.bid block_name) ""
             (map (track_take bottom_size) bottom_tracks)
-        return ()
+        pure ()
     go ruler_id block_name depth = do
         let sub_bids = [block_name <> "." <> showt sub | sub <- [0 .. size-1]]
             step = bottom_size * size^(depth-2)
@@ -192,9 +192,9 @@ mkblock tracks = do
 derive_saved :: Bool -> FilePath -> Profile
 derive_saved with_perform fname = do
     cmd_config <- DeriveSaved.load_cmd_config
-    (ui_state, library, aliases) <- either errorIO return
+    (ui_state, library, aliases) <- either errorIO pure
         =<< DeriveSaved.load_score fname
-    block_id <- maybe (errorIO $ txt fname <> ": no root block") return $
+    block_id <- maybe (errorIO $ txt fname <> ": no root block") pure $
         Ui.config#UiConfig.root #$ ui_state
     let cmd_state = DeriveSaved.add_library library aliases
             (Cmd.initial_state cmd_config)
@@ -214,10 +214,10 @@ derive_size create = do
     -- Surely there is a less ridiculous way to do this.
     -- TODO yes, since 8.2 ghc puts heap profile in the eventlog, but then
     -- of course h2ps doesn't work.
-    Thread.printTimer "busy" id $ return $ show
+    Thread.printTimer "busy" id $ pure $ show
         (busy_wait 100000000)
-    Thread.printTimer "length" id $ return $ show (length mmsgs)
-    return ()
+    Thread.printTimer "length" id $ pure $ show (length mmsgs)
+    pure ()
     where
     ui_state = UiTest.exec Ui.empty create
     result = DeriveTest.derive_block ui_state UiTest.default_block_id
@@ -247,7 +247,7 @@ run_profile_setup :: DeriveTest.Setup -> String
     -> Maybe DeriveTest.Lookup -- ^ If given, also run a perform.
     -> Ui.State -> Profile
 run_profile_setup setup fname maybe_lookup ui_state = do
-    block_id <- maybe (errorIO $ txt fname <> ": no root block") return $
+    block_id <- maybe (errorIO $ txt fname <> ": no root block") pure $
         Ui.config#UiConfig.root #$ ui_state
     start_cpu <- Thread.currentCpu
     let section = time_section start_cpu
@@ -256,13 +256,13 @@ run_profile_setup setup fname maybe_lookup ui_state = do
     section "derive" $ do
         Thread.force events
         Testing.prettyp (take 4 events)
-        return events
+        pure events
     whenJust maybe_lookup $ \lookup -> section "midi" $ do
         let mmsgs = snd $ DeriveTest.perform_stream lookup
                 (Ui.config#UiConfig.allocations #$ ui_state)
                 (Stream.from_sorted_list events)
         Thread.force mmsgs
-        return mmsgs
+        pure mmsgs
 
 time_section :: Thread.Seconds -> String -> IO [a] -> IO ()
 time_section start_cpu title op = do

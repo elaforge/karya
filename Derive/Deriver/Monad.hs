@@ -201,10 +201,10 @@ instance Log.LogMonad Deriver where
 initialize_log_msg :: Log.Msg -> Deriver Log.Msg
 initialize_log_msg msg = case Log.msg_stack msg of
     -- If the msg was created explicitly, it may already have a stack.
-    Just _ -> return msg
+    Just _ -> pure msg
     Nothing -> do
         stack <- gets (state_stack . state_dynamic)
-        return $! msg { Log.msg_stack = Just stack }
+        pure $! msg { Log.msg_stack = Just stack }
 
 -- * error
 
@@ -316,11 +316,11 @@ annotate :: (Error -> Error) -> Deriver a -> Deriver a
 annotate f = DeriveM.annotate f
 
 require :: GHC.Stack.HasCallStack => Text -> Maybe a -> Deriver a
-require msg = maybe (throw msg) return
+require msg = maybe (throw msg) pure
 
 require_right :: GHC.Stack.HasCallStack => (err -> Text) -> Either err a
     -> Deriver a
-require_right fmt_err = either (throw . fmt_err) return
+require_right fmt_err = either (throw . fmt_err) pure
 
 
 -- * derived types
@@ -426,7 +426,7 @@ instance Taggable Note where
 instance Semigroup NoteDeriver where
     d1 <> d2 = d_merge [d1, d2]
 instance Monoid NoteDeriver where
-    mempty = return mempty
+    mempty = pure mempty
     mappend = (<>)
     mconcat = d_merge
 
@@ -914,9 +914,9 @@ lookup_call_with :: (Scopes -> ScopePriority call)
 lookup_call_with get_scopes get_builtins sym = do
     cmaps <- get_call_maps get_scopes
     lookup_call_maps cmaps sym >>= \case
-        Just call -> return $ Just call
+        Just call -> pure $ Just call
         Nothing -> case split_qualified sym of
-            Nothing -> return Nothing
+            Nothing -> pure Nothing
             Just (mod, sym) -> lookup_qualified get_builtins mod sym
 
 split_qualified :: Expr.Symbol -> Maybe (Module.Module, Expr.Symbol)
@@ -929,7 +929,7 @@ lookup_qualified :: (Builtins -> ModuleMap call)
     -> Module.Module -> Expr.Symbol -> Deriver (Maybe call)
 lookup_qualified get_scope module_ sym = do
     by_module <- gets $ get_scope . state_builtins . state_constant
-    return $ do
+    pure $ do
         cmap <- Map.lookup module_ by_module
         Map.lookup sym (call_map cmap)
 
@@ -937,7 +937,7 @@ lookup_qualified get_scope module_ sym = do
 get_call_maps :: (Scopes -> ScopePriority call) -> Deriver [CallMap call]
 get_call_maps get = do
     ScopePriority scopes <- gets $ get . state_scopes . state_dynamic
-    return $ Map.elems scopes
+    pure $ Map.elems scopes
 
 -- | Find the symbol in the first CallMap.
 lookup_call_maps :: [CallMap call] -> Expr.Symbol -> Deriver (Maybe call)
@@ -945,7 +945,7 @@ lookup_call_maps lookups sym = firstJusts $ map (lookup_call_map sym) lookups
 
 lookup_call_map :: Expr.Symbol -> CallMap call -> Deriver (Maybe call)
 lookup_call_map sym (CallMap cmap patterns) = case Map.lookup sym cmap of
-    Just call -> return $ Just call
+    Just call -> pure $ Just call
     Nothing -> firstJusts $ map (($sym) . pat_function) patterns
 
 -- ** mode
@@ -1540,7 +1540,7 @@ generator_func f = GeneratorFunc
 -- | Most calls have the same logical duration as their event.
 default_score_duration :: PassedArgs d -> Deriver (CallDuration ScoreTime)
 default_score_duration =
-    return . CallDuration . Event.duration . ctx_event . passed_ctx
+    pure . CallDuration . Event.duration . ctx_event . passed_ctx
 
 default_real_duration :: PassedArgs d -> Deriver (CallDuration RealTime)
 default_real_duration args = CallDuration <$>
@@ -1759,13 +1759,13 @@ newtype ControlDamage = ControlDamage (Ranges.Ranges ScoreTime)
 score_to_real :: ScoreTime -> Deriver RealTime
 score_to_real pos = do
     warp <- gets (state_warp . state_dynamic)
-    return $ Warp.warp warp pos
+    pure $ Warp.warp warp pos
 
 {-# SCC real_to_score #-}
 real_to_score :: RealTime -> Deriver ScoreTime
 real_to_score pos = do
     warp <- gets (state_warp . state_dynamic)
-    return $ Warp.unwarp warp pos
+    pure $ Warp.unwarp warp pos
 
 
 -- * scale

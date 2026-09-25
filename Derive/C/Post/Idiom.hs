@@ -55,7 +55,7 @@ c_pizz_arp = Derive.transformer Module.prelude "pizz-arp"
 
 pizz_arp :: RealTime -> Stream.Stream Score.Event -> Derive.NoteDeriver
 pizz_arp time = map_simultaneous 0.025 (Score.has_attribute Attrs.pizz) $
-    \(event :| chord) -> return
+    \(event :| chord) -> pure
         [ Score.move (+t) event
         | (t, event) <- zip (Lists.range_ 0 time) (event : chord)
         ]
@@ -70,7 +70,7 @@ map_simultaneous :: RealTime
 map_simultaneous eta accept f =
     fmap Stream.from_sorted_list . go . Stream.to_list
     where
-    go [] = return []
+    go [] = pure []
     go (LEvent.Log log : events) = (LEvent.Log log :) <$> go events
     go (LEvent.Event event : events)
         | accept event = collect event events
@@ -78,7 +78,7 @@ map_simultaneous eta accept f =
     collect event events = do
         out <- f (event :| wanted)
         out_rest <- go rest
-        return $ map LEvent.Event (out ++ unwanted) ++ map LEvent.Log logs
+        pure $ map LEvent.Event (out ++ unwanted) ++ map LEvent.Log logs
             ++ out_rest
         where
         start = Score.event_start event

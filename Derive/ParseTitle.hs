@@ -96,7 +96,7 @@ p_control_title :: A.Parser (ControlType, [DeriveT.Call])
 p_control_title = do
     ctype <- p_control_type
     expr <- A.option [] (Parse.p_pipe >> NonEmpty.toList <$> Parse.p_expr True)
-    return (ctype, expr)
+    pure (ctype, expr)
 
 p_control_type :: A.Parser ControlType
 p_control_type = p_tempo <|> p_pitch <|> p_control
@@ -136,7 +136,7 @@ p_type_annotation = do
     typ <- Parse.p_identifier False ""
     case ScoreT.code_to_type typ of
         Nothing -> fail $ "unknown type: " <> show typ
-        Just typ -> return typ
+        Just typ -> pure typ
 
 -- ** unparse
 

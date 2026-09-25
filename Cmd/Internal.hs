@@ -104,7 +104,7 @@ record_keys msg = whenJust (msg_to_mod msg) $ \(down, mb_mod) -> do
     mods <- case (down, mb_mod) of
         (True, Just mod) -> insert mod mods
         (False, Just mod) -> delete mod mods
-        _ -> return mods
+        _ -> pure mods
     -- whenJust mb_mod $ \m ->
     --     Log.warn $ (if down then "keydown " else "keyup ")
     --         ++ show (Cmd.strip_modifier m) ++ " in " ++ show (Map.keys mods)
@@ -114,13 +114,13 @@ record_keys msg = whenJust (msg_to_mod msg) $ \(down, mb_mod) -> do
         let key = Cmd.strip_modifier mod
         when (key `Map.member` mods) $
             Log.warn $ "keydown for " <> showt mod <> " already in modifiers"
-        return $ Map.insert key mod mods
+        pure $ Map.insert key mod mods
     delete mod mods = do
         let key = Cmd.strip_modifier mod
         when (key `Map.notMember` mods) $
             Log.warn $ "keyup for " <> showt key <> " not in modifiers "
                 <> showt (Map.keys mods)
-        return $ Map.delete key mods
+        pure $ Map.delete key mods
     set_key_mods mods = case msg_to_key_mods msg of
         Just kmods -> Maps.insertList
             [(Cmd.KeyMod c, Cmd.KeyMod c) | c <- kmods]
@@ -175,17 +175,17 @@ unsynced_ui_updates (Msg.Ui (UiMsg.UiMsg ctx msg)) = do
             Cmd.modify $ \st -> st { Cmd.state_focused_view = Just view_id }
     case msg of
         -- Already set focus above, nothing to do.
-        UiMsg.MsgEvent (UiMsg.AuxMsg UiMsg.Focus) -> return Cmd.Done
+        UiMsg.MsgEvent (UiMsg.AuxMsg UiMsg.Focus) -> pure Cmd.Done
         UiMsg.UiUpdate view_id UiMsg.UpdateClose -> do
             whenM ((== Just view_id) <$> Cmd.gets Cmd.state_focused_view) $
                 Cmd.modify $ \st -> st { Cmd.state_focused_view = Nothing }
-            return Cmd.Continue
+            pure Cmd.Continue
         UiMsg.UpdateScreenSize screen screens rect -> do
             Cmd.modify $ \st -> st
                 { Cmd.state_screens =
                     set_screen screen screens rect (Cmd.state_screens st)
                 }
-            return Cmd.Done
+            pure Cmd.Done
             where
             set_screen screen screens rect = take screens
                 . Lists.updateAt Rect.empty screen (const rect)
@@ -197,15 +197,15 @@ unsynced_ui_updates (Msg.Ui (UiMsg.UiMsg ctx msg)) = do
             when (UiMsg.ctx_floating_input ctx) $
                 Cmd.modify_edit_state $ \st -> st
                     { Cmd.state_floating_input = False }
-            return Cmd.Continue
+            pure Cmd.Continue
         UiMsg.UiUpdate view_id update -> do
             ui_update ctx view_id update
             -- return Continue to give 'update_ui_state' a crack at it
-            return Cmd.Continue
+            pure Cmd.Continue
         -- The rest of the UiUpdates are UiMsg.Mouse etc, handled by
         -- 'record_keys'.
-        _ -> return Cmd.Continue
-unsynced_ui_updates _ = return Cmd.Continue
+        _ -> pure Cmd.Continue
+unsynced_ui_updates _ = pure Cmd.Continue
 
 -- | Subset of unsynced_ui_updates that operates on Ui.State.
 --
@@ -236,9 +236,9 @@ ui_update ctx view_id update = case update of
                 Ui.set_track_suggested_width block_id tracknum suggested_width
         Nothing -> Ui.throw $ "update with no track: " <> showt update
     -- Handled by 'ui_update_state'.
-    UiMsg.UpdateClose -> return ()
+    UiMsg.UpdateClose -> pure ()
     -- Handled in caller, modifies Cmd.State.
-    UiMsg.UpdateInput {} -> return ()
+    UiMsg.UpdateInput {} -> pure ()
     where
     maybe_tracknum = fst <$> UiMsg.ctx_track ctx
 
@@ -347,7 +347,7 @@ sync_status ui_from cmd_from damage = do
     sync_defaults $ Ui.config#UiConfig.default_ #$ ui_to
     run_selection_hooks (mapMaybe selection_update updates)
     -- forM_ (new_views ++ mapMaybe zoom_update updates) sync_zoom_status
-    return Cmd.Continue
+    pure Cmd.Continue
     where
     is_create_view (Update.View view_id Update.CreateView) = Just view_id
     is_create_view _ = Nothing
@@ -395,15 +395,15 @@ default_selection_hooks =
     ]
 
 run_selection_hooks :: [(ViewId, Maybe Sel.Selection)] -> Cmd.CmdId ()
-run_selection_hooks [] = return ()
+run_selection_hooks [] = pure ()
 run_selection_hooks sels = do
     sel_tracks <- forM sels $ \(view_id, maybe_sel) -> case maybe_sel of
-        Nothing -> return (view_id, Nothing)
+        Nothing -> pure (view_id, Nothing)
         Just sel -> do
             block_id <- Ui.block_id_of view_id
             maybe_track_id <- Ui.event_track_at block_id
                 (Selection.sel_point_track sel)
-            return (view_id, Just (sel, block_id, maybe_track_id))
+            pure (view_id, Just (sel, block_id, maybe_track_id))
     hooks <- Cmd.gets (Cmd.hooks_selection . Cmd.state_hooks)
     mapM_ ($ sel_tracks) hooks
 
@@ -518,7 +518,7 @@ sync_defaults (UiConfig.Default tempo) =
 -- it here and the callers in place instead of deleting them so if I change my
 -- mind then I still know where all the callers should be.
 sync_zoom_status :: Cmd.M m => ViewId -> m ()
-sync_zoom_status _ = return ()
+sync_zoom_status _ = pure ()
 -- sync_zoom_status view_id = do
 --     view <- Ui.get_view view_id
 --     Cmd.set_view_status view_id Config.status_zoom
@@ -595,11 +595,11 @@ track_control block_id track_id pos =
         -- Since I'm using TrackSignals, I just have numbers, not proper
         -- pitches.  So I could show pitches, but it would just be an NN,
         -- which doesn't seem that useful.
-        ParseTitle.Pitch {} -> return Nothing
-        _ -> justm (Cmd.lookup_performance block_id) $ \perf -> return $ do
+        ParseTitle.Pitch {} -> pure Nothing
+        _ -> justm (Cmd.lookup_performance block_id) $ \perf -> pure $ do
             tsig <- Map.lookup (block_id, track_id)
                 (Cmd.perf_track_signals perf)
-            return $ show_val ctype (Track.ts_signal tsig) $
+            pure $ show_val ctype (Track.ts_signal tsig) $
                 Track.signal_at pos tsig
     where
     parse_title = either (const Nothing) Just . ParseTitle.parse_control_type

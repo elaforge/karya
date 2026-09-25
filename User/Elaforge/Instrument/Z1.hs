@@ -84,7 +84,7 @@ decode_current_program :: ByteString -> Either String Sysex.RMap
 decode_current_program bytes = do
     (header, bytes) <- decode current_program_dump_header bytes
     (rmap, _) <- decode patch_spec (dekorg bytes)
-    return $ header <> rmap
+    pure $ header <> rmap
 
 -- | Decode a dump for a program at a certain memory location.  This also
 -- parses bank dumps, which are just encoded as a bunch of dumps at consecutive
@@ -105,7 +105,7 @@ sysex_manager bytes = do
     let sysexes = drop 1 $ Sysex.extract_sysex bytes
     patches <- mapM (rmap_to_patch <=< decode_current_program) sysexes
     -- Add the initialize here, since 'bytes' isn't actually a valid sysex.
-    return [(Sysex.initialize_sysex sysex patch, common)
+    pure [(Sysex.initialize_sysex sysex patch, common)
         | (sysex, (patch, common)) <- zip sysexes patches]
 
 test_decode = do
@@ -132,7 +132,7 @@ set_bank_pitch_bend bank fn = do
     where
     set = Sysex.put_rmap "pitch bend.intensity +" (24 :: Int)
         <=< Sysex.put_rmap "pitch bend.intensity -" (-24 :: Int)
-    require msg = either (errorIO . ((msg <> ": ") <>) . txt) return
+    require msg = either (errorIO . ((msg <> ": ") <>) . txt) pure
 
 encode_current_program :: Sysex.RMap -> Either String ByteString
 encode_current_program rmap =
@@ -161,7 +161,7 @@ encode_sysex :: Either String ByteString -> Either String ByteString
 encode_sysex encode_header encode_body = do
     header <- encode_header
     body <- encode_body
-    return $ header <> enkorg body <> B.singleton Midi.Encode.eox_byte
+    pure $ header <> enkorg body <> B.singleton Midi.Encode.eox_byte
 
 -- ** record
 
@@ -175,7 +175,7 @@ rmap_to_patch rmap = do
     osc2 <- get "osc.1.type"
     let tags = [("category", category), ("z1-osc", osc1), ("z1-osc", osc2)]
     let common = Common.tags #= tags $ Common.common ()
-    return (Patch.patch pb_range name, common)
+    pure (Patch.patch pb_range name, common)
     where
     get :: (Sysex.RecordVal a) => String -> Either String a
     get = flip Sysex.get_rmap rmap
@@ -222,23 +222,23 @@ exact_chunks size bs
 
 test_multiset = do
     bytes <- B.drop 9 <$> B.readFile "inst_db/multi1.syx"
-    return $ decode multiset_spec (dekorg bytes)
+    pure $ decode multiset_spec (dekorg bytes)
 
 test_dump = do
     bytes <- B.readFile "inst_db/z1/bank_b.syx"
-    return $ decode_program_dump bytes
+    pure $ decode_program_dump bytes
 
 test_encode = do
     bytes <- B.readFile "inst_db/z1/bank_b.syx"
     let Right recs = decode_program_dump bytes
-    return $ encode patch_spec (head recs)
+    pure $ encode patch_spec (head recs)
 
 test_patch = do
     bytes <- B.readFile
         "inst_db/z1/sysex/lib1/z1 o00o00 ANALOG INIT.syx"
-    return $ decode_current_program bytes
+    pure $ decode_current_program bytes
 
 read_patch = do
     b <- dekorg . B.drop 6 <$> B.readFile
         "inst_db/z1/sysex/lib1/z1 o00o00 ANALOG INIT.syx"
-    return $ decode patch_spec b
+    pure $ decode patch_spec b

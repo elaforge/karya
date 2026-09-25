@@ -142,15 +142,15 @@ load_history :: Text
         -> IO (Either Text (Maybe SaveGit.LoadHistory)))
      -> Cmd.HistoryEntry -> IO [Cmd.HistoryEntry]
 load_history name load hist = case Cmd.hist_commit hist of
-    Nothing -> return []
+    Nothing -> pure []
     Just commit -> do
         result <- load (Cmd.hist_state hist) commit
         case result of
             Left err -> do
                 Log.error $ name <> ": " <> err
-                return []
-            Right Nothing -> return []
-            Right (Just hist) -> return [entry hist]
+                pure []
+            Right Nothing -> pure []
+            Right (Just hist) -> pure [entry hist]
     where
     entry (SaveGit.LoadHistory state commit damage names) =
         Cmd.HistoryEntry state damage names (Just commit)
@@ -218,9 +218,9 @@ save_history cmd_state hist collect uncommitted = do
     entries <- case Internal.can_checkpoint cmd_state of
         Just (repo, prev_commit) ->
             commit_entries user (Path.to_path repo) prev_commit uncommitted
-        _ -> return $ map (history_entry Nothing) uncommitted
+        _ -> pure $ map (history_entry Nothing) uncommitted
     let (present, past) = bump_damage (Cmd.hist_present hist) entries
-    return $ cmd_state
+    pure $ cmd_state
         { Cmd.state_history = hist
             { Cmd.hist_past = take keep (past ++ Cmd.hist_past hist)
             , Cmd.hist_present = present
@@ -241,9 +241,9 @@ save_history cmd_state hist collect uncommitted = do
 -- diffs.
 check_save_history :: Cmd.State -> IO (Maybe Text)
 check_save_history cmd_state = case Internal.can_checkpoint cmd_state of
-    Just (repo, _) -> ifM (Files.writable (Path.to_path repo)) (return Nothing)
-        (return $ Just $ "repo not writable: " <> showt repo)
-    Nothing -> return Nothing
+    Just (repo, _) -> ifM (Files.writable (Path.to_path repo)) (pure Nothing)
+        (pure $ Just $ "repo not writable: " <> showt repo)
+    Nothing -> pure Nothing
 
 -- | The present is expected to have no damage, so bump the damage off the
 -- new present onto the old present, as described in [undo-and-updates].
@@ -264,7 +264,7 @@ bump_damage old_cur (new_cur : news) =
 -- commits to disk.
 commit_entries :: SaveGitT.User -> SaveGit.Repo -> SaveGit.Commit
     -> [SaveGit.SaveHistory] -> IO [Cmd.HistoryEntry]
-commit_entries _ _ _ [] = return []
+commit_entries _ _ _ [] = pure []
 commit_entries user repo prev_commit (hist0:hists) = do
     let hist = set_commit prev_commit hist0
     result <- SaveGit.checkpoint user repo hist
@@ -272,10 +272,10 @@ commit_entries user repo prev_commit (hist0:hists) = do
         Left err -> do
             -- This can happen if the repo is read-only.
             Log.warn $ "error committing history: " <> err
-            return []
+            pure []
         Right commit -> do
             entries <- commit_entries user repo commit hists
-            return $ history_entry (Just commit) hist : entries
+            pure $ history_entry (Just commit) hist : entries
     where
     set_commit commit (SaveGit.SaveHistory state _ updates names) =
         SaveGit.SaveHistory state (Just commit) updates names

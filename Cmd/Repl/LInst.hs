@@ -71,7 +71,7 @@ list = list_like ""
 list_midi :: Cmd.M m => m [Instrument]
 list_midi = do
     alloc_map <- Ui.config#UiConfig.allocations_map <#> Ui.get
-    return
+    pure
         [ ScoreT.instrument_name inst
         | (inst, alloc) <- Map.toAscList alloc_map
         , UiConfig.is_midi_allocation alloc
@@ -90,7 +90,7 @@ list_like pattern = do
             . lookup_inst . UiConfig.alloc_qualified
     -- TODO show inherited Midi.Patch and common_flags?
     let (names, allocs) = unzip $ Map.toAscList alloc_map
-    return $ Text.unlines $ Texts.columns 1
+    pure $ Text.unlines $ Texts.columns 1
         [ pretty_alloc name (inst_env alloc) alloc
         | (name, alloc) <- zip names allocs
         , matches name
@@ -181,7 +181,7 @@ lookup_midi_config :: Ui.M m => ScoreT.Instrument
 lookup_midi_config inst = do
     UiConfig.Allocation qualified config backend
         <- get_instrument_allocation inst
-    return $ case backend of
+    pure $ case backend of
         UiConfig.Midi midi_config -> Just (qualified, config, midi_config)
         _ -> Nothing
 
@@ -207,7 +207,7 @@ set_attrs attrs inst_ = do
 find :: Cmd.M m => Text -> m [Text]
 find substr = do
     db <- Cmd.gets $ Cmd.config_instrument_db . Cmd.state_config
-    return $ filter (substr `Text.isInfixOf`)
+    pure $ filter (substr `Text.isInfixOf`)
         [ InstT.show_qualified $ InstT.Qualified synth inst
         | (synth, s) <- Inst.synths db
         , inst <- Map.keys $ Inst.synth_insts s
@@ -281,7 +281,7 @@ type Qualified = Text
 
 parse_qualified :: Cmd.M m => Qualified -> m InstT.Qualified
 parse_qualified text
-    | "/" `Text.isInfixOf` text = return $ InstT.parse_qualified text
+    | "/" `Text.isInfixOf` text = pure $ InstT.parse_qualified text
     | otherwise =
         Cmd.throw $ "qualified inst name lacks a /: " <> showt text
 
@@ -303,7 +303,7 @@ need_initialization = fmap Text.unlines . mapMaybeM show1 =<< allocated
 
 inst_initialization :: Ui.M m => ScoreT.Instrument
     -> m (Maybe Patch.Initialization)
-inst_initialization inst = lookup_midi_config inst >>= return . \case
+inst_initialization inst = lookup_midi_config inst >>= pure . \case
     Nothing -> Nothing
     Just (_, _, config) -> Patch.config_initialization config
 
@@ -341,11 +341,11 @@ initialize_nrpn_tuning inst = do
 get_tuning_map :: Cmd.M m => ScoreT.Instrument
     -> m [(Midi.Key, Midi.NoteNumber)]
 get_tuning_map inst = get_scale inst >>= \case
-    Nothing -> return []
+    Nothing -> pure []
     Just scale -> do
         attr_map <- Patch.patch_attribute_map . fst <$>
             Cmd.get_midi_instrument inst
-        return $ map (second Pitch.nn_to_double) $
+        pure $ map (second Pitch.nn_to_double) $
             Patch.scale_nns (Just attr_map) scale
 
 get_scale :: Cmd.M m => ScoreT.Instrument -> m (Maybe Patch.Scale)

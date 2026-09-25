@@ -49,7 +49,7 @@ test_midi (Right interface) = do
     wdevs <- Interface.write_devices interface
     putStrLn "write devs:"
     mapM_ (Text.IO.putStrLn . ("    " <>) . pretty) wdevs
-    rdevs <- return $ map fst rdevs
+    rdevs <- pure $ map fst rdevs
 
     let open = open_devices interface
     args <- System.Environment.getArgs
@@ -90,7 +90,7 @@ test_midi (Right interface) = do
             n <- readIO n_str
             spam interface write_msg n
             getChar
-            return ()
+            pure ()
         ["pb-range", out_dev, semis] -> do
             semis <- readIO semis
             (write_msg, _) <- open True rdevs (Just out_dev)
@@ -118,13 +118,13 @@ open_devices interface blocking rdevs maybe_wdev = do
     let read_msg = (if blocking then blocking_get else nonblocking_get)
             (Interface.read_channel interface)
     case Midi.write_device . txt <$> maybe_wdev of
-        Nothing -> return
+        Nothing -> pure
             (const (error "write device not opened"), read_msg)
         Just wdev -> do
             ok <- Interface.connect_write_device interface wdev
             unless ok $
                 error $ "required wdev " ++ show wdev ++ " not found"
-            return (make_write_msg interface wdev, read_msg)
+            pure (make_write_msg interface wdev, read_msg)
     where
     make_write_msg interface wdev (ts, msg) = do
         putStrLn $ "write: " <> show ts <> ": " <> show msg
@@ -134,7 +134,7 @@ open_devices interface blocking rdevs maybe_wdev = do
 
 nonblocking_get :: Interface.ReadChan -> ReadMsg
 nonblocking_get read_chan = STM.atomically $
-    fmap Just (STM.readTChan read_chan) `STM.orElse` return Nothing
+    fmap Just (STM.readTChan read_chan) `STM.orElse` pure Nothing
 
 blocking_get :: Interface.ReadChan -> ReadMsg
 blocking_get read_chan = STM.atomically $ fmap Just (STM.readTChan read_chan)
@@ -180,8 +180,8 @@ record_sysex read_msg = loop 0
                     ++ show (ByteString.length bytes) ++ " bytes -> "
                     ++ fn
                 ByteString.writeFile fn (Midi.Encode.encode msg)
-                return True
-            _ -> return False
+                pure True
+            _ -> pure False
         loop (if wrote then n+1 else n)
 
 send_sysex :: WriteMsg -> FilePath -> IO ()
@@ -190,7 +190,7 @@ send_sysex write_msg fname = do
     write_msg (0, msg)
     putStrLn "sending asynchronously, hit return when the blinkenlights stop"
     _ <- getLine
-    return ()
+    pure ()
 
 -- * monitor
 
@@ -243,7 +243,7 @@ mmc write_msg msg = write_msg (0, Mmc.encode 127 mmc_msg)
 parse_smpte :: String -> Maybe Midi.Smpte
 parse_smpte txt = do
     [h, m, s] <- Just $ Lists.split (==':') txt
-    Midi.Smpte <$> int h <*> int m <*> int s <*> return 0
+    Midi.Smpte <$> int h <*> int m <*> int s <*> pure 0
     where
     int s = case Numeric.readDec s of
         (n, "") : _ -> Just n
@@ -332,7 +332,7 @@ test_sysex write_msg read_msg = do
     result <- read_until 10 read_msg
     (out, secs) <- case result of
         Nothing -> errorIO "no sysex arrived!"
-        Just val -> return val
+        Just val -> pure val
     putStrLn $ show secs ++ " seconds for " ++ show size ++ " bytes"
     let out_msg = Midi.rmsg_msg out
     void $ if out_msg == msg
@@ -358,10 +358,10 @@ read_until timeout read_msg = do
             msg <- read_msg
             now <- Time.getCurrentTime
             case msg of
-                Just m -> return (Just (m, now `Time.diffUTCTime` started))
+                Just m -> pure (Just (m, now `Time.diffUTCTime` started))
                 Nothing -> do
                     if now > abort_at
-                        then return Nothing
+                        then pure Nothing
                         else sleep 0.25 >> go
     go
 
@@ -371,5 +371,5 @@ read_all read_msg = do
     case msg of
         Just m -> do
             rest <- read_all read_msg
-            return (m:rest)
-        Nothing -> return []
+            pure (m:rest)
+        Nothing -> pure []

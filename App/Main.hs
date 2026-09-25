@@ -123,7 +123,7 @@ main = initialize $ \midi_interface repl_socket -> do
         (StaticConfig.rdev_map midi) (StaticConfig.wdev_map midi)
 
     setup_cmd <- fmap (<* StaticConfig.get_post_setup_cmd static_config) $
-        either errorIO return . StaticConfig.setup_cmd static_config
+        either errorIO pure . StaticConfig.setup_cmd static_config
             =<< System.Environment.getArgs
 
     -- TODO Sending midi through the whole responder thing is too laggy for
@@ -155,7 +155,7 @@ main = initialize $ \midi_interface repl_socket -> do
         -- I gather the recommended way is to start a thread for signal
         -- handling, I'll do that if this causes more trouble.
 
-    git_user <- either (\err -> Log.error err >> Processes.exit 1) return
+    git_user <- either (\err -> Log.error err >> Processes.exit 1) pure
         =<< SaveGit.get_user
     -- Get screens synchronously, so setup_cmd can see them.
     screens <- BlockC.get_screens

@@ -54,7 +54,7 @@ block source_key block_id ruler_id block_title tracks = do
         Nothing -> do
             Ui.create_block (Id.unpack_id block_id) block_title
                 [Block.track (Block.RId ruler_id) Config.ruler_width]
-            return ([], True)
+            pure ([], True)
         Just exist -> do
             Ui.set_ruler_id block_id ruler_id
             case Map.lookup source_key (Block.block_integrated_manual exist) of
@@ -62,9 +62,9 @@ block source_key block_id ruler_id block_title tracks = do
                     "block to integrate already exists: " <> pretty block_id
                 Just dests -> do
                     Ui.set_block_title block_id block_title
-                    return (dests, False)
+                    pure (dests, False)
     new_dests <- Merge.merge_tracks Merge.ReplaceTitles block_id tracks dests
     Ui.set_integrated_manual block_id source_key (Just new_dests)
     when created $ do
         BlockConfig.toggle_merge_all block_id
-    return $ if created then Just block_id else Nothing
+    pure $ if created then Just block_id else Nothing

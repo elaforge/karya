@@ -277,7 +277,7 @@ c_spiccato = Make.transform_notes Module.instrument "spic" mempty "Spiccato."
     ) $ \(Typecheck.RealTimeFunctionT dur_t dur) deriver -> do
         events <- Derive.with_val "bow-lift" (ShowVal.show_val True) deriver
         durs <- Post.duration_control dur_t dur events
-        return $ Post.emap1_ (uncurry Score.set_duration)
+        pure $ Post.emap1_ (uncurry Score.set_duration)
             (Stream.zip durs events)
 
 c_harmonic :: Library.Calls Derive.Note

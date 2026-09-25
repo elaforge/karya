@@ -80,7 +80,7 @@ getPatches = do
     uis <- mapM getUiControls patches
     let inputs = map PatchC.patchInputs patches
         outputs = map PatchC.patchOutputs patches
-    return $ Map.fromList $ filter (not . ("effect-" `Text.isPrefixOf`) . fst) $
+    pure $ Map.fromList $ filter (not . ("effect-" `Text.isPrefixOf`) . fst) $
         zip names $
         List.zipWith6 makePatch names metas uis inputs outputs patches
 
@@ -102,7 +102,7 @@ makePatch name meta uis inputs outputs ptr = first ((name <> ": ")<>) $ do
         "" -> Right False
         "impulse-gate" -> Right True
         val -> Left $ "unknown flags, only 'impulse-gate' is supported: " <> val
-    return $ Patch
+    pure $ Patch
         { _name = name
         , _doc = doc
         , _impulseGate = impulse
@@ -126,7 +126,7 @@ imControls patch =
     ui_controls = Map.fromList $ do
         (control, controls@((_, (_, config)) : _)) <- by_control
         let elts = filter (/="") $ map (fst . fst) controls
-        return $ (control,) $ config
+        pure $ (control,) $ config
             { _description =
                 (if null elts then ""
                     else "elements: [" <> Text.intercalate ", " elts <> "], ")
@@ -202,7 +202,7 @@ makeControl = first $ Text.intercalate "."
 allocate :: Patch -> IO Instrument
 allocate patch = do
     (ptr, controls) <- PatchC.allocate (_ptr patch)
-    return $ patch
+    pure $ patch
         { _ptr = ptr
         , _controls = Map.fromList
             [ (control, (cptr, getConfig control))

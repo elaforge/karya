@@ -139,7 +139,7 @@ synth_tags (synth_name, synth) = do
     let tags = normalize_tags $
             common_tags synth_name inst_name (Inst.inst_common inst)
             ++ inst_tags (Inst.inst_backend inst)
-    return (InstT.Qualified synth_name inst_name, tags)
+    pure (InstT.Qualified synth_name inst_name, tags)
 
 common_tags :: InstT.SynthName -> InstT.Name -> Common.Common code -> [Tag.Tag]
 common_tags synth_name inst_name common =

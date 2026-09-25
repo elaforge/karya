@@ -81,7 +81,7 @@ convertNote inst note = first ((pretty note <> ": ")<>) $ do
             , _dynamic = dyn
             , _location = loc
             }
-    return $ if muted then muteNote (Note.start note) converted else converted
+    pure $ if muted then muteNote (Note.start note) converted else converted
 
 -- | Mute by touching lightly higher up on the string.
 muteNote :: RealTime.RealTime -> Note -> Note
@@ -122,7 +122,7 @@ collectFingers = collect . Lists.keyedGroupStable _string
     collect stringNotes = do
         (notes, fingers) <- unzip <$>
             mapM (oneString . second deoverlap) stringNotes
-        return (Lists.mergeLists Guitar.nStart notes, fingers)
+        pure (Lists.mergeLists Guitar.nStart notes, fingers)
     -- All the notes on a single string get a single finger.
     oneString :: (Guitar.String, [Note])
         -> Either Error ([Guitar.Note], Guitar.Finger)
@@ -134,7 +134,7 @@ collectFingers = collect . Lists.keyedGroupStable _string
                 <> pretty (map (bimap startDur startDur) overlaps)
         let pitch = merge_segments [(_start n, _pitch n) | n <- notes]
             fingerWeight = merge_segments [(_start n, _finger n) | n <- notes]
-        return
+        pure
             ( filter ((>0) . Guitar.nAmplitude) $ map (makeNote string) notes
             , makeFinger string notes pitch fingerWeight
             )

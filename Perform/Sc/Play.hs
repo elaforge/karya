@@ -106,7 +106,7 @@ play state pnotes repeat_at_ = do
     Thread.startLogged "render sc" $
         player_thread state (convert tweak now start_id pnotes repeat_at)
             `Exception.finally` Transport.player_stopped (_players state)
-    return ()
+    pure ()
 
 convert :: RealTime -> Time.UTCTime -> NodeId -> Note.PlayNotes
     -> Maybe RealTime -> [LEvent.LEvent OSC.OSCBundle]
@@ -183,7 +183,7 @@ play_loop state = flip Control.loop1 $ \loop bundles -> do
     stop <- Transport.poll_stop_player timeout (_play_control state)
     case (stop, rest) of
         (True, _) -> mapM_ send_osc stop_all
-        (_, []) -> return ()
+        (_, []) -> pure ()
         _ -> loop rest
     where
     ltime_of (LEvent.Log _) = OSC.Timestamp 0
@@ -346,7 +346,7 @@ pitch_change patch note_id nn =
 
 -- | Left error if a valid server wasn't detected, Right msg if it was.
 version :: IO (Either Text Text)
-version = query server_port (OSC.OSC "/version" []) >>= return . \case
+version = query server_port (OSC.OSC "/version" []) >>= pure . \case
     Nothing -> Left $ "scsynth not running on " <> showt server_port
     Just (Left err) -> Left $
         "unparseable response from scsynth on " <> showt server_port <> ": "

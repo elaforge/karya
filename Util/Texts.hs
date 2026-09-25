@@ -188,7 +188,7 @@ splitAt at text =
 -- quote a delimiter with a backslash.
 mapDelimited :: Bool -> Char -> (Text -> Text) -> Text -> Text
 mapDelimited withSpaces delimiter f =
-    Identity.runIdentity . mapDelimitedM withSpaces delimiter (return . f)
+    Identity.runIdentity . mapDelimitedM withSpaces delimiter (pure . f)
 
 mapDelimitedM :: Monad m => Bool -> Char -> (Text -> m Text) -> Text -> m Text
 mapDelimitedM withSpaces delimiter f =
@@ -197,8 +197,8 @@ mapDelimitedM withSpaces delimiter f =
     where
     apply (text, Just word) = do
         replace <- f word
-        return [text, replace]
-    apply (text, Nothing) = return [text]
+        pure [text, replace]
+    apply (text, Nothing) = pure [text]
 
 -- | This is more awkward than a parser, but... ok, maybe I should have used
 -- a parser.

@@ -41,7 +41,7 @@ mkBlockId block = Id.BlockId $ Id.id namespace block
 
 printPerformance :: Text -> IO ()
 printPerformance block =
-    mapM_ ppr =<< either errorIO return =<< loadConvert block
+    mapM_ ppr =<< either errorIO pure =<< loadConvert block
     where
     ppr (inst, perf) = Text.IO.putStrLn (pretty inst) >> case perf of
         Guitar _ s -> PPrint.pprint s
@@ -51,7 +51,7 @@ run :: Text -> IO ()
 run block = do
     let blockId = mkBlockId block
     imDir <- getImDir
-    instPerformances <- either errorIO return =<< loadConvert block
+    instPerformances <- either errorIO pure =<< loadConvert block
     Util.submitInstruments "convert" $
         map (nameScore blockId imDir) instPerformances
     where
@@ -95,4 +95,4 @@ convertPatch patch = mapM convert1 . Lists.keyedGroupSort Note.instrument
         PMultiplate i -> Multiplate i <$> MConvert.convert i notes
 
 load :: FilePath -> IO [Note.Note]
-load fname = either (errorIO . pretty) return =<< Note.unserialize fname
+load fname = either (errorIO . pretty) pure =<< Note.unserialize fname

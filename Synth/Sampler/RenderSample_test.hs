@@ -108,7 +108,7 @@ mkConfig :: Resample.Quality -> Resample.Config
 mkConfig quality = Resample.Config
     { _quality = quality
     , _state = Nothing
-    , _notifyState = const $ return ()
+    , _notifyState = const $ pure ()
     , _blockSize = 8
     , _now = 0
     , _name = "test"

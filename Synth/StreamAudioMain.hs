@@ -45,7 +45,7 @@ main = PortAudio.initialize $ do
 getDevice :: String -> IO StreamAudio.Device
 getDevice name = do
     (devs, _) <- StreamAudio.getDevices
-    maybe (errorIO $ "unknown device: " <> showt name) (return . snd) $
+    maybe (errorIO $ "unknown device: " <> showt name) (pure . snd) $
         List.find ((==name) . fst) devs
 
 data Flag = List | Device String | Verbose
@@ -63,8 +63,8 @@ parseArgs :: [String]
     -> IO ([Flag], (String, (Set ScoreT.Instrument, RealTime.RealTime)))
 parseArgs args = case GetOpt.getOpt GetOpt.Permute options args of
     (flags, args, [])
-        | List `elem` flags -> return ([List], ("", (mempty, 0)))
-        | otherwise -> fmap (flags,) $ maybe (usage []) return $ case args of
+        | List `elem` flags -> pure ([List], ("", (mempty, 0)))
+        | otherwise -> fmap (flags,) $ maybe (usage []) pure $ case args of
             dir : args -> (dir,) <$> case args of
                 [] -> Just (mempty, 0)
                 [muted] -> Just (parseMuted muted, 0)

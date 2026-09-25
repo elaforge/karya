@@ -59,7 +59,7 @@ c_sample = Derive.generator Module.instrument "sample" mempty doc $
 convert :: Note.Note -> Patch.ConvertM Sample.Sample
 convert note = do
     filename <- if Note.element note == ""
-        then Except.throwError "no element" else return $ Note.element note
+        then Except.throwError "no element" else pure $ Note.element note
     let dynVal = Note.initial0 Control.dynamic note
-    return $ (Sample.make (untxt filename))
+    pure $ (Sample.make (untxt filename))
         { Sample.envelope = Util.sustainRelease dynVal 0.15 note }

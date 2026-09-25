@@ -229,7 +229,7 @@ instance Read NoteNumber where
     readPrec = do
         n <- Read.readPrec
         Read.lift $ ReadP.skipSpaces >> ReadP.string "nn"
-        return (NoteNumber n)
+        pure (NoteNumber n)
 
 instance ShowVal.ShowVal NoteNumber where
     show_val (NoteNumber nn) = ShowVal.show_val nn <> "nn"

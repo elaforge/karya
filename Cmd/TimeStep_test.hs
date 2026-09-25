@@ -110,7 +110,7 @@ test_get_points_from = do
                 UiTest.default_block_id 1 start tstep
             asc <- TimeStep.get_points_from TimeStep.Advance
                 UiTest.default_block_id 1 start tstep
-            return (desc, asc)
+            pure (desc, asc)
     let asc_desc start step1 step2 =
             (merge_desc desc1 desc2, merge_asc asc1 asc2)
             where
@@ -136,7 +136,7 @@ ascend_descend state start step = UiTest.eval state $ do
         UiTest.default_block_id 1 start step
     asc <- TimeStep.ascending_points
         UiTest.default_block_id 1 start step
-    return (desc, asc)
+    pure (desc, asc)
 
 default_ui_state :: Ui.State
 default_ui_state = UiTest.exec Ui.empty $ do

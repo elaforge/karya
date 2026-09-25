@@ -66,7 +66,7 @@ c_realize_retune = Derive.transformer module_ "retune-realize"
     realize srate (prev, event) = do
         (event, maybe_arg) <- Derive.require_right id $
             Score.take_arg retune_arg event
-        return $ case maybe_arg of
+        pure $ case maybe_arg of
             Nothing -> [event]
             Just arg -> [realize_retune srate arg prev event]
 

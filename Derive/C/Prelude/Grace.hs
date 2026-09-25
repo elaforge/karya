@@ -197,7 +197,7 @@ grace_p grace_dur pitches (start, end) = do
     real_end <- Derive.real end
     let starts = GraceUtil.fit_after real_start real_end (length pitches)
             real_dur
-    return $ PSignal.from_pairs $ flat_segments $ zip starts pitches
+    pure $ PSignal.from_pairs $ flat_segments $ zip starts pitches
 
 flat_segments :: [(RealTime, y)] -> [(RealTime, y)]
 flat_segments = concatMap to_pairs . Lists.zipNext

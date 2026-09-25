@@ -150,7 +150,7 @@ notify addr notify = Exception.try $ Network.withHandle addr $ \hdl -> do
 
 -- | Send a 'QCommand'.
 query_cmd :: Network.Addr -> Text -> IO CmdResult
-query_cmd addr cmd = query addr (QCommand cmd) >>= return . \case
+query_cmd addr cmd = query addr (QCommand cmd) >>= pure . \case
     Right (RCommand result) -> result
     Right response -> raw $ "unexpected response: " <> showt response
     Left exc
@@ -168,19 +168,19 @@ query_cmd_simple cmd =
 -- for no save file.
 query_save_file :: Network.Addr -> IO (Maybe (Maybe FilePath))
 query_save_file addr = query addr QSaveFile >>= \case
-    Right (RSaveFile fname) -> return (Just fname)
-    Left exc | IO.Error.isDoesNotExistError exc -> return Nothing
+    Right (RSaveFile fname) -> pure (Just fname)
+    Left exc | IO.Error.isDoesNotExistError exc -> pure Nothing
     response -> do
         Log.error $ "unexpected response to QSaveFile: " <> showt response
-        return Nothing
+        pure Nothing
 
 query_completion :: Network.Addr -> Text -> IO [Text]
 query_completion addr prefix = query addr (QCompletion prefix) >>= \case
-    Right (RCompletion words) -> return words
-    Left exc | IO.Error.isDoesNotExistError exc -> return []
+    Right (RCompletion words) -> pure words
+    Left exc | IO.Error.isDoesNotExistError exc -> pure []
     response -> do
         Log.error $ "unexpected response to QCompletion: " <> showt response
-        return []
+        pure []
 
 -- * low level implementation
 
@@ -218,8 +218,8 @@ receive hdl = do
     when (size == "") $
         Exception.throwIO $ IO.Error.mkIOError IO.Error.doesNotExistErrorType
             "client closed handle" Nothing Nothing
-    size <- either (errorIO . txt) return (Serialize.decode size)
-    either (errorIO . txt) return . Serialize.decode
+    size <- either (errorIO . txt) pure (Serialize.decode size)
+    either (errorIO . txt) pure . Serialize.decode
         =<< ByteString.hGet hdl size
 
 -- * format
@@ -258,7 +258,7 @@ instance Serialize.Serialize Query where
     put (QCompletion a) = put_tag 2 >> put a
     put (QNotify a) = put_tag 3 >> put a
     get = get_tag >>= \case
-        0 -> return QSaveFile
+        0 -> pure QSaveFile
         1 -> QCommand <$> get
         2 -> QCompletion <$> get
         3 -> QNotify <$> get
@@ -269,8 +269,8 @@ instance Serialize.Serialize NotifySeq where
         NEditorOpened -> put_tag 0
         NEditorClosed -> put_tag 1
     get = get_tag >>= \case
-        0 -> return NEditorOpened
-        1 -> return NEditorClosed
+        0 -> pure NEditorOpened
+        1 -> pure NEditorClosed
         tag -> Serialize.bad_tag "NotifySeq" tag
 
 instance Serialize.Serialize Response where

@@ -83,11 +83,11 @@ keycaps_state = do
             (,,) <$> traverse
                     (fmap ParseTitle.track_type . Ui.get_track_title)
                     mb_track_id
-                <*> maybe (return Nothing)
+                <*> maybe (pure Nothing)
                     (\tid -> Perf.lookup_instrument (block_id, Just tid))
                     mb_track_id
                 <*> (Just <$> Perf.get_scale_id (block_id, mb_track_id))
-    return $ Cmd.KeycapsState
+    pure $ Cmd.KeycapsState
         { kc_mods, kc_octave, kc_is_kbd_entry
         , kc_track_type, kc_instrument, kc_scale_id
         }
@@ -116,8 +116,8 @@ get_bindings (Cmd.KeycapsState
             | kc_mods `elem` [mempty, shift] ->
                 merge_note_entry (kc_mods == shift) kc_octave <$>
                     get_instrument_bindings inst
-        _ -> return mempty
-    return $ Map.unions $ reverse
+        _ -> pure mempty
+    pure $ Map.unions $ reverse
         [ Map.findWithDefault mempty kc_mods global_bindings
         , case kc_track_type of
             Just ParseTitle.NoteTrack ->
@@ -167,7 +167,7 @@ get_instrument_bindings inst = do
             (Cmd.inst_cmds . Common.common_code . Inst.inst_common
                 . Cmd.inst_instrument)
             resolved
-    return
+    pure
         [ note_entry_bindings inst (Cmd.cmd_name cmd) Config.note_color
             note_entry
         | Cmd.Handler (Just note_entry) cmd <- handlers

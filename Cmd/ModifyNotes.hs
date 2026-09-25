@@ -149,9 +149,9 @@ type Error = Text
 title_to_control :: Text -> Either Error Control
 title_to_control title = ParseTitle.parse_control_type title >>= \case
     ParseTitle.Control (Right (ScoreT.Typed ScoreT.Untyped c)) Nothing ->
-        return $ Control c
+        pure $ Control c
     ParseTitle.Pitch scale_id (Right pcontrol)
-        | pcontrol == ScoreT.default_pitch -> return $ Pitch scale_id
+        | pcontrol == ScoreT.default_pitch -> pure $ Pitch scale_id
     _ -> Left $ "complicated controls unsupported: " <> title
 
 -- | Put the pitch tracks next to the note, the rest go in alphabetical order.
@@ -168,11 +168,11 @@ sorted_controls = Lists.sortOn (key . fst) . Map.toList
 type ModifyNotes m = BlockId -> [(Note, TrackId)] -> m [Note]
 
 notes :: Monad m => ([Note] -> [Note]) -> ModifyNotes m
-notes f _ = return . f . map fst
+notes f _ = pure . f . map fst
 
 -- | Modify a single note.
 note :: Monad m => (Note -> Note) -> ModifyNotes m
-note f _ = return . map (f . fst)
+note f _ = pure . map (f . fst)
 
 -- | Modify notes on the selected tracks.  Only the top level note tracks are
 -- affected, so you can select an entire block and not worry about mangling
@@ -273,12 +273,12 @@ slice_tracks tree = concatMapM slice . zip [0..]
         -> m [(Note, TrackId)]
     slice (index, (track_id, events)) =
         case Trees.find ((==track_id) . Ui.track_id) tree of
-            Nothing -> return []
+            Nothing -> pure []
             Just (Tree.Node _track subs) -> do
                 subs <- mapM (traverse get_events) subs
                 notes <- Ui.require_right id $
                     mapM (slice_note index subs) events
-                return $ map (, track_id) notes
+                pure $ map (, track_id) notes
     get_events track = (track,) <$> Ui.get_events (Ui.track_id track)
 
 -- | The whole thing fails if a title is unparseable or the control tracks have
@@ -291,7 +291,7 @@ slice_note :: Index -> [Tree.Tree (Ui.TrackInfo, Events.Events)]
     -> Event.Event -> Either Error Note
 slice_note index subs event = do
     controls <- extract_controls (Event.range event) subs
-    return $ Note
+    pure $ Note
         { note_start = Event.start event
         , note_duration = Event.duration event
         , note_text = Event.text event
@@ -305,12 +305,12 @@ extract_controls :: (TrackTime, TrackTime)
     -> [Tree.Tree (Ui.TrackInfo, Events.Events)]
     -> Either Error [(Control, Events.Events)]
 extract_controls range tracks = case tracks of
-    [] -> return []
+    [] -> pure []
     [Tree.Node (track, events) subs] -> do
         control <- annotate (showt (Ui.track_id track)) $
             title_to_control (Ui.track_title track)
         rest <- extract_controls range subs
-        return $ (control, slice range events) : rest
+        pure $ (control, slice range events) : rest
     _ -> Left $ ">1 subtrack: "
         <> showt (map (Ui.track_id . fst . Tree.rootLabel) tracks)
     where
@@ -358,7 +358,7 @@ write_tracks block_id track_ids tracks = do
         merge_controls block_id (Ui.track_id track) subs $
             sorted_controls controls
     -- | Create new tracks.
-    create _ [] = return ()
+    create _ [] = pure ()
     create tracknum (NoteTrack events controls : rest)
         | Events.null events = create tracknum rest
         | otherwise = do
@@ -368,7 +368,7 @@ write_tracks block_id track_ids tracks = do
                 Create.track block_id n title events
             Ui.add_edges block_id $ take (length tracks - 1) $
                 zip [tracknum..] [tracknum+1..]
-            parent <- maybe (return Nothing) (parent_of block_id)
+            parent <- maybe (pure Nothing) (parent_of block_id)
                 (Lists.head track_ids)
             whenJust parent $ \p ->
                 Ui.add_edges block_id [(Ui.track_tracknum p, tracknum)]
@@ -393,7 +393,7 @@ merge_controls block_id note_track_id tree controls = do
         note_track_id : map Ui.track_id tracks
     go next_tracknum controls
     where
-    go _ [] = return ()
+    go _ [] = pure ()
     go tracknum ((control, events) : controls) = case find control of
         Just track -> do
             Ui.insert_events (Ui.track_id track) (Events.ascending events)
@@ -413,20 +413,20 @@ merge_controls block_id note_track_id tree controls = do
 tracknum_after :: Ui.M m => BlockId -> [TrackId] -> m TrackNum
 tracknum_after block_id track_ids = do
     tracknums <- mapM (Ui.get_tracknum_of block_id) track_ids
-    maybe (Ui.track_count block_id) (return . (+1)) (Lists.maximum tracknums)
+    maybe (Ui.track_count block_id) (pure . (+1)) (Lists.maximum tracknums)
 
 -- | Get the bottom track below the given TrackId.  If there are more than one,
 -- pick the one with the highest TrackNum.
 bottom_track :: Ui.M m => BlockId -> TrackId -> m (Maybe Ui.TrackInfo)
 bottom_track block_id track_id = do
     tree <- TrackTree.track_tree_of block_id
-    return $ Lists.maximumOn Ui.track_tracknum . Trees.leaves
+    pure $ Lists.maximumOn Ui.track_tracknum . Trees.leaves
         =<< Trees.find ((==track_id) . Ui.track_id) tree
 
 parent_of :: Ui.M m => BlockId -> TrackId -> m (Maybe Ui.TrackInfo)
 parent_of block_id track_id = do
     tree <- TrackTree.track_tree_of block_id
-    return $ Lists.head
+    pure $ Lists.head
         [ track
         | (track, _, children) <- Trees.flatPaths tree
         , track_id `elem` map Ui.track_id children

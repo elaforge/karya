@@ -333,7 +333,7 @@ stash_prev_val :: Derive.Taggable a => TrackTree.Track -> Maybe a
 stash_prev_val track prev_val threaded = fromMaybe threaded $ do
     val <- prev_val
     block_track <- TrackTree.block_track_id track
-    return $ threaded
+    pure $ threaded
         { Derive.state_prev_val = Map.insert block_track (Derive.to_tagged val)
             (Derive.state_prev_val threaded)
         }
@@ -361,7 +361,7 @@ derive_orphans :: (TrackTree.EventsTree -> Derive.NoteDeriver)
 derive_orphans derive_tracks prev end subs
     | start >= end = Nothing
     | otherwise = case checked of
-        Left err -> Just $ Log.warn err >> return Stream.empty
+        Left err -> Just $ Log.warn err >> pure Stream.empty
         Right [] -> Nothing
         Right slices -> Just $ derive_tracks slices
     where

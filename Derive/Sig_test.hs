@@ -55,7 +55,7 @@ test_eval_quoted = do
     let run val = call_with $ DeriveTest.setup_deriver $
             CallTest.with_val_call "v" (val_call val)
         val_call val = Derive.val_call "test" "v" mempty "" $ Sig.call0 $ \_ ->
-            return $ Typecheck.to_val val
+            pure $ Typecheck.to_val val
     -- A Quoted can be coerced into an int by evaluating it.
     left_like (run (0 :: Int) int [quoted "not-found"])
         "arg 1/int from \"(not-found): *val call not found"
@@ -139,7 +139,7 @@ call = call_with id
 call_with :: (Derive.Deriver a -> Derive.Deriver a) -> Sig.Parser a
     -> [DeriveT.Val] -> Either Text a
 call_with with p vals = DeriveTest.eval Ui.empty $
-    with $ run (Sig.call p (\val _args -> return val)) vals
+    with $ run (Sig.call p (\val _args -> pure val)) vals
 
 run :: Derive.WithArgDoc (Sig.Generator Derive.Tagged a) -> [DeriveT.Val]
     -> Derive.Deriver a

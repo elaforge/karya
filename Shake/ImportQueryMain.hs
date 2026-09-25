@@ -92,7 +92,7 @@ cWeak = do
         when (score > 3) $ do
             Text.IO.putStrLn $ Text.unwords [showt score, parent, rm]
             IO.hFlush IO.stdout
-        return $ total + score
+        pure $ total + score
 
 mapStateM :: Monad m => (state -> a -> m state) -> state -> [a] -> m state
 mapStateM action state = \case

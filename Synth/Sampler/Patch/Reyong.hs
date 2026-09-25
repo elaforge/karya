@@ -136,11 +136,11 @@ convert note = do
     let var = Util.variation (variationsOf articulation) note
     (pitch, (sampleNn, noteNn)) <- tryRight $ findPitch symPitch
     let filename = toFilename articulation pitch dyn var
-    dynVal <- return $ dynVal * tweakDynamic articulation pitch dyn
+    dynVal <- pure $ dynVal * tweakDynamic articulation pitch dyn
     -- Log.debug $ "note at " <> pretty (Note.start note) <> ": "
     --     <> pretty ((dyn, scale), (symPitch, sampleNn), var)
     --     <> ": " <> txt filename
-    return $ (Sample.make filename)
+    pure $ (Sample.make filename)
         { Sample.envelope = if
             | isMute articulation -> Signal.constant dynVal
             | otherwise -> Util.sustainRelease dynVal muteTime note
@@ -200,8 +200,8 @@ findPitch = \case
             Lib.Bali.parsePitch (untxt sym)
         sampleNn <- tryJust ("pitch out of range: " <> pretty pitch) $
             Map.lookup pitch pitchToNn
-        return (pitch, (sampleNn, sampleNn))
-    Right noteNn -> return (pitch, (sampleNn, noteNn))
+        pure (pitch, (sampleNn, sampleNn))
+    Right noteNn -> pure (pitch, (sampleNn, noteNn))
         where Just (sampleNn, pitch) = Maps.lookupClosest noteNn nnToPitch
     where
     pitchToNn = Maps.invert nnToPitch

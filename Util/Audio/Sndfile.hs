@@ -36,7 +36,7 @@ openFile :: FilePath -> IOMode -> Info -> IO Handle
 openFile fname mode info = withFilename "openFile" fname $ do
     hdl <- Sndfile.openFile fname mode info
     open <- IORef.newIORef True
-    return $ Handle fname open hdl
+    pure $ Handle fname open hdl
 
 hInfo :: Handle -> Info
 hInfo = Sndfile.hInfo . _handle
@@ -47,7 +47,7 @@ hClose hdl = whenM (IORef.readIORef (_isOpen hdl)) $ do
     -- hsndfile is buggy and calls sf_error(nullptr) after closing the handle,
     -- which gets any previous error that might still be in a static variable.
     Sndfile.hClose (_handle hdl)
-        `Exception.catch` \(_exc :: Sndfile.Exception) -> return ()
+        `Exception.catch` \(_exc :: Sndfile.Exception) -> pure ()
 
 hSeek :: Handle -> Count -> IO Count
 hSeek hdl count
@@ -93,4 +93,4 @@ ignoreEnoent = ignoreError $ \case
 
 ignoreError :: Exception.Exception e => (e -> Bool) -> IO a -> IO (Maybe a)
 ignoreError ignore action = Exception.handleJust (guard . ignore)
-    (const (return Nothing)) (fmap Just action)
+    (const (pure Nothing)) (fmap Just action)

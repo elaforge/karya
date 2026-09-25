@@ -74,7 +74,7 @@ get_pos = do
                     | s == e -> (e, -0)
                     | otherwise -> (e, s - e)
                 _ -> (s, e - s)
-    return $ Pos block_id (Selection.sel_point_track sel) start dur
+    pure $ Pos block_id (Selection.sel_point_track sel) start dur
 
 -- * events
 
@@ -86,7 +86,7 @@ get_or_create_event modify_dur track_id pos dur = do
     mb_event <- Events.at pos (Event.orientation_of dur) <$>
         Ui.get_events track_id
     let modify = if modify_dur then Event.duration_ #= dur else id
-    return $ maybe (Event.event pos dur "", True) (\evt -> (modify evt, False))
+    pure $ maybe (Event.event pos dur "", True) (\evt -> (modify evt, False))
         mb_event
 
 -- | Modify event text.
@@ -120,9 +120,9 @@ modify_event_at (Pos block_id tracknum start dur) zero_dur modify_dur modify =do
     when advance Selection.advance
     where
     infer_duration dur
-        | dur /= 0 = return dur
+        | dur /= 0 = pure dur
         | zero_dur = ifM ((==Types.Positive) <$> get_orientation)
-            (return 0) (return (-0))
+            (pure 0) (pure (-0))
         | otherwise = get_duration tracknum start
 
 -- | Like 'modify_event_at', but take 'triggered_inst' into account.
@@ -134,7 +134,7 @@ modify_event_at_trigger pos zero_dur modify_dur f = do
 -- | Instruments with the triggered flag set don't pay attention to note off,
 -- so I can make the duration 0.
 triggered_inst :: Cmd.M m => Maybe ScoreT.Instrument -> m Bool
-triggered_inst Nothing = return False -- don't know, but guess it's not
+triggered_inst Nothing = pure False -- don't know, but guess it's not
 triggered_inst (Just inst) = Set.member Common.Triggered <$> common_flags inst
 
 common_flags :: Cmd.M m => ScoreT.Instrument -> m (Set Common.Flag)
@@ -147,7 +147,7 @@ get_duration tracknum start = do
     step <- Cmd.gets (Cmd.state_note_duration . Cmd.state_edit)
     end <- Selection.step_from tracknum start
         (if orient == Types.Positive then 1 else -1) step
-    return (end - start)
+    pure (end - start)
 
 get_orientation :: Cmd.M m => m Types.Orientation
 get_orientation = Cmd.gets $ Cmd.state_note_orientation . Cmd.state_edit
@@ -234,7 +234,7 @@ input_to_note input = do
         Left DeriveT.InvalidInput -> Cmd.abort
         Left err -> Cmd.throw $ "input_to_note " <> pretty input <> " for "
             <> pretty (Scale.scale_id scale) <> ": " <> pretty err
-        Right note -> return note
+        Right note -> pure note
 
 -- | Like 'input_to_note', but more efficient for multiple inputs.
 inputs_to_notes :: Cmd.M m => [(key, Pitch.Input)] -> m [(key, Pitch.Note)]
@@ -242,7 +242,7 @@ inputs_to_notes key_inputs = do
     track <- Selection.track
     scale <- Perf.get_scale track
     env <- Perf.get_environ track
-    return $ Either.rights $
+    pure $ Either.rights $
         map (traverse (Scale.scale_input_to_note scale env)) key_inputs
 
 -- * modify

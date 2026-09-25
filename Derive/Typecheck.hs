@@ -156,7 +156,7 @@ diatonic = DefaultDiatonic . Pitch.Diatonic
 typecheck :: forall a. Typecheck a => Text -> ScoreTime -> Val
     -> Derive.Deriver a
 typecheck msg pos val = from_val_eval pos val >>= \case
-    Just a -> return a
+    Just a -> pure a
     Nothing -> Derive.throw $
         Texts.join2 ": " msg $ type_error_msg (Proxy @a) val
     -- TODO throw a TypeError directly?
@@ -227,10 +227,10 @@ class Typecheck a where
 -- | 'from_val', but evaluate if it's an Eval.
 from_val_eval :: Typecheck a => ScoreTime -> Val -> Derive.Deriver (Maybe a)
 from_val_eval pos val = case from_val val of
-    Val (Success a) -> return $ Just a
-    Val Failure -> return Nothing
+    Val (Success a) -> pure $ Just a
+    Val Failure -> pure Nothing
     -- This is a deriver, which needs a Derive.Context.
-    Val (Derive _) -> return Nothing
+    Val (Derive _) -> pure Nothing
     Eval deriver -> deriver =<< Derive.score_to_real pos
 
 from_val_simple :: Typecheck a => Val -> Maybe a
@@ -241,7 +241,7 @@ from_val_simple val = case from_val val of
 -- | Return a simple Eval check which doesn't depend on RealTime.
 eval :: Typecheck a => (a -> Derive.Deriver b) -> Val -> Checked b
 eval parse val = Eval $ \_ -> case from_val_simple val of
-    Nothing -> return Nothing
+    Nothing -> pure Nothing
     Just x -> Just <$> parse x
 
 -- | This is the inverse of Typecheck's 'from_val'.
@@ -795,7 +795,7 @@ coerce_to_scalar check val
     | Just num <- DeriveT.constant_val val =
         Val $ maybe Failure Success $ check num
     | otherwise = case val_to_function val of
-        Just (Right tf) -> Eval $ \t -> return $ check (($ t) <$> tf)
+        Just (Right tf) -> Eval $ \t -> pure $ check (($ t) <$> tf)
         Just (Left df) -> Eval $ \t -> check . (($ t) <$>) <$> df
         Nothing -> failure
 
@@ -816,7 +816,7 @@ val_to_function = \case
     VControlRef ref -> Just $ Left $ resolve_function ref
     VCFunction cf -> Just $ Left $ do
         cf_dyn <- Internal.get_control_function_dynamic
-        return $ DeriveT.call_cfunction cf_dyn cf
+        pure $ DeriveT.call_cfunction cf_dyn cf
     VPFunction f -> Just $ Right $ DeriveT.pf_function f
     _ -> Nothing
 
@@ -845,14 +845,14 @@ resolve_function ref =
 lookup_function :: DeriveT.ControlRef
     -> Derive.Deriver (Maybe ScoreT.TypedFunction)
 lookup_function (DeriveT.Ref control deflt) = do
-    maybe (return deflt_f) get . DeriveT.lookup (ScoreT.control_name control)
+    maybe (pure deflt_f) get . DeriveT.lookup (ScoreT.control_name control)
         =<< Internal.get_environ
     where
     deflt_f = fmap Signal.at <$> deflt
     get :: Val -> Derive.Deriver (Maybe ScoreT.TypedFunction)
     get val = case val_to_function val of
-        Nothing -> return Nothing
-        Just (Right tf) -> return $ Just tf
+        Nothing -> pure Nothing
+        Just (Right tf) -> pure $ Just tf
         Just (Left dtf) -> Just <$> dtf
 
 -- *** signal
@@ -880,7 +880,7 @@ lookup_signal control =
         Nothing -> Derive.throw $ "can't be coerced to signal: "
             <> ShowVal.show_val val
         Just (Left df) -> df
-        Just (Right f) -> return f
+        Just (Right f) -> pure f
 
 val_to_signal :: Val
     -> Maybe (Either (Derive.Deriver ScoreT.TypedSignal) ScoreT.TypedSignal)
@@ -949,7 +949,7 @@ lookup_pitch_signal pcontrol
             pretty pcontrol <> ": " <> pretty (ValType.specific_type_of val)
                 <> " can't be coerced to pitch signal"
         Just (Left df) -> df
-        Just (Right f) -> return f
+        Just (Right f) -> pure f
 
 val_to_pitch_signal :: Val
     -> Maybe (Either (Derive.Deriver PSignal.PSignal) PSignal.PSignal)

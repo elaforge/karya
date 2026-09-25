@@ -103,9 +103,9 @@ make_pattern_attr call = Derive.PatternCall
     where
     parse_symbol sym = case Text.uncons sym of
         Just (c, _) | c == '+' || c == '=' -> case Parse.parse_val sym of
-            Right (DeriveT.VAttributes attrs) -> return $ Just (call attrs)
-            _ -> return Nothing
-        _ -> return Nothing
+            Right (DeriveT.VAttributes attrs) -> pure $ Just (call attrs)
+            _ -> pure Nothing
+        _ -> pure Nothing
 
 -- * harmonic
 
@@ -167,13 +167,13 @@ lily_harmonic_event force_diamond htype open_strings string event = do
     -- When the lilypond backend sees Attrs.harm it knows it's inherently nv.
     let add_harm = Score.add_attributes Attrs.harm
     map add_harm <$> if harmonic <= 2 && not force_diamond
-        then return
+        then pure
             [Ly.add_note_code (Ly.append Constants.All, "-\\flageolet") event]
         else do
             interval <- Derive.require
                 ("harmonic not supported: " <> showt harmonic)
                 (touch_interval harmonic)
-            return $ harmonic_code string (string + interval) event
+            pure $ harmonic_code string (string + interval) event
 
 harmonic_code :: Pitch.NoteNumber -> Pitch.NoteNumber -> Score.Event
     -> [Score.Event]

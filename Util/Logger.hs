@@ -41,13 +41,13 @@ type Logger w a = LoggerT w Identity.Identity a
 run :: Monad m => LoggerT w m a -> m (a, [w])
 run m = do
     (result, logs) <- Strict.runStateT (runLoggerT m) []
-    return (result, reverse logs)
+    pure (result, reverse logs)
 
 runId :: Logger w a -> (a, [w])
 runId = Identity.runIdentity . run
 
 exec :: Monad m => LoggerT w m a -> m [w]
-exec m = return . snd =<< run m
+exec m = pure . snd =<< run m
 
 class Monad m => MonadLogger w m | m -> w where
     log :: w -> m ()
@@ -65,7 +65,7 @@ instance Monad m => MonadLogger w (LoggerT w m) where
         Strict.put $! (msg:ms)
     peek = LoggerT $ do
         ms <- Strict.get
-        return $! reverse ms
+        pure $! reverse ms
 
 -- | I think I can't automatically derive this because LoggerT itself is
 -- a StateT.

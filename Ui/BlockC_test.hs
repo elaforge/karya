@@ -205,7 +205,7 @@ test_set_ruler_width = do
         -- 50 width ruler bumps over the 10 width ruler.
         insert_track view_id 0 (Block.R (mkruler 10 10)) 10
         insert_track view_id 0 (Block.R (mkruler 10 5)) 50
-    return ()
+    pure ()
 
 -- TODO
 -- test_print_children
@@ -236,4 +236,4 @@ create_empty_view = do
     let view_id = Id.ViewId (UiTest.mkid "default")
     send $ BlockC.create_view view_id "some title" UiTest.default_rect
         Block.default_config
-    return view_id
+    pure view_id

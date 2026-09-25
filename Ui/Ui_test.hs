@@ -26,7 +26,7 @@ import           Util.Test
 test_modify_integrated_tracks :: Test
 test_modify_integrated_tracks = do
     let ([tid], state) = UiTest.run_mkblock [(">", [(0, 1, "a")])]
-    state <- return $ score_integrate tid $ expect_right $ Ui.exec state $
+    state <- pure $ score_integrate tid $ expect_right $ Ui.exec state $
         add_integrated_track tid
     equal (extract_tracks state)
         [ (UiTest.mk_tid 1, [("a", False)])

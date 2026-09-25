@@ -86,11 +86,11 @@ cmd_val_edit msg = Cmd.suppress_history Cmd.ValEdit "note track val edit" $ do
                 dissociate_note_id note_id
                 chord_done <- andM [get_state Cmd.state_chord, all_keys_up]
                 when chord_done $ set_temp_sel pos Nothing
-                whenM (andM [return chord_done, get_state Cmd.state_advance])
+                whenM (andM [pure chord_done, get_state Cmd.state_advance])
                     Selection.advance
-            InputNote.Control {} -> return ()
+            InputNote.Control {} -> pure ()
         _ -> Cmd.abort
-    return Cmd.Done
+    pure Cmd.Done
     where
     -- NoteOn handling is especially complicated.
     note_on block_id sel_tracknum pos dur note_id note vel = do
@@ -101,7 +101,7 @@ cmd_val_edit msg = Cmd.suppress_history Cmd.ValEdit "note track val edit" $ do
                 (ctrack, create, maybe_next) <-
                     next_control_track block_id sel_tracknum is_pitch
                 set_temp_sel pos maybe_next
-                return (ctrack, create)
+                pure (ctrack, create)
             else this_control_track block_id sel_tracknum is_pitch
         when create $ create_pitch_track block_id ctrack
         associate_note_id block_id (track_control ctrack) note_id
@@ -156,22 +156,22 @@ next_control_track block_id tracknum is_control = do
         Just track -> do
             (ctrack, create) <- should_create_control block_id track is_control
             next <- find (track_control ctrack + 1)
-            return (ctrack, create,
+            pure (ctrack, create,
                 Ui.track_tracknum . Info.track_info <$> next)
     where
     -- Wow, monads can be awkward.
     candidate inst associated right_of
             (Info.Track track (Info.Note controls _)) =
         andM
-            [ return $ tracknum >= right_of
-            , return $ maybe True (`notElem` associated) pitch_tracknum
+            [ pure $ tracknum >= right_of
+            , pure $ maybe True (`notElem` associated) pitch_tracknum
             , (== Just inst) <$> Info.lookup_instrument_of block_id tracknum
             ]
         where
         tracknum = Ui.track_tracknum track
         pitch_tracknum = Ui.track_tracknum <$>
             List.find (is_control . Ui.track_title) controls
-    candidate _ _ _ _ = return False
+    candidate _ _ _ _ = pure False
 
 -- | The given track should be a note track.  Figure out if it has a control
 -- track, or if one should be created.
@@ -187,9 +187,9 @@ should_create_control :: Cmd.M m => BlockId -> Info.Track
     -> (Text -> Bool) -> m (ControlTrack, Bool)
 should_create_control block_id track is_control = case Info.track_type track of
     Info.Note controls _ -> case find controls of
-        Nothing -> return (ControlTrack tracknum (tracknum+1), True)
+        Nothing -> pure (ControlTrack tracknum (tracknum+1), True)
         Just control ->
-            return (ControlTrack tracknum (Ui.track_tracknum control), False)
+            pure (ControlTrack tracknum (Ui.track_tracknum control), False)
     ttype -> Cmd.throw $ "expected a note track for "
         <> showt (block_id, tracknum) <> " but got " <> showt ttype
     where
@@ -199,12 +199,12 @@ should_create_control block_id track is_control = case Info.track_type track of
 event_pos_at_or_before :: Cmd.M m => TrackId -> ScoreTime -> m ScoreTime
 event_pos_at_or_before track_id pos = do
     (_, events) <- Events.split_at_before pos <$> Ui.get_events track_id
-    return $ maybe pos Event.start (Lists.head events)
+    pure $ maybe pos Event.start (Lists.head events)
 
 all_keys_up :: Cmd.M m => m Bool
 all_keys_up = do
     st <- Cmd.get_wdev_state
-    return (Map.null (Cmd.wdev_pitch_track st))
+    pure (Map.null (Cmd.wdev_pitch_track st))
 
 -- | Find the pitch track associated with the given NoteId, if one exists.
 find_pitch_track :: Cmd.M m => InputNote.NoteId
@@ -213,10 +213,10 @@ find_pitch_track note_id = do
     st <- Cmd.get_wdev_state
     let maybe_track = Map.lookup note_id (Cmd.wdev_pitch_track st)
     case maybe_track of
-        Nothing -> return Nothing
+        Nothing -> pure Nothing
         Just (block_id, tracknum) -> do
             track_id <- Ui.get_event_track_at block_id tracknum
-            return $ Just (tracknum, track_id)
+            pure $ Just (tracknum, track_id)
 
 
 -- * method edit
@@ -236,7 +236,7 @@ cmd_method_edit msg =
                 (EditUtil.Pos block_id (track_control ctrack) pos 0) key
             ensure_note_event (EditUtil.Pos block_id (track_note ctrack) pos 0)
         _ -> Cmd.abort
-    return Cmd.Done
+    pure Cmd.Done
 
 -- * implementation
 

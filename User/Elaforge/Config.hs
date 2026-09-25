@@ -49,7 +49,7 @@ load_static_config = do
     app_dir <- Path.get_app_dir
     instrument_db <- LoadInstruments.load app_dir
     midi <- get_midi_config instrument_db
-    return $ StaticConfig.StaticConfig
+    pure $ StaticConfig.StaticConfig
         { instrument_db
         , global_cmds
         , builtins = C.All.builtins
@@ -87,12 +87,12 @@ get_midi_config :: Cmd.InstrumentDb -> IO StaticConfig.Midi
 get_midi_config db = do
     full_host <- Network.getHostName
     case takeWhile (/='.') full_host of
-        "tammananny" -> return $ Tammananny.midi_config db
-        "hobbes" -> return $ Hobbes.midi_config db
-        "groqmac" -> return $ Hobbes.midi_config db
+        "tammananny" -> pure $ Tammananny.midi_config db
+        "hobbes" -> pure $ Hobbes.midi_config db
+        "groqmac" -> pure $ Hobbes.midi_config db
         host -> do
           Log.warn $ "no midi configuration for host: " <> showt host
-          return default_midi
+          pure default_midi
 
 default_midi :: StaticConfig.Midi
 default_midi = StaticConfig.Midi
@@ -119,7 +119,7 @@ convert_mod fname mod = do
         ModT.transpose_instruments transpose $
         ModT.map_instruments inst_map mod
     Ui.put state
-    return Cmd.Done
+    pure Cmd.Done
     where
     inst_map = Map.findWithDefault mempty (FilePath.takeFileName fname)
         inst_maps

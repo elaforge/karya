@@ -86,7 +86,7 @@ c_cf_rnd combine = val_call "cf-rnd" (Tags.control_function <> Tags.random)
     <$> Sig.required "low" "Low end of the range."
     <*> Sig.required "high" "High end of the range."
     <*> Sig.environ "distribution" Sig.Prefixed Normal "Random distribution."
-    ) $ \(low, high, distribution) _args -> return $!
+    ) $ \(low, high, distribution) _args -> pure $!
         make_cf "cf-rnd" $ \cf_dyn control pos -> combine
             (cf_rnd distribution low high (random_stream pos (dyn_seed cf_dyn)))
             (Signal.at control pos)
@@ -109,7 +109,7 @@ c_cf_rnd_around combine = val_call "cf-rnd-a"
     <$> Sig.required "range" "Range this far from the center."
     <*> Sig.defaulted "center" (0 :: Double) "Center of the range."
     <*> Sig.environ "distribution" Sig.Prefixed Normal "Random distribution."
-    ) $ \(range, center, distribution) _args -> return $!
+    ) $ \(range, center, distribution) _args -> pure $!
         make_cf "cf-rnd-a" $ \cf_dyn control pos -> combine
             (cf_rnd distribution (center-range) (center+range)
                 (random_stream pos (dyn_seed cf_dyn)))
@@ -152,7 +152,7 @@ c_cf_swing = val_call "cf-swing" Tags.control_function
         "Swing amount, multiplied by the rank duration / 2."
     ) $ \(rank, amount) _args -> do
         amount <- from_control_ref amount
-        return $! make_cf "cf-swing" (swing rank amount)
+        pure $! make_cf "cf-swing" (swing rank amount)
     where
     swing rank amount cf_dyn control pos
         | Just marks <- maybe_marks =
@@ -213,7 +213,7 @@ c_cf_clamp = val_call "cf-clamp" Tags.control_function
     <*> Sig.defaulted "low" (0 :: Double) "Low value."
     <*> Sig.defaulted "high" (1 :: Double) "High value."
     ) $ \(cf, low, high) _args ->
-        return $ cf_compose ("cf-clamp(" <> DeriveT.cf_name cf <> ")")
+        pure $ cf_compose ("cf-clamp(" <> DeriveT.cf_name cf <> ")")
             (Num.clamp low high) cf
 
 cf_compose :: Text -> (Signal.Y -> Signal.Y) -> DeriveT.CFunction

@@ -273,7 +273,7 @@ evaluate_performance im_config lookup_inst wait send_status score_path
     Thread.delay wait
     send_status block_id Msg.Deriving
     -- I just force the logs here, and wait for a play to actually write them.
-    ((), metric) <- Thread.timeAction $ return $! Msg.force_performance perf
+    ((), metric) <- Thread.timeAction $ pure $! Msg.force_performance perf
     forM_ (check_dummy lookup_inst (Msg.perf_events perf)) $ \(event, msg) ->
         Log.warn $ "note with dummy instrument: " <> Score.short_event event
             <> ": " <> msg
@@ -285,7 +285,7 @@ evaluate_performance im_config lookup_inst wait send_status score_path
             event : _ -> max (- Score.event_start event) 0
             _ -> 0
     (procs, events) <- case im_config of
-        Nothing -> return ([], Cmd.perf_events perf)
+        Nothing -> pure ([], Cmd.perf_events perf)
         Just config -> evaluate_im config lookup_inst score_path
             adjust0 play_multiplier block_id (Cmd.perf_events perf)
     send_status block_id $ Msg.DeriveComplete
@@ -298,12 +298,12 @@ evaluate_performance im_config lookup_inst wait send_status score_path
                 (Config.imDir config) score_path adjust0 play_multiplier)
             (send_status block_id)
             (Set.fromList procs)
-        Nothing -> return True
+        Nothing -> pure True
     unless (null procs) $ do
         stats <- case (ok, im_config) of
             (True, Just config) -> fmap Just $ im_gc $
                 Config.outputDirectory (Config.imDir config) score_path block_id
-            _ -> return Nothing
+            _ -> pure Nothing
         send_status block_id $ Msg.ImStatus block_id Set.empty $
             Msg.ImComplete (not ok) stats
 
@@ -312,7 +312,7 @@ im_gc output_dir = do
     stats <- ImGc.gc output_dir
     when (ImGc._deletedFiles stats > 0) $
         Log.notice $ ImGc.showStats stats
-    return stats
+    pure stats
 
 -- | Return events with a 'Inst.Dummy' backend.  These shouldn't have made it
 -- through to actual performance.
@@ -348,17 +348,17 @@ watch_subprocesses root_block_id make_status send_status procs =
     watch ((cmd, args), ProcessExit code)
         | code /= Processes.ExitCode 0 = Log.warn $ "subprocess failed with "
             <> showt code <> ": " <> Text.unwords (map txt (cmd : args))
-        | otherwise = return ()
+        | otherwise = pure ()
     watch (_, Message msg)
         -- This is an update for a child block.  I only display progress
         -- for each block as its own toplevel.  If a block is child of
         -- another, I can see its prorgess in the parent.
-        | Config._blockId msg /= root_block_id = return ()
+        | Config._blockId msg /= root_block_id = pure ()
         | otherwise = case make_status msg of
             ImStatus status -> send_status =<< resolve_waveform_links status
             ImWarn msg -> Log.write msg
             ImFail msg -> Log.write msg
-            ImNothing -> return ()
+            ImNothing -> pure ()
 
 -- | Like 'watch_subprocesses', but notify the callback as soon as
 -- they have all rendered enough audio.
@@ -371,7 +371,7 @@ wait_for_subprocesses ready expected_instruments procs =
         unless (code == Processes.ExitCode 0) $
             Log.warn $ "subprocess failed with "
                 <> showt code <> ": " <> Text.unwords (map txt (cmd : args))
-        return (started, insts)
+        pure (started, insts)
     check (started, insts) (proc, Message msg) = case Config._payload msg of
         Config.WaveformsCompleted chunks
             | 0 `elem` chunks -> do
@@ -382,12 +382,12 @@ wait_for_subprocesses ready expected_instruments procs =
                     <> ", insts: " <> pretty insts2
                     <> ", expected: " <> pretty expected_instruments
                 when (started2 == procs && insts2 == expected_instruments) ready
-                return (started2, insts2)
+                pure (started2, insts2)
             | otherwise -> ignore
         Config.Failure err -> Log.warn err >> ignore
         Config.Warn stack msg -> Log.warn_stack stack msg >> ignore
         Config.RenderingRange {} -> ignore
-        where ignore = return (started, insts)
+        where ignore = pure (started, insts)
 
 data Progress = ProcessExit Processes.Exit | Message Config.Message
 
@@ -399,29 +399,29 @@ data Progress = ProcessExit Processes.Exit | Message Config.Message
 stream_subprocesses :: Set Process
     -> (S.Stream (S.Of (Process, Progress)) IO Bool -> IO a) -> IO a
 stream_subprocesses procs action
-    | Set.null procs = action $ return False
+    | Set.null procs = action $ pure False
     | otherwise = Processes.multipleOutput (Set.toList procs) $ \chan ->
         action $ Control.loop1 (procs, True) $ \loop (procs, ok) -> if
-            | Set.null procs -> return ok
+            | Set.null procs -> pure ok
             | otherwise -> do
                 (proc, out) <- liftIO $ Chan.readChan chan
                 loop =<< process procs ok proc out
     where
     process procs ok proc = \case
-        Processes.Stderr line -> put line >> return (procs, ok)
+        Processes.Stderr line -> put line >> pure (procs, ok)
         Processes.Stdout line -> do
             ok1 <- progress proc line
-            return (procs, ok && ok1)
+            pure (procs, ok && ok1)
         Processes.Exit code -> do
             S.yield (proc, ProcessExit code)
-            return (Set.delete proc procs, ok && code == Processes.ExitCode 0)
+            pure (Set.delete proc procs, ok && code == Processes.ExitCode 0)
     progress proc line = case Config.parseMessage line of
         Nothing -> do
             put $ "couldn't parse: " <> line
-            return False
+            pure False
         Just msg -> do
             S.yield (proc, Message msg)
-            return $ case Config._payload msg of
+            pure $ case Config._payload msg of
                 Config.Failure {} -> False
                 _ -> True
     -- These get called concurrently, so avoid jumbled output.
@@ -459,7 +459,7 @@ make_status inv_tempo wants_waveform im_dir score_path adjust0 play_multiplier
         adjust0 <- to_score adjust0
         -- Debug.tracepM "start, ratio"
         --     ((time_at chunknum, time_at (chunknum+1)), start, ratios)
-        return $ Track.WaveformChunk
+        pure $ Track.WaveformChunk
             { _filename = Config.chunkPath im_dir score_path block_id
                 instrument chunknum
             , _chunknum = chunknum
@@ -497,7 +497,7 @@ chunk_ratios :: (RealTime -> Either Text ScoreTime) -> RealTime -> RealTime
     -> Int -> Either Text (ScoreTime, [Double])
 chunk_ratios to_score start end n = do
     score_bps <- mapM to_score bps
-    return (head score_bps, zipWith ratio_at score_bps (drop 1 score_bps))
+    pure (head score_bps, zipWith ratio_at score_bps (drop 1 score_bps))
     where
     ratio_at start end =
         (fromIntegral Config.chunkSeconds / fromIntegral n)
@@ -531,22 +531,22 @@ resolve_waveform_links (Msg.ImStatus block_id track_ids
         Log.error $ "tried again:"
             <> pretty (zip (map Track._filename waveforms) fns2)
 
-    return $ Msg.ImStatus block_id track_ids $ Msg.ImWaveformsCompleted
+    pure $ Msg.ImStatus block_id track_ids $ Msg.ImWaveformsCompleted
         [wave { Track._filename = fn } | (fn, wave) <- zip fns waveforms]
-resolve_waveform_links status = return status
+resolve_waveform_links status = pure status
 
 resolve_link :: FilePath -> IO FilePath
 resolve_link fname = do
     dest <- Directory.getSymbolicLinkTarget fname
     dest <- if "checkpoint/" `List.isPrefixOf` dest
             && ".wav" `List.isSuffixOf` dest
-        then return dest
+        then pure dest
         else do
             dest2 <- Directory.getSymbolicLinkTarget fname
             Log.error $ "bad symlink: " <> showt fname <> " -> " <> showt dest
                 <> ", next time: " <> showt dest2
-            return dest2
-    return $ FilePath.takeDirectory fname </> dest
+            pure dest2
+    pure $ FilePath.takeDirectory fname </> dest
 
 -- resolve_link :: FilePath -> IO FilePath
 -- resolve_link fname =
@@ -568,7 +568,7 @@ evaluate_im config lookup_inst score_path adjust0 play_multiplier block_id
         events = do
     procs <- Maybe.catMaybes <$> mapM write_notes by_synth
     Config.clearUnusedInstruments output_dir instruments
-    return (procs, fromMaybe mempty $ lookup Nothing by_synth)
+    pure (procs, fromMaybe mempty $ lookup Nothing by_synth)
     where
     instruments = Vector.foldl' add mempty events
         where add = flip $ HashSet.insert . Score.event_instrument
@@ -597,14 +597,14 @@ evaluate_im config lookup_inst score_path adjust0 play_multiplier block_id
                 Im.Convert.write adjust0 play_multiplier block_id
                     lookup_inst notes_file events
                 let binary = Config.binary synth
-                return $ if null binary
+                pure $ if null binary
                     then Nothing
                     else Just (binary, ["--progress", notes_file, output_dir])
             Nothing -> do
                 Log.warn $ "unknown im synth " <> showt synth_name <> " with "
                     <> showt (Vector.length events) <> " events"
-                return Nothing
-    write_notes (Nothing, _) = return Nothing
+                pure Nothing
+    write_notes (Nothing, _) = pure Nothing
 
 -- | If there are no UiConfig.Im instruments, then I don't need to bother to
 -- partition out its events.  However, it means I won't get errors if there

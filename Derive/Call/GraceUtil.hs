@@ -128,11 +128,11 @@ make_grace_notes prev (start, end) notes grace_dur place = do
         DeriveT.ScoreDuration grace_dur -> do
             let extents = fit_grace_durs place prev start end (length notes)
                     grace_dur
-            return [SubT.EventT s d n | ((s, d), n) <- zip extents notes]
+            pure [SubT.EventT s d n | ((s, d), n) <- zip extents notes]
         DeriveT.RealDuration grace_dur -> do
             real_start <- Derive.real start
             real_end <- Derive.real end
-            real_prev <- maybe (return Nothing) ((Just <$>) . Derive.real) prev
+            real_prev <- maybe (pure Nothing) ((Just <$>) . Derive.real) prev
             let extents = fit_grace_durs place real_prev real_start real_end
                     (length notes) grace_dur
             zipWithM note_real extents notes
@@ -140,7 +140,7 @@ make_grace_notes prev (start, end) notes grace_dur place = do
     note_real (start, dur) note = do
         score_start <- Derive.score start
         score_end <- Derive.score (start + dur)
-        return $ SubT.EventT score_start (score_end - score_start) note
+        pure $ SubT.EventT score_start (score_end - score_start) note
 
 lily_grace :: Derive.PassedArgs d -> RealTime -> [PSignal.Pitch]
     -> Derive.NoteDeriver
@@ -202,8 +202,8 @@ grace_attributes :: RealTime -> Map Int Attrs.Attributes -> [PSignal.Pitch]
     -> PSignal.Pitch -> Derive.Deriver (Maybe Attrs.Attributes)
 grace_attributes pos supported [grace] base = do
     diff <- Call.nn_difference pos base grace
-    return $ Map.lookup (round diff) supported
-grace_attributes _ _ _ _ = return Nothing
+    pure $ Map.lookup (round diff) supported
+grace_attributes _ _ _ _ = pure Nothing
 
 -- * util
 
@@ -280,7 +280,7 @@ fit_after start end notes dur = take notes $ Lists.range_ start step
 resolve_pitches :: PSignal.Pitch
     -> [Either PSignal.Pitch (ScoreT.Typed Signal.Y)]
     -> Derive.Deriver [PSignal.Pitch]
-resolve_pitches base = either Derive.throw return . check_pitches base
+resolve_pitches base = either Derive.throw pure . check_pitches base
 
 check_pitches :: PSignal.Pitch -> [Either PSignal.Pitch (ScoreT.Typed Signal.Y)]
     -> Either Text [PSignal.Pitch]
@@ -299,7 +299,7 @@ check_pitches base pitches = do
             t = deflt ScoreT.Diatonic t_
             ts = map (deflt t) ts_
         [] -> Right Pitch.Diatonic
-    return $ map (either id (resolve make . ScoreT.val_of)) pitches
+    pure $ map (either id (resolve make . ScoreT.val_of)) pitches
     where
     resolve make n = Pitches.transpose (make n) base
     deflt typ ScoreT.Untyped = typ

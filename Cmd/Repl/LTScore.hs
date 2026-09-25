@@ -23,13 +23,13 @@ both = do
     ky <- LState.ky
     case (ky, tscore) of
         (ReplProtocol.Edit ky, ReplProtocol.Edit tscore) ->
-            return $ ReplProtocol.Edit (tscore <> ky)
+            pure $ ReplProtocol.Edit (tscore <> ky)
         _ -> Ui.throw "expected ReplProtocol.Edit"
 
 edit :: Ui.M m => m ReplProtocol.Result
 edit = do
     tscore <- get
-    return $ ReplProtocol.Edit $ (:| []) $ ReplProtocol.Editor
+    pure $ ReplProtocol.Edit $ (:| []) $ ReplProtocol.Editor
         { _file = ReplProtocol.Text ReplProtocol.TScore tscore
         , _line_number = 0
         , _on_save = on_set

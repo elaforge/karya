@@ -172,7 +172,7 @@ closest_warp track_warps block_id track_id pos =
 inverse_tempo_func :: [TrackWarp] -> Transport.InverseTempoFunction
 inverse_tempo_func track_warps stop realtime = do
     (block_id, track_ids, pos) <- track_pos
-    return (block_id, [(track_id, pos) | track_id <- Set.toList track_ids])
+    pure (block_id, [(track_id, pos) | track_id <- Set.toList track_ids])
     where
     -- Ornaments and leading keyswitches can result in starting at a negative
     -- time.  But if this function returns [] the play monitor thread will take

@@ -82,15 +82,15 @@ set ky_text = do
     cmd_state <- Cmd.get
     ui_state <- Ui.get
     liftIO (update ui_state cmd_state ky_text) >>= \case
-        Nothing -> return ""
+        Nothing -> pure ""
         -- Logs are just boring stuff about reloaded files.
         Just (ui_state, cmd_state, _logs) ->
             case Cmd.state_ky_cache cmd_state of
-                Just (Cmd.KyCache (Left err) _) -> return err
+                Just (Cmd.KyCache (Left err) _) -> pure err
                 _ -> do
                     Cmd.put cmd_state
                     Ui.unsafe_put ui_state
-                    return ""
+                    pure ""
 
 -- | Reload the ky files if they're out of date, Nothing if no reload is
 -- needed.
