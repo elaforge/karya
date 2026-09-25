@@ -407,12 +407,6 @@ event_text_height = 15
 
 -- * event style
 
--- | The comment for tracklang is --, but if an event starts with this comment,
--- the whole event is ignored.  A normal comment would mean the event exists,
--- but has no expression.
-event_comment :: Text
-event_comment = "--|"
-
 -- | Like Symbols, these are sent to the UI layer at startup and then remain
 -- static.
 styles :: [Style.Style]

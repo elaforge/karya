@@ -124,12 +124,14 @@ external:
     . using tscore, especially standalone
 
 UNSORTED
-  - im can't mute a track because it mutes the whole instrument
+  - switch all 'return' to 'pure'
+  * im can't mute a track because it mutes the whole instrument
     and can't comment out the track:
       track title: parse error: "⎣-- >kw": 'Failed reading: empty'
-  - related, --| is obscure magic, should I have normal `--` at the front
-    remove the event entirely?  I guess I could want a normal note but with
-    a comment.
+    . It messes up Implicit skeleton.
+  - but I only needed to do track commenting because im can only mute by
+    instrument, not track.  Now that I can more easily mute instruments in ky,
+    can I change im to track mute?
   - all the window management is fussy.  I'd like more like automatic tiling,
     e.g. window expands automatically and retiles.
     . Also if I can automatically adjust track width.  That's more tricky
@@ -140,6 +142,11 @@ UNSORTED
       boundaries may be a bit fuzzy?
     . Low level way is to change saih pitu to simple 1-7, and do custom
       kernels.
+    . I think I want a local definition of modes anyway, so I can use kotekan
+      on arbitrary scales.  Should it be a kotekan-specific thing, or could
+      I actually ad-hoc define a mode?
+    . Ad-hoc mode sounds cooler, I guess it would affect diatonic
+      transposition.
   * im thru not working suddenly.  Nothing in PlayCache.log
     . MidiThru.cmd_midi_thru gets no msg, must be absorbed by someone?
     . Actually it doesn't for kendang-bali-wadon, but does for rambat?
@@ -150,6 +157,7 @@ UNSORTED
     . If I loop trying to open it, at least it'll spam the logs.
   - bug: Cmd/Internal.hs:116 keydown for MouseMod 1 (Just (3,Track 0.4))
       already in modifiers
+    . I think it means I got two mouse downs, presumably the mouse up lost.
   - no thru for im dummy pasang
     . Simple way would be special case way to pick a stand-in.
     . Complex way would be to instrument transformer, e.g. unison or kempyung,

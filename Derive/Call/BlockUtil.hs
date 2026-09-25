@@ -25,6 +25,7 @@ module Derive.Call.BlockUtil (
     , derive_tree
 #endif
 ) where
+import qualified Data.Text as Text
 import qualified Data.Tree as Tree
 
 import qualified Util.Lists as Lists
@@ -42,6 +43,7 @@ import qualified Derive.Expr as Expr
 import qualified Derive.LEvent as LEvent
 import qualified Derive.Note as Note
 import qualified Derive.PSignal as PSignal
+import qualified Derive.Parse as Parse
 import qualified Derive.ParseTitle as ParseTitle
 import qualified Derive.Score as Score
 import qualified Derive.ScoreT as ScoreT
@@ -173,6 +175,7 @@ derive_track :: Bool -- ^ True if this is the single topmost track and is
     -- "Derive.Tempo".
     -> TrackTree.EventsNode -> Derive.NoteDeriver
 derive_track toplevel node@(Tree.Node track subs)
+    | Parse.comment `Text.isPrefixOf` TrackTree.track_title track = mempty
     | ParseTitle.is_note_track (TrackTree.track_title track) =
         with_stack $ Cache.track track (TrackTree.track_children node) $ do
             events <- with_voice track $ with_pitch_map track subs $

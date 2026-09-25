@@ -98,7 +98,6 @@ import qualified Util.Lists as Lists
 import qualified Util.Log as Log
 import qualified Util.Pretty as Pretty
 
-import qualified App.Config as Config
 import qualified Derive.Derive as Derive
 import qualified Derive.Deriver.Internal as Internal
 import qualified Derive.EnvKey as EnvKey
@@ -420,11 +419,11 @@ unwarp warp control = case Warp.is_linear warp of
 derive_event :: Derive.CallableExpr d => Derive.Context d -> Event.Event
     -> Derive.Deriver (Stream.Stream d)
 derive_event ctx event
-    | Config.event_comment `Text.isPrefixOf` Text.dropWhile (==' ') text =
-        return Stream.empty
+    | Parse.comment_remove `Text.isPrefixOf` Text.stripStart text =
+        pure Stream.empty
     | otherwise = with_event_region (Derive.ctx_track_shifted ctx) event $
         case Parse.parse_expr text of
-            Left err -> Log.warn err >> return Stream.empty
+            Left err -> Log.warn err >> pure Stream.empty
             Right expr -> with_note_start_end $ Eval.eval_toplevel ctx expr
     where
     text = Event.text event

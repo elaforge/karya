@@ -92,7 +92,7 @@ handle_unsynced msg = do
 
 -- | Record keydowns into the 'State' modifier map.
 -- TODO if it weren't for Cmd.MidiMod, this could work with just
--- (ctx_track, UiMsg.MsgEvent)
+-- (ctx_track, UiMsg.MsgEvent).  I've never used MidiMod, it can be dumped.
 record_keys :: Msg.Msg -> Cmd.CmdId ()
 record_keys msg = whenJust (msg_to_mod msg) $ \(down, mb_mod) -> do
     mods <- Cmd.keys_down
@@ -100,15 +100,15 @@ record_keys msg = whenJust (msg_to_mod msg) $ \(down, mb_mod) -> do
     -- other modifiers take downs and ups and incrementally modify the state.
     -- It's rather awkward, but keyups and keydowns may be missed if focus
     -- has left the app.
-    let mods2 = set_key_mods mods
-    mods3 <- case (down, mb_mod) of
-        (True, Just mod) -> insert mod mods2
-        (False, Just mod) -> delete mod mods2
-        _ -> return mods2
+    mods <- pure $ set_key_mods mods
+    mods <- case (down, mb_mod) of
+        (True, Just mod) -> insert mod mods
+        (False, Just mod) -> delete mod mods
+        _ -> return mods
     -- whenJust mb_mod $ \m ->
     --     Log.warn $ (if down then "keydown " else "keyup ")
     --         ++ show (Cmd.strip_modifier m) ++ " in " ++ show (Map.keys mods)
-    Cmd.modify $ \st -> st { Cmd.state_keys_down = mods3 }
+    Cmd.modify $ \st -> st { Cmd.state_keys_down = mods }
     where
     insert mod mods = do
         let key = Cmd.strip_modifier mod
@@ -302,10 +302,11 @@ event_style namespace blocks block_id has_note_children title event =
         | Maybe.isNothing (Event.stack event) = id
         | otherwise = Config.integrated_style
     style_of text
-        | Config.event_comment `Text.isPrefixOf` text = Config.Commented
+        | Parse.comment_remove `Text.isPrefixOf` text = Config.Commented
         | otherwise = case Parse.parse_expr text of
             Left _ -> Config.Error
             Right _
+                | Parse.comment `Text.isPrefixOf` title -> Config.Commented
                 | ParseTitle.is_note_track title ->
                     if has_note_children then Config.NoteParent
                     else if is_block_call text then Config.NoteBlockCall
@@ -318,6 +319,8 @@ event_style namespace blocks block_id has_note_children title event =
 -- | Set the track background color.
 track_bg :: Track.Track -> Color.Color
 track_bg track
+    | Parse.comment `Text.isPrefixOf` title =
+        Color.brightness 0.75 $ Track.track_bg track
     | ParseTitle.is_pitch_track title = Color.brightness 1.7 Config.pitch_color
     | ParseTitle.is_control_track title =
         Color.brightness 1.7 Config.control_color

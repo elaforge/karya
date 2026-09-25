@@ -6,7 +6,8 @@
 -- | Tracklang parsers.  Many of the parsers in here should be inverses of
 -- the 'ShowVal.ShowVal' class.
 module Derive.Parse (
-    parse_expr
+    comment_remove, comment
+    , parse_expr
     , parse_val, parse_attrs, parse_num, parse_call
     , lex1, lex, split_pipeline, join_pipeline
     , unparsed_call
@@ -53,6 +54,15 @@ import qualified Ui.Id as Id
 
 import           Global
 
+
+-- | The comment for tracklang is --, but if an event starts with this comment,
+-- the whole event is ignored.  A normal comment would mean the event exists,
+-- but has no expression.
+comment_remove :: Text
+comment_remove = "--|"
+
+comment :: Text
+comment = "--"
 
 {- | Hacky memo table for 'parse_expr'.  There are many small exprs, and
     most of them are the the same, so we can save a lot of parsing time,
@@ -152,7 +162,7 @@ join_pipeline =
 -- backtracks.  I think this means I can't reuse 'p_term'.
 p_lex1 :: A.Parser ()
 p_lex1 =
-    (str <|> parens <|> (p_equal_operator *> pure ()) <|> unparsed <|> comment
+    (str <|> parens <|> (p_equal_operator *> pure ()) <|> unparsed <|> p_comment
             <|> word)
         *> (A.skipWhile is_whitespace)
     where
@@ -166,7 +176,7 @@ p_lex1 =
     content_char c = c /= '(' && c /= ')' && c /= '\''
     unparsed = A.string (Expr.unsym unparsed_call)
         *> A.skipWhile (\c -> c /= '|' && c /= ')')
-    comment = A.string "--" *> A.skipWhile (const True)
+    p_comment = A.string comment *> A.skipWhile (const True)
 
 -- * expand macros
 
@@ -236,7 +246,7 @@ p_unparsed_expr = do
     -- Normally comments are considered whitespace by 'spaces_to_eol'.  Normal
     -- tokenization is suppressed for 'unparsed_call' so that doesn't happen,
     -- but I still want to allow comments, for consistency.
-    strip_comment = fst . Text.breakOn "--"
+    strip_comment = fst . Text.breakOn comment
 
 -- | This is a magic call name that suppresses normal parsing.  Instead, the
 -- rest of the event expression is passed as a string.  The only characters
@@ -493,7 +503,7 @@ empty_line = spaces_to_eol >> A.skip (=='\n')
 spaces_to_eol :: A.Parser ()
 spaces_to_eol = do
     A.skipWhile is_whitespace
-    comment <- A.option "" (A.string "--")
+    comment <- A.option "" (A.string comment)
     unless (Text.null comment) $
         A.skipWhile (\c -> c /= '\n')
 

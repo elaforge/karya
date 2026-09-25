@@ -148,6 +148,7 @@ import qualified Util.Ranges as Ranges
 import qualified Util.Rect as Rect
 
 import qualified App.Config as Config
+import qualified Derive.Parse as Parse
 import qualified Derive.ParseSkeleton as ParseSkeleton
 import qualified Derive.ScoreT as ScoreT
 import qualified Derive.Stack as Stack
@@ -980,10 +981,18 @@ move_track block_id from to = do
 
 infer_skeleton :: M m => [Block.Track] -> m Skeleton.Skeleton
 infer_skeleton tracks = do
-    titles <- traverse (traverse get_track_title) $
+    titles <- traverse (traverse (fmap strip . get_track_title)) $
         Lists.mapMaybeSnd Block.track_id (zip [0..] tracks)
-    return $ ParseSkeleton.default_parser $
+    pure $ ParseSkeleton.default_parser $
         map (uncurry ParseSkeleton.Track) titles
+    where
+    -- Treat commented out tracks as if they weren't commented.  This is so
+    -- I can comment out a track and it'll disable the contents and not change
+    -- skeleton.
+    strip title
+        | Just s <- remove Parse.comment = s
+        | otherwise = title
+        where remove p = Text.stripStart <$> Text.stripPrefix p title
 
 update_skeleton :: M m => BlockId -> m ()
 update_skeleton block_id = do
