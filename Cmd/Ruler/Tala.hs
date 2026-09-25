@@ -46,7 +46,7 @@ type Nadai = Int
 simple :: Tala -> Nadai -> Avartanams -> Meter.Meter
 simple tala nadai avartanams = make tala nadai 1 avartanams 1
 
--- TODO too many parameters.. use a record?
+-- TODO too many parameters, use a record?
 make :: Tala -> Nadai -> Meter.Duration -> Avartanams -> Sections
     -> Meter.Meter
 make tala nadai avartanam_dur avartanams sections =

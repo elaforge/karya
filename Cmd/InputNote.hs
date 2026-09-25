@@ -2,6 +2,7 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
+{-# LANGUAGE CPP #-}
 {- | Convert incoming MIDI (and other inputs) to the internal note
     representation.  This has two purposes: note entry, and midi thru.
 
@@ -31,7 +32,28 @@
     because this one has to operate in realtime and can't see which controls
     the note is going to use.
 -}
-module Cmd.InputNote where
+module Cmd.InputNote (
+    keyboard_velocity
+    , Input
+    , InputNn
+    , GenericInput(..)
+    , input_id
+    , offset_note_id
+    , NoteId(..)
+
+    -- * from_midi
+    , ReadDeviceState
+    , empty_rdev_state
+    , from_midi
+    , nn_to_input
+    -- * from_ascii
+    , from_ascii
+    -- * to_midi
+    , to_midi
+#ifdef TESTING
+    , module Cmd.InputNote
+#endif
+) where
 import qualified Data.Map as Map
 import qualified Data.Text as Text
 

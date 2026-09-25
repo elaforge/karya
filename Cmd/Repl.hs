@@ -12,7 +12,9 @@
     I want to do this for explicitly named modules (Cmd.Repl.Environ and
     Local/Repl/ *.hs), it's just annoying and brittle when applied to the main
     src files.  Is there a way to get ghc to load the objects even if the
-    source files are newer?
+    source files are newer?  Or turn on -fobject-code?
+
+    https://groupoid.moe/posts/ghc-api-tutorial.html
 -}
 module Cmd.Repl (
     with_socket

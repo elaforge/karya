@@ -2,12 +2,19 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
+{-# LANGUAGE CPP #-}
 {-# LANGUAGE ViewPatterns #-}
 {- | This module implements kbd entry by intercepting kbd and MIDI events and
     re-emitting them as InputNotes.  These then go to the track-specific edit
     cmds to enter notes and to "Cmd.MidiThru" which re-emits them as MIDI.
 -}
-module Cmd.NoteEntry where
+module Cmd.NoteEntry (
+    cmds_with_input
+    , floating_input_insert
+#ifdef TESTING
+    , module Cmd.NoteEntry
+#endif
+) where
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 import qualified Data.Set as Set
