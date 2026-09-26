@@ -17,67 +17,67 @@ import qualified Perform.Pitch as Pitch
 
 scales :: [Scale.Definition]
 scales = map Scale.Simple
-    [ make_scale "octa21" layout21 keys21 absolute_fmt
-    , make_scale "octa12" layout12 keys12 absolute_fmt
-    , make_scale "octa21-r" layout21 keys21 (relative_fmt keys21)
-    , make_scale "octa12-r" layout12 keys12 (relative_fmt keys12)
+    [ makeScale "octa21" layout21 keys21 absoluteFmt
+    , makeScale "octa12" layout12 keys12 absoluteFmt
+    , makeScale "octa21-r" layout21 keys21 (relativeFmt keys21)
+    , makeScale "octa12-r" layout12 keys12 (relativeFmt keys12)
     ]
     where
     layout21 = Theory.layout [2, 1, 2, 1, 2, 1, 2, 1]
     layout12 = Theory.layout [1, 2, 1, 2, 1, 2, 1, 2]
-    keys21 = all_keys layout21
-    keys12 = all_keys layout12
+    keys21 = allKeys layout21
+    keys12 = allKeys layout12
 
-absolute_fmt :: TheoryFormat.Format
-absolute_fmt =
-    TheoryFormat.make_absolute_format (TheoryFormat.make_pattern degrees)
+absoluteFmt :: TheoryFormat.Format
+absoluteFmt =
+    TheoryFormat.makeAbsoluteFormat (TheoryFormat.makePattern degrees)
         degrees
     where
-    degrees = TheoryFormat.make_degrees ["a", "b", "c", "d", "e", "f", "g", "h"]
+    degrees = TheoryFormat.makeDegrees ["a", "b", "c", "d", "e", "f", "g", "h"]
 
-relative_fmt :: ChromaticScales.Keys -> TheoryFormat.Format
-relative_fmt keys = make $ TheoryFormat.RelativeFormat
-    { rel_config = TheoryFormat.default_config
-    , rel_key_config = TheoryFormat.KeyConfig
-        { key_parse = parse_key
-        , key_default = default_theory_key
+relativeFmt :: ChromaticScales.Keys -> TheoryFormat.Format
+relativeFmt keys = make $ TheoryFormat.RelativeFormat
+    { relConfig = TheoryFormat.defaultConfig
+    , relKeyConfig = TheoryFormat.KeyConfig
+        { keyParse = parseKey
+        , keyDefault = defaultTheoryKey
         }
-    , rel_show_degree = TheoryFormat.show_degree_chromatic
-    , rel_to_absolute = TheoryFormat.chromatic_to_absolute
+    , relShowDegree = TheoryFormat.showDegreeChromatic
+    , relToAbsolute = TheoryFormat.chromaticToAbsolute
     }
     where
-    parse_key = Scales.get_key default_theory_key keys
-    Just default_theory_key = Map.lookup default_key keys
-    make = TheoryFormat.make_relative_format (TheoryFormat.make_pattern degrees)
+    parseKey = Scales.getKey defaultTheoryKey keys
+    Just defaultTheoryKey = Map.lookup defaultKey keys
+    make = TheoryFormat.makeRelativeFormat (TheoryFormat.makePattern degrees)
         degrees
-    degrees = TheoryFormat.make_degrees
+    degrees = TheoryFormat.makeDegrees
         ["一", "二", "三", "四", "五", "六", "七", "八"]
 
-make_scale :: Pitch.ScaleId -> Theory.Layout -> ChromaticScales.Keys
+makeScale :: Pitch.ScaleId -> Theory.Layout -> ChromaticScales.Keys
     -> TheoryFormat.Format -> Scale.Scale
-make_scale scale_id layout keys fmt =
-    ChromaticScales.make_scale scale_id scale_map doc
+makeScale scaleId layout keys fmt =
+    ChromaticScales.makeScale scaleId scaleMap doc
     where
-    scale_map = ChromaticScales.scale_map layout fmt keys default_theory_key
-    Just default_theory_key = Map.lookup default_key keys
+    scaleMap = ChromaticScales.scaleMap layout fmt keys defaultTheoryKey
+    Just defaultTheoryKey = Map.lookup defaultKey keys
     doc = "Octatonic scales as true 8 note scales, using notes from a-h.\
         \ There are two variants: octa21 starts with a whole step, while\
         \ octa12 starts with a half-step.\n"
-        <> ChromaticScales.twelve_doc
+        <> ChromaticScales.twelveDoc
 
-default_key :: Pitch.Key
-default_key = Pitch.Key "a"
+defaultKey :: Pitch.Key
+defaultKey = Pitch.Key "a"
 
-all_degrees :: [Pitch.Degree]
-all_degrees = [Pitch.Degree pc accs | pc <- [0..7], accs <- [-1..1]]
+allDegrees :: [Pitch.Degree]
+allDegrees = [Pitch.Degree pc accs | pc <- [0..7], accs <- [-1..1]]
 
-make_keys :: Theory.Layout -> [Pitch.Semi] -> [Theory.Key]
-make_keys layout intervals =
+makeKeys :: Theory.Layout -> [Pitch.Semi] -> [Theory.Key]
+makeKeys layout intervals =
     [Theory.key tonic "" intervals layout
-        | tonic <- all_degrees, abs (Pitch.degree_accidentals tonic) <= 1]
+        | tonic <- allDegrees, abs (Pitch.degreeAccidentals tonic) <= 1]
 
-all_keys :: Theory.Layout -> ChromaticScales.Keys
-all_keys layout =
-    Map.fromList $ zip (map (TheoryFormat.show_key absolute_fmt) keys) keys
+allKeys :: Theory.Layout -> ChromaticScales.Keys
+allKeys layout =
+    Map.fromList $ zip (map (TheoryFormat.showKey absoluteFmt) keys) keys
     where
-    keys = make_keys layout $ Vector.toList (Theory.layout_intervals layout)
+    keys = makeKeys layout $ Vector.toList (Theory.layoutIntervals layout)

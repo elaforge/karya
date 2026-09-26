@@ -68,11 +68,11 @@ data Device = Sox | PortAudio PortAudio.Device
 getDevices :: IO ([(String, Device)], String)
 getDevices = do
     deflt <- PortAudio.getDefaultOutput
-    (, PortAudio._name deflt) . Lists.keyOn name_of . (++[Sox]) . map PortAudio
+    (, PortAudio._name deflt) . Lists.keyOn nameOf . (++[Sox]) . map PortAudio
         <$> PortAudio.getOutputDevices
     where
-    name_of Sox = "sox"
-    name_of (PortAudio dev) = PortAudio._name dev
+    nameOf Sox = "sox"
+    nameOf (PortAudio dev) = PortAudio._name dev
 
 streamToPortAudio :: Bool -> PortAudio.Device -> Thread.Flag -> FilePath
     -> Muted -> RealTime -> IO ()

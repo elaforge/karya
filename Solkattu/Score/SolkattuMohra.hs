@@ -138,7 +138,7 @@ c_mohra_youtube = source "Melakkaveri Balaji" $
 
 -- | Misra version of 'c_mohra'.
 misra1 :: Korvai
-misra1 = date 2019 4 14 $ ganesh $ korvai1 Tala.misra_chapu mridangam id
+misra1 = date 2019 4 14 $ ganesh $ korvai1 Tala.misraChapu mridangam id
     (a1, a2, a1) (b1, b2, b3)
     where
     a1 = tam.__.taka.nakatiku

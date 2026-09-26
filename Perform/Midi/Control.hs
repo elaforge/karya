@@ -19,65 +19,65 @@ import           Global
 
 type ControlMap = Map ScoreT.Control Midi.Control
 
-control_map :: [(Midi.Control, ScoreT.Control)] -> ControlMap
-control_map = Map.fromList . map Tuple.swap
+controlMap :: [(Midi.Control, ScoreT.Control)] -> ControlMap
+controlMap = Map.fromList . map Tuple.swap
 
-empty_map :: ControlMap
-empty_map = control_map []
+emptyMap :: ControlMap
+emptyMap = controlMap []
 
 -- | Pitchbend range in tempered semitones below and above unity.  The first
 -- integer should probably be negative.
 type PbRange = (Int, Int)
 
 -- | Convert from a control to a function that creates its MIDI message.
-control_constructor :: ControlMap -> ScoreT.Control -> Midi.Key
+controlConstructor :: ControlMap -> ScoreT.Control -> Midi.Key
     -> Maybe (Signal.Y -> Midi.ChannelMessage)
-control_constructor cmap cont key
+controlConstructor cmap cont key
     | Just cc <- Map.lookup cont cmap =
-        Just $ Midi.ControlChange cc . val_to_cval
-    | Just cc <- Map.lookup cont universal_control_map =
-        Just $ Midi.ControlChange cc . val_to_cval
-    | cont == Controls.pressure = Just $ Midi.ChannelPressure . val_to_cval
-    | cont == Controls.aftertouch = Just $ Midi.Aftertouch key . val_to_cval
+        Just $ Midi.ControlChange cc . valToCval
+    | Just cc <- Map.lookup cont universalControlMap =
+        Just $ Midi.ControlChange cc . valToCval
+    | cont == Controls.pressure = Just $ Midi.ChannelPressure . valToCval
+    | cont == Controls.aftertouch = Just $ Midi.Aftertouch key . valToCval
     | otherwise = Nothing
 
 -- | True if the given control will be used by the MIDI performer.
 -- Takes a ScoreT.Control because being a MIDI control is a precondition for
 -- conversion into 'Control'.
-is_midi_control :: ControlMap -> ScoreT.Control -> Bool
-is_midi_control cmap control =
-    Map.member control universal_control_map
+isMidiControl :: ControlMap -> ScoreT.Control -> Bool
+isMidiControl cmap control =
+    Map.member control universalControlMap
     || Map.member control cmap
     || control == Controls.pressure || control == Controls.aftertouch
 
 -- | True for controls that must have a channel to themselves.  Midi controls
 -- are a subset of what I consider controls, since I include all variable note
 -- parameters.
-is_channel_control :: ScoreT.Control -> Bool
-is_channel_control = (/= Controls.aftertouch)
+isChannelControl :: ScoreT.Control -> Bool
+isChannelControl = (/= Controls.aftertouch)
 
 -- | Given a NoteNumber, return the midi note number and pitch bend amount to
 -- sound at the pitch.
-pitch_to_midi :: PbRange -> Pitch.NoteNumber
+pitchToMidi :: PbRange -> Pitch.NoteNumber
     -> Maybe (Midi.Key, Midi.PitchBendValue)
-pitch_to_midi pb_range nn
+pitchToMidi pbRange nn
     -- Signals default to 0 so 0 probably means the pitch signal was empty.
     | nn <= 0 || nn > 127 = Nothing
     -- Due to floating point imprecision, I can end up with nns that are
     -- supposed be integral, but are sightly off.  So if the difference is
     -- below the level of perception, just round to 0.
     | abs (fromIntegral (round nn) - nn) < 0.005 =
-        Just (Midi.to_key (round nn), 0)
-    | otherwise = Just (key, pb_from_nn pb_range key nn)
-    where key = Midi.to_key (floor nn)
+        Just (Midi.toKey (round nn), 0)
+    | otherwise = Just (key, pbFromNn pbRange key nn)
+    where key = Midi.toKey (floor nn)
 
-pb_from_nn :: PbRange -> Midi.Key -> Pitch.NoteNumber -> Midi.PitchBendValue
-pb_from_nn pb_range key (Pitch.NoteNumber nn)
+pbFromNn :: PbRange -> Midi.Key -> Pitch.NoteNumber -> Midi.PitchBendValue
+pbFromNn pbRange key (Pitch.NoteNumber nn)
     | bend > 0 = if high > 0 then Num.d2f $ bend / high else 0
     | otherwise = if low < 0 then Num.d2f $ bend / (-low) else 0
     where
-    (low, high) = bimap fromIntegral fromIntegral pb_range
-    bend = Num.clamp low high (nn - Midi.from_key key)
+    (low, high) = bimap fromIntegral fromIntegral pbRange
+    bend = Num.clamp low high (nn - Midi.fromKey key)
 
 -- ** cc controls
 
@@ -92,8 +92,8 @@ pb_from_nn pb_range key (Pitch.NoteNumber nn)
 -- This will also be checked by 'control_constructor', so these are controls
 -- that every instrument will respond to.  Of course it may override some of
 -- these names if it wishes.
-universal_control_map :: ControlMap
-universal_control_map = control_map $
+universalControlMap :: ControlMap
+universalControlMap = controlMap $
     [(n, ScoreT.Control $ "cc" <> showt n) | n <- [0..127]] ++
     [ (1, "mod")
     , (2, "breath")
@@ -107,16 +107,16 @@ universal_control_map = control_map $
     , (67, "soft-pedal")
     ]
 
-cc_to_control :: Midi.Control -> ScoreT.Control
-cc_to_control = ScoreT.Control . ("cc"<>) . showt
+ccToControl :: Midi.Control -> ScoreT.Control
+ccToControl = ScoreT.Control . ("cc"<>) . showt
 
 -- * util
 
-val_to_pb :: Signal.Y -> Int
-val_to_pb val = round $ (Num.clamp (-1) 1 val + 1) * 0x2000 - 0x2000
+valToPb :: Signal.Y -> Int
+valToPb val = round $ (Num.clamp (-1) 1 val + 1) * 0x2000 - 0x2000
 
-val_to_cval :: Signal.Y -> Midi.ControlValue
-val_to_cval val = round $ Num.clamp 0 1 val * 0x7f
+valToCval :: Signal.Y -> Midi.ControlValue
+valToCval val = round $ Num.clamp 0 1 val * 0x7f
 
-cval_to_val :: Midi.ControlValue -> Signal.Y
-cval_to_val v = fromIntegral v / 0x7f
+cvalToVal :: Midi.ControlValue -> Signal.Y
+cvalToVal v = fromIntegral v / 0x7f

@@ -6,14 +6,14 @@
 -- This is used to detect when code changes cause a performance to change.
 module Cmd.DiffPerformance (
     -- * save and load
-    load_midi, save_midi, midi_magic
+    loadMidi, saveMidi, midiMagic
     -- * diff
-    , diff_lilypond
-    , diff_im
-    , diff_midi
+    , diffLilypond
+    , diffIm
+    , diffMidi
     -- * util
-    , show_midi
-    , diff_lines
+    , showMidi
+    , diffLines
 ) where
 import qualified Control.Exception as Exception
 import qualified Data.List as List
@@ -44,72 +44,72 @@ type Messages = Vector.Vector Midi.WriteMessage
 
 -- * save and load
 
-load_midi :: FilePath -> IO (Either Text Messages)
-load_midi fname =
+loadMidi :: FilePath -> IO (Either Text Messages)
+loadMidi fname =
     first ((("loading " <> showt fname <> ": ") <>) . pretty) <$>
-        Serialize.unserialize midi_magic fname
+        Serialize.unserialize midiMagic fname
 
 -- | Perform the input score and save the midi msgs to the output file.
 -- This creates the -perf files.
-save_midi :: FilePath -> Messages -> IO ()
-save_midi fn = void . Serialize.serialize midi_magic fn
+saveMidi :: FilePath -> Messages -> IO ()
+saveMidi fn = void . Serialize.serialize midiMagic fn
 
 -- | Saved MIDI performance.
-midi_magic :: Serialize.Magic (Vector.Vector Midi.WriteMessage)
-midi_magic = Serialize.Magic 'm' 'i' 'd' 'i'
+midiMagic :: Serialize.Magic (Vector.Vector Midi.WriteMessage)
+midiMagic = Serialize.Magic 'm' 'i' 'd' 'i'
 
 
 -- * diff
 
-diff_lilypond :: String -> FilePath -> UiConfig.LilypondPerformance -> Text
+diffLilypond :: String -> FilePath -> UiConfig.LilypondPerformance -> Text
     -> IO (Maybe Text, [FilePath])
-diff_lilypond = diff_performance Text.lines
+diffLilypond = diffPerformance Text.lines
 
-diff_im :: String -> FilePath -> UiConfig.ImPerformance -> [Shared.Note.Note]
+diffIm :: String -> FilePath -> UiConfig.ImPerformance -> [Shared.Note.Note]
     -> IO (Maybe Text, [FilePath])
-diff_im name dir performance =
-    diff_performance show_im name dir (Vector.toList <$> performance)
-    where show_im = map pretty
+diffIm name dir performance =
+    diffPerformance showIm name dir (Vector.toList <$> performance)
+    where showIm = map pretty
 
-diff_midi :: String -> FilePath -> UiConfig.MidiPerformance
+diffMidi :: String -> FilePath -> UiConfig.MidiPerformance
     -> [Midi.WriteMessage] -> IO (Maybe Text, [FilePath])
-diff_midi name dir performance =
-    diff_performance show_midi name dir (Vector.toList <$> performance)
+diffMidi name dir performance =
+    diffPerformance showMidi name dir (Vector.toList <$> performance)
 
-diff_performance :: (events -> [Text]) -> String -> FilePath
+diffPerformance :: (events -> [Text]) -> String -> FilePath
     -> UiConfig.Performance events -> events -> IO (Maybe Text, [FilePath])
-diff_performance show_events name dir performance events =
-    first (fmap (info<>)) <$> diff_lines name dir
-        (show_events (UiConfig.perf_events performance))
-        (show_events events)
+diffPerformance showEvents name dir performance events =
+    first (fmap (info<>)) <$> diffLines name dir
+        (showEvents (UiConfig.perfEvents performance))
+        (showEvents events)
     where
     info = Text.unlines
-        [ "Diffs from " <> pretty (UiConfig.perf_creation performance)
-        , "Commit: " <> UiConfig.perf_commit performance
+        [ "Diffs from " <> pretty (UiConfig.perfCreation performance)
+        , "Commit: " <> UiConfig.perfCommit performance
         ]
 
 -- | Write files in the given directory and run the @diff@ command on them.
-diff_lines :: String -> FilePath -> [Text] -> [Text]
+diffLines :: String -> FilePath -> [Text] -> [Text]
     -> IO (Maybe Text, [FilePath])
     -- ^ (abbreviated_diff, wrote_files)
-diff_lines name dir expected got = do
+diffLines name dir expected got = do
     Directory.createDirectoryIfMissing True dir
-    Files.writeLines expected_fn expected
-    Files.writeLines got_fn got
+    Files.writeLines expectedFn expected
+    Files.writeLines gotFn got
     (_code, diff, stderr) <- Process.readProcessWithExitCode
-        "diff" [expected_fn, got_fn] ""
+        "diff" [expectedFn, gotFn] ""
     unless (null stderr) $
         Exception.throwIO $ IO.Error.userError $ "diff failed: " ++ stderr
     let abbreviated
             | null diff = Nothing
-            | otherwise = Just $ show_diffs (txt diff)
-    pure (abbreviated, [expected_fn, got_fn])
+            | otherwise = Just $ showDiffs (txt diff)
+    pure (abbreviated, [expectedFn, gotFn])
     where
-    expected_fn = dir </> name ++ ".expected"
-    got_fn = dir </> name ++ ".got"
+    expectedFn = dir </> name ++ ".expected"
+    gotFn = dir </> name ++ ".got"
 
-show_diffs :: Text -> Text
-show_diffs diff = Text.unlines (limit 50 (Text.lines diff))
+showDiffs :: Text -> Text
+showDiffs diff = Text.unlines (limit 50 (Text.lines diff))
 
 limit :: Int -> [Text] -> [Text]
 limit n xs = pre ++ if null post then [] else [msg]
@@ -117,25 +117,25 @@ limit n xs = pre ++ if null post then [] else [msg]
     msg = "... trimmed (" <> showt (length xs) <> " lines)"
     (pre, post) = splitAt n xs
 
-show_midi :: [Midi.WriteMessage] -> [Text]
-show_midi = map pretty . normalize
+showMidi :: [Midi.WriteMessage] -> [Text]
+showMidi = map pretty . normalize
 
 -- | To better approximate audible differences, I strip excessive time
 -- precision and ensure notes happening at the same time are in a consistent
 -- order.
 normalize :: [Midi.WriteMessage] -> [Midi.WriteMessage]
-normalize = concatMap List.sort . Lists.groupAdjacent Midi.wmsg_ts . map strip
+normalize = concatMap List.sort . Lists.groupAdjacent Midi.wmsgTs . map strip
     where
     strip wmsg = wmsg
-        { Midi.wmsg_ts = strip_time (Midi.wmsg_ts wmsg)
-        , Midi.wmsg_msg = strip_msg (Midi.wmsg_msg wmsg)
+        { Midi.wmsgTs = stripTime (Midi.wmsgTs wmsg)
+        , Midi.wmsgMsg = stripMsg (Midi.wmsgMsg wmsg)
         }
     -- It'll be rounded again by the pretty instance, since I actually diff
     -- pretty output, so this is likely unnecessary.
-    strip_time = RealTime.seconds . round_to 3 . RealTime.to_seconds
+    stripTime = RealTime.seconds . roundTo 3 . RealTime.toSeconds
     -- PitchBends are serialized as 14-bit numbers, so when they get
     -- deserialized they change.
-    strip_msg = Encode.decode . Encode.encode
+    stripMsg = Encode.decode . Encode.encode
 
-round_to :: RealFrac d => Int -> d -> d
-round_to n = (/ 10^n) . fromIntegral . round . (* 10^n)
+roundTo :: RealFrac d => Int -> d -> d
+roundTo n = (/ 10^n) . fromIntegral . round . (* 10^n)

@@ -2,7 +2,7 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
-module Ui.UiMsgC (get_ui_msgs) where
+module Ui.UiMsgC (getUiMsgs) where
 import qualified Util.FFI as FFI
 import qualified Ui.Block as Block
 import qualified Ui.PtrMap as PtrMap
@@ -13,17 +13,17 @@ import           Types
 import           ForeignC
 
 
-get_ui_msgs :: IO [UiMsg.UiMsg]
-get_ui_msgs = with nullPtr $ \msgspp -> do
-    count <- c_get_ui_msgs msgspp
+getUiMsgs :: IO [UiMsg.UiMsg]
+getUiMsgs = with nullPtr $ \msgspp -> do
+    count <- cGetUiMsgs msgspp
     msgsp <- peek msgspp
     msgs <- peekArray (int count) msgsp
-    c_clear_ui_msgs
+    cClearUiMsgs
     return msgs
 
 foreign import ccall unsafe "get_ui_msgs"
-    c_get_ui_msgs :: Ptr (Ptr UiMsg.UiMsg) -> IO CInt
-foreign import ccall unsafe "clear_ui_msgs" c_clear_ui_msgs :: IO ()
+    cGetUiMsgs :: Ptr (Ptr UiMsg.UiMsg) -> IO CInt
+foreign import ccall unsafe "clear_ui_msgs" cClearUiMsgs :: IO ()
 
 -- * Storable
 
@@ -33,81 +33,81 @@ instance CStorable UiMsg.UiMsg where
     sizeOf _ = #size UiMsg
     alignment _ = alignment nullPtr
     poke = error "UiMsg poke unimplemented"
-    peek = peek_msg
+    peek = peekMsg
 
-peek_msg :: Ptr UiMsg.UiMsg -> IO UiMsg.UiMsg
-peek_msg msgp = do
-    type_num <- (#peek UiMsg, type) msgp :: IO CInt
-    (context, maybe_view_id) <- peek_context msgp
-    UiMsg.UiMsg context <$> case type_num of
-        (#const UiMsg::msg_event) -> UiMsg.MsgEvent <$> peek_event msgp
+peekMsg :: Ptr UiMsg.UiMsg -> IO UiMsg.UiMsg
+peekMsg msgp = do
+    typeNum <- (#peek UiMsg, type) msgp :: IO CInt
+    (context, maybeViewId) <- peekContext msgp
+    UiMsg.UiMsg context <$> case typeNum of
+        (#const UiMsg::msg_event) -> UiMsg.MsgEvent <$> peekEvent msgp
         (#const UiMsg::msg_screen_size) -> do
             rect <- peek =<< (#peek UiMsg, screen.rect) msgp
             screen <- int <$> (#peek UiMsg, screen.screen) msgp :: IO Int
             screens <- int <$> (#peek UiMsg, screen.screens) msgp :: IO Int
             return $ UiMsg.UpdateScreenSize screen screens rect
         _ -> do
-            view_id <- maybe
+            viewId <- maybe
                 (error $ "got a null view_id from a ui update: "
-                    ++ show type_num)
-                return maybe_view_id
-            UiMsg.UiUpdate view_id <$> peek_ui_update type_num msgp
+                    ++ show typeNum)
+                return maybeViewId
+            UiMsg.UiUpdate viewId <$> peekUiUpdate typeNum msgp
 
-peek_context :: Ptr UiMsg.UiMsg -> IO (UiMsg.Context, Maybe ViewId)
-peek_context msgp = do
+peekContext :: Ptr UiMsg.UiMsg -> IO (UiMsg.Context, Maybe ViewId)
+peekContext msgp = do
     focusp <- (#peek UiMsg, context.focus) msgp :: IO (Ptr PtrMap.CView)
-    ctx_focus <- lookup_id focusp
+    ctxFocus <- lookupId focusp
     viewp <- (#peek UiMsg, context.view) msgp :: IO (Ptr PtrMap.CView)
-    view <- lookup_id viewp
+    view <- lookupId viewp
 
-    track_type <- (#peek UiMsg, context.track_type) msgp :: IO CChar
+    trackType <- (#peek UiMsg, context.track_type) msgp :: IO CChar
     tracknum <- int <$> (#peek UiMsg, context.tracknum) msgp :: IO Int
-    has_pos <- toBool <$> ((#peek UiMsg, context.has_pos) msgp :: IO CChar)
+    hasPos <- toBool <$> ((#peek UiMsg, context.has_pos) msgp :: IO CChar)
     cpos <- (#peek UiMsg, context.pos) msgp
     pure
         ( UiMsg.Context
-            { ctx_focus
-            , ctx_track = decode_track track_type tracknum has_pos cpos
-            , ctx_floating_input =
-                track_type == (#const UiMsg::track_floating_input)
+            { ctxFocus
+            , ctxTrack = decodeTrack trackType tracknum hasPos cpos
+            , ctxFloatingInput =
+                trackType == (#const UiMsg::track_floating_input)
             }
         , view
         )
     where
-    lookup_id p
+    lookupId p
         | p == nullPtr = return Nothing
-        | otherwise = PtrMap.lookup_id p
+        | otherwise = PtrMap.lookupId p
 
-decode_track :: CChar -> Int -> Bool -> ScoreTime
+decodeTrack :: CChar -> Int -> Bool -> ScoreTime
     -> Maybe (TrackNum, UiMsg.Track)
-decode_track track_type tracknum has_pos pos
-    | track_type == (#const UiMsg::track_none) = Nothing
-    | has_pos = if track_type == (#const UiMsg::track_divider)
+decodeTrack trackType tracknum hasPos pos
+    | trackType == (#const UiMsg::track_none) = Nothing
+    | hasPos = if trackType == (#const UiMsg::track_divider)
         then Just (tracknum, UiMsg.Divider)
         else Just (tracknum, UiMsg.Track pos)
     | otherwise = Just (tracknum, UiMsg.SkeletonDisplay)
 
-peek_event :: Ptr UiMsg.UiMsg -> IO UiMsg.MsgEvent
-peek_event msgp = do
+peekEvent :: Ptr UiMsg.UiMsg -> IO UiMsg.MsgEvent
+peekEvent msgp = do
     event <- int <$> (#peek UiMsg, event.event) msgp :: IO Int
     button <- int <$> (#peek UiMsg, event.button) msgp :: IO Int
     clicks <- int <$> (#peek UiMsg, event.clicks) msgp :: IO Int
-    is_click <- toBool <$> ((#peek UiMsg, event.is_click) msgp :: IO CInt)
+    isClick <- toBool <$> ((#peek UiMsg, event.is_click) msgp :: IO CInt)
     x <- int <$> (#peek UiMsg, event.x) msgp :: IO Int
     y <- int <$> (#peek UiMsg, event.y) msgp :: IO Int
-    key_code <- (#peek UiMsg, event.key) msgp :: IO CInt
+    keyCode <- (#peek UiMsg, event.key) msgp :: IO CInt
     text <- (#peek UiMsg, event.text) msgp :: IO CChar
-    modifier_state <- (#peek UiMsg, event.modifier_state) msgp :: IO CInt
-    is_repeat <- toBool <$> ((#peek UiMsg, event.is_repeat) msgp :: IO CChar)
+    modifierState <- (#peek UiMsg, event.modifier_state) msgp :: IO CInt
+    isRepeat <- toBool <$> ((#peek UiMsg, event.is_repeat) msgp :: IO CChar)
     let mouse state = UiMsg.Mouse $ UiMsg.MouseEvent
-            { mouse_state = state
-            , mouse_modifiers = mods
-            , mouse_coords = (x, y)
-            , mouse_clicks = clicks
-            , mouse_is_click = is_click
+            { mouseState = state
+            , mouseModifiers = mods
+            , mouseCoords = (x, y)
+            , mouseClicks = clicks
+            , mouseIsClick = isClick
             }
-        mods = Key.decode_modifiers modifier_state
-        key = Key.decode_key key_code
+        mods = Key.decodeModifiers modifierState
+        key = Key.decodeKey keyCode
         kbd state = UiMsg.Kbd state mods key $ if text == 0 then Nothing
             else Just (toEnum (fromIntegral text))
         aux = UiMsg.AuxMsg
@@ -117,7 +117,7 @@ peek_event msgp = do
         (#const FL_RELEASE) -> mouse (UiMsg.MouseUp button)
         (#const FL_MOVE) -> mouse UiMsg.MouseMove
         (#const FL_KEYDOWN) -> kbd
-            (if is_repeat then UiMsg.KeyRepeat else UiMsg.KeyDown)
+            (if isRepeat then UiMsg.KeyRepeat else UiMsg.KeyDown)
         (#const FL_KEYUP) -> kbd UiMsg.KeyUp
 
         (#const FL_ENTER) -> aux UiMsg.Enter
@@ -131,8 +131,8 @@ peek_event msgp = do
         (#const FL_SHOW) -> aux UiMsg.Show
         _ -> UiMsg.Unhandled event
 
-peek_ui_update :: CInt -> Ptr UiMsg.UiMsg -> IO UiMsg.UiUpdate
-peek_ui_update type_num msgp = case type_num of
+peekUiUpdate :: CInt -> Ptr UiMsg.UiMsg -> IO UiMsg.UiUpdate
+peekUiUpdate typeNum msgp = case typeNum of
     (#const UiMsg::msg_input) -> do
         ctext <- (#peek UiMsg, input.text) msgp :: IO CString
         text <- if ctext == nullPtr then return Nothing
@@ -150,11 +150,11 @@ peek_ui_update type_num msgp = case type_num of
         return $ UiMsg.UpdateViewResize rect padding
     (#const UiMsg::msg_track_width) -> do
         width <- int <$> (#peek UiMsg, track_width.width) msgp
-        suggested_width <-
+        suggestedWidth <-
             int <$> (#peek UiMsg, track_width.suggested_width) msgp
-        return $ UiMsg.UpdateTrackWidth width suggested_width
+        return $ UiMsg.UpdateTrackWidth width suggestedWidth
     (#const UiMsg::msg_close) -> return UiMsg.UpdateClose
-    _ -> error $ "unknown UiMsg type: " ++ show type_num
+    _ -> error $ "unknown UiMsg type: " ++ show typeNum
 
 int :: CInt -> Int
 int = fromIntegral

@@ -57,7 +57,7 @@ run block = do
     where
     nameScore blockId imDir (inst, p) =
         ( Config.outputDirectory imDir scorePath blockId
-        , ScoreT.instrument_name inst
+        , ScoreT.instrumentName inst
         , renderPerformance srate p
         )
 

@@ -58,15 +58,15 @@ data Msg
     | Socket IO.Handle ReplProtocol.Query
     deriving (Show)
 
-show_short :: Msg -> Text
-show_short = \case
-    Ui ui -> UiMsg.show_short ui
+showShort :: Msg -> Text
+showShort = \case
+    Ui ui -> UiMsg.showShort ui
     Midi midi -> pretty midi
     InputNote note -> pretty note
     Transport status -> pretty status
     -- show_short is used for timing, and Show DeriveStatus can force stuff in
     -- Performance, so let's avoid the Show instance.
-    DeriveStatus bid status -> Id.ident_text bid <> ":" <> case status of
+    DeriveStatus bid status -> Id.identText bid <> ":" <> case status of
         OutOfDate -> "OutOfDate"
         Deriving -> "Deriving"
         DeriveComplete {} -> "DeriveComplete"
@@ -99,8 +99,8 @@ data DeriveStatus
 
 instance Pretty DeriveStatus where
     pretty = \case
-        ImStatus block_id track_ids status ->
-            pretty block_id <> ":" <> pretty track_ids <> ":" <> pretty status
+        ImStatus blockId trackIds status ->
+            pretty blockId <> ":" <> pretty trackIds <> ":" <> pretty status
         status -> showt status
 
 data ImStarted = ImStarted -- ^ im subprocess in progress
@@ -142,63 +142,63 @@ instance Pretty ImStatus where
     'perf_damage' without forcing any of the others.
 -}
 data Performance = Performance
-    { perf_derive_cache :: ~Derive.Cache
+    { perfDeriveCache :: ~Derive.Cache
     -- | This is the forced result of a derivation.
-    , perf_events :: ~(Vector.Vector Score.Event)
+    , perfEvents :: ~(Vector.Vector Score.Event)
     -- | Logs from the derivation are written separately.
-    , perf_logs :: ~[Log.Msg]
+    , perfLogs :: ~[Log.Msg]
     -- | The logs are only written on the first play, to minimize error spam.
     -- So there's a flag which says whether these logs have been written or
     -- not.  I don't clear the logs, so 'Cmd.Repl.LPerf.cache_stats' can
     -- inspect them.
-    , perf_logs_written :: ~Bool
-    , perf_track_dynamic :: ~Derive.TrackDynamic
-    , perf_integrated :: ~[Derive.Integrated]
+    , perfLogsWritten :: ~Bool
+    , perfTrackDynamic :: ~Derive.TrackDynamic
+    , perfIntegrated :: ~[Derive.Integrated]
     -- | ScoreDamage is normally calculated automatically from the UI diff,
     -- but Cmds can also intentionally inflict damage to cause a rederive.
-    , perf_damage :: ~Derive.ScoreDamage
-    , perf_warps :: ~[TrackWarp.TrackWarp]
-    , perf_track_signals :: ~Track.TrackSignals
-    , perf_block_deps :: ~Derive.BlockDeps
+    , perfDamage :: ~Derive.ScoreDamage
+    , perfWarps :: ~[TrackWarp.TrackWarp]
+    , perfTrackSignals :: ~Track.TrackSignals
+    , perfBlockDeps :: ~Derive.BlockDeps
     -- | Map each track to the instruments on it.  This tries to remain lazy,
     -- since it's only used by muted_im_instruments.
-    , perf_track_instruments :: ~(Map TrackId (Set ScoreT.Instrument))
+    , perfTrackInstruments :: ~(Map TrackId (Set ScoreT.Instrument))
     -- | This is the score state at the time of the performance.  It's needed
     -- to interpret 'perf_track_signals', because at the time signals are sent
     -- (in 'Cmd.PlayC.cmd_play_msg'), the Ui.State may have unsynced changes.
-    , perf_ui_state :: ~Ui.State
+    , perfUiState :: ~Ui.State
     }
 
 -- | Force a Performance so that it can be used without a lag.
-force_performance :: Performance -> ()
-force_performance (Performance _cache events logs _logs_written track_dyn
-        _integrated _damage warps track_sigs block_deps _track_insts ui_state) =
-    logs `deepseq` events `deepseq` warps `deepseq` track_dyn
-        `deepseq` track_sigs `deepseq` block_deps `deepseq` ui_state
+forcePerformance :: Performance -> ()
+forcePerformance (Performance _cache events logs _logsWritten trackDyn
+        _integrated _damage warps trackSigs blockDeps _trackInsts uiState) =
+    logs `deepseq` events `deepseq` warps `deepseq` trackDyn
+        `deepseq` trackSigs `deepseq` blockDeps `deepseq` uiState
         `deepseq` ()
 
 instance Show Performance where
-    show perf = "((Performance " <> show (Vector.length (perf_events perf))
-        <> " events " <> show (length (perf_logs perf)) <> " logs))"
+    show perf = "((Performance " <> show (Vector.length (perfEvents perf))
+        <> " events " <> show (length (perfLogs perf)) <> " logs))"
         -- Show events and logs.  This way there's a hint to look at logs if
         -- there are mysteriously no events.
 
 instance Pretty Performance where
-    format (Performance cache events logs logs_written track_dynamic
-            integrated damage warps track_signals block_deps track_insts
-            _ui_state) =
+    format (Performance cache events logs logsWritten trackDynamic
+            integrated damage warps trackSignals blockDeps trackInsts
+            _uiState) =
         Pretty.record "Performance"
         [ ("cache", Pretty.format $ Map.keys $ (\(Derive.Cache c) -> c) cache)
         , ("events", Pretty.format (Vector.length events))
         , ("logs", Pretty.format logs)
-        , ("logs_written", Pretty.format logs_written)
-        , ("track_dynamic", Pretty.format track_dynamic)
+        , ("logs_written", Pretty.format logsWritten)
+        , ("track_dynamic", Pretty.format trackDynamic)
         , ("integrated", Pretty.format integrated)
         , ("damage", Pretty.format damage)
         , ("warps", Pretty.format warps)
-        , ("track_signals", Pretty.format track_signals)
-        , ("block_deps", Pretty.format block_deps)
-        , ("track_instruments", Pretty.format track_insts)
+        , ("track_signals", Pretty.format trackSignals)
+        , ("block_deps", Pretty.format blockDeps)
+        , ("track_instruments", Pretty.format trackInsts)
         ]
 
 -- * views
@@ -212,9 +212,9 @@ mouse (Ui (UiMsg.UiMsg _ (UiMsg.MsgEvent (UiMsg.Mouse mouse)))) =
     Just mouse
 mouse _ = Nothing
 
-mouse_down :: Msg -> Bool
-mouse_down msg = case mouse msg of
-    Just (UiMsg.MouseEvent { UiMsg.mouse_state = UiMsg.MouseDown _ }) -> True
+mouseDown :: Msg -> Bool
+mouseDown msg = case mouse msg of
+    Just (UiMsg.MouseEvent { UiMsg.mouseState = UiMsg.MouseDown _ }) -> True
     _ -> False
 
 kbd :: Msg -> Maybe (UiMsg.KbdState, [Key.Modifier], Key.Key, Maybe Char)
@@ -226,18 +226,18 @@ key :: Msg -> Maybe (UiMsg.KbdState, Key.Key)
 key (kbd -> Just (state, _, key, _)) = Just (state, key)
 key _ = Nothing
 
-key_down :: Msg -> Maybe Key.Key
-key_down (key -> Just (UiMsg.KeyDown, k)) = Just k
-key_down _ = Nothing
+keyDown :: Msg -> Maybe Key.Key
+keyDown (key -> Just (UiMsg.KeyDown, k)) = Just k
+keyDown _ = Nothing
 
 -- | The text that this keydown wants to enter, if any.
 text :: Msg -> Maybe (Key.Key, Maybe Char)
 text (kbd -> Just (UiMsg.KeyDown, _, key, text)) = Just (key, text)
 text _ = Nothing
 
-key_mods :: Msg -> Maybe [Key.Modifier]
-key_mods (kbd -> Just (_, mods, _, _)) = Just mods
-key_mods _ = Nothing
+keyMods :: Msg -> Maybe [Key.Modifier]
+keyMods (kbd -> Just (_, mods, _, _)) = Just mods
+keyMods _ = Nothing
 
 -- | A key action by keycap.  This is different from 'text' because it should
 -- be just the keycap, not taking shift or alt or anything into account.
@@ -252,28 +252,28 @@ keycap msg = case key msg of
 char :: Msg -> Maybe (UiMsg.KbdState, Char)
 char (kbd -> Just (state, mods, Key.Char c, _))
     | Key.Shift `elem` mods =
-        (state,) <$> KeyLayouts.to_shifted Local.KeyLayout.layout c
+        (state,) <$> KeyLayouts.toShifted Local.KeyLayout.layout c
         -- I have to use the keylayout instead of 'text' because fltk doesn't
         -- give me text for KeyUps.
     | otherwise= Just (state, c)
 char _ = Nothing
 
-char_down :: Msg -> Maybe Char
-char_down (char -> Just (UiMsg.KeyDown, c)) = Just c
-char_down _ = Nothing
+charDown :: Msg -> Maybe Char
+charDown (char -> Just (UiMsg.KeyDown, c)) = Just c
+charDown _ = Nothing
 
 midi :: Msg -> Maybe Midi.Message
-midi (Midi (Midi.ReadMessage { Midi.rmsg_msg = msg })) = Just msg
+midi (Midi (Midi.ReadMessage { Midi.rmsgMsg = msg })) = Just msg
 midi _ = Nothing
 
 context :: Msg -> Maybe UiMsg.Context
 context (Ui (UiMsg.UiMsg context _)) = Just context
 context _ = Nothing
 
-context_track :: Msg -> Maybe (TrackNum, UiMsg.Track)
-context_track = UiMsg.ctx_track <=< context
+contextTrack :: Msg -> Maybe (TrackNum, UiMsg.Track)
+contextTrack = UiMsg.ctxTrack <=< context
 
-context_track_pos :: Msg -> Maybe (TrackNum, ScoreTime)
-context_track_pos msg = context_track msg >>= \(tracknum, t) -> case t of
+contextTrackPos :: Msg -> Maybe (TrackNum, ScoreTime)
+contextTrackPos msg = contextTrack msg >>= \(tracknum, t) -> case t of
     UiMsg.Track pos -> Just (tracknum, pos)
     _ -> Nothing

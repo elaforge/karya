@@ -45,8 +45,8 @@ patches = [gongPatch]
 gongPatch :: Patch.Patch
 gongPatch = Drum.patch dir "sc-gong" gongStrokeMap gongConvertMap configOf
     where
-    configOf (Just gong) = CUtil.call_config
-        { CUtil._natural_nn = Just $ gongNn gong
+    configOf (Just gong) = CUtil.callConfig
+        { CUtil._naturalNn = Just $ gongNn gong
         , CUtil._transform = Code.withVariation
         }
     -- Drum.strokeMapTable shouldn't put Nothings in there.

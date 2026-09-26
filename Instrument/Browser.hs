@@ -53,8 +53,8 @@ import           Global
 
 
 -- | Send this to the REPL when on a double-click on an instrument.
-select_command :: Text
-select_command = "LInst.set_instrument"
+selectCommand :: Text
+selectCommand = "LInst.set_instrument"
 
 data Flag = Help | Geometry FltkUtil.Geometry
     deriving (Eq, Show)
@@ -65,8 +65,8 @@ options =
     , FltkUtil.option Geometry
     ]
 
-default_geometry :: Maybe FltkUtil.Geometry -> (Int, Int, Int, Int)
-default_geometry = FltkUtil.xywh 50 50 550 600
+defaultGeometry :: Maybe FltkUtil.Geometry -> (Int, Int, Int, Int)
+defaultGeometry = FltkUtil.xywh 50 50 550 600
 
 main :: IO ()
 main = ReplProtocol.initialize $ do
@@ -78,19 +78,19 @@ main = ReplProtocol.initialize $ do
         usage ("unparsed args: " ++ show args)
     when (Help `elem` flags) (usage "usage:")
 
-    db <- LoadInstruments.load =<< Path.get_app_dir
+    db <- LoadInstruments.load =<< Path.getAppDir
     putStrLn $ "Loaded " ++ show (Inst.size db) ++ " instruments."
     let geometry = Lists.head [g | Geometry g <- flags]
-        (x, y, w, h) = default_geometry geometry
-    win <- Fltk.run_action $ BrowserC.create x y w h
-    let index_db = Db db (Search.make_index db)
-    chan <- Fltk.new_channel
-    Concurrent.forkFinally (handle_msgs chan win index_db) $ \result -> do
+        (x, y, w, h) = defaultGeometry geometry
+    win <- Fltk.runAction $ BrowserC.create x y w h
+    let indexDb = Db db (Search.makeIndex db)
+    chan <- Fltk.newChannel
+    Concurrent.forkFinally (handleMsgs chan win indexDb) $ \result -> do
         putStrLn $ "handler thread died: "
             ++ either show (const "no exception")
                 (result :: Either Exception.SomeException ())
         Fltk.quit chan
-    Fltk.event_loop chan
+    Fltk.eventLoop chan
 
 usage :: String -> IO a
 usage msg = do
@@ -101,68 +101,68 @@ usage msg = do
 
 -- | Bundle a Db along with its search index.
 data Db = Db
-    { db_db :: Cmd.InstrumentDb
-    , db_index :: Search.Index
+    { dbDb :: Cmd.InstrumentDb
+    , dbIndex :: Search.Index
     }
 
 data State = State
-    { state_displayed :: [InstT.Qualified]
+    { stateDisplayed :: [InstT.Qualified]
     } deriving (Show)
 
-handle_msgs :: Fltk.Channel -> BrowserC.Window -> Db -> IO ()
-handle_msgs chan win db = do
-    displayed <- liftIO $ process_query chan win db [] ""
+handleMsgs :: Fltk.Channel -> BrowserC.Window -> Db -> IO ()
+handleMsgs chan win db = do
+    displayed <- liftIO $ processQuery chan win db [] ""
     flip State.evalStateT (State displayed) $ forever $ do
-        Fltk.Msg typ text <- liftIO $ STM.atomically $ Fltk.read_msg win
-        let qualified = InstT.parse_qualified text
+        Fltk.Msg typ text <- liftIO $ STM.atomically $ Fltk.readMsg win
+        let qualified = InstT.parseQualified text
         case typ of
-            BrowserC.Select -> liftIO $ show_info chan win db qualified
-            BrowserC.Choose -> liftIO $ choose_instrument qualified
+            BrowserC.Select -> liftIO $ showInfo chan win db qualified
+            BrowserC.Choose -> liftIO $ chooseInstrument qualified
             BrowserC.Query -> do
                 state <- State.get
                 displayed <- liftIO $
-                    process_query chan win db (state_displayed state) text
-                State.put (state { state_displayed = displayed })
+                    processQuery chan win db (stateDisplayed state) text
+                State.put (state { stateDisplayed = displayed })
             BrowserC.Unknown c -> liftIO $
                 putStrLn $ "unknown msg type: " ++ show c
 
 -- | Look up the instrument, generate a info sheet on it, and send to the UI.
-show_info :: Fltk.Channel -> BrowserC.Window -> Db -> InstT.Qualified
+showInfo :: Fltk.Channel -> BrowserC.Window -> Db -> InstT.Qualified
     -> IO ()
-show_info chan win db qualified = Fltk.action chan $ BrowserC.set_info win info
+showInfo chan win db qualified = Fltk.action chan $ BrowserC.setInfo win info
     where
-    info = fromMaybe ("not found: " <> InstT.show_qualified qualified) $ do
-        let InstT.Qualified synth_name inst_name = qualified
-        synth <- Inst.lookup_synth synth_name (db_db db)
-        inst <- Map.lookup inst_name (Inst.synth_insts synth)
-        pure $ InstDoc.info_of qualified (Inst.synth_doc synth) inst tags
-    tags = fromMaybe [] $ Search.tags_of (db_index db) qualified
+    info = fromMaybe ("not found: " <> InstT.showQualified qualified) $ do
+        let InstT.Qualified synthName instName = qualified
+        synth <- Inst.lookupSynth synthName (dbDb db)
+        inst <- Map.lookup instName (Inst.synthInsts synth)
+        pure $ InstDoc.infoOf qualified (Inst.synthDoc synth) inst tags
+    tags = fromMaybe [] $ Search.tagsOf (dbIndex db) qualified
 
 -- | Send the chosen instrument to the sequencer.  This will send
 -- @change_instrument \"synth/inst\"@ to the REPL port.
-choose_instrument :: InstT.Qualified -> IO ()
-choose_instrument qualified = do
-    let cmd = select_command <> " "
-            <> showt (InstT.show_qualified qualified)
+chooseInstrument :: InstT.Qualified -> IO ()
+chooseInstrument qualified = do
+    let cmd = selectCommand <> " "
+            <> showt (InstT.showQualified qualified)
     Text.IO.putStrLn $ "send: " <> cmd
     response <- query cmd
     unless (Text.null response) $
         Text.IO.putStrLn $ "response: " <> response
 
 query :: Text -> IO Text
-query = fmap ReplProtocol.format_result
-    . ReplProtocol.query_cmd (Network.Unix Config.repl_socket_name)
+query = fmap ReplProtocol.formatResult
+    . ReplProtocol.queryCmd (Network.Unix Config.replSocketName)
 
 -- | Find instruments that match the query, and update the UI incrementally.
-process_query :: Fltk.Channel -> BrowserC.Window -> Db -> [InstT.Qualified]
+processQuery :: Fltk.Channel -> BrowserC.Window -> Db -> [InstT.Qualified]
     -> Text -> IO [InstT.Qualified]
-process_query chan win db displayed query = do
-    let matches = Search.search (db_index db) (Search.parse query)
+processQuery chan win db displayed query = do
+    let matches = Search.search (dbIndex db) (Search.parse query)
         diff = Lists.diffIndex (==) displayed matches
     forM_ diff $ \(i, paired) -> case paired of
         Lists.Second inst -> Fltk.action chan $
-            BrowserC.insert_line win (i+1) (InstT.show_qualified inst)
+            BrowserC.insertLine win (i+1) (InstT.showQualified inst)
         Lists.First _inst -> Fltk.action chan $
-            BrowserC.remove_line win (i+1)
+            BrowserC.removeLine win (i+1)
         _ -> pure ()
     pure matches

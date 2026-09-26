@@ -9,44 +9,44 @@
 -}
 module Perform.Midi.Patch (
     -- * Config
-    Config(..), config_addrs
-    , merge_defaults
-    , allocation, control_defaults, initialization, settings
+    Config(..), configAddrs
+    , mergeDefaults
+    , allocation, controlDefaults, initialization, settings
     , config
     , Initialization(..), Addr, Voices
-    , has_flag
+    , hasFlag
     -- Re-exported so instrument definitions don't have to have
     -- Midi.Control.PbRange.
     , Control.PbRange
     -- ** Settings
     , Settings(..)
-    , pitch_bend_range, decay, scale, flags
+    , pitchBendRange, decay, scale, flags
 
     -- * Patch
-    , Patch(..), name, control_map
-    , initialize, attribute_map, mode_map, defaults
+    , Patch(..), name, controlMap
+    , initialize, attributeMap, modeMap, defaults
     , patch
-    , default_name
+    , defaultName
     -- ** Scale
     , Scale(..) -- should just be Scale(scale_name), but Cmd.Serialize
-    , make_scale
-    , make_scale_dense
-    , convert_scale, nn_at
-    , scale_nns, scale_offsets, scale_tuning
+    , makeScale
+    , makeScaleDense
+    , convertScale, nnAt
+    , scaleNns, scaleOffsets, scaleTuning
     -- ** Flag
     , Flag(..)
-    , add_flag, remove_flag
+    , addFlag, removeFlag
     -- ** InitializePatch
     , InitializePatch(..)
-    , initialize_midi
+    , initializeMidi
     -- ** AttributeMap
     , AttributeMap, Keymap(..), Keyswitch(..)
-    , keyswitches, single_keyswitches, cc_keyswitches, cc_keyswitches_permute
-    , keymap, unpitched_keymap
-    , keyswitch_on, keyswitch_off
+    , keyswitches, singleKeyswitches, ccKeyswitches, ccKeyswitchesPermute
+    , keymap, unpitchedKeymap
+    , keyswitchOn, keyswitchOff
     -- ** ModeMap
     , ModeMap(..)
-    , make_mode_map, cc_mode_map
+    , makeModeMap, ccModeMap
 #ifdef TESTING
     , module Perform.Midi.Patch
 #endif
@@ -94,28 +94,28 @@ data Config = Config
     --
     -- Each Addr has a count of how many simultaneous voices the addr can
     -- handle.  Nothing means there's no limit.
-    { config_allocation :: [(Addr, Maybe Voices)]
-    , config_initialization :: Maybe Initialization
-    , config_settings :: Settings
+    { configAllocation :: [(Addr, Maybe Voices)]
+    , configInitialization :: Maybe Initialization
+    , configSettings :: Settings
     } deriving (Eq, Show, Generics.Generic)
 
-allocation = Lens.lens config_allocation (\r a -> r { config_allocation = a })
-initialization = Lens.lens config_initialization
-    (\r a -> r { config_initialization = a })
-settings = Lens.lens config_settings (\r a -> r { config_settings = a })
+allocation = Lens.lens configAllocation (\r a -> r { configAllocation = a })
+initialization = Lens.lens configInitialization
+    (\r a -> r { configInitialization = a })
+settings = Lens.lens configSettings (\r a -> r { configSettings = a })
 
-config_addrs :: Config -> [Addr]
-config_addrs = map fst . config_allocation
+configAddrs :: Config -> [Addr]
+configAddrs = map fst . configAllocation
 
 config :: [(Addr, Maybe Voices)] -> Config
 config alloc = Config
-    { config_allocation = alloc
-    , config_initialization = Nothing
-    , config_settings = mempty
+    { configAllocation = alloc
+    , configInitialization = Nothing
+    , configSettings = mempty
     }
 
-merge_defaults :: Patch -> Config -> Config
-merge_defaults patch = settings %= (<> patch_defaults patch)
+mergeDefaults :: Patch -> Config -> Config
+mergeDefaults patch = settings %= (<> patchDefaults patch)
 
 instance Pretty Config where format = Pretty.formatG_
 
@@ -133,8 +133,8 @@ type Addr = (Midi.WriteDevice, Midi.Channel)
 -- | Number of simultaneous voices a certain Addr supports, aka polyphony.
 type Voices = Int
 
-has_flag :: Config -> Flag -> Bool
-has_flag config flag = maybe False (Set.member flag) (settings#flags #$ config)
+hasFlag :: Config -> Flag -> Bool
+hasFlag config flag = maybe False (Set.member flag) (settings#flags #$ config)
 
 -- ** Settings
 
@@ -143,46 +143,46 @@ has_flag config flag = maybe False (Set.member flag) (settings#flags #$ config)
 -- (Cmd.resolve_instrument), 'patch_defaults' is merged with 'config_settings'
 -- via 'merge_defaults'.
 data Settings = Settings
-    { config_flags :: Maybe (Set Flag)
-    , config_scale :: Maybe Scale
+    { configFlags :: Maybe (Set Flag)
+    , configScale :: Maybe Scale
     -- | Time from NoteOff to inaudible, in seconds.  This can be used to
     -- figure out how long to generate control messages, or possibly determine
     -- overlap for channel allocation, though I use LRU so it shouldn't matter.
-    , config_decay :: Maybe RealTime
-    , config_pitch_bend_range :: Maybe Control.PbRange
+    , configDecay :: Maybe RealTime
+    , configPitchBendRange :: Maybe Control.PbRange
     -- | Default controls for this instrument, will always be set unless
     -- explicitly replaced.  This hopefully avoids the problem where
     -- a synthesizer starts in an undefined state.  This is different from
     -- 'Common.config_controls' in that these are meant to provide a default
     -- for synthesizer state, so these are only applied during conversion, and
     -- thus should only contain controls the MIDI instrument understands.
-    , config_control_defaults :: Maybe ScoreT.ControlValMap
+    , configControlDefaults :: Maybe ScoreT.ControlValMap
     } deriving (Eq, Show, Generics.Generic)
 
 instance Pretty Settings where format = Pretty.formatG_
 
 instance Semigroup Settings where
-    (<>)    (Settings flags1 scale1 decay1 pb_range1 cdefaults1)
-            (Settings flags2 scale2 decay2 pb_range2 cdefaults2) =
+    (<>)    (Settings flags1 scale1 decay1 pbRange1 cdefaults1)
+            (Settings flags2 scale2 decay2 pbRange2 cdefaults2) =
         Settings (flags1 <|> flags2) (scale1 <|> scale2) (decay1 <|> decay2)
-            (pb_range1 <|> pb_range2) (cdefaults1 <|> cdefaults2)
+            (pbRange1 <|> pbRange2) (cdefaults1 <|> cdefaults2)
 instance Monoid Settings where
     mempty = Settings
-        { config_flags = Nothing
-        , config_scale = Nothing
-        , config_decay = Nothing
-        , config_pitch_bend_range = Nothing
-        , config_control_defaults = Nothing
+        { configFlags = Nothing
+        , configScale = Nothing
+        , configDecay = Nothing
+        , configPitchBendRange = Nothing
+        , configControlDefaults = Nothing
         }
     mappend = (<>)
 
-pitch_bend_range = Lens.lens config_pitch_bend_range
-    (\r a -> r { config_pitch_bend_range = a })
-decay = Lens.lens config_decay (\r a -> r { config_decay = a })
-scale = Lens.lens config_scale (\r a -> r { config_scale = a })
-flags = Lens.lens config_flags (\r a -> r { config_flags = a })
-control_defaults = Lens.lens config_control_defaults
-    (\r a -> r { config_control_defaults = a })
+pitchBendRange = Lens.lens configPitchBendRange
+    (\r a -> r { configPitchBendRange = a })
+decay = Lens.lens configDecay (\r a -> r { configDecay = a })
+scale = Lens.lens configScale (\r a -> r { configScale = a })
+flags = Lens.lens configFlags (\r a -> r { configFlags = a })
+controlDefaults = Lens.lens configControlDefaults
+    (\r a -> r { configControlDefaults = a })
 
 -- * Patch
 
@@ -197,48 +197,48 @@ data Patch = Patch
     --
     -- The patch's unique name, as used by 'InstT.Qualified' to look up
     -- the patch, is in 'Instrument.Inst.synth_insts'.
-    { patch_name :: Text
-    , patch_control_map :: Control.ControlMap
-    , patch_initialize :: InitializePatch
-    , patch_attribute_map :: AttributeMap
-    , patch_mode_map :: ModeMap
-    , patch_defaults :: Settings
+    { patchName :: Text
+    , patchControlMap :: Control.ControlMap
+    , patchInitialize :: InitializePatch
+    , patchAttributeMap :: AttributeMap
+    , patchModeMap :: ModeMap
+    , patchDefaults :: Settings
     } deriving (Eq, Show)
 
 instance Pretty Patch where
-    format (Patch name cmap init attr_map mode_map defaults) =
+    format (Patch name cmap init attrMap modeMap defaults) =
         Pretty.record "Patch"
             [ ("name", Pretty.format name)
             , ("control_map", Pretty.format cmap)
             , ("initialize", Pretty.format init)
-            , ("attribute_map", Pretty.format attr_map)
-            , ("mode_map", Pretty.format mode_map)
+            , ("attribute_map", Pretty.format attrMap)
+            , ("mode_map", Pretty.format modeMap)
             , ("defaults", Pretty.format defaults)
             ]
 
-name = Lens.lens patch_name (\r a -> r { patch_name = a })
-control_map = Lens.lens patch_control_map (\r a -> r { patch_control_map = a })
-initialize = Lens.lens patch_initialize (\r a -> r { patch_initialize = a })
-attribute_map = Lens.lens patch_attribute_map
-    (\r a -> r { patch_attribute_map = a })
-mode_map = Lens.lens patch_mode_map (\r a -> r { patch_mode_map = a })
-defaults = Lens.lens patch_defaults (\r a -> r { patch_defaults = a })
+name = Lens.lens patchName (\r a -> r { patchName = a })
+controlMap = Lens.lens patchControlMap (\r a -> r { patchControlMap = a })
+initialize = Lens.lens patchInitialize (\r a -> r { patchInitialize = a })
+attributeMap = Lens.lens patchAttributeMap
+    (\r a -> r { patchAttributeMap = a })
+modeMap = Lens.lens patchModeMap (\r a -> r { patchModeMap = a })
+defaults = Lens.lens patchDefaults (\r a -> r { patchDefaults = a })
 
 -- | Create a Patch with empty vals, to set them as needed.
 patch :: Control.PbRange -> InstT.Name -> Patch
-patch pb_range name = Patch
-    { patch_name = name
-    , patch_control_map = mempty
-    , patch_initialize = NoInitialization
-    , patch_attribute_map = Common.AttributeMap []
-    , patch_mode_map = ModeMap mempty
-    , patch_defaults = mempty { config_pitch_bend_range = Just pb_range }
+patch pbRange name = Patch
+    { patchName = name
+    , patchControlMap = mempty
+    , patchInitialize = NoInitialization
+    , patchAttributeMap = Common.AttributeMap []
+    , patchModeMap = ModeMap mempty
+    , patchDefaults = mempty { configPitchBendRange = Just pbRange }
     }
 
 -- | This is a convention for the default instrument of a synth.  This is
 -- useful for softsynths whose patches all generally have the same config.
-default_name :: InstT.Name
-default_name = ""
+defaultName :: InstT.Name
+defaultName = ""
 
 -- ** Scale
 
@@ -252,11 +252,11 @@ default_name = ""
     need any tuning and can thus all go on a single MIDI channel.
 -}
 data Scale = Scale
-    { scale_name :: Text
+    { scaleName :: Text
     -- | If a patch is tuned to something other than 12TET, this vector maps
     -- MIDI key numbers to their NNs, or 'no_pitch' if the patch doesn't
     -- support that key.
-    , scale_key_to_nn :: Unboxed.Vector Double
+    , scaleKeyToNn :: Unboxed.Vector Double
     } deriving (Eq, Ord, Show)
 
 instance Pretty Scale where
@@ -271,89 +271,89 @@ instance Pretty Scale where
     --     stripped xs =
     --         where ys = List.dropWhileEnd (== -1) $ dropWhile (== -1) xs
 
-no_pitch :: Double
-no_pitch = -1
+noPitch :: Double
+noPitch = -1
 
 -- | Fill in non-adjacent MIDI keys by interpolating the neighboring
 -- NoteNumbers.  This is because a 0 between two notes will prevent pitch
 -- slides.  Another problem is that the MIDI performer has no notion of
 -- instruments that don't support certain key numbers.  That could be added
 -- but it's simpler to just not have patches like that.
-make_scale :: Text -> [(Midi.Key, Pitch.NoteNumber)] -> Scale
-make_scale name keys = Scale
-    { scale_name = name
-    , scale_key_to_nn = empty Unboxed.// map convert (interpolate_gaps keys)
+makeScale :: Text -> [(Midi.Key, Pitch.NoteNumber)] -> Scale
+makeScale name keys = Scale
+    { scaleName = name
+    , scaleKeyToNn = empty Unboxed.// map convert (interpolateGaps keys)
     }
     where
-    convert (k, Pitch.NoteNumber nn) = (Midi.from_key k, nn)
-    empty = Unboxed.fromList $ replicate 128 no_pitch
+    convert (k, Pitch.NoteNumber nn) = (Midi.fromKey k, nn)
+    empty = Unboxed.fromList $ replicate 128 noPitch
 
-make_scale_dense :: Text -> [Double] -> Scale
-make_scale_dense scale_name keys = Scale
-    { scale_name
-    , scale_key_to_nn = Unboxed.fromList $
-        take 128 keys <> replicate (128 - length keys) no_pitch
+makeScaleDense :: Text -> [Double] -> Scale
+makeScaleDense scaleName keys = Scale
+    { scaleName
+    , scaleKeyToNn = Unboxed.fromList $
+        take 128 keys <> replicate (128 - length keys) noPitch
     }
 
-interpolate_gaps :: [(Midi.Key, Pitch.NoteNumber)]
+interpolateGaps :: [(Midi.Key, Pitch.NoteNumber)]
     -> [(Midi.Key, Pitch.NoteNumber)]
-interpolate_gaps ((k1, nn1) : rest@((k2, nn2) : _))
-    | k1 + 1 == k2 = (k1, nn1) : interpolate_gaps rest
+interpolateGaps ((k1, nn1) : rest@((k2, nn2) : _))
+    | k1 + 1 == k2 = (k1, nn1) : interpolateGaps rest
     | otherwise = (k1, nn1) : map mk (Lists.range' (k1+1) k2 1)
-        ++ interpolate_gaps rest
+        ++ interpolateGaps rest
     where
     mk k = (k, nn)
         where
         nn = Num.scale nn1 nn2 $ Num.normalize
-            (Midi.from_key k1) (Midi.from_key k2) (Midi.from_key k)
-interpolate_gaps xs = xs
+            (Midi.fromKey k1) (Midi.fromKey k2) (Midi.fromKey k)
+interpolateGaps xs = xs
 
-convert_scale :: Scale -> Pitch.NoteNumber -- ^ if you want this pitch
+convertScale :: Scale -> Pitch.NoteNumber -- ^ if you want this pitch
     -> Maybe Pitch.NoteNumber -- ^ play this key
-convert_scale (Scale _ key_to_nn) (Pitch.NoteNumber nn) =
-    case Util.Vector.bracket key_to_nn nn of
-        Just (i, low, high) | low /= no_pitch ->
+convertScale (Scale _ keyToNn) (Pitch.NoteNumber nn) =
+    case Util.Vector.bracket keyToNn nn of
+        Just (i, low, high) | low /= noPitch ->
             Just $ Pitch.NoteNumber $ fromIntegral i + Num.normalize low high nn
         _ -> Nothing
 
 -- *** tuning
 
 -- | Absolute NoteNumber for each 'Midi.Key' to tune 12TET to this scale.
-scale_nns :: Maybe AttributeMap -> Scale -> [(Midi.Key, Pitch.NoteNumber)]
-scale_nns attr_map scale =
-    [(key, nn) | (key, Just (_, nn)) <- zip [0..] (scale_tuning attr_map scale)]
+scaleNns :: Maybe AttributeMap -> Scale -> [(Midi.Key, Pitch.NoteNumber)]
+scaleNns attrMap scale =
+    [(key, nn) | (key, Just (_, nn)) <- zip [0..] (scaleTuning attrMap scale)]
 
 -- | Relative NoteNumber offset for each 'Midi.Key' to tune 12TET to this scale.
-scale_offsets :: Maybe AttributeMap -> Scale -> [Maybe Pitch.NoteNumber]
-scale_offsets attr_map = map (fmap to_offset) . scale_tuning attr_map
-    where to_offset (base, nn) = nn - Midi.from_key base
+scaleOffsets :: Maybe AttributeMap -> Scale -> [Maybe Pitch.NoteNumber]
+scaleOffsets attrMap = map (fmap toOffset) . scaleTuning attrMap
+    where toOffset (base, nn) = nn - Midi.fromKey base
 
 -- | Map the mapped keys through the scale.
-scale_tuning :: Maybe AttributeMap -> Scale
+scaleTuning :: Maybe AttributeMap -> Scale
     -> [Maybe (Midi.Key, Pitch.NoteNumber)]
-scale_tuning attr_map scale = map tuning [0..127]
+scaleTuning attrMap scale = map tuning [0..127]
     where
     tuning key
-        | null ranges = (key,) <$> nn_at scale key
-        | otherwise = case List.find (in_range key) ranges of
+        | null ranges = (key,) <$> nnAt scale key
+        | otherwise = case List.find (inRange key) ranges of
             Nothing -> Nothing
-            Just (low, _, base_nn) -> (abs_key,) <$> nn_at scale abs_key
-                where abs_key = base_nn + (key - low)
-    in_range key (low, high, _) = low <= key && key <= high
+            Just (low, _, baseNn) -> (absKey,) <$> nnAt scale absKey
+                where absKey = baseNn + (key - low)
+    inRange key (low, high, _) = low <= key && key <= high
     ranges =
         [ (low, high, nn)
         | (_, Just (PitchedKeymap low high nn))
-            <- maybe [] Common.attribute_vals attr_map
+            <- maybe [] Common.attributeVals attrMap
         ]
 
-nn_at :: Scale -> Midi.Key -> Maybe Pitch.NoteNumber
-nn_at scale key
-    | key >= 0 && k < Unboxed.length (scale_key_to_nn scale) =
-        if nn == no_pitch then Nothing else Just (Pitch.nn nn)
+nnAt :: Scale -> Midi.Key -> Maybe Pitch.NoteNumber
+nnAt scale key
+    | key >= 0 && k < Unboxed.length (scaleKeyToNn scale) =
+        if nn == noPitch then Nothing else Just (Pitch.nn nn)
     | otherwise = Nothing
     where
-    k = Midi.from_key key
-    nn = scale_key_to_nn scale Unboxed.! k
+    k = Midi.fromKey key
+    nn = scaleKeyToNn scale Unboxed.! k
 
 -- ** Flag
 
@@ -384,11 +384,11 @@ data Flag
 
 instance Pretty Flag where pretty = showt
 
-add_flag :: Flag -> Set Flag -> Set Flag
-add_flag = Set.insert
+addFlag :: Flag -> Set Flag -> Set Flag
+addFlag = Set.insert
 
-remove_flag :: Flag -> Set Flag -> Set Flag
-remove_flag = Set.delete
+removeFlag :: Flag -> Set Flag -> Set Flag
+removeFlag = Set.delete
 
 -- ** InitializePatch
 
@@ -407,8 +407,8 @@ instance Pretty InitializePatch where
         Pretty.text "InitializeMidi" Pretty.<+> Pretty.format msgs
     format init = Pretty.text (showt init)
 
-initialize_midi :: [Midi.ChannelMessage] -> InitializePatch
-initialize_midi = InitializeMidi . map (Midi.ChannelMessage 0)
+initializeMidi :: [Midi.ChannelMessage] -> InitializePatch
+initializeMidi = InitializeMidi . map (Midi.ChannelMessage 0)
 
 -- ** AttributeMap
 
@@ -467,62 +467,62 @@ instance Pretty Keyswitch where
 -- | Merge keyswitches for the mempty attrs.  This is because a patch may have
 -- several kinds of state, which need to be undone to go back to the default
 -- state.  There's less reason to overlap for non-empty attrs.
-combine_empty :: [(Attrs.Attributes, [ks])] -> [(Attrs.Attributes, [ks])]
-combine_empty attr_ks
+combineEmpty :: [(Attrs.Attributes, [ks])] -> [(Attrs.Attributes, [ks])]
+combineEmpty attrKs
     | null empty = nonempty
     | otherwise = (mempty, concatMap snd empty) : nonempty
     where
-    (empty, nonempty) = List.partition ((==mempty) . fst) attr_ks
+    (empty, nonempty) = List.partition ((==mempty) . fst) attrKs
 
 -- | An AttributeMap with a single Midi.Key keyswitch per Attribute.
-single_keyswitches :: [(Attrs.Attributes, Midi.Key)] -> AttributeMap
-single_keyswitches = keyswitches . map (second ((:[]) . Keyswitch))
+singleKeyswitches :: [(Attrs.Attributes, Midi.Key)] -> AttributeMap
+singleKeyswitches = keyswitches . map (second ((:[]) . Keyswitch))
 
 -- | An AttributeMap that uses 'ControlSwitch'es.  Each CC can have attrs at
 -- several values.
-cc_keyswitches :: [(Midi.Control, [(Attrs.Attributes, Midi.ControlValue)])]
+ccKeyswitches :: [(Midi.Control, [(Attrs.Attributes, Midi.ControlValue)])]
     -> AttributeMap
-cc_keyswitches ks = keyswitches
+ccKeyswitches ks = keyswitches
     [ (attrs, [ControlSwitch cc val])
-    | (cc, attr_controls) <- ks
-    , (attrs, val) <- attr_controls
+    | (cc, attrControls) <- ks
+    , (attrs, val) <- attrControls
     ]
 
 -- | Like 'cc_keyswitches', except that all the controls are orthogonal, so
 -- every cross-control combination of attributes is valid.
-cc_keyswitches_permute
+ccKeyswitchesPermute
     :: [(Midi.Control, [(Attrs.Attributes, Midi.ControlValue)])] -> AttributeMap
-cc_keyswitches_permute ks =
+ccKeyswitchesPermute ks =
     keyswitches $ map (first mconcat . unzip) $ Lists.cartesian
-        [ [(attrs, ControlSwitch cc val) | (attrs, val) <- attr_controls]
-        | (cc, attr_controls) <- ks
+        [ [(attrs, ControlSwitch cc val) | (attrs, val) <- attrControls]
+        | (cc, attrControls) <- ks
         ]
 
 -- | An AttributeMap with just 'Keyswitch'es.
 keyswitches :: [(Attrs.Attributes, [Keyswitch])] -> AttributeMap
-keyswitches attr_ks = Common.attribute_map
+keyswitches attrKs = Common.attributeMap
     [ (attrs, (ks, Nothing))
-    | (attrs, ks) <- combine_empty attr_ks
+    | (attrs, ks) <- combineEmpty attrKs
     ]
 
 -- | An AttributeMap with just 'Keymap's.
 keymap :: [(Attrs.Attributes, Keymap)] -> AttributeMap
 keymap table =
-    Common.attribute_map [(attr, ([], Just keymap)) | (attr, keymap) <- table]
+    Common.attributeMap [(attr, ([], Just keymap)) | (attr, keymap) <- table]
 
 -- | An AttributeMap with just unpitched keymaps.
-unpitched_keymap :: [(Attrs.Attributes, Midi.Key)] -> AttributeMap
-unpitched_keymap = keymap . map (second UnpitchedKeymap)
+unpitchedKeymap :: [(Attrs.Attributes, Midi.Key)] -> AttributeMap
+unpitchedKeymap = keymap . map (second UnpitchedKeymap)
 
 -- | The MIDI message to activate the given Keyswitch.
-keyswitch_on :: Midi.Key -> Keyswitch -> Midi.ChannelMessage
-keyswitch_on midi_key ks = case ks of
+keyswitchOn :: Midi.Key -> Keyswitch -> Midi.ChannelMessage
+keyswitchOn midiKey ks = case ks of
     Keyswitch key -> Midi.NoteOn key 64
     ControlSwitch cc val -> Midi.ControlChange cc val
-    Aftertouch val -> Midi.Aftertouch midi_key val
+    Aftertouch val -> Midi.Aftertouch midiKey val
 
-keyswitch_off :: Keyswitch -> Maybe Midi.ChannelMessage
-keyswitch_off ks = case ks of
+keyswitchOff :: Keyswitch -> Maybe Midi.ChannelMessage
+keyswitchOff ks = case ks of
     Keyswitch key -> Just $ Midi.NoteOff key 64
     ControlSwitch {} -> Nothing
     Aftertouch {} -> Nothing
@@ -539,21 +539,21 @@ newtype ModeMap =
             Map Expr.MiniVal (ScoreT.Control, Signal.Y)))
     deriving (Eq, Show, Pretty)
 
-make_mode_map
+makeModeMap
     :: [(EnvKey.Key, [(Expr.MiniVal, (ScoreT.Control, Midi.ControlValue))])]
     -> ModeMap
-make_mode_map =
+makeModeMap =
     ModeMap . Map.fromList . Lists.mapMaybeSnd
-        (env_val . map (second (second Control.cval_to_val)))
+        (envVal . map (second (second Control.cvalToVal)))
     where
-    env_val [] = Nothing
-    env_val modes@((_, deflt) : _) = Just ((deflt, Map.fromList modes))
+    envVal [] = Nothing
+    envVal modes@((_, deflt) : _) = Just ((deflt, Map.fromList modes))
 
 -- | Construct a ModeMap that uses MIDI CC.
-cc_mode_map :: [(EnvKey.Key, Midi.Control, [(Expr.MiniVal, Midi.ControlValue)])]
+ccModeMap :: [(EnvKey.Key, Midi.Control, [(Expr.MiniVal, Midi.ControlValue)])]
     -> (ModeMap, [(Midi.Control, ScoreT.Control)])
-cc_mode_map modes = (, controls) $ make_mode_map
-    [ (key, [(mini_val, (control key, cval)) | (mini_val, cval) <- vals])
+ccModeMap modes = (, controls) $ makeModeMap
+    [ (key, [(miniVal, (control key, cval)) | (miniVal, cval) <- vals])
     | (key, _, vals) <- modes
     ]
     where

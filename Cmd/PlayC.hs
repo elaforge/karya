@@ -18,7 +18,7 @@
     be hurting anything and it's nice to divide play into low and high level.
 -}
 {-# LANGUAGE CPP #-}
-module Cmd.PlayC (cmd_play_msg, play) where
+module Cmd.PlayC (cmdPlayMsg, play) where
 import qualified Control.Concurrent.MVar as MVar
 import qualified Control.Exception as Exception
 import qualified Data.List as List
@@ -71,16 +71,16 @@ import qualified Synth.StreamAudio as StreamAudio
 -- * cmd_play_msg
 
 -- | Respond to msgs about derivation and playing status.
-cmd_play_msg :: Fltk.Channel -> Msg.Msg -> Cmd.CmdT IO Cmd.Status
-cmd_play_msg ui_chan msg = do
+cmdPlayMsg :: Fltk.Channel -> Msg.Msg -> Cmd.CmdT IO Cmd.Status
+cmdPlayMsg uiChan msg = do
     case msg of
-        Msg.Transport status -> transport_msg status
-        Msg.DeriveStatus block_id status -> derive_status_msg block_id status
+        Msg.Transport status -> transportMsg status
+        Msg.DeriveStatus blockId status -> deriveStatusMsg blockId status
         _ -> Cmd.abort
     pure Cmd.Done
     where
-    transport_msg status = case status of
-        Transport.Playing -> set_all_play_boxes Config.play_color
+    transportMsg status = case status of
+        Transport.Playing -> setAllPlayBoxes Config.playColor
         -- Either the performer has declared itself stopped, or the play
         -- monitor has declared it stopped.  In any case, I don't need
         -- a transport to tell it what to do anymore.  Note that I just forget
@@ -89,16 +89,16 @@ cmd_play_msg ui_chan msg = do
         -- I may well still be playing the decay of the last note, so I don't
         -- want to send a stop to cut it off.  For MIDI that probably has
         -- no effect anyway, but it would cut off play_cache or play_im_direct.
-        Transport.Stopped play_ctl -> do
-            Cmd.modify_play_state $ \st -> st
-                { Cmd.state_play_control =
-                    List.delete play_ctl (Cmd.state_play_control st)
+        Transport.Stopped playCtl -> do
+            Cmd.modifyPlayState $ \st -> st
+                { Cmd.statePlayControl =
+                    List.delete playCtl (Cmd.statePlayControl st)
                 }
             -- This will cover up derive status info, but that should be ok.
             -- And play normally only comes after derive is completed.
-            set_all_play_boxes Config.box_color
-    derive_status_msg block_id status = do
-        whenJust (derive_status_color status) (Ui.set_play_box block_id)
+            setAllPlayBoxes Config.boxColor
+    deriveStatusMsg blockId status = do
+        whenJust (deriveStatusColor status) (Ui.setPlayBox blockId)
         -- When I get word that a performance is complete, I promote it from
         -- state_current_performance to state_performance.  Previously I used
         -- the performance in the DeriveComplete, but Play may have flipped
@@ -109,180 +109,180 @@ cmd_play_msg ui_chan msg = do
         case status of
             Msg.DeriveComplete {} -> do
                 current <- Cmd.gets $
-                    Cmd.state_current_performance . Cmd.state_play
-                whenJust (Map.lookup block_id current) $ \perf -> do
-                    Cmd.modify_play_state $ \st -> st
-                        { Cmd.state_performance = Map.insert block_id
-                            perf (Cmd.state_performance st)
+                    Cmd.stateCurrentPerformance . Cmd.statePlay
+                whenJust (Map.lookup blockId current) $ \perf -> do
+                    Cmd.modifyPlayState $ \st -> st
+                        { Cmd.statePerformance = Map.insert blockId
+                            perf (Cmd.statePerformance st)
                         }
-                    liftIO $ update_track_signals ui_chan block_id
-                        (Cmd.perf_ui_state perf) (Cmd.perf_track_signals perf)
-                    update_highlights ui_chan block_id (Cmd.perf_events perf)
+                    liftIO $ updateTrackSignals uiChan blockId
+                        (Cmd.perfUiState perf) (Cmd.perfTrackSignals perf)
+                    updateHighlights uiChan blockId (Cmd.perfEvents perf)
             _ -> pure ()
-        handle_im_status ui_chan block_id status
-    derive_status_color status = case status of
-        Msg.OutOfDate {} -> Just $ Color.brightness 1.5 Config.busy_color
-        Msg.Deriving {} -> Just Config.busy_color
+        handleImStatus uiChan blockId status
+    deriveStatusColor status = case status of
+        Msg.OutOfDate {} -> Just $ Color.brightness 1.5 Config.busyColor
+        Msg.Deriving {} -> Just Config.busyColor
         Msg.DeriveComplete _ Msg.ImStarted ->
-            Just $ Color.brightness 0.5 Config.busy_color
-        Msg.DeriveComplete _ Msg.ImUnnecessary -> Just Config.box_color
-        Msg.ImStatus _ _ (Msg.ImComplete {}) -> Just Config.box_color
+            Just $ Color.brightness 0.5 Config.busyColor
+        Msg.DeriveComplete _ Msg.ImUnnecessary -> Just Config.boxColor
+        Msg.ImStatus _ _ (Msg.ImComplete {}) -> Just Config.boxColor
         Msg.ImStatus {} -> Nothing
 
-set_all_play_boxes :: Ui.M m => Color.Color -> m ()
-set_all_play_boxes color =
-    mapM_ (flip Ui.set_play_box color) =<< Ui.all_block_ids
+setAllPlayBoxes :: Ui.M m => Color.Color -> m ()
+setAllPlayBoxes color =
+    mapM_ (flip Ui.setPlayBox color) =<< Ui.allBlockIds
 
 type Range = (TrackTime, TrackTime)
 
 -- ** handle im status
 
-handle_im_status :: Fltk.Channel -> BlockId -> Msg.DeriveStatus
+handleImStatus :: Fltk.Channel -> BlockId -> Msg.DeriveStatus
     -> Cmd.CmdT IO ()
-handle_im_status ui_chan root_block_id = \case
+handleImStatus uiChan rootBlockId = \case
     Msg.DeriveComplete _ Msg.ImStarted ->
-        start_im_progress ui_chan root_block_id
+        startImProgress uiChan rootBlockId
     Msg.DeriveComplete _ Msg.ImUnnecessary -> pure ()
-    Msg.ImStatus block_id track_ids status -> case status of
+    Msg.ImStatus blockId trackIds status -> case status of
         Msg.ImWaveformsCompleted waveforms ->
-            im_waveforms_completed ui_chan block_id track_ids waveforms
+            imWaveformsCompleted uiChan blockId trackIds waveforms
         Msg.ImRenderingRange instrument start end ->
-            im_rendering_range ui_chan block_id track_ids instrument
+            imRenderingRange uiChan blockId trackIds instrument
                 (start, end)
-        Msg.ImComplete failed mb_stats -> do
+        Msg.ImComplete failed mbStats -> do
             -- If it failed, leave the the progress highlight in place, to
             -- indicate where it crashed.
             unless failed $
-                clear_im_progress ui_chan root_block_id
+                clearImProgress uiChan rootBlockId
             -- I can only GC if the last im thread completed.  This is because
             -- cache entries don't have BlockId, so I don't want to clear the
             -- entries of another block while it's still running.  It seems a
             -- bit sketchy though, since the evaluation thread could get
             -- pre-empted arbitrarily long before exiting.
-            running <- Cmd.running_threads
+            running <- Cmd.runningThreads
             when (null running) $
-                liftIO $ Sync.gc_waveforms ui_chan
+                liftIO $ Sync.gcWaveforms uiChan
             -- Only show the GC stats when rendering the root block.
-            whenJust mb_stats $ \stats ->
-                whenJustM Ui.lookup_root_id $ \score_root ->
-                    when (score_root == root_block_id) $
+            whenJust mbStats $ \stats ->
+                whenJustM Ui.lookupRootId $ \scoreRoot ->
+                    when (scoreRoot == rootBlockId) $
                         -- TODO put this at the end?  Or just delete it.
-                        Cmd.set_global_status "im cache" $
+                        Cmd.setGlobalStatus "im cache" $
                             Pretty.bytes 0 (ImGc._remaining stats)
     _ -> pure ()
 
-start_im_progress :: Fltk.Channel -> BlockId -> Cmd.CmdT IO ()
-start_im_progress ui_chan block_id = do
-    track_ids <- get_im_instrument_tracks block_id
-    let pending = ((0, end_of_track), Config.im_pending_color)
-    sels <- resolve_tracks
-        [((block_id, track_id), pending) | track_id <- track_ids]
-    view_ids <- Map.keys <$> Ui.views_of block_id
+startImProgress :: Fltk.Channel -> BlockId -> Cmd.CmdT IO ()
+startImProgress uiChan blockId = do
+    trackIds <- getImInstrumentTracks blockId
+    let pending = ((0, endOfTrack), Config.imPendingColor)
+    sels <- resolveTracks
+        [((blockId, trackId), pending) | trackId <- trackIds]
+    viewIds <- Map.keys <$> Ui.viewsOf blockId
     liftIO $ do
-        Sync.clear_waveforms ui_chan view_ids
-        Sync.set_im_progress ui_chan sels
+        Sync.clearWaveforms uiChan viewIds
+        Sync.setImProgress uiChan sels
 
-get_im_instrument_tracks :: Cmd.M m => BlockId -> m [TrackId]
-get_im_instrument_tracks block_id = do
-    track_ids <- Ui.track_ids_of block_id
+getImInstrumentTracks :: Cmd.M m => BlockId -> m [TrackId]
+getImInstrumentTracks blockId = do
+    trackIds <- Ui.trackIdsOf blockId
     -- TODO This is inaccurate since it doesn't understand dummy instruments.
     -- But good enough for now?  I avoid perf_track_instruments to avoid
     -- crashing before the first performance exists.
-    insts <- mapM Perf.infer_instrument track_ids
-    allocs <- Ui.config#UiConfig.allocations_map <#> Ui.get
-    let is_im inst = maybe False UiConfig.is_im_allocation $
+    insts <- mapM Perf.inferInstrument trackIds
+    allocs <- Ui.config#UiConfig.allocationsMap <#> Ui.get
+    let isIm inst = maybe False UiConfig.isImAllocation $
             Map.lookup inst allocs
-    pure $ map fst $ filter (maybe False is_im . snd) $ zip track_ids insts
+    pure $ map fst $ filter (maybe False isIm . snd) $ zip trackIds insts
 
-im_waveforms_completed :: Fltk.Channel -> BlockId -> Set TrackId
+imWaveformsCompleted :: Fltk.Channel -> BlockId -> Set TrackId
     -> [Track.WaveformChunk] -> Cmd.CmdT IO ()
-im_waveforms_completed ui_chan block_id track_ids waveforms = do
-    by_view <- resolve_tracks
-        [ ((block_id, track_id), waveforms)
-        | track_id <- Set.toList track_ids
+imWaveformsCompleted uiChan blockId trackIds waveforms = do
+    byView <- resolveTracks
+        [ ((blockId, trackId), waveforms)
+        | trackId <- Set.toList trackIds
         ]
-    liftIO $ Sync.set_waveforms ui_chan by_view
+    liftIO $ Sync.setWaveforms uiChan byView
 
 -- *** progress
 
-clear_im_progress :: Fltk.Channel -> BlockId -> Cmd.CmdT IO ()
-clear_im_progress ui_chan block_id = do
-    Cmd.modify_play_state $ \st -> st
-        { Cmd.state_im_progress = Map.delete block_id (Cmd.state_im_progress st)
+clearImProgress :: Fltk.Channel -> BlockId -> Cmd.CmdT IO ()
+clearImProgress uiChan blockId = do
+    Cmd.modifyPlayState $ \st -> st
+        { Cmd.stateImProgress = Map.delete blockId (Cmd.stateImProgress st)
         }
-    view_ids <- Map.keys <$> Ui.views_of block_id
-    liftIO $ Sync.clear_im_progress ui_chan view_ids
+    viewIds <- Map.keys <$> Ui.viewsOf blockId
+    liftIO $ Sync.clearImProgress uiChan viewIds
 
-im_rendering_range :: Fltk.Channel -> BlockId -> Set TrackId
+imRenderingRange :: Fltk.Channel -> BlockId -> Set TrackId
     -> ScoreT.Instrument -> (RealTime, RealTime) -> Cmd.CmdT IO ()
-im_rendering_range ui_chan block_id track_ids instrument range = do
-    ranges <- update_rendering_ranges block_id (Set.toList track_ids)
+imRenderingRange uiChan blockId trackIds instrument range = do
+    ranges <- updateRenderingRanges blockId (Set.toList trackIds)
         instrument range
     -- I could be fancy by setting the color shade based on how many
     -- instruments are rendering in each range, but let's leave it be for now.
-    sels <- resolve_tracks =<< concatMapM (range_to_selection block_id) ranges
-    liftIO $ Sync.set_im_progress ui_chan sels
+    sels <- resolveTracks =<< concatMapM (rangeToSelection blockId) ranges
+    liftIO $ Sync.setImProgress uiChan sels
 
-update_rendering_ranges :: Cmd.M m => BlockId -> [TrackId]
+updateRenderingRanges :: Cmd.M m => BlockId -> [TrackId]
     -> ScoreT.Instrument -> (RealTime, RealTime)
     -> m [(TrackId, (RealTime, RealTime))]
-update_rendering_ranges block_id track_ids instrument range = do
-    tracks <- Cmd.gets $ Map.findWithDefault mempty block_id
-        . Cmd.state_im_progress . Cmd.state_play
+updateRenderingRanges blockId trackIds instrument range = do
+    tracks <- Cmd.gets $ Map.findWithDefault mempty blockId
+        . Cmd.stateImProgress . Cmd.statePlay
     let new = Map.fromList
-            [(track_id, Map.singleton instrument range) | track_id <- track_ids]
+            [(trackId, Map.singleton instrument range) | trackId <- trackIds]
     let merged = Map.unionWith (<>) new tracks
-    Cmd.modify_play_state $ \st -> st
-        { Cmd.state_im_progress =
-            Map.insert block_id merged $ Cmd.state_im_progress st
+    Cmd.modifyPlayState $ \st -> st
+        { Cmd.stateImProgress =
+            Map.insert blockId merged $ Cmd.stateImProgress st
         }
-    pure $ track_ranges merged track_ids
+    pure $ trackRanges merged trackIds
 
-track_ranges :: Map TrackId (Map ScoreT.Instrument (RealTime, RealTime))
+trackRanges :: Map TrackId (Map ScoreT.Instrument (RealTime, RealTime))
     -> [TrackId] -> [(TrackId, (RealTime, RealTime))]
-track_ranges tracks = mapMaybe (traverse (expand . Map.elems)) . mapMaybe get
+trackRanges tracks = mapMaybe (traverse (expand . Map.elems)) . mapMaybe get
     where
-    get track_id = (track_id,) <$> Map.lookup track_id tracks
+    get trackId = (trackId,) <$> Map.lookup trackId tracks
     expand [] = Nothing
     expand ranges = Just (minimum (map fst ranges), maximum (map snd ranges))
 
 -- | Convert a track level RealTime range to lower level per-view TrackTime
 -- ranges.
-range_to_selection :: Cmd.M m => BlockId -> (TrackId, (RealTime, RealTime))
+rangeToSelection :: Cmd.M m => BlockId -> (TrackId, (RealTime, RealTime))
     -> m [((BlockId, TrackId), ((ScoreTime, ScoreTime), Color.Color))]
-range_to_selection block_id (track_id, (start, end)) = do
-    inv_tempo <- Perf.get_inverse_tempo block_id
+rangeToSelection blockId (trackId, (start, end)) = do
+    invTempo <- Perf.getInverseTempo blockId
     pure $ fromMaybe [] $ do
-        start <- to_score inv_tempo block_id track_id start
-        end <- to_score inv_tempo block_id track_id end
-        pure $ map ((block_id, track_id),)
-            [ ((start, end), Config.im_working_color)
-            , ((end, end_of_track), Config.im_pending_color)
+        start <- toScore invTempo blockId trackId start
+        end <- toScore invTempo blockId trackId end
+        pure $ map ((blockId, trackId),)
+            [ ((start, end), Config.imWorkingColor)
+            , ((end, endOfTrack), Config.imPendingColor)
             ]
 
-end_of_track :: TrackTime
-end_of_track = 99999 -- TODO use a special to-end value?
+endOfTrack :: TrackTime
+endOfTrack = 99999 -- TODO use a special to-end value?
 
-to_score :: Transport.InverseTempoFunction -> BlockId -> TrackId -> RealTime
+toScore :: Transport.InverseTempoFunction -> BlockId -> TrackId -> RealTime
     -> Maybe ScoreTime
-to_score inv_tempo block_id track_id =
-    lookup track_id <=< lookup block_id . inv_tempo Transport.NoStop
+toScore invTempo blockId trackId =
+    lookup trackId <=< lookup blockId . invTempo Transport.NoStop
 
 -- ** track signals
 
 -- | This takes the Ui.State from 'Cmd.perf_ui_state' because the current
 -- Ui.State may have changes which haven't yet been synced to the UI.
-update_track_signals :: Fltk.Channel -> BlockId -> Ui.State
+updateTrackSignals :: Fltk.Channel -> BlockId -> Ui.State
     -> Track.TrackSignals -> IO ()
-update_track_signals ui_chan block_id state tsigs =
-    case rendering_tracks block_id state of
+updateTrackSignals uiChan blockId state tsigs =
+    case renderingTracks blockId state of
         -- This means a bad BlockId or bug in rendering_tracks.
         Left err -> Log.error $ pretty err
-        Right tracks -> Sync.set_track_signals ui_chan $
-            [ (view_id, tracknum, if wants_tsig
-                then Map.findWithDefault empty (block_id, track_id) tsigs
+        Right tracks -> Sync.setTrackSignals uiChan $
+            [ (viewId, tracknum, if wantsTsig
+                then Map.findWithDefault empty (blockId, trackId) tsigs
                 else empty)
-            | (view_id, track_id, tracknum, wants_tsig) <- tracks
+            | (viewId, trackId, tracknum, wantsTsig) <- tracks
             ]
     where
     -- If there's no recorded signal, I send an empty one, to make sure that if
@@ -290,85 +290,85 @@ update_track_signals ui_chan block_id state tsigs =
     -- existing track signal" and "never had a track signal" look the same
     -- from here, and always sending an empty seems less error-prone than
     -- trying to figure out the distinction.
-    empty = Track.empty_track_signal
+    empty = Track.emptyTrackSignal
 
 -- | Get the tracks of this block and whether they want to render a signal.
-rendering_tracks :: BlockId -> Ui.State
+renderingTracks :: BlockId -> Ui.State
     -> Either Ui.Error [(ViewId, TrackId, TrackNum, Bool)]
-rendering_tracks block_id state = Ui.eval state $ do
-    view_ids <- Map.keys <$> Ui.views_of block_id
-    blocks <- mapM Ui.block_of view_ids
-    btracks <- mapM get_tracks blocks
+renderingTracks blockId state = Ui.eval state $ do
+    viewIds <- Map.keys <$> Ui.viewsOf blockId
+    blocks <- mapM Ui.blockOf viewIds
+    btracks <- mapM getTracks blocks
     pure $ do
-        (view_id, tracks) <- zip view_ids btracks
-        ((tracknum, track_id, flags), track) <- tracks
+        (viewId, tracks) <- zip viewIds btracks
+        ((tracknum, trackId, flags), track) <- tracks
         -- I don't want to send even an empty signal to these.
-        guard $ not $ Block.is_collapsed flags
+        guard $ not $ Block.isCollapsed flags
         pure
-            ( view_id, track_id, tracknum
-            , Block.track_wants_signal flags track
+            ( viewId, trackId, tracknum
+            , Block.trackWantsSignal flags track
             )
     where
-    get_tracks block = zip triples <$> mapM Ui.get_track track_ids
+    getTracks block = zip triples <$> mapM Ui.getTrack trackIds
         where
-        track_ids = [tid | (_, tid, _) <- triples]
+        trackIds = [tid | (_, tid, _) <- triples]
         triples =
-            [ (tracknum, tid, Block.track_flags track)
+            [ (tracknum, tid, Block.trackFlags track)
             | (tracknum,
-                track@(Block.Track { Block.tracklike_id = Block.TId tid _ }))
-                <- zip [0..] (Block.block_tracks block)
+                track@(Block.Track { Block.tracklikeId = Block.TId tid _ }))
+                <- zip [0..] (Block.blockTracks block)
             ]
 
 -- ** highlights
 
 -- | Get highlights from the events, clear old highlights, and set the new ones.
-update_highlights :: Fltk.Channel -> BlockId -> Vector.Vector Score.Event
+updateHighlights :: Fltk.Channel -> BlockId -> Vector.Vector Score.Event
     -> Cmd.CmdT IO ()
-update_highlights ui_chan block_id events = do
-    sels <- get_event_highlights block_id events
-    view_ids <- Map.keysSet <$> Ui.views_of block_id
-    let used_view_ids = Set.fromList [view_id | ((view_id, _), _) <- sels]
+updateHighlights uiChan blockId events = do
+    sels <- getEventHighlights blockId events
+    viewIds <- Map.keysSet <$> Ui.viewsOf blockId
+    let usedViewIds = Set.fromList [viewId | ((viewId, _), _) <- sels]
     liftIO $ do
-        Sync.clear_highlights ui_chan $
-            Set.toList $ view_ids `Set.difference` used_view_ids
-        Sync.set_highlights ui_chan sels
+        Sync.clearHighlights uiChan $
+            Set.toList $ viewIds `Set.difference` usedViewIds
+        Sync.setHighlights uiChan sels
 
 -- | Get highlight selections from the events.
-get_event_highlights :: Cmd.M m => BlockId
+getEventHighlights :: Cmd.M m => BlockId
     -- ^ only get highlights for events on this block
     -> Vector.Vector Score.Event
     -> m [((ViewId, TrackNum), (Range, Color.Color))]
-get_event_highlights block_id events = do
-    colors <- Cmd.gets $ Cmd.config_highlight_colors . Cmd.state_config
-    resolve_tracks $ event_highlights block_id colors events
+getEventHighlights blockId events = do
+    colors <- Cmd.gets $ Cmd.configHighlightColors . Cmd.stateConfig
+    resolveTracks $ eventHighlights blockId colors events
 
-resolve_tracks :: Ui.M m => [((BlockId, TrackId), a)]
+resolveTracks :: Ui.M m => [((BlockId, TrackId), a)]
     -> m [((ViewId, TrackNum), a)]
-resolve_tracks = concatMapM resolve
+resolveTracks = concatMapM resolve
     where
-    resolve ((block_id, track_id), val) = do
-        tracknum <- Ui.get_tracknum_of block_id track_id
-        view_ids <- Map.keys <$> Ui.views_of block_id
-        pure [((view_id, tracknum), val) | view_id <- view_ids]
+    resolve ((blockId, trackId), val) = do
+        tracknum <- Ui.getTracknumOf blockId trackId
+        viewIds <- Map.keys <$> Ui.viewsOf blockId
+        pure [((viewId, tracknum), val) | viewId <- viewIds]
 
-event_highlights :: BlockId -> Map Color.Highlight Color.Color
+eventHighlights :: BlockId -> Map Color.Highlight Color.Color
     -> Vector.Vector Score.Event
     -> [((BlockId, TrackId), (Range, Color.Color))]
-event_highlights derived_block_id colors
+eventHighlights derivedBlockId colors
     | Map.null colors = const []
     | otherwise = Lists.uniqueOn key . Vector.foldr collect []
     where
     key (track, (range, _)) = (track, range)
     collect event accum
         | highlight /= Color.NoHighlight,
-                Just (block_id, track_id, range) <- maybe_pos,
-                block_id == derived_block_id,
+                Just (blockId, trackId, range) <- maybePos,
+                blockId == derivedBlockId,
                 Just color <- Map.lookup highlight colors =
-            ((block_id, track_id), (range, color)) : accum
+            ((blockId, trackId), (range, color)) : accum
         | otherwise = accum
         where
-        highlight = Score.event_highlight event
-        maybe_pos = Stack.block_track_region_of $ Score.event_stack event
+        highlight = Score.eventHighlight event
+        maybePos = Stack.blockTrackRegionOf $ Score.eventStack event
 
 -- * play
 
@@ -376,56 +376,56 @@ event_highlights derived_block_id colors
 -- function is given, a play monitor thread.
 play :: Fltk.Channel -> Ui.State -> Transport.Info
     -> Cmd.PlayArgs -> IO Transport.PlayControl
-play ui_chan ui_state transport_info
-        (Cmd.PlayArgs mmc name midi_msgs sc_msgs maybe_inv_tempo repeat_at
-            im_end play_im_direct) = do
-    play_ctl <- Transport.play_control
-    players <- Transport.active_players
-    let midi_state = Midi.Play.State
-            { _play_control = play_ctl
+play uiChan uiState transportInfo
+        (Cmd.PlayArgs mmc name midiMsgs scMsgs maybeInvTempo repeatAt
+            imEnd playImDirect) = do
+    playCtl <- Transport.playControl
+    players <- Transport.activePlayers
+    let midiState = Midi.Play.State
+            { _playControl = playCtl
             , _players = players
-            , _info = transport_info
-            , _im_end = im_end
+            , _info = transportInfo
+            , _imEnd = imEnd
             }
-    Midi.Play.play midi_state mmc name midi_msgs repeat_at
-    unless (null (Sc.Note.notes sc_msgs)) $ do
-        let sc_state = Sc.Play.State
-                { _play_control = play_ctl, _players = players }
-        Sc.Play.play sc_state sc_msgs repeat_at
+    Midi.Play.play midiState mmc name midiMsgs repeatAt
+    unless (null (Sc.Note.notes scMsgs)) $ do
+        let scState = Sc.Play.State
+                { _playControl = playCtl, _players = players }
+        Sc.Play.play scState scMsgs repeatAt
     -- Pass the current state in the MVar.  ResponderSync will keep it up
     -- to date afterwards, but only if blocks are added or removed.
-    MVar.modifyMVar_ (Transport.info_state transport_info) $
-        const (pure ui_state)
-    whenJust play_im_direct $ \args -> do
-        Transport.player_started players
-        void $ Thread.start $ play_im_direct_thread play_ctl args
-            `Exception.finally` Transport.player_stopped players
-    Thread.start $ case maybe_inv_tempo of
-        Just inv_tempo -> do
-            state <- monitor_state ui_chan transport_info play_ctl players
-                inv_tempo repeat_at
-            play_monitor_thread state
+    MVar.modifyMVar_ (Transport.infoState transportInfo) $
+        const (pure uiState)
+    whenJust playImDirect $ \args -> do
+        Transport.playerStarted players
+        void $ Thread.start $ playImDirectThread playCtl args
+            `Exception.finally` Transport.playerStopped players
+    Thread.start $ case maybeInvTempo of
+        Just invTempo -> do
+            state <- monitorState uiChan transportInfo playCtl players
+                invTempo repeatAt
+            playMonitorThread state
         Nothing -> pure ()
-    Thread.start $ wait_for_players play_ctl
-        (Transport.info_send_status transport_info) players
-    pure play_ctl
+    Thread.start $ waitForPlayers playCtl
+        (Transport.infoSendStatus transportInfo) players
+    pure playCtl
 
-wait_for_players :: Transport.PlayControl -> (Transport.Status -> IO ())
+waitForPlayers :: Transport.PlayControl -> (Transport.Status -> IO ())
     -> Transport.ActivePlayers -> IO ()
-wait_for_players play_ctl send_status players = do
-    send_status Transport.Playing
-    Transport.wait_player_stopped players
-    send_status $ Transport.Stopped play_ctl
+waitForPlayers playCtl sendStatus players = do
+    sendStatus Transport.Playing
+    Transport.waitPlayerStopped players
+    sendStatus $ Transport.Stopped playCtl
 
 -- | Start streaming audio from the given start time, until the PlayControl
 -- says to stop.
-play_im_direct_thread :: Transport.PlayControl -> Cmd.PlayDirectArgs -> IO ()
+playImDirectThread :: Transport.PlayControl -> Cmd.PlayDirectArgs -> IO ()
 #ifdef ENABLE_IM
-play_im_direct_thread (Transport.PlayControl quit)
-        (Cmd.PlayDirectArgs score_path block_id muted start) =
-    StreamAudio.play verbose Nothing quit score_path block_id muted start
+playImDirectThread (Transport.PlayControl quit)
+        (Cmd.PlayDirectArgs scorePath blockId muted start) =
+    StreamAudio.play verbose Nothing quit scorePath blockId muted start
 #else
-play_im_direct_thread _ _ =
+playImDirectThread _ _ =
     errorIO "can't play_im_direct_thread when im is not linked in"
 #endif
     where verbose = False
@@ -433,70 +433,70 @@ play_im_direct_thread _ _ =
 -- | Run along the InverseTempoMap and update the play position selection.
 -- Note that this goes directly to the UI through Sync, bypassing the usual
 -- state diff folderol.
-play_monitor_thread :: MonitorState -> IO ()
-play_monitor_thread state = do
-    ui_state <- MVar.readMVar (monitor_ui_state state)
-    Sync.clear_play_position (monitor_ui_channel state) $
-        Map.keys $ Ui.state_views ui_state
-    monitor_loop state
+playMonitorThread :: MonitorState -> IO ()
+playMonitorThread state = do
+    uiState <- MVar.readMVar (monitorUiState state)
+    Sync.clearPlayPosition (monitorUiChannel state) $
+        Map.keys $ Ui.stateViews uiState
+    monitorLoop state
 
-monitor_state :: Fltk.Channel -> Transport.Info
+monitorState :: Fltk.Channel -> Transport.Info
     -> Transport.PlayControl
     -> Transport.ActivePlayers
     -> Transport.InverseTempoFunction
     -> Maybe RealTime
     -> IO MonitorState
-monitor_state ui_chan transport_info play_ctl players inv_tempo_func
-        repeat_at = do
-    let get_now = Transport.info_get_current_time transport_info
+monitorState uiChan transportInfo playCtl players invTempoFunc
+        repeatAt = do
+    let getNow = Transport.infoGetCurrentTime transportInfo
     -- This won't be exactly the same as the renderer's ts offset, but
     -- it's probably close enough.
-    offset <- get_now
+    offset <- getNow
     pure $ MonitorState
-        { monitor_players = players
-        , monitor_play_ctl = play_ctl
-        , monitor_offset = offset
-        , monitor_get_now = get_now
-        , monitor_inv_tempo_func = inv_tempo_func
-        , monitor_active_sels = Set.empty
-        , monitor_ui_state = Transport.info_state transport_info
-        , monitor_repeat_at = repeat_at
-        , monitor_ui_channel = ui_chan
+        { monitorPlayers = players
+        , monitorPlayCtl = playCtl
+        , monitorOffset = offset
+        , monitorGetNow = getNow
+        , monitorInvTempoFunc = invTempoFunc
+        , monitorActiveSels = Set.empty
+        , monitorUiState = Transport.infoState transportInfo
+        , monitorRepeatAt = repeatAt
+        , monitorUiChannel = uiChan
         }
 
 data MonitorState = MonitorState
-    { monitor_players :: !Transport.ActivePlayers
-    , monitor_play_ctl :: !Transport.PlayControl
+    { monitorPlayers :: !Transport.ActivePlayers
+    , monitorPlayCtl :: !Transport.PlayControl
     -- | When the monitor thread started.
-    , monitor_offset :: !RealTime
-    , monitor_get_now :: !(IO RealTime)
-    , monitor_inv_tempo_func :: !Transport.InverseTempoFunction
-    , monitor_active_sels :: !(Set (ViewId, [TrackNum]))
-    , monitor_ui_state :: !(MVar.MVar Ui.State)
-    , monitor_repeat_at :: !(Maybe RealTime)
-    , monitor_ui_channel :: !Fltk.Channel
+    , monitorOffset :: !RealTime
+    , monitorGetNow :: !(IO RealTime)
+    , monitorInvTempoFunc :: !Transport.InverseTempoFunction
+    , monitorActiveSels :: !(Set (ViewId, [TrackNum]))
+    , monitorUiState :: !(MVar.MVar Ui.State)
+    , monitorRepeatAt :: !(Maybe RealTime)
+    , monitorUiChannel :: !Fltk.Channel
     }
 
-monitor_loop :: MonitorState -> IO ()
-monitor_loop state = do
+monitorLoop :: MonitorState -> IO ()
+monitorLoop state = do
     -- This is play time, relative to when play started.  It is not RealTime
     -- position in the score, because we might have started in the middle.
     -- The inv_tempo_func must have had this offset already applied.
-    now <- maybe id (flip Num.fmod) (monitor_repeat_at state)
-        . subtract (monitor_offset state) <$> monitor_get_now state
+    now <- maybe id (flip Num.fmod) (monitorRepeatAt state)
+        . subtract (monitorOffset state) <$> monitorGetNow state
     let fail err = Log.error ("state error in play monitor: " <> showt err)
             >> pure []
-    ui_state <- MVar.readMVar (monitor_ui_state state)
-    let block_pos = monitor_inv_tempo_func state Transport.StopAtEnd now
-    play_pos <- fmap extend_to_track_0 $ either fail pure $
-        Ui.eval ui_state $ Perf.block_pos_to_play_pos block_pos
-    Sync.set_play_position (monitor_ui_channel state) play_pos
+    uiState <- MVar.readMVar (monitorUiState state)
+    let blockPos = monitorInvTempoFunc state Transport.StopAtEnd now
+    playPos <- fmap extendToTrack0 $ either fail pure $
+        Ui.eval uiState $ Perf.blockPosToPlayPos blockPos
+    Sync.setPlayPosition (monitorUiChannel state) playPos
 
-    let active_sels = Set.fromList
-            [(view_id, map fst num_pos) | (view_id, num_pos) <- play_pos]
-    Sync.clear_play_position (monitor_ui_channel state) $ map fst $ Set.toList $
-        Set.difference (monitor_active_sels state) active_sels
-    state <- pure $ state { monitor_active_sels = active_sels }
+    let activeSels = Set.fromList
+            [(viewId, map fst numPos) | (viewId, numPos) <- playPos]
+    Sync.clearPlayPosition (monitorUiChannel state) $ map fst $ Set.toList $
+        Set.difference (monitorActiveSels state) activeSels
+    state <- pure $ state { monitorActiveSels = activeSels }
 
     done <- orM
         -- out of score
@@ -505,25 +505,25 @@ monitor_loop state = do
         -- at or past the end of the score).  When the monitor thread stops, it
         -- sends Stopped on the transport, which clears out the player ctl
         -- which will make the player unstoppable, if it's still going.
-        [ pure $ null block_pos && Maybe.isNothing (monitor_repeat_at state)
+        [ pure $ null blockPos && Maybe.isNothing (monitorRepeatAt state)
         -- stop requested
-        , Transport.poll_stop_player 0 (monitor_play_ctl state)
+        , Transport.pollStopPlayer 0 (monitorPlayCtl state)
         -- all players stopped, after this Transport.Stopped is emitted,
         -- Cmd.state_play_control is cleared, and it's no longer possible to
         -- do a Transport.stop_player.
-        , Transport.poll_player_stopped 0 (monitor_players state)
+        , Transport.pollPlayerStopped 0 (monitorPlayers state)
         ]
     if done
-        then Sync.clear_play_position (monitor_ui_channel state) $ map fst $
-            Set.toList (monitor_active_sels state)
-        else Thread.delay 0.05 >> monitor_loop state
+        then Sync.clearPlayPosition (monitorUiChannel state) $ map fst $
+            Set.toList (monitorActiveSels state)
+        else Thread.delay 0.05 >> monitorLoop state
 
 -- | If there's a playback on track 1 but not on track 0, then track 0 is
 -- probably a ruler.  If I put a playback there too, then the playback position
 -- will be more obvious on a narrow block.
-extend_to_track_0 :: [(ViewId, [(TrackNum, ScoreTime)])]
+extendToTrack0 :: [(ViewId, [(TrackNum, ScoreTime)])]
     -> [(ViewId, [(TrackNum, ScoreTime)])]
-extend_to_track_0 = map (second extend)
+extendToTrack0 = map (second extend)
     where
     extend ((tracknum, t) : tracks)
         | tracknum == 1 = (0, t) : (1, t) : tracks

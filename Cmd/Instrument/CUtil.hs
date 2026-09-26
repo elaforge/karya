@@ -60,15 +60,15 @@ import           Types
 
 -- * eval call
 
-insert_call :: Cmd.M m => Thru -> [(Char, Expr.Symbol)] -> Cmd.Handler m
-insert_call thru char_syms = insert_expr thru (Cmd.WithoutOctave char_to_expr)
+insertCall :: Cmd.M m => Thru -> [(Char, Expr.Symbol)] -> Cmd.Handler m
+insertCall thru charSyms = insertExpr thru (Cmd.WithoutOctave charToExpr)
     where
-    to_expr call = Expr.generator0 call
-    char_to_expr = Map.fromList $
-        map (bimap PhysicalKey.physical_key to_expr) char_syms
+    toExpr call = Expr.generator0 call
+    charToExpr = Map.fromList $
+        map (bimap PhysicalKey.physicalKey toExpr) charSyms
 
-strokes_to_calls :: [Drums.Stroke] -> [(Char, Expr.Symbol)]
-strokes_to_calls strokes =
+strokesToCalls :: [Drums.Stroke] -> [(Char, Expr.Symbol)]
+strokesToCalls strokes =
     [ (c, Drums._name s)
     | s <- strokes, Just c <- [Drums._char s]
     ]
@@ -88,15 +88,15 @@ data Thru = MidiThru | ImThru !Thru.ThruFunction | NoThru
 -- | Create a custom kbd entry cmd that inserts tracklang expressions at
 -- the insertion point.  Since this shadows the default note entry cmd, it
 -- has to handle thru on its own.
-insert_expr :: Cmd.M m => Thru -- ^ Evaluate the expression and emit MIDI thru.
+insertExpr :: Cmd.M m => Thru -- ^ Evaluate the expression and emit MIDI thru.
     -> Cmd.NoteEntryMap DeriveT.Expr
     -> Cmd.Handler m
-insert_expr thru note_entry_map = handler $ \msg -> do
-    unlessM Cmd.is_kbd_entry Cmd.abort
+insertExpr thru noteEntryMap = handler $ \msg -> do
+    unlessM Cmd.isKbdEntry Cmd.abort
     EditUtil.fallthrough EditUtil.NoBackspace msg
-    (kstate, char) <- Cmd.abort_unless $ Msg.char msg
-    octave <- Cmd.gets $ Cmd.state_kbd_entry_octave . Cmd.state_edit
-    case Cmd.note_entry_lookup octave char note_entry_map of
+    (kstate, char) <- Cmd.abortUnless $ Msg.char msg
+    octave <- Cmd.gets $ Cmd.stateKbdEntryOctave . Cmd.stateEdit
+    case Cmd.noteEntryLookup octave char noteEntryMap of
         Nothing
             -- Eat keys that normally would be eaten by kbd entry.  Otherwise
             -- it'll fall through to normal kbd entry and try to enter a
@@ -107,15 +107,15 @@ insert_expr thru note_entry_map = handler $ \msg -> do
             -- could just replace it entirely.  But I still want to mask out
             -- those PhysicalKey.pitch_map keys because it seems to confusing
             -- to fall through to an editing key.
-            | Map.member char PhysicalKey.pitch_map -> pure Cmd.Done
+            | Map.member char PhysicalKey.pitchMap -> pure Cmd.Done
             | otherwise -> pure Cmd.Continue
         Just expr -> do
             case thru of
                 NoThru -> pure ()
-                MidiThru -> expr_midi_thru kstate expr
-                ImThru thru_f -> case kstate of
+                MidiThru -> exprMidiThru kstate expr
+                ImThru thruF -> case kstate of
                     UiMsg.KeyDown ->
-                        mapM_ Cmd.write_thru =<< expr_im_thru thru_f expr
+                        mapM_ Cmd.writeThru =<< exprImThru thruF expr
                     _ -> pure ()
             case kstate of
                 UiMsg.KeyDown -> keydown expr
@@ -123,50 +123,50 @@ insert_expr thru note_entry_map = handler $ \msg -> do
             pure Cmd.Done
     where
     handler = Cmd.Handler
-        (Just $ merge_kbd_entry "" $ to_keycap <$> note_entry_map)
+        (Just $ mergeKbdEntry "" $ toKeycap <$> noteEntryMap)
         . Cmd.NamedCmd "insert_expr"
     keydown expr = do
-        Cmd.set_status Config.status_note $ Just $ ShowVal.show_val expr
-        whenM Cmd.is_val_edit $ suppressed $ do
-            pos <- EditUtil.get_pos
-            EditUtil.modify_event_at_trigger pos False True $
-                const (Just (ShowVal.show_val expr), True)
+        Cmd.setStatus Config.statusNote $ Just $ ShowVal.showVal expr
+        whenM Cmd.isValEdit $ suppressed $ do
+            pos <- EditUtil.getPos
+            EditUtil.modifyEventAtTrigger pos False True $
+                const (Just (ShowVal.showVal expr), True)
         where
-        suppressed = Cmd.suppress_history Cmd.ValEdit
-            ("keymap: " <> ShowVal.show_val expr)
+        suppressed = Cmd.suppressHistory Cmd.ValEdit
+            ("keymap: " <> ShowVal.showVal expr)
 
-to_keycap :: DeriveT.Expr -> KeycapsT.KeyDoc
-to_keycap = Expr.show_val_expr
+toKeycap :: DeriveT.Expr -> KeycapsT.KeyDoc
+toKeycap = Expr.showValExpr
 
-merge_kbd_entry :: a -> Cmd.NoteEntryMap a -> Cmd.NoteEntryMap a
-merge_kbd_entry val = \case
+mergeKbdEntry :: a -> Cmd.NoteEntryMap a -> Cmd.NoteEntryMap a
+mergeKbdEntry val = \case
     Cmd.WithOctave m -> Cmd.WithOctave $ (`Map.union` empty) <$> m
     Cmd.WithoutOctave m -> Cmd.WithoutOctave $ Map.union m empty
-    where empty = const val <$> PhysicalKey.pitch_map
+    where empty = const val <$> PhysicalKey.pitchMap
 
-expr_im_thru :: Cmd.M m => Thru.ThruFunction -> DeriveT.Expr -> m [Cmd.Thru]
-expr_im_thru thru_f expr = do
-    notes <- eval_thru_notes expr
-    msg <- Cmd.require_right ("thru_f: "<>) $ thru_f notes
+exprImThru :: Cmd.M m => Thru.ThruFunction -> DeriveT.Expr -> m [Cmd.Thru]
+exprImThru thruF expr = do
+    notes <- evalThruNotes expr
+    msg <- Cmd.requireRight ("thru_f: "<>) $ thruF notes
     pure [Cmd.ImThru msg]
 
-eval_thru_notes :: Cmd.M m => DeriveT.Expr -> m [Thru.Note]
-eval_thru_notes expr = do
-    (block_id, _, track_id, pos) <- Selection.get_insert
-    result <- LEvent.write_snd_prefix "CUtil.expr_attributes"
-        =<< Perf.derive_expr block_id track_id pos expr
-    events <- Cmd.require_right ("CUtil.expr_attributes: "<>) result
+evalThruNotes :: Cmd.M m => DeriveT.Expr -> m [Thru.Note]
+evalThruNotes expr = do
+    (blockId, _, trackId, pos) <- Selection.getInsert
+    result <- LEvent.writeSndPrefix "CUtil.expr_attributes"
+        =<< Perf.deriveExpr blockId trackId pos expr
+    events <- Cmd.requireRight ("CUtil.expr_attributes: "<>) result
     when (null events) $ Cmd.throw $ "expected events when evaluating: "
-        <> ShowVal.show_val expr
+        <> ShowVal.showVal expr
     pure $ map make events
     where
     make event = Thru.Note
-        { _pitch = fromMaybe 0 (Score.initial_nn event)
-        , _velocity = Score.initial_dynamic event
-        , _attributes = Score.event_attributes event
-        , _startOffset = maybe 0 (floor . ScoreT.val_of) $
-            Score.control_at (Score.event_start event)
-                (Controls.from_shared Control.sampleStartOffset) event
+        { _pitch = fromMaybe 0 (Score.initialNn event)
+        , _velocity = Score.initialDynamic event
+        , _attributes = Score.eventAttributes event
+        , _startOffset = maybe 0 (floor . ScoreT.valOf) $
+            Score.controlAt (Score.eventStart event)
+                (Controls.fromShared Control.sampleStartOffset) event
         }
 
 {- | Emit MIDI thru for an arbitrary expresison.
@@ -180,41 +180,41 @@ eval_thru_notes expr = do
     real time.  Still, perhaps it would be possible to integrate them better
     than I have.
 -}
-expr_midi_thru :: Cmd.M m => UiMsg.KbdState -> DeriveT.Expr -> m ()
-expr_midi_thru kstate expr = case kstate of
+exprMidiThru :: Cmd.M m => UiMsg.KbdState -> DeriveT.Expr -> m ()
+exprMidiThru kstate expr = case kstate of
     UiMsg.KeyRepeat -> pure ()
     UiMsg.KeyDown -> do
-        (block_id, _, track_id, pos) <- Selection.get_insert
-        msgs <- expr_to_midi block_id track_id pos expr
-        let note_ons =
-                [ (Midi.wmsg_dev wmsg, Midi.wmsg_msg wmsg)
+        (blockId, _, trackId, pos) <- Selection.getInsert
+        msgs <- exprToMidi blockId trackId pos expr
+        let noteOns =
+                [ (Midi.wmsgDev wmsg, Midi.wmsgMsg wmsg)
                 | wmsg <- msgs
-                , Midi.is_note_on (Midi.wmsg_msg wmsg)
+                , Midi.isNoteOn (Midi.wmsgMsg wmsg)
                 ]
-        mapM_ (uncurry Cmd.midi) note_ons
+        mapM_ (uncurry Cmd.midi) noteOns
     UiMsg.KeyUp -> do
         -- This runs relies on 'expr_to_midi' producing exactly the same thing
         -- as the call above, so the NoteOffs will cancel out the NoteOns.  If
         -- this seems too unreliable, I could keep a Map from exprs to the note
         -- offs.  Keeping state around is also a bit unreliable, but maybe less
         -- so.
-        (block_id, _, track_id, pos) <- Selection.get_insert
-        msgs <- expr_to_midi block_id track_id pos expr
-        let note_offs =
+        (blockId, _, trackId, pos) <- Selection.getInsert
+        msgs <- exprToMidi blockId trackId pos expr
+        let noteOffs =
                 [ (dev, msg)
                 | Midi.WriteMessage dev _
                     msg@(Midi.ChannelMessage _ (Midi.NoteOff _ _)) <- msgs
                 ]
-        mapM_ (uncurry Cmd.midi) note_offs
+        mapM_ (uncurry Cmd.midi) noteOffs
 
 -- | Call a note call and return the MIDI msgs it produces.
-expr_to_midi :: Cmd.M m => BlockId -> TrackId -> TrackTime -> DeriveT.Expr
+exprToMidi :: Cmd.M m => BlockId -> TrackId -> TrackTime -> DeriveT.Expr
     -> m [Midi.WriteMessage]
-expr_to_midi block_id track_id pos expr = do
-    result <- LEvent.write_snd_prefix "CUtil.expr_to_midi"
-        =<< Perf.derive_expr block_id track_id pos expr
-    events <- Cmd.require_right ("CUtil.expr_to_midi: "<>) result
-    LEvent.write_snd =<< Perf.perform events
+exprToMidi blockId trackId pos expr = do
+    result <- LEvent.writeSndPrefix "CUtil.expr_to_midi"
+        =<< Perf.deriveExpr blockId trackId pos expr
+    events <- Cmd.requireRight ("CUtil.expr_to_midi: "<>) result
+    LEvent.writeSnd =<< Perf.perform events
 
 -- * keyswitch
 
@@ -236,16 +236,16 @@ expr_to_midi block_id track_id pos expr = do
 keyswitches :: Cmd.M m => [(Char, Expr.Symbol, Midi.Key)] -> Cmd.Handler m
 keyswitches inputs = handler $ \msg -> do
     EditUtil.fallthrough EditUtil.NoBackspace msg
-    char <- Cmd.abort_unless $ Msg.char_down msg
-    (call, key) <- Cmd.abort_unless $ Map.lookup char to_call
-    MidiThru.channel_messages Nothing False
+    char <- Cmd.abortUnless $ Msg.charDown msg
+    (call, key) <- Cmd.abortUnless $ Map.lookup char toCall
+    MidiThru.channelMessages Nothing False
         [Midi.NoteOn key 64, Midi.NoteOff key 64]
-    Cmd.set_note_text (Expr.unsym call)
+    Cmd.setNoteText (Expr.unsym call)
     pure Cmd.Done
     where
-    handler = Cmd.Handler (Just note_entry_map) . Cmd.NamedCmd "keyswitches"
-    note_entry_map = Cmd.WithoutOctave $ Expr.unsym . fst <$> to_call
-    to_call = Map.fromList [(char, (call, key)) | (char, call, key) <- inputs]
+    handler = Cmd.Handler (Just noteEntryMap) . Cmd.NamedCmd "keyswitches"
+    noteEntryMap = Cmd.WithoutOctave $ Expr.unsym . fst <$> toCall
+    toCall = Map.fromList [(char, (call, key)) | (char, call, key) <- inputs]
 
 
 -- * drums
@@ -253,57 +253,57 @@ keyswitches inputs = handler $ \msg -> do
 -- | Create an unpitched drum instrument.  This is an instrument with an
 -- enumeration of symbols and no pitch or duration.  Each key maps to its
 -- own symbol.
-simple_drum :: Thru -> Maybe ScoreT.Control -> [(Drums.Stroke, Midi.Key)]
+simpleDrum :: Thru -> Maybe ScoreT.Control -> [(Drums.Stroke, Midi.Key)]
     -> MidiInst.Patch -> MidiInst.Patch
-simple_drum thru tuning_control stroke_keys patch =
-    MidiInst.code #= code $ drum_patch stroke_keys patch
+simpleDrum thru tuningControl strokeKeys patch =
+    MidiInst.code #= code $ drumPatch strokeKeys patch
     where
-    code = drum_code thru (map ((,config) . fst) stroke_keys)
-    config = call_config { _tuning_control = tuning_control }
+    code = drumCode thru (map ((,config) . fst) strokeKeys)
+    config = callConfig { _tuningControl = tuningControl }
 
 -- ** code
 
 -- | Construct code from drum strokes.  This is both the deriver calls to
 -- interpret the stroke names, and the cmds to enter them.
-drum_code :: Thru -> [(Drums.Stroke, CallConfig)] -> MidiInst.Code
-drum_code = drum_code_cmd []
+drumCode :: Thru -> [(Drums.Stroke, CallConfig)] -> MidiInst.Code
+drumCode = drumCodeCmd []
 
 -- | 'drum_code', but with the opportunity to insert extra keys for
 -- 'insert_call'.  This is because 'insert_expr' can't be stacked, since it
 -- consumes kbd entry keys it doesn't map, since it's confusing if it doesn't.
-drum_code_cmd :: [(Char, Expr.Symbol)] -> Thru -> [(Drums.Stroke, CallConfig)]
+drumCodeCmd :: [(Char, Expr.Symbol)] -> Thru -> [(Drums.Stroke, CallConfig)]
     -> MidiInst.Code
-drum_code_cmd extra_cmds thru stroke_configs =
-    MidiInst.note_generators (drum_calls stroke_configs)
-    <> MidiInst.cmd (drum_cmd extra_cmds thru (map fst stroke_configs))
+drumCodeCmd extraCmds thru strokeConfigs =
+    MidiInst.noteGenerators (drumCalls strokeConfigs)
+    <> MidiInst.cmd (drumCmd extraCmds thru (map fst strokeConfigs))
 
-drum_code_ :: Thru -> [Drums.Stroke] -> MidiInst.Code
-drum_code_ thru = drum_code thru . map (,call_config)
+drumCode_ :: Thru -> [Drums.Stroke] -> MidiInst.Code
+drumCode_ thru = drumCode thru . map (,callConfig)
 
-drum_cmd :: Cmd.M m => [(Char, Expr.Symbol)] -> Thru -> [Drums.Stroke]
+drumCmd :: Cmd.M m => [(Char, Expr.Symbol)] -> Thru -> [Drums.Stroke]
     -> Cmd.Handler m
-drum_cmd extras thru = insert_call thru . (extras++) . strokes_to_calls
+drumCmd extras thru = insertCall thru . (extras++) . strokesToCalls
 
 -- ** patch
 
 -- | Create a MIDI patch for the traditional kind of drum instrument where
 -- each different stroke is mapped to a single MIDI keys.  'pitched_drum_patch'
 -- is the variant where each stroke has a range of keys.
-drum_patch :: [(Drums.Stroke, Midi.Key)] -> MidiInst.Patch -> MidiInst.Patch
-drum_patch stroke_keys =
+drumPatch :: [(Drums.Stroke, Midi.Key)] -> MidiInst.Patch -> MidiInst.Patch
+drumPatch strokeKeys =
     MidiInst.triggered
-    . (MidiInst.common#Common.call_map #= make_call_map (map fst stroke_keys))
-    . (MidiInst.patch#Patch.attribute_map #= keymap)
+    . (MidiInst.common#Common.callMap #= makeCallMap (map fst strokeKeys))
+    . (MidiInst.patch#Patch.attributeMap #= keymap)
     where
-    keymap = Patch.unpitched_keymap
-        [(Drums._attributes stroke, key) | (stroke, key) <- stroke_keys]
+    keymap = Patch.unpitchedKeymap
+        [(Drums._attributes stroke, key) | (stroke, key) <- strokeKeys]
 
 -- | im is much simpler than MIDI and doesn't need all the keymap garbage.
 -- However, like 'drum_patch', this just sets patch config, the cmd and deriver
 -- code has to be added separately, see 'drum_code' or 'drum_calls' for that.
-im_drum_patch :: [Drums.Stroke] -> ImInst.Patch -> ImInst.Patch
-im_drum_patch strokes =
-    ImInst.triggered . (ImInst.common#Common.call_map #= make_call_map strokes)
+imDrumPatch :: [Drums.Stroke] -> ImInst.Patch -> ImInst.Patch
+imDrumPatch strokes =
+    ImInst.triggered . (ImInst.common#Common.callMap #= makeCallMap strokes)
 
 -- | Used with 'pitched_attribute_map' for MIDI instruments that do the
 -- strategy of assigning pitch ranges to each drum stroke.
@@ -315,65 +315,65 @@ type KeyswitchRange = ([Patch.Keyswitch], Midi.Key, Midi.Key, Midi.Key)
 
 -- | Make a KeyswitchRange for each grouped Attributes set.  Attributes in the
 -- same group get the same range and are differentiated by keyswitch.
-make_keymap :: Maybe Midi.Key -- ^ Keyswitches start here.  If not given,
+makeKeymap :: Maybe Midi.Key -- ^ Keyswitches start here.  If not given,
     -- this patch doesn't use keyswitches.
     -> Midi.Key -- ^ notes start here
     -> Midi.Key -- ^ each sound is mapped over this range
     -> Midi.Key -- ^ the pitch of the bottom note of each range
     -> [[Attrs.Attributes]] -> Map Attrs.Attributes KeyswitchRange
-make_keymap base_keyswitch base_key range root_pitch groups = Map.fromList $ do
-    (group, low) <- zip groups [base_key, base_key+range ..]
+makeKeymap baseKeyswitch baseKey range rootPitch groups = Map.fromList $ do
+    (group, low) <- zip groups [baseKey, baseKey+range ..]
     (attrs, ks) <- zip group $ maybe (repeat [])
-        (\base -> map ((:[]) . Patch.Keyswitch) [base..]) base_keyswitch
-    pure (attrs, (ks, low, low + (range-1), root_pitch))
+        (\base -> map ((:[]) . Patch.Keyswitch) [base..]) baseKeyswitch
+    pure (attrs, (ks, low, low + (range-1), rootPitch))
 
 -- | This is like 'make_keymap', except with the arguments rearranged to more
 -- closely match the sample utils I use.
-make_keymap2 :: Maybe Midi.Key -> Midi.Key -> Midi.Key -> Midi.Key
+makeKeymap2 :: Maybe Midi.Key -> Midi.Key -> Midi.Key -> Midi.Key
     -> Midi.Key -> [[Attrs.Attributes]]
     -> Map Attrs.Attributes KeyswitchRange
-make_keymap2 base_keyswitch base_key natural_key range natural_nn =
-    make_keymap base_keyswitch base_key range
-        (natural_nn - Midi.from_key natural_key)
+makeKeymap2 baseKeyswitch baseKey naturalKey range naturalNn =
+    makeKeymap baseKeyswitch baseKey range
+        (naturalNn - Midi.fromKey naturalKey)
 
 -- | This is like 'make_keymap', except that attributes are differentiated by
 -- a 'Patch.ControlSwitch'.  CCs start at 102, and only groups of size >1
 -- get a CC.  Since each group is controlled by its own CC number, you can then
 -- select each variation independently.  This means any set of variations can
 -- be played simultaneously, which is not true for keyswitches.
-make_cc_keymap :: Midi.Key -- ^ notes start here
+makeCcKeymap :: Midi.Key -- ^ notes start here
     -> Midi.Key -- ^ each sound is mapped over this range
     -> Midi.Key -- ^ the pitch of the bottom note of each range
     -> [[Attrs.Attributes]] -> Map Attrs.Attributes KeyswitchRange
-make_cc_keymap base_key range root_pitch =
-    Map.fromList . go base_cc . zip [base_key, base_key + range ..]
+makeCcKeymap baseKey range rootPitch =
+    Map.fromList . go baseCc . zip [baseKey, baseKey + range ..]
     where
     go _ [] = []
     go cc ((low, group) : groups) = case group of
         [] -> go cc groups
-        [attrs] -> (attrs, ([], low, low + (range-1), root_pitch))
+        [attrs] -> (attrs, ([], low, low + (range-1), rootPitch))
             : go cc groups
         _ ->
-            [ (attrs, ([Patch.ControlSwitch cc cc_val],
-                low, low + (range-1), root_pitch))
-            | (attrs, cc_val) <- zip group [0 ..]
+            [ (attrs, ([Patch.ControlSwitch cc ccVal],
+                low, low + (range-1), rootPitch))
+            | (attrs, ccVal) <- zip group [0 ..]
             ] ++ go (cc+1) groups
     -- There is an unallocated block [102 .. 119], which should be enough.
-    base_cc = 102
+    baseCc = 102
 
 -- | Annotate a Patch with an 'Patch.AttributeMap' from the given
 -- PitchedStrokes.
-pitched_drum_patch :: PitchedStrokes -> MidiInst.Patch -> MidiInst.Patch
-pitched_drum_patch strokes =
+pitchedDrumPatch :: PitchedStrokes -> MidiInst.Patch -> MidiInst.Patch
+pitchedDrumPatch strokes =
     MidiInst.triggered
-    . (MidiInst.common#Common.call_map #= make_call_map (map fst strokes))
-    . (MidiInst.patch#Patch.attribute_map #= pitched_attribute_map strokes)
+    . (MidiInst.common#Common.callMap #= makeCallMap (map fst strokes))
+    . (MidiInst.patch#Patch.attributeMap #= pitchedAttributeMap strokes)
 
-make_call_map :: [Drums.Stroke] -> Common.CallMap
-make_call_map = Map.fromList . map (\n -> (Drums._attributes n, Drums._name n))
+makeCallMap :: [Drums.Stroke] -> Common.CallMap
+makeCallMap = Map.fromList . map (\n -> (Drums._attributes n, Drums._name n))
 
-pitched_attribute_map :: PitchedStrokes -> Patch.AttributeMap
-pitched_attribute_map strokes = Common.attribute_map $ Lists.unique
+pitchedAttributeMap :: PitchedStrokes -> Patch.AttributeMap
+pitchedAttributeMap strokes = Common.attributeMap $ Lists.unique
     -- It's ok to have Notes with the same (attr, keyswitch), for instance if
     -- there are loud and soft versions, but pitched_attribute_map will see them
     -- as overlapping attrs, so filter out duplicates.
@@ -383,16 +383,16 @@ pitched_attribute_map strokes = Common.attribute_map $ Lists.unique
 
 -- | Make PitchedStrokes by pairing each 'Drums.Stroke' with its
 -- 'KeyswitchRange'.
-drum_pitched_strokes :: [Drums.Stroke] -> Map Attrs.Attributes KeyswitchRange
+drumPitchedStrokes :: [Drums.Stroke] -> Map Attrs.Attributes KeyswitchRange
     -> (PitchedStrokes, ([Drums.Stroke], [Attrs.Attributes]))
     -- ^ Also return the strokes with no mapping (so they can't be played), and
     -- keymap ranges with no corresponding strokes (so there is no call to
     -- play them).
-drum_pitched_strokes strokes keymap = (found, (not_found, unused))
+drumPitchedStrokes strokes keymap = (found, (notFound, unused))
     where
-    unused = filter (`notElem` stroke_attrs) (Map.keys keymap)
-    stroke_attrs = map Drums._attributes strokes
-    (not_found, found) = Either.partitionEithers $ map find strokes
+    unused = filter (`notElem` strokeAttrs) (Map.keys keymap)
+    strokeAttrs = map Drums._attributes strokes
+    (notFound, found) = Either.partitionEithers $ map find strokes
     find n = maybe (Left n) (Right . (,) n)
         (Map.lookup (Drums._attributes n) keymap)
 
@@ -400,81 +400,81 @@ drum_pitched_strokes strokes keymap = (found, (not_found, unused))
 --
 -- This should probably go in DUtil, but that would make it depend on
 -- "Cmd.Instrument.Drums".
-drum_calls :: [(Drums.Stroke, CallConfig)]
+drumCalls :: [(Drums.Stroke, CallConfig)]
     -> [(Expr.Symbol, Derive.Generator Derive.Note)]
-drum_calls = map $ \(stroke, config) ->
+drumCalls = map $ \(stroke, config) ->
     ( Drums._name stroke
-    , drum_call
-        (config { _stroke_dyn = Drums._dynamic stroke * _stroke_dyn config })
+    , drumCall
+        (config { _strokeDyn = Drums._dynamic stroke * _strokeDyn config })
         (Drums._name stroke) (Drums._attributes stroke)
     )
 
 -- | For 'drum_calls'.  If Just, only strokes which are a superset of one of
 -- these move with the pitch, otherwise the stay at the given NoteNumber.  If
 -- Nothing, all strokes move with the pitch.
-pitched_strokes :: [Attrs.Attributes] -> Pitch.NoteNumber
+pitchedStrokes :: [Attrs.Attributes] -> Pitch.NoteNumber
     -> Attrs.Attributes -> CallConfig
-pitched_strokes pitched natural_nn attrs
-    | any (Attrs.contain attrs) pitched = call_config
-    | otherwise = call_config
-        { _transform = Derive.with_constant_pitch (PSignal.nn_pitch natural_nn)
+pitchedStrokes pitched naturalNn attrs
+    | any (Attrs.contain attrs) pitched = callConfig
+    | otherwise = callConfig
+        { _transform = Derive.withConstantPitch (PSignal.nnPitch naturalNn)
         }
 
 data CallConfig = CallConfig
     -- | If set, look at this control for relative pitch adjustment.  For
     -- unpitched drums which nonetheless can use some tweaking.
-    { _tuning_control :: Maybe ScoreT.Control
+    { _tuningControl :: Maybe ScoreT.Control
     -- | If set, take pitch from a $name-pitch arg, otherwise use the given
     -- pitch.
-    , _natural_nn :: Maybe Pitch.NoteNumber
+    , _naturalNn :: Maybe Pitch.NoteNumber
     -- | Multiply dyn signal by this.
-    , _stroke_dyn :: Signal.Y
+    , _strokeDyn :: Signal.Y
     , _transform :: Derive.NoteDeriver -> Derive.NoteDeriver
     }
 
-call_config :: CallConfig
-call_config = CallConfig
-    { _tuning_control = Nothing
-    , _natural_nn = Nothing
-    , _stroke_dyn = 1
+callConfig :: CallConfig
+callConfig = CallConfig
+    { _tuningControl = Nothing
+    , _naturalNn = Nothing
+    , _strokeDyn = 1
     , _transform = id
     }
 
 -- | This is the common deriver call that all drums and drum-like instruments
 -- use at the bottom.
-drum_call :: CallConfig -> Expr.Symbol -> Attrs.Attributes
+drumCall :: CallConfig -> Expr.Symbol -> Attrs.Attributes
     -> Derive.Generator Derive.Note
-drum_call (CallConfig tuning_control mb_natural_nn stroke_dyn transform)
+drumCall (CallConfig tuningControl mbNaturalNn strokeDyn transform)
         (Expr.Symbol name) attrs =
     Derive.generator Module.instrument (Derive.CallName name) Tags.attr doc $
     Sig.call ((,)
         <$> Sig.defaulted "dyn" (1 :: Double) "Dyn multiplier."
-        <*> (if Maybe.isNothing mb_natural_nn then pure Nothing
+        <*> (if Maybe.isNothing mbNaturalNn then pure Nothing
             else Sig.environ "pitch" Derive.Prefixed
                 (Nothing :: Maybe Sig.Dummy) "doc")
-    ) $ \(dyn, mb_pitch) -> Sub.inverting $ \args ->
-        Call.multiply_dynamic (stroke_dyn * dyn) $ Call.add_attributes attrs $
-            with_tuning args $ transform $ set_pitch mb_pitch $
-            Note.default_note_integrate name Note.no_duration_attributes args
+    ) $ \(dyn, mbPitch) -> Sub.inverting $ \args ->
+        Call.multiplyDynamic (strokeDyn * dyn) $ Call.addAttributes attrs $
+            withTuning args $ transform $ setPitch mbPitch $
+            Note.defaultNoteIntegrate name Note.noDurationAttributes args
     where
-    with_tuning args = maybe id (apply_tuning_control args) tuning_control
-    set_pitch mb_pitch = case mb_natural_nn of
+    withTuning args = maybe id (applyTuningControl args) tuningControl
+    setPitch mbPitch = case mbNaturalNn of
         Nothing -> id
-        Just natural_nn -> Derive.with_constant_pitch
-            (fromMaybe (PSignal.nn_pitch natural_nn) mb_pitch)
-    doc = case tuning_control of
+        Just naturalNn -> Derive.withConstantPitch
+            (fromMaybe (PSignal.nnPitch naturalNn) mbPitch)
+    doc = case tuningControl of
         Nothing -> ""
         Just control -> "This instrument is unpitched, but its tuning can be\
             \ adjusted with " <> ShowVal.doc control <> ", in semitones\
             \ from the natural pitch."
 
-apply_tuning_control :: Derive.NoteArgs -> ScoreT.Control -> Derive.Deriver a
+applyTuningControl :: Derive.NoteArgs -> ScoreT.Control -> Derive.Deriver a
     -> Derive.Deriver a
-apply_tuning_control args control deriver = do
+applyTuningControl args control deriver = do
     tuning <- fromMaybe 0 <$>
-        (Derive.untyped_control_at control =<< Args.real_start args)
-    let nn = NN.middle_c + Pitch.nn tuning
-    Derive.with_constant_pitch (PSignal.nn_pitch nn) deriver
+        (Derive.untypedControlAt control =<< Args.realStart args)
+    let nn = NN.middleC + Pitch.nn tuning
+    Derive.withConstantPitch (PSignal.nnPitch nn) deriver
 
 -- * util
 
@@ -485,23 +485,23 @@ apply_tuning_control args control deriver = do
 --
 -- If a mapping has 'Attrs.soft', it's looked up without the soft, but gets
 -- the given dynamic.
-resolve_strokes :: Signal.Y -> Map Attrs.Attributes KeyswitchRange
+resolveStrokes :: Signal.Y -> Map Attrs.Attributes KeyswitchRange
     -> [(Char, Expr.Symbol, Attrs.Attributes, Drums.Group)]
     -- ^ (key_binding, emits_text, call_attributes, stop_group)
     -> (PitchedStrokes, [Text]) -- ^ also return errors
-resolve_strokes soft_dyn keymap =
-    check_dups . Either.partitionEithers . map resolve
+resolveStrokes softDyn keymap =
+    checkDups . Either.partitionEithers . map resolve
     where
     resolve (char, call, attrs, group) =
         maybe (Left $ "unmapped: " <> pretty attrs) (Right . (stroke,)) $
             Map.lookup (Attrs.remove Attrs.soft attrs) keymap
         where
-        stroke = (Drums.stroke_dyn char call attrs dyn) { Drums._group = group }
-        dyn = if Attrs.contain attrs Attrs.soft then soft_dyn else 1
-    check_dups (msgs, strokes) = (strokes3, dup_msgs ++ msgs)
+        stroke = (Drums.strokeDyn char call attrs dyn) { Drums._group = group }
+        dyn = if Attrs.contain attrs Attrs.soft then softDyn else 1
+    checkDups (msgs, strokes) = (strokes3, dupMsgs ++ msgs)
         where
-        dup_msgs = map ((">1 call with same name: "<>) . extract) by_name
-            ++ map ((">1 call mapped to same key: "<>) . extract) by_key
+        dupMsgs = map ((">1 call with same name: "<>) . extract) byName
+            ++ map ((">1 call mapped to same key: "<>) . extract) byKey
         extract = pretty . map fst . (\(x, xs) -> x : xs)
-        (strokes2, by_name) = Lists.partitionDups (Drums._name . fst) strokes
-        (strokes3, by_key) = Lists.partitionDups (Drums._char . fst) strokes2
+        (strokes2, byName) = Lists.partitionDups (Drums._name . fst) strokes
+        (strokes3, byKey) = Lists.partitionDups (Drums._char . fst) strokes2

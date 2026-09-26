@@ -5,19 +5,19 @@
 {-# LANGUAGE StrictData #-}
 -- | Functions for the 'Warp'.
 module Derive.Warp (
-    Warp, Linear(..), is_linear, is_identity, warp, unwarp
-    , identity, from_signal, compose
+    Warp, Linear(..), isLinear, isIdentity, warp, unwarp
+    , identity, fromSignal, compose
     , shift, stretch
-    , tempo_at
+    , tempoAt
     -- * utils
-    , unwarp_signal
+    , unwarpSignal
     -- * compose_hybrid
-    , compose_hybrid
+    , composeHybrid
 ) where
 import qualified Control.DeepSeq as DeepSeq
 
 import qualified Perform.RealTime as RealTime
-import           Perform.RealTime (to_score)
+import           Perform.RealTime (toScore)
 import qualified Perform.Signal as Signal
 
 import qualified Ui.ScoreTime as ScoreTime
@@ -74,33 +74,33 @@ instance Pretty Warp where
 -- | I can't really rnf functions, but maybe there will be data in here someday.
 instance DeepSeq.NFData Warp where rnf _ = ()
 
-is_linear :: Warp -> Maybe Linear
-is_linear (WarpLinear linear) = Just linear
-is_linear _ = Nothing
+isLinear :: Warp -> Maybe Linear
+isLinear (WarpLinear linear) = Just linear
+isLinear _ = Nothing
 
-is_identity :: Warp -> Bool
-is_identity (WarpLinear (Linear shift stretch)) = shift == 0 && stretch == 1
-is_identity _ = False
+isIdentity :: Warp -> Bool
+isIdentity (WarpLinear (Linear shift stretch)) = shift == 0 && stretch == 1
+isIdentity _ = False
 
 warp :: Warp -> ScoreTime -> RealTime
 warp (WarpFunction f) t = _warp f t
-warp (WarpLinear w) t = to_real t * _stretch w + _shift w
+warp (WarpLinear w) t = toReal t * _stretch w + _shift w
 
 -- | The inverse of 'warp'.  I originally would fail when the RealTime
 -- doesn't occur in the Warp, but now I extend it in the same way as
 -- 'warp'.  Failing caused awkwardness with events at the end of the score.
 unwarp :: Warp -> RealTime -> ScoreTime
 unwarp (WarpFunction f) = _unwarp f
-unwarp (WarpLinear w) = to_score . (/ _stretch w) . subtract (_shift w)
+unwarp (WarpLinear w) = toScore . (/ _stretch w) . subtract (_shift w)
 
 -- | 1:1 identity warp.  Previously I could detect this to optimize it away,
 -- but since 'compose' is cheap now, I might not need that anymore.
 identity :: Warp
 identity = WarpLinear (Linear 0 1)
 
-signal_identity :: Warp
-signal_identity = from_signal $ Signal.from_pairs
-    [(0, 0), (RealTime.large, RealTime.to_seconds RealTime.large)]
+signalIdentity :: Warp
+signalIdentity = fromSignal $ Signal.fromPairs
+    [(0, 0), (RealTime.large, RealTime.toSeconds RealTime.large)]
 
 -- | Create a Warp from a signal and its inverse.  This assumes the signal
 -- is monotonically increasing.
@@ -110,18 +110,18 @@ signal_identity = from_signal $ Signal.from_pairs
 -- no tempo data there, I need to make something up, and I might as well make
 -- up id.
 -- TODO error on empty signal? or id?
-from_signal :: Signal.Warp -> Warp
-from_signal signal = WarpFunction $ Function
+fromSignal :: Signal.Warp -> Warp
+fromSignal signal = WarpFunction $ Function
     { _warp = forward
     , _unwarp = backward
     }
     where
     forward t
-        | t < 0 = to_real t
-        | otherwise = RealTime.seconds $ Signal.at signal (to_real t)
+        | t < 0 = toReal t
+        | otherwise = RealTime.seconds $ Signal.at signal (toReal t)
     backward t
-        | t < 0 = to_score t
-        | otherwise = ScoreTime.from_double $ Signal.at inverted t
+        | t < 0 = toScore t
+        | otherwise = ScoreTime.fromDouble $ Signal.at inverted t
         where inverted = Signal.invert signal
 
 compose :: Warp -> Warp -> Warp
@@ -131,17 +131,17 @@ compose (WarpLinear (Linear shift1 stretch1))
 compose (WarpFunction (Function warp1 unwarp1))
         (WarpFunction (Function warp2 unwarp2)) =
     WarpFunction $ Function
-        { _warp = warp1 . to_score . warp2
-        , _unwarp = unwarp2 . to_real . unwarp1
+        { _warp = warp1 . toScore . warp2
+        , _unwarp = unwarp2 . toReal . unwarp1
         }
 compose (WarpLinear linear) (WarpFunction f) =
-    compose (to_function linear) (WarpFunction f)
+    compose (toFunction linear) (WarpFunction f)
 compose (WarpFunction f) (WarpLinear linear) =
-    compose (WarpFunction f) (to_function linear)
+    compose (WarpFunction f) (toFunction linear)
 
-to_function :: Linear -> Warp
-to_function w = stretch (to_score (_stretch w)) $
-    shift (to_score (_shift w)) signal_identity
+toFunction :: Linear -> Warp
+toFunction w = stretch (toScore (_stretch w)) $
+    shift (toScore (_shift w)) signalIdentity
 
 -- | "See 'Warp'.
 shift :: ScoreTime -> Warp -> Warp
@@ -151,7 +151,7 @@ shift x (WarpFunction (Function warp unwarp)) = WarpFunction $ Function
     , _unwarp = subtract x . unwarp
     }
 shift x (WarpLinear linear) = WarpLinear $ Linear
-    { _shift = _shift linear + _stretch linear * to_real x
+    { _shift = _shift linear + _stretch linear * toReal x
     , _stretch = _stretch linear
     }
 
@@ -167,18 +167,18 @@ stretch factor (WarpFunction (Function warp unwarp)) = WarpFunction $ Function
     }
 stretch factor (WarpLinear linear) = WarpLinear $ Linear
     { _shift = _shift linear
-    , _stretch = to_real factor * _stretch linear
+    , _stretch = toReal factor * _stretch linear
     }
 
 -- | Tempo is the reciprocal of the derivative of the warp.
-tempo_at :: Warp -> ScoreTime -> Double
-tempo_at w t = case is_linear w of
-    Just (Linear { _stretch }) -> 1 / RealTime.to_seconds _stretch
+tempoAt :: Warp -> ScoreTime -> Double
+tempoAt w t = case isLinear w of
+    Just (Linear { _stretch }) -> 1 / RealTime.toSeconds _stretch
     Nothing -> 1 / ((r1 - r0) / (t1 - t0))
         where
-        r0 = RealTime.to_seconds $ warp w t
-        r1 = RealTime.to_seconds $ warp w (t + ScoreTime.from_double eta)
-        t0 = ScoreTime.to_double t
+        r0 = RealTime.toSeconds $ warp w t
+        r1 = RealTime.toSeconds $ warp w (t + ScoreTime.fromDouble eta)
+        t0 = ScoreTime.toDouble t
         t1 = t0 + eta
         -- This is arbitrary, but affects the minimum resolution of tempo
         -- changes it will notice.
@@ -186,19 +186,19 @@ tempo_at w t = case is_linear w of
 
 -- * utils
 
-unwarp_signal :: Warp -> Signal.Control -> Signal.Display
-unwarp_signal w = Signal.coerce . Signal.map_x (to_real . unwarp w)
+unwarpSignal :: Warp -> Signal.Control -> Signal.Display
+unwarpSignal w = Signal.coerce . Signal.mapX (toReal . unwarp w)
 
-to_real :: ScoreTime -> RealTime
-to_real = RealTime.from_score
+toReal :: ScoreTime -> RealTime
+toReal = RealTime.fromScore
 
 
 -- * compose_hybrid
 
 -- TODO I'll need a different approach.  Can't I modify the signal and then
 -- compose normally?
-compose_hybrid :: Warp -> Warp -> Warp
-compose_hybrid _ _ = identity
+composeHybrid :: Warp -> Warp -> Warp
+composeHybrid _ _ = identity
 
 {-
 -- | This is like 'compose', but implements a kind of \"semi-absolute\"

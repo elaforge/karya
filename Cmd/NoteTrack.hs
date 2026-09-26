@@ -15,8 +15,8 @@
 -}
 module Cmd.NoteTrack (
     ControlTrack(..)
-    , cmd_val_edit
-    , cmd_method_edit
+    , cmdValEdit
+    , cmdMethodEdit
 ) where
 import qualified Data.List as List
 import qualified Data.Map as Map
@@ -52,8 +52,8 @@ import           Types
 -- | A control track belonging to the note track.  This can be a pitch track,
 -- or a dyn track.
 data ControlTrack = ControlTrack
-    { track_note :: TrackNum
-    , track_control :: TrackNum
+    { trackNote :: TrackNum
+    , trackControl :: TrackNum
     } deriving (Show, Eq)
 
 -- | The val edit for note tracks edits its pitch track (possibly creating one
@@ -63,212 +63,212 @@ data ControlTrack = ControlTrack
 --
 -- If I'm in chord mode, try to find the next track and put notes there.  If
 -- there is no appropriate next track, the cmd will throw an error.
-cmd_val_edit :: Cmd.M m => Msg.Msg -> m Cmd.Status
-cmd_val_edit msg = Cmd.suppress_history Cmd.ValEdit "note track val edit" $ do
+cmdValEdit :: Cmd.M m => Msg.Msg -> m Cmd.Status
+cmdValEdit msg = Cmd.suppressHistory Cmd.ValEdit "note track val edit" $ do
     EditUtil.fallthrough EditUtil.NoBackspace msg
-    EditUtil.Pos block_id sel_tracknum pos dur <- EditUtil.get_pos
+    EditUtil.Pos blockId selTracknum pos dur <- EditUtil.getPos
     case msg of
-        Msg.InputNote input_note -> case input_note of
-            InputNote.NoteOn note_id input vel -> do
-                note <- EditUtil.input_to_note input
-                note_on block_id sel_tracknum pos dur note_id note vel
-            InputNote.PitchChange note_id input -> do
-                (pitch_tracknum, track_id) <- Cmd.require
-                    ("no track for note_id " <> showt note_id)
-                    =<< find_pitch_track note_id
-                note <- EditUtil.input_to_note input
+        Msg.InputNote inputNote -> case inputNote of
+            InputNote.NoteOn noteId input vel -> do
+                note <- EditUtil.inputToNote input
+                noteOn blockId selTracknum pos dur noteId note vel
+            InputNote.PitchChange noteId input -> do
+                (pitchTracknum, trackId) <- Cmd.require
+                    ("no track for note_id " <> showt noteId)
+                    =<< findPitchTrack noteId
+                note <- EditUtil.inputToNote input
                 -- If advance is set, the selection may have advanced past
                 -- the pitch's position, so look for a previous event.
-                pos <- event_pos_at_or_before track_id pos
-                PitchTrack.val_edit_at
-                    (EditUtil.Pos block_id pitch_tracknum pos dur) note
-            InputNote.NoteOff note_id _vel -> do
-                dissociate_note_id note_id
-                chord_done <- andM [get_state Cmd.state_chord, all_keys_up]
-                when chord_done $ set_temp_sel pos Nothing
-                whenM (andM [pure chord_done, get_state Cmd.state_advance])
+                pos <- eventPosAtOrBefore trackId pos
+                PitchTrack.valEditAt
+                    (EditUtil.Pos blockId pitchTracknum pos dur) note
+            InputNote.NoteOff noteId _vel -> do
+                dissociateNoteId noteId
+                chordDone <- andM [getState Cmd.stateChord, allKeysUp]
+                when chordDone $ setTempSel pos Nothing
+                whenM (andM [pure chordDone, getState Cmd.stateAdvance])
                     Selection.advance
             InputNote.Control {} -> pure ()
         _ -> Cmd.abort
     pure Cmd.Done
     where
     -- NoteOn handling is especially complicated.
-    note_on block_id sel_tracknum pos dur note_id note vel = do
-        chord_mode <- get_state Cmd.state_chord
+    noteOn blockId selTracknum pos dur noteId note vel = do
+        chordMode <- getState Cmd.stateChord
         -- Pitch track.
-        (ctrack, create) <- if chord_mode
+        (ctrack, create) <- if chordMode
             then do
-                (ctrack, create, maybe_next) <-
-                    next_control_track block_id sel_tracknum is_pitch
-                set_temp_sel pos maybe_next
+                (ctrack, create, maybeNext) <-
+                    nextControlTrack blockId selTracknum isPitch
+                setTempSel pos maybeNext
                 pure (ctrack, create)
-            else this_control_track block_id sel_tracknum is_pitch
-        when create $ create_pitch_track block_id ctrack
-        associate_note_id block_id (track_control ctrack) note_id
-        orient <- Cmd.gets (Cmd.state_note_orientation . Cmd.state_edit)
-        let pitch_pos = EditUtil.Pos block_id (track_control ctrack)
+            else thisControlTrack blockId selTracknum isPitch
+        when create $ createPitchTrack blockId ctrack
+        associateNoteId blockId (trackControl ctrack) noteId
+        orient <- Cmd.gets (Cmd.stateNoteOrientation . Cmd.stateEdit)
+        let pitchPos = EditUtil.Pos blockId (trackControl ctrack)
                 pos (if orient == Types.Positive then 0 else -0)
-        PitchTrack.val_edit_at pitch_pos note
+        PitchTrack.valEditAt pitchPos note
         -- Dyn track.
-        whenM (get_state Cmd.state_record_velocity) $ do
-            (dtrack, create) <- if chord_mode
+        whenM (getState Cmd.stateRecordVelocity) $ do
+            (dtrack, create) <- if chordMode
                 then (\(a, b, _) -> (a, b)) <$>
-                    next_control_track block_id sel_tracknum is_dyn
-                else this_control_track block_id sel_tracknum is_dyn
-            when create $ create_dyn_track block_id dtrack
-            ControlTrack.val_edit_at
-                (EditUtil.Pos block_id (track_control dtrack) pos 0) vel
+                    nextControlTrack blockId selTracknum isDyn
+                else thisControlTrack blockId selTracknum isDyn
+            when create $ createDynTrack blockId dtrack
+            ControlTrack.valEditAt
+                (EditUtil.Pos blockId (trackControl dtrack) pos 0) vel
 
         -- Create note and advance.
-        ensure_note_event (EditUtil.Pos block_id (track_note ctrack) pos dur)
-        advance_mode <- get_state Cmd.state_advance
-        when (advance_mode && not chord_mode) Selection.advance
+        ensureNoteEvent (EditUtil.Pos blockId (trackNote ctrack) pos dur)
+        advanceMode <- getState Cmd.stateAdvance
+        when (advanceMode && not chordMode) Selection.advance
 
-    is_pitch = ParseTitle.is_pitch_track
-    is_dyn = (== Just Controls.dynamic) . ParseTitle.title_to_control
-    set_temp_sel pos maybe_tracknum = Selection.set_current
-        Config.temporary_insert_selnum $
-            fmap (\num -> Sel.point num pos Sel.Positive) maybe_tracknum
-    dissociate_note_id note_id = Cmd.modify_wdev_state $ \st -> st
-        { Cmd.wdev_pitch_track = Map.delete note_id (Cmd.wdev_pitch_track st) }
-    associate_note_id block_id tracknum note_id = Cmd.modify_wdev_state $
-        \st -> st { Cmd.wdev_pitch_track =
-            Map.insert note_id (block_id, tracknum) (Cmd.wdev_pitch_track st) }
+    isPitch = ParseTitle.isPitchTrack
+    isDyn = (== Just Controls.dynamic) . ParseTitle.titleToControl
+    setTempSel pos maybeTracknum = Selection.setCurrent
+        Config.temporaryInsertSelnum $
+            fmap (\num -> Sel.point num pos Sel.Positive) maybeTracknum
+    dissociateNoteId noteId = Cmd.modifyWdevState $ \st -> st
+        { Cmd.wdevPitchTrack = Map.delete noteId (Cmd.wdevPitchTrack st) }
+    associateNoteId blockId tracknum noteId = Cmd.modifyWdevState $
+        \st -> st { Cmd.wdevPitchTrack =
+            Map.insert noteId (blockId, tracknum) (Cmd.wdevPitchTrack st) }
 
 -- | Find the next available control track.  Available means it is the given
 -- track or is to its right, has either the same instrument or has the default
 -- instrument, and doesn't already have a note_id associated with it.
 --
 -- If none is found, return the tracknum at which one should be created.
-next_control_track :: Cmd.M m => BlockId -> TrackNum -> (Text -> Bool)
+nextControlTrack :: Cmd.M m => BlockId -> TrackNum -> (Text -> Bool)
     -> m (ControlTrack, Bool, Maybe TrackNum)
     -- ^ (selected_track_pair, should_create, next_control_track)
-next_control_track block_id tracknum is_control = do
-    wdev <- Cmd.get_wdev_state
+nextControlTrack blockId tracknum isControl = do
+    wdev <- Cmd.getWdevState
     let associated =
-            [tracknum | (_, tracknum) <- Map.elems (Cmd.wdev_pitch_track wdev)]
-    tracks <- Info.block_tracks block_id
-    inst <- Info.get_instrument_of block_id tracknum
-    let find right_of = findM (candidate inst associated right_of) tracks
+            [tracknum | (_, tracknum) <- Map.elems (Cmd.wdevPitchTrack wdev)]
+    tracks <- Info.blockTracks blockId
+    inst <- Info.getInstrumentOf blockId tracknum
+    let find rightOf = findM (candidate inst associated rightOf) tracks
     found <- find tracknum
     case found of
-        Nothing -> Cmd.throw $ "no next note track in " <> showt block_id
+        Nothing -> Cmd.throw $ "no next note track in " <> showt blockId
         Just track -> do
-            (ctrack, create) <- should_create_control block_id track is_control
-            next <- find (track_control ctrack + 1)
+            (ctrack, create) <- shouldCreateControl blockId track isControl
+            next <- find (trackControl ctrack + 1)
             pure (ctrack, create,
-                Ui.track_tracknum . Info.track_info <$> next)
+                Ui.trackTracknum . Info.trackInfo <$> next)
     where
     -- Wow, monads can be awkward.
-    candidate inst associated right_of
+    candidate inst associated rightOf
             (Info.Track track (Info.Note controls _)) =
         andM
-            [ pure $ tracknum >= right_of
-            , pure $ maybe True (`notElem` associated) pitch_tracknum
-            , (== Just inst) <$> Info.lookup_instrument_of block_id tracknum
+            [ pure $ tracknum >= rightOf
+            , pure $ maybe True (`notElem` associated) pitchTracknum
+            , (== Just inst) <$> Info.lookupInstrumentOf blockId tracknum
             ]
         where
-        tracknum = Ui.track_tracknum track
-        pitch_tracknum = Ui.track_tracknum <$>
-            List.find (is_control . Ui.track_title) controls
+        tracknum = Ui.trackTracknum track
+        pitchTracknum = Ui.trackTracknum <$>
+            List.find (isControl . Ui.trackTitle) controls
     candidate _ _ _ _ = pure False
 
 -- | The given track should be a note track.  Figure out if it has a control
 -- track, or if one should be created.
-this_control_track :: Cmd.M m => BlockId -> TrackNum -> (Text -> Bool)
+thisControlTrack :: Cmd.M m => BlockId -> TrackNum -> (Text -> Bool)
     -> m (ControlTrack, Bool)
-this_control_track block_id tracknum is_control = do
-    track <- Info.get_track_type block_id tracknum
-    should_create_control block_id track is_control
+thisControlTrack blockId tracknum isControl = do
+    track <- Info.getTrackType blockId tracknum
+    shouldCreateControl blockId track isControl
 
 -- | Find the ControlTrack of the given note Track.  If there is none, return
 -- the tracknum where you should create one.
-should_create_control :: Cmd.M m => BlockId -> Info.Track
+shouldCreateControl :: Cmd.M m => BlockId -> Info.Track
     -> (Text -> Bool) -> m (ControlTrack, Bool)
-should_create_control block_id track is_control = case Info.track_type track of
+shouldCreateControl blockId track isControl = case Info.trackType track of
     Info.Note controls _ -> case find controls of
         Nothing -> pure (ControlTrack tracknum (tracknum+1), True)
         Just control ->
-            pure (ControlTrack tracknum (Ui.track_tracknum control), False)
+            pure (ControlTrack tracknum (Ui.trackTracknum control), False)
     ttype -> Cmd.throw $ "expected a note track for "
-        <> showt (block_id, tracknum) <> " but got " <> showt ttype
+        <> showt (blockId, tracknum) <> " but got " <> showt ttype
     where
-    find = List.find (is_control . Ui.track_title)
-    tracknum = Ui.track_tracknum (Info.track_info track)
+    find = List.find (isControl . Ui.trackTitle)
+    tracknum = Ui.trackTracknum (Info.trackInfo track)
 
-event_pos_at_or_before :: Cmd.M m => TrackId -> ScoreTime -> m ScoreTime
-event_pos_at_or_before track_id pos = do
-    (_, events) <- Events.split_at_before pos <$> Ui.get_events track_id
+eventPosAtOrBefore :: Cmd.M m => TrackId -> ScoreTime -> m ScoreTime
+eventPosAtOrBefore trackId pos = do
+    (_, events) <- Events.splitAtBefore pos <$> Ui.getEvents trackId
     pure $ maybe pos Event.start (Lists.head events)
 
-all_keys_up :: Cmd.M m => m Bool
-all_keys_up = do
-    st <- Cmd.get_wdev_state
-    pure (Map.null (Cmd.wdev_pitch_track st))
+allKeysUp :: Cmd.M m => m Bool
+allKeysUp = do
+    st <- Cmd.getWdevState
+    pure (Map.null (Cmd.wdevPitchTrack st))
 
 -- | Find the pitch track associated with the given NoteId, if one exists.
-find_pitch_track :: Cmd.M m => InputNote.NoteId
+findPitchTrack :: Cmd.M m => InputNote.NoteId
     -> m (Maybe (TrackNum, TrackId))
-find_pitch_track note_id = do
-    st <- Cmd.get_wdev_state
-    let maybe_track = Map.lookup note_id (Cmd.wdev_pitch_track st)
-    case maybe_track of
+findPitchTrack noteId = do
+    st <- Cmd.getWdevState
+    let maybeTrack = Map.lookup noteId (Cmd.wdevPitchTrack st)
+    case maybeTrack of
         Nothing -> pure Nothing
-        Just (block_id, tracknum) -> do
-            track_id <- Ui.get_event_track_at block_id tracknum
-            pure $ Just (tracknum, track_id)
+        Just (blockId, tracknum) -> do
+            trackId <- Ui.getEventTrackAt blockId tracknum
+            pure $ Just (tracknum, trackId)
 
 
 -- * method edit
 
 -- | Method edit is redirected to the pitch track, creating one if necessary.
-cmd_method_edit :: Cmd.M m => Msg.Msg -> m Cmd.Status
-cmd_method_edit msg =
-    Cmd.suppress_history Cmd.MethodEdit "note track method edit" $ do
+cmdMethodEdit :: Cmd.M m => Msg.Msg -> m Cmd.Status
+cmdMethodEdit msg =
+    Cmd.suppressHistory Cmd.MethodEdit "note track method edit" $ do
     EditUtil.fallthrough EditUtil.WantBackspace msg
     case msg of
-        (EditUtil.method_key -> Just key) -> do
-            (block_id, tracknum, _, pos) <- Selection.get_insert
-            (ctrack, create) <- this_control_track block_id tracknum
-                ParseTitle.is_pitch_track
-            when create $ create_pitch_track block_id ctrack
-            PitchTrack.method_edit_at
-                (EditUtil.Pos block_id (track_control ctrack) pos 0) key
-            ensure_note_event (EditUtil.Pos block_id (track_note ctrack) pos 0)
+        (EditUtil.methodKey -> Just key) -> do
+            (blockId, tracknum, _, pos) <- Selection.getInsert
+            (ctrack, create) <- thisControlTrack blockId tracknum
+                ParseTitle.isPitchTrack
+            when create $ createPitchTrack blockId ctrack
+            PitchTrack.methodEditAt
+                (EditUtil.Pos blockId (trackControl ctrack) pos 0) key
+            ensureNoteEvent (EditUtil.Pos blockId (trackNote ctrack) pos 0)
         _ -> Cmd.abort
     pure Cmd.Done
 
 -- * implementation
 
 -- | Create a pitch track.
-create_pitch_track :: Cmd.M m => BlockId -> ControlTrack -> m ()
-create_pitch_track block_id (ControlTrack note pitch) = do
-    create_track block_id pitch "*"
-    when (pitch == note + 1) $ Ui.merge_track block_id note pitch
-    Create.widen =<< Cmd.get_focused_view
+createPitchTrack :: Cmd.M m => BlockId -> ControlTrack -> m ()
+createPitchTrack blockId (ControlTrack note pitch) = do
+    createTrack blockId pitch "*"
+    when (pitch == note + 1) $ Ui.mergeTrack blockId note pitch
+    Create.widen =<< Cmd.getFocusedView
     -- Link note track underneath newly created pitch track.
-    whenM (Ui.has_explicit_skeleton block_id) $
-        Ui.splice_skeleton_below block_id pitch note
+    whenM (Ui.hasExplicitSkeleton blockId) $
+        Ui.spliceSkeletonBelow blockId pitch note
 
-create_dyn_track :: Cmd.M m => BlockId -> ControlTrack -> m ()
-create_dyn_track block_id (ControlTrack note dyn) = do
-    create_track block_id dyn $
-        ParseTitle.control_to_title (ScoreT.untyped Controls.dynamic)
-    Create.widen =<< Cmd.get_focused_view
-    whenM (Ui.has_explicit_skeleton block_id) $
-        Ui.splice_skeleton_below block_id dyn note
+createDynTrack :: Cmd.M m => BlockId -> ControlTrack -> m ()
+createDynTrack blockId (ControlTrack note dyn) = do
+    createTrack blockId dyn $
+        ParseTitle.controlToTitle (ScoreT.untyped Controls.dynamic)
+    Create.widen =<< Cmd.getFocusedView
+    whenM (Ui.hasExplicitSkeleton blockId) $
+        Ui.spliceSkeletonBelow blockId dyn note
 
-create_track :: Cmd.M m => BlockId -> TrackNum -> Text -> m ()
-create_track block_id tracknum title =
-    void $ Create.track block_id tracknum title Events.empty
+createTrack :: Cmd.M m => BlockId -> TrackNum -> Text -> m ()
+createTrack blockId tracknum title =
+    void $ Create.track blockId tracknum title Events.empty
 
 -- | Ensure that a note event exists at the given spot.  An existing event is
 -- left alone, but if there is no existing event a new one will be created.
-ensure_note_event :: Cmd.M m => EditUtil.Pos -> m ()
-ensure_note_event pos = do
-    text <- Cmd.gets (Cmd.state_note_text . Cmd.state_edit)
-    EditUtil.modify_event_at_trigger pos False False $
+ensureNoteEvent :: Cmd.M m => EditUtil.Pos -> m ()
+ensureNoteEvent pos = do
+    text <- Cmd.gets (Cmd.stateNoteText . Cmd.stateEdit)
+    EditUtil.modifyEventAtTrigger pos False False $
         maybe (Just text, False) (\old -> (Just old, False))
 
-get_state :: Cmd.M m => (Cmd.EditState -> a) -> m a
-get_state f = Cmd.gets (f . Cmd.state_edit)
+getState :: Cmd.M m => (Cmd.EditState -> a) -> m a
+getState f = Cmd.gets (f . Cmd.stateEdit)

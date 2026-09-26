@@ -61,7 +61,7 @@ dinnaginna2 = date 2025 9 20 $ ganesh $ korvaiV adi
     me = g $ su "tktk"
 
 e_kanjira :: Korvai
-e_kanjira = exercise $ date 2025 6 25 $ korvaiV Tala.any_beats
+e_kanjira = exercise $ date 2025 6 25 $ korvaiV Tala.anyBeats
     [ "okokkook"
     , u.k.o.u.k.k.t.k.t.k.o.u.k.o.o.k
     ]

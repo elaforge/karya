@@ -6,22 +6,22 @@
 {-# LANGUAGE ViewPatterns #-}
 -- | Utilities for editing events.
 module Cmd.EditUtil (
-    Pos(..), get_pos
+    Pos(..), getPos
     -- * events
     , Modify
-    , modify_event_at, modify_event_at_trigger
-    , soft_insert
-    , lookup_instrument
+    , modifyEventAt, modifyEventAtTrigger
+    , softInsert
+    , lookupInstrument
     -- * msgs
     , Key(..)
-    , method_key
-    , num_key, is_num_key
-    , hex_key
+    , methodKey
+    , numKey, isNumKey
+    , hexKey
     , Fallthrough(..)
     , fallthrough
-    , input_to_note, inputs_to_notes
+    , inputToNote, inputsToNotes
     -- * modify
-    , modify_text_key
+    , modifyTextKey
 #ifdef TESTING
     , module Cmd.EditUtil
 #endif
@@ -64,30 +64,30 @@ data Pos = Pos !BlockId !TrackNum !TrackTime !TrackTime
 
 instance Pretty Pos where pretty = showt
 
-get_pos :: Cmd.M m => m Pos
-get_pos = do
-    (view_id, sel) <- Selection.get_view_sel
-    block_id <- Ui.block_id_of view_id
+getPos :: Cmd.M m => m Pos
+getPos = do
+    (viewId, sel) <- Selection.getViewSel
+    blockId <- Ui.blockIdOf viewId
     let (start, dur) = let (s, e) = Sel.range sel
             in case Sel.orientation sel of
                 Sel.Negative
                     | s == e -> (e, -0)
                     | otherwise -> (e, s - e)
                 _ -> (s, e - s)
-    pure $ Pos block_id (Selection.sel_point_track sel) start dur
+    pure $ Pos blockId (Selection.selPointTrack sel) start dur
 
 -- * events
 
 -- | Get the event under insertion point, creating an empty one if there is
 -- none.
-get_or_create_event :: Ui.M m => Bool -> TrackId -> TrackTime -> TrackTime
+getOrCreateEvent :: Ui.M m => Bool -> TrackId -> TrackTime -> TrackTime
     -> m (Event.Event, Bool)
-get_or_create_event modify_dur track_id pos dur = do
-    mb_event <- Events.at pos (Event.orientation_of dur) <$>
-        Ui.get_events track_id
-    let modify = if modify_dur then Event.duration_ #= dur else id
+getOrCreateEvent modifyDur trackId pos dur = do
+    mbEvent <- Events.at pos (Event.orientationOf dur) <$>
+        Ui.getEvents trackId
+    let modify = if modifyDur then Event.duration_ #= dur else id
     pure $ maybe (Event.event pos dur "", True) (\evt -> (modify evt, False))
-        mb_event
+        mbEvent
 
 -- | Modify event text.
 type Modify = Maybe Text
@@ -95,71 +95,71 @@ type Modify = Maybe Text
     -> (Maybe Text, Bool)
     -- ^ Nothing deletes the event, True to advance cursor
 
-modify_event :: Cmd.M m => Bool -> Bool -> Modify -> m ()
-modify_event zero_dur modify_dur modify = do
-    pos <- get_pos
-    modify_event_at pos zero_dur modify_dur modify
+modifyEvent :: Cmd.M m => Bool -> Bool -> Modify -> m ()
+modifyEvent zeroDur modifyDur modify = do
+    pos <- getPos
+    modifyEventAt pos zeroDur modifyDur modify
 
-modify_event_at :: Cmd.M m => Pos
+modifyEventAt :: Cmd.M m => Pos
     -> Bool -- ^ If the selection is 0, then True means create a 0 dur event,
     -- otherwise use the time step. If the selection is nonzero, always use
     -- its duration.
     -> Bool -- ^ If True, modify the duration of an existing event.
     -> Modify -> m ()
-modify_event_at (Pos block_id tracknum start dur) zero_dur modify_dur modify =do
-    dur <- infer_duration dur
-    track_id <- Ui.get_event_track_at block_id tracknum
-    (event, created) <- get_or_create_event modify_dur track_id start dur
+modifyEventAt (Pos blockId tracknum start dur) zeroDur modifyDur modify =do
+    dur <- inferDuration dur
+    trackId <- Ui.getEventTrackAt blockId tracknum
+    (event, created) <- getOrCreateEvent modifyDur trackId start dur
     let (val, advance) = modify $
             if created then Nothing else Just (Event.text event)
     case val of
-        Nothing -> Ui.remove_events_range track_id
-            (Events.Point start (Event.orientation_of dur))
-        Just new_text -> Ui.insert_event track_id
-            (Event.text_ #= new_text $ event)
+        Nothing -> Ui.removeEventsRange trackId
+            (Events.Point start (Event.orientationOf dur))
+        Just newText -> Ui.insertEvent trackId
+            (Event.text_ #= newText $ event)
     when advance Selection.advance
     where
-    infer_duration dur
+    inferDuration dur
         | dur /= 0 = pure dur
-        | zero_dur = ifM ((==Types.Positive) <$> get_orientation)
+        | zeroDur = ifM ((==Types.Positive) <$> getOrientation)
             (pure 0) (pure (-0))
-        | otherwise = get_duration tracknum start
+        | otherwise = getDuration tracknum start
 
 -- | Like 'modify_event_at', but take 'triggered_inst' into account.
-modify_event_at_trigger :: Cmd.M m => Pos -> Bool -> Bool -> Modify -> m ()
-modify_event_at_trigger pos zero_dur modify_dur f = do
-    trigger_inst <- triggered_inst =<< lookup_instrument
-    modify_event_at pos (zero_dur || trigger_inst) modify_dur f
+modifyEventAtTrigger :: Cmd.M m => Pos -> Bool -> Bool -> Modify -> m ()
+modifyEventAtTrigger pos zeroDur modifyDur f = do
+    triggerInst <- triggeredInst =<< lookupInstrument
+    modifyEventAt pos (zeroDur || triggerInst) modifyDur f
 
 -- | Instruments with the triggered flag set don't pay attention to note off,
 -- so I can make the duration 0.
-triggered_inst :: Cmd.M m => Maybe ScoreT.Instrument -> m Bool
-triggered_inst Nothing = pure False -- don't know, but guess it's not
-triggered_inst (Just inst) = Set.member Common.Triggered <$> common_flags inst
+triggeredInst :: Cmd.M m => Maybe ScoreT.Instrument -> m Bool
+triggeredInst Nothing = pure False -- don't know, but guess it's not
+triggeredInst (Just inst) = Set.member Common.Triggered <$> commonFlags inst
 
-common_flags :: Cmd.M m => ScoreT.Instrument -> m (Set Common.Flag)
-common_flags inst = maybe mempty flags <$> Cmd.lookup_instrument inst
-    where flags = Common.common_flags . Cmd.inst_common
+commonFlags :: Cmd.M m => ScoreT.Instrument -> m (Set Common.Flag)
+commonFlags inst = maybe mempty flags <$> Cmd.lookupInstrument inst
+    where flags = Common.commonFlags . Cmd.instCommon
 
-get_duration :: Cmd.M m => TrackNum -> TrackTime -> m TrackTime
-get_duration tracknum start = do
-    orient <- get_orientation
-    step <- Cmd.gets (Cmd.state_note_duration . Cmd.state_edit)
-    end <- Selection.step_from tracknum start
+getDuration :: Cmd.M m => TrackNum -> TrackTime -> m TrackTime
+getDuration tracknum start = do
+    orient <- getOrientation
+    step <- Cmd.gets (Cmd.stateNoteDuration . Cmd.stateEdit)
+    end <- Selection.stepFrom tracknum start
         (if orient == Types.Positive then 1 else -1) step
     pure (end - start)
 
-get_orientation :: Cmd.M m => m Types.Orientation
-get_orientation = Cmd.gets $ Cmd.state_note_orientation . Cmd.state_edit
+getOrientation :: Cmd.M m => m Types.Orientation
+getOrientation = Cmd.gets $ Cmd.stateNoteOrientation . Cmd.stateEdit
 
 -- | Insert an event, but only if there isn't already a non-empty one there.
-soft_insert :: Cmd.M m => Text -> m ()
-soft_insert text = modify_event True True $ \old_text ->
-    if Text.null (fromMaybe "" old_text) then (Just text, True)
-        else (old_text, False)
+softInsert :: Cmd.M m => Text -> m ()
+softInsert text = modifyEvent True True $ \oldText ->
+    if Text.null (fromMaybe "" oldText) then (Just text, True)
+        else (oldText, False)
 
-lookup_instrument :: Cmd.M m => m (Maybe ScoreT.Instrument)
-lookup_instrument = Perf.lookup_instrument =<< Selection.track
+lookupInstrument :: Cmd.M m => m (Maybe ScoreT.Instrument)
+lookupInstrument = Perf.lookupInstrument =<< Selection.track
 
 -- * msgs
 
@@ -167,30 +167,30 @@ data Key = Backspace | Key Char
     deriving (Eq, Show)
 
 -- | Extract a key for method input.  [a-z0-9._-]
-method_key :: Msg.Msg -> Maybe Key
-method_key = extract_key (not . Char.isSpace)
+methodKey :: Msg.Msg -> Maybe Key
+methodKey = extractKey (not . Char.isSpace)
 
 -- | Extract a key for control value input.  [0-9._-]
-num_key :: Msg.Msg -> Maybe Key
-num_key = extract_key $ \c -> Char.isDigit c || c `elem` ("_.-" :: [Char])
+numKey :: Msg.Msg -> Maybe Key
+numKey = extractKey $ \c -> Char.isDigit c || c `elem` ("_.-" :: [Char])
 
 -- | Is the key appropriate for editing decimal numbers?
-is_num_key :: Key -> Bool
-is_num_key Backspace = True
-is_num_key (Key c) = Char.isDigit c || c `elem` ("_.-" :: [Char])
+isNumKey :: Key -> Bool
+isNumKey Backspace = True
+isNumKey (Key c) = Char.isDigit c || c `elem` ("_.-" :: [Char])
 
 -- | Is the key appropriate for editing control track hex numbers?
 -- Also includes @-@ for negation.
-hex_key :: Msg.Msg -> Maybe Key
-hex_key = extract_key $ \c -> Char.isDigit c || c `elem` ("-abcdefg" :: [Char])
+hexKey :: Msg.Msg -> Maybe Key
+hexKey = extractKey $ \c -> Char.isDigit c || c `elem` ("-abcdefg" :: [Char])
 
-extract_key :: (Char -> Bool) -> Msg.Msg -> Maybe Key
-extract_key f (Msg.text -> Just (key, text)) = case key of
+extractKey :: (Char -> Bool) -> Msg.Msg -> Maybe Key
+extractKey f (Msg.text -> Just (key, text)) = case key of
     Key.Backspace -> Just Backspace
     _ -> case text of
         Just c | f c -> Just (Key c)
         _ -> Nothing
-extract_key _ _ = Nothing
+extractKey _ _ = Nothing
 
 data Fallthrough = WantBackspace | NoBackspace
 
@@ -199,20 +199,20 @@ data Fallthrough = WantBackspace | NoBackspace
 -- When edit mode is on, the edit cmds tend to catch all msgs.  However, some
 -- msgs should go through anyway.
 fallthrough :: Cmd.M m => Fallthrough -> Msg.Msg -> m ()
-fallthrough want_backspace msg = do
-    keys_down <- fmap Map.keys Cmd.keys_down
-    when (any is_mod keys_down) --  || Msg.key_down msg == Just Key.Backspace)
+fallthrough wantBackspace msg = do
+    keysDown <- fmap Map.keys Cmd.keysDown
+    when (any isMod keysDown) --  || Msg.key_down msg == Just Key.Backspace)
         Cmd.abort
-    when (Msg.key_down msg == Just Key.Backspace) $ case want_backspace of
+    when (Msg.keyDown msg == Just Key.Backspace) $ case wantBackspace of
         -- When a range is selected, always let the global
         -- Edit.cmd_clear_selected handle it.
-        WantBackspace -> whenM (not . Sel.is_point <$> Selection.get) Cmd.abort
+        WantBackspace -> whenM (not . Sel.isPoint <$> Selection.get) Cmd.abort
         NoBackspace -> Cmd.abort
     where
     -- Abort if there are modifiers down, so commands still work.
     -- Except shift, of course.  Oh, and midi, otherwise a note off would
     -- always fall through.
-    is_mod = \case
+    isMod = \case
         Cmd.KeyMod m -> case m of
             Key.Shift -> False
             _ -> True
@@ -223,37 +223,37 @@ fallthrough want_backspace msg = do
 --
 -- Due to enharmonics this can depend on the current key and even be
 -- ambiguous.
-input_to_note :: Cmd.M m => Pitch.Input -> m Pitch.Note
-input_to_note input = do
+inputToNote :: Cmd.M m => Pitch.Input -> m Pitch.Note
+inputToNote input = do
     track <- Selection.track
-    scale <- Perf.get_scale track
-    env <- Perf.get_environ track
-    case Scale.scale_input_to_note scale env input of
+    scale <- Perf.getScale track
+    env <- Perf.getEnviron track
+    case Scale.scaleInputToNote scale env input of
         -- This just means the key isn't in the scale, it happens a lot so no
         -- need to shout about it.
         Left DeriveT.InvalidInput -> Cmd.abort
         Left err -> Cmd.throw $ "input_to_note " <> pretty input <> " for "
-            <> pretty (Scale.scale_id scale) <> ": " <> pretty err
+            <> pretty (Scale.scaleId scale) <> ": " <> pretty err
         Right note -> pure note
 
 -- | Like 'input_to_note', but more efficient for multiple inputs.
-inputs_to_notes :: Cmd.M m => [(key, Pitch.Input)] -> m [(key, Pitch.Note)]
-inputs_to_notes key_inputs = do
+inputsToNotes :: Cmd.M m => [(key, Pitch.Input)] -> m [(key, Pitch.Note)]
+inputsToNotes keyInputs = do
     track <- Selection.track
-    scale <- Perf.get_scale track
-    env <- Perf.get_environ track
+    scale <- Perf.getScale track
+    env <- Perf.getEnviron track
     pure $ Either.rights $
-        map (traverse (Scale.scale_input_to_note scale env)) key_inputs
+        map (traverse (Scale.scaleInputToNote scale env)) keyInputs
 
 -- * modify
 
 -- | Since there's no use for leading spaces, just a space makes an empty
 -- event.  Backspacing the last character return Nothing, which deletes the
 -- event.  If I want a "" event I can create one with space.
-modify_text_key :: [Key.Modifier] -> Key -> Text -> Maybe Text
-modify_text_key mods key s = case key of
+modifyTextKey :: [Key.Modifier] -> Key -> Text -> Maybe Text
+modifyTextKey mods key s = case key of
     Backspace
-        | Key.Shift `elem` mods -> backspace_expr s
+        | Key.Shift `elem` mods -> backspaceExpr s
         | otherwise -> backspace s
     Key ' ' | Text.null s -> Just ""
     Key c
@@ -267,15 +267,15 @@ backspace s
     | otherwise = Just s2
     where s2 = Text.take (Text.length s - 1) s
 
-backspace_expr :: Text -> Maybe Text
-backspace_expr s
+backspaceExpr :: Text -> Maybe Text
+backspaceExpr s
     | Text.null s = Nothing
-    | otherwise = Just $ drop_expr s
+    | otherwise = Just $ dropExpr s
 
 -- | Drop a parenthesized expression, or a `symbol` up to its matching
 -- backtick.
-drop_expr :: Text -> Text
-drop_expr expr = Text.reverse $ txt rev
+dropExpr :: Text -> Text
+dropExpr expr = Text.reverse $ txt rev
     where
     rev = case untxt $ Text.reverse $ Text.dropWhileEnd (==' ') expr of
         ')' : s -> dropWhile (==' ') (go 1 s)

@@ -126,7 +126,7 @@ data Stroke stroke = Stroke
 
 toExpr :: Expr.ToExpr a => Stroke a -> Expr.Expr Expr.MiniVal
 toExpr (Stroke emphasis stroke) = case emphasis of
-    Normal -> Expr.to_expr stroke
+    Normal -> Expr.toExpr stroke
     Light -> Expr.with Symbols.weak stroke
     Heavy -> Expr.with Symbols.accent stroke
 

@@ -34,31 +34,31 @@
 {-# LANGUAGE CPP #-}
 module Ui.BlockC (
     -- * query
-    get_screens
+    getScreens
     -- * view creation
-    , create_view, destroy_view, get_view_status
+    , createView, destroyView, getViewStatus
     -- ** set other attributes
-    , set_size
-    , set_zoom
-    , set_track_scroll
+    , setSize
+    , setZoom
+    , setTrackScroll
     , Selection(..), SelectionOrientation(..)
-    , set_selection
-    , bring_to_front
+    , setSelection
+    , bringToFront
 
     -- * Block operations
-    , set_config, set_skeleton, set_title, set_status
-    , set_display_track
+    , setConfig, setSkeleton, setTitle, setStatus
+    , setDisplayTrack
     -- ** floating input
-    , floating_open, floating_insert
+    , floatingOpen, floatingInsert
 
     -- ** Track operations
-    , tracks, insert_track, remove_track, update_track, update_entire_track
-    , set_track_signal
-    , set_waveform, clear_waveforms, gc_waveforms
-    , set_track_title, set_track_title_focus, set_block_title_focus
+    , tracks, insertTrack, removeTrack, updateTrack, updateEntireTrack
+    , setTrackSignal
+    , setWaveform, clearWaveforms, gcWaveforms
+    , setTrackTitle, setTrackTitleFocus, setBlockTitleFocus
 
     -- * debugging
-    , print_debug, dump
+    , printDebug, dump
 ) where
 -- The double hashes quote them for hsc2hs.  I have to delay the CPP since
 -- hsc2hs never has STUB_OUT_FLTK defined.
@@ -119,338 +119,338 @@ annotate name action = Exception.catch action $ \(PtrMap.FltkException exc) ->
 
 -- * query
 
-get_screens :: IO [Rect.Rect]
-get_screens = alloca $ \screenspp -> do
-    count <- c_get_screens screenspp
+getScreens :: IO [Rect.Rect]
+getScreens = alloca $ \screenspp -> do
+    count <- cGetScreens screenspp
     screensp <- peek screenspp
     screens <- peekArray count screensp
     free screensp
     return screens
 
 foreign import ccall "get_screens"
-    c_get_screens :: Ptr (Ptr Rect.Rect) -> IO Int
+    cGetScreens :: Ptr (Ptr Rect.Rect) -> IO Int
 
 -- * view creation
 
 -- | Create an empty block view with the given configs.  Tracks must be
 -- inserted separately.
-create_view :: ViewId -> Text -> Rect.Rect -> Block.Config -> Fltk ()
-create_view view_id window_title rect block_config =
-    fltk "create_view" window_title $ PtrMap.modify $ \ptr_map -> do
-        when (view_id `Map.member` ptr_map) $
-            PtrMap.throw $ show view_id ++ " already in displayed view list: "
-                ++ show (Map.assocs ptr_map)
-        viewp <- FFI.withText window_title $ \titlep ->
-            with block_config $ \configp ->
-                c_create (i x) (i y) (i w) (i h) titlep configp
-        return $ Map.insert view_id viewp ptr_map
+createView :: ViewId -> Text -> Rect.Rect -> Block.Config -> Fltk ()
+createView viewId windowTitle rect blockConfig =
+    fltk "create_view" windowTitle $ PtrMap.modify $ \ptrMap -> do
+        when (viewId `Map.member` ptrMap) $
+            PtrMap.throw $ show viewId ++ " already in displayed view list: "
+                ++ show (Map.assocs ptrMap)
+        viewp <- FFI.withText windowTitle $ \titlep ->
+            with blockConfig $ \configp ->
+                cCreate (i x) (i y) (i w) (i h) titlep configp
+        return $ Map.insert viewId viewp ptrMap
     where
     (x, y, w, h) = (Rect.x rect, Rect.y rect, Rect.w rect, Rect.h rect)
-    i = FFI.c_int
+    i = FFI.cInt
 
 foreign import ccall "create"
-    c_create :: CInt -> CInt -> CInt -> CInt -> CString -> Ptr Block.Config
+    cCreate :: CInt -> CInt -> CInt -> CInt -> CString -> Ptr Block.Config
         -> IO (Ptr CView)
 
-destroy_view :: ViewId -> Fltk ()
-destroy_view view_id = fltk "destroy_view" view_id $ do
-    viewp <- PtrMap.get view_id
-    PtrMap.modify $ \ptr_map -> do
-        c_destroy viewp
-        return $ Map.delete view_id ptr_map
-foreign import ccall "destroy" c_destroy :: Ptr CView -> IO ()
+destroyView :: ViewId -> Fltk ()
+destroyView viewId = fltk "destroy_view" viewId $ do
+    viewp <- PtrMap.get viewId
+    PtrMap.modify $ \ptrMap -> do
+        cDestroy viewp
+        return $ Map.delete viewId ptrMap
+foreign import ccall "destroy" cDestroy :: Ptr CView -> IO ()
 
 -- | Get various position metrics of the window.
 --
 -- This is unused because I sync this with UI msgs, but if they prove
 -- unreliable I could use this to verify or just replace them.
-get_view_status :: ViewId -> Fltk (Rect.Rect, Zoom.Zoom, Int, Int)
+getViewStatus :: ViewId -> Fltk (Rect.Rect, Zoom.Zoom, Int, Int)
     -- ^ (rect, zoom, time_padding, track_padding)
-get_view_status view_id = fltk "get_view_status" view_id $ do
-    viewp <- PtrMap.get view_id
+getViewStatus viewId = fltk "get_view_status" viewId $ do
+    viewp <- PtrMap.get viewId
     alloca $ \rectp -> alloca $ \zoomp ->
         alloca $ \timep -> alloca $ \trackp -> do
-            c_get_view_status viewp rectp zoomp timep trackp
+            cGetViewStatus viewp rectp zoomp timep trackp
             (,,,) <$> peek rectp <*> peek zoomp
                 <*> (fromIntegral <$> peek timep)
                 <*> (fromIntegral <$> peek trackp)
 foreign import ccall "get_view_status"
-    c_get_view_status :: Ptr CView -> Ptr Rect.Rect -> Ptr Zoom.Zoom
+    cGetViewStatus :: Ptr CView -> Ptr Rect.Rect -> Ptr Zoom.Zoom
         -> Ptr CInt -> Ptr CInt -> IO ()
 
 -- ** Set other attributes
 
-set_size :: ViewId -> Rect.Rect -> Fltk ()
-set_size view_id rect = fltk "set_size" (view_id, rect) $ do
-    viewp <- PtrMap.get view_id
-    c_set_size viewp (i x) (i y) (i w) (i h)
+setSize :: ViewId -> Rect.Rect -> Fltk ()
+setSize viewId rect = fltk "set_size" (viewId, rect) $ do
+    viewp <- PtrMap.get viewId
+    cSetSize viewp (i x) (i y) (i w) (i h)
     where
-    i = FFI.c_int
+    i = FFI.cInt
     (x, y, w, h) = (Rect.x rect, Rect.y rect, Rect.w rect, Rect.h rect)
 foreign import ccall "set_size"
-    c_set_size :: Ptr CView -> CInt -> CInt -> CInt -> CInt -> IO ()
+    cSetSize :: Ptr CView -> CInt -> CInt -> CInt -> CInt -> IO ()
 
-set_zoom :: ViewId -> Zoom.Zoom -> Fltk ()
-set_zoom view_id zoom = fltk "set_zoom" (view_id, zoom) $ do
-    viewp <- PtrMap.get view_id
-    with zoom $ \zoomp -> c_set_zoom viewp zoomp
+setZoom :: ViewId -> Zoom.Zoom -> Fltk ()
+setZoom viewId zoom = fltk "set_zoom" (viewId, zoom) $ do
+    viewp <- PtrMap.get viewId
+    with zoom $ \zoomp -> cSetZoom viewp zoomp
 foreign import ccall "set_zoom"
-    c_set_zoom :: Ptr CView -> Ptr Zoom.Zoom -> IO ()
+    cSetZoom :: Ptr CView -> Ptr Zoom.Zoom -> IO ()
 
 -- | Set the scroll along the track dimension, in pixels.
-set_track_scroll :: ViewId -> Types.Width -> Fltk ()
-set_track_scroll view_id offset = fltk "set_track_scroll" (view_id, offset) $ do
-    viewp <- PtrMap.get view_id
-    c_set_track_scroll viewp (FFI.c_int offset)
+setTrackScroll :: ViewId -> Types.Width -> Fltk ()
+setTrackScroll viewId offset = fltk "set_track_scroll" (viewId, offset) $ do
+    viewp <- PtrMap.get viewId
+    cSetTrackScroll viewp (FFI.cInt offset)
 foreign import ccall "set_track_scroll"
-    c_set_track_scroll :: Ptr CView -> CInt -> IO ()
+    cSetTrackScroll :: Ptr CView -> CInt -> IO ()
 
-set_selection :: ViewId -> Sel.Num -> [TrackNum] -> [Selection] -> Fltk ()
-set_selection view_id selnum tracknums sels
+setSelection :: ViewId -> Sel.Num -> [TrackNum] -> [Selection] -> Fltk ()
+setSelection viewId selnum tracknums sels
     | null tracknums = return ()
-    | otherwise = fltk "set_selection" (view_id, selnum, tracknums, sels) $ do
-        viewp <- PtrMap.get view_id
+    | otherwise = fltk "set_selection" (viewId, selnum, tracknums, sels) $ do
+        viewp <- PtrMap.get viewId
         withArrayLenNull sels $ \nsels selsp -> forM_ tracknums $ \tracknum ->
-            c_set_selection viewp (FFI.c_int selnum) (FFI.c_int tracknum)
-                selsp (FFI.c_int nsels)
+            cSetSelection viewp (FFI.cInt selnum) (FFI.cInt tracknum)
+                selsp (FFI.cInt nsels)
 foreign import ccall "set_selection"
-    c_set_selection :: Ptr CView -> CInt -> CInt -> Ptr Selection -> CInt
+    cSetSelection :: Ptr CView -> CInt -> CInt -> Ptr Selection -> CInt
         -> IO ()
 
-bring_to_front :: ViewId -> Fltk ()
-bring_to_front view_id = fltk "bring_to_front" view_id $
-    c_bring_to_front =<< PtrMap.get view_id
-foreign import ccall "bring_to_front" c_bring_to_front :: Ptr CView -> IO ()
+bringToFront :: ViewId -> Fltk ()
+bringToFront viewId = fltk "bring_to_front" viewId $
+    cBringToFront =<< PtrMap.get viewId
+foreign import ccall "bring_to_front" cBringToFront :: Ptr CView -> IO ()
 
 -- * Block operations
 
 -- These operate on ViewIds too because there is no block/view distinction at
 -- this layer.
 
-set_config :: ViewId -> Block.Config -> Fltk ()
-set_config view_id config = fltk "set_config" view_id $ do
-    viewp <- PtrMap.get view_id
-    with config $ \configp -> c_set_config viewp configp
+setConfig :: ViewId -> Block.Config -> Fltk ()
+setConfig viewId config = fltk "set_config" viewId $ do
+    viewp <- PtrMap.get viewId
+    with config $ \configp -> cSetConfig viewp configp
 foreign import ccall "set_config"
-    c_set_config :: Ptr CView -> Ptr Block.Config -> IO ()
+    cSetConfig :: Ptr CView -> Ptr Block.Config -> IO ()
 
-set_skeleton :: ViewId -> Skeleton.Skeleton
+setSkeleton :: ViewId -> Skeleton.Skeleton
     -> [(Color.Color, [(TrackNum, TrackNum)])] -> Fltk ()
-set_skeleton view_id skel integrate_edges =
-    fltk "set_skeleton" (view_id, skel) $ do
-        viewp <- PtrMap.get view_id
-        with_skeleton_config (skeleton_edges skel integrate_edges) $
-            \configp -> c_set_skeleton viewp configp
+setSkeleton viewId skel integrateEdges =
+    fltk "set_skeleton" (viewId, skel) $ do
+        viewp <- PtrMap.get viewId
+        withSkeletonConfig (skeletonEdges skel integrateEdges) $
+            \configp -> cSetSkeleton viewp configp
 foreign import ccall "set_skeleton"
-    c_set_skeleton :: Ptr CView -> Ptr SkeletonConfig -> IO ()
+    cSetSkeleton :: Ptr CView -> Ptr SkeletonConfig -> IO ()
 
-set_title :: ViewId -> Text -> Fltk ()
-set_title view_id title = fltk "set_title" (view_id, title) $ do
-    viewp <- PtrMap.get view_id
-    FFI.withText title (c_set_title viewp)
-foreign import ccall "set_title" c_set_title :: Ptr CView -> CString -> IO ()
+setTitle :: ViewId -> Text -> Fltk ()
+setTitle viewId title = fltk "set_title" (viewId, title) $ do
+    viewp <- PtrMap.get viewId
+    FFI.withText title (cSetTitle viewp)
+foreign import ccall "set_title" cSetTitle :: Ptr CView -> CString -> IO ()
 
-set_status :: ViewId -> Text -> Color.Color -> Fltk ()
-set_status view_id status color = fltk "set_status" (view_id, status) $ do
-    viewp <- PtrMap.get view_id
+setStatus :: ViewId -> Text -> Color.Color -> Fltk ()
+setStatus viewId status color = fltk "set_status" (viewId, status) $ do
+    viewp <- PtrMap.get viewId
     FFI.withText status $ \statusp -> with color $ \colorp ->
-        c_set_status viewp statusp colorp
+        cSetStatus viewp statusp colorp
 foreign import ccall "set_status"
-    c_set_status :: Ptr CView -> CString -> Ptr Color.Color -> IO ()
+    cSetStatus :: Ptr CView -> CString -> Ptr Color.Color -> IO ()
 
 -- | Set block-local track status.
-set_display_track :: ViewId -> TrackNum -> Block.DisplayTrack -> Fltk ()
-set_display_track view_id tracknum dtrack =
-    fltk "set_display_track" (view_id, tracknum, dtrack) $ do
-        viewp <- PtrMap.get view_id
+setDisplayTrack :: ViewId -> TrackNum -> Block.DisplayTrack -> Fltk ()
+setDisplayTrack viewId tracknum dtrack =
+    fltk "set_display_track" (viewId, tracknum, dtrack) $ do
+        viewp <- PtrMap.get viewId
         with dtrack $ \dtrackp ->
-            c_set_display_track viewp (FFI.c_int tracknum) dtrackp
+            cSetDisplayTrack viewp (FFI.cInt tracknum) dtrackp
 foreign import ccall "set_display_track"
-    c_set_display_track :: Ptr CView -> CInt -> Ptr Block.DisplayTrack -> IO ()
+    cSetDisplayTrack :: Ptr CView -> CInt -> Ptr Block.DisplayTrack -> IO ()
 
 -- ** floating input
 
-floating_open :: ViewId -> TrackNum -> ScoreTime -> Text -> (Int, Int)
+floatingOpen :: ViewId -> TrackNum -> ScoreTime -> Text -> (Int, Int)
     -> Fltk ()
-floating_open view_id tracknum pos text (sel_start, sel_end) =
-    fltk "floating_open" (view_id, tracknum) $ do
-        viewp <- PtrMap.get view_id
+floatingOpen viewId tracknum pos text (selStart, selEnd) =
+    fltk "floating_open" (viewId, tracknum) $ do
+        viewp <- PtrMap.get viewId
         FFI.withText text $ \textp ->
-            c_floating_open viewp (FFI.c_int tracknum)
-                (ScoreTime.to_cdouble pos) textp (FFI.c_int sel_start)
-                (FFI.c_int sel_end)
+            cFloatingOpen viewp (FFI.cInt tracknum)
+                (ScoreTime.toCdouble pos) textp (FFI.cInt selStart)
+                (FFI.cInt selEnd)
 foreign import ccall "floating_open"
-    c_floating_open :: Ptr CView -> CInt -> CDouble -> CString -> CInt -> CInt
+    cFloatingOpen :: Ptr CView -> CInt -> CDouble -> CString -> CInt -> CInt
         -> IO ()
 
-floating_insert :: [ViewId] -> Text -> Fltk ()
-floating_insert view_ids text = fltk "floating_insert" (view_ids, text) $
-    FFI.withText text $ \textp -> forM_ view_ids $ \view_id -> do
-        viewp <- PtrMap.get view_id
-        c_floating_insert viewp textp
+floatingInsert :: [ViewId] -> Text -> Fltk ()
+floatingInsert viewIds text = fltk "floating_insert" (viewIds, text) $
+    FFI.withText text $ \textp -> forM_ viewIds $ \viewId -> do
+        viewp <- PtrMap.get viewId
+        cFloatingInsert viewp textp
 foreign import ccall "floating_insert"
-    c_floating_insert :: Ptr CView -> CString -> IO ()
+    cFloatingInsert :: Ptr CView -> CString -> IO ()
 
 -- * Track operations
 
 -- | Get the number of tracks on the block.
 tracks :: ViewId -> Fltk TrackNum
-tracks view_id = fltk "tracks" view_id $
-    fromIntegral <$> (c_tracks =<< PtrMap.get view_id)
-foreign import ccall "tracks" c_tracks  :: Ptr CView -> IO CInt
+tracks viewId = fltk "tracks" viewId $
+    fromIntegral <$> (cTracks =<< PtrMap.get viewId)
+foreign import ccall "tracks" cTracks  :: Ptr CView -> IO CInt
 
-insert_track :: ViewId -> TrackNum -> Block.Tracklike -> [Events.Events]
+insertTrack :: ViewId -> TrackNum -> Block.Tracklike -> [Events.Events]
     -> Track.SetStyle -> Types.Width -> Fltk ()
-insert_track view_id tracknum tracklike merged set_style width =
-    fltk "insert_track" (view_id, tracknum) $ do
-        viewp <- PtrMap.get view_id
-        with_tracklike True merged set_style tracklike $ \tp mlistp len ->
-            c_insert_track viewp (FFI.c_int tracknum) tp
-                (FFI.c_int width) mlistp len
+insertTrack viewId tracknum tracklike merged setStyle width =
+    fltk "insert_track" (viewId, tracknum) $ do
+        viewp <- PtrMap.get viewId
+        withTracklike True merged setStyle tracklike $ \tp mlistp len ->
+            cInsertTrack viewp (FFI.cInt tracknum) tp
+                (FFI.cInt width) mlistp len
 
 foreign import ccall "insert_track"
-    c_insert_track :: Ptr CView -> CInt -> Ptr TracklikePtr -> CInt
+    cInsertTrack :: Ptr CView -> CInt -> Ptr TracklikePtr -> CInt
         -> Ptr (Ptr Mark.Marklist) -> CInt -> IO ()
 
-remove_track :: ViewId -> TrackNum -> Fltk ()
-remove_track view_id tracknum = fltk "remove_track" (view_id, tracknum) $ do
-    viewp <- PtrMap.get view_id
-    c_remove_track viewp (FFI.c_int tracknum)
+removeTrack :: ViewId -> TrackNum -> Fltk ()
+removeTrack viewId tracknum = fltk "remove_track" (viewId, tracknum) $ do
+    viewp <- PtrMap.get viewId
+    cRemoveTrack viewp (FFI.cInt tracknum)
 
 foreign import ccall "remove_track"
-    c_remove_track :: Ptr CView -> CInt -> IO ()
+    cRemoveTrack :: Ptr CView -> CInt -> IO ()
 
-update_track :: Bool -- ^ True if the ruler has changed and should be copied
+updateTrack :: Bool -- ^ True if the ruler has changed and should be copied
     -- over.  It's a bit of a hack to be a separate flag, but rulers are
     -- updated rarely and copied over entirely for efficiency.
     -> ViewId -> TrackNum -> Block.Tracklike
     -> [Events.Events] -> Track.SetStyle -> ScoreTime -> ScoreTime -> Fltk ()
-update_track update_ruler view_id tracknum tracklike merged set_style start
-        end = fltk "update_track" (view_id, tracknum) $ do
-    viewp <- PtrMap.get view_id
-    with_tracklike update_ruler merged set_style tracklike $ \tp mlistp len ->
-        c_update_track viewp (FFI.c_int tracknum) tp mlistp len
-            (ScoreTime.to_cdouble start) (ScoreTime.to_cdouble end)
+updateTrack updateRuler viewId tracknum tracklike merged setStyle start
+        end = fltk "update_track" (viewId, tracknum) $ do
+    viewp <- PtrMap.get viewId
+    withTracklike updateRuler merged setStyle tracklike $ \tp mlistp len ->
+        cUpdateTrack viewp (FFI.cInt tracknum) tp mlistp len
+            (ScoreTime.toCdouble start) (ScoreTime.toCdouble end)
 
 -- | Like 'update_track' except update everywhere.
-update_entire_track :: Bool -> ViewId -> TrackNum -> Block.Tracklike
+updateEntireTrack :: Bool -> ViewId -> TrackNum -> Block.Tracklike
     -> [Events.Events] -> Track.SetStyle -> Fltk ()
-update_entire_track update_ruler view_id tracknum tracklike merged set_style =
+updateEntireTrack updateRuler viewId tracknum tracklike merged setStyle =
     -- -1 is special cased in c++.
-    update_track update_ruler view_id tracknum tracklike merged set_style
+    updateTrack updateRuler viewId tracknum tracklike merged setStyle
         (-1) (-1)
 
 foreign import ccall "update_track"
-    c_update_track :: Ptr CView -> CInt -> Ptr TracklikePtr
+    cUpdateTrack :: Ptr CView -> CInt -> Ptr TracklikePtr
         -> Ptr (Ptr Mark.Marklist) -> CInt -> CDouble -> CDouble -> IO ()
 
 -- | Unlike other Fltk functions, this doesn't throw if the ViewId is not
 -- found.  That's because it's called asynchronously when derivation is
 -- complete.
-set_track_signal :: ViewId -> TrackNum -> Track.TrackSignal -> Fltk ()
-set_track_signal view_id tracknum tsig =
-    fltk "set_track_signal" (view_id, tracknum) $
-        whenJustM (PtrMap.lookup view_id) $ \viewp ->
-        with_signal $ \tsigp ->
-            c_set_track_signal viewp (FFI.c_int tracknum) tsigp
+setTrackSignal :: ViewId -> TrackNum -> Track.TrackSignal -> Fltk ()
+setTrackSignal viewId tracknum tsig =
+    fltk "set_track_signal" (viewId, tracknum) $
+        whenJustM (PtrMap.lookup viewId) $ \viewp ->
+        withSignal $ \tsigp ->
+            cSetTrackSignal viewp (FFI.cInt tracknum) tsigp
     where
-    with_signal action
-        | Track.ts_signal tsig == mempty = action nullPtr
+    withSignal action
+        | Track.tsSignal tsig == mempty = action nullPtr
         | otherwise = with tsig action
 foreign import ccall "set_track_signal"
-    c_set_track_signal :: Ptr CView -> CInt -> Ptr Track.TrackSignal -> IO ()
+    cSetTrackSignal :: Ptr CView -> CInt -> Ptr Track.TrackSignal -> IO ()
 
-set_waveform :: ViewId -> TrackNum -> Track.WaveformChunk -> Fltk ()
-set_waveform view_id tracknum
+setWaveform :: ViewId -> TrackNum -> Track.WaveformChunk -> Fltk ()
+setWaveform viewId tracknum
         (Track.WaveformChunk filename chunknum start ratios) =
-    fltk "set_waveform" (view_id, tracknum, chunknum) $
-        whenJustM (PtrMap.lookup view_id) $ \viewp ->
+    fltk "set_waveform" (viewId, tracknum, chunknum) $
+        whenJustM (PtrMap.lookup viewId) $ \viewp ->
         withCString filename $ \filenamep ->
-        withArrayLen (map FFI.c_double ratios) $ \ratios_len ratiosp ->
-            c_set_waveform viewp
-                (FFI.c_int tracknum) (FFI.c_int chunknum)
-                filenamep (ScoreTime.to_cdouble start)
-                ratiosp (FFI.c_int ratios_len)
+        withArrayLen (map FFI.cDouble ratios) $ \ratiosLen ratiosp ->
+            cSetWaveform viewp
+                (FFI.cInt tracknum) (FFI.cInt chunknum)
+                filenamep (ScoreTime.toCdouble start)
+                ratiosp (FFI.cInt ratiosLen)
 
 foreign import ccall "set_waveform"
-    c_set_waveform :: Ptr CView -> CInt -> CInt -> CString -> CDouble
+    cSetWaveform :: Ptr CView -> CInt -> CInt -> CString -> CDouble
         -> Ptr CDouble -> CInt -> IO ()
     -- void set_waveform(BlockWindow *view, int tracknum, int chunknum,
     --     const char *filename, double start, double *ratiosp, int ratios_len)
 
-clear_waveforms :: ViewId -> Fltk ()
-clear_waveforms view_id = fltk "clear_waveforms" view_id $
-    whenJustM (PtrMap.lookup view_id) c_clear_waveforms
-foreign import ccall "clear_waveforms" c_clear_waveforms :: Ptr CView -> IO ()
+clearWaveforms :: ViewId -> Fltk ()
+clearWaveforms viewId = fltk "clear_waveforms" viewId $
+    whenJustM (PtrMap.lookup viewId) cClearWaveforms
+foreign import ccall "clear_waveforms" cClearWaveforms :: Ptr CView -> IO ()
 
-gc_waveforms :: Fltk ()
-gc_waveforms = fltk "gc_waveforms" () $ c_gc_waveforms
-foreign import ccall "gc_waveforms" c_gc_waveforms :: IO ()
+gcWaveforms :: Fltk ()
+gcWaveforms = fltk "gc_waveforms" () $ cGcWaveforms
+foreign import ccall "gc_waveforms" cGcWaveforms :: IO ()
 
 -- | Convert a Tracklike into the set of pointers that c++ knows it as.
 -- A set of event lists can be merged into event tracks.
-with_tracklike :: Bool -> [Events.Events] -> Track.SetStyle -> Block.Tracklike
+withTracklike :: Bool -> [Events.Events] -> Track.SetStyle -> Block.Tracklike
     -> (Ptr TracklikePtr -> Ptr (Ptr Mark.Marklist) -> CInt -> IO ()) -> IO ()
-with_tracklike update_ruler merged_events set_style tracklike f =
+withTracklike updateRuler mergedEvents setStyle tracklike f =
     case tracklike of
-        Block.T track ruler -> with_ruler ruler $ \rulerp mlistp len ->
-            TrackC.with_track track set_style merged_events $ \trackp ->
+        Block.T track ruler -> withRuler ruler $ \rulerp mlistp len ->
+            TrackC.withTrack track setStyle mergedEvents $ \trackp ->
                 with (TPtr trackp rulerp) $ \tp -> f tp mlistp len
-        Block.R ruler -> RulerC.with_ruler ruler $ \rulerp mlistp len ->
+        Block.R ruler -> RulerC.withRuler ruler $ \rulerp mlistp len ->
             with (RPtr rulerp) $ \tp -> f tp mlistp len
         Block.D div -> with div $ \dividerp -> with (DPtr dividerp) $ \tp ->
             f tp nullPtr 0
     where
-    with_ruler = if update_ruler then RulerC.with_ruler
-        else const RulerC.no_ruler
+    withRuler = if updateRuler then RulerC.withRuler
+        else const RulerC.noRuler
 
 data TracklikePtr
     = TPtr (Ptr Track.Track) (Ptr Ruler.Ruler)
     | RPtr (Ptr Ruler.Ruler)
     | DPtr (Ptr Block.Divider)
 
-set_track_title :: ViewId -> TrackNum -> Text -> Fltk ()
-set_track_title view_id tracknum title =
-    fltk "set_track_title" (view_id, tracknum, title) $ do
-        viewp <- PtrMap.get view_id
-        FFI.withText title (c_set_track_title viewp (FFI.c_int tracknum))
+setTrackTitle :: ViewId -> TrackNum -> Text -> Fltk ()
+setTrackTitle viewId tracknum title =
+    fltk "set_track_title" (viewId, tracknum, title) $ do
+        viewp <- PtrMap.get viewId
+        FFI.withText title (cSetTrackTitle viewp (FFI.cInt tracknum))
 foreign import ccall "set_track_title"
-    c_set_track_title :: Ptr CView -> CInt -> CString -> IO ()
+    cSetTrackTitle :: Ptr CView -> CInt -> CString -> IO ()
 
-set_track_title_focus :: ViewId -> TrackNum -> Fltk ()
-set_track_title_focus view_id tracknum =
-    fltk "set_track_title_focus" (view_id, tracknum) $ do
-        viewp <- PtrMap.get view_id
-        c_set_track_title_focus viewp (FFI.c_int tracknum)
+setTrackTitleFocus :: ViewId -> TrackNum -> Fltk ()
+setTrackTitleFocus viewId tracknum =
+    fltk "set_track_title_focus" (viewId, tracknum) $ do
+        viewp <- PtrMap.get viewId
+        cSetTrackTitleFocus viewp (FFI.cInt tracknum)
 foreign import ccall "set_track_title_focus"
-    c_set_track_title_focus :: Ptr CView -> CInt -> IO ()
+    cSetTrackTitleFocus :: Ptr CView -> CInt -> IO ()
 
-set_block_title_focus :: ViewId -> Fltk ()
-set_block_title_focus view_id = fltk "set_block_title_focus" view_id $
-    c_set_block_title_focus =<< PtrMap.get view_id
+setBlockTitleFocus :: ViewId -> Fltk ()
+setBlockTitleFocus viewId = fltk "set_block_title_focus" viewId $
+    cSetBlockTitleFocus =<< PtrMap.get viewId
 foreign import ccall "set_block_title_focus"
-    c_set_block_title_focus :: Ptr CView -> IO ()
+    cSetBlockTitleFocus :: Ptr CView -> IO ()
 
 
 -- ** debugging
 
 -- | Print debugging info about the UI state.
-print_debug :: ViewId -> Fltk ()
-print_debug view_id = fltk "print_debug" view_id $ do
-    putStrLn $ "debug " <> show view_id
-    viewp <- PtrMap.get view_id
-    c_print_debug viewp
+printDebug :: ViewId -> Fltk ()
+printDebug viewId = fltk "print_debug" viewId $ do
+    putStrLn $ "debug " <> show viewId
+    viewp <- PtrMap.get viewId
+    cPrintDebug viewp
     putStrLn ""
 foreign import ccall "print_debug"
-    c_print_debug :: Ptr CView -> IO ()
+    cPrintDebug :: Ptr CView -> IO ()
 
 dump :: IO [(ViewId, String)]
 dump = do
-    views <- Map.toList <$> PtrMap.get_map
-    dumps <- mapM (c_dump_view . snd) views
+    views <- Map.toList <$> PtrMap.getMap
+    dumps <- mapM (cDumpView . snd) views
     dumps <- mapM peekCString dumps
     return $ zip (map fst views) dumps
-foreign import ccall "dump_view" c_dump_view :: Ptr CView -> IO CString
+foreign import ccall "dump_view" cDumpView :: Ptr CView -> IO CString
 
 -- * storable
 
@@ -465,12 +465,12 @@ instance CStorable Block.Divider where
 instance CStorable TracklikePtr where
     sizeOf _ = #size Tracklike
     alignment _ = alignment nullPtr
-    poke tp tracklike_ptr = do
+    poke tp tracklikePtr = do
         -- Apparently 'with' doesn't zero out the memory it allocates.
         (#poke Tracklike, track) tp nullPtr
         (#poke Tracklike, ruler) tp nullPtr
         (#poke Tracklike, divider) tp nullPtr
-        case tracklike_ptr of
+        case tracklikePtr of
             TPtr trackp rulerp -> do
                 (#poke Tracklike, track) tp trackp
                 (#poke Tracklike, ruler) tp rulerp
@@ -482,11 +482,11 @@ instance CStorable TracklikePtr where
 instance CStorable Block.Config where
     sizeOf _ = #size BlockConfig
     alignment _ = alignment Color.black
-    poke configp (Block.Config skel_box track_box sb_box skel_config) = do
-        (#poke BlockConfig, skel_box) configp skel_box
-        (#poke BlockConfig, track_box) configp track_box
-        (#poke BlockConfig, sb_box) configp sb_box
-        (#poke BlockConfig, skeleton_editable) configp $ case skel_config of
+    poke configp (Block.Config skelBox trackBox sbBox skelConfig) = do
+        (#poke BlockConfig, skel_box) configp skelBox
+        (#poke BlockConfig, track_box) configp trackBox
+        (#poke BlockConfig, sb_box) configp sbBox
+        (#poke BlockConfig, skeleton_editable) configp $ case skelConfig of
             Block.Explicit -> 1 :: CChar
             Block.Implicit -> 0
 
@@ -495,34 +495,34 @@ instance CStorable Block.Box where
     alignment _ = alignment Color.black
     poke boxp (Block.Box color char) = do
         (#poke BlockBox, color) boxp color
-        (#poke BlockBox, c) boxp (FFI.c_rune char)
+        (#poke BlockBox, c) boxp (FFI.cRune char)
 
 instance CStorable Block.DisplayTrack where
     sizeOf _ = #size DisplayTrack
     alignment _ = alignment (0 :: CDouble)
     peek = error "DisplayTrack peek unimplemented"
     poke dtrackp (Block.DisplayTrack _ width _ status bright) = do
-        (#poke DisplayTrack, event_brightness) dtrackp (FFI.c_double bright)
-        (#poke DisplayTrack, width) dtrackp (FFI.c_int width)
+        (#poke DisplayTrack, event_brightness) dtrackp (FFI.cDouble bright)
+        (#poke DisplayTrack, width) dtrackp (FFI.cInt width)
         (#poke DisplayTrack, status) dtrackp status
 
 -- ** skeleton
 
-skeleton_edges :: Skeleton.Skeleton -> [(Color.Color, [(TrackNum, TrackNum)])]
+skeletonEdges :: Skeleton.Skeleton -> [(Color.Color, [(TrackNum, TrackNum)])]
     -> [SkeletonEdge]
-skeleton_edges skel integrate_edges =
+skeletonEdges skel integrateEdges =
     [edge p c 0 Config.skeleton | (p, c) <- Skeleton.flatten skel]
-    ++ [edge p c 0 color | (color, edges) <- integrate_edges, (p, c) <- edges]
+    ++ [edge p c 0 color | (color, edges) <- integrateEdges, (p, c) <- edges]
     where
     edge p c = SkeletonEdge (p-1) (c-1)
     -- The -1s are because the fltk set_skeleton doesn't count the ruler track,
     -- while of course the tracknums here do.
     -- TODO would it be better to put this in BlockView::set_skeleton?
 
-with_skeleton_config :: [SkeletonEdge] -> (Ptr SkeletonConfig -> IO a) -> IO a
-with_skeleton_config edges f =
-    withArrayLen edges $ \edges_len edgesp -> alloca $ \skelp -> do
-        (#poke SkeletonConfig, edges_len) skelp (FFI.c_int edges_len)
+withSkeletonConfig :: [SkeletonEdge] -> (Ptr SkeletonConfig -> IO a) -> IO a
+withSkeletonConfig edges f =
+    withArrayLen edges $ \edgesLen edgesp -> alloca $ \skelp -> do
+        (#poke SkeletonConfig, edges_len) skelp (FFI.cInt edgesLen)
         (#poke SkeletonConfig, edges) skelp edgesp
         f skelp
 
@@ -543,9 +543,9 @@ instance CStorable SkeletonEdge where
     alignment _ = alignment Color.black
     peek _ = error "SkeletonEdge peek unimplemented"
     poke edgep (SkeletonEdge parent child width color) = do
-        (#poke SkeletonEdge, parent) edgep (FFI.c_int parent)
-        (#poke SkeletonEdge, child) edgep (FFI.c_int child)
-        (#poke SkeletonEdge, width) edgep (FFI.c_int width)
+        (#poke SkeletonEdge, parent) edgep (FFI.cInt parent)
+        (#poke SkeletonEdge, child) edgep (FFI.cInt child)
+        (#poke SkeletonEdge, width) edgep (FFI.cInt width)
         (#poke SkeletonEdge, color) edgep color
 
 instance CStorable Block.Status where
@@ -554,8 +554,8 @@ instance CStorable Block.Status where
     peek _ = error "Block.Status peek unimplemented"
     poke statusp (Block.Status chars color) = do
         let c1 : c2 : _ = chars ++ repeat '\0'
-        (#poke SkeletonStatus, c1) statusp (FFI.c_rune c1)
-        (#poke SkeletonStatus, c2) statusp (FFI.c_rune c2)
+        (#poke SkeletonStatus, c1) statusp (FFI.cRune c1)
+        (#poke SkeletonStatus, c2) statusp (FFI.cRune c2)
         (#poke SkeletonStatus, color) statusp color
 
 -- ** selection
@@ -563,10 +563,10 @@ instance CStorable Block.Status where
 -- | This is the low level version of 'Sel.Selection'.  It only applies to
 -- a single track, and has an explicit color.
 data Selection = Selection
-    { sel_color :: !Color.Color
-    , sel_start :: !TrackTime
-    , sel_cur :: !TrackTime
-    , sel_orientation :: !SelectionOrientation
+    { selColor :: !Color.Color
+    , selStart :: !TrackTime
+    , selCur :: !TrackTime
+    , selOrientation :: !SelectionOrientation
     }
     deriving (Eq, Ord, Show)
 
@@ -587,10 +587,10 @@ instance CStorable Selection where
         (#poke Selection, color) selp color
         (#poke Selection, start) selp start
         (#poke Selection, cur) selp cur
-        (#poke Selection, orientation) selp (convert_orientation orientation)
+        (#poke Selection, orientation) selp (convertOrientation orientation)
 
-convert_orientation :: SelectionOrientation -> CInt
-convert_orientation o = case o of
+convertOrientation :: SelectionOrientation -> CInt
+convertOrientation o = case o of
     None -> #const Selection::SelNone
     Positive -> #const Selection::Positive
     Negative -> #const Selection::Negative

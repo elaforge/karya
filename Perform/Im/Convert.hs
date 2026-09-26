@@ -41,23 +41,23 @@ import           Types
 write :: RealTime -> RealTime -> BlockId
     -> (ScoreT.Instrument -> Maybe Cmd.ResolvedInstrument) -> FilePath
     -> Vector.Vector Score.Event -> IO ()
-write adjust0 play_multiplier block_id lookup_inst filename events = do
-    notes <- LEvent.write_logs $ convert block_id lookup_inst $
+write adjust0 playMultiplier blockId lookupInst filename events = do
+    notes <- LEvent.writeLogs $ convert blockId lookupInst $
         -- TODO fix sorted Derive.Stream: so I can remove this.
-        Lists.sortOn Score.event_start $
+        Lists.sortOn Score.eventStart $
         Vector.toList events
     -- The play multiplier is a speed multiplier, so it's a note time divider.
-    Note.serialize filename $ multiply_time adjust0 (1/play_multiplier) $
-        map (uncurry trim_controls) $ Lists.zipNexts notes
+    Note.serialize filename $ multiplyTime adjust0 (1/playMultiplier) $
+        map (uncurry trimControls) $ Lists.zipNexts notes
     pure ()
 
-multiply_time :: RealTime -> RealTime -> [Note.Note] -> [Note.Note]
-multiply_time adjust0 n
+multiplyTime :: RealTime -> RealTime -> [Note.Note] -> [Note.Note]
+multiplyTime adjust0 n
     | n == 1 && adjust0 == 0 = id
     | otherwise = map $ \note -> note
         { Note.start = n * (Note.start note + adjust0)
         , Note.duration = n * Note.duration note
-        , Note.controls = Signal.map_x (*n) <$> Note.controls note
+        , Note.controls = Signal.mapX (*n) <$> Note.controls note
         }
 
 -- | Trim signals down to the note ranges.  It's more efficient to serialize
@@ -66,90 +66,90 @@ multiply_time adjust0 n
 --
 -- Also normalize constant signals to a single sample, fewer bogus breakpoints
 -- can make the synthesizer more efficient.
-trim_controls :: Note.Note -> [Note.Note] -> Note.Note
-trim_controls note nexts =
-    note { Note.controls = trim_control note nexts <$> Note.controls note }
+trimControls :: Note.Note -> [Note.Note] -> Note.Note
+trimControls note nexts =
+    note { Note.controls = trimControl note nexts <$> Note.controls note }
 
-trim_control :: Note.Note -> [Note.Note] -> Signal.Signal -> Signal.Signal
-trim_control note nexts sig =
-    case Signal.constant_val_from (Note.start note) sig of
+trimControl :: Note.Note -> [Note.Note] -> Signal.Signal -> Signal.Signal
+trimControl note nexts sig =
+    case Signal.constantValFrom (Note.start note) sig of
         Nothing -> case List.find ((== key note) . key) nexts of
-            Nothing -> Signal.drop_before (Note.start note) sig
-            Just next -> Signal.drop_after (Note.start next) $
-                Signal.drop_before (Note.start note) sig
+            Nothing -> Signal.dropBefore (Note.start note) sig
+            Just next -> Signal.dropAfter (Note.start next) $
+                Signal.dropBefore (Note.start note) sig
         Just y -> Signal.constant y
     where
     key n = (Note.instrument n, Note.element n)
 
 convert :: BlockId -> (ScoreT.Instrument -> Maybe Cmd.ResolvedInstrument)
     -> [Score.Event] -> [LEvent.LEvent Note.Note]
-convert block_id = ConvertUtil.convert $ \event resolved ->
-    case Cmd.inst_backend resolved of
-        Cmd.Im patch -> convert_event block_id event patch patch_name
-            where InstT.Qualified _ patch_name = Cmd.inst_qualified resolved
+convert blockId = ConvertUtil.convert $ \event resolved ->
+    case Cmd.instBackend resolved of
+        Cmd.Im patch -> convertEvent blockId event patch patchName
+            where InstT.Qualified _ patchName = Cmd.instQualified resolved
         _ -> []
 
-convert_event :: BlockId -> Score.Event -> Patch.Patch -> InstT.Name
+convertEvent :: BlockId -> Score.Event -> Patch.Patch -> InstT.Name
     -> [LEvent.LEvent Note.Note]
-convert_event block_id event patch patch_name = run $ do
-    let supported = Patch.patch_controls patch
-    let controls = Score.event_controls event
+convertEvent blockId event patch patchName = run $ do
+    let supported = Patch.patchControls patch
+    let controls = Score.eventControls event
     pitch <- if Map.member Control.pitch supported
-        then Just . convert_signal <$> convert_pitch event
+        then Just . convertSignal <$> convertPitch event
         else pure Nothing
     pure $ Note.Note
-        { patch = patch_name
-        , instrument = Score.event_instrument event
-        , trackId = event_track_id block_id event
+        { patch = patchName
+        , instrument = Score.eventInstrument event
+        , trackId = eventTrackId blockId event
         -- To make it easier to set element by hand, I support some types which
         -- are likely to be used for element names.
         , element =
-            case Env.lookup EnvKey.element (Score.event_environ event) of
+            case Env.lookup EnvKey.element (Score.eventEnviron event) of
                 Just (DeriveT.VStr (Expr.Str a)) -> a
-                Just val | Just num <- DeriveT.constant_val val ->
-                    ShowVal.show_val num
+                Just val | Just num <- DeriveT.constantVal val ->
+                    ShowVal.showVal num
                 _ -> ""
-        , start = Score.event_start event
-        , duration = Score.event_duration event
+        , start = Score.eventStart event
+        , duration = Score.eventDuration event
         , controls = maybe id (Map.insert Control.pitch) pitch $
-            convert_controls supported controls
+            convertControls supported controls
         -- Restrict attributes to the ones it says it accepts, to protect
         -- against false advertising.
         , attributes = maybe mempty fst $
-            Common.lookup_attributes (Score.event_attributes event)
-                (Patch.patch_attribute_map patch)
-        , stack = Score.event_stack event
+            Common.lookupAttributes (Score.eventAttributes event)
+                (Patch.patchAttributeMap patch)
+        , stack = Score.eventStack event
         }
 
 -- | The event TrackId is later used to display render progress.  Progress is
 -- only displayed on the root block, so find its tracks.  The innermost track
 -- is most likely to be the one with the notes on it.
-event_track_id :: BlockId -> Score.Event -> Maybe TrackId
-event_track_id block_id = Lists.last <=< lookup block_id . Stack.block_tracks_of
-    . Score.event_stack
+eventTrackId :: BlockId -> Score.Event -> Maybe TrackId
+eventTrackId blockId = Lists.last <=< lookup blockId . Stack.blockTracksOf
+    . Score.eventStack
 
 run :: Log.LogId a -> [LEvent.LEvent a]
 run action = LEvent.Event note : map LEvent.Log logs
-    where (note, logs) = Log.run_id action
+    where (note, logs) = Log.runId action
 
-convert_signal :: Perform.Signal.Signal a -> Signal.Signal
-convert_signal = Perform.Signal.coerce
+convertSignal :: Perform.Signal.Signal a -> Signal.Signal
+convertSignal = Perform.Signal.coerce
 
 -- TODO trim controls?
-convert_controls :: Map Control.Control a -> ScoreT.ControlMap
+convertControls :: Map Control.Control a -> ScoreT.ControlMap
     -> Map Control.Control Signal.Signal
-convert_controls supported controls = Map.fromList
-    [ (to_control c, convert_signal sig)
+convertControls supported controls = Map.fromList
+    [ (toControl c, convertSignal sig)
     | (c, ScoreT.Typed _ sig) <- Map.toList controls
-    , Map.member (to_control c) supported
+    , Map.member (toControl c) supported
     ]
 
-to_control :: ScoreT.Control -> Control.Control
-to_control = Control.Control . ScoreT.control_name
+toControl :: ScoreT.Control -> Control.Control
+toControl = Control.Control . ScoreT.controlName
 
-convert_pitch :: Log.LogMonad m => Score.Event -> m Perform.Signal.NoteNumber
-convert_pitch event = do
-    let (sig, warns) = Score.nn_signal event
+convertPitch :: Log.LogMonad m => Score.Event -> m Perform.Signal.NoteNumber
+convertPitch event = do
+    let (sig, warns) = Score.nnSignal event
     unless (null warns) $ Log.warn $
         "convert pitch: " <> Text.intercalate ", " (map pretty warns)
     pure sig

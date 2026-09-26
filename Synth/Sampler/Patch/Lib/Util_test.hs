@@ -13,7 +13,7 @@ import           Util.Test
 
 test_dynEnvelope :: Test
 test_dynEnvelope = do
-    let f = Signal.to_pairs . Util.dynEnvelope 0.25 1 . dynNote
+    let f = Signal.toPairs . Util.dynEnvelope 0.25 1 . dynNote
     equal (f []) [(8, 0), (9, 0)]
     equal (f [(0, 1), (100, 1)]) [(0, 1), (8, 1), (9, 0)]
     equal (f [(4, 0), (8, 1)]) [(4, 0.25), (8, 1), (9, 0)]
@@ -33,7 +33,7 @@ test_dynamic = do
     equal (f 1) (Util.FF, 1.5)
 
 dynNote :: [(Signal.X, Signal.Y)] -> Note.Note
-dynNote dyn = Note.withControl Control.dynamic (Signal.from_pairs dyn) $
+dynNote dyn = Note.withControl Control.dynamic (Signal.fromPairs dyn) $
     Note.testNote 4 4
 
 test_dynamicAutoScale :: Test

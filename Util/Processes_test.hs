@@ -19,16 +19,16 @@ import           Util.Test
 
 -- It's kind of annoying to test this automatically, so just make sure it looks
 -- right when run by hand.
-manual_test_supervised :: IO ()
-manual_test_supervised = do
+manualTestSupervised :: IO ()
+manualTestSupervised = do
     tid <- Concurrent.forkIO $
         Processes.supervised (Process.shell "sleep 1; echo sub done")
     -- With the kill, I shouldn't see "sub done".
     Thread.delay 0.1
     Concurrent.killThread tid
 
-manual_test_supervised_no_binary :: IO ()
-manual_test_supervised_no_binary =
+manualTestSupervisedNoBinary :: IO ()
+manualTestSupervisedNoBinary =
     Processes.supervised (Process.proc "aoeu" [])
 
 test_conversation_stdout :: Test
@@ -36,23 +36,23 @@ test_conversation_stdout = do
     input <- Chan.newChan
     Processes.conversation "cat" ["-u"] Nothing input $ \output -> do
         Chan.writeChan input "hi there"
-        io_equal (Chan.readChan output) (Processes.Stdout "hi there")
+        ioEqual (Chan.readChan output) (Processes.Stdout "hi there")
         Chan.writeChan input Processes.EOF
-        io_equal (Chan.readChan output) (Processes.Exit (Processes.ExitCode 0))
+        ioEqual (Chan.readChan output) (Processes.Exit (Processes.ExitCode 0))
 
 test_conversation_stderr :: Test
 test_conversation_stderr = do
     input <- noInput
     Processes.conversation "cat" ["no-such-file"] Nothing input $ \output -> do
-        io_equal (Chan.readChan output)
+        ioEqual (Chan.readChan output)
             (Processes.Stderr "cat: no-such-file: No such file or directory")
-        io_equal (Chan.readChan output) (Processes.Exit (Processes.ExitCode 1))
+        ioEqual (Chan.readChan output) (Processes.Exit (Processes.ExitCode 1))
 
 test_conversation_not_found :: Test
 test_conversation_not_found = do
     input <- noInput
     Processes.conversation "no-such-bin" [] Nothing input $ \output ->
-        io_equal (Chan.readChan output)
+        ioEqual (Chan.readChan output)
             (Processes.Exit Processes.BinaryNotFound)
 
 noisySleep :: Int -> (FilePath, [String])
@@ -71,8 +71,8 @@ test_multiple_supervised = do
     output <- MVar.takeMVar outputVar
     Concurrent.killThread tid
     let sigterm = Processes.Exit (Processes.ExitCode (-15))
-    io_equal (snd <$> Chan.readChan output) sigterm
-    io_equal (snd <$> Chan.readChan output) sigterm
+    ioEqual (snd <$> Chan.readChan output) sigterm
+    ioEqual (snd <$> Chan.readChan output) sigterm
 
 noInput :: IO (Chan.Chan Processes.TalkIn)
 noInput = do

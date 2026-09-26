@@ -7,12 +7,12 @@
 module App.StaticConfig (
     StaticConfig(..)
     , empty
-    , get_post_setup_cmd
+    , getPostSetupCmd
     , Midi(..)
-    , empty_midi
-    , make_rdev_map, make_wdev_map
-    , make_read_devices
-    , cmd_config
+    , emptyMidi
+    , makeRdevMap, makeWdevMap
+    , makeReadDevices
+    , cmdConfig
 ) where
 import qualified Data.Map as Map
 import qualified Data.Set as Set
@@ -37,10 +37,10 @@ import           Global
 -- * static config
 
 data StaticConfig = StaticConfig
-    { instrument_db :: Cmd.InstrumentDb
+    { instrumentDb :: Cmd.InstrumentDb
     -- | These Cmds are run before any of the usual ones, and can implement
     -- local global keymaps and whatnot.
-    , global_cmds :: [Msg.Msg -> Cmd.CmdT IO Cmd.Status]
+    , globalCmds :: [Msg.Msg -> Cmd.CmdT IO Cmd.Status]
 
     -- | Default global namespace for deriver calls.
     , builtins :: Derive.Builtins
@@ -49,31 +49,31 @@ data StaticConfig = StaticConfig
     -- block, load a given file, or do nothing.
     -- Remember that no block is focused when this is run, so cmds that need
     -- a focused block will abort.
-    , setup_cmd :: [String] -> Either Text (Cmd.CmdT IO Cmd.Status)
+    , setupCmd :: [String] -> Either Text (Cmd.CmdT IO Cmd.Status)
         -- ^ Left on error
-    , post_setup_cmd :: Cmd.CmdT IO ()
+    , postSetupCmd :: Cmd.CmdT IO ()
     , midi :: Midi
-    , highlight_colors :: Map Color.Highlight Color.Color
-    , im_play_direct :: Bool -- ^ See 'Cmd.config_im_play_direct'.
+    , highlightColors :: Map Color.Highlight Color.Color
+    , imPlayDirect :: Bool -- ^ See 'Cmd.config_im_play_direct'.
     , keycaps :: Bool -- ^ Start with keycaps info window open.
     }
 
 empty :: StaticConfig
 empty = StaticConfig
-    { instrument_db = Inst.empty
-    , global_cmds = []
+    { instrumentDb = Inst.empty
+    , globalCmds = []
     , builtins = mempty
-    , setup_cmd = const (Left "StaticConfig.setup_cmd not configured")
-    , post_setup_cmd = pure ()
-    , midi = empty_midi
-    , highlight_colors = mempty
-    , im_play_direct = False
+    , setupCmd = const (Left "StaticConfig.setup_cmd not configured")
+    , postSetupCmd = pure ()
+    , midi = emptyMidi
+    , highlightColors = mempty
+    , imPlayDirect = False
     , keycaps = True
     }
 
-get_post_setup_cmd :: StaticConfig -> Cmd.CmdT IO ()
-get_post_setup_cmd config = do
-    post_setup_cmd config
+getPostSetupCmd :: StaticConfig -> Cmd.CmdT IO ()
+getPostSetupCmd config = do
+    postSetupCmd config
     when (keycaps config) SyncKeycaps.open
 
 data Midi = Midi
@@ -83,11 +83,11 @@ data Midi = Midi
     --
     -- Because input devices are likely to be relatively static, the
     -- read device map is only configured here.
-    { rdev_map :: Map Midi.ReadDevice Midi.ReadDevice
+    { rdevMap :: Map Midi.ReadDevice Midi.ReadDevice
     -- | WriteDevices may vary per score, e.g. softsynths may listen at any
     -- number of virtual devices.  This map is taken as a default, but may
     -- be overridden by the score loaded.
-    , wdev_map :: Map Midi.WriteDevice Midi.WriteDevice
+    , wdevMap :: Map Midi.WriteDevice Midi.WriteDevice
 
     -- | Open the given devices on startup.  Even if they aren't plugged in,
     -- they'll be added to the read list so they're automatically connected if
@@ -96,40 +96,40 @@ data Midi = Midi
     --
     -- There's no corresponding write_devices because if you don't want
     -- to write to a device, just don't write to it!
-    , read_devices :: Set Midi.ReadDevice
+    , readDevices :: Set Midi.ReadDevice
     -- | If set, and there are im instruments, there is an implicit automatic
     -- allocation for play-cache/ on this addr.
-    , play_cache :: Maybe (Midi.WriteDevice, Midi.Channel)
+    , playCache :: Maybe (Midi.WriteDevice, Midi.Channel)
     } deriving (Show)
 
-empty_midi :: Midi
-empty_midi = Midi Map.empty Map.empty Set.empty Nothing
+emptyMidi :: Midi
+emptyMidi = Midi Map.empty Map.empty Set.empty Nothing
 
-make_rdev_map :: [(Text, Text)] -> Map Midi.ReadDevice Midi.ReadDevice
-make_rdev_map = Map.fromList . map (bimap Midi.read_device Midi.read_device)
+makeRdevMap :: [(Text, Text)] -> Map Midi.ReadDevice Midi.ReadDevice
+makeRdevMap = Map.fromList . map (bimap Midi.readDevice Midi.readDevice)
 
-make_wdev_map :: [(Text, Text)] -> Map Midi.WriteDevice Midi.WriteDevice
-make_wdev_map = Map.fromList . map (bimap Midi.write_device Midi.write_device)
+makeWdevMap :: [(Text, Text)] -> Map Midi.WriteDevice Midi.WriteDevice
+makeWdevMap = Map.fromList . map (bimap Midi.writeDevice Midi.writeDevice)
 
-make_read_devices :: [Text] -> Set Midi.ReadDevice
-make_read_devices = Set.fromList . map Midi.read_device
+makeReadDevices :: [Text] -> Set Midi.ReadDevice
+makeReadDevices = Set.fromList . map Midi.readDevice
 
 -- | Create a 'Cmd.Config' from a StaticConfig.
-cmd_config :: Path.AppDir -> Path.Canonical -> Interface.Interface
+cmdConfig :: Path.AppDir -> Path.Canonical -> Interface.Interface
     -> StaticConfig -> SaveGitT.User -> Cmd.Config
-cmd_config app_dir save_dir interface config git_user = Cmd.Config
-    { config_app_dir = app_dir
-    , config_save_dir = save_dir
-    , config_midi_interface = interface
-    , config_ky_paths = map (Path.to_absolute app_dir) Config.ky_paths
-    , config_rdev_map = rdev_map midi_config
-    , config_wdev_map = wdev_map midi_config
-    , config_instrument_db = instrument_db config
-    , config_builtins = builtins config
-    , config_highlight_colors = highlight_colors config
-    , config_im = Shared.Config.config app_dir
-    , config_git_user = git_user
-    , config_im_play_direct = im_play_direct config
-    , config_play_cache = play_cache midi_config
+cmdConfig appDir saveDir interface config gitUser = Cmd.Config
+    { configAppDir = appDir
+    , configSaveDir = saveDir
+    , configMidiInterface = interface
+    , configKyPaths = map (Path.toAbsolute appDir) Config.kyPaths
+    , configRdevMap = rdevMap midiConfig
+    , configWdevMap = wdevMap midiConfig
+    , configInstrumentDb = instrumentDb config
+    , configBuiltins = builtins config
+    , configHighlightColors = highlightColors config
+    , configIm = Shared.Config.config appDir
+    , configGitUser = gitUser
+    , configImPlayDirect = imPlayDirect config
+    , configPlayCache = playCache midiConfig
     }
-    where midi_config = midi config
+    where midiConfig = midi config

@@ -34,57 +34,57 @@ data Common code = Common
     -- | Cmds and Derive calls.  This is abstract so this can be defined
     -- without incurring a dependency on "Cmd.Cmd", which would wind up being
     -- a circular dependency.
-    { common_code :: code
+    { commonCode :: code
     -- | This environ is merged into the derive environ when the instrument
     -- comes into scope, and also when the pitch of 'Score.Event's with this
     -- instrument is converted.  Typically it sets things like instrument
     -- range, tuning details, etc.
-    , common_environ :: REnv.Environ
+    , commonEnviron :: REnv.Environ
     -- | Key-value pairs used to index the instrument.  A key may appear more
     -- than once with different values.  Tags are free-form, but there is
     -- a list of standard tags in "Instrument.Tag".
-    , common_tags :: [Tag.Tag]
+    , commonTags :: [Tag.Tag]
     -- | So, instrument, tell me about yourself.
-    , common_doc :: Doc.Doc
+    , commonDoc :: Doc.Doc
     -- | Flags shared with all instruments.
     --
     -- TODO unlike midi flags, these are hardcoded and can't be changed
     -- per-instrument.  I should probably do the same thing as Midi.Patch and
     -- have a Settings which is copied as the default.  But it's a hassle and
     -- I don't need it right now.
-    , common_flags :: Set Flag
-    , common_call_map :: CallMap
+    , commonFlags :: Set Flag
+    , commonCallMap :: CallMap
     } deriving (Show, Functor)
 
-code = Lens.lens common_code (\r a -> r { common_code = a })
-environ = Lens.lens common_environ (\r a -> r { common_environ = a })
-tags = Lens.lens common_tags (\r a -> r { common_tags = a })
-doc = Lens.lens common_doc (\r a -> r { common_doc = a })
-flags = Lens.lens common_flags (\r a -> r { common_flags = a })
-call_map = Lens.lens common_call_map (\r a -> r { common_call_map = a })
+code = Lens.lens commonCode (\r a -> r { commonCode = a })
+environ = Lens.lens commonEnviron (\r a -> r { commonEnviron = a })
+tags = Lens.lens commonTags (\r a -> r { commonTags = a })
+doc = Lens.lens commonDoc (\r a -> r { commonDoc = a })
+flags = Lens.lens commonFlags (\r a -> r { commonFlags = a })
+callMap = Lens.lens commonCallMap (\r a -> r { commonCallMap = a })
 -- | Map attributes to the names of the calls they should map to.  This
 -- is used by the integrator to turn score events into UI events.
 type CallMap = Map Attrs.Attributes Expr.Symbol
 
 common :: code -> Common code
 common code = Common
-    { common_code = code
-    , common_environ = mempty
-    , common_tags = []
-    , common_doc = ""
-    , common_flags = mempty
-    , common_call_map = mempty
+    { commonCode = code
+    , commonEnviron = mempty
+    , commonTags = []
+    , commonDoc = ""
+    , commonFlags = mempty
+    , commonCallMap = mempty
     }
 
 instance Pretty code => Pretty (Common code) where
-    format (Common code env tags doc flags call_map) =
+    format (Common code env tags doc flags callMap) =
         Pretty.record "Instrument"
             [ ("code", Pretty.format code)
             , ("restricted_environ", Pretty.format env)
             , ("tags", Pretty.format tags)
             , ("doc", Pretty.format doc)
             , ("flags", Pretty.format flags)
-            , ("call_map", Pretty.format call_map)
+            , ("call_map", Pretty.format callMap)
             ]
 
 data Flag =
@@ -95,10 +95,10 @@ data Flag =
 
 instance Pretty Flag where pretty = showt
 
-add_environ :: REnv.ToVal a => EnvKey.Key -> a
+addEnviron :: REnv.ToVal a => EnvKey.Key -> a
     -> Common code -> Common code
-add_environ key val =
-    environ %= (REnv.from_list [(key, REnv.to_val val)] <>)
+addEnviron key val =
+    environ %= (REnv.fromList [(key, REnv.toVal val)] <>)
 
 -- * AttributeMap
 
@@ -123,39 +123,39 @@ newtype AttributeMap a = AttributeMap [(Attrs.Attributes, a)]
 
 instance Semigroup (AttributeMap a) where
     AttributeMap as <> AttributeMap bs =
-        AttributeMap $ sort_attributes (as <> bs)
+        AttributeMap $ sortAttributes (as <> bs)
 
 instance Monoid (AttributeMap a) where
     mempty = AttributeMap []
     mappend = (<>)
 
-attribute_map :: [(Attrs.Attributes, a)] -> AttributeMap a
-attribute_map = AttributeMap . sort_attributes
+attributeMap :: [(Attrs.Attributes, a)] -> AttributeMap a
+attributeMap = AttributeMap . sortAttributes
 
-mapped_attributes :: AttributeMap a -> [Attrs.Attributes]
-mapped_attributes (AttributeMap table) = map fst table
+mappedAttributes :: AttributeMap a -> [Attrs.Attributes]
+mappedAttributes (AttributeMap table) = map fst table
 
-attribute_vals :: AttributeMap a -> [a]
-attribute_vals (AttributeMap table) = map snd table
+attributeVals :: AttributeMap a -> [a]
+attributeVals (AttributeMap table) = map snd table
 
 -- | Look up the value as described in 'AttributeMap'.
-lookup_attributes :: Attrs.Attributes -> AttributeMap a
+lookupAttributes :: Attrs.Attributes -> AttributeMap a
     -> Maybe (Attrs.Attributes, a)
-lookup_attributes attrs (AttributeMap table) =
+lookupAttributes attrs (AttributeMap table) =
     List.find ((attrs `Attrs.contain`) . fst) table
 
 -- | Figured out if any attributes shadow other attributes.  I think this
 -- shouldn't happen if you called 'sort_attributes', or used any of the
 -- constructors other than 'AttributeMap'.
-overlapping_attributes :: AttributeMap a -> [Text]
-overlapping_attributes (AttributeMap table) =
+overlappingAttributes :: AttributeMap a -> [Text]
+overlappingAttributes (AttributeMap table) =
     Maybe.catMaybes $ zipWith check (List.inits attrs) attrs
     where
     attrs = map fst table
     check prevs attr = case List.find (Attrs.contain attr) prevs of
-        Just other_attr -> Just $ "attrs "
-            <> ShowVal.show_val attr <> " shadowed by "
-            <> ShowVal.show_val other_attr
+        Just otherAttr -> Just $ "attrs "
+            <> ShowVal.showVal attr <> " shadowed by "
+            <> ShowVal.showVal otherAttr
         Nothing -> Nothing
 
 -- | 'lookup_attributes' looks for the first subset, which means that a smaller
@@ -164,8 +164,8 @@ overlapping_attributes (AttributeMap table) =
 --
 -- The sort is stable, so it shouldn't destroy the priority implicit in the
 -- order.
-sort_attributes :: [(Attrs.Attributes, a)] -> [(Attrs.Attributes, a)]
-sort_attributes = Lists.sortOn (\(a, _) -> - Set.size (Attrs.to_set a))
+sortAttributes :: [(Attrs.Attributes, a)] -> [(Attrs.Attributes, a)]
+sortAttributes = Lists.sortOn (\(a, _) -> - Set.size (Attrs.toSet a))
 
 
 -- * Config
@@ -175,7 +175,7 @@ sort_attributes = Lists.sortOn (\(a, _) -> - Set.size (Attrs.to_set a))
 data Config = Config
     -- | This is a local version of 'common_environ'.  Overlayed on the
     -- instrument config 'common_environ'.
-    { config_environ :: REnv.Environ
+    { configEnviron :: REnv.Environ
     -- | This is the control equivalent to 'config_environ'.  These
     -- controls are merged using their default mergers in the note call.
     -- Being in the note call means that the merge should only happen once.
@@ -185,26 +185,26 @@ data Config = Config
     --
     -- This can be useful to set a per-instrument transposition, or dynamic
     -- level.
-    , config_controls :: ScoreT.ControlValMap
+    , configControls :: ScoreT.ControlValMap
     -- | If true, this instrument is filtered out prior to playing.
-    , config_mute :: Bool
+    , configMute :: Bool
     -- | If any instrument is soloed, all instruments except soloed ones are
     -- filtered out prior to playing.
-    , config_solo :: Bool
+    , configSolo :: Bool
     } deriving (Eq, Show)
 
-empty_config :: Config
-empty_config = Config
-    { config_environ = mempty
-    , config_controls = mempty
-    , config_mute = False
-    , config_solo = False
+emptyConfig :: Config
+emptyConfig = Config
+    { configEnviron = mempty
+    , configControls = mempty
+    , configMute = False
+    , configSolo = False
     }
 
-cenviron = Lens.lens config_environ (\r a -> r { config_environ = a })
-controls = Lens.lens config_controls (\r a -> r { config_controls = a })
-mute = Lens.lens config_mute (\r a -> r { config_mute = a })
-solo = Lens.lens config_solo (\r a -> r { config_solo = a })
+cenviron = Lens.lens configEnviron (\r a -> r { configEnviron = a })
+controls = Lens.lens configControls (\r a -> r { configControls = a })
+mute = Lens.lens configMute (\r a -> r { configMute = a })
+solo = Lens.lens configSolo (\r a -> r { configSolo = a })
 
 instance Pretty Config where
     format (Config environ controls mute solo) = Pretty.record "Config"
@@ -214,7 +214,7 @@ instance Pretty Config where
         , ("solo", Pretty.format solo)
         ]
 
-add_cenviron :: REnv.ToVal a => EnvKey.Key -> a
+addCenviron :: REnv.ToVal a => EnvKey.Key -> a
     -> Config -> Config
-add_cenviron key val = cenviron %= (REnv.from_list [(key, v)] <>)
-    where v = REnv.to_val val
+addCenviron key val = cenviron %= (REnv.fromList [(key, v)] <>)
+    where v = REnv.toVal val

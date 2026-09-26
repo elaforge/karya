@@ -31,29 +31,29 @@ main = do
 loop :: Double -> Tail.Handle -> Maybe Time.UTCTime -> IO ()
 loop threshold = go
     where
-    go hdl last_date = do
+    go hdl lastDate = do
         (msg, hdl) <- Tail.tail hdl
-        case Log.msg_priority msg of
+        case Log.msgPriority msg of
             Log.Timer -> do
-                let date = Log.msg_date msg
+                let date = Log.msgDate msg
                 let diff = realToFrac $
-                        maybe 0 (Time.diffUTCTime date) last_date
+                        maybe 0 (Time.diffUTCTime date) lastDate
                 when (diff >= minimumDiff) $ do
                     when (diff >= threshold) $
-                        putStr vt100_red
+                        putStr vt100Red
                     Printf.printf "%.03f %s %s" diff
                         (Text.unpack
-                            (CallStack.showCaller (Log.msg_caller msg)))
-                        (Text.unpack (Log.msg_text msg))
+                            (CallStack.showCaller (Log.msgCaller msg)))
+                        (Text.unpack (Log.msgText msg))
                     when (diff >= threshold) $
-                        putStr vt100_normal
+                        putStr vt100Normal
                     putChar '\n'
                 go hdl (Just date)
-            _ -> go hdl last_date
+            _ -> go hdl lastDate
 
 -- | These codes should probably come from termcap, but I can't be bothered.
-vt100_red :: String
-vt100_red = "\ESC[31m"
+vt100Red :: String
+vt100Red = "\ESC[31m"
 
-vt100_normal :: String
-vt100_normal = "\ESC[m\ESC[m"
+vt100Normal :: String
+vt100Normal = "\ESC[m\ESC[m"

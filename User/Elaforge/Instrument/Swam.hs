@@ -88,7 +88,7 @@ import           Types
 synth :: MidiInst.Synth
 synth =
     MidiInst.synth "swam" "Audio Modeling SWAM" $
-        MidiInst.synth_controls [] patches
+        MidiInst.synthControls [] patches
     where
     patches = map (uncurry string)
         [ ("violin", [NN.g3, NN.d4, NN.a4, NN.e4])
@@ -114,31 +114,31 @@ synth =
 -}
 
 string :: InstT.Name -> [Pitch.NoteNumber] -> MidiInst.Patch
-string name open_strings = MidiInst.pressure $
+string name openStrings = MidiInst.pressure $
     MidiInst.code #= code $
-    MidiInst.environ EnvKey.open_strings open_strings $
-    MidiInst.patch#Patch.mode_map #= modes $
-    MidiInst.patch#Patch.attribute_map #= keyswitches $
+    MidiInst.environ EnvKey.openStrings openStrings $
+    MidiInst.patch#Patch.modeMap #= modes $
+    MidiInst.patch#Patch.attributeMap #= keyswitches $
     -- defaults apply after the bipolar conversion
-    MidiInst.control_defaults [(bow_force, 0.5), (bow_pos, 0.5)] $
-    MidiInst.named_patch (-24, 24) name controls
+    MidiInst.controlDefaults [(bowForce, 0.5), (bowPos, 0.5)] $
+    MidiInst.namedPatch (-24, 24) name controls
     where
-    code = MidiInst.note_calls
-        [ MidiInst.both "o" c_harmonic
-        , MidiInst.both "harsh" c_harsh
-        , MidiInst.both "spic" c_spiccato
-        , control_call "pont" "Sul ponticello." bow_pos (-1)
-        , control_call "tasto" "Sul tasto." bow_pos 1
-        , control_call "flaut" "Flautando." bow_force (-1)
-        , MidiInst.transformer "bow" c_bow
-        , MidiInst.transformer "`downbow`" (c_bow_direction (pure Down))
-        , MidiInst.transformer "`upbow`" (c_bow_direction (pure Up))
-        , MidiInst.generator "damp" c_damp
+    code = MidiInst.noteCalls
+        [ MidiInst.both "o" cHarmonic
+        , MidiInst.both "harsh" cHarsh
+        , MidiInst.both "spic" cSpiccato
+        , controlCall "pont" "Sul ponticello." bowPos (-1)
+        , controlCall "tasto" "Sul tasto." bowPos 1
+        , controlCall "flaut" "Flautando." bowForce (-1)
+        , MidiInst.transformer "bow" cBow
+        , MidiInst.transformer "`downbow`" (cBowDirection (pure Down))
+        , MidiInst.transformer "`upbow`" (cBowDirection (pure Up))
+        , MidiInst.generator "damp" cDamp
         ]
         <> MidiInst.postproc ((,[]) . postproc)
-    controls = mode_controls ++
+    controls = modeControls ++
         [ (CC.mod, Controls.vib)
-        , (CC.vib_speed, Controls.vib_speed)
+        , (CC.vibSpeed, Controls.vibSpeed)
         , (CC.pan, Controls.pan)
         -- Set to >0 to turn legato into portamento.  The VST defaults to 0 is
         -- slow, 1 is fast, but I reversed it so the default 0 gets noraml
@@ -147,8 +147,8 @@ string name open_strings = MidiInst.pressure $
         -- When there's a string crossing on a portamento, this is ratio of
         -- string 1 to string 2.
         , (14, "port-split")
-        , (15, bow_force)
-        , (16, bow_pos)
+        , (15, bowForce)
+        , (16, bowPos)
         , (17, "bow-noise")
         , (20, "trem-speed")
         -- <64 or >=64
@@ -156,13 +156,13 @@ string name open_strings = MidiInst.pressure $
         , (64, Controls.pedal)
         ]
     -- CC breakpoints are <=42, <=84, >=85
-    keyswitches = Patch.cc_keyswitches_permute
+    keyswitches = Patch.ccKeyswitchesPermute
         [ (32, [(mempty, 10), (Attrs.pizz, 60), (Attrs.legno, 100)])
         , (39, [(mempty, 10), (Attrs.harm, 60), (Attrs.harm<>Attrs.third, 100)])
         , (41, [(mempty, 10), (Attrs.trem, 60), (Attrs.attr "trem-fast", 100)])
         , (65, [(mempty, 0), (Attrs.mute, 127)]) -- con sord
         ]
-    (modes, mode_controls) = Patch.cc_mode_map
+    (modes, modeControls) = Patch.ccModeMap
         [ ("gesture", 33, [("expr", 10), ("bipolar", 60), ("bowing", 100)])
         -- Which strings to select for double-stops mode.
         , ("str-select", 34, [("4-3", 10), ("3-2", 80), ("2-1", 100)])
@@ -173,74 +173,74 @@ string name open_strings = MidiInst.pressure $
         , ("bow-start", 38, [("d", 10), ("u", 80)])
         ]
 
-bow_force :: ScoreT.Control
-bow_force = "bow-force"
+bowForce :: ScoreT.Control
+bowForce = "bow-force"
 
-bow_pos :: ScoreT.Control
-bow_pos = "bow-pos"
+bowPos :: ScoreT.Control
+bowPos = "bow-pos"
 
 postproc :: Score.Event -> Score.Event
-postproc = bipolar_controls [bow_force, bow_pos] . bipolar_expression
+postproc = bipolarControls [bowForce, bowPos] . bipolarExpression
 
-bipolar_controls :: [ScoreT.Control] -> Score.Event -> Score.Event
-bipolar_controls controls event
+bipolarControls :: [ScoreT.Control] -> Score.Event -> Score.Event
+bipolarControls controls event
     | null sigs = event
-    | otherwise = Score.modify_environ (Env.from_controls sigs <>) event
+    | otherwise = Score.modifyEnviron (Env.fromControls sigs <>) event
     where
     sigs = Map.fromList $ map (second normalize) $ Lists.mapMaybeSnd id $
-        Lists.keyOnSnd (\c -> Map.lookup c (Score.event_controls event))
+        Lists.keyOnSnd (\c -> Map.lookup c (Score.eventControls event))
             controls
 
 -- | When gesture=bipolar, the expression control is 0--62 for downbow, 64-127
 -- for upbow.
-bipolar_expression :: Score.Event -> Score.Event
-bipolar_expression = when_val "gesture" ("bipolar" :: Text) $
-    bipolar_controls [Controls.dynamic]
+bipolarExpression :: Score.Event -> Score.Event
+bipolarExpression = whenVal "gesture" ("bipolar" :: Text) $
+    bipolarControls [Controls.dynamic]
 
-when_val :: (Typecheck.Typecheck val, Eq val) => EnvKey.Key -> val
+whenVal :: (Typecheck.Typecheck val, Eq val) => EnvKey.Key -> val
     -> (Score.Event -> Score.Event) -> Score.Event -> Score.Event
-when_val key val modify event =
-    case Env.maybe_val key (Score.event_environ event) of
+whenVal key val modify event =
+    case Env.maybeVal key (Score.eventEnviron event) of
         Just v | v == val -> modify event
         _ -> event
 
 -- Normalize -1--1 to 0--1.
 normalize :: ScoreT.Typed Signal.Control -> ScoreT.Typed Signal.Control
-normalize = fmap (Signal.scalar_divide 2 . Signal.scalar_add 1)
+normalize = fmap (Signal.scalarDivide 2 . Signal.scalarAdd 1)
 
 -- * calls
 
 -- Up and Down mean set gesture=bipolar, and leave dyn alone or invert it.
 -- Alternate means each non-overlapping note gets inverted direction
-c_bow :: Derive.Transformer Derive.Note
-c_bow = c_bow_direction (Sig.defaulted "dir" Alternate "Bow direction.")
+cBow :: Derive.Transformer Derive.Note
+cBow = cBowDirection (Sig.defaulted "dir" Alternate "Bow direction.")
 
-c_bow_direction :: Sig.Parser BowDirection -> Derive.Transformer Derive.Note
-c_bow_direction sig = Derive.transformer Module.instrument "bow" mempty
+cBowDirection :: Sig.Parser BowDirection -> Derive.Transformer Derive.Note
+cBowDirection sig = Derive.transformer Module.instrument "bow" mempty
     "Set bow direction, either to up or down, or alternate. Alternate means\
     \ the bow changes as soon as there is a non-overlapping note." $
     Sig.callt sig $
-    \dir _args -> bow dir . Derive.with_val "gesture" ("bipolar" :: Text)
+    \dir _args -> bow dir . Derive.withVal "gesture" ("bipolar" :: Text)
     where
     bow dir deriver = case dir of
-        Down -> Post.emap1_ invert_dyn <$> deriver
+        Down -> Post.emap1_ invertDyn <$> deriver
         Up -> deriver
-        Alternate -> snd . Post.emap1 alternate_bowing Call.Down
-            . Post.prev_by Score.event_instrument <$> deriver
+        Alternate -> snd . Post.emap1 alternateBowing Call.Down
+            . Post.prevBy Score.eventInstrument <$> deriver
 
-alternate_bowing :: Call.UpDown -> (Maybe Score.Event, Score.Event)
+alternateBowing :: Call.UpDown -> (Maybe Score.Event, Score.Event)
     -> (Call.UpDown, Score.Event)
-alternate_bowing dir (prev, event)
-    | maybe True (Score.events_overlap event) prev = (dir, set dir event)
+alternateBowing dir (prev, event)
+    | maybe True (Score.eventsOverlap event) prev = (dir, set dir event)
     | otherwise = (rev dir, set (rev dir) event)
     where
     rev Call.Up = Call.Down
     rev Call.Down = Call.Up
-    set Call.Down = invert_dyn
+    set Call.Down = invertDyn
     set Call.Up = id
 
-invert_dyn :: Score.Event -> Score.Event
-invert_dyn = Score.modify_control_vals Controls.dynamic negate
+invertDyn :: Score.Event -> Score.Event
+invertDyn = Score.modifyControlVals Controls.dynamic negate
 
 data BowDirection = Down | Up | Alternate
     deriving (Eq, Show, Enum, Bounded)
@@ -249,54 +249,54 @@ instance Typecheck.Typecheck BowDirection
 instance Typecheck.ToVal BowDirection
 instance ShowVal.ShowVal BowDirection
 
-control_call :: Expr.Symbol -> Doc.Doc -> ScoreT.Control
+controlCall :: Expr.Symbol -> Doc.Doc -> ScoreT.Control
     -> Signal.Y -> MidiInst.Call Derive.Note
-control_call name doc control val = MidiInst.both name $
-    Make.transform_notes Module.instrument (sym_to_name name) mempty doc
+controlCall name doc control val = MidiInst.both name $
+    Make.transformNotes Module.instrument (symToName name) mempty doc
     (Sig.defaulted "val" val "How much.") $
-    \val -> fmap $ Post.emap1_ $ Score.modify_control_vals control (+val)
+    \val -> fmap $ Post.emap1_ $ Score.modifyControlVals control (+val)
     where
-    sym_to_name (Expr.Symbol a) = Derive.CallName a
+    symToName (Expr.Symbol a) = Derive.CallName a
 
-c_harsh :: Library.Calls Derive.Note
-c_harsh = Make.transform_notes Module.instrument "harsh" mempty
+cHarsh :: Library.Calls Derive.Note
+cHarsh = Make.transformNotes Module.instrument "harsh" mempty
     "Harsh attack." ((,)
     <$> Sig.defaulted "val" (1 :: Double) "How much bow pressure."
     <*> Sig.defaulted "dur" (0.15 :: Double) "How long."
     ) $ \(val, dur) -> fmap $ Post.emap1_ (attack val dur)
     where
     attack val dur event =
-        Score.modify_signal bow_force (Signal.sig_add sig) event
+        Score.modifySignal bowForce (Signal.sigAdd sig) event
         where
-        start = Score.event_start event
-        sig = Signal.from_pairs [(start, val), (start+dur, 0)]
+        start = Score.eventStart event
+        sig = Signal.fromPairs [(start, val), (start+dur, 0)]
 
-c_spiccato :: Library.Calls Derive.Note
-c_spiccato = Make.transform_notes Module.instrument "spic" mempty "Spiccato."
+cSpiccato :: Library.Calls Derive.Note
+cSpiccato = Make.transformNotes Module.instrument "spic" mempty "Spiccato."
     (Sig.defaulted "dur" (0.05 :: RealTime) "How long."
-    ) $ \(Typecheck.RealTimeFunctionT dur_t dur) deriver -> do
-        events <- Derive.with_val "bow-lift" (ShowVal.show_val True) deriver
-        durs <- Post.duration_control dur_t dur events
-        pure $ Post.emap1_ (uncurry Score.set_duration)
+    ) $ \(Typecheck.RealTimeFunctionT durT dur) deriver -> do
+        events <- Derive.withVal "bow-lift" (ShowVal.showVal True) deriver
+        durs <- Post.durationControl durT dur events
+        pure $ Post.emap1_ (uncurry Score.setDuration)
             (Stream.zip durs events)
 
-c_harmonic :: Library.Calls Derive.Note
-c_harmonic = Make.transform_notes Module.instrument "harmonic"
+cHarmonic :: Library.Calls Derive.Note
+cHarmonic = Make.transformNotes Module.instrument "harmonic"
     (Tags.attr <> Tags.ly)
     "Harmonic, with lilypond for natural and artificial harmonic notation."
     ((,)
     <$> Sig.defaulted "n" (2 :: Double)
         "Which harmonic. SWAM only supports 2 and 3."
-    <*> Articulation.lily_harmonic_sig
-    ) $ \(harm, lily_args) deriver -> Ly.when_lilypond
-        (Articulation.lily_harmonic lily_args (htype harm) deriver)
+    <*> Articulation.lilyHarmonicSig
+    ) $ \(harm, lilyArgs) deriver -> Ly.whenLilypond
+        (Articulation.lilyHarmonic lilyArgs (htype harm) deriver)
         (harmonic harm deriver)
     where
     harmonic (h :: Int) deriver = case h of
-        2 -> Call.add_attributes Attrs.harm $
-            Call.add_constant Controls.nn (-12) deriver
-        3 -> Call.add_attributes (Attrs.harm <> Attrs.third) $
-            Call.add_constant Controls.nn (-19) deriver
+        2 -> Call.addAttributes Attrs.harm $
+            Call.addConstant Controls.nn (-12) deriver
+        3 -> Call.addAttributes (Attrs.harm <> Attrs.third) $
+            Call.addConstant Controls.nn (-19) deriver
         h -> Derive.throw $ "only 2nd and 3rd harmonics supported: " <> showt h
     -- TODO this doesn't look at open strings, so it will produce lilypond that
     -- doesn't correspond to what the synth plays.  Or maybe it's that the
@@ -306,8 +306,8 @@ c_harmonic = Make.transform_notes Module.instrument "harmonic"
     htype _ = Articulation.Artificial
 
 -- | Emit a short note with reduced dyn, bow-lift=f.
-c_damp :: Derive.Generator Derive.Note
-c_damp = Derive.generator Module.instrument "damp" mempty
+cDamp :: Derive.Generator Derive.Note
+cDamp = Derive.generator Module.instrument "damp" mempty
     "Emit a damped stroke." $
     Sig.call ((,)
     <$> Sig.defaulted "dur" (Typecheck.real 0.05) "Duration."
@@ -315,5 +315,5 @@ c_damp = Derive.generator Module.instrument "damp" mempty
     ) $ \(Typecheck.DefaultReal dur, dyn) -> Sub.inverting $ \args -> do
         dur <- Derive.score dur
         Derive.place (Args.start args) dur $
-            Derive.with_val "bow-lift" (ShowVal.show_val False) $
-            Call.multiply_dynamic dyn Call.note
+            Derive.withVal "bow-lift" (ShowVal.showVal False) $
+            Call.multiplyDynamic dyn Call.note

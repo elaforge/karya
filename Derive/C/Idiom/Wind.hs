@@ -3,7 +3,7 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 -- | Post-process notes to add artifacts characteristic of wind instruments.
-module Derive.C.Idiom.Wind (library, find_harmonic) where
+module Derive.C.Idiom.Wind (library, findHarmonic) where
 import qualified Util.Lists as Lists
 import qualified Derive.Args as Args
 import qualified Derive.Call.Module as Module
@@ -25,14 +25,14 @@ import           Types
 
 library :: Library.Library
 library = Library.transformers
-    [ ("wind-idiom", c_wind_idiom)
+    [ ("wind-idiom", cWindIdiom)
     ]
 
 module_ :: Module.Module
 module_ = "idiom" <> "wind"
 
-c_wind_idiom :: Derive.Transformer Derive.Note
-c_wind_idiom = Derive.transformer module_ "wind-idiom"
+cWindIdiom :: Derive.Transformer Derive.Note
+cWindIdiom = Derive.transformer module_ "wind-idiom"
     (Tags.postproc <> Tags.inst)
     "Post-process events to play in a monophonic wind-like idiom.\
     \\nThis tweaks the ends of the pitch signals of notes depending on the\
@@ -42,25 +42,25 @@ c_wind_idiom = Derive.transformer module_ "wind-idiom"
     \\nThe decay of the note will be shifted to the corresponding harmonic\
     \ of the the fundamental of the subsequent note.  If the fundamentals are\
     \ the same then the pitch will remain constant, of course."
-    $ Sig.callt fundamentals_env $ \fundamentals args deriver -> do
-        start <- Args.real_start args
+    $ Sig.callt fundamentalsEnv $ \fundamentals args deriver -> do
+        start <- Args.realStart args
         fundamentals <- mapM
-            (either pure (Pitches.pitch_nn <=< Derive.resolve_pitch start))
+            (either pure (Pitches.pitchNn <=< Derive.resolvePitch start))
             fundamentals
-        wind_idiom (map Pitch.nn_to_hz fundamentals) =<< deriver
+        windIdiom (map Pitch.nnToHz fundamentals) =<< deriver
 
 type Fundamentals = [Pitch.Hz]
 
-wind_idiom :: Fundamentals -> Stream.Stream Score.Event -> Derive.NoteDeriver
-wind_idiom fundamentals = pure . Post.emap1_ (process fundamentals)
-    . Stream.zip_on (map Lists.head . Post.nexts)
+windIdiom :: Fundamentals -> Stream.Stream Score.Event -> Derive.NoteDeriver
+windIdiom fundamentals = pure . Post.emap1_ (process fundamentals)
+    . Stream.zipOn (map Lists.head . Post.nexts)
 
-fundamentals_env :: Sig.Parser [Either Pitch.NoteNumber PSignal.Pitch]
-fundamentals_env = Sig.check non_empty $
+fundamentalsEnv :: Sig.Parser [Either Pitch.NoteNumber PSignal.Pitch]
+fundamentalsEnv = Sig.check nonEmpty $
     Sig.environ "fundamentals" Sig.Unprefixed ([] :: [Pitch.NoteNumber])
         "Fundamentals for this instrument."
     where
-    non_empty xs
+    nonEmpty xs
         | null xs = Just "fundamentals required"
         | otherwise = Nothing
 
@@ -68,19 +68,19 @@ fundamentals_env = Sig.check non_empty $
 -- the next event's pitch.  On the next note's start time, shift the pitch to
 -- same harmonic on the next note's fundamental.
 process :: Fundamentals -> (Maybe Score.Event, Score.Event) -> Score.Event
-process fundamentals (maybe_next, event) = fromMaybe event $ do
-    next <- maybe_next
-    (next_fundamental, _) <- harmonic_of fundamentals next
-    (_, this_harmonic) <- harmonic_of fundamentals event
-    pure $ tweak_pitch (Score.event_start next)
-        (next_fundamental *# this_harmonic) event
+process fundamentals (maybeNext, event) = fromMaybe event $ do
+    next <- maybeNext
+    (nextFundamental, _) <- harmonicOf fundamentals next
+    (_, thisHarmonic) <- harmonicOf fundamentals event
+    pure $ tweakPitch (Score.eventStart next)
+        (nextFundamental *# thisHarmonic) event
 
-harmonic_of :: Fundamentals -> Score.Event -> Maybe (Pitch.Hz, Int)
-harmonic_of fundamentals =
-    find_harmonic fundamentals . Pitch.nn_to_hz <=< Score.initial_nn
+harmonicOf :: Fundamentals -> Score.Event -> Maybe (Pitch.Hz, Int)
+harmonicOf fundamentals =
+    findHarmonic fundamentals . Pitch.nnToHz <=< Score.initialNn
 
-find_harmonic :: Fundamentals -> Pitch.Hz -> Maybe (Pitch.Hz, Int)
-find_harmonic fundamentals hz = closest $ map find fundamentals
+findHarmonic :: Fundamentals -> Pitch.Hz -> Maybe (Pitch.Hz, Int)
+findHarmonic fundamentals hz = closest $ map find fundamentals
     where
     -- I always pick the closest match, but I also want a lower harmonic.
     -- Hopefully this doesn't matter in practice, since fundamentals generally
@@ -102,7 +102,7 @@ find_harmonic fundamentals hz = closest $ map find fundamentals
 (*#) :: Pitch.Hz -> Int -> Pitch.Hz
 fundamental *# harmonic = fundamental * fromIntegral harmonic
 
-tweak_pitch :: RealTime -> Pitch.Hz -> Score.Event -> Score.Event
-tweak_pitch pos hz event =
-    Score.set_pitch (Score.event_pitch event <> tweak) event
-    where tweak = PSignal.from_sample pos (PSignal.nn_pitch (Pitch.hz_to_nn hz))
+tweakPitch :: RealTime -> Pitch.Hz -> Score.Event -> Score.Event
+tweakPitch pos hz event =
+    Score.setPitch (Score.eventPitch event <> tweak) event
+    where tweak = PSignal.fromSample pos (PSignal.nnPitch (Pitch.hzToNn hz))

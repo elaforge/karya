@@ -29,5 +29,5 @@ main = do
     IO.hSetBuffering hdl IO.LineBuffering
     forever $ do
         line <- ByteString.Char8.hGetLine hdl
-        let msg = Tail.deserialize_line line
-        Text.IO.putStrLn (Log.format_msg msg)
+        let msg = Tail.deserializeLine line
+        Text.IO.putStrLn (Log.formatMsg msg)

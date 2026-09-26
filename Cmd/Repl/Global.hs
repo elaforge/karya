@@ -63,58 +63,58 @@ import           Types
 --
 -- This is used by the REPL's macro feature, to replace @xyz@ with
 -- (make_id "current-namespace" "xyz")
-make_id :: Id.Ident a => Text -> Text -> a
-make_id ns name =
+makeId :: Id.Ident a => Text -> Text -> a
+makeId ns name =
     fromMaybe (error $ "invalid characters in id: " ++ show name) $
-        Id.make $ Id.read_short (Id.namespace ns) name
+        Id.make $ Id.readShort (Id.namespace ns) name
 
 vid :: Text -> ViewId
-vid = Id.ViewId . Id.read_id
+vid = Id.ViewId . Id.readId
 
 bid :: Text -> BlockId
-bid = Id.BlockId . Id.read_id
+bid = Id.BlockId . Id.readId
 
 rid :: Text -> RulerId
-rid = Id.RulerId . Id.read_id
+rid = Id.RulerId . Id.readId
 
 tid :: Text -> TrackId
-tid = Id.TrackId . Id.read_id
+tid = Id.TrackId . Id.readId
 
 -- | Get the current focused block.
 block :: Cmd.CmdL BlockId
-block = Cmd.get_focused_block
+block = Cmd.getFocusedBlock
 
 -- | Get the track under the selection.
 track :: Cmd.CmdL TrackId
 track = do
-    (_, _, track_id, _) <- Selection.get_insert
-    pure track_id
+    (_, _, trackId, _) <- Selection.getInsert
+    pure trackId
 
 tracknum :: Cmd.CmdL TrackNum
 tracknum = do
-    (_, tracknum, _, _) <- Selection.get_insert
+    (_, tracknum, _, _) <- Selection.getInsert
     pure tracknum
 
 -- | Get the current focused view.
 view :: Cmd.CmdL ViewId
-view = Cmd.get_focused_view
+view = Cmd.getFocusedView
 
 -- | RulerId of the ruler under the selection.
 ruler :: Cmd.CmdL RulerId
 ruler = do
     n <- tracknum
-    block_id <- block
-    Cmd.abort_unless =<< Ui.ruler_track_at block_id n
+    blockId <- block
+    Cmd.abortUnless =<< Ui.rulerTrackAt blockId n
 
 -- | Get the root block.
 root :: Cmd.CmdL BlockId
-root = Ui.get_root_id
+root = Ui.getRootId
 
 -- | Create a namespace, and throw an IO exception if it has bad characters.
 -- Intended to be used from the REPL, where throwing an IO exception is ok.
 ns :: Text -> Id.Namespace
 ns name
-    | Id.valid_symbol name = Id.namespace name
+    | Id.validSymbol name = Id.namespace name
     | otherwise = error $ "bad namespace: " ++ show name
 
 -- | Some oprators to more conveniently string together monadic and non-monadic
@@ -141,61 +141,61 @@ pp :: Pretty a => Cmd.CmdL a -> Cmd.CmdL Text
 pp = fmap Pretty.formatted
 
 quit :: Cmd.CmdL ()
-quit = Cmd.modify $ \st -> st { Cmd.state_repl_status = Cmd.Quit }
+quit = Cmd.modify $ \st -> st { Cmd.stateReplStatus = Cmd.Quit }
 
 -- * errors
 
 -- | Called from logview
 s :: String -> Cmd.CmdL ()
 s stackpos = maybe (Cmd.throw $ "can't parse stackpos: " <> showt stackpos)
-    highlight_error (Stack.parse_ui_frame stackpos)
+    highlightError (Stack.parseUiFrame stackpos)
 
 -- | I used to use 'Config.error_selnum' for this, but it could be hard to
 -- find.  Maybe the normal selection is more convenient, since I can zoom in on
 -- it, or move it around to find it.
-highlight_error :: Stack.UiFrame -> Cmd.CmdL ()
-highlight_error (maybe_bid, maybe_tid, maybe_range) = do
-    block_id <- maybe find_block pure maybe_bid
-    view_ids <- Map.keys <$> Ui.views_of block_id
-    view_ids <- if null view_ids then (:[]) <$> Create.view block_id
-        else pure view_ids
-    mapM_ Cmd.focus view_ids
-    case (maybe_tid, maybe_range) of
-        (Nothing, _) -> forM_ view_ids $ \vid ->
-            Selection.set_and_scroll vid $ Sel.Selection
-                { start_track = 0, start_pos = 0
-                , cur_track = 9999, cur_pos =  9999
+highlightError :: Stack.UiFrame -> Cmd.CmdL ()
+highlightError (maybeBid, maybeTid, maybeRange) = do
+    blockId <- maybe findBlock pure maybeBid
+    viewIds <- Map.keys <$> Ui.viewsOf blockId
+    viewIds <- if null viewIds then (:[]) <$> Create.view blockId
+        else pure viewIds
+    mapM_ Cmd.focus viewIds
+    case (maybeTid, maybeRange) of
+        (Nothing, _) -> forM_ viewIds $ \vid ->
+            Selection.setAndScroll vid $ Sel.Selection
+                { startTrack = 0, startPos = 0
+                , curTrack = 9999, curPos =  9999
                 , orientation = Sel.None
                 }
         (Just tid, Nothing) -> do
-            tracknum <- Ui.get_tracknum_of block_id tid
-            forM_ view_ids $ \vid ->
-                Selection.set_and_scroll vid $ Sel.Selection
-                    { start_track = tracknum, start_pos = 0
-                    , cur_track = tracknum, cur_pos = 9999
+            tracknum <- Ui.getTracknumOf blockId tid
+            forM_ viewIds $ \vid ->
+                Selection.setAndScroll vid $ Sel.Selection
+                    { startTrack = tracknum, startPos = 0
+                    , curTrack = tracknum, curPos = 9999
                     , orientation = Sel.None
                     }
         (Just tid, Just (from, to)) -> do
-            tracknum <- Ui.get_tracknum_of block_id tid
-            forM_ view_ids $ \vid -> do
-                Selection.set_and_scroll vid $ Sel.Selection
-                    { start_track = tracknum, start_pos = to
-                    , cur_track = tracknum, cur_pos = from
+            tracknum <- Ui.getTracknumOf blockId tid
+            forM_ viewIds $ \vid -> do
+                Selection.setAndScroll vid $ Sel.Selection
+                    { startTrack = tracknum, startPos = to
+                    , curTrack = tracknum, curPos = from
                     , orientation = Sel.None
                     }
     where
-    find_block = case maybe_tid of
+    findBlock = case maybeTid of
         Nothing -> Cmd.throw $
             "can't highlight stack frame with neither block nor track: "
-            <> showt (maybe_bid, maybe_tid, maybe_range)
-        Just track_id -> maybe (Cmd.throw $ "no block with " <> showt track_id)
-            (pure . fst) . Lists.head =<< Ui.blocks_with_track_id track_id
+            <> showt (maybeBid, maybeTid, maybeRange)
+        Just trackId -> maybe (Cmd.throw $ "no block with " <> showt trackId)
+            (pure . fst) . Lists.head =<< Ui.blocksWithTrackId trackId
 
 -- * show / modify cmd state
 
-show_history :: Cmd.CmdL Text
-show_history = do
-    hist <- Cmd.gets Cmd.state_history
+showHistory :: Cmd.CmdL Text
+showHistory = do
+    hist <- Cmd.gets Cmd.stateHistory
     pure $ Pretty.formatted hist
 
 -- * load / save
@@ -203,68 +203,68 @@ show_history = do
 save :: Cmd.CmdL ()
 save = Save.save
 
-save_as :: FilePath -> Cmd.CmdL ()
-save_as = Save.save_as
+saveAs :: FilePath -> Cmd.CmdL ()
+saveAs = Save.saveAs
 
 -- | Save to the default filename and switch to saving plain states.
-save_state :: Cmd.CmdL ()
-save_state = Save.save_state
+saveState :: Cmd.CmdL ()
+saveState = Save.saveState
 
 -- | Save to the given filename and switch to saving plain states.
-save_state_as :: FilePath -> Cmd.CmdL ()
-save_state_as = Save.save_state_as
+saveStateAs :: FilePath -> Cmd.CmdL ()
+saveStateAs = Save.saveStateAs
 
 -- | Like 'save_state', but don't change 'Cmd.state_save_file'.
-write_state :: FilePath -> Cmd.CmdL FilePath
-write_state = Save.write_current_state
+writeState :: FilePath -> Cmd.CmdL FilePath
+writeState = Save.writeCurrentState
 
-save_git :: Cmd.CmdL ()
-save_git = Save.save_git
+saveGit :: Cmd.CmdL ()
+saveGit = Save.saveGit
 
 -- | Save to the given git repo and switch to saving incrementally.
-save_git_as :: FilePath -> Cmd.CmdL ()
-save_git_as = Save.save_git_as
+saveGitAs :: FilePath -> Cmd.CmdL ()
+saveGitAs = Save.saveGitAs
 
 load :: FilePath -> Cmd.CmdL ()
 load = Save.load
 
-load_force :: FilePath -> Cmd.CmdL ()
-load_force = Save.load_force
+loadForce :: FilePath -> Cmd.CmdL ()
+loadForce = Save.loadForce
 
 revert :: Cmd.CmdL ()
 revert = Save.revert Nothing
 
-revert_to :: String -> Cmd.CmdL ()
-revert_to = Save.revert . Just
+revertTo :: String -> Cmd.CmdL ()
+revertTo = Save.revert . Just
 
 -- * called externally
 
-collapse_track, expand_track :: BlockId -> TrackNum -> Cmd.CmdL ()
-collapse_track block_id tracknum = do
+collapseTrack, expandTrack :: BlockId -> TrackNum -> Cmd.CmdL ()
+collapseTrack blockId tracknum = do
     -- TODO if the track to collapse is a pitch track, merge it with its
     -- note track instead
-    Ui.add_track_flag block_id tracknum Block.Collapse
-    Info.set_instrument_status block_id tracknum
-expand_track block_id tracknum = do
-    Ui.remove_track_flag block_id tracknum Block.Collapse
-    Info.set_instrument_status block_id tracknum
+    Ui.addTrackFlag blockId tracknum Block.Collapse
+    Info.setInstrumentStatus blockId tracknum
+expandTrack blockId tracknum = do
+    Ui.removeTrackFlag blockId tracknum Block.Collapse
+    Info.setInstrumentStatus blockId tracknum
 
 -- | Called from logview.
 collapse, expand :: TrackNum -> Cmd.CmdL ()
-collapse tracknum = flip collapse_track tracknum =<< Cmd.get_focused_block
-expand tracknum = flip expand_track tracknum =<< Cmd.get_focused_block
+collapse tracknum = flip collapseTrack tracknum =<< Cmd.getFocusedBlock
+expand tracknum = flip expandTrack tracknum =<< Cmd.getFocusedBlock
 
 -- | The result of a REPL Cmd is converted to a 'ReplProtocol.Result' with
 -- this method.
 class Return a where
-    _to_result :: a -> ReplProtocol.Result
+    _toResult :: a -> ReplProtocol.Result
 instance {-# OVERLAPPABLE #-} Show a => Return a where
-    _to_result = ReplProtocol.Format . showt
+    _toResult = ReplProtocol.Format . showt
 instance Return ReplProtocol.Result where
-    _to_result = id
+    _toResult = id
 instance Return Text where
-    _to_result = ReplProtocol.Raw
+    _toResult = ReplProtocol.Raw
 instance Return String where
-    _to_result = ReplProtocol.Raw . txt
+    _toResult = ReplProtocol.Raw . txt
 instance Return () where
-    _to_result () = ReplProtocol.Raw ""
+    _toResult () = ReplProtocol.Raw ""

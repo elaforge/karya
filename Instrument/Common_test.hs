@@ -17,11 +17,11 @@ test_overlapping_attributes = do
             [ (mkattrs "", 0)
             , (mkattrs "a b", 1)
             ]
-    let f = Common.overlapping_attributes
-    equal (f attr_map) []
+    let f = Common.overlappingAttributes
+    equal (f attrMap) []
     equal (f overlapping) ["attrs +a+b shadowed by +"]
 
-attr_map = Common.attribute_map
+attrMap = Common.attributeMap
     [ (mkattrs "pizz", 0)
     , (mkattrs "sfz trem", 1)
     , (mkattrs "sfz", 2)

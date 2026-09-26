@@ -7,19 +7,19 @@
 -- which is a special case of slicing.
 module Derive.Call.Sub (
     -- * inversion
-    under_invert
-    , inverting, inverting_args
+    underInvert
+    , inverting, invertingArgs
     -- ** events
-    , sub_events, sub_events_negative
-    , sub_tracks
-    , assert_no_subs
-    , modify_notes
-    , derive_subs, derive, derive_tracks, derive_pitch, fit
+    , subEvents, subEventsNegative
+    , subTracks
+    , assertNoSubs
+    , modifyNotes
+    , deriveSubs, derive, deriveTracks, derivePitch, fit
     -- ** RestEvent
-    , RestEvent, sub_rest_events
-    , fit_rests, strip_rests
+    , RestEvent, subRestEvents
+    , fitRests, stripRests
     -- * reapply
-    , reapply, reapply_call
+    , reapply, reapplyCall
 ) where
 import qualified Data.Map as Map
 import qualified Data.Tree as Tree
@@ -68,36 +68,36 @@ import           Types
     transform, but it would have to clear it out too to avoid evaluating more
     than once.  Not sure which way is right.
 -}
-under_invert :: (Derive.NoteArgs -> Derive.NoteDeriver -> Derive.NoteDeriver)
+underInvert :: (Derive.NoteArgs -> Derive.NoteDeriver -> Derive.NoteDeriver)
     -> Derive.NoteArgs -> Derive.NoteDeriver -> Derive.NoteDeriver
-under_invert transformer args deriver
-    | null $ Derive.ctx_sub_tracks $ Derive.passed_ctx args =
+underInvert transformer args deriver
+    | null $ Derive.ctxSubTracks $ Derive.passedCtx args =
         transformer args deriver
     | otherwise = with deriver
     where
     with = Internal.local $ \state -> state
-        { Derive.state_under_invert =
-            Derive.state_under_invert state . transformer args
+        { Derive.stateUnderInvert =
+            Derive.stateUnderInvert state . transformer args
         }
 
 -- | Convert a call into an inverting call.  Documented in
 -- @doc/slicing-inverting.md@.
-run_invert :: Derive.PassedArgs d -> Derive.NoteDeriver -> Derive.NoteDeriver
-run_invert args call = do
-    dyn <- Internal.get_dynamic id
-    case (Derive.state_inversion dyn, Derive.ctx_sub_tracks ctx) of
+runInvert :: Derive.PassedArgs d -> Derive.NoteDeriver -> Derive.NoteDeriver
+runInvert args call = do
+    dyn <- Internal.getDynamic id
+    case (Derive.stateInversion dyn, Derive.ctxSubTracks ctx) of
         (Derive.InversionInProgress {}, _) ->
             Derive.throw "tried to invert while inverting"
         (Derive.NotInverted, subs@(_:_)) -> do
             sliced <- invert subs event (Args.next args)
-                (Derive.ctx_prev_events ctx, Derive.ctx_next_events ctx)
-            with_inversion $ BlockUtil.derive_tracks sliced
+                (Derive.ctxPrevEvents ctx, Derive.ctxNextEvents ctx)
+            withInversion $ BlockUtil.deriveTracks sliced
         (Derive.NotInverted, []) -> call
     where
-    with_inversion = Internal.local $ \dyn -> dyn
-        { Derive.state_inversion = Derive.InversionInProgress call }
-    event = Derive.ctx_event ctx
-    ctx = Derive.passed_ctx args
+    withInversion = Internal.local $ \dyn -> dyn
+        { Derive.stateInversion = Derive.InversionInProgress call }
+    event = Derive.ctxEvent ctx
+    ctx = Derive.passedCtx args
 
 -- | Convert a call into an inverting call.  This is designed to be convenient
 -- to insert after the signature arg in a call definition.  The args passed
@@ -105,12 +105,12 @@ run_invert args call = do
 -- inversion.
 inverting :: (Derive.PassedArgs d -> Derive.NoteDeriver) -> Derive.PassedArgs d
     -> Derive.NoteDeriver
-inverting call args = run_invert args (call stripped)
+inverting call args = runInvert args (call stripped)
     where
     stripped = args
-        { Derive.passed_ctx = (Derive.passed_ctx args)
-            { Derive.ctx_sub_tracks = mempty
-            , Derive.ctx_sub_events = Nothing
+        { Derive.passedCtx = (Derive.passedCtx args)
+            { Derive.ctxSubTracks = mempty
+            , Derive.ctxSubEvents = Nothing
             }
         }
 
@@ -118,57 +118,57 @@ inverting call args = run_invert args (call stripped)
 -- want to do stuff with the args before inverting.  Make sure to shadow the
 -- old 'Derive.PassedArgs' with the ones passed to the call, for the reason
 -- documented in 'inverting'.
-inverting_args :: Derive.PassedArgs d
+invertingArgs :: Derive.PassedArgs d
     -> (Derive.PassedArgs d -> Derive.NoteDeriver) -> Derive.NoteDeriver
-inverting_args = flip inverting
+invertingArgs = flip inverting
 
 -- When I invert, I call derive_tracks again, which means the inverted bottom
 -- is going to expect to see the current prev val.  TODO but evidently I don't
 -- need this?  Try to make a problem without it.
-save_prev_val :: Derive.Taggable a => Derive.PassedArgs a -> Derive.Deriver ()
-save_prev_val args = case Args.prev_val args of
+savePrevVal :: Derive.Taggable a => Derive.PassedArgs a -> Derive.Deriver ()
+savePrevVal args = case Args.prevVal args of
     Nothing -> pure ()
-    Just val -> Stack.block_track_of <$> Internal.get_stack >>= \case
+    Just val -> Stack.blockTrackOf <$> Internal.getStack >>= \case
         Nothing -> pure ()
-        Just block_track -> modify_threaded $ \th -> th
-            { Derive.state_prev_val = Map.insert block_track
-                (Derive.to_tagged val) (Derive.state_prev_val th)
+        Just blockTrack -> modifyThreaded $ \th -> th
+            { Derive.statePrevVal = Map.insert blockTrack
+                (Derive.toTagged val) (Derive.statePrevVal th)
             }
     where
-    modify_threaded modify = Derive.modify $
-        \st -> st { Derive.state_threaded = modify (Derive.state_threaded st) }
+    modifyThreaded modify = Derive.modify $
+        \st -> st { Derive.stateThreaded = modify (Derive.stateThreaded st) }
 
 invert :: TrackTree.EventsTree -> Event.Event -> ScoreTime
     -> ([Event.Event], [Event.Event]) -> Derive.Deriver TrackTree.EventsTree
-invert subs event next_start events_around = do
+invert subs event nextStart eventsAround = do
     -- Pick the current TrackId out of the stack, and give that to the track
     -- created by inversion.
     -- TODO I'm not 100% comfortable with this, I don't like putting implicit
     -- dependencies on the stack like this.  Too many of these and someday
     -- I change how the stack works and all sorts of things break.  It would be
     -- more explicit to put TrackId into Context.
-    track_id <- stack_track_id
-    let sliced = slice track_id
-    whenJust (non_bottom_note_track sliced) $ \track -> Derive.throw $
+    trackId <- stackTrackId
+    let sliced = slice trackId
+    whenJust (nonBottomNoteTrack sliced) $ \track -> Derive.throw $
         "inverting below a note track will lead to an endless loop: "
-        <> pretty (TrackTree.track_id track)
+        <> pretty (TrackTree.trackId track)
     pure sliced
     where
-    slice track_id =
-        map (Slice.slice False (Event.start event) next_start
-            (Just (insert track_id))) subs
+    slice trackId =
+        map (Slice.slice False (Event.start event) nextStart
+            (Just (insert trackId))) subs
     -- Use 'next_start' instead of track_end because in the absence of a next
     -- note, the track end becomes next note and clips controls.
-    insert track_id = Slice.InsertEvent
-        { event_duration = Event.duration event
-        , event_orientation = Event.orientation event
-        , event_around = events_around
-        , event_track_id = track_id
+    insert trackId = Slice.InsertEvent
+        { eventDuration = Event.duration event
+        , eventOrientation = Event.orientation event
+        , eventAround = eventsAround
+        , eventTrackId = trackId
         }
 
-stack_track_id :: Derive.Deriver (Maybe TrackId)
-stack_track_id = Lists.head . mapMaybe Stack.track_of . Stack.innermost
-    <$> Internal.get_stack
+stackTrackId :: Derive.Deriver (Maybe TrackId)
+stackTrackId = Lists.head . mapMaybe Stack.trackOf . Stack.innermost
+    <$> Internal.getStack
 
 -- | An inverting call above another note track will lead to an infinite loop
 -- if there are overlapping sub-events that also invert, or confusing results
@@ -177,12 +177,12 @@ stack_track_id = Lists.head . mapMaybe Stack.track_of . Stack.innermost
 --
 -- An exception is if the note track is empty, since I can be sure there are
 -- no inverting calls in that case.
-non_bottom_note_track :: TrackTree.EventsTree -> Maybe TrackTree.Track
-non_bottom_note_track tree = Lists.head (concatMap go tree)
+nonBottomNoteTrack :: TrackTree.EventsTree -> Maybe TrackTree.Track
+nonBottomNoteTrack tree = Lists.head (concatMap go tree)
     where
     go (Tree.Node track subs)
-        | ParseTitle.is_note_track (TrackTree.track_title track)
-            && not (Events.null (TrackTree.track_events track))
+        | ParseTitle.isNoteTrack (TrackTree.trackTitle track)
+            && not (Events.null (TrackTree.trackEvents track))
             && not (null subs) = [track]
         | otherwise = concatMap go subs
 
@@ -191,51 +191,51 @@ non_bottom_note_track tree = Lists.head (concatMap go tree)
 -- | Get the Events of subtracks, if any, returning one list of events per sub
 -- note track.  This is the top-level utility for note calls that take other
 -- note calls as arguments.
-sub_events :: Derive.PassedArgs d -> Derive.Deriver [[SubT.Event]]
-sub_events = sub_events_ False
+subEvents :: Derive.PassedArgs d -> Derive.Deriver [[SubT.Event]]
+subEvents = subEvents_ False
 
 -- | TODO maybe this should replace 'sub_events'
-sub_tracks :: Derive.PassedArgs d -> Derive.Deriver [SubT.Track]
-sub_tracks = sub_tracks_ False
+subTracks :: Derive.PassedArgs d -> Derive.Deriver [SubT.Track]
+subTracks = subTracks_ False
 
 -- | Like 'sub_events', but exclude events at the start time, and include
 -- events at the end time.  Presumably suitable for 'Event.Negative' calls.
-sub_events_negative :: Derive.PassedArgs d -> Derive.Deriver [[SubT.Event]]
-sub_events_negative = sub_events_ True
+subEventsNegative :: Derive.PassedArgs d -> Derive.Deriver [[SubT.Event]]
+subEventsNegative = subEvents_ True
 
 -- | Throw an exception if there are sub-events.
-assert_no_subs :: Derive.PassedArgs d -> Derive.Deriver ()
-assert_no_subs args = do
+assertNoSubs :: Derive.PassedArgs d -> Derive.Deriver ()
+assertNoSubs args = do
     -- Due to laziness, checking null shouldn't require any actual slicing.
-    events <- sub_events args
-    if null events then pure () else case Derive.ctx_sub_events ctx of
+    events <- subEvents args
+    if null events then pure () else case Derive.ctxSubEvents ctx of
         Just subs -> Derive.throw $ "expected no sub events, but got "
             <> pretty (map (map (\(s, d, _) -> (s, d))) subs)
         Nothing -> Derive.throw $ "expected no sub events, but got "
-            <> pretty (map (fmap extract_track) (Derive.ctx_sub_tracks ctx))
+            <> pretty (map (fmap extractTrack) (Derive.ctxSubTracks ctx))
     where
-    ctx = Derive.passed_ctx args
-    extract_track t = (TrackTree.track_title t, TrackTree.track_id t)
+    ctx = Derive.passedCtx args
+    extractTrack t = (TrackTree.trackTitle t, TrackTree.trackId t)
 
-sub_events_ :: Bool -> Derive.PassedArgs d -> Derive.Deriver [[SubT.Event]]
-sub_events_ include_end args = map SubT._events <$> sub_tracks_ include_end args
+subEvents_ :: Bool -> Derive.PassedArgs d -> Derive.Deriver [[SubT.Event]]
+subEvents_ includeEnd args = map SubT._events <$> subTracks_ includeEnd args
 
-sub_tracks_ :: Bool -> Derive.PassedArgs d -> Derive.Deriver [SubT.Track]
-sub_tracks_ include_end args =
-    case Derive.ctx_sub_events (Derive.passed_ctx args) of
+subTracks_ :: Bool -> Derive.PassedArgs d -> Derive.Deriver [SubT.Track]
+subTracks_ includeEnd args =
+    case Derive.ctxSubEvents (Derive.passedCtx args) of
         Nothing -> either Derive.throw (pure . mapMaybe mktrack) $
-            Slice.checked_slice_notes include_end start end $
-                Derive.ctx_sub_tracks (Derive.passed_ctx args)
+            Slice.checkedSliceNotes includeEnd start end $
+                Derive.ctxSubTracks (Derive.passedCtx args)
         Just tracks -> pure
             [ SubT.Track (Left $ "subevent:" <> showt i) $
                 map (\(s, d, n) -> SubT.EventT s d n) track
             | (i, track) <- zip [0..] tracks
             ]
     where
-    mktrack (Slice.Track track_id notes) = Just $
+    mktrack (Slice.Track trackId notes) = Just $
         -- 'TrackTree.track_id' can be Nothing.  Presumably this happens for
         -- a constructed block.
-        SubT.Track (maybe (Left "no-track-id") Right track_id)
+        SubT.Track (maybe (Left "no-track-id") Right trackId)
             (map mkevent notes)
     (start, end) = Args.range args
     -- The events have been shifted back to 0 by 'Slice.checked_slice_notes',
@@ -246,15 +246,15 @@ sub_tracks_ include_end args =
         , _duration = stretch
         , _note = Derive.stretch
             (if stretch == 0 then 1 else recip stretch)
-            (BlockUtil.derive_tracks tree)
+            (BlockUtil.deriveTracks tree)
         }
 
 -- | Modify the text of sub note tracks before deriving them.  This can be
 -- used to implement an ad-hoc new language.
-modify_notes :: ([SubT.EventT Text] -> Either Text [SubT.EventT Text])
+modifyNotes :: ([SubT.EventT Text] -> Either Text [SubT.EventT Text])
     -> Derive.PassedArgs a -> Either Text (Derive.PassedArgs a)
-modify_notes modify =
-    modify_sub_tracks $ modify_sub_notes (fmap to . modify . from)
+modifyNotes modify =
+    modifySubTracks $ modifySubNotes (fmap to . modify . from)
     where
     from = map make . Events.ascending
     make e = SubT.EventT
@@ -262,54 +262,54 @@ modify_notes modify =
         , _duration = Event.duration e
         , _note = Event.text e
         }
-    to = Events.from_list
+    to = Events.fromList
         . map (\(SubT.EventT start dur text) -> Event.event start dur text)
 
-modify_sub_notes :: (Events.Events -> Either Text Events.Events)
+modifySubNotes :: (Events.Events -> Either Text Events.Events)
     -> TrackTree.EventsTree -> Either Text TrackTree.EventsTree
-modify_sub_notes modify = traverse $ traverse $ \track ->
-    if ParseTitle.is_note_track (TrackTree.track_title track)
+modifySubNotes modify = traverse $ traverse $ \track ->
+    if ParseTitle.isNoteTrack (TrackTree.trackTitle track)
         then do
-            events <- modify (TrackTree.track_events track)
-            Right $ track { TrackTree.track_events = events }
+            events <- modify (TrackTree.trackEvents track)
+            Right $ track { TrackTree.trackEvents = events }
         else Right track
 
-modify_sub_tracks :: (TrackTree.EventsTree -> Either Text TrackTree.EventsTree)
+modifySubTracks :: (TrackTree.EventsTree -> Either Text TrackTree.EventsTree)
     -> Derive.PassedArgs a -> Either Text (Derive.PassedArgs a)
-modify_sub_tracks modify args = do
-    tracks <- modify $ Derive.ctx_sub_tracks (Derive.passed_ctx args)
+modifySubTracks modify args = do
+    tracks <- modify $ Derive.ctxSubTracks (Derive.passedCtx args)
     Right $ args
-        { Derive.passed_ctx = (Derive.passed_ctx args)
-            { Derive.ctx_sub_tracks = tracks }
+        { Derive.passedCtx = (Derive.passedCtx args)
+            { Derive.ctxSubTracks = tracks }
         }
 
-derive_subs :: Derive.PassedArgs d -> Derive.NoteDeriver
-derive_subs = derive_tracks <=< sub_events
+deriveSubs :: Derive.PassedArgs d -> Derive.NoteDeriver
+deriveSubs = deriveTracks <=< subEvents
 
 -- | Derive and merge Events.
 derive :: [SubT.Event] -> Derive.NoteDeriver
 derive = mconcatMap (\(SubT.EventT s d n) -> Derive.place s d n)
 
-derive_tracks :: [[SubT.Event]] -> Derive.NoteDeriver
-derive_tracks = derive . Lists.mergeLists SubT._start
+deriveTracks :: [[SubT.Event]] -> Derive.NoteDeriver
+deriveTracks = derive . Lists.mergeLists SubT._start
 
 -- | Get the pitch of an Event.  Useful for debugging.
-derive_pitch :: SubT.Event -> Derive.Deriver (SubT.EventT (Maybe Pitch.Note))
-derive_pitch event = do
+derivePitch :: SubT.Event -> Derive.Deriver (SubT.EventT (Maybe Pitch.Note))
+derivePitch event = do
     stream <- SubT._note event
-    let note = Score.initial_note =<< Lists.head (Stream.events_of stream)
+    let note = Score.initialNote =<< Lists.head (Stream.eventsOf stream)
     pure $ event { SubT._note = note }
 
 -- | Re-fit the events from one range to another.
 fit :: (ScoreTime, ScoreTime) -- ^ fit this range
     -> (ScoreTime, ScoreTime) -- ^ into this range
     -> [SubT.Event] -> Derive.NoteDeriver
-fit (from_start, from_end) (to_start, to_end) events =
-    Derive.place to_start factor $ derive
-        [e { SubT._start = SubT._start e - from_start } | e <- events]
+fit (fromStart, fromEnd) (toStart, toEnd) events =
+    Derive.place toStart factor $ derive
+        [e { SubT._start = SubT._start e - fromStart } | e <- events]
     -- Subtract from_start because Derive.place is going to add the start back
     -- on again in the form of to_start.
-    where factor = (to_end - to_start) / (from_end - from_start)
+    where factor = (toEnd - toStart) / (fromEnd - fromStart)
 
 -- ** RestEvent
 
@@ -318,37 +318,37 @@ type RestEvent = SubT.EventT (Maybe Derive.NoteDeriver)
 
 -- | This is like 'sub_events', but gaps between the events are returned as
 -- explicit rests.
-sub_rest_events :: Bool -- ^ end bias
+subRestEvents :: Bool -- ^ end bias
     -> Bool -- ^ if True, include the trailing gap as a rest
     -> Derive.PassedArgs d -> Derive.Deriver [[RestEvent]]
-sub_rest_events include_end want_final_rest args =
-    map (uncurry (find_gaps want_final_rest) (Args.range args)) <$>
-        sub_events_ include_end args
+subRestEvents includeEnd wantFinalRest args =
+    map (uncurry (findGaps wantFinalRest) (Args.range args)) <$>
+        subEvents_ includeEnd args
 
-find_gaps :: Bool -> ScoreTime -> ScoreTime -> [SubT.EventT a]
+findGaps :: Bool -> ScoreTime -> ScoreTime -> [SubT.EventT a]
     -> [SubT.EventT (Maybe a)]
-find_gaps want_final_rest start end (event : events)
+findGaps wantFinalRest start end (event : events)
     | gap > 0 = SubT.EventT start gap Nothing : rest
     | otherwise = rest
     where
     gap = SubT._start event - start
     rest = (Just <$> event)
-        : find_gaps want_final_rest (SubT.end event) end events
-find_gaps want_final_rest start end []
-    | want_final_rest && start < end = [SubT.EventT start (end-start) Nothing]
+        : findGaps wantFinalRest (SubT.end event) end events
+findGaps wantFinalRest start end []
+    | wantFinalRest && start < end = [SubT.EventT start (end-start) Nothing]
     | otherwise = []
 
 -- | 'fit' for 'RestEvent's.
-fit_rests :: (ScoreTime, ScoreTime) -> (ScoreTime, ScoreTime)
+fitRests :: (ScoreTime, ScoreTime) -> (ScoreTime, ScoreTime)
     -> [RestEvent] -> Derive.NoteDeriver
-fit_rests (from_start, from_end) (to_start, to_end) events =
-    Derive.place to_start factor $
-        derive [e { SubT._start = SubT._start e - from_start } |
-            e <- strip_rests events]
-    where factor = (to_end - to_start) / (from_end - from_start)
+fitRests (fromStart, fromEnd) (toStart, toEnd) events =
+    Derive.place toStart factor $
+        derive [e { SubT._start = SubT._start e - fromStart } |
+            e <- stripRests events]
+    where factor = (toEnd - toStart) / (fromEnd - fromStart)
 
-strip_rests :: [RestEvent] -> [SubT.Event]
-strip_rests events = [SubT.EventT s d n | SubT.EventT s d (Just n) <- events]
+stripRests :: [RestEvent] -> [SubT.Event]
+stripRests events = [SubT.EventT s d n | SubT.EventT s d (Just n) <- events]
 
 -- * reapply
 
@@ -362,14 +362,14 @@ reapply :: Derive.Context Score.Event -> DeriveT.Expr -> [[SubT.Event]]
 reapply ctx expr notes = Eval.reapply subs expr
     where
     subs = ctx
-        { Derive.ctx_sub_events =
+        { Derive.ctxSubEvents =
             Just $ map (map (\(SubT.EventT s d n) -> (s, d, n))) notes
         }
 
-reapply_call :: Derive.Context Score.Event -> Expr.Symbol
+reapplyCall :: Derive.Context Score.Event -> Expr.Symbol
     -> [DeriveT.Term] -> [[SubT.Event]] -> Derive.NoteDeriver
-reapply_call ctx sym call_args =
-    reapply ctx $ Expr.generator $ Expr.Call sym call_args
+reapplyCall ctx sym callArgs =
+    reapply ctx $ Expr.generator $ Expr.Call sym callArgs
 
 {- NOTE [under-invert]
     . To make 'lift' to an absolute pitch work outside of inversion, I'd need

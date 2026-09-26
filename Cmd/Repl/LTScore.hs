@@ -31,22 +31,22 @@ edit = do
     tscore <- get
     pure $ ReplProtocol.Edit $ (:| []) $ ReplProtocol.Editor
         { _file = ReplProtocol.Text ReplProtocol.TScore tscore
-        , _line_number = 0
-        , _on_save = on_set
-        , _on_send = on_set
+        , _lineNumber = 0
+        , _onSave = onSet
+        , _onSend = onSet
         }
     where
-    on_set = Just "LTScore.set %s"
+    onSet = Just "LTScore.set %s"
 
 get :: Ui.M m => m Text
 get = Ui.config#UiConfig.tscore <#> Ui.get
 
 set :: Cmd.M m => Text -> m ()
 set tscore = do
-    Ui.modify_config $ UiConfig.tscore #= tscore
+    Ui.modifyConfig $ UiConfig.tscore #= tscore
     integrate
 
 integrate :: Cmd.M m => m ()
 integrate = do
-    new_blocks <- TScore.cmd_integrate =<< get
-    mapM_ Create.view new_blocks
+    newBlocks <- TScore.cmdIntegrate =<< get
+    mapM_ Create.view newBlocks

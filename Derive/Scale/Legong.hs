@@ -26,16 +26,16 @@ module Derive.Scale.Legong (
     scales
     , calung, jegog, kantilan, pemade
     , penyacah
-    , make_instrument_scale
-    , make_scale_set
-    , complete_instrument_scale
-    , rambat_range
-    , reyong_range
-    , trompong_range
-    , ugal_range
+    , makeInstrumentScale
+    , makeScaleSet
+    , completeInstrumentScale
+    , rambatRange
+    , reyongRange
+    , trompongRange
+    , ugalRange
     , laras
-    , low_pitch, high_pitch
-    , laras_rambat
+    , lowPitch, highPitch
+    , larasRambat
 ) where
 import qualified Data.Map as Map
 import qualified Data.Vector as Vector
@@ -62,46 +62,46 @@ import Global
 
 
 scales :: [Scale.Definition]
-scales = make_scale_set config scale_id "Saih pelegongan, from my instruments."
+scales = makeScaleSet config scaleId "Saih pelegongan, from my instruments."
 
-scale_id :: Pitch.ScaleId
-scale_id = "legong"
+scaleId :: Pitch.ScaleId
+scaleId = "legong"
 
-make_scale_set :: BaliScales.Config -> Pitch.ScaleId -> Doc.Doc
+makeScaleSet :: BaliScales.Config -> Pitch.ScaleId -> Doc.Doc
     -> [Scale.Definition]
-make_scale_set config (Pitch.ScaleId prefix) doc =
-    map (Scale.Simple . Scales.add_doc doc)
-    [ BaliScales.make_scale (id_with "") (scale_map complete_scale)
-    , BaliScales.make_scale (id_with "b") (scale_map complete_scale_balinese)
-    , Scales.add_doc "Use Javanese-style cipher notation." $
+makeScaleSet config (Pitch.ScaleId prefix) doc =
+    map (Scale.Simple . Scales.addDoc doc)
+    [ BaliScales.makeScale (idWith "") (scaleMap completeScale)
+    , BaliScales.makeScale (idWith "b") (scaleMap completeScaleBalinese)
+    , Scales.addDoc "Use Javanese-style cipher notation." $
         -- TODO use 4 and 7 instead of 3# and 6#.
         -- Use simple_scale like *wayang and *selesir?
-        BaliScales.make_scale (id_with "c") (scale_map cipher_scale)
-    , inst_doc "pemade" $ BaliScales.make_scale (id_with "pemade")
-        (inst_scale_map pemade)
-    , inst_doc "pemade" $ BaliScales.make_scale (id_with "pemade-b")
-        (inst_scale_map (balinese_notation pemade))
-    , inst_doc "kantilan" $ BaliScales.make_scale (id_with "kantilan")
-        (inst_scale_map kantilan)
-    , inst_doc "kantilan" $ BaliScales.make_scale (id_with "kantilan-b")
-        (inst_scale_map (balinese_notation kantilan))
+        BaliScales.makeScale (idWith "c") (scaleMap cipherScale)
+    , instDoc "pemade" $ BaliScales.makeScale (idWith "pemade")
+        (instScaleMap pemade)
+    , instDoc "pemade" $ BaliScales.makeScale (idWith "pemade-b")
+        (instScaleMap (balineseNotation pemade))
+    , instDoc "kantilan" $ BaliScales.makeScale (idWith "kantilan")
+        (instScaleMap kantilan)
+    , instDoc "kantilan" $ BaliScales.makeScale (idWith "kantilan-b")
+        (instScaleMap (balineseNotation kantilan))
     ]
     where
-    id_with suffix = Pitch.ScaleId $ Texts.join2 "-" prefix suffix
-    inst_doc name = Scales.add_doc $
+    idWith suffix = Pitch.ScaleId $ Texts.join2 "-" prefix suffix
+    instDoc name = Scales.addDoc $
         "This is centered around the " <> name <> " range."
-    scale_map fmt = BaliScales.scale_map config fmt Nothing
-    inst_scale_map = BaliScales.instrument_scale_map config
+    scaleMap fmt = BaliScales.scaleMap config fmt Nothing
+    instScaleMap = BaliScales.instrumentScaleMap config
 
-    complete_scale = BaliScales.ioeua_relative True
-        (BaliScales.config_default_key config) (BaliScales.config_keys config)
-    complete_scale_balinese =
-        BaliScales.digit_octave_relative BaliScales.balinese True
-            (BaliScales.config_default_key config)
-            (BaliScales.config_keys config)
-    cipher_scale = BaliScales.cipher_relative_dotted 5
-        (BaliScales.config_default_key config)
-        (BaliScales.config_keys config)
+    completeScale = BaliScales.ioeuaRelative True
+        (BaliScales.configDefaultKey config) (BaliScales.configKeys config)
+    completeScaleBalinese =
+        BaliScales.digitOctaveRelative BaliScales.balinese True
+            (BaliScales.configDefaultKey config)
+            (BaliScales.configKeys config)
+    cipherScale = BaliScales.cipherRelativeDotted 5
+        (BaliScales.configDefaultKey config)
+        (BaliScales.configKeys config)
 
 jegog, calung, penyacah :: BaliScales.Instrument
 jegog = instrument 1 (Pitch.pitch 3 I) (Pitch.pitch 3 As)
@@ -114,14 +114,14 @@ kantilan = instrument 6 (Pitch.pitch 5 O) (Pitch.pitch 7 I)
 
 instrument :: Pitch.Octave -> Pitch.Pitch -> Pitch.Pitch
     -> BaliScales.Instrument
-instrument = BaliScales.Instrument BaliScales.ioeua BaliScales.arrow_octaves
+instrument = BaliScales.Instrument BaliScales.ioeua BaliScales.arrowOctaves
 
 -- * config
 
-balinese_notation :: BaliScales.Instrument -> BaliScales.Instrument
-balinese_notation inst = inst
-    { BaliScales.inst_degrees = BaliScales.balinese
-    , BaliScales.inst_relative_octaves = BaliScales.balinese_octaves
+balineseNotation :: BaliScales.Instrument -> BaliScales.Instrument
+balineseNotation inst = inst
+    { BaliScales.instDegrees = BaliScales.balinese
+    , BaliScales.instRelativeOctaves = BaliScales.balineseOctaves
     }
 
 -- | These are from Tenzer's "Gamelan Gong Kebyar", page 29.  This is Dewa
@@ -132,21 +132,21 @@ balinese_notation inst = inst
 -- ambah.  Or I could use patutan / pathet.
 config :: BaliScales.Config
 config = BaliScales.Config
-    { config_layout = layout
-    , config_keys = all_keys
-    , config_default_key = default_key
-    , config_laras = laras
-    , config_default_laras = laras_rambat
+    { configLayout = layout
+    , configKeys = allKeys
+    , configDefaultKey = defaultKey
+    , configLaras = laras
+    , configDefaultLaras = larasRambat
     }
     where
     layout = Theory.layout intervals
-    Just default_key = Map.lookup (Pitch.Key "selisir") all_keys
+    Just defaultKey = Map.lookup (Pitch.Key "selisir") allKeys
 
 intervals :: [Pitch.Semi]
 intervals = [1, 1, 2, 1, 2]
 
-all_keys :: ChromaticScales.Keys
-all_keys = Map.fromList $ zipWith make [0..]
+allKeys :: ChromaticScales.Keys
+allKeys = Map.fromList $ zipWith make [0..]
     [ "selisir"         -- 123_45_  ioe_ua_
     , "slendro-gede"    -- _234_67  _ioe_ua
     , "baro"            -- 1_345_7  a_ioe_u
@@ -160,14 +160,14 @@ all_keys = Map.fromList $ zipWith make [0..]
     make tonic name =
         ( Pitch.Key name
         , Theory.key (Pitch.Degree tonic 0) name intervals
-            (BaliScales.config_layout config)
+            (BaliScales.configLayout config)
         )
 
-ugal_range, rambat_range, trompong_range, reyong_range :: Scale.Range
-ugal_range = Scale.Range (Pitch.pitch 3 O) (Pitch.pitch 5 I)
-rambat_range = Scale.Range (Pitch.pitch 3 E) (Pitch.pitch 6 I)
-trompong_range = Scale.Range (Pitch.pitch 3 A) (Pitch.pitch 5 U)
-reyong_range = Scale.Range (Pitch.pitch 4 E) (Pitch.pitch 6 U)
+ugalRange, rambatRange, trompongRange, reyongRange :: Scale.Range
+ugalRange = Scale.Range (Pitch.pitch 3 O) (Pitch.pitch 5 I)
+rambatRange = Scale.Range (Pitch.pitch 3 E) (Pitch.pitch 6 I)
+trompongRange = Scale.Range (Pitch.pitch 3 A) (Pitch.pitch 5 U)
+reyongRange = Scale.Range (Pitch.pitch 4 E) (Pitch.pitch 6 U)
 
 -- * laras
 
@@ -175,11 +175,11 @@ data Pitch = I | O | E | Es | U | A | As
     deriving (Eq, Ord, Enum, Show, Bounded)
 
 laras :: Map Text BaliScales.Laras
-laras = Map.fromList $ Lists.keyOn BaliScales.laras_name $
-    laras_rambat : laras_saba : laras_pete_sps7 : mcphee
+laras = Map.fromList $ Lists.keyOn BaliScales.larasName $
+    larasRambat : larasSaba : larasPeteSps7 : mcphee
 
-laras_rambat :: BaliScales.Laras
-laras_rambat = BaliScales.laras "rambat" low_pitch (extend 3 E)
+larasRambat :: BaliScales.Laras
+larasRambat = BaliScales.laras "rambat" lowPitch (extend 3 E)
     "From my gender rambat, made in Blabatuh, Gianyar, tuned in\
     \ Munduk, Buleleng."
     [ (51.03,   51.85)  -- 3e, rambat begin
@@ -219,13 +219,13 @@ laras_rambat = BaliScales.laras "rambat" low_pitch (extend 3 E)
     -- they could have been.
     p4 = 65.9
     p7 = 70
-    i = Pitch.add_hz 4
-    u = Pitch.add_hz (-4)
+    i = Pitch.addHz 4
+    u = Pitch.addHz (-4)
 
 -- | Document measurements for different instruments, presumably in the future
 -- these are built in to the samples?
-all_tunings :: [[Pitch.NoteNumber]]
-all_tunings =
+allTunings :: [[Pitch.NoteNumber]]
+allTunings =
     -- rambat u, i,  reyong
     [ [51.03, 51.85, 0]         -- 3e
     , [55.05, 55.67, 0]
@@ -247,13 +247,13 @@ all_tunings =
     ]
 
 -- | From legong saba recordings.
-laras_saba :: BaliScales.Laras
-laras_saba = BaliScales.laras "saba" low_pitch (extend 3 E)
+larasSaba :: BaliScales.Laras
+larasSaba = BaliScales.laras "saba" lowPitch (extend 3 E)
     "Tuning from Legong Bapang Saba recordings."
-    (map (\nn -> (nn, Pitch.add_hz 4 nn)) legong_saba)
+    (map (\nn -> (nn, Pitch.addHz 4 nn)) legongSaba)
 
-legong_saba :: [Pitch.NoteNumber]
-legong_saba =
+legongSaba :: [Pitch.NoteNumber]
+legongSaba =
     [ 56.30     -- 3e
     , 56.30 -- fake 4
     , 60.24
@@ -267,13 +267,13 @@ legong_saba =
     , 73.40
     ]
 
-laras_pete_sps7 :: BaliScales.Laras
-laras_pete_sps7 = BaliScales.laras "pete-sps7" low_pitch (extend 4 I)
+larasPeteSps7 :: BaliScales.Laras
+larasPeteSps7 = BaliScales.laras "pete-sps7" lowPitch (extend 4 I)
     "Pete's Semar Pegulingan saih pitu"
-    (map (\nn -> (nn, Pitch.add_hz 4 nn)) pete_sps7)
+    (map (\nn -> (nn, Pitch.addHz 4 nn)) peteSps7)
 
-pete_sps7 :: [Pitch.NoteNumber]
-pete_sps7 =
+peteSps7 :: [Pitch.NoteNumber]
+peteSps7 =
     [ 61.00 -- 1 ??
     , 62.60 -- 2 o
     , 64.00 -- 3 e
@@ -285,55 +285,55 @@ pete_sps7 =
 
 -- | Extend down to 3i, which is jegog range.
 extend :: Pitch.Octave -> Pitch -> [Pitch.NoteNumber] -> [Pitch.NoteNumber]
-extend oct pc = Bali.extend_scale 7 low_pitch high_pitch (Pitch.pitch oct pc)
+extend oct pc = Bali.extendScale 7 lowPitch highPitch (Pitch.pitch oct pc)
 
 -- | Lowest note starts on this octave.
-base_octave :: Pitch.Octave
-base_octave = 3
+baseOctave :: Pitch.Octave
+baseOctave = 3
 
-low_pitch, high_pitch :: Pitch.Pitch
-low_pitch = Pitch.pitch base_octave I
-high_pitch = Pitch.pitch 7 I
+lowPitch, highPitch :: Pitch.Pitch
+lowPitch = Pitch.pitch baseOctave I
+highPitch = Pitch.pitch 7 I
 
 mcphee :: [BaliScales.Laras]
-mcphee = map (make . McPhee.extract low_pitch high_pitch) McPhee.saih_pitu
+mcphee = map (make . McPhee.extract lowPitch highPitch) McPhee.saihPitu
     where
     make (name, (nns, doc)) =
-        BaliScales.laras name low_pitch id doc
+        BaliScales.laras name lowPitch id doc
             (map (\nn -> (nn, nn)) nns)
 
 -- * instrument integration
 
 -- | A Scale with the entire theoretical range.  This is for instruments
 -- that are normalized to 12tet and then tuned in the patch (e.g. using KSP).
-complete_instrument_scale :: BaliScales.Laras -> BaliScales.Tuning
+completeInstrumentScale :: BaliScales.Laras -> BaliScales.Tuning
     -> Patch.Scale
-complete_instrument_scale = instrument_scale id
+completeInstrumentScale = instrumentScale id
 
-instrument_scale ::
+instrumentScale ::
     ([(Midi.Key, Pitch.NoteNumber)] -> [(Midi.Key, Pitch.NoteNumber)])
     -- ^ drop and take keys for the instrument's range
     -> BaliScales.Laras -> BaliScales.Tuning -> Patch.Scale
-instrument_scale =
-    make_instrument_scale "legong" -- i o e e# u a a#
+instrumentScale =
+    makeInstrumentScale "legong" -- i o e e# u a a#
         [Key.c_1, Key.d_1, Key.e_1, Key.f_1, Key.g_1, Key.a_1, Key.b_1]
 
-make_instrument_scale :: Text -> [Midi.Key]
+makeInstrumentScale :: Text -> [Midi.Key]
     -> ([(Midi.Key, Pitch.NoteNumber)] -> [(Midi.Key, Pitch.NoteNumber)])
     -- ^ drop and take keys for the instrument's range
     -> BaliScales.Laras -> BaliScales.Tuning -> Patch.Scale
-make_instrument_scale name keys take_range laras tuning =
-    Patch.make_scale (name <> "-" <> ShowVal.show_val tuning) $
-        take_range $ zip (midi_keys keys) (Vector.toList nns)
+makeInstrumentScale name keys takeRange laras tuning =
+    Patch.makeScale (name <> "-" <> ShowVal.showVal tuning) $
+        takeRange $ zip (midiKeys keys) (Vector.toList nns)
     where
     nns = case tuning of
-        BaliScales.Umbang -> BaliScales.laras_umbang laras
-        BaliScales.Isep -> BaliScales.laras_isep laras
+        BaliScales.Umbang -> BaliScales.larasUmbang laras
+        BaliScales.Isep -> BaliScales.larasIsep laras
 
 -- | Emit from i3 on up.
-midi_keys :: [Midi.Key] -> [Midi.Key]
-midi_keys keys = trim $ concatMap octave_keys [base_octave + 1 ..]
+midiKeys :: [Midi.Key] -> [Midi.Key]
+midiKeys keys = trim $ concatMap octaveKeys [baseOctave + 1 ..]
     -- base_octave + 1 because MIDI starts at octave -1
     where
     trim = take (5 * length keys + 1)
-    octave_keys oct = map (Midi.to_key (oct * 12) +) keys
+    octaveKeys oct = map (Midi.toKey (oct * 12) +) keys

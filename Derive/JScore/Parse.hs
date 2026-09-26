@@ -3,12 +3,12 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 module Derive.JScore.Parse (
     Element
-    , parse_score
-    , parse_text
+    , parseScore
+    , parseText
     , unparse
-    , instrument_enum
-    , irama_enum
-    , laras_enum
+    , instrumentEnum
+    , iramaEnum
+    , larasEnum
 ) where
 import qualified Data.List as List
 import qualified Data.Map as Map
@@ -26,19 +26,19 @@ import           Global
 
 type Error = Text
 
-parse_score :: Text -> Either Error T.ParsedScore
-parse_score = second unwrap_score . parse_text
+parseScore :: Text -> Either Error T.ParsedScore
+parseScore = second unwrapScore . parseText
 
-parse_text :: Element a => Text -> Either Error a
-parse_text = first txt . Parse.parse_text (Parse.parse Parse.default_config)
+parseText :: Element a => Text -> Either Error a
+parseText = first txt . Parse.parseText (Parse.parse Parse.defaultConfig)
 
-unwrap_score :: T.ParsedScore -> T.ParsedScore
-unwrap_score = fmap block
-    where block b = b { T.block_tracks = unwrap_tracks <$> T.block_tracks b }
+unwrapScore :: T.ParsedScore -> T.ParsedScore
+unwrapScore = fmap block
+    where block b = b { T.blockTracks = unwrapTracks <$> T.blockTracks b }
 
 -- | We only have max 2 hands, so unwrap >2 into a single line.
-unwrap_tracks :: T.Tracks -> T.Tracks
-unwrap_tracks (T.Tracks tracks)
+unwrapTracks :: T.Tracks -> T.Tracks
+unwrapTracks (T.Tracks tracks)
     | length tracks > 2 && even (length tracks) =
         T.Tracks [merge t1, merge t2]
     | otherwise = T.Tracks tracks
@@ -47,20 +47,20 @@ unwrap_tracks (T.Tracks tracks)
     pairs (x:y:zs) = (x, y) : pairs zs
     pairs _ = []
     merge (t:ts) = T.Track
-        { track_pos = T.track_pos t
+        { trackPos = T.trackPos t
         -- Add a barline to unwrapped sections, because I don't end tracks
         -- with a final barline.  Or, I could add one only if there isn't
         -- already one.
-        , track_tokens = List.intercalate [T.TBarline T.fake_pos] $
-            map T.track_tokens (t:ts)
+        , trackTokens = List.intercalate [T.TBarline T.fakePos] $
+            map T.trackTokens (t:ts)
         }
     merge [] = error "broken invariant length tracks > 2"
 
 unparse :: Parse.Element a => a -> Text
-unparse = Parse.unparse Parse.default_config
+unparse = Parse.unparse Parse.defaultConfig
 
 instance Parse.Element T.ParsedScore where
-    parse config = Parse.p_whitespace
+    parse config = Parse.pWhitespace
         *> (T.Score <$> P.many (Parse.parse config))
     unparse config (T.Score toplevels) =
         Text.unlines $ map (Parse.unparse config) toplevels
@@ -75,36 +75,36 @@ instance Parse.Element (T.Toplevel T.ParsedBlock) where
 
 instance Parse.Element T.Meta where
     parse _ = do
-        TScore.T.Directive _pos key mb_val <- Parse.p_directive True
+        TScore.T.Directive _pos key mbVal <- Parse.pDirective True
         val <- maybe (fail $ "directive with no val: " <> untxt key) pure
-            mb_val
+            mbVal
         let unknown = fail $ "unknown " <> untxt key <> ": " <> untxt val
         case key of
             "source" -> pure $ T.Source val
             "piece" -> pure $ T.Piece val
             "section" -> pure $ T.Section val
             "laras" -> maybe unknown (pure . T.Laras) $
-                parse_enum laras_enum val
+                parseEnum larasEnum val
             "instrument" -> maybe unknown (pure . T.Instrument) $
-                parse_enum instrument_enum val
+                parseEnum instrumentEnum val
             "irama" -> maybe unknown (pure . T.Irama) $
-                parse_enum irama_enum val
+                parseEnum iramaEnum val
             _ -> fail $ "unknown meta: " <> untxt key <> " = " <> untxt val
     unparse _ = \case
         T.Source a -> un "source" a
         T.Piece a -> un "piece" a
         T.Section a -> un "section" a
-        T.Laras a -> un "laras" (laras_enum a)
-        T.Irama a -> un "irama" (irama_enum a)
-        T.Instrument a -> un "instrument" (instrument_enum a)
+        T.Laras a -> un "laras" (larasEnum a)
+        T.Irama a -> un "irama" (iramaEnum a)
+        T.Instrument a -> un "instrument" (instrumentEnum a)
         where un key val = mconcat ["%", key, " = ", val]
 
-parse_enum :: (Bounded a, Enum a) => (a -> Text) -> Text -> Maybe a
-parse_enum unparse t = Map.lookup t m
+parseEnum :: (Bounded a, Enum a) => (a -> Text) -> Text -> Maybe a
+parseEnum unparse t = Map.lookup t m
     where m = Map.fromList $ Lists.keyOn unparse [minBound ..]
 
-laras_enum :: T.Laras -> Text
-laras_enum = \case
+larasEnum :: T.Laras -> Text
+larasEnum = \case
     T.PelogNem -> "pelog-nem"
     T.PelogLima -> "pelog-lima"
     T.PelogBarang -> "pelog-barang"
@@ -112,14 +112,14 @@ laras_enum = \case
     T.SlendroSanga -> "slendro-sanga"
     T.SlendroManyura -> "slendro-manyura"
 
-instrument_enum :: T.Instrument -> Text
-instrument_enum = \case
+instrumentEnum :: T.Instrument -> Text
+instrumentEnum = \case
     T.GenderBarung -> "gender-barung"
     T.GenderPanerus -> "gender-panerus"
     T.Siter -> "siter"
 
-irama_enum :: T.Irama -> Text
-irama_enum = \case
+iramaEnum :: T.Irama -> Text
+iramaEnum = \case
     T.Lancar -> "lancar"
     T.Tanggung -> "tanggung"
     T.Dadi -> "dadi"
@@ -129,26 +129,26 @@ irama_enum = \case
 -- | 1234 name [ tracks ]
 instance Parse.Element T.ParsedBlock where
     parse config = do
-        block_pos <- Parse.get_pos
-        block_gatra <- Parse.lexeme $ Parse.parse config
+        blockPos <- Parse.getPos
+        blockGatra <- Parse.lexeme $ Parse.parse config
         -- I want to be able to parse gantung-5 seleh-3, but I can't parse
         -- numbers and use normal whitespace because then "1234\n1234\n"
         -- is ambiguous either a name or another Gatra.  So don't allow
         -- a newline.  It's a bit unsatisfying because it makes newlines
         -- matter.  Alternately, I could do an alternate "inferred tracks"
         -- notation, like say "1234 names *"
-        block_names <- P.many $ lexeme_s p_name
-        block_tracks <- P.optional $ Parse.parse config
+        blockNames <- P.many $ lexemeS pName
+        blockTracks <- P.optional $ Parse.parse config
         pure $ T.Block
-            { block_gatra, block_names, block_tracks, block_pos
-            , block_inferred = []
+            { blockGatra, blockNames, blockTracks, blockPos
+            , blockInferred = []
             }
-    unparse config (T.Block { block_gatra, block_names, block_tracks }) =
-        Text.unwords $ Parse.unparse config block_gatra : block_names
-            ++ maybe [] ((:[]) . Parse.unparse config) block_tracks
+    unparse config (T.Block { blockGatra, blockNames, blockTracks }) =
+        Text.unwords $ Parse.unparse config blockGatra : blockNames
+            ++ maybe [] ((:[]) . Parse.unparse config) blockTracks
 
-p_name :: Parser Text
-p_name = Text.cons
+pName :: Parser Text
+pName = Text.cons
     <$> P.satisfy (\c -> 'a' <= c && c <= 'z')
     <*> P.takeWhile1
         (\c -> 'a' <= c && c <= 'z' || '0' <= c && c <= '9' || c == '-')
@@ -164,76 +164,76 @@ instance Parse.Element T.Tracks where
 
 instance Parse.Element (T.Track T.ParsedToken) where
     parse config = do
-        track_pos <- Parse.get_pos
+        trackPos <- Parse.getPos
         Parse.keyword ">"
-        track_tokens <- P.many $ Parse.parse config
-        pure $ T.Track { track_tokens, track_pos }
-    unparse config (T.Track { track_tokens }) =
+        trackTokens <- P.many $ Parse.parse config
+        pure $ T.Track { trackTokens, trackPos }
+    unparse config (T.Track { trackTokens }) =
         -- Text.unwords $ ">" : map (Parse.unparse config) track_tokens
         -- Rely on HasSpace to preserving spacing between notes.
-        mconcat $ "> " : map (Parse.unparse config) track_tokens
+        mconcat $ "> " : map (Parse.unparse config) trackTokens
 
-p_has_space :: Parser T.HasSpace
-p_has_space = Parse.p_whitespace_ >>= pure . \case
+pHasSpace :: Parser T.HasSpace
+pHasSpace = Parse.pWhitespace_ >>= pure . \case
     True -> T.HasSpace
     False -> T.NoSpace
 
 instance Parse.Element T.ParsedToken where
     parse config =
-        Parse.lexeme (P.char '|' *> (T.TBarline <$> Parse.get_pos))
-        <|> T.TRest <$> Parse.get_pos <*> Parse.parse config
-        <|> T.TNote <$> Parse.get_pos <*> Parse.parse config
+        Parse.lexeme (P.char '|' *> (T.TBarline <$> Parse.getPos))
+        <|> T.TRest <$> Parse.getPos <*> Parse.parse config
+        <|> T.TNote <$> Parse.getPos <*> Parse.parse config
     unparse _ (T.TBarline _) = "| "
     unparse config (T.TNote _ note) = Parse.unparse config note
     unparse config (T.TRest _ rest) = Parse.unparse config rest
 
 instance Parse.Element T.Rest where
     parse _ = do
-        rest_sustain <- P.char '.' *> pure True <|> P.char '_' *> pure False
+        restSustain <- P.char '.' *> pure True <|> P.char '_' *> pure False
         -- Parse.lexeme is omitted from the calling parser to support this.
-        rest_space <- p_has_space
-        pure $ T.Rest { rest_sustain, rest_space }
-    unparse _ (T.Rest { rest_sustain, rest_space }) =
-        (if rest_sustain then "." else "_") <> case rest_space of
+        restSpace <- pHasSpace
+        pure $ T.Rest { restSustain, restSpace }
+    unparse _ (T.Rest { restSustain, restSpace }) =
+        (if restSustain then "." else "_") <> case restSpace of
             T.NoSpace -> ""
             T.HasSpace -> " "
 
 instance Parse.Element (T.Note T.ParsedPitch T.HasSpace) where
     parse config = do
-        note_pitch <- Parse.parse config
-        note_zero_duration <- P.option False (P.char '/' *> pure True)
+        notePitch <- Parse.parse config
+        noteZeroDuration <- P.option False (P.char '/' *> pure True)
         -- Parse.lexeme is omitted from the calling parser to support this.
-        note_duration <- p_has_space
+        noteDuration <- pHasSpace
         pure $ T.Note
-            { note_pitch
-            , note_zero_duration
-            , note_duration
+            { notePitch
+            , noteZeroDuration
+            , noteDuration
             }
-    unparse config (T.Note { note_pitch, note_zero_duration, note_duration }) =
-        Parse.unparse config note_pitch
-        <> if note_zero_duration then "/" else ""
-        <> case note_duration of
+    unparse config (T.Note { notePitch, noteZeroDuration, noteDuration }) =
+        Parse.unparse config notePitch
+        <> if noteZeroDuration then "/" else ""
+        <> case noteDuration of
             T.NoSpace -> ""
             T.HasSpace -> " "
 
 instance Parse.Element T.PitchClass where
-    parse _ = maybe mzero pure . T.char_pc
+    parse _ = maybe mzero pure . T.charPc
         =<< P.satisfy (\c -> '1' <= c && c <= '9')
-    unparse _ p = Text.singleton (T.pc_char p)
+    unparse _ p = Text.singleton (T.pcChar p)
 
 instance Parse.Element T.ParsedPitch where
     parse config = do
-        oct_hint <- Text.foldl' (\n c -> n + if c == ',' then -1 else 1) 0 <$>
+        octHint <- Text.foldl' (\n c -> n + if c == ',' then -1 else 1) 0 <$>
             P.takeWhile (`elem` (",'" :: String))
         p <- Parse.parse config
-        pure $ T.ParsedPitch oct_hint p
-    unparse config (T.ParsedPitch oct_hint pc) =
+        pure $ T.ParsedPitch octHint p
+    unparse config (T.ParsedPitch octHint pc) =
         octs <> Parse.unparse config pc
         where
-        octs = case compare oct_hint 0 of
+        octs = case compare octHint 0 of
             EQ -> ""
-            LT -> Text.replicate (- oct_hint) ","
-            GT -> Text.replicate oct_hint "'"
+            LT -> Text.replicate (- octHint) ","
+            GT -> Text.replicate octHint "'"
 
 instance Parse.Element (T.Gatra T.ParsedPitch) where
     parse config = T.Gatra <$> p <*> p <*> p <*> p
@@ -245,8 +245,8 @@ instance Parse.Element (T.Balungan T.ParsedPitch) where
     parse config = T.Balungan
         <$> (P.char '.' *> pure Nothing <|> Just <$> Parse.parse config)
         <*> P.optional (Parse.parse config)
-    unparse config (T.Balungan mb_pitch annot) =
-        maybe "." (Parse.unparse config) mb_pitch
+    unparse config (T.Balungan mbPitch annot) =
+        maybe "." (Parse.unparse config) mbPitch
         <> maybe "" (Parse.unparse config) annot
 
 instance Parse.Element T.BalunganAnnotation where
@@ -256,8 +256,8 @@ instance Parse.Element T.BalunganAnnotation where
         T.Kenong -> "^"
 
 -- | Lexeme but no comments or newlines.
-lexeme_s :: Parser a -> Parser a
-lexeme_s = (<* p_simple_space)
+lexemeS :: Parser a -> Parser a
+lexemeS = (<* pSimpleSpace)
 
-p_simple_space :: Parser ()
-p_simple_space = P.skipWhile (\c -> c == ' ' || c == '\t')
+pSimpleSpace :: Parser ()
+pSimpleSpace = P.skipWhile (\c -> c == ' ' || c == '\t')

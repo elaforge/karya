@@ -21,15 +21,15 @@ module Util.Serialize (
     -- * magic
     , Magic(..)
     , magicBytes
-    , serialize, serialize_rotate
+    , serialize, serializeRotate
     , UnserializeError(..)
     , unserialize
     -- * util
-    , get_tag, put_tag, bad_tag
-    , get_enum, put_enum, bad_enum
-    , get_enum_unsafe, put_enum_unsafe
+    , getTag, putTag, badTag
+    , getEnum, putEnum, badEnum
+    , getEnumUnsafe, putEnumUnsafe
     -- * versions
-    , get_version, put_version, bad_version
+    , getVersion, putVersion, badVersion
 ) where
 import qualified Control.Exception as Exception
 import qualified Data.Array.IArray as IArray
@@ -91,10 +91,10 @@ magicLength = 4
 
 serialize :: Serialize a => Magic a -> FilePath -> a -> IO Bool
     -- ^ result of 'Files.writeGz'.
-serialize = serialize_rotate 1
+serialize = serializeRotate 1
 
-serialize_rotate :: Serialize a => Int -> Magic a -> FilePath -> a -> IO Bool
-serialize_rotate rotations magic fname state = do
+serializeRotate :: Serialize a => Int -> Magic a -> FilePath -> a -> IO Bool
+serializeRotate rotations magic fname state = do
     Directory.createDirectoryIfMissing True $ FilePath.takeDirectory fname
     Files.writeGz rotations fname $ magicBytes magic <> encode state
 
@@ -107,9 +107,9 @@ unserialize :: Serialize a => Magic a -> FilePath
 unserialize magic fname = catch $ do
     bytes <- either (Exception.throw . IO.Error.userError) pure
         =<< Files.readGz fname
-    let (file_magic, rest) = ByteString.splitAt magicLength bytes
-    if file_magic /= magicBytes magic
-        then pure $ Left $ BadMagic (magicBytes magic) file_magic
+    let (fileMagic, rest) = ByteString.splitAt magicLength bytes
+    if fileMagic /= magicBytes magic
+        then pure $ Left $ BadMagic (magicBytes magic) fileMagic
         else first UnserializeError <$> Exception.evaluate (decode rest)
             -- Apparently decode can still throw an exception unless
             -- the contents of the Either is forced to whnf.
@@ -158,14 +158,14 @@ instance Serialize Float where
 
 -- * util
 
-get_tag :: Get Word.Word8
-get_tag = getWord8
+getTag :: Get Word.Word8
+getTag = getWord8
 
-put_tag :: Word.Word8 -> Put
-put_tag = putWord8
+putTag :: Word.Word8 -> Put
+putTag = putWord8
 
-bad_tag :: String -> Word.Word8 -> Get a
-bad_tag typ tag = fail $ "unknown tag for " ++ typ ++ ": " ++ show tag
+badTag :: String -> Word.Word8 -> Get a
+badTag typ tag = fail $ "unknown tag for " ++ typ ++ ": " ++ show tag
 
 -- | These are convenient but dangerous.  If they are are used in a context
 -- where backward compatibility matters ("Cmd.Serialize") then it's too easy
@@ -173,30 +173,30 @@ bad_tag typ tag = fail $ "unknown tag for " ++ typ ++ ": " ++ show tag
 --
 -- But they're fine if used in an enum that will never change, or where
 -- compatibility doesn't matter.
-get_enum_unsafe :: (Bounded a, Enum a) => Serialize.Get a
-get_enum_unsafe = get >>= \n ->
-    maybe (fail $ "enum value out of range: " ++ show n) pure (to_enum n)
+getEnumUnsafe :: (Bounded a, Enum a) => Serialize.Get a
+getEnumUnsafe = get >>= \n ->
+    maybe (fail $ "enum value out of range: " ++ show n) pure (toEnumS n)
 
-put_enum_unsafe :: Enum a => a -> Serialize.Put
-put_enum_unsafe = put . fromEnum
+putEnumUnsafe :: Enum a => a -> Serialize.Put
+putEnumUnsafe = put . fromEnum
 
 -- | A safe version of 'toEnum'.
-to_enum :: forall a. (Enum a, Bounded a) => Int -> Maybe a
-to_enum n
+toEnumS :: forall a. (Enum a, Bounded a) => Int -> Maybe a
+toEnumS n
     | fromEnum (minBound :: a) <= n && n <= fromEnum (maxBound :: a) =
         Just (toEnum n)
     | otherwise = Nothing
 
-get_enum :: Serialize.Get Word.Word8
-get_enum = get
+getEnum :: Serialize.Get Word.Word8
+getEnum = get
 
 -- | It's just put, but make sure it's using Int.  Word8 would be more
 -- suitable.
-put_enum :: Word.Word8 -> Serialize.Put
-put_enum = put
+putEnum :: Word.Word8 -> Serialize.Put
+putEnum = put
 
-bad_enum :: String -> Word.Word8 -> Get a
-bad_enum name val = fail $ "unknown enum val for " <> name <> ": " <> show val
+badEnum :: String -> Word.Word8 -> Get a
+badEnum name val = fail $ "unknown enum val for " <> name <> ": " <> show val
 
 -- * basic types
 
@@ -205,9 +205,9 @@ instance Serialize () where
     get = pure ()
 
 instance Serialize Bool where
-    put False = put_tag 0
-    put True = put_tag 1
-    get = (/= 0) <$> get_tag
+    put False = putTag 0
+    put True = putTag 1
+    get = (/= 0) <$> getTag
 
 instance Serialize Char where
     put = Serialize.put
@@ -220,20 +220,20 @@ instance Serialize Time.UTCTime where
 -- * sums and products
 
 instance (Serialize a, Serialize b) => Serialize (Either a b) where
-    put (Left a) = put_tag 0 >> put a
-    put (Right b) = put_tag 1 >> put b
-    get = get_tag >>= \case
+    put (Left a) = putTag 0 >> put a
+    put (Right b) = putTag 1 >> put b
+    get = getTag >>= \case
         0 -> Left <$> get
         1 -> Right <$> get
-        tag -> bad_tag "Either" tag
+        tag -> badTag "Either" tag
 
 instance Serialize a => Serialize (Maybe a) where
-    put Nothing = put_tag 0
-    put (Just a) = put_tag 1 >> put a
-    get = get_tag >>= \case
+    put Nothing = putTag 0
+    put (Just a) = putTag 1 >> put a
+    get = getTag >>= \case
         0 -> pure Nothing
         1 -> Just <$> get
-        tag -> bad_tag "Maybe" tag
+        tag -> badTag "Maybe" tag
 
 instance (Serialize a, Serialize b) => Serialize (a, b) where
     put (a, b) = put a >> put b
@@ -303,21 +303,21 @@ instance (Serialize a, Foreign.Storable a) =>
 
 -- This has to be here instead of in CallStack to avoid a circular import.
 instance Serialize CallStack.Caller where
-    put (CallStack.Caller a b) = put_tag 0 >> put a >> put b
-    put CallStack.NoCaller = put_tag 1
-    get = get_tag >>= \case
+    put (CallStack.Caller a b) = putTag 0 >> put a >> put b
+    put CallStack.NoCaller = putTag 1
+    get = getTag >>= \case
         0 -> CallStack.Caller <$> get <*> get
         1 -> pure CallStack.NoCaller
-        tag -> bad_tag "Caller" tag
+        tag -> badTag "Caller" tag
 
 -- * versions
 
-get_version :: Get Word.Word8
-get_version = getWord8
+getVersion :: Get Word.Word8
+getVersion = getWord8
 
-put_version :: Word.Word8 -> Put
-put_version = putWord8
+putVersion :: Word.Word8 -> Put
+putVersion = putWord8
 
-bad_version :: HasCallStack => String -> Word.Word8 -> a
-bad_version typ ver = errorStack $
+badVersion :: HasCallStack => String -> Word.Word8 -> a
+badVersion typ ver = errorStack $
     "unknown version " <> showt ver <> " for " <> showt typ

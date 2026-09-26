@@ -19,13 +19,13 @@ import Types
 
 test_collectFingers :: Test
 test_collectFingers = do
-    let f = fmap (bimap (map e_note) (map e_finger)) . GConvert.collectFingers
+    let f = fmap (bimap (map eNote) (map eFinger)) . GConvert.collectFingers
             . map mknote
     equal (f []) $ Right ([], [])
     pprint (f [("3e", 0, 1, [(0, NN.e4)]), ("3e", 1, 1, [(1, NN.b3)])])
 
-e_note n = (Guitar.nString n, Guitar.nStart n)
-e_finger f = (Guitar.fString f, Guitar.fMovement f)
+eNote n = (Guitar.nString n, Guitar.nStart n)
+eFinger f = (Guitar.fString f, Guitar.fMovement f)
 
 mknote :: (Text, RealTime, RealTime, [(RealTime, Pitch.NoteNumber)])
     -> GConvert.Note
@@ -35,7 +35,7 @@ mknote (str, start, dur, pitch) = GConvert.Note
         List.find ((==str) . Guitar.sName) $ Guitar.iStrings inst
     , _start = start
     , _duration = dur
-    , _pitch = Signal.from_pairs $ map (second Pitch.nn_to_double) pitch
+    , _pitch = Signal.fromPairs $ map (second Pitch.nnToDouble) pitch
     , _finger = Signal.constant 1
     , _dynamic = 1
     , _location = 0.8

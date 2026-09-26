@@ -20,46 +20,46 @@ import           Types
 
 library :: Library.Library
 library = Library.transformers
-    [ ("reverse", c_reverse)
+    [ ("reverse", cReverse)
     ]
 
 -- * reverse
 
-c_reverse :: Derive.Transformer Derive.Note
-c_reverse = Derive.transformer Module.prelude "reverse" Tags.postproc
+cReverse :: Derive.Transformer Derive.Note
+cReverse = Derive.transformer Module.prelude "reverse" Tags.postproc
     "Reverse the events." $
     Sig.call0t $ \args deriver -> do
-        start <- Args.real_start args
+        start <- Args.realStart args
         (events, logs) <- Stream.partition <$> deriver
-        pure $ Stream.merge_logs logs $
-            Stream.from_sorted_events (reverse_tracks start events)
+        pure $ Stream.mergeLogs logs $
+            Stream.fromSortedEvents (reverseTracks start events)
 
-reverse_tracks :: RealTime -> [Score.Event] -> [Score.Event]
-reverse_tracks start events = Lists.mergeLists Score.event_start
-    [ reverse_events (start + (end - Score.event_end last)) events
-    | events@(last : _) <- by_track
+reverseTracks :: RealTime -> [Score.Event] -> [Score.Event]
+reverseTracks start events = Lists.mergeLists Score.eventStart
+    [ reverseEvents (start + (end - Score.eventEnd last)) events
+    | events@(last : _) <- byTrack
     ]
     where
-    by_track = map (reverse . snd) $ partition_tracks events
+    byTrack = map (reverse . snd) $ partitionTracks events
     -- This will be the new 0.
     end = fromMaybe 0 $ Lists.maximum
-        [Score.event_end last | last : _ <- by_track]
+        [Score.eventEnd last | last : _ <- byTrack]
 
 -- | Partition up events by the track they're in.
-partition_tracks :: [Score.Event] -> [(TrackId, [Score.Event])]
-partition_tracks = strip . Lists.keyedGroupSort track_of
-    where strip xs = [(track_id, events) | (Just track_id, events) <- xs]
+partitionTracks :: [Score.Event] -> [(TrackId, [Score.Event])]
+partitionTracks = strip . Lists.keyedGroupSort trackOf
+    where strip xs = [(trackId, events) | (Just trackId, events) <- xs]
 
-track_of :: Score.Event -> Maybe TrackId
-track_of = Lists.head . mapMaybe Stack.track_of . Stack.innermost
-    . Score.event_stack
+trackOf :: Score.Event -> Maybe TrackId
+trackOf = Lists.head . mapMaybe Stack.trackOf . Stack.innermost
+    . Score.eventStack
 
-reverse_events :: RealTime -> [Score.Event] -> [Score.Event]
-reverse_events at events = case events of
+reverseEvents :: RealTime -> [Score.Event] -> [Score.Event]
+reverseEvents at events = case events of
     [] -> []
     [cur] -> [move at cur]
     cur : rest@(next : _) -> move at cur
-        : reverse_events (at + Score.event_duration cur
-            + (Score.event_start cur - Score.event_end next)) rest
+        : reverseEvents (at + Score.eventDuration cur
+            + (Score.eventStart cur - Score.eventEnd next)) rest
     where
     move at = Score.move (const at)

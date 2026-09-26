@@ -22,14 +22,14 @@ import           Util.Test
 test_modify_tempo :: Test
 test_modify_tempo = do
     let ustate = UiTest.exec Ui.empty $ do
-            UiTest.mkblock_view (UiTest.default_block_name,
+            UiTest.mkblockView (UiTest.defaultBlockName,
                 [ ("tempo", [(0, 0, "1")])
                 , (">i1", [(0, 1, ""), (1, 1, "")])
                 ])
-            CmdTest.set_point_sel 1 0
-            Ui.modify_ruler UiTest.default_ruler_id $ const $ Right $
-                UiTest.mkruler_44 16 1
-    let cstate = ResponderTest.mk_cmd_state ustate (UiTest.default_view_id)
+            CmdTest.setPointSel 1 0
+            Ui.modifyRuler UiTest.defaultRulerId $ const $ Right $
+                UiTest.mkruler44 16 1
+    let cstate = ResponderTest.mkCmdState ustate (UiTest.defaultViewId)
     results <- ResponderTest.thread False (ustate, cstate)
         -- Delete the tempo and set it to 2.
         (CmdTest.keypresses [Key.Escape, Key.Backspace, Key.Char '2'])
@@ -39,15 +39,15 @@ test_modify_tempo = do
     --
     -- 2 msgs for each key, key down and key up.  I want the '2' key down.
     let result = results !! 4
-    (_, perf) <- ResponderTest.result_perf result
-    equal (map Score.event_start $ Vector.toList $ Cmd.perf_events perf)
+    (_, perf) <- ResponderTest.resultPerf result
+    equal (map Score.eventStart $ Vector.toList $ Cmd.perfEvents perf)
         [0, 0.5]
 
 test_modify_middle_tempo :: Test
 test_modify_middle_tempo = do
     let states = ResponderTest.mkstates
             [("tempo", [(0, 0, "1")]), (">i1", [(0, 1, ""), (1, 1, "")])]
-    res <- ResponderTest.respond_cmd states $ UiTest.insert_event 1 (1, 0, "2")
-    (_, perf) <- ResponderTest.result_perf res
-    equal (map Score.event_duration $ Vector.toList $ Cmd.perf_events perf)
+    res <- ResponderTest.respondCmd states $ UiTest.insertEvent 1 (1, 0, "2")
+    (_, perf) <- ResponderTest.resultPerf res
+    equal (map Score.eventDuration $ Vector.toList $ Cmd.perfEvents perf)
         [1, 0.5]

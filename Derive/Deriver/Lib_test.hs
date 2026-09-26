@@ -13,8 +13,8 @@ import qualified Derive.Score as Score
 
 test_with_scale :: Test
 test_with_scale = do
-    let run title = DeriveTest.extract Score.initial_nn
-            . DeriveTest.derive_tracks title . UiTest.note_track1
+    let run title = DeriveTest.extract Score.initialNn
+            . DeriveTest.deriveTracks title . UiTest.noteTrack1
     -- Setting the scale replaces the calls.
     equal (run "scale=twelve | scale=twelve-r" ["4c", "4s"])
         ([Nothing, Just 60], ["pitch generator not found: 4c"])

@@ -9,54 +9,54 @@ import qualified Data.Word as Word
 
 type Control = Word.Word8
 
-bank, bank_lsb :: Control
+bank, bankLsb :: Control
 bank = 0x0
-bank_lsb = 0x20
+bankLsb = 0x20
 
-mod, mod_lsb :: Control
+mod, modLsb :: Control
 mod = 0x1
-mod_lsb = 0x21
+modLsb = 0x21
 
-breath, breath_lsb :: Control
+breath, breathLsb :: Control
 breath = 0x2
-breath_lsb = 0x22
+breathLsb = 0x22
 
-foot, foot_lsb :: Control
+foot, footLsb :: Control
 foot = 0x04
-foot_lsb = 0x24
+footLsb = 0x24
 
-portamento_time, portamento_time_lsb :: Control
-portamento_time = 0x5
-portamento_time_lsb = 0x25
+portamentoTime, portamentoTimeLsb :: Control
+portamentoTime = 0x5
+portamentoTimeLsb = 0x25
 
-data_entry, data_entry_lsb :: Control
-data_entry = 0x6
-data_entry_lsb = 0x26
+dataEntry, dataEntryLsb :: Control
+dataEntry = 0x6
+dataEntryLsb = 0x26
 
-volume, volume_lsb :: Control
+volume, volumeLsb :: Control
 volume = 0x7
-volume_lsb = 0x27
+volumeLsb = 0x27
 
-balance, balance_rpn :: Control
+balance, balanceRpn :: Control
 balance = 0x8
-balance_rpn = 0x28
+balanceRpn = 0x28
 
-pan, pan_lsb :: Control
+pan, panLsb :: Control
 pan = 0x0a
-pan_lsb = 0x2a
+panLsb = 0x2a
 
-nrpn_lsb, nrpn_msb :: Control
-nrpn_lsb = 0x62
-nrpn_msb = 0x63
+nrpnLsb, nrpnMsb :: Control
+nrpnLsb = 0x62
+nrpnMsb = 0x63
 
-rpn_lsb, rpn_msb :: Control
-rpn_lsb = 0x64
-rpn_msb = 0x65
+rpnLsb, rpnMsb :: Control
+rpnLsb = 0x64
+rpnMsb = 0x65
 
 -- | My own convention: vibrato speed, when vibrato depth is controlled by
 -- 'mod'.
-vib_speed :: Control
-vib_speed = 3
+vibSpeed :: Control
+vibSpeed = 3
 
 -- | There are spare CCs which are ripe for the mapping.
 cc14, cc15, cc16, cc17, cc18, cc19, cc20, cc21, cc22, cc23, cc24 :: Control

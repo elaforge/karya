@@ -61,8 +61,8 @@ type Title = Text
 -- | A simplified description of a UI track, as collected by
 -- "Derive.Call.Integrate".
 data Track = Track
-    { track_title :: !Title
-    , track_events :: ![Event.Event]
+    { trackTitle :: !Title
+    , trackEvents :: ![Event.Event]
     } deriving (Eq, Ord, Show)
 
 instance Pretty Track where
@@ -79,18 +79,18 @@ type GetCallMap = ScoreT.Instrument -> Common.CallMap
 -- | Convert 'Score.Event's to 'Tracks'.  This involves splitting overlapping
 -- events into tracks, and trying to map low level notation back to high level.
 convert :: Cmd.M m => BlockId -> Stream.Stream Score.Event -> m Tracks
-convert source_block stream = do
-    lookup_inst <- Cmd.get_lookup_instrument
-    let get_call_map = maybe mempty (Common.common_call_map . Cmd.inst_common)
-            . lookup_inst
-    default_scale_id <- Perf.default_scale_id
-    tracknums <- Map.fromList <$> Ui.tracknums_of source_block
+convert sourceBlock stream = do
+    lookupInst <- Cmd.getLookupInstrument
+    let getCallMap = maybe mempty (Common.commonCallMap . Cmd.instCommon)
+            . lookupInst
+    defaultScaleId <- Perf.defaultScaleId
+    tracknums <- Map.fromList <$> Ui.tracknumsOf sourceBlock
     let (events, logs) = Stream.partition stream
-        (errs, tracks) = integrate (get_call_map, default_scale_id)
+        (errs, tracks) = integrate (getCallMap, defaultScaleId)
             tracknums events
-    mapM_ (Log.write . Log.add_prefix "integrate") logs
+    mapM_ (Log.write . Log.addPrefix "integrate") logs
     -- If something failed to derive I shouldn't integrate that into the block.
-    when (any ((>=Log.Warn) . Log.msg_priority) logs) $
+    when (any ((>=Log.Warn) . Log.msgPriority) logs) $
         Cmd.throw "aborting integrate due to warnings"
     unless (null errs) $
         Cmd.throw $ "integrating events: " <> Text.intercalate "; " errs
@@ -100,31 +100,31 @@ convert source_block stream = do
 integrate :: Config -> Map TrackId TrackNum -> [Score.Event]
     -> ([Error], Tracks)
 integrate config tracknums =
-    Either.partitionEithers . map (integrate_track config)
-    . allocate_tracks tracknums
+    Either.partitionEithers . map (integrateTrack config)
+    . allocateTracks tracknums
 
 -- | Allocate the events to separate tracks.
-allocate_tracks :: Map TrackId TrackNum -> [Score.Event]
+allocateTracks :: Map TrackId TrackNum -> [Score.Event]
     -> [(TrackKey, [Score.Event])]
-allocate_tracks tracknums = concatMap overlap . Lists.keyedGroupSort group_key
+allocateTracks tracknums = concatMap overlap . Lists.keyedGroupSort groupKey
     where
-    overlap (key, events) = map ((,) key) (split_overlapping events)
+    overlap (key, events) = map ((,) key) (splitOverlapping events)
     -- Sort by tracknum so an integrated block's tracks come out in the same
     -- order as the original.
-    group_key :: Score.Event -> TrackKey
-    group_key event =
-        ( tracknum_of =<< track_of event
-        , Score.event_instrument event
-        , PSignal.sig_scale_id (Score.event_pitch event)
-        , event_voice event
-        , event_hand event
+    groupKey :: Score.Event -> TrackKey
+    groupKey event =
+        ( tracknumOf =<< trackOf event
+        , Score.eventInstrument event
+        , PSignal.sigScaleId (Score.eventPitch event)
+        , eventVoice event
+        , eventHand event
         )
-    tracknum_of tid = Map.lookup tid tracknums
+    tracknumOf tid = Map.lookup tid tracknums
 
 -- | Split events into separate lists of non-overlapping events.
-split_overlapping :: [Score.Event] -> [[Score.Event]]
-split_overlapping [] = []
-split_overlapping events = track : split_overlapping rest
+splitOverlapping :: [Score.Event] -> [[Score.Event]]
+splitOverlapping [] = []
+splitOverlapping events = track : splitOverlapping rest
     where
     -- Go through the track and collect non-overlapping events, then do it
     -- recursively until there are none left.
@@ -134,18 +134,18 @@ split_overlapping events = track : split_overlapping rest
         where (overlapping, rest) = span (overlaps event) events
 
 overlaps :: Score.Event -> Score.Event -> Bool
-overlaps e1 e2 = Score.event_start e2 < Score.event_end e1
-    || Score.event_start e1 == Score.event_start e2
+overlaps e1 e2 = Score.eventStart e2 < Score.eventEnd e1
+    || Score.eventStart e1 == Score.eventStart e2
 
-event_voice :: Score.Event -> Maybe Voice
-event_voice = Env.maybe_val EnvKey.voice . Score.event_environ
+eventVoice :: Score.Event -> Maybe Voice
+eventVoice = Env.maybeVal EnvKey.voice . Score.eventEnviron
 
-event_hand :: Score.Event -> Maybe Call.Hand
-event_hand = Env.maybe_val EnvKey.hand . Score.event_environ
+eventHand :: Score.Event -> Maybe Call.Hand
+eventHand = Env.maybeVal EnvKey.hand . Score.eventEnviron
 
-track_of :: Score.Event -> Maybe TrackId
-track_of = Lists.head . mapMaybe Stack.track_of . Stack.innermost
-    . Score.event_stack
+trackOf :: Score.Event -> Maybe TrackId
+trackOf = Lists.head . mapMaybe Stack.trackOf . Stack.innermost
+    . Score.eventStack
 
 -- | This determines how tracks are split when integration recreates track
 -- structure.
@@ -155,60 +155,60 @@ type TrackKey =
     )
 type Voice = Int
 
-integrate_track :: Config -> (TrackKey, [Score.Event])
+integrateTrack :: Config -> (TrackKey, [Score.Event])
     -> Either Error (Track, [Track])
-integrate_track (get_call_map, default_scale_id)
-        ((_, inst, scale_id, voice, hand), events) = do
-    pitch_track <- if no_pitch_signals events || no_scale
+integrateTrack (getCallMap, defaultScaleId)
+        ((_, inst, scaleId, voice, hand), events) = do
+    pitchTrack <- if noPitchSignals events || noScale
         then pure []
-        else case pitch_events sid $ events of
+        else case pitchEvents sid $ events of
             (track, []) -> pure [track]
             (_, errs) -> Left $ Text.intercalate "; " errs
     pure
-        ( note_events inst (voice, hand) (get_call_map inst) events
-        , pitch_track ++ control_events events
+        ( noteEvents inst (voice, hand) (getCallMap inst) events
+        , pitchTrack ++ controlEvents events
         )
     where
     -- Instruments like mridangam '(natural)' call use this for ambient pitch.
-    no_scale = scale_id == PSignal.pscale_scale_id PSignal.no_scale
-    sid = if scale_id == default_scale_id then Pitch.empty_scale else scale_id
+    noScale = scaleId == PSignal.pscaleScaleId PSignal.noScale
+    sid = if scaleId == defaultScaleId then Pitch.emptyScale else scaleId
 
 -- ** note
 
-note_events :: ScoreT.Instrument -> (Maybe Voice, Maybe Call.Hand)
+noteEvents :: ScoreT.Instrument -> (Maybe Voice, Maybe Call.Hand)
     -> Common.CallMap -> [Score.Event] -> Track
-note_events inst (voice, hand) call_map events =
-    make_track note_title (map (note_event call_map) events)
+noteEvents inst (voice, hand) callMap events =
+    makeTrack noteTitle (map (noteEvent callMap) events)
     where
-    note_title = Text.intercalate " | " $ filter (/="")
-        [ ParseTitle.instrument_to_title inst
-        , add_env EnvKey.voice voice
-        , add_env EnvKey.hand hand
+    noteTitle = Text.intercalate " | " $ filter (/="")
+        [ ParseTitle.instrumentToTitle inst
+        , addEnv EnvKey.voice voice
+        , addEnv EnvKey.hand hand
         ]
-    add_env key = maybe "" (((key <> "=")<>) . ShowVal.show_val)
+    addEnv key = maybe "" (((key <> "=")<>) . ShowVal.showVal)
 
-note_event :: Common.CallMap -> Score.Event -> Event.Event
-note_event call_map event =
-    ui_event (Score.event_stack event)
-        (RealTime.to_score (Score.event_start event))
-        (RealTime.to_score (Score.event_duration event))
-        (note_call call_map event)
+noteEvent :: Common.CallMap -> Score.Event -> Event.Event
+noteEvent callMap event =
+    uiEvent (Score.eventStack event)
+        (RealTime.toScore (Score.eventStart event))
+        (RealTime.toScore (Score.eventDuration event))
+        (noteCall callMap event)
 
-note_call :: Common.CallMap -> Score.Event -> Text
-note_call call_map event = Texts.join2 " -- " text comment
+noteCall :: Common.CallMap -> Score.Event -> Text
+noteCall callMap event = Texts.join2 " -- " text comment
     where
     text
-        | Score.event_integrate event /= "" = Score.event_integrate event
-        | Just sym <- Map.lookup attrs call_map = Expr.unsym sym
-        | attrs /= mempty = ShowVal.show_val attrs
+        | Score.eventIntegrate event /= "" = Score.eventIntegrate event
+        | Just sym <- Map.lookup attrs callMap = Expr.unsym sym
+        | attrs /= mempty = ShowVal.showVal attrs
         | otherwise = ""
-        where attrs = Score.event_attributes event
+        where attrs = Score.eventAttributes event
     -- Append flags to help with debugging.  The presence of a flag
     -- probably means some postproc step wasn't applied.
     comment
         | debug && flags /= mempty = pretty flags
         | otherwise = ""
-        where flags = Score.event_flags event
+        where flags = Score.eventFlags event
 
 
 -- ** pitch
@@ -216,75 +216,75 @@ note_call call_map event = Texts.join2 " -- " text comment
 -- | Unlike 'control_events', this only drops dups that occur within the same
 -- event.  This is because it's more normal to think of each note as
 -- establishing a new pitch, even if it's the same as the last one.
-pitch_events :: Pitch.ScaleId -> [Score.Event] -> (Track, [Error])
-pitch_events scale_id events =
-    (make_track pitch_title (tidy_pitches ui_events), concat errs)
+pitchEvents :: Pitch.ScaleId -> [Score.Event] -> (Track, [Error])
+pitchEvents scaleId events =
+    (makeTrack pitchTitle (tidyPitches uiEvents), concat errs)
     where
-    pitch_title = ParseTitle.scale_to_title scale_id
-    (ui_events, errs) = unzip $ map pitch_signal_events events
-    tidy_pitches = clip_to_zero . clip_concat . map drop_dups
+    pitchTitle = ParseTitle.scaleToTitle scaleId
+    (uiEvents, errs) = unzip $ map pitchSignalEvents events
+    tidyPitches = clipToZero . clipConcat . map dropDups
 
-no_pitch_signals :: [Score.Event] -> Bool
-no_pitch_signals = all (PSignal.null . Score.event_pitch)
+noPitchSignals :: [Score.Event] -> Bool
+noPitchSignals = all (PSignal.null . Score.eventPitch)
 
 -- | Convert an event's pitch signal to symbolic note names.  This uses
 -- 'PSignal.pitch_note', which handles a constant transposition, but not
 -- continuous pitch changes (it's not even clear how to spell those).  I could
 -- try to convert back from NoteNumbers, but I still have the problem of how
 -- to convert the curve back to high level pitches.
-pitch_signal_events :: Score.Event -> ([Event.Event], [Error])
-pitch_signal_events event = (ui_events, pitch_errs)
+pitchSignalEvents :: Score.Event -> ([Event.Event], [Error])
+pitchSignalEvents event = (uiEvents, pitchErrs)
     where
-    start = Score.event_start event
-    (xs, ys) = unzip $ PSignal.to_pairs $ PSignal.clip_before start $
-        Score.event_pitch event
+    start = Score.eventStart event
+    (xs, ys) = unzip $ PSignal.toPairs $ PSignal.clipBefore start $
+        Score.eventPitch event
     pitches = zip3 xs ys
-        (map (PSignal.pitch_note . Score.apply_controls event start) ys)
-    pitch_errs =
+        (map (PSignal.pitchNote . Score.applyControls event start) ys)
+    pitchErrs =
         [ pretty x <> ": converting " <> pretty p <> " " <> pretty err
         | (x, p, Left err) <- pitches
         ]
-    ui_events =
-        [ ui_event (Score.event_stack event) (RealTime.to_score x) 0
-            (Pitch.note_text note)
+    uiEvents =
+        [ uiEvent (Score.eventStack event) (RealTime.toScore x) 0
+            (Pitch.noteText note)
         | (x, _, Right note) <- pitches
         ]
 
 -- ** control
 
-control_events :: [Score.Event] -> [Track]
-control_events events =
-    filter (not . empty_track) $ map (control_track events) controls
+controlEvents :: [Score.Event] -> [Track]
+controlEvents events =
+    filter (not . emptyTrack) $ map (controlTrack events) controls
     where
     controls = List.sort $ Lists.unique $ concatMap
-        (map typed_control . filter wanted . Map.toList . Score.event_controls)
+        (map typedControl . filter wanted . Map.toList . Score.eventControls)
         events
     -- The integrate calls always include these because they affect the
     -- pitches.  'pitch_signal_events' will have already applied them though,
     -- so we don't need to have them again.
     -- TODO: technically they should be from pscale_transposers, but that's
     -- so much work to collect, let's just assume the standards.
-    wanted = (`Set.notMember` Controls.integrate_keep) . fst
-    typed_control (control, sig) = ScoreT.Typed (ScoreT.type_of sig) control
+    wanted = (`Set.notMember` Controls.integrateKeep) . fst
+    typedControl (control, sig) = ScoreT.Typed (ScoreT.typeOf sig) control
 
-control_track :: [Score.Event] -> ScoreT.Typed ScoreT.Control -> Track
-control_track events control =
-    make_track (ParseTitle.control_to_title control) ui_events
+controlTrack :: [Score.Event] -> ScoreT.Typed ScoreT.Control -> Track
+controlTrack events control =
+    makeTrack (ParseTitle.controlToTitle control) uiEvents
     where
-    ui_events = drop_dyn $ tidy_controls $ map (signal_events c) events
+    uiEvents = dropDyn $ tidyControls $ map (signalEvents c) events
     -- Don't emit a dyn track if it's just the default.
-    drop_dyn events = case Map.lookup c Derive.initial_control_vals of
+    dropDyn events = case Map.lookup c Derive.initialControlVals of
         Just val | all ((==t) . Event.text) events -> []
-            where t = ShowVal.show_hex_val val
+            where t = ShowVal.showHexVal val
         _ -> events
-    tidy_controls = clip_to_zero . drop_dups . clip_concat
-    c = ScoreT.val_of control
+    tidyControls = clipToZero . dropDups . clipConcat
+    c = ScoreT.valOf control
 
-signal_events :: ScoreT.Control -> Score.Event -> [Event.Event]
-signal_events control event = case Score.event_control control event of
+signalEvents :: ScoreT.Control -> Score.Event -> [Event.Event]
+signalEvents control event = case Score.eventControl control event of
     Nothing -> []
-    Just sig -> map (uncurry mk) $ Signal.to_pairs $
-        Signal.clip_before start (ScoreT.val_of sig)
+    Just sig -> map (uncurry mk) $ Signal.toPairs $
+        Signal.clipBefore start (ScoreT.valOf sig)
     where
     -- Suppose ambient dyn is .75, but then post integrate it is set to .6.
     -- Since the dyn track multiplies by default, this would wind up doubly
@@ -292,44 +292,44 @@ signal_events control event = case Score.event_control control event of
     -- dyn so we can invert it here.
     invert
         | control == Controls.dynamic = fromMaybe 1 $
-            Env.maybe_val (ScoreT.control_name Controls.dynamic_integrate) $
-            Score.event_environ event
+            Env.maybeVal (ScoreT.controlName Controls.dynamicIntegrate) $
+            Score.eventEnviron event
         | otherwise = 1
-    start = Score.event_start event
-    mk x y = ui_event (Score.event_stack event) (RealTime.to_score x) 0
-        (ShowVal.show_hex_val (y / invert))
+    start = Score.eventStart event
+    mk x y = uiEvent (Score.eventStack event) (RealTime.toScore x) 0
+        (ShowVal.showHexVal (y / invert))
 
 -- * util
 
-ui_event :: Stack.Stack -> ScoreTime -> ScoreTime -> Text -> Event.Event
-ui_event stack pos dur text =
+uiEvent :: Stack.Stack -> ScoreTime -> ScoreTime -> Text -> Event.Event
+uiEvent stack pos dur text =
     Event.stack_ #= Just (Event.Stack stack pos) $ Event.event pos dur text
 
 -- | Concatenate the events, dropping ones that are out of order.  The
 -- durations are not modified, so they still might overlap in duration, but the
 -- start times will be increasing.
-clip_concat :: [[Event.Event]] -> [Event.Event]
-clip_concat = Lists.dropWith out_of_order . concat
-    where out_of_order e1 e2 = Event.start e2 <= Event.start e1
+clipConcat :: [[Event.Event]] -> [Event.Event]
+clipConcat = Lists.dropWith outOfOrder . concat
+    where outOfOrder e1 e2 = Event.start e2 <= Event.start e1
 
 -- | Drop subsequent events with the same text, since those are redundant for
 -- controls.
-drop_dups :: [Event.Event] -> [Event.Event]
-drop_dups = Lists.dropDups Event.text
+dropDups :: [Event.Event] -> [Event.Event]
+dropDups = Lists.dropDups Event.text
 
 -- | Drop events before 0, keeping at least one at 0.  Controls can wind up
 -- with samples before 0 (e.g. after using 'Derive.Score.move'), but events
 -- can't start before 0.
-clip_to_zero :: [Event.Event] -> [Event.Event]
-clip_to_zero (e1 : rest@(e2 : _))
-    | Event.start e1 <= 0 && Event.start e2 <= 0 = clip_to_zero rest
+clipToZero :: [Event.Event] -> [Event.Event]
+clipToZero (e1 : rest@(e2 : _))
+    | Event.start e1 <= 0 && Event.start e2 <= 0 = clipToZero rest
     | otherwise = (Event.start_ %= max 0 $ e1) : rest
-clip_to_zero [e] = [Event.start_ %= max 0 $ e]
-clip_to_zero [] = []
+clipToZero [e] = [Event.start_ %= max 0 $ e]
+clipToZero [] = []
 
-make_track :: Title -> [Event.Event] -> Track
-make_track title events = Track title (Lists.sortOn Event.start events)
+makeTrack :: Title -> [Event.Event] -> Track
+makeTrack title events = Track title (Lists.sortOn Event.start events)
 
-empty_track :: Track -> Bool
-empty_track (Track _ []) = True
-empty_track _ = False
+emptyTrack :: Track -> Bool
+emptyTrack (Track _ []) = True
+emptyTrack _ = False

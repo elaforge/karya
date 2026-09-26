@@ -6,7 +6,7 @@
 module Cmd.Ruler.Gong (
     Gongs, Jegogans
     , regular, until
-    , measure_dur
+    , measureDur
     , meter
     , config
     -- * java
@@ -50,36 +50,36 @@ type Jegogans = Int
 -}
 regular :: Gongs -> Jegogans -> Meter.Meter
 regular gongs jegogans = Meter.meter config (replicate gongs section)
-    where section = Meter.MSection jegogans measure_dur meter
+    where section = Meter.MSection jegogans measureDur meter
 
 until :: TrackTime -> Meter.Meter
 until end =
-    Meter.modify_sections (Meter.sections_take end) $ regular gongs jegogans
+    Meter.modifySections (Meter.sectionsTake end) $ regular gongs jegogans
     where
     jegogans = 4
-    gongs = ceiling $ end / (fromIntegral jegogans * measure_dur)
+    gongs = ceiling $ end / (fromIntegral jegogans * measureDur)
 
 -- | This gives a reasonable kotekan speed at tempo=1.  It makes kotekan into
 -- "s" with one "cycle" of 8 as a "h".  A "w" is 2 cycles and 8 per section.
-measure_dur :: TrackTime
-measure_dur = 2
+measureDur :: TrackTime
+measureDur = 2
 
 meter :: Meter.AbstractMeter
-meter = Meter.regular_subdivision [2, 2, 2, 2, 2, 2]
+meter = Meter.regularSubdivision [2, 2, 2, 2, 2, 2]
 
 -- | Gong config starts counting from 0.  This is more appropriate for Balinese
 -- and Javenese music which are counted n 1 2 3 .. n
 config :: Meter.Config
 config = Meter.Config
-    { config_labeled_ranks = labeled_ranks
-    , config_label = Meter.BigNumber 0
-    , config_start_measure = 1
-    , config_min_depth = 1
-    , config_strip_depth = 2
+    { configLabeledRanks = labeledRanks
+    , configLabel = Meter.BigNumber 0
+    , configStartMeasure = 1
+    , configMinDepth = 1
+    , configStripDepth = 2
     }
 
-labeled_ranks :: Set Meter.Rank
-labeled_ranks = Set.fromList [Meter.Section, Meter.H, Meter.S, Meter.T128]
+labeledRanks :: Set Meter.Rank
+labeledRanks = Set.fromList [Meter.Section, Meter.H, Meter.S, Meter.T128]
     -- Section: gong, W: gong stroke, H: jegog, Q: calung, E: kotekan*2,
     -- S: kotekan*4, ...
 
@@ -282,31 +282,31 @@ irama =
 -}
 
 java :: Int -> Meter.Meter
-java lines = Meter.meter java_config (replicate lines section)
+java lines = Meter.meter javaConfig (replicate lines section)
     where
     section = Meter.MSection
-        { section_measures = 2 -- how many kenong / gong, TODO depends on form
-        , section_measure_duration = 4
-        , section_measure = meter
+        { sectionMeasures = 2 -- how many kenong / gong, TODO depends on form
+        , sectionMeasureDuration = 4
+        , sectionMeasure = meter
         }
-    meter = Meter.regular_subdivision [2, 2, 2, 2, 2, 2, 2]
+    meter = Meter.regularSubdivision [2, 2, 2, 2, 2, 2, 2]
 
 -- | 1 gatra of ruler.
 gatra :: Meter.Meter
-gatra = Meter.meter java_config [section]
+gatra = Meter.meter javaConfig [section]
     where
     section = Meter.MSection
-        { section_measures = 1
-        , section_measure_duration = 4
-        , section_measure = meter
+        { sectionMeasures = 1
+        , sectionMeasureDuration = 4
+        , sectionMeasure = meter
         }
-    meter = Meter.regular_subdivision [2, 2, 2, 2, 2, 2, 2]
+    meter = Meter.regularSubdivision [2, 2, 2, 2, 2, 2, 2]
 
-java_config :: Meter.Config
-java_config = Meter.Config
-    { config_labeled_ranks = Set.fromList [Meter.W, Meter.Q, Meter.T64]
-    , config_label = Meter.BigNumber 0
-    , config_start_measure = 1
-    , config_min_depth = 1
-    , config_strip_depth = 2
+javaConfig :: Meter.Config
+javaConfig = Meter.Config
+    { configLabeledRanks = Set.fromList [Meter.W, Meter.Q, Meter.T64]
+    , configLabel = Meter.BigNumber 0
+    , configStartMeasure = 1
+    , configMinDepth = 1
+    , configStripDepth = 2
     }

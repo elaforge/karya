@@ -21,18 +21,18 @@ import qualified Ui.Meter.Meter as Meter
 -- I get a fragment section, and following sections are at .99999
 
 -- | Convert the selection from chatusram nadai to tisram nadai.
-chatusram_to_tisram :: Cmd.CmdL ()
-chatusram_to_tisram = do
-    (block_id, _, _, range) <- Selection.tracks
-    let (start, end) = Events.range_times range
+chatusramToTisram :: Cmd.CmdL ()
+chatusramToTisram = do
+    (blockId, _, _, range) <- Selection.tracks
+    let (start, end) = Events.rangeTimes range
     ModifyEvents.selection $
-        ModifyEvents.event $ LEvent.stretch_event start (2/3)
+        ModifyEvents.event $ LEvent.stretchEvent start (2/3)
     let dur = (end - start) * (2/3)
-    LRuler.local $ LRuler.modify_selected $
-        LRuler.replace_range start (start + dur) $
-        Meter.meter_sections (Tala.make_until Tala.adi 3 1 dur)
+    LRuler.local $ LRuler.modifySelected $
+        LRuler.replaceRange start (start + dur) $
+        Meter.meterSections (Tala.makeUntil Tala.adi 3 1 dur)
     -- Delete final 1/3.
-    Edit.delete_block_time block_id (start + dur) (end - (start+dur))
+    Edit.deleteBlockTime blockId (start + dur) (end - (start+dur))
 
 -- | Create adi tala in chatusram-tisram.  Assuming 1t per aksharam, there
 -- is 3/4 per c-t aksharam.  So 8 of them fits in 6t, so each one is 6/8t.

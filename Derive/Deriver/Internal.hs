@@ -33,11 +33,11 @@ import           Types
 
 -- * generic state access
 
-get_dynamic :: (Dynamic -> a) -> Deriver a
-get_dynamic f = gets (f . state_dynamic)
+getDynamic :: (Dynamic -> a) -> Deriver a
+getDynamic f = gets (f . stateDynamic)
 
-get_constant :: (Constant -> a) -> Deriver a
-get_constant f = gets (f . state_constant)
+getConstant :: (Constant -> a) -> Deriver a
+getConstant f = gets (f . stateConstant)
 
 -- | This is a little different from Reader.local because only a portion of
 -- the state is used Reader-style.
@@ -48,30 +48,30 @@ get_constant f = gets (f . state_constant)
 -- (i.e. except Collect) from the sub derivation is discarded, whatever state
 -- it's in after the exception shouldn't matter.
 local :: (Dynamic -> Dynamic) -> Deriver a -> Deriver a
-local modify_dynamic = localm (pure . modify_dynamic)
+local modifyDynamic = localm (pure . modifyDynamic)
 
 localm :: (Dynamic -> Deriver Dynamic) -> Deriver a -> Deriver a
-localm modify_dynamic deriver = do
+localm modifyDynamic deriver = do
     st <- get
-    new <- modify_dynamic (state_dynamic st)
-    put $ st { state_dynamic = new }
+    new <- modifyDynamic (stateDynamic st)
+    put $ st { stateDynamic = new }
     result <- deriver
-    modify $ \new -> new { state_dynamic = state_dynamic st }
+    modify $ \new -> new { stateDynamic = stateDynamic st }
     pure result
 
 -- | A version of 'local' that catches exceptions and ignores any changes to
 -- Collect.  This is appropriate for sub-calls that are below normal track
 -- derivation.
-detached_local :: (Dynamic -> Dynamic) -> Deriver a -> Deriver (Either Error a)
-detached_local modify_dynamic deriver = do
+detachedLocal :: (Dynamic -> Dynamic) -> Deriver a -> Deriver (Either Error a)
+detachedLocal modifyDynamic deriver = do
     st <- get
     let (result, _, logs) = run
-            (st { state_dynamic = modify_dynamic (state_dynamic st) }) deriver
+            (st { stateDynamic = modifyDynamic (stateDynamic st) }) deriver
     mapM_ Log.write logs
     pure result
 
-set_threaded :: Threaded -> Deriver ()
-set_threaded threaded = modify $ \st -> st { state_threaded = threaded }
+setThreaded :: Threaded -> Deriver ()
+setThreaded threaded = modify $ \st -> st { stateThreaded = threaded }
 
 -- * Collect
 
@@ -79,179 +79,179 @@ set_threaded threaded = modify $ \st -> st { state_threaded = threaded }
 --
 -- Direct modification would be potentially more efficient, but according to
 -- profiling it doesn't make a difference.
-merge_collect :: Collect -> Deriver ()
-merge_collect c = modify $ \st -> st { state_collect = state_collect st <> c }
+mergeCollect :: Collect -> Deriver ()
+mergeCollect c = modify $ \st -> st { stateCollect = stateCollect st <> c }
     -- I append the Collect, which means that I wind up with the first instance
     -- for Maps with duplicate keys.  This seems a bit more intuitive than the
     -- last one.
 
 -- | Run with an empty Collect, restore the original Collect, and return the
 -- sub-deriver's Collect.
-local_collect :: Deriver a -> Deriver (a, Collect)
-local_collect deriver = do
-    old <- gets state_collect
-    modify $ \st -> st { state_collect = mempty }
+localCollect :: Deriver a -> Deriver (a, Collect)
+localCollect deriver = do
+    old <- gets stateCollect
+    modify $ \st -> st { stateCollect = mempty }
     result <- deriver
-    sub_collect <- gets state_collect
-    modify $ \st -> st { state_collect = old }
-    pure (result, sub_collect)
+    subCollect <- gets stateCollect
+    modify $ \st -> st { stateCollect = old }
+    pure (result, subCollect)
 
 -- | Modify the 'collect_warp_map' to reduce the start and end by the given
 -- times.  This is useful if you're going to clip off some events.  The
 -- TrackWarps, and hence playback cursor, can't know you're going to do this,
 -- so you have to tell it.
-trim_track_warps :: Maybe RealTime -> Maybe RealTime -> Deriver a -> Deriver a
-trim_track_warps start end = with_collect $ \st -> st
-    { collect_warp_map = trim <$> collect_warp_map st }
+trimTrackWarps :: Maybe RealTime -> Maybe RealTime -> Deriver a -> Deriver a
+trimTrackWarps start end = withCollect $ \st -> st
+    { collectWarpMap = trim <$> collectWarpMap st }
     where
-    trim (TrackWarp.Track s e warp block_id track_id) =
+    trim (TrackWarp.Track s e warp blockId trackId) =
         TrackWarp.Track (maybe s (max s) start) (maybe e (min e) end)
-            warp block_id track_id
+            warp blockId trackId
 
 -- | Run the deriver and modify the Collect it returns.
-with_collect :: (Collect -> Collect) -> Deriver a -> Deriver a
-with_collect modify deriver = do
-    (a, collect) <- local_collect deriver
-    merge_collect (modify collect)
+withCollect :: (Collect -> Collect) -> Deriver a -> Deriver a
+withCollect modify deriver = do
+    (a, collect) <- localCollect deriver
+    mergeCollect (modify collect)
     pure a
 
 -- | TODO this is sketchy, you're supposed to use 'merge_collect'.
-modify_collect :: (Collect -> Collect) -> Deriver ()
-modify_collect f = modify $ \st -> st { state_collect = f (state_collect st) }
+modifyCollect :: (Collect -> Collect) -> Deriver ()
+modifyCollect f = modify $ \st -> st { stateCollect = f (stateCollect st) }
 
 -- * environ
 
-get_environ :: Deriver DeriveT.Environ
-get_environ = get_dynamic state_environ
+getEnviron :: Deriver DeriveT.Environ
+getEnviron = getDynamic stateEnviron
 
 -- | Figure out the current block and track, and record the current environ
 -- in the Collect.  It only needs to be recorded once per track.
-record_track_dynamic :: Dynamic -> Maybe TrackDynamic
-record_track_dynamic dyn = case Stack.block_track_of (state_stack dyn) of
+recordTrackDynamic :: Dynamic -> Maybe TrackDynamic
+recordTrackDynamic dyn = case Stack.blockTrackOf (stateStack dyn) of
     Just (bid, tid) -> Just $! Map.singleton (bid, tid) $!
         -- If I don't clear the inversion state, any inverting call that uses
         -- this dynamic will throw a double inversion error.  Also the function
         -- closure probably causes drag.
-        dyn { state_inversion = NotInverted }
+        dyn { stateInversion = NotInverted }
     Nothing -> Nothing
 
 -- | 'record_track_dynamic' for when I already know BlockId and TrackId.
-record_track_dynamic_for :: BlockId -> TrackId -> Deriver ()
-record_track_dynamic_for block_id track_id = do
-    dynamic <- gets state_dynamic
-    merge_collect $ mempty
-        { collect_track_dynamic = Map.singleton (block_id, track_id) dynamic }
+recordTrackDynamicFor :: BlockId -> TrackId -> Deriver ()
+recordTrackDynamicFor blockId trackId = do
+    dynamic <- gets stateDynamic
+    mergeCollect $ mempty
+        { collectTrackDynamic = Map.singleton (blockId, trackId) dynamic }
 
 -- * misc Dynamic state
 
-with_default_merge :: Map ScoreT.Control Merger -> Deriver a -> Deriver a
-with_default_merge defaults = local $ \st -> st
-    { state_control_merge_defaults =
-        defaults <> state_control_merge_defaults st
+withDefaultMerge :: Map ScoreT.Control Merger -> Deriver a -> Deriver a
+withDefaultMerge defaults = local $ \st -> st
+    { stateControlMergeDefaults =
+        defaults <> stateControlMergeDefaults st
     }
 
 -- * cache
 
-with_control_damage :: ControlDamage -> Deriver derived -> Deriver derived
-with_control_damage damage = local $ \st ->
-    st { state_control_damage = damage }
+withControlDamage :: ControlDamage -> Deriver derived -> Deriver derived
+withControlDamage damage = local $ \st ->
+    st { stateControlDamage = damage }
 
-add_block_dep :: BlockId -> Deriver ()
-add_block_dep block_id = merge_collect $ mempty
-    { collect_block_deps = BlockDeps (Set.singleton block_id) }
+addBlockDep :: BlockId -> Deriver ()
+addBlockDep blockId = mergeCollect $ mempty
+    { collectBlockDeps = BlockDeps (Set.singleton blockId) }
 
 -- * ui state
 
-get_ui_state :: (Ui.State -> a) -> Deriver a
-get_ui_state f = gets (f . state_ui . state_constant)
+getUiState :: (Ui.State -> a) -> Deriver a
+getUiState f = gets (f . stateUi . stateConstant)
 
-get_ui_config :: (UiConfig.Config -> a) -> Deriver a
-get_ui_config f = get_ui_state (f . Ui.state_config)
+getUiConfig :: (UiConfig.Config -> a) -> Deriver a
+getUiConfig f = getUiState (f . Ui.stateConfig)
 
 -- | Because Deriver is not a UiStateMonad.
 --
 -- TODO I suppose it could be, but then I'd be tempted to make
 -- a ReadOnlyUiStateMonad.  And I'd have to merge the exceptions.
 -- Or just rethrow, right?
-get_track :: TrackId -> Deriver Track.Track
-get_track track_id = lookup_id track_id =<< get_ui_state Ui.state_tracks
+getTrack :: TrackId -> Deriver Track.Track
+getTrack trackId = lookupId trackId =<< getUiState Ui.stateTracks
 
-get_block :: BlockId -> Deriver Block.Block
-get_block block_id = lookup_id block_id =<< get_ui_state Ui.state_blocks
+getBlock :: BlockId -> Deriver Block.Block
+getBlock blockId = lookupId blockId =<< getUiState Ui.stateBlocks
 
 -- | Evaluate a Ui.M computation, rethrowing any errors.
-eval_ui :: HasCallStack => Ui.StateId a -> Deriver a
-eval_ui action = do
-    ui_state <- get_ui_state id
+evalUi :: HasCallStack => Ui.StateId a -> Deriver a
+evalUi action = do
+    uiState <- getUiState id
     let rethrow exc = throw $ pretty exc
-    either rethrow pure (Ui.eval ui_state action)
+    either rethrow pure (Ui.eval uiState action)
 
 -- | Lookup @map!key@, throwing if it doesn't exist.
-lookup_id :: (Ord k, Show k) => k -> Map k a -> Deriver a
-lookup_id key map = case Map.lookup key map of
+lookupId :: (Ord k, Show k) => k -> Map k a -> Deriver a
+lookupId key map = case Map.lookup key map of
     Nothing -> throw $ "unknown " <> showt key
     Just val -> pure val
 
 -- * stack
 
-lookup_current_block_id :: Deriver (Maybe BlockId)
-lookup_current_block_id = do
-    stack <- get_stack
+lookupCurrentBlockId :: Deriver (Maybe BlockId)
+lookupCurrentBlockId = do
+    stack <- getStack
     pure $ case [bid | Stack.Block bid <- Stack.innermost stack] of
         [] -> Nothing
         bid : _ -> Just bid
 
-get_current_block_id :: Deriver BlockId
-get_current_block_id =
+getCurrentBlockId :: Deriver BlockId
+getCurrentBlockId =
     maybe (throw "get_current_block_id: no blocks in stack") pure
-        =<< lookup_current_block_id
+        =<< lookupCurrentBlockId
 
-lookup_current_tracknum :: Deriver (Maybe (BlockId, TrackNum))
-lookup_current_tracknum = do
-    stack <- get_stack
-    case Stack.block_track_of stack of
+lookupCurrentTracknum :: Deriver (Maybe (BlockId, TrackNum))
+lookupCurrentTracknum = do
+    stack <- getStack
+    case Stack.blockTrackOf stack of
         Nothing -> pure Nothing
-        Just (block_id, track_id) -> do
-            tracknum <- eval_ui $ Ui.get_tracknum_of block_id track_id
-            pure $ Just (block_id, tracknum)
+        Just (blockId, trackId) -> do
+            tracknum <- evalUi $ Ui.getTracknumOf blockId trackId
+            pure $ Just (blockId, tracknum)
 
-get_current_tracknum :: Deriver (BlockId, TrackNum)
-get_current_tracknum =
-    maybe (throw "get_current_tracknum") pure =<< lookup_current_tracknum
+getCurrentTracknum :: Deriver (BlockId, TrackNum)
+getCurrentTracknum =
+    maybe (throw "get_current_tracknum") pure =<< lookupCurrentTracknum
 
 -- | Make a quick trick block stack.
-{-# SCC with_stack_block #-}
-with_stack_block :: BlockId -> Deriver a -> Deriver a
-with_stack_block = with_stack . Stack.Block
+{-# SCC withStackBlock #-}
+withStackBlock :: BlockId -> Deriver a -> Deriver a
+withStackBlock = withStack . Stack.Block
 
 -- | Make a quick trick track stack.
-{-# SCC with_stack_track #-}
-with_stack_track :: TrackId -> Deriver a -> Deriver a
-with_stack_track = with_stack . Stack.Track
+{-# SCC withStackTrack #-}
+withStackTrack :: TrackId -> Deriver a -> Deriver a
+withStackTrack = withStack . Stack.Track
 
-{-# SCC with_stack_region #-}
-with_stack_region :: ScoreTime -> ScoreTime -> Deriver a -> Deriver a
-with_stack_region s e = with_stack (Stack.Region s e)
+{-# SCC withStackRegion #-}
+withStackRegion :: ScoreTime -> ScoreTime -> Deriver a -> Deriver a
+withStackRegion s e = withStack (Stack.Region s e)
 
-{-# SCC with_stack_call #-}
-with_stack_call :: CallName -> Deriver a -> Deriver a
-with_stack_call (CallName name) = with_stack (Stack.Call name)
+{-# SCC withStackCall #-}
+withStackCall :: CallName -> Deriver a -> Deriver a
+withStackCall (CallName name) = withStack (Stack.Call name)
 
-{-# SCC with_stack_serial #-}
-with_stack_serial :: Int -> Deriver a -> Deriver a
-with_stack_serial = with_stack . Stack.Serial
+{-# SCC withStackSerial #-}
+withStackSerial :: Int -> Deriver a -> Deriver a
+withStackSerial = withStack . Stack.Serial
 
-with_stack :: Stack.Frame -> Deriver a -> Deriver a
-with_stack frame = localm $ \st -> do
-    stack <- get_stack
-    when (Stack.length stack >= max_depth) $
+withStack :: Stack.Frame -> Deriver a -> Deriver a
+withStack frame = localm $ \st -> do
+    stack <- getStack
+    when (Stack.length stack >= maxDepth) $
         throw $ "call stack too deep: " <> pretty frame
-    pure $ add_stack_frame frame st
+    pure $ addStackFrame frame st
     where
     -- A recursive loop will result in an unfriendly hang.  So limit the total
     -- nesting depth to catch those.  I could disallow all recursion, but this
     -- is more general.
-    max_depth = 100
+    maxDepth = 100
 
 {- | Add a new stack frame and hash it with the random seed.
 
@@ -269,29 +269,29 @@ with_stack frame = localm $ \st -> do
     The risk is that this makes the seed too stable, and things which should
     be randomized become identical.
 -}
-add_stack_frame :: Stack.Frame -> Dynamic -> Dynamic
-add_stack_frame frame st = st
-    { state_stack = Stack.add frame (state_stack st)
-    , state_environ = (if should_update_seed frame then update_seed else id)
-        (state_environ st)
+addStackFrame :: Stack.Frame -> Dynamic -> Dynamic
+addStackFrame frame st = st
+    { stateStack = Stack.add frame (stateStack st)
+    , stateEnviron = (if shouldUpdateSeed frame then updateSeed else id)
+        (stateEnviron st)
     }
     where
-    should_update_seed (Stack.Call {}) = False
-    should_update_seed _ = True
-    update_seed env =
+    shouldUpdateSeed (Stack.Call {}) = False
+    shouldUpdateSeed _ = True
+    updateSeed env =
         DeriveT.insert EnvKey.seed (DeriveT.num (update old)) env
         where
-        old = maybe 0 ScoreT.val_of $
-            DeriveT.constant_val =<< DeriveT.lookup EnvKey.seed env
+        old = maybe 0 ScoreT.valOf $
+            DeriveT.constantVal =<< DeriveT.lookup EnvKey.seed env
     update :: Double -> Double
-    update n = i2d (Seed.to_seed (floor n) frame)
+    update n = i2d (Seed.toSeed (floor n) frame)
     -- A Double should be able to hold up to 2^52, but that's still an
     -- annoyingly large number to write in a score, so restrict it further.
     i2d :: Int -> Double
     i2d i = fromIntegral (i `mod` 999)
 
-get_stack :: Deriver Stack.Stack
-get_stack = get_dynamic state_stack
+getStack :: Deriver Stack.Stack
+getStack = getDynamic stateStack
 
 -- ** time and duration
 
@@ -299,54 +299,54 @@ get_stack = get_dynamic state_stack
 class Time a where
     real :: a -> Deriver RealTime
     score :: a -> Deriver ScoreTime
-    to_duration :: a -> DeriveT.Duration
+    toDuration :: a -> DeriveT.Duration
 
 instance Time ScoreTime where
-    real = score_to_real
+    real = scoreToReal
     score = pure
-    to_duration = DeriveT.ScoreDuration
+    toDuration = DeriveT.ScoreDuration
 
 instance Time RealTime where
     real = pure
-    score = real_to_score
-    to_duration = DeriveT.RealDuration
+    score = realToScore
+    toDuration = DeriveT.RealDuration
 
 instance Time DeriveT.Duration where
     real (DeriveT.RealDuration t) = real t
     real (DeriveT.ScoreDuration t) = real t
     score (DeriveT.RealDuration t) = score t
     score (DeriveT.ScoreDuration t) = score t
-    to_duration = id
+    toDuration = id
 
 -- * warp
 
-in_real_time :: Deriver a -> Deriver a
-in_real_time = with_warp (const Warp.identity)
+inRealTime :: Deriver a -> Deriver a
+inRealTime = withWarp (const Warp.identity)
 
-with_warp :: (Warp.Warp -> Warp.Warp) -> Deriver a -> Deriver a
-with_warp f = local $ \st -> st { state_warp = f (state_warp st) }
+withWarp :: (Warp.Warp -> Warp.Warp) -> Deriver a -> Deriver a
+withWarp f = local $ \st -> st { stateWarp = f (stateWarp st) }
 
-get_warp :: Deriver Warp.Warp
-get_warp = get_dynamic state_warp
+getWarp :: Deriver Warp.Warp
+getWarp = getDynamic stateWarp
 
 at :: ScoreTime -> Deriver a -> Deriver a
-at shift = with_warp $ Warp.shift shift
+at shift = withWarp $ Warp.shift shift
 
 stretch :: ScoreTime -> Deriver a -> Deriver a
-stretch factor = with_warp $ Warp.stretch factor
+stretch factor = withWarp $ Warp.stretch factor
 
 -- | 'at' and 'stretch' in one.  It's a little more efficient than using them
 -- separately.  The order is stretch, then shift.
 place :: ScoreTime -> ScoreTime -> Deriver a -> Deriver a
-place shift stretch = with_warp $ Warp.stretch stretch . Warp.shift shift
+place shift stretch = withWarp $ Warp.stretch stretch . Warp.shift shift
     -- Warp.stretch and Warp.shift look like they're in the wrong order here,
     -- but they're not.  "Derive.Warp" for details.
 
 -- | Compose warps.
 warp :: Warp.Warp -> Deriver a -> Deriver a
 warp w
-    | Warp.is_identity w = id
-    | otherwise = with_warp (`Warp.compose` w)
+    | Warp.isIdentity w = id
+    | otherwise = withWarp (`Warp.compose` w)
 
 -- ** track warp
 
@@ -354,29 +354,29 @@ warp w
 --
 -- This must be called for each block, and it must be called after the tempo is
 -- warped for that block so it can install the new warp.
-add_new_track_warp :: Maybe TrackId -> Deriver ()
-add_new_track_warp maybe_track_id = do
-    stack <- get_stack
-    block_id <- get_current_block_id
-    start <- score_to_real 0
+addNewTrackWarp :: Maybe TrackId -> Deriver ()
+addNewTrackWarp maybeTrackId = do
+    stack <- getStack
+    blockId <- getCurrentBlockId
+    start <- scoreToReal 0
     -- Use block_event_end instead of block_logical_range.  Otherwise, the play
     -- monitor can't go past the end of the ruler, while the player is
     -- perfectly happy to do so.
-    end <- real =<< block_event_end block_id
-    warp <- get_warp
-    let track = TrackWarp.Track start end warp block_id maybe_track_id
-    merge_collect $ mempty { collect_warp_map = Map.singleton stack track }
+    end <- real =<< blockEventEnd blockId
+    warp <- getWarp
+    let track = TrackWarp.Track start end warp blockId maybeTrackId
+    mergeCollect $ mempty { collectWarpMap = Map.singleton stack track }
 
 -- | Sub-derived blocks are stretched according to their length, and this
 -- function defines the length of a block.  This is therefore the logical
 -- duration of the block, which may be shorter or lorger than the end of the
 -- last event, or the ruler.
-block_logical_range :: BlockId -> Deriver (TrackTime, TrackTime)
-block_logical_range = eval_ui . Ui.block_logical_range
+blockLogicalRange :: BlockId -> Deriver (TrackTime, TrackTime)
+blockLogicalRange = evalUi . Ui.blockLogicalRange
 
 -- | Get the duration of the block according to the last event.
-block_event_end :: BlockId -> Deriver ScoreTime
-block_event_end = eval_ui . Ui.block_event_end
+blockEventEnd :: BlockId -> Deriver ScoreTime
+blockEventEnd = evalUi . Ui.blockEventEnd
 
 
 -- * track
@@ -385,68 +385,68 @@ block_event_end = eval_ui . Ui.block_event_end
 -- notes.  But that means the track warps and track dynamics aren't recorded,
 -- which means they don't have tempo or a playback monitor, which makes them
 -- annoying.
-record_empty_tracks :: [TrackId] -> Deriver ()
-record_empty_tracks [] = pure ()
-record_empty_tracks track_ids = do
-    block_id <- get_current_block_id
-    mapM_ (record_empty_track block_id) track_ids
+recordEmptyTracks :: [TrackId] -> Deriver ()
+recordEmptyTracks [] = pure ()
+recordEmptyTracks trackIds = do
+    blockId <- getCurrentBlockId
+    mapM_ (recordEmptyTrack blockId) trackIds
 
-record_empty_track :: BlockId -> TrackId -> Deriver ()
-record_empty_track block_id track_id =
-    record_track_dynamic_for block_id track_id
+recordEmptyTrack :: BlockId -> TrackId -> Deriver ()
+recordEmptyTrack blockId trackId =
+    recordTrackDynamicFor blockId trackId
 
 -- * ControlFunction
 
-get_control_function_dynamic :: Deriver DeriveT.Dynamic
-get_control_function_dynamic = do
-    ruler <- get_ruler
+getControlFunctionDynamic :: Deriver DeriveT.Dynamic
+getControlFunctionDynamic = do
+    ruler <- getRuler
     state <- get
-    pure $ convert_dynamic ruler (state_dynamic state)
-        (state_event_serial (state_threaded state))
+    pure $ convertDynamic ruler (stateDynamic state)
+        (stateEventSerial (stateThreaded state))
 
-convert_dynamic :: Ruler.Marklists -> Dynamic -> Stack.Serial
+convertDynamic :: Ruler.Marklists -> Dynamic -> Stack.Serial
     -> DeriveT.Dynamic
-convert_dynamic ruler dyn serial = DeriveT.Dynamic
-    { dyn_pitch = state_pitch dyn
-    , dyn_environ = state_environ dyn
-    , dyn_event_serial = serial
-    , dyn_warp = state_warp dyn
-    , dyn_ruler = ruler
+convertDynamic ruler dyn serial = DeriveT.Dynamic
+    { dynPitch = statePitch dyn
+    , dynEnviron = stateEnviron dyn
+    , dynEventSerial = serial
+    , dynWarp = stateWarp dyn
+    , dynRuler = ruler
     }
 
 -- | Get the 'Ruler.meter' marklists, if there is a ruler track here.  This
 -- is called in all contexts, due to 'control_at', so it has to be careful
 -- to not require a ruler.
-get_ruler :: Deriver Ruler.Marklists
-get_ruler = lookup_current_tracknum >>= \case
+getRuler :: Deriver Ruler.Marklists
+getRuler = lookupCurrentTracknum >>= \case
     Nothing -> pure mempty
-    Just (block_id, tracknum) -> do
-        state <- get_ui_state id
+    Just (blockId, tracknum) -> do
+        state <- getUiState id
         pure $ either (const mempty) id $ Ui.eval state $ do
-            ruler_id <- fromMaybe Ui.no_ruler <$>
-                Ui.ruler_track_at block_id tracknum
-            Ruler.ruler_marklists <$> Ui.get_ruler ruler_id
+            rulerId <- fromMaybe Ui.noRuler <$>
+                Ui.rulerTrackAt blockId tracknum
+            Ruler.rulerMarklists <$> Ui.getRuler rulerId
 
 
 -- * Threaded
 
-modify_threaded :: (Threaded -> Threaded) -> Deriver ()
-modify_threaded f = modify $ \state -> state
-    { state_threaded = f (state_threaded state) }
+modifyThreaded :: (Threaded -> Threaded) -> Deriver ()
+modifyThreaded f = modify $ \state -> state
+    { stateThreaded = f (stateThreaded state) }
 
 -- | Increment 'state_event_serial'.
-increment_event_serial :: Deriver ()
-increment_event_serial = modify_threaded $ \threaded -> threaded
-    { state_event_serial = state_event_serial threaded + 1 }
+incrementEventSerial :: Deriver ()
+incrementEventSerial = modifyThreaded $ \threaded -> threaded
+    { stateEventSerial = stateEventSerial threaded + 1 }
 
 
 -- * misc
 
 -- | Am I deriving the toplevel block?
-is_root_block :: Deriver Bool
-is_root_block = is_root_block_stack <$> get_stack
+isRootBlock :: Deriver Bool
+isRootBlock = isRootBlockStack <$> getStack
     where
-    is_root_block_stack stack =
+    isRootBlockStack stack =
         case [bid | Stack.Block bid <- Stack.outermost stack] of
             [] -> True
             [_] -> True

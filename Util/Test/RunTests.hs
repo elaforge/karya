@@ -145,15 +145,15 @@ runTests allTests flags regexes = do
     when (mbOutputDir == Nothing && CheckOutput `elem` flags) $
         quitWithUsage ["--check-output requires --output"]
     when (ClearDirs `elem` flags) $ do
-        clearDirectory Testing.tmp_base_dir
+        clearDirectory Testing.tmpBaseDir
         whenJust mbOutputDir clearDirectory
     if  | List `elem` flags -> do
             mapM_ Text.IO.putStrLn $ List.sort $ map testName matches
             pure True
         | Subprocess `elem` flags -> subprocess allTests >> pure True
         | Interactive `elem` flags -> do
-            Testing.modify_test_config $ \config ->
-                config { Testing.config_human_agreeable = False }
+            Testing.modifyTestConfig $ \config ->
+                config { Testing.configHumanAgreeable = False }
             mapM_ runInSubprocess matches
             pure True
         | Just outputDir <- mbOutputDir -> do
@@ -197,7 +197,7 @@ runInSubprocess test = do
     putStrLn $ "subprocess: " ++ show argv0 ++ " " ++ show [testName test]
     val <- Process.rawSystem argv0 [untxt (testName test)]
     case val of
-        Exit.ExitFailure code -> Testing.with_test_name (testName test) $
+        Exit.ExitFailure code -> Testing.withTestName (testName test) $
             void $ Testing.failure $
                 "test returned " <> showt code <> ": " <> testName test
         _ -> pure ()
@@ -293,7 +293,7 @@ matchingTests regexes tests = concatMap match regexes
             tests
 
 runTest :: Test -> IO ()
-runTest test = Testing.with_test_name name $ isolate $ do
+runTest test = Testing.withTestName name $ isolate $ do
     Text.IO.putStrLn $ Text.unwords [metaPrefix, "run-test", testName test]
     start <- CPUTime.getCPUTime
     Testing.initialize (testModuleMeta test) $

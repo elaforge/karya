@@ -24,7 +24,7 @@ import           Util.Test
 test_segmentAt :: Test
 test_segmentAt = do
     let f = Resample.segmentAt 2
-    let sig = Signal.from_pairs [(0, 0), (1.25, 1), (4, 0)]
+    let sig = Signal.fromPairs [(0, 0), (1.25, 1), (4, 0)]
     equal (f sig 0) $ Segment.Segment 0 0 1.25 1
     equal (f sig 1) $ Segment.Segment 1.25 1 4 0
     equal (f sig 3.75) $ Segment.Segment 4 0 RealTime.large 0
@@ -43,16 +43,16 @@ generate = resampleBy (File "test.wav") -- (Sine 2)
     "out.wav" Resample.SincBestQuality
 
 -- Should be 220hz, *2 long.
-t_constant = generate [(0, 2)]
+tConstant = generate [(0, 2)]
 
 -- Should reach 440hz at 0.5s, > *1 long.
-t_linear = generate [(0, 2), (0.5, 1)]
+tLinear = generate [(0, 2), (0.5, 1)]
 
 -- Should go 880 to 440 to 880 at breakpoints.
-t_change_direction = generate [(0, 0.5), (0.5, 1), (1, 0.5)]
+tChangeDirection = generate [(0, 0.5), (0.5, 1), (1, 0.5)]
 
 -- Shoud go to 440 at 0.5 and jump to 220.
-t_discontinuity = generate [(0, 2), (0.5, 1), (0.5, 2), (1, 1)]
+tDiscontinuity = generate [(0, 2), (0.5, 1), (0.5, 2), (1, 1)]
 
 data Source = Sine Double | File FilePath
     deriving (Show)
@@ -62,7 +62,7 @@ resampleBy :: Source -> FilePath -> Resample.Quality
 resampleBy source out quality curve = write out $ Audio.gain 0.5 $ Audio.mix
     [ Audio.expandChannels $ Audio.takeS 2 $ Audio.sine 440
     , Resample.resampleBy (Resample.defaultConfig quality)
-            (Signal.from_pairs curve) $
+            (Signal.fromPairs curve) $
         case source of
             Sine secs ->
                 Audio.expandChannels $ Audio.takeS secs $ Audio.sine 440

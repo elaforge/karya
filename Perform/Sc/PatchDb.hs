@@ -2,7 +2,7 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
-module Perform.Sc.PatchDb (load_synth, normalize_patches) where
+module Perform.Sc.PatchDb (loadSynth, normalizePatches) where
 import qualified Control.Monad.Except as Except
 import qualified Data.ByteString as ByteString
 import qualified Data.Either as Either
@@ -32,44 +32,44 @@ import           Global
 
 type PatchDb = Map Note.PatchName Patch.Patch
 
-c_gate :: ScoreT.Control
-c_gate = ScoreT.Control "gate"
+cGate :: ScoreT.Control
+cGate = ScoreT.Control "gate"
 
 -- * load
 
-load_synth :: Path.AppDir -> IO (Maybe (Inst.SynthDecl Cmd.InstrumentCode))
-load_synth app_dir = fmap synth <$> load app_dir
+loadSynth :: Path.AppDir -> IO (Maybe (Inst.SynthDecl Cmd.InstrumentCode))
+loadSynth appDir = fmap synth <$> load appDir
 
 synth :: PatchDb -> Inst.SynthDecl Cmd.InstrumentCode
 synth patches = Inst.SynthDecl
-    { synthd_name = "sc"
-    , synthd_doc = "supercollider"
-    , synthd_patches = map (bimap Texts.toText make) (Map.toList patches)
-    , synthd_warns = []
+    { synthdName = "sc"
+    , synthdDoc = "supercollider"
+    , synthdPatches = map (bimap Texts.toText make) (Map.toList patches)
+    , synthdWarns = []
     }
     where
     make patch = Inst.Inst
-        { inst_backend = Inst.Sc patch
-        , inst_common = Common.common Cmd.empty_code
+        { instBackend = Inst.Sc patch
+        , instCommon = Common.common Cmd.emptyCode
         }
 
 load :: Path.AppDir -> IO (Maybe PatchDb)
-load app_dir = load_dir (Path.to_absolute app_dir Config.sc_dir)
+load appDir = loadDir (Path.toAbsolute appDir Config.scDir)
 
-load_dir :: FilePath -> IO (Maybe PatchDb)
-load_dir dir = Exceptions.ignoreEnoent (Files.list dir) >>= \case
+loadDir :: FilePath -> IO (Maybe PatchDb)
+loadDir dir = Exceptions.ignoreEnoent (Files.list dir) >>= \case
     Nothing -> do
         Log.notice $ "no supercollider patch dir: " <> showt dir
         pure Nothing
     Just fnames -> do
-        (errors, patches) <- Either.partitionEithers <$> mapM load_file fnames
+        (errors, patches) <- Either.partitionEithers <$> mapM loadFile fnames
         mapM_ Log.warn errors
         -- If you ran normalize_patches, there should be no collisions, since
         -- the filesystem disallows them.
         pure $ Just $ Map.unions patches
 
-load_file :: FilePath -> IO (Either Text PatchDb)
-load_file fname =
+loadFile :: FilePath -> IO (Either Text PatchDb)
+loadFile fname =
     fmap (first (txt . (prefix<>)) . parse fname) $ ByteString.readFile fname
     where prefix = fname <> ": "
 
@@ -81,15 +81,15 @@ parse fname bytes = do
 
 convert :: FilePath -> Literally.LiteralSynthDef -> Either String Patch.Patch
 convert fname def = do
-    gate_id <- maybe (Left $ "no 'gate' control: " <> prettys controls) pure $
-        Map.lookup c_gate controls
-    unless (gate_id == Note.gate_id) $
-        Left $ "gate control ID should be " <> prettys Note.gate_id <> ", was "
-            <> prettys gate_id
+    gateId <- maybe (Left $ "no 'gate' control: " <> prettys controls) pure $
+        Map.lookup cGate controls
+    unless (gateId == Note.gateId) $
+        Left $ "gate control ID should be " <> prettys Note.gateId <> ", was "
+            <> prettys gateId
     pure $ Patch.Patch
         { name = Literally._synthDefName def
         , filename = fname
-        , controls = Map.delete c_gate controls
+        , controls = Map.delete cGate controls
         }
     where
     controls = Map.fromList
@@ -102,15 +102,15 @@ convert fname def = do
 
 -- | Process a directory of .scsyndef patches to validate and make names
 -- consistent with filenames.  Call from ghci.
-normalize_patches :: FilePath -> FilePath -> IO ()
-normalize_patches in_dir out_dir = do
-    fnames <- Files.list in_dir
-    forM_ fnames $ \fname -> normalize_patch out_dir fname >>= \case
+normalizePatches :: FilePath -> FilePath -> IO ()
+normalizePatches inDir outDir = do
+    fnames <- Files.list inDir
+    forM_ fnames $ \fname -> normalizePatch outDir fname >>= \case
         Left err -> putStrLn $ fname <> ": " <> err
         Right () -> pure ()
 
-normalize_patch :: FilePath -> FilePath -> IO (Either String ())
-normalize_patch out_dir fname = Except.runExceptT $ do
+normalizePatch :: FilePath -> FilePath -> IO (Either String ())
+normalizePatch outDir fname = Except.runExceptT $ do
     Literally.SynthDefFile defs <- tryRight . Literally.decodeSynthDefFile
         =<< liftIO (ByteString.readFile fname)
     case defs of
@@ -119,13 +119,13 @@ normalize_patch out_dir fname = Except.runExceptT $ do
     where
     fix suffix def = do
         _ <- tryRight $ convert fname def
-        let old_name = Literally._synthDefName def
+        let oldName = Literally._synthDefName def
         let fixed = def { Literally._synthDefName = Texts.toByteString name }
-        when (old_name /= Texts.toByteString name) $
-            put $ "renamed " <> show old_name <> " -> " <> show name
-        let out_fname = out_dir </> name <> suffix <> ".scsyndef"
-        put $ fname <> " written to " <> out_fname
-        liftIO $ ByteString.writeFile out_fname
+        when (oldName /= Texts.toByteString name) $
+            put $ "renamed " <> show oldName <> " -> " <> show name
+        let outFname = outDir </> name <> suffix <> ".scsyndef"
+        put $ fname <> " written to " <> outFname
+        liftIO $ ByteString.writeFile outFname
             (Literally.encodeLiteralSynthDef fixed)
     name = fst $ Lists.dropSuffix ".scsyndef" $ FilePath.takeFileName fname
     put = liftIO . putStrLn

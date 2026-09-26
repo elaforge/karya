@@ -16,7 +16,7 @@
     > make_db :: MidiInst.MakeDb
     > load :: MidiInst.Load
 -}
-module User.Elaforge.Instrument (midi_synths, all_loads) where
+module User.Elaforge.Instrument (midiSynths, allLoads) where
 import qualified Cmd.Instrument.MidiInst as MidiInst
 import qualified Instrument.InstT as InstT
 import qualified User.Elaforge.Instrument.Derailer as Derailer
@@ -40,8 +40,8 @@ import qualified User.Generic.Instrument.Surge as Surge
 
 
 -- | Synth declarations for each synth that is declared purely.
-midi_synths :: [MidiInst.Synth]
-midi_synths =
+midiSynths :: [MidiInst.Synth]
+midiSynths =
     [ Derailer.synth
     , Drumaxx.synth
     , Fm8.synth
@@ -61,9 +61,9 @@ midi_synths =
 
 -- | Each synth that caches to disk has a function to make the cache, and one
 -- to load it.
-all_loads :: [(InstT.SynthName, (MidiInst.MakeDb, MidiInst.Load))]
-all_loads =
-    [ (Morpheus.synth_name, (Morpheus.make_db, Morpheus.load))
-    , (Vl1.synth_name, (Vl1.make_db, Vl1.load))
-    , (Z1.synth_name, (Z1.make_db, Z1.load))
+allLoads :: [(InstT.SynthName, (MidiInst.MakeDb, MidiInst.Load))]
+allLoads =
+    [ (Morpheus.synthName, (Morpheus.makeDb, Morpheus.load))
+    , (Vl1.synthName, (Vl1.makeDb, Vl1.load))
+    , (Z1.synthName, (Z1.makeDb, Z1.load))
     ]

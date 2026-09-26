@@ -18,14 +18,14 @@ import           Util.Test
 test_composite :: Test
 test_composite = do
     let run = DeriveTest.extract extract
-            . DeriveTest.derive_tracks_setup with ""
+            . DeriveTest.deriveTracksSetup with ""
         extract e =
-            ( DeriveTest.e_instrument e, DeriveTest.e_attributes e
-            , DeriveTest.e_pitch e
-            , DeriveTest.e_control "c1" e, DeriveTest.e_control "c2" e
+            ( DeriveTest.eInstrument e, DeriveTest.eAttributes e
+            , DeriveTest.ePitch e
+            , DeriveTest.eControl "c1" e, DeriveTest.eControl "c2" e
             )
-        with = CallTest.with_note_generator "a" $
-            DUtil.redirect_pitch "redir"
+        with = CallTest.withNoteGenerator "a" $
+            DUtil.redirectPitch "redir"
                 "+pitch" (Set.fromList ["c1"])
                 "+nopitch" (Set.fromList ["c2"])
         title = "> | redir-pitched = i1 | redir-unpitched = i2"
@@ -44,22 +44,22 @@ test_composite = do
 test_constant_controls :: Test
 test_constant_controls = do
     let run extract pitch controls tracks = DeriveTest.extract extract $
-            DeriveTest.derive_tracks_setup (with pitch controls) "" $
+            DeriveTest.deriveTracksSetup (with pitch controls) "" $
                 (">", [(0, 4, "a")]) : tracks
-        e_nn = Lists.dropDups id . map snd . DeriveTest.e_nns
-        e_c = DeriveTest.e_control_vals "c"
-        with pitch controls = CallTest.with_note_generator "a" $
-            DUtil.constant_controls pitch (Set.fromList controls)
-    equal (run e_nn False [] [("*", [(0, 0, "4c"), (2, 0, "4d")])])
+        eNn = Lists.dropDups id . map snd . DeriveTest.eNns
+        eC = DeriveTest.eControlVals "c"
+        with pitch controls = CallTest.withNoteGenerator "a" $
+            DUtil.constantControls pitch (Set.fromList controls)
+    equal (run eNn False [] [("*", [(0, 0, "4c"), (2, 0, "4d")])])
         ([[NN.c4, NN.d4]], [])
-    equal (run e_nn True [] [("*", [(0, 0, "4c"), (2, 0, "4d")])])
+    equal (run eNn True [] [("*", [(0, 0, "4c"), (2, 0, "4d")])])
         ([[NN.c4]], [])
-    equal (run e_nn False [] [("*", [(0, 0, "4c")]), ("t-dia", [(2, 0, "1")])])
+    equal (run eNn False [] [("*", [(0, 0, "4c")]), ("t-dia", [(2, 0, "1")])])
         ([[NN.c4, NN.d4]], [])
-    equal (run e_nn True [] [("*", [(0, 0, "4c")]), ("t-dia", [(2, 0, "1")])])
+    equal (run eNn True [] [("*", [(0, 0, "4c")]), ("t-dia", [(2, 0, "1")])])
         ([[NN.c4]], [])
 
-    equal (run e_c False [] [("c", [(0, 0, "1"), (2, 0, "2")])])
+    equal (run eC False [] [("c", [(0, 0, "1"), (2, 0, "2")])])
         ([[1, 2]], [])
-    equal (run e_c False ["c"] [("c", [(0, 0, "1"), (2, 0, "2")])])
+    equal (run eC False ["c"] [("c", [(0, 0, "1"), (2, 0, "2")])])
         ([[1]], [])

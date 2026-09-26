@@ -35,135 +35,135 @@ type Error = Text
 
 type Parse a = State.StateT (Map Text Record.RVal) (Except.Except [Error]) a
 
-p_allocation :: InstT.Qualified -> Map Text Record.RVal
+pAllocation :: InstT.Qualified -> Map Text Record.RVal
     -> Either Error UiConfig.Allocation
-p_allocation alloc_qualified fields = run $ do
-    alloc_config <- p_config
-    alloc_backend <- p_backend
+pAllocation allocQualified fields = run $ do
+    allocConfig <- pConfig
+    allocBackend <- pBackend
     rest <- State.get
     unless (Map.null rest) $
         Except.throwError ["extra fields: " <> Text.unwords (Map.keys rest)]
     pure $ UiConfig.Allocation
-        { alloc_qualified, alloc_config, alloc_backend }
+        { allocQualified, allocConfig, allocBackend }
     where
     run = first (Text.intercalate " -> ") . Except.runExcept
         . flip State.evalStateT fields
 
 -- put in the inherited env as comments?
-un_allocation :: UiConfig.Allocation -> Record.Record
-un_allocation (UiConfig.Allocation { alloc_config, alloc_backend }) =
-    un_config alloc_config ++ un_backend alloc_backend
+unAllocation :: UiConfig.Allocation -> Record.Record
+unAllocation (UiConfig.Allocation { allocConfig, allocBackend }) =
+    unConfig allocConfig ++ unBackend allocBackend
 
-p_config :: Parse Common.Config
-p_config = do
-    env <- field "env" mempty p_env
-    controls <- field "controls" mempty p_controls
+pConfig :: Parse Common.Config
+pConfig = do
+    env <- field "env" mempty pEnv
+    controls <- field "controls" mempty pControls
     pure $ Common.Config env controls False False
 
-un_config :: Common.Config -> Record.Record
-un_config (Common.Config { config_environ, config_controls }) = concat
-    [ [("env", env) | config_environ /= mempty]
-    , [("controls", controls) | config_controls /= mempty]
+unConfig :: Common.Config -> Record.Record
+unConfig (Common.Config { configEnviron, configControls }) = concat
+    [ [("env", env) | configEnviron /= mempty]
+    , [("controls", controls) | configControls /= mempty]
     ]
     where
-    env = un_environ config_environ
-    controls = un_controls config_controls
+    env = unEnviron configEnviron
+    controls = unControls configControls
 
-un_environ :: REnv.Environ -> Record.RVal
-un_environ = Record.Record . Map.toAscList . fmap un_val . REnv.to_map
+unEnviron :: REnv.Environ -> Record.RVal
+unEnviron = Record.Record . Map.toAscList . fmap unVal . REnv.toMap
 
-un_controls :: ScoreT.ControlValMap -> Record.RVal
-un_controls = Record.Record . Map.toAscList . fmap un_num
-    . Map.mapKeys ScoreT.control_name
+unControls :: ScoreT.ControlValMap -> Record.RVal
+unControls = Record.Record . Map.toAscList . fmap unNum
+    . Map.mapKeys ScoreT.controlName
 
-p_env :: Record.RVal -> Parse REnv.Environ
-p_env r = do
-    fields <- p_record r
-    REnv.Environ . Map.fromList <$> traverse (traverse p_val) fields
+pEnv :: Record.RVal -> Parse REnv.Environ
+pEnv r = do
+    fields <- pRecord r
+    REnv.Environ . Map.fromList <$> traverse (traverse pVal) fields
 
-p_controls :: Record.RVal -> Parse ScoreT.ControlValMap
-p_controls r = do
-    fields <- p_record r
+pControls :: Record.RVal -> Parse ScoreT.ControlValMap
+pControls r = do
+    fields <- pRecord r
     Map.fromList <$> mapM parse fields
-    where parse (k, v) = (ScoreT.Control k, ) <$> p_num v
+    where parse (k, v) = (ScoreT.Control k, ) <$> pNum v
     -- traverse p_num $ Map.mapKeys ScoreT.Control fields
 
-p_backend :: Parse UiConfig.Backend
-p_backend = UiConfig.Midi <$> p_midi_config
+pBackend :: Parse UiConfig.Backend
+pBackend = UiConfig.Midi <$> pMidiConfig
 
-p_midi_config :: Parse Patch.Config
-p_midi_config = do
-    initialization <- fieldm "initialization" p_enum
-    settings <- p_settings
+pMidiConfig :: Parse Patch.Config
+pMidiConfig = do
+    initialization <- fieldm "initialization" pEnum
+    settings <- pSettings
     pure $ Patch.Config
-        { config_allocation = [] -- filled in from the top line
-        , config_initialization = initialization
-        , config_settings = settings
+        { configAllocation = [] -- filled in from the top line
+        , configInitialization = initialization
+        , configSettings = settings
         }
 
-p_settings :: Parse Patch.Settings
-p_settings = do
-    config_flags <- fieldm "flags" (fmap Set.fromList . p_list p_enum)
-    config_scale <- fieldm "scale" p_scale
-    config_decay <- fieldm "decay" (fmap RealTime.seconds . p_num)
-    config_pitch_bend_range <- fieldm "pb_range" (p_pair p_int)
-    config_control_defaults <- fieldm "control_defaults" p_controls
+pSettings :: Parse Patch.Settings
+pSettings = do
+    configFlags <- fieldm "flags" (fmap Set.fromList . pList pEnum)
+    configScale <- fieldm "scale" pScale
+    configDecay <- fieldm "decay" (fmap RealTime.seconds . pNum)
+    configPitchBendRange <- fieldm "pb_range" (pPair pInt)
+    configControlDefaults <- fieldm "control_defaults" pControls
     pure $ Patch.Settings
-        { config_flags, config_scale, config_decay
-        , config_pitch_bend_range, config_control_defaults
+        { configFlags, configScale, configDecay
+        , configPitchBendRange, configControlDefaults
         }
 
 -- | 'Patch.Scale's are from instrument patch definitions, ultimately from
 -- Derive.Scale.  Unless it's useful to hand-tune, it's probably better to
 -- have a global named registry like with scales, but too much bother right
 -- now.
-p_scale :: Record.RVal -> Parse Patch.Scale
-p_scale val
+pScale :: Record.RVal -> Parse Patch.Scale
+pScale val
     | Record.Record fields <- val
     , [("key_to_nn", nns), ("name", name)] <- Lists.sortOn fst fields = do
-        nns <- p_list p_num nns
-        name <- p_str name
-        pure $ Patch.make_scale_dense name nns
+        nns <- pList pNum nns
+        name <- pStr name
+        pure $ Patch.makeScaleDense name nns
     | otherwise = throw "{name, key_to_nn}" val
 
-un_scale :: Patch.Scale -> Record.RVal
-un_scale (Patch.Scale { scale_name, scale_key_to_nn }) = Record.Record
-    [ ("name", Record.Val $ DeriveT.str scale_name)
+unScale :: Patch.Scale -> Record.RVal
+unScale (Patch.Scale { scaleName, scaleKeyToNn }) = Record.Record
+    [ ("name", Record.Val $ DeriveT.str scaleName)
     , ("key_to_nn", Record.Val $ DeriveT.VList $ map DeriveT.num $
-        Vector.Unboxed.toList scale_key_to_nn)
+        Vector.Unboxed.toList scaleKeyToNn)
     ]
 
-un_backend :: UiConfig.Backend -> Record.Record
-un_backend = \case
+unBackend :: UiConfig.Backend -> Record.Record
+unBackend = \case
     UiConfig.Midi config -> concat
-        [ maybe_field "initialization" (Record.Val . un_enum)
-            config_initialization
-        , maybe_field "flags"
-            (Record.Val . DeriveT.VList . map un_enum . Set.toList)
-            config_flags
+        [ maybeField "initialization" (Record.Val . unEnum)
+            configInitialization
+        , maybeField "flags"
+            (Record.Val . DeriveT.VList . map unEnum . Set.toList)
+            configFlags
         -- Save it as just the name.  It should be factored out into an
         -- assignment by Instruments.un_instruments.
-        , maybe_field "scale"
+        , maybeField "scale"
             -- TODO Historically scale_name had spaces.  They should no longer
             -- have them, but this is so old scores still load.
-            (Record.Val . DeriveT.str . Text.replace " " "-" . Patch.scale_name)
-            config_scale
-        , maybe_field "decay" (Record.Val . DeriveT.real_time) config_decay
-        , maybe_field "pb_range" (\(a, b) -> Record.list [int a, int b])
-            config_pitch_bend_range
-        , maybe_field "control_defaults" un_controls config_control_defaults
+            (Record.Val . DeriveT.str . Text.replace " " "-" . Patch.scaleName)
+            configScale
+        , maybeField "decay" (Record.Val . DeriveT.realTime) configDecay
+        , maybeField "pb_range" (\(a, b) -> Record.list [int a, int b])
+            configPitchBendRange
+        , maybeField "control_defaults" unControls configControlDefaults
         ]
         where
-        Patch.Config { config_initialization, config_settings } = config
+        Patch.Config { configInitialization, configSettings } = config
         Patch.Settings
-            { config_flags, config_scale, config_decay
-            , config_pitch_bend_range, config_control_defaults
-            } = config_settings
+            { configFlags, configScale, configDecay
+            , configPitchBendRange, configControlDefaults
+            } = configSettings
     _ -> []
     -- if Nothing, I could emit a commented out line?
 
-maybe_field :: text -> (a -> b) -> Maybe a -> [(text, b)]
-maybe_field name convert mb_val = maybe [] ((:[]) . (name,) . convert) mb_val
+maybeField :: text -> (a -> b) -> Maybe a -> [(text, b)]
+maybeField name convert mbVal = maybe [] ((:[]) . (name,) . convert) mbVal
 
 fieldm :: Text -> (Record.RVal -> Parse a) -> Parse (Maybe a)
 fieldm name parse = field name Nothing (fmap Just . parse)
@@ -176,47 +176,47 @@ field name deflt parse =
             State.put (Map.delete name fields)
             annotate name (parse val)
 
-p_record :: Record.RVal -> Parse Record.Record
-p_record = \case
+pRecord :: Record.RVal -> Parse Record.Record
+pRecord = \case
     Record.Record rec -> pure rec
     a@(Record.Val _) -> throw "record" a
 
-p_str :: Record.RVal -> Parse Text
-p_str = \case
+pStr :: Record.RVal -> Parse Text
+pStr = \case
     Record.Val (DeriveT.VStr (Expr.Str s)) -> pure s
     a -> throw "str" a
 
-p_num :: Record.RVal -> Parse Double
-p_num = \case
+pNum :: Record.RVal -> Parse Double
+pNum = \case
     Record.Val (DeriveT.VSignal (ScoreT.Typed _ sig))
-        | Just a <- Signal.constant_val sig -> pure a
+        | Just a <- Signal.constantVal sig -> pure a
     a -> throw "num" a
 
-un_num :: Double -> Record.RVal
-un_num = Record.Val . DeriveT.num
+unNum :: Double -> Record.RVal
+unNum = Record.Val . DeriveT.num
 
-p_int :: Record.RVal -> Parse Int
-p_int val = properFraction <$> p_num val >>= \case
+pInt :: Record.RVal -> Parse Int
+pInt val = properFraction <$> pNum val >>= \case
     (n, 0) -> pure n
     _ -> throw "int" val
 
-p_enum :: forall a. (Enum a, Bounded a, Show a) => Record.RVal -> Parse a
-p_enum val = p_str val >>= \str -> case lookup str to of
+pEnum :: forall a. (Enum a, Bounded a, Show a) => Record.RVal -> Parse a
+pEnum val = pStr val >>= \str -> case lookup str to of
     Just a -> pure a
     Nothing -> throw "enum" val
     where to = Lists.keyOn showt [minBound :: a ..]
 
-un_enum :: Show a => a -> DeriveT.Val
-un_enum = DeriveT.str . showt
+unEnum :: Show a => a -> DeriveT.Val
+unEnum = DeriveT.str . showt
 
-p_list :: (Record.RVal -> Parse a) -> Record.RVal -> Parse [a]
-p_list parse = \case
+pList :: (Record.RVal -> Parse a) -> Record.RVal -> Parse [a]
+pList parse = \case
     Record.Val (DeriveT.VList vals) ->
         annotate "list" $ mapM (parse . Record.Val) vals
     a -> throw "list" a
 
-p_pair :: (Record.RVal -> Parse a) -> Record.RVal -> Parse (a, a)
-p_pair parse = \case
+pPair :: (Record.RVal -> Parse a) -> Record.RVal -> Parse (a, a)
+pPair parse = \case
     Record.Val (DeriveT.VList [a, b]) ->
         annotate "pair" $ (,) <$> parse (Record.Val a) <*> parse (Record.Val b)
     a -> throw "list" a
@@ -224,23 +224,23 @@ p_pair parse = \case
 -- | REnv.Vals are supposed to be the the parseable ones.  But the usual
 -- parser produces DeriveT.Val, just a subset.  So this effectively narrows
 -- the type.
-p_val :: Record.RVal -> Parse REnv.Val
-p_val = \case
+pVal :: Record.RVal -> Parse REnv.Val
+pVal = \case
     Record.Val val -> case REnv.demote val of
         Just val -> pure val
         Nothing -> Except.throwError
-            ["val can't be converted to parseable: " <> ShowVal.show_val val]
+            ["val can't be converted to parseable: " <> ShowVal.showVal val]
     a@(Record.Record _) -> throw "val" a
 
-un_val :: REnv.Val -> Record.RVal
-un_val = Record.Val . REnv.promote
+unVal :: REnv.Val -> Record.RVal
+unVal = Record.Val . REnv.promote
 
 annotate :: Except.MonadError [e] m => e -> m a -> m a
 annotate context = flip Except.catchError (Except.throwError . (context:))
 
 throw :: Except.MonadError [Error] m => Text -> Record.RVal -> m a
 throw expected val = Except.throwError
-    ["expected " <> expected <> " but got " <> mconcat (Record.un_rval val)]
+    ["expected " <> expected <> " but got " <> mconcat (Record.unRval val)]
 
 int :: Int -> DeriveT.Val
 int = DeriveT.num . fromIntegral

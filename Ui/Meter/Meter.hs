@@ -28,25 +28,25 @@
 module Ui.Meter.Meter (
     Meter(..), MSection(..), Measures
     , meter
-    , meter_end
-    , empty_meter
-    , modify_config
-    , set_sections, modify_sections
-    , sections_split, sections_drop, sections_take
-    , section_starts
-    , Duration, time_to_duration
+    , meterEnd
+    , emptyMeter
+    , modifyConfig
+    , setSections, modifySections
+    , sectionsSplit, sectionsDrop, sectionsTake
+    , sectionStarts
+    , Duration, timeToDuration
     , Config(..)
-    , default_config
-    , Rank(..), all_ranks
-    , rank_names, rank_name
+    , defaultConfig
+    , Rank(..), allRanks
+    , rankNames, rankName
     , LabelConfig(..)
     , Label
     -- * AbstractMeter
     , AbstractMeter(..)
     , subdivide, subdivides
     , repeat, repeats
-    , regular_subdivision
-    , meter_length
+    , regularSubdivision
+    , meterLength
 #ifdef TESTING
     , module Ui.Meter.Meter
 #endif
@@ -67,8 +67,8 @@ import           Types
 
 -- | Duration is of one AbstractMeter, so total duration will be count*dur.
 data Meter = Meter
-    { meter_config :: Config
-    , meter_sections :: [MSection] -- I frequently modify the end, Seq, Vector?
+    { meterConfig :: Config
+    , meterSections :: [MSection] -- I frequently modify the end, Seq, Vector?
     } deriving (Eq, Show)
 
 instance Pretty Meter where
@@ -78,32 +78,32 @@ instance Pretty Meter where
         ]
 
 instance Semigroup Meter where
-    meter1 <> meter2 = meter (meter_config meter1)
-        (meter_sections meter1 <> meter_sections meter2)
+    meter1 <> meter2 = meter (meterConfig meter1)
+        (meterSections meter1 <> meterSections meter2)
 instance Monoid Meter where
-    mempty = empty_meter
+    mempty = emptyMeter
     mappend = (<>)
 
-empty_meter :: Meter
-empty_meter = Meter default_config []
+emptyMeter :: Meter
+emptyMeter = Meter defaultConfig []
 
-meter_end :: Meter -> TrackTime
-meter_end = Num.sum . map section_duration . meter_sections
+meterEnd :: Meter -> TrackTime
+meterEnd = Num.sum . map sectionDuration . meterSections
 
 meter :: Config -> [MSection] -> Meter
 meter config sections =
-    set_sections (filter ((>0) . section_measures) sections) $
-    modify_config (const config) empty_meter
+    setSections (filter ((>0) . sectionMeasures) sections) $
+    modifyConfig (const config) emptyMeter
 
 -- Called MSection due to annoying name clash with Rank Section.
 -- If I change that one, then the change to rank_names affects parsing.
 data MSection = MSection
     -- | The section contains this many measures.
-    { section_measures :: Measures
+    { sectionMeasures :: Measures
     -- | Each measure has this duration.
-    , section_measure_duration :: Duration
+    , sectionMeasureDuration :: Duration
     -- | Describe a measure.
-    , section_measure :: AbstractMeter
+    , sectionMeasure :: AbstractMeter
     } deriving (Eq, Show)
 
 instance Pretty MSection where
@@ -113,30 +113,30 @@ instance Pretty MSection where
 
 type Measures = Int
 
-section_duration :: MSection -> Duration
-section_duration (MSection measures dur _) = fromIntegral measures * dur
+sectionDuration :: MSection -> Duration
+sectionDuration (MSection measures dur _) = fromIntegral measures * dur
 
-modify_config :: (Config -> Config) -> Meter -> Meter
-modify_config modify meter =
-    meter { meter_config = modify (meter_config meter) }
+modifyConfig :: (Config -> Config) -> Meter -> Meter
+modifyConfig modify meter =
+    meter { meterConfig = modify (meterConfig meter) }
 
-set_sections :: [MSection] -> Meter -> Meter
-set_sections = modify_sections . const
+setSections :: [MSection] -> Meter -> Meter
+setSections = modifySections . const
 
-modify_sections :: ([MSection] -> [MSection]) -> Meter -> Meter
-modify_sections modify meter =
-    meter { meter_sections = modify (meter_sections meter) }
+modifySections :: ([MSection] -> [MSection]) -> Meter -> Meter
+modifySections modify meter =
+    meter { meterSections = modify (meterSections meter) }
 
 -- | Trimming the AbstractMeter from the start will change the labels, but
 -- that's probably desired everywhere except a pickup.
-sections_drop :: TrackTime -> [MSection] -> [MSection]
-sections_drop start = snd . sections_split start
+sectionsDrop :: TrackTime -> [MSection] -> [MSection]
+sectionsDrop start = snd . sectionsSplit start
 
-sections_take :: TrackTime -> [MSection] -> [MSection]
-sections_take end = fst . sections_split end
+sectionsTake :: TrackTime -> [MSection] -> [MSection]
+sectionsTake end = fst . sectionsSplit end
 
-sections_split :: TrackTime -> [MSection] -> ([MSection], [MSection])
-sections_split at = if at <= 0 then ([],) else go 0
+sectionsSplit :: TrackTime -> [MSection] -> ([MSection], [MSection])
+sectionsSplit at = if at <= 0 then ([],) else go 0
     where
     go _ [] = ([], [])
     go t (s : ss)
@@ -145,25 +145,25 @@ sections_split at = if at <= 0 then ([],) else go 0
         | otherwise = bimap (pre++) (post++) rest
         where
         rest = go t2 ss
-        t2 = t + section_duration s
-        (pre, post) = section_split (at-t) s
+        t2 = t + sectionDuration s
+        (pre, post) = sectionSplit (at-t) s
 
-section_split :: TrackTime -> MSection -> ([MSection], [MSection])
-section_split at (MSection count dur meter)
-    | ts <= 0 = (make_section measures, make_section (count - measures))
+sectionSplit :: TrackTime -> MSection -> ([MSection], [MSection])
+sectionSplit at (MSection count dur meter)
+    | ts <= 0 = (makeSection measures, makeSection (count - measures))
     | otherwise =
-        ( make_section measures ++ maybe [] (:[]) pre_section
-        , maybe [] (:[]) post_section ++ make_section (count - measures-1)
+        ( makeSection measures ++ maybe [] (:[]) preSection
+        , maybe [] (:[]) postSection ++ makeSection (count - measures-1)
         )
     where
-    make_section m
+    makeSection m
         | m <= 0 = []
         | otherwise = [MSection m dur meter]
-    (pre_section, post_section) =
+    (preSection, postSection) =
         ( MSection 1 (fromIntegral ts * tlen) <$> pre
         , MSection 1 (dur - fromIntegral ts * tlen) <$> post
         )
-        where (pre, post) = meter_split ts meter
+        where (pre, post) = meterSplit ts meter
     (measures_, frac) = properFraction (at / dur)
     -- Since Duration is not Rational, I can easily get off and floor or
     -- ceiling will be surprising half the time.
@@ -172,12 +172,12 @@ section_split at (MSection count dur meter)
     (measures, ts)
         | ts_ >= mlen = (measures_ + 1, ts_ - mlen)
         | otherwise = (measures_, ts_)
-    mlen = meter_length meter
+    mlen = meterLength meter
     tlen = dur / fromIntegral mlen
 
-section_starts :: [MSection] -> [(Duration, MSection)]
-section_starts sections =
-    zip (scanl (+) 0 (map section_duration sections)) sections
+sectionStarts :: [MSection] -> [(Duration, MSection)]
+sectionStarts sections =
+    zip (scanl (+) 0 (map sectionDuration sections)) sections
 
 -- | Duration between ruler marks.  Since these are added together, there is
 -- a risk of accumulating innaccuracy.  I could use rationals if I changed
@@ -194,42 +194,42 @@ type Duration = TrackTime
 
 -- | TODO it's id for now, but maybe I'll want to make it Rational at some
 -- point?
-time_to_duration :: TrackTime -> Duration
-time_to_duration = id
+timeToDuration :: TrackTime -> Duration
+timeToDuration = id
 
 data Config = Config
     -- | Only write labels on these ranks.
-    { config_labeled_ranks :: Set Rank
+    { configLabeledRanks :: Set Rank
     -- | How to generate labels.
-    , config_label :: LabelConfig
+    , configLabel :: LabelConfig
     -- | The ruler should start counting at this number.  This could be measure
     -- number, or gong count, or avartanam count, whatever is the highest visual
     -- 'Label'.
-    , config_start_measure :: Measures
+    , configStartMeasure :: Measures
     -- | Labels have at least this many sections.  Otherwise, trailing sections
     -- are omitted.
-    , config_min_depth :: Int
+    , configMinDepth :: Int
     -- | Strip leading prefixes to this depth, via 'strip_prefixes'.
-    , config_strip_depth :: Int
+    , configStripDepth :: Int
     } deriving (Eq, Show, Generics.Generic)
 
 instance Pretty Config where format = Pretty.formatG_
 
-default_config :: Config
-default_config = Config
-    { config_labeled_ranks = default_labeled_ranks
-    , config_label = BigNumber 1
-    , config_start_measure = 1
-    , config_min_depth = 1
-    , config_strip_depth = 2
+defaultConfig :: Config
+defaultConfig = Config
+    { configLabeledRanks = defaultLabeledRanks
+    , configLabel = BigNumber 1
+    , configStartMeasure = 1
+    , configMinDepth = 1
+    , configStripDepth = 2
     }
 
 -- | By convention, ranks divide up the ruler by dividing it by two for each
 -- rank.  This is convenient because that's how staff notation works.  But then
 -- the labels wind up being all 0s and 1s, which is not that useful.  The ranks
 -- in this list don't receive their own label.
-default_labeled_ranks :: Set Rank
-default_labeled_ranks = Set.fromList [W, Q, S, T128]
+defaultLabeledRanks :: Set Rank
+defaultLabeledRanks = Set.fromList [W, Q, S, T128]
 
 -- * Rank
 
@@ -238,16 +238,16 @@ data Rank = Section | W | H | Q | E | S | T32 | T64 | T128 | T256
     deriving (Show, Eq, Ord, Bounded, Enum)
 instance Pretty Rank where pretty = showt
 
-all_ranks :: [Rank]
-all_ranks = [minBound .. maxBound]
+allRanks :: [Rank]
+allRanks = [minBound .. maxBound]
 
 -- | These are mnemonics for staff notation durations, though they may not
 -- correspond exactly, as documented in "Cmd.Meter".
-rank_names :: [(Rank, Text)]
-rank_names = zip [minBound ..] (map rank_name all_ranks)
+rankNames :: [(Rank, Text)]
+rankNames = zip [minBound ..] (map rankName allRanks)
 
-rank_name :: Rank -> Text
-rank_name = Text.toLower . showt
+rankName :: Rank -> Text
+rankName = Text.toLower . showt
 
 data LabelConfig = BigNumber Int | Cycle [Label]
     deriving (Eq, Show)
@@ -277,7 +277,7 @@ instance Pretty AbstractMeter where pretty = showt
 -- | Subdivide each mark into the given number @D@s.  This has the effect of
 -- putting one layer of subdivision under the current structure.
 subdivide :: Int -> AbstractMeter -> AbstractMeter
-subdivide n = replace_t (D (replicate n T))
+subdivide n = replaceT (D (replicate n T))
 
 subdivides :: [Int] -> AbstractMeter -> AbstractMeter
 subdivides divs meter = foldr subdivide meter (reverse divs)
@@ -291,43 +291,43 @@ repeats ns meter = foldr repeat meter ns
 
 -- | Form a meter based on regular subdivision.  E.g. [4, 4] is 4 groups of 4,
 -- [3, 3] is like 9\/8, and [4, 3] is 4 groups of 3 (12\/8).
-regular_subdivision :: [Int] -> AbstractMeter
+regularSubdivision :: [Int] -> AbstractMeter
     -- It's most natural to think of the list as big divisions on the left to
     -- small divisions on the right, so reverse the list.
-regular_subdivision ns = foldr subdivide T (reverse ns)
+regularSubdivision ns = foldr subdivide T (reverse ns)
 
 -- ** AbstractMeter utils
 
 -- | Map the given function over all @T@s in the given AbstractMeter.
-replace_t :: AbstractMeter -> AbstractMeter -> AbstractMeter
-replace_t val (D ts) = D (map (replace_t val) ts)
-replace_t val T = val
+replaceT :: AbstractMeter -> AbstractMeter -> AbstractMeter
+replaceT val (D ts) = D (map (replaceT val) ts)
+replaceT val T = val
 
-meter_length :: AbstractMeter -> Int
-meter_length (D ms) = Num.sum (map meter_length ms)
-meter_length T = 1
+meterLength :: AbstractMeter -> Int
+meterLength (D ms) = Num.sum (map meterLength ms)
+meterLength T = 1
 
-meter_drop_end :: Int -> AbstractMeter -> Maybe AbstractMeter
-meter_drop_end n
+meterDropEnd :: Int -> AbstractMeter -> Maybe AbstractMeter
+meterDropEnd n
     | n <= 0 = Just
-    | otherwise = fmap meter_reverse . meter_drop n . meter_reverse
+    | otherwise = fmap meterReverse . meterDrop n . meterReverse
 
-meter_reverse :: AbstractMeter -> AbstractMeter
-meter_reverse = \case
+meterReverse :: AbstractMeter -> AbstractMeter
+meterReverse = \case
     T -> T
-    D ts -> D (reverse (map meter_reverse ts))
+    D ts -> D (reverse (map meterReverse ts))
 
 -- | Drop the number of Ts.  This has to be in Maybe because there's no empty
 -- AbstractMeter.
-meter_drop :: Int -> AbstractMeter -> Maybe AbstractMeter
-meter_drop n = snd . meter_split n
+meterDrop :: Int -> AbstractMeter -> Maybe AbstractMeter
+meterDrop n = snd . meterSplit n
 
-meter_take :: Int -> AbstractMeter -> Maybe AbstractMeter
-meter_take n = fst . meter_split n
+meterTake :: Int -> AbstractMeter -> Maybe AbstractMeter
+meterTake n = fst . meterSplit n
 
-meter_split :: Int -> AbstractMeter
+meterSplit :: Int -> AbstractMeter
     -> (Maybe AbstractMeter, Maybe AbstractMeter)
-meter_split n m
+meterSplit n m
     | n <= 0 = (Nothing, Just m)
     | otherwise = case snd (go n [m]) of
         (pre, post) -> (Lists.head pre, Lists.head post)

@@ -21,16 +21,16 @@ import           Util.Test
 
 test_errors :: Test
 test_errors = do
-    let run call = extract_logs $ DeriveTest.derive_tracks ""
+    let run call = extractLogs $ DeriveTest.deriveTracks ""
                 [ (">", [(0, 1, "")])
                 , ("c", [(0, 0, call)])
                 ]
-    strings_like (run "set") ["set: expected an argument at \"to\""]
-    strings_like (run "set (env)") ["env: expected an argument at \"name\""]
+    stringsLike (run "set") ["set: expected an argument at \"to\""]
+    stringsLike (run "set (env)") ["env: expected an argument at \"name\""]
 
-extract_logs :: Derive.Result -> [Text]
-extract_logs = map DeriveTest.show_log_stack . snd . DeriveTest.extract_logs
-    . Stream.to_list . Derive.r_events
+extractLogs :: Derive.Result -> [Text]
+extractLogs = map DeriveTest.showLogStack . snd . DeriveTest.extractLogs
+    . Stream.toList . Derive.rEvents
 
 test_type_error :: Test
 test_type_error = do
@@ -38,28 +38,28 @@ test_type_error = do
         ints = Sig.many "ints" ""
         str = DeriveT.str "hi"
         int = DeriveT.num 42
-        int_sym :: Sig.Parser (Int, Expr.Str)
-        int_sym = (,)
+        intSym :: Sig.Parser (Int, Expr.Str)
+        intSym = (,)
             <$> Sig.required "int" ""
             <*> Sig.defaulted "sym" ("" :: Text) ""
-    left_like (call ints [str])
+    leftLike (call ints [str])
         "arg 1/ints: expected Signal (integral) but got Str: hi"
-    left_like (call int_sym [str]) "arg 1/int: expected Signal"
-    left_like (call int_sym [int, int]) "arg 2/sym: expected Str"
+    leftLike (call intSym [str]) "arg 1/int: expected Signal"
+    leftLike (call intSym [int, int]) "arg 2/sym: expected Str"
 
 test_eval_quoted :: Test
 test_eval_quoted = do
     let int :: Sig.Parser Int
         int = Sig.required "int" "doc"
     let quoted sym = DeriveT.VQuoted $ DeriveT.Quoted $ Expr.generator0 sym
-    let run val = call_with $ DeriveTest.setup_deriver $
-            CallTest.with_val_call "v" (val_call val)
-        val_call val = Derive.val_call "test" "v" mempty "" $ Sig.call0 $ \_ ->
-            pure $ Typecheck.to_val val
+    let run val = callWith $ DeriveTest.setupDeriver $
+            CallTest.withValCall "v" (valCall val)
+        valCall val = Derive.valCall "test" "v" mempty "" $ Sig.call0 $ \_ ->
+            pure $ Typecheck.toVal val
     -- A Quoted can be coerced into an int by evaluating it.
-    left_like (run (0 :: Int) int [quoted "not-found"])
+    leftLike (run (0 :: Int) int [quoted "not-found"])
         "arg 1/int from \"(not-found): *val call not found"
-    left_like (run ("hi" :: Text) int [quoted "v"])
+    leftLike (run ("hi" :: Text) int [quoted "v"])
         "arg 1/int from \"(v): expected Signal"
     equal (run (0 :: Int) int [quoted "v"]) (Right 0)
 
@@ -72,9 +72,9 @@ test_eval_quoted = do
 
 test_deriver :: Test
 test_deriver = do
-    let run = DeriveTest.extract DeriveTest.e_note
-            . DeriveTest.derive_tracks_setup with_ngen ""
-            . UiTest.note_track
+    let run = DeriveTest.extract DeriveTest.eNote
+            . DeriveTest.deriveTracksSetup withNgen ""
+            . UiTest.noteTrack
     equal (run [(0, 1, "ngen NOTE -- 4c")]) ([(0, 1, "4c")], [])
     equal (run [(0, 1, "ngen \"(t-dia=1 | NOTE) -- 4c")]) ([(0, 1, "4d")], [])
     -- The derive is evaluated in 'ngen', so that's whene the error comes from.
@@ -85,27 +85,27 @@ test_deriver = do
 
 test_deriver_children :: Test
 test_deriver_children = do
-    let run children skel = DeriveTest.extract DeriveTest.e_note $
-            DeriveTest.derive_tracks_setup
-                    (with_ngen <> DeriveTest.with_skel skel) "" $
-                (">", [(4, 1, "ngen")]) : concatMap UiTest.note_track children
-    strings_like (snd $ run [] []) ["expected an argument at \"deriver\""]
+    let run children skel = DeriveTest.extract DeriveTest.eNote $
+            DeriveTest.deriveTracksSetup
+                    (withNgen <> DeriveTest.withSkel skel) "" $
+                (">", [(4, 1, "ngen")]) : concatMap UiTest.noteTrack children
+    stringsLike (snd $ run [] []) ["expected an argument at \"deriver\""]
     -- it's awkward that I have to give the skeleton explicitly
     equal (run [[(4, 1, "4c")]] [(1, 2), (2, 3)])
         ([(4, 1, "4c")], [])
     equal (run [[(4, 1, "4c")], [(4, 1, "4d")]]
             [(1, 2), (2, 3), (1, 4), (4, 5)])
         ([(4, 1, "4c"), (4, 1, "4d")], [])
-    strings_like (snd $ run [[(4, 1, "4c")], [(4, 1, "4d")], [(4, 1, "4e")]]
+    stringsLike (snd $ run [[(4, 1, "4c")], [(4, 1, "4d")], [(4, 1, "4e")]]
             [(1, 2), (2, 3), (1, 4), (4, 5), (1, 6), (6, 7)])
         ["too many arguments: subtrack:"]
 
-with_ngen :: DeriveTest.SetupA a
-with_ngen = CallTest.with_note_generator "ngen" generator
+withNgen :: DeriveTest.SetupA a
+withNgen = CallTest.withNoteGenerator "ngen" generator
 
 generator :: Derive.Generator Derive.Note
 generator = Derive.generator "test" "ngen" mempty "doc" $
-    Sig.call_sub ((,)
+    Sig.callSub ((,)
         <$> Sig.required "deriver" "doc"
         <*> Sig.defaulted "deriver" (Nothing :: Maybe Sig.Dummy) "doc"
     ) $ \(deriver1, deriver2) _args -> deriver1 <> fromMaybe mempty deriver2
@@ -127,18 +127,18 @@ test_optional = do
         (Right (Nothing, [52]))
     let text :: Sig.Parser Text
         text = Sig.optional "text" "x" ""
-    let t = Typecheck.to_val @Text
+    let t = Typecheck.toVal @Text
     equal (call ((,) <$> text <*> ints) [t "hi", num 42, num 52])
         (Right ("hi", [42, 52]))
     equal (call ((,) <$> text <*> ints) [num 42, num 52])
         (Right ("x", [42, 52]))
 
 call :: Sig.Parser a -> [DeriveT.Val] -> Either Text a
-call = call_with id
+call = callWith id
 
-call_with :: (Derive.Deriver a -> Derive.Deriver a) -> Sig.Parser a
+callWith :: (Derive.Deriver a -> Derive.Deriver a) -> Sig.Parser a
     -> [DeriveT.Val] -> Either Text a
-call_with with p vals = DeriveTest.eval Ui.empty $
+callWith with p vals = DeriveTest.eval Ui.empty $
     with $ run (Sig.call p (\val _args -> pure val)) vals
 
 run :: Derive.WithArgDoc (Sig.Generator Derive.Tagged a) -> [DeriveT.Val]
@@ -146,7 +146,7 @@ run :: Derive.WithArgDoc (Sig.Generator Derive.Tagged a) -> [DeriveT.Val]
 run (f, _) vals = f args
     where
     args = Derive.PassedArgs
-        { Derive.passed_vals = vals
-        , Derive.passed_call_name = "test-call"
-        , Derive.passed_ctx = Derive.dummy_context 0 1 "test"
+        { Derive.passedVals = vals
+        , Derive.passedCallName = "test-call"
+        , Derive.passedCtx = Derive.dummyContext 0 1 "test"
         }

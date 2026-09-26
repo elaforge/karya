@@ -4,7 +4,7 @@
 
 {-# LANGUAGE MultiParamTypeClasses #-}
 -- | Convert Derive.Score output into Lilypond.Events.
-module Perform.Lilypond.Convert (convert, pitch_to_lily, quantize) where
+module Perform.Lilypond.Convert (convert, pitchToLily, quantize) where
 import qualified Control.Monad.Except as Except
 import qualified Control.Monad.Identity as Identity
 import qualified Data.Set as Set
@@ -44,26 +44,26 @@ import           Types
 -- that postproc is not applied, but I'll worry about that if I ever have
 -- a postproc that affects lilypond.
 convert :: Types.Config -> [Score.Event] -> [LEvent.LEvent Types.Event]
-convert config = ConvertUtil.convert event1 lookup_inst . filter_instruments
+convert config = ConvertUtil.convert event1 lookupInst . filterInstruments
     where
     -- Fake an instrument, which 'event1' will ignore.
-    lookup_inst = const $ Just $ Cmd.ResolvedInstrument
-        { inst_instrument = Inst.Inst
+    lookupInst = const $ Just $ Cmd.ResolvedInstrument
+        { instInstrument = Inst.Inst
             (Inst.Midi $ Midi.Patch.patch (-1, 1) "ly-fake-inst")
-            (Common.common Cmd.empty_code)
-        , inst_qualified = InstT.Qualified "ly" "ly-fake-inst"
-        , inst_common_config = Common.empty_config
-        , inst_backend = Cmd.Dummy "fake lilypond instrument"
+            (Common.common Cmd.emptyCode)
+        , instQualified = InstT.Qualified "ly" "ly-fake-inst"
+        , instCommonConfig = Common.emptyConfig
+        , instBackend = Cmd.Dummy "fake lilypond instrument"
         }
     event1 event _resolved =
-        convert_event (Types.config_quarter_duration config) event
-    filter_instruments
-        | null (Types.config_staves config) = id
-        | otherwise = filter ((`Set.member` insts) . Score.event_instrument)
-    insts = Set.fromList $ Constants.ly_global :
+        convertEvent (Types.configQuarterDuration config) event
+    filterInstruments
+        | null (Types.configStaves config) = id
+        | otherwise = filter ((`Set.member` insts) . Score.eventInstrument)
+    insts = Set.fromList $ Constants.lyGlobal :
         [ inst
-        | (inst, staff) <- Types.config_staves config
-        , Types.staff_display staff
+        | (inst, staff) <- Types.configStaves config
+        , Types.staffDisplay staff
         ]
 
 {- | Normally events have a duration and a pitch, and the lilypond performer
@@ -73,65 +73,65 @@ convert config = ConvertUtil.convert event1 lookup_inst . filter_instruments
     'Constants.free_code_key', or one of the special directives from Constants.
     All those events should be marked with 'Flags.ly_code'.
 -}
-convert_event :: RealTime -> Score.Event -> [LEvent.LEvent Types.Event]
-convert_event quarter event = run $ do
-    let dur = Types.real_to_time quarter (Score.event_duration event)
-    maybe_pitch <- convert_pitch event
+convertEvent :: RealTime -> Score.Event -> [LEvent.LEvent Types.Event]
+convertEvent quarter event = run $ do
+    let dur = Types.realToTime quarter (Score.eventDuration event)
+    maybePitch <- convertPitch event
     -- Otherwise it will be misinterpreted as an explicit rest, which should be
     -- a purely internal concept.
-    when (maybe_pitch == Nothing && not has_code_flag) $
+    when (maybePitch == Nothing && not hasCodeFlag) $
         throw "a note without pitch must have code"
-    when (dur == 0 && not has_code_flag) $
-        throw $ "zero duration event must have " <> pretty Flags.ly_code
+    when (dur == 0 && not hasCodeFlag) $
+        throw $ "zero duration event must have " <> pretty Flags.lyCode
     pure $ Types.Event
-        { event_start = Types.real_to_time quarter (Score.event_start event)
-        , event_duration =
-            Types.real_to_time quarter (Score.event_duration event)
-        , event_pitch = maybe_pitch
-        , event_instrument = Score.event_instrument event
-        , event_environ = Score.event_environ event
-        , event_stack = Score.event_stack event
-        , event_clipped = False
+        { eventStart = Types.realToTime quarter (Score.eventStart event)
+        , eventDuration =
+            Types.realToTime quarter (Score.eventDuration event)
+        , eventPitch = maybePitch
+        , eventInstrument = Score.eventInstrument event
+        , eventEnviron = Score.eventEnviron event
+        , eventStack = Score.eventStack event
+        , eventClipped = False
         }
     where
-    has_code_flag = Flags.has (Score.event_flags event) Flags.ly_code
+    hasCodeFlag = Flags.has (Score.eventFlags event) Flags.lyCode
     run = (:[]) . either LEvent.Log LEvent.Event . Identity.runIdentity
         . Except.runExceptT
 
 throw :: (HasCallStack, Except.MonadError Log.Msg m) => Text -> m a
 throw = Except.throwError . Log.msg Log.Warn Nothing
 
-convert_pitch :: Except.MonadError Log.Msg m =>
+convertPitch :: Except.MonadError Log.Msg m =>
     Score.Event -> m (Maybe Types.Pitch)
-convert_pitch event = case Score.initial_pitch event of
+convertPitch event = case Score.initialPitch event of
     Nothing -> pure Nothing
     Just pitch -> either (throw . ("convert_pitch: "<>)) (pure . Just) $
-        pitch_to_lily (Score.event_environ event) pitch
+        pitchToLily (Score.eventEnviron event) pitch
 
 -- * util
 
-pitch_to_lily :: Env.Environ -> PSignal.Transposed -> Either Text Types.Pitch
-pitch_to_lily env pitch =
-    case (\(Derive.LookupScale a) -> a) lookup_scale env scale_id of
-        Nothing -> Left $ "scale id not found: " <> pretty scale_id
+pitchToLily :: Env.Environ -> PSignal.Transposed -> Either Text Types.Pitch
+pitchToLily env pitch =
+    case (\(Derive.LookupScale a) -> a) lookupScale env scaleId of
+        Nothing -> Left $ "scale id not found: " <> pretty scaleId
         Just (Left err) ->
-            Left $ "scale " <> pretty scale_id <> ": " <> pretty err
+            Left $ "scale " <> pretty scaleId <> ": " <> pretty err
         Just (Right scale) -> do
-            note <- first pretty $ PSignal.pitch_note pitch
-            pitch <- first pretty $ Derive.scale_read scale env note
-            Types.parse_pitch pitch
-    where scale_id = PSignal.pitch_scale_id pitch
+            note <- first pretty $ PSignal.pitchNote pitch
+            pitch <- first pretty $ Derive.scaleRead scale env note
+            Types.parsePitch pitch
+    where scaleId = PSignal.pitchScaleId pitch
 
 quantize :: Types.Duration -> [Types.Event] -> [Types.Event]
 quantize dur = map $ \e -> e
-    { Types.event_start = q (Types.event_start e)
-    , Types.event_duration = q (Types.event_duration e)
+    { Types.eventStart = q (Types.eventStart e)
+    , Types.eventDuration = q (Types.eventDuration e)
     }
-    where q = quantize_time (Types.dur_to_time dur)
+    where q = quantizeTime (Types.durToTime dur)
 
-quantize_time :: Types.Time -> Types.Time -> Types.Time
-quantize_time time t =
+quantizeTime :: Types.Time -> Types.Time -> Types.Time
+quantizeTime time t =
     round (fromIntegral t / fromIntegral time :: Double) * time
 
-lookup_scale :: Derive.LookupScale
-lookup_scale = Scale.All.lookup_scale
+lookupScale :: Derive.LookupScale
+lookupScale = Scale.All.lookupScale

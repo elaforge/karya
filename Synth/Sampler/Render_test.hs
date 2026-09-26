@@ -35,40 +35,40 @@ import           Util.Test
 
 test_write_noop :: Test
 test_write_noop = do
-    dir <- Testing.tmp_dir "write"
+    dir <- Testing.tmpDir "write"
     let write = write_ dir
     -- no notes produces no output
-    io_equal (write []) (Right (0, 0))
-    io_equal (Directory.listDirectory (dir </> Checkpoint.checkpointDir)) []
+    ioEqual (write []) (Right (0, 0))
+    ioEqual (Directory.listDirectory (dir </> Checkpoint.checkpointDir)) []
     result <- write [mkNote1 "" 0]
-    left_like result "file not found"
-    io_equal (listWavs dir) []
+    leftLike result "file not found"
+    ioEqual (listWavs dir) []
 
 test_write_simple :: Test
 test_write_simple = do
     (write, dir) <- tmpDb
     -- A single note that spans two checkpoints.  Dur is determined by the
     -- sample length.
-    io_equal (write [mkNote1 dir 0]) (Right (2, 2))
-    io_equal (length <$> listWavs dir) 2
-    io_equal (readSamples dir) triangle
+    ioEqual (write [mkNote1 dir 0]) (Right (2, 2))
+    ioEqual (length <$> listWavs dir) 2
+    ioEqual (readSamples dir) triangle
 
 test_effect :: Test
 test_effect = do
     (dir, write) <- testEffect
     let note start val = mkNoteEffect dir start "delay" [(0, val)]
-    io_equal (write [note 0 0]) $ Right (2, 2)
-    io_equal (readSamples dir) triangle
+    ioEqual (write [note 0 0]) $ Right (2, 2)
+    ioEqual (readSamples dir) triangle
     -- Changing the effect control changes the note hashes.
-    io_equal (write [note 0 2]) $ Right (3, 3)
-    io_equal (readSamples dir) ([0, 0] ++ triangle ++ [0, 0])
+    ioEqual (write [note 0 2]) $ Right (3, 3)
+    ioEqual (readSamples dir) ([0, 0] ++ triangle ++ [0, 0])
 
 test_effect_gain :: Test
 test_effect_gain = do
     (dir, write) <- testEffect
     let note start val = mkNoteEffect dir start "gain" [(0, val)]
-    io_equal (write [note 0 1.5]) $ Right (2, 2)
-    io_equal (readSamples dir) $ map (*1.5) triangle
+    ioEqual (write [note 0 1.5]) $ Right (2, 2)
+    ioEqual (readSamples dir) $ map (*1.5) triangle
 
 test_effect_2notes :: Test
 test_effect_2notes = do
@@ -77,18 +77,18 @@ test_effect_2notes = do
     let zeros n = replicate n 0
     -- 2 notes, and the effect control changes.
 
-    io_equal (write [note 0 0.5, note 8 0.75]) (Right (4, 4))
-    io_equal (readSamples dir) $ zipWith (+)
+    ioEqual (write [note 0 0.5, note 8 0.75]) (Right (4, 4))
+    ioEqual (readSamples dir) $ zipWith (+)
         (map (*0.5) $ triangle ++ repeat 0)
         (map (*0.75) $ zeros 8 ++ triangle)
 
-    io_equal (write [note 0 0.5, note 8 0.25]) (Right (2, 4))
-    io_equal (readSamples dir) $ zipWith (+)
+    ioEqual (write [note 0 0.5, note 8 0.25]) (Right (2, 4))
+    ioEqual (readSamples dir) $ zipWith (+)
         (map (*0.5) $ triangle ++ repeat 0)
         (map (*0.25) $ zeros 8 ++ triangle)
 
-    io_equal (write [note 0 0.5, note 4 0.25]) (Right (2, 3))
-    io_equal (readSamples dir) $ zipWith (+)
+    ioEqual (write [note 0 0.5, note 4 0.25]) (Right (2, 3))
+    ioEqual (readSamples dir) $ zipWith (+)
         (map (*0.5) (take 4 triangle) ++ map (*0.25) (drop 4 triangle)
             ++ repeat 0)
         (map (*0.25) $ zeros 4 ++ triangle)
@@ -100,8 +100,8 @@ testEffect = do
     let write = writeQuality Resample.ZeroOrderHold (Just effect) dir
     pure (dir, write)
 
-_test_state_deterministic :: IO ()
-_test_state_deterministic = do
+_testStateDeterministic :: IO ()
+_testStateDeterministic = do
     -- Ensure successive runs with the same inputs have the same state from
     -- libsamplerate.  Disabled because I have to run it in separate processes
     -- by hand to be sure.  Previously libsamplerate was non-deterministic, but
@@ -114,7 +114,7 @@ getStates :: IO [Either Render.Error Render.State]
 getStates = do
     (_, dir) <- tmpDb
     let write = writeQuality Resample.SincMediumQuality Nothing dir
-    io_equal (write [mkNote dir 0 2]) (Right (4, 4))
+    ioEqual (write [mkNote dir 0 2]) (Right (4, 4))
     let checkpoint = dir </> Checkpoint.checkpointDir
     fns <- List.sort . filter (".state." `List.isInfixOf`) <$>
         Directory.listDirectory checkpoint
@@ -127,17 +127,17 @@ loadState fname = Render.unserializeState . Checkpoint.State <$>
 test_write_simple_offset :: Test
 test_write_simple_offset = do
     (write, dir) <- tmpDb
-    io_equal (write [mkNote1 dir 3]) (Right (3, 3))
-    io_equal (readSamples dir) (replicate 3 0 ++ triangle ++ [0])
+    ioEqual (write [mkNote1 dir 3]) (Right (3, 3))
+    ioEqual (readSamples dir) (replicate 3 0 ++ triangle ++ [0])
 
 test_write_silent_chunk :: Test
 test_write_silent_chunk = do
     (write, dir) <- tmpDb
-    io_equal (write [mkNote1 dir 5]) (Right (4, 4))
+    ioEqual (write [mkNote1 dir 5]) (Right (4, 4))
     sizes <- durations dir
     equal sizes [0, 4, 4, 4]
     -- If there are no notes in the middle, they go to silent chunks too.
-    io_equal (write [mkNote1 dir 0, mkNote1 dir 16]) (Right (6, 6))
+    ioEqual (write [mkNote1 dir 0, mkNote1 dir 16]) (Right (6, 6))
     sizes <- durations dir
     equal sizes [4, 4, 0, 0, 4, 4]
 
@@ -149,9 +149,9 @@ test_write_freq :: Test
 test_write_freq = do
     (write, dir) <- tmpDb
     -- Freq*2 is half as many samples.
-    io_equal (write [mkNote dir 0 0.5]) (Right (1, 1))
-    io_equal (length <$> listWavs dir) 1
-    io_equal (readSamples dir) [0.1, 0.2, 0.4, 0.2]
+    ioEqual (write [mkNote dir 0 0.5]) (Right (1, 1))
+    ioEqual (length <$> listWavs dir) 1
+    ioEqual (readSamples dir) [0.1, 0.2, 0.4, 0.2]
 
 -- Can I do it without the whole directory and file?
 -- I'd have to replace File.readFrom in RenderSample, and with something that
@@ -170,10 +170,10 @@ test_write_ratios = do
     -- input array."
     let expected = map (/10)
             [1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 4, 4, 3, 3, 2, 2, 1, 1, 0, 0]
-    io_equal (write notes) (Right (5, 5))
-    io_equal (readSamples dir) expected
+    ioEqual (write notes) (Right (5, 5))
+    ioEqual (readSamples dir) expected
     -- No work, all chunks reused.
-    io_equal (write notes) (Right (0, 5))
+    ioEqual (write notes) (Right (0, 5))
     -- rmPrefixes (dir </> "checkpoint") ["002", "003", "004"]
     -- io_equal (write notes) (Right (3, 5))
     -- io_equal (readSamples dir) expected
@@ -220,12 +220,12 @@ test_write_incremental = do
             [ mkNote1 dir 0
             , mkNote1 dir 6
             ]
-    io_equal (write oldNotes) (Right (3, 3))
-    io_equal (readSamples dir)
+    ioEqual (write oldNotes) (Right (3, 3))
+    ioEqual (readSamples dir)
         (zipWith (+) (triangle ++ repeat 0) (replicate 4 0 ++ triangle))
 
     -- resume 0 note at -4
-    io_equal (write newNotes) (Right (3, 4))
+    ioEqual (write newNotes) (Right (3, 4))
     let expected =
             zipWith (+) (triangle ++ repeat 0) (replicate 6 0 ++ triangle)
             ++ [0, 0] -- pad to 16
@@ -238,14 +238,14 @@ test_resume_at_boundary :: Test
 test_resume_at_boundary = do
     (write, dir) <- tmpDb
     let note = mkNoteDur dir
-    io_equal (write [note 0 4, note 4 4]) (Right (2, 2))
-    io_equal (readSamples dir) $ map (/10) [1, 2, 3, 4, 1, 2, 3, 4]
-    io_equal (write [note 0 4, note 4 2]) (Right (1, 2))
-    io_equal (readSamples dir) $ map (/10) [1, 2, 3, 4, 1, 2, 0, 0]
+    ioEqual (write [note 0 4, note 4 4]) (Right (2, 2))
+    ioEqual (readSamples dir) $ map (/10) [1, 2, 3, 4, 1, 2, 3, 4]
+    ioEqual (write [note 0 4, note 4 2]) (Right (1, 2))
+    ioEqual (readSamples dir) $ map (/10) [1, 2, 3, 4, 1, 2, 0, 0]
 
 renderSamples :: [Sample.Note] -> IO [Float]
 renderSamples notes = do
-    dir <- Testing.tmp_dir "renderSamples"
+    dir <- Testing.tmpDir "renderSamples"
     write_ dir notes
     readSamples dir
 
@@ -274,7 +274,7 @@ test_overlappingNotes = do
 
 tmpDb :: IO ([Sample.Note] -> IO (Either Text (Int, Int)), FilePath)
 tmpDb = do
-    dir <- Testing.tmp_dir "write"
+    dir <- Testing.tmpDir "write"
     let write = write_ dir
     writeDb dir
     pure (write, dir)
@@ -354,7 +354,7 @@ mkNoteDur :: FilePath -> Audio.Frames -> Audio.Frames -> Sample.Note
 mkNoteDur dbDir start dur =
     Sample.note start dur mempty
         ((Sample.make (triFilename dbDir))
-            { Sample.envelope = Signal.from_pairs
+            { Sample.envelope = Signal.fromPairs
                 [(sec start, 1), (sec (start + dur), 1), (sec (start + dur), 0)]
             })
     where
@@ -370,7 +370,7 @@ mkNoteAll dbDir start ratios_ effectControls =
     where
     dur = Audio.Frames $ length triangle
     sec = AUtil.toSeconds
-    ratios = Signal.from_pairs $ map (first sec) ratios_
+    ratios = Signal.fromPairs $ map (first sec) ratios_
 
 -- * effect
 
@@ -378,7 +378,7 @@ mkNoteEffect :: FilePath -> Audio.Frames -> Control.Control
     -> [(Signal.X, Signal.Y)] -> Sample.Note
 mkNoteEffect dbDir start control vals =
     mkNoteAll dbDir start [(start, 1)]
-        (Map.singleton control (Signal.from_pairs vals))
+        (Map.singleton control (Signal.fromPairs vals))
 
 makeEffect :: Text -> IO Render.InstrumentEffect
 makeEffect name = do
@@ -391,7 +391,7 @@ makeEffect name = do
 controlNote :: RealTime -> RealTime -> Control.Control
     -> [(Signal.X, Signal.Y)] -> Note.Note
 controlNote start dur control vals =
-    Note.withControl control (Signal.from_pairs vals) $
+    Note.withControl control (Signal.fromPairs vals) $
     Note.testNote start dur
 
 -- * TODO copy paste with Faust.Render_test

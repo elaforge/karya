@@ -17,12 +17,12 @@ import qualified Perform.Pitch as Pitch
 test_from_midi :: Test
 test_from_midi = do
     let state = InputNote.ReadDeviceState $ Map.fromList
-            [(rdev, InputNote.empty_control_state (-1, 2))]
-        rdev = Midi.read_device "rdev"
+            [(rdev, InputNote.emptyControlState (-1, 2))]
+        rdev = Midi.readDevice "rdev"
         chan = Midi.ChannelMessage 0
         nid = InputNote.NoteId
         input oct pc = Pitch.Input Pitch.PianoKbd (CmdTest.pitch oct pc 0) 0
-    let f st = InputNote.from_midi st rdev
+    let f st = InputNote.fromMidi st rdev
         thread st (msg:msgs) = case f st msg of
             Just (input, state) -> Just input : thread state msgs
             Nothing -> Nothing : thread state msgs
@@ -66,20 +66,20 @@ test_from_midi = do
 
 test_to_midi :: Test
 test_to_midi = do
-    let id_to_key ns = Map.fromList
+    let idToKey ns = Map.fromList
             [(InputNote.NoteId nid, key) | (nid, key) <- ns]
-    let f = InputNote.to_midi (-1, 1) Map.empty
-        note_on note_id nn = InputNote.NoteOn (InputNote.NoteId note_id) nn 1
+    let f = InputNote.toMidi (-1, 1) Map.empty
+        noteOn noteId nn = InputNote.NoteOn (InputNote.NoteId noteId) nn 1
         pb = Midi.PitchBend
 
     let n = Midi.NoteOn 64 127
-    equal (f (note_on 60 64)) ([pb 0, n], id_to_key [(60, 64)])
-    equal (f (note_on 64 64.5))
-        ([Midi.PitchBend 0.5, n], id_to_key [(64, 64)])
-    equal (f (note_on 64 64.5)) ([pb 0.5, n], id_to_key [(64, 64)])
+    equal (f (noteOn 60 64)) ([pb 0, n], idToKey [(60, 64)])
+    equal (f (noteOn 64 64.5))
+        ([Midi.PitchBend 0.5, n], idToKey [(64, 64)])
+    equal (f (noteOn 64 64.5)) ([pb 0.5, n], idToKey [(64, 64)])
     -- NoteOffs remove from the state.
-    equal (InputNote.to_midi (-1, 1) (id_to_key [(60, 70)])
-            (CmdTest.note_off 60))
+    equal (InputNote.toMidi (-1, 1) (idToKey [(60, 70)])
+            (CmdTest.noteOff 60))
         ([Midi.NoteOff 70 127], Map.empty)
     equal (f (CmdTest.control 64 "cc1" 1))
         ([Midi.ControlChange 1 127], Map.empty)

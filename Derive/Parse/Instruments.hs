@@ -20,16 +20,16 @@
 -}
 module Derive.Parse.Instruments (
     Allocation(..)
-    , Config(..), empty_config
+    , Config(..), emptyConfig
     , Backend(..)
-    , instrument_section
-    , to_backend
+    , instrumentSection
+    , toBackend
     -- * parse
-    , p_instruments
-    , un_instruments
-    , un_scale
-    , p_alloc_line
-    , un_alloc_line
+    , pInstruments
+    , unInstruments
+    , unScale
+    , pAllocLine
+    , unAllocLine
     , spaces
 ) where
 import qualified Data.Char as Char
@@ -67,26 +67,26 @@ type Error = Text
 
 -- | The subset of 'Ui.UiConfig.Allocation' on the header line.
 data Allocation = Allocation
-    { alloc_name :: ScoreT.Instrument
-    , alloc_qualified :: InstT.Qualified
-    , alloc_config :: Config
-    , alloc_backend :: Backend
+    { allocName :: ScoreT.Instrument
+    , allocQualified :: InstT.Qualified
+    , allocConfig :: Config
+    , allocBackend :: Backend
     } deriving (Eq, Show)
 
 -- | Subset of 'Instrument.Common.Config'.
 data Config = Config
-    { config_mute :: Bool
-    , config_solo :: Bool
+    { configMute :: Bool
+    , configSolo :: Bool
     } deriving (Eq, Show)
 
-empty_config :: Config
-empty_config = Config False False
+emptyConfig :: Config
+emptyConfig = Config False False
 
 data Backend = Midi Midi.WriteDevice [Midi.Channel] | Dummy | Im | Sc
     deriving (Eq, Show)
 
-show_backend :: Backend -> Text
-show_backend = \case
+showBackend :: Backend -> Text
+showBackend = \case
     Midi {} -> "midi"
     Dummy -> "dummy"
     Im -> "im"
@@ -94,66 +94,66 @@ show_backend = \case
 
 -- * instruments
 
-instrument_section :: Text
-instrument_section = "instrument"
+instrumentSection :: Text
+instrumentSection = "instrument"
 
 type LookupInst = InstT.Qualified -> Maybe REnv.Environ
 
-un_instruments :: LookupInst -> UiConfig.Allocations -> Either Error Text
-un_instruments lookup_inst (UiConfig.Allocations allocs) = do
-    lines <- concatMapM (uncurry (un_instrument lookup_inst))
+unInstruments :: LookupInst -> UiConfig.Allocations -> Either Error Text
+unInstruments lookupInst (UiConfig.Allocations allocs) = do
+    lines <- concatMapM (uncurry (unInstrument lookupInst))
         (Map.toList allocs)
-    pure $ Text.unlines $ lines ++ map un_scale scales
+    pure $ Text.unlines $ lines ++ map unScale scales
     where
-    scales = Lists.unique $ mapMaybe (scale_of . UiConfig.alloc_backend)
+    scales = Lists.unique $ mapMaybe (scaleOf . UiConfig.allocBackend)
         (Map.elems allocs)
-    scale_of = \case
+    scaleOf = \case
         UiConfig.Midi config -> Patch.settings#Patch.scale #$ config
         _ -> Nothing
 
-un_instrument :: LookupInst -> ScoreT.Instrument -> UiConfig.Allocation
+unInstrument :: LookupInst -> ScoreT.Instrument -> UiConfig.Allocation
     -> Either Error [Text]
-un_instrument lookup_inst inst alloc = do
-    alloc_line <- split inst alloc
-    let line = Text.unwords $ un_alloc_line alloc_line
-    let record = AllocRecord.un_allocation alloc
+unInstrument lookupInst inst alloc = do
+    allocLine <- split inst alloc
+    let line = Text.unwords $ unAllocLine allocLine
+    let record = AllocRecord.unAllocation alloc
     -- Indent so they can fold up.
     pure $ (line :) $ map ("    " <>) $
-        (if null record then [] else Record.un_record record)
-        ++ maybe [] inherited_environ (lookup_inst (alloc_qualified alloc_line))
+        (if null record then [] else Record.unRecord record)
+        ++ maybe [] inheritedEnviron (lookupInst (allocQualified allocLine))
 
-inherited_environ :: REnv.Environ -> [Text]
-inherited_environ env
+inheritedEnviron :: REnv.Environ -> [Text]
+inheritedEnviron env
     | REnv.null env = []
-    | otherwise = map ("-- "<>) $ Record.un_rval $ AllocRecord.un_environ env
+    | otherwise = map ("-- "<>) $ Record.unRval $ AllocRecord.unEnviron env
 
-p_instruments :: Parser UiConfig.Allocations
-p_instruments = do
+pInstruments :: Parser UiConfig.Allocations
+pInstruments = do
     (env, records) <- first Map.fromList . Either.partitionEithers <$>
-        p_definitions
+        pDefinitions
     insts <- mapM (substituteM env) records
     let (allocs, dups) = Maps.unique2 insts
     dups <- mapM (traverse (mapM (firstM Parse.offsetToSourcePos))) dups
     unless (null dups) $
-        fail $ "duplicate instrument names: " <> unlines (map show_dup dups)
+        fail $ "duplicate instrument names: " <> unlines (map showDup dups)
     pure $ UiConfig.Allocations $ snd <$> allocs
     where
-    show_dup (inst, posAllocs) = prettys inst <> " at "
+    showDup (inst, posAllocs) = prettys inst <> " at "
         <> List.intercalate ", " (map (P.sourcePosPretty . fst) posAllocs)
 
 type Record = Map Text Record.RVal
 
 substituteM :: Record -> (Parse.Offset, (Allocation, Record))
     -> Parser (ScoreT.Instrument, (Parse.Offset, UiConfig.Allocation))
-substituteM env (offset, (alloc_line, record)) = do
+substituteM env (offset, (allocLine, record)) = do
     record <- either die pure $ substitute env record
-    ui_alloc <- either die pure $
-        AllocRecord.p_allocation qualified record
+    uiAlloc <- either die pure $
+        AllocRecord.pAllocation qualified record
     either die (pure . (name,) . (offset,)) $
-        merge config backend ui_alloc
+        merge config backend uiAlloc
     where
     die = Parse.failAt offset . untxt
-    Allocation name qualified config backend = alloc_line
+    Allocation name qualified config backend = allocLine
 
 -- | Resolve variables parsed by p_equal.  So far it's just for scale.
 substitute :: Record -> Record -> Either Error Record
@@ -172,34 +172,34 @@ substitute env record = case Map.lookup "scale" record of
         ]
 
 -- | Create the p_equal that 'substitute' replaces.
-un_scale :: Patch.Scale -> Text
-un_scale scale =
+unScale :: Patch.Scale -> Text
+unScale scale =
     -- TODO Historically scale_name had spaces.  They should no longer
     -- have them, but this is so old scores still load.
-    un_equal (Text.replace " " "-" scale.scale_name) $
+    unEqual (Text.replace " " "-" scale.scaleName) $
     Record.list $ map DeriveT.num $
-    Vector.Unboxed.toList scale.scale_key_to_nn
+    Vector.Unboxed.toList scale.scaleKeyToNn
 
-p_definitions :: Parser
+pDefinitions :: Parser
     [Either (Symbol, Record.RVal) (Parse.Offset, (Allocation, Record))]
-p_definitions = do
+pDefinitions = do
     spaces
-    P.many $ lexeme $ (Left <$> p_equal <|> Right <$> p_record)
+    P.many $ lexeme $ (Left <$> pEqual <|> Right <$> pRecord)
 
-p_record :: Parser (Parse.Offset, (Allocation, Record))
-p_record = do
+pRecord :: Parser (Parse.Offset, (Allocation, Record))
+pRecord = do
     offset <- P.getOffset
-    alloc <- p_alloc_line
-    record <- P.option mempty Record.p_record
+    alloc <- pAllocLine
+    record <- P.option mempty Record.pRecord
     pure (offset, (alloc, Map.fromList record))
 
 merge :: Config -> Backend -> UiConfig.Allocation
     -> Either Error UiConfig.Allocation
-merge config backend ui_alloc = do
-    let alloc_backend = UiConfig.alloc_backend ui_alloc
+merge config backend uiAlloc = do
+    let allocBackend = UiConfig.allocBackend uiAlloc
     -- AllocRecord only parses Midi backends, because no other backend
     -- has config fields.  So it's either Midi or Unknown.
-    let record = case alloc_backend of
+    let record = case allocBackend of
             UiConfig.Midi config
                 | config == Patch.config [] -> Nothing
                 | otherwise -> Just config
@@ -207,51 +207,51 @@ merge config backend ui_alloc = do
     -- The actual backend, line_backend, and record backend must all match,
     -- though for non-midi there are no extra fields, so actual backend
     -- determines it.
-    alloc_backend <- case (backend, record) of
+    allocBackend <- case (backend, record) of
         (Midi wdev chans, Just config) ->
             pure $ UiConfig.Midi $
-                config { Patch.config_allocation = convert wdev chans }
+                config { Patch.configAllocation = convert wdev chans }
         (Midi wdev chans, Nothing) ->
             pure $ UiConfig.Midi $ Patch.config (convert wdev chans)
         (Dummy, Nothing) -> pure $ UiConfig.Dummy ""
         (Im, Nothing) -> pure  UiConfig.Im
         (Sc, Nothing) -> pure UiConfig.Sc
-        (_, Just _) -> Left $ "got midi fields for " <> show_backend backend
-    case alloc_backend of
-        UiConfig.Midi config | null config.config_allocation ->
+        (_, Just _) -> Left $ "got midi fields for " <> showBackend backend
+    case allocBackend of
+        UiConfig.Midi config | null config.configAllocation ->
             Left "midi alloc with no channels"
         _ -> pure ()
-    pure $ ui_alloc
-        { UiConfig.alloc_backend
-        , UiConfig.alloc_config = (UiConfig.alloc_config ui_alloc)
-            { Common.config_mute, Common.config_solo }
+    pure $ uiAlloc
+        { UiConfig.allocBackend
+        , UiConfig.allocConfig = (UiConfig.allocConfig uiAlloc)
+            { Common.configMute, Common.configSolo }
         }
     where
     convert wdev chans = [((wdev, chan), Nothing) | chan <- chans]
-    Config { config_mute, config_solo } = config
+    Config { configMute, configSolo } = config
 
 -- | Invert merge, split an Allocation off from UiConfig.Allocation.
 split :: ScoreT.Instrument -> UiConfig.Allocation -> Either Error Allocation
 split inst alloc = do
-    alloc_backend <- case alloc.alloc_backend of
-        UiConfig.Midi config -> first (prefix<>) $ to_backend config
+    allocBackend <- case alloc.allocBackend of
+        UiConfig.Midi config -> first (prefix<>) $ toBackend config
             where prefix = pretty inst <> ": " <> pretty alloc <> ": "
         UiConfig.Dummy {} -> pure Dummy
         UiConfig.Im -> pure Im
         UiConfig.Sc -> pure Sc
     pure $ Allocation
-        { alloc_name = inst
-        , alloc_qualified = alloc.alloc_qualified
-        , alloc_config = Config
-            { config_mute = alloc.alloc_config.config_mute
-            , config_solo = alloc.alloc_config.config_solo
+        { allocName = inst
+        , allocQualified = alloc.allocQualified
+        , allocConfig = Config
+            { configMute = alloc.allocConfig.configMute
+            , configSolo = alloc.allocConfig.configSolo
             }
-        , alloc_backend
+        , allocBackend
         }
 
-to_backend :: Midi.Patch.Config -> Either Error Backend
-to_backend config =
-    case Lists.groupFst $ map fst $ Midi.Patch.config_allocation config of
+toBackend :: Midi.Patch.Config -> Either Error Backend
+toBackend config =
+    case Lists.groupFst $ map fst $ Midi.Patch.configAllocation config of
         [(wdev, chans)] -> Right $ Midi wdev chans
         -- TODO I should no longer allow these, but if any are left, they
         -- should be converted to Dummy.
@@ -260,64 +260,64 @@ to_backend config =
 
 -- * parse / unparse
 
-p_alloc_line :: Parser Allocation
-p_alloc_line = Allocation
-    <$> (lexeme $ ">" *> (ScoreT.Instrument <$> p_word ""))
-    <*> lexeme (InstT.parse_qualified <$> p_word "/")
-    <*> lexeme p_config
-    <*> p_backend
+pAllocLine :: Parser Allocation
+pAllocLine = Allocation
+    <$> (lexeme $ ">" *> (ScoreT.Instrument <$> pWord ""))
+    <*> lexeme (InstT.parseQualified <$> pWord "/")
+    <*> lexeme pConfig
+    <*> pBackend
 
-un_alloc_line :: Allocation -> [Text]
-un_alloc_line (Allocation name qualified config backend) =
-    [ ">" <> ScoreT.instrument_name name
-    , InstT.show_qualified qualified
-    , un_config config
-    ] ++ filter (/= "") [un_backend backend]
+unAllocLine :: Allocation -> [Text]
+unAllocLine (Allocation name qualified config backend) =
+    [ ">" <> ScoreT.instrumentName name
+    , InstT.showQualified qualified
+    , unConfig config
+    ] ++ filter (/= "") [unBackend backend]
 
-p_config :: Parser Config
-p_config = (P.<?> "[ms]") $ P.between "[" "]" $ do
-    config_mute <- False <$ "m" <|> True <$ "M"
-    config_solo <- False <$ "s" <|> True <$ "S"
-    pure $ Config { config_mute, config_solo }
+pConfig :: Parser Config
+pConfig = (P.<?> "[ms]") $ P.between "[" "]" $ do
+    configMute <- False <$ "m" <|> True <$ "M"
+    configSolo <- False <$ "s" <|> True <$ "S"
+    pure $ Config { configMute, configSolo }
 
-un_config :: Config -> Text
-un_config (Config mute solo) =
+unConfig :: Config -> Text
+unConfig (Config mute solo) =
     "[" <> (if mute then "M" else "m") <> (if solo then "S" else "s") <> "]"
 
-p_backend :: Parser Backend
-p_backend =
-    lexeme (Dummy <$ "dummy" <|> Im <$ "im" <|> Sc <$ "sc") <|> p_midi
+pBackend :: Parser Backend
+pBackend =
+    lexeme (Dummy <$ "dummy" <|> Im <$ "im" <|> Sc <$ "sc") <|> pMidi
     where
-    p_midi = Midi <$> lexeme (Midi.write_device <$> p_word "")
-        <*> (Lists.uniqueSort . concat <$> P.some (lexeme p_chan))
+    pMidi = Midi <$> lexeme (Midi.writeDevice <$> pWord "")
+        <*> (Lists.uniqueSort . concat <$> P.some (lexeme pChan))
                 P.<?> "midi_dev chan.."
-    p_chan = do
-        chans <- p_range
+    pChan = do
+        chans <- pRange
         forM_ chans $ \chan -> unless (Num.inRange 1 17 chan) $
             fail $ "midi channel should be in range 1--16: " <> show chan
         pure $ map (fromIntegral . subtract 1) chans
 
-p_range :: Parser [Int]
-p_range = do
-    (low, mb_high) <- (,) <$> Parse.p_nat <*> P.optional (".." *> Parse.p_nat)
-    pure $ case mb_high of
+pRange :: Parser [Int]
+pRange = do
+    (low, mbHigh) <- (,) <$> Parse.pNat <*> P.optional (".." *> Parse.pNat)
+    pure $ case mbHigh of
         Nothing -> [low]
         Just high
             | low >= high ->
                 fail $ "backwards: " <> show low <> ".." <> show high
             | otherwise -> [low .. high]
 
-un_backend :: Backend -> Text
-un_backend = \case
+unBackend :: Backend -> Text
+unBackend = \case
     Midi wdev chans ->
-        Text.unwords $ Midi.write_device_text wdev
-            : abbr_ranges (map (+1) chans)
+        Text.unwords $ Midi.writeDeviceText wdev
+            : abbrRanges (map (+1) chans)
     Dummy -> "dummy"
     Im -> "im"
     Sc -> "sc"
 
-abbr_ranges :: (Show a, Eq a, Num a) => [a] -> [Text]
-abbr_ranges = map fmt . Lists.splitBetween (\x y -> x+1 /= y)
+abbrRanges :: (Show a, Eq a, Num a) => [a] -> [Text]
+abbrRanges = map fmt . Lists.splitBetween (\x y -> x+1 /= y)
     where
     fmt [x] = showt x
     fmt [] = ""
@@ -327,27 +327,27 @@ abbr_ranges = map fmt . Lists.splitBetween (\x y -> x+1 /= y)
 
 type Symbol = Text
 
-p_equal :: Parser (Symbol, Record.RVal)
-p_equal = do
-    lhs <- p_symbol
+pEqual :: Parser (Symbol, Record.RVal)
+pEqual = do
+    lhs <- pSymbol
     spaces >> "=" >> spaces
-    val <- Record.p_rval
+    val <- Record.pRval
     pure (lhs, val)
 
-un_equal :: Symbol -> Record.RVal -> Text
-un_equal sym val = Text.unwords $ [sym, "="] ++ Record.un_rval val
+unEqual :: Symbol -> Record.RVal -> Text
+unEqual sym val = Text.unwords $ [sym, "="] ++ Record.unRval val
 
 -- * util
 
-p_word :: [Char] -> Parser Text
-p_word extra = P.takeWhile1 $ \c -> any ($c)
+pWord :: [Char] -> Parser Text
+pWord extra = P.takeWhile1 $ \c -> any ($c)
     [ Char.isAsciiLower, Char.isAsciiUpper, Char.isDigit
     , (`elem` ("-" :: [Char]))
     , (`elem` extra)
     ]
 
-p_symbol :: Parser Symbol
-p_symbol = P.takeWhile $ \c -> Char.isAsciiLower c || c == '-'
+pSymbol :: Parser Symbol
+pSymbol = P.takeWhile $ \c -> Char.isAsciiLower c || c == '-'
 
 spaces :: Parser ()
 spaces = P.skipMany $

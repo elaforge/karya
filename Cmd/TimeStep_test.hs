@@ -18,8 +18,8 @@ import           Util.Test
 test_show_parse_time_step :: Test
 test_show_parse_time_step = do
     let f step = (trip step, Right (mk step))
-        trip = TimeStep.parse_time_step . TimeStep.show_time_step . mk
-        mk = TimeStep.from_list
+        trip = TimeStep.parseTimeStep . TimeStep.showTimeStep . mk
+        mk = TimeStep.fromList
     uncurry equal (f [Duration 2])
     uncurry equal (f [Duration 0.5])
     uncurry equal (f [RelativeMark (NamedMarklists ["hi", "there"]) Meter.E])
@@ -37,27 +37,27 @@ test_show_parse_time_step = do
     -- and has no special prefix.
     uncurry equal (f [AbsoluteMark (NamedMarklists ["hi"]) Meter.S])
     uncurry equal (f [AbsoluteMark AllMarklists Meter.T32])
-    forM_ Meter.all_ranks $ \rank ->
+    forM_ Meter.allRanks $ \rank ->
         uncurry equal (f [AbsoluteMark AllMarklists rank])
-    forM_ Meter.all_ranks $ \rank ->
+    forM_ Meter.allRanks $ \rank ->
         uncurry equal (f [AbsoluteMark AllMarklists rank])
-    forM_ Meter.all_ranks $ \rank ->
+    forM_ Meter.allRanks $ \rank ->
         uncurry equal (f [AbsoluteMark AllMarklists rank])
     uncurry equal
         (f [Duration 2, RelativeMark (NamedMarklists ["hi", "there"]) Meter.H])
 
 test_parse_time_step :: Test
 test_parse_time_step = do
-    let f = TimeStep.parse_time_step
-    left_like (f "sectionaoeu") "unexpected"
-    right_equal (f "section") $
-        TimeStep.time_step (AbsoluteMark AllMarklists Meter.Section)
+    let f = TimeStep.parseTimeStep
+    leftLike (f "sectionaoeu") "unexpected"
+    rightEqual (f "section") $
+        TimeStep.timeStep (AbsoluteMark AllMarklists Meter.Section)
 
 test_snap :: Test
 test_snap = do
-    let f step prev ps = UiTest.eval default_ui_state $
-            mapM (TimeStep.snap (TimeStep.time_step step)
-                UiTest.default_block_id 1 (Just prev)) ps
+    let f step prev ps = UiTest.eval defaultUiState $
+            mapM (TimeStep.snap (TimeStep.timeStep step)
+                UiTest.defaultBlockId 1 (Just prev)) ps
     equal (f (Duration 3) 3 (Lists.range 0 6 1)) [0, 0, 0, 3, 3, 3, 6]
     equal (f (AbsoluteMark AllMarklists Meter.W) 3 (Lists.range 0 6 1))
         [0, 0, 0, 0, 4, 4, 4]
@@ -71,7 +71,7 @@ test_snap = do
 
 test_ascending_descending_points :: Test
 test_ascending_descending_points = do
-    let f = ascend_descend default_ui_state
+    let f = ascendDescend defaultUiState
     equal (f 3 (Duration 32)) ([3], [3])
     equal (f 0 (Duration 3)) ([0], [0, 3, 6])
     equal (f 3 (Duration 3)) ([3, 0], [3, 6])
@@ -104,23 +104,23 @@ test_ascending_descending_points = do
 test_get_points_from :: Test
 test_get_points_from = do
     -- Ensure get_points_from is the same as merging the points myself.
-    let state = default_ui_state
+    let state = defaultUiState
     let f start tstep = UiTest.eval state $ do
-            desc <- TimeStep.get_points_from TimeStep.Rewind
-                UiTest.default_block_id 1 start tstep
-            asc <- TimeStep.get_points_from TimeStep.Advance
-                UiTest.default_block_id 1 start tstep
+            desc <- TimeStep.getPointsFrom TimeStep.Rewind
+                UiTest.defaultBlockId 1 start tstep
+            asc <- TimeStep.getPointsFrom TimeStep.Advance
+                UiTest.defaultBlockId 1 start tstep
             pure (desc, asc)
-    let asc_desc start step1 step2 =
-            (merge_desc desc1 desc2, merge_asc asc1 asc2)
+    let ascDesc start step1 step2 =
+            (mergeDesc desc1 desc2, mergeAsc asc1 asc2)
             where
-            (desc1, asc1) = ascend_descend state start step1
-            (desc2, asc2) = ascend_descend state start step2
-        merge_asc xs ys = Lists.dropDups id $ Lists.merge xs ys
-        merge_desc xs ys =
+            (desc1, asc1) = ascendDescend state start step1
+            (desc2, asc2) = ascendDescend state start step2
+        mergeAsc xs ys = Lists.dropDups id $ Lists.merge xs ys
+        mergeDesc xs ys =
             Lists.dropDups id $ Lists.mergeBy (flip compare) xs ys
-    let merged start step1 step2 = (f start (TimeStep.from_list [step1, step2]),
-            asc_desc start step1 step2)
+    let merged start step1 step2 = (f start (TimeStep.fromList [step1, step2]),
+            ascDesc start step1 step2)
     uncurry equal $ merged 0 (EventEnd AllTracks) (EventStart AllTracks)
     uncurry equal $ merged 2 (EventEnd AllTracks) (EventStart AllTracks)
     uncurry equal $ merged 0 (EventEnd AllTracks) (EventStart (TrackNums [1]))
@@ -130,19 +130,19 @@ test_get_points_from = do
     uncurry equal $
         merged 2 (EventStart (TrackNums [1])) (EventEnd (TrackNums [2]))
 
-ascend_descend :: Ui.State -> TrackTime -> Step -> ([TrackTime], [TrackTime])
-ascend_descend state start step = UiTest.eval state $ do
-    desc <- TimeStep.descending_points
-        UiTest.default_block_id 1 start step
-    asc <- TimeStep.ascending_points
-        UiTest.default_block_id 1 start step
+ascendDescend :: Ui.State -> TrackTime -> Step -> ([TrackTime], [TrackTime])
+ascendDescend state start step = UiTest.eval state $ do
+    desc <- TimeStep.descendingPoints
+        UiTest.defaultBlockId 1 start step
+    asc <- TimeStep.ascendingPoints
+        UiTest.defaultBlockId 1 start step
     pure (desc, asc)
 
-default_ui_state :: Ui.State
-default_ui_state = UiTest.exec Ui.empty $ do
+defaultUiState :: Ui.State
+defaultUiState = UiTest.exec Ui.empty $ do
     UiTest.mkblock
         [ (">", [(0, 1, "a"), (2, 1, "b")])
         , ("c", [(0, 0, "1"), (5, 0, "2")])
         ]
-    Ui.modify_ruler UiTest.default_ruler_id $
-        const $ Right (UiTest.mkruler_44 7 1)
+    Ui.modifyRuler UiTest.defaultRulerId $
+        const $ Right (UiTest.mkruler44 7 1)

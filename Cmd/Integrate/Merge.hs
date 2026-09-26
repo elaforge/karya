@@ -26,17 +26,17 @@
 -}
 module Cmd.Integrate.Merge (
     -- * create
-    create_block
+    createBlock
     -- * merge
     , MergeTitles(..)
-    , merge_block, score_merge_block, merge_tracks
-    , score_merge_tracks
-    , Edit(..), Modify(..), is_modified
+    , mergeBlock, scoreMergeBlock, mergeTracks
+    , scoreMergeTracks
+    , Edit(..), Modify(..), isModified
     -- * diff
-    , diff_events
+    , diffEvents
 #ifdef TESTING
-    , make_index
-    , diff, diff_event, apply
+    , makeIndex
+    , diff, diffEvent, apply
 #endif
 ) where
 import qualified Data.Either as Either
@@ -69,22 +69,22 @@ import           Types
 
 -- * block
 
-create_block :: Ui.M m => BlockId -> Convert.Tracks
+createBlock :: Ui.M m => BlockId -> Convert.Tracks
     -> m (BlockId, [Block.NoteDestination])
-create_block source_id tracks = do
-    ruler_id <- Ui.block_ruler source_id
-    dest_id <- Create.block ruler_id
-    (,) dest_id <$> merge_block dest_id tracks []
+createBlock sourceId tracks = do
+    rulerId <- Ui.blockRuler sourceId
+    destId <- Create.block rulerId
+    (,) destId <$> mergeBlock destId tracks []
 
-merge_block :: Ui.M m => BlockId -> Convert.Tracks
+mergeBlock :: Ui.M m => BlockId -> Convert.Tracks
     -> [Block.NoteDestination] -> m [Block.NoteDestination]
-merge_block = merge_tracks KeepTitles
+mergeBlock = mergeTracks KeepTitles
 
-score_merge_block :: Ui.M m => BlockId -> BlockId -> Block.ScoreDestinations
+scoreMergeBlock :: Ui.M m => BlockId -> BlockId -> Block.ScoreDestinations
     -> m Block.ScoreDestinations
-score_merge_block source_id dest_id dests = do
-    tree <- TrackTree.track_tree_of source_id
-    score_merge dest_id tree dests
+scoreMergeBlock sourceId destId dests = do
+    tree <- TrackTree.trackTreeOf sourceId
+    scoreMerge destId tree dests
 
 -- * tracks
 
@@ -98,85 +98,85 @@ data MergeTitles
 -- A single integrating source track can create multiple Convert.Tracks, and
 -- an integrating track can have >=1 destinations, so this is called once per
 -- (source, destination) pair.
-merge_tracks :: Ui.M m => MergeTitles -> BlockId -> Convert.Tracks
+mergeTracks :: Ui.M m => MergeTitles -> BlockId -> Convert.Tracks
     -> [Block.NoteDestination] -> m [Block.NoteDestination]
-merge_tracks merge_titles block_id tracks dests = do
-    track_ids <- all_block_tracks block_id
-    new_dests <- mapMaybeM (merge_pairs merge_titles block_id) $
-        pair_tracks track_ids tracks dests
+mergeTracks mergeTitles blockId tracks dests = do
+    trackIds <- allBlockTracks blockId
+    newDests <- mapMaybeM (mergePairs mergeTitles blockId) $
+        pairTracks trackIds tracks dests
     -- TODO doesn't this combine with the old skeleton?  Why isn't that
     -- a problem?
-    add_derive_skeleton block_id new_dests
-    pure new_dests
+    addDeriveSkeleton blockId newDests
+    pure newDests
 
-add_derive_skeleton :: Ui.M m => BlockId -> [Block.NoteDestination] -> m ()
-add_derive_skeleton block_id dests =
-    whenM (Ui.has_explicit_skeleton block_id) $ do
-        track_ids <- all_block_tracks block_id
+addDeriveSkeleton :: Ui.M m => BlockId -> [Block.NoteDestination] -> m ()
+addDeriveSkeleton blockId dests =
+    whenM (Ui.hasExplicitSkeleton blockId) $ do
+        trackIds <- allBlockTracks blockId
         skel <- Ui.require "integrate somehow created a cyclic skeleton"
-            =<< Skeleton.add_edges (track_edges track_ids dests) <$>
-                Ui.get_skeleton block_id
-        Ui.set_skeleton block_id skel
+            =<< Skeleton.addEdges (trackEdges trackIds dests) <$>
+                Ui.getSkeleton blockId
+        Ui.setSkeleton blockId skel
 
-track_edges :: [Maybe TrackId] -> [Block.NoteDestination]
+trackEdges :: [Maybe TrackId] -> [Block.NoteDestination]
     -> [(TrackNum, TrackNum)]
-track_edges track_ids = concatMap edges
+trackEdges trackIds = concatMap edges
     where
-    edges (Block.NoteDestination _ (track_id, _) controls) =
-        case tracknum_of track_id of
+    edges (Block.NoteDestination _ (trackId, _) controls) =
+        case tracknumOf trackId of
             Nothing -> []
             Just tracknum ->
-                let control_nums = mapMaybe (tracknum_of . fst)
+                let controlNums = mapMaybe (tracknumOf . fst)
                         (Map.elems controls)
-                in zip (tracknum : control_nums) control_nums
-    tracknum_of track_id = List.elemIndex (Just track_id) track_ids
+                in zip (tracknum : controlNums) controlNums
+    tracknumOf trackId = List.elemIndex (Just trackId) trackIds
 
 -- | Tracks in tracknum order.  Nothing for non-event tracks, like rulers.
-all_block_tracks :: Ui.M m => BlockId -> m [Maybe TrackId]
-all_block_tracks block_id =
-    map Block.track_id . Block.block_tracks <$> Ui.get_block block_id
+allBlockTracks :: Ui.M m => BlockId -> m [Maybe TrackId]
+allBlockTracks blockId =
+    map Block.trackId . Block.blockTracks <$> Ui.getBlock blockId
 
 -- ** score
 
 -- | Update the given ScoreDestinations from the source block and track.
-score_merge_tracks :: Ui.M m => BlockId -> TrackId
+scoreMergeTracks :: Ui.M m => BlockId -> TrackId
     -> Block.ScoreDestinations -> m Block.ScoreDestinations
-score_merge_tracks block_id source_id dests = do
-    tree <- TrackTree.track_tree_of block_id
-    children <- Ui.require ("source track not found: " <> showt source_id) $
-        Trees.find ((==source_id) . Ui.track_id) tree
-    score_merge block_id [children] dests
+scoreMergeTracks blockId sourceId dests = do
+    tree <- TrackTree.trackTreeOf blockId
+    children <- Ui.require ("source track not found: " <> showt sourceId) $
+        Trees.find ((==sourceId) . Ui.trackId) tree
+    scoreMerge blockId [children] dests
 
-score_merge :: Ui.M m => BlockId -> TrackTree.TrackTree
+scoreMerge :: Ui.M m => BlockId -> TrackTree.TrackTree
     -> Block.ScoreDestinations -> m Block.ScoreDestinations
-score_merge block_id tree dests = do
-    whenM (Ui.has_explicit_skeleton block_id) $ do
-        remove <- destination_edges block_id (map (fst . snd) dests)
-        Ui.modify_skeleton block_id (Skeleton.remove_edges remove)
-    track_ids <- all_block_tracks block_id
-    tracks <- get_children tree
-    dests <- mapMaybeM (score_merge_pair block_id) $
-        score_pair_tracks track_ids tracks dests
-    whenM (Ui.has_explicit_skeleton block_id) $
-        add_skeleton block_id =<< source_to_dest block_id dests
-            (map (fmap Ui.track_id) tree)
+scoreMerge blockId tree dests = do
+    whenM (Ui.hasExplicitSkeleton blockId) $ do
+        remove <- destinationEdges blockId (map (fst . snd) dests)
+        Ui.modifySkeleton blockId (Skeleton.removeEdges remove)
+    trackIds <- allBlockTracks blockId
+    tracks <- getChildren tree
+    dests <- mapMaybeM (scoreMergePair blockId) $
+        scorePairTracks trackIds tracks dests
+    whenM (Ui.hasExplicitSkeleton blockId) $
+        addSkeleton blockId =<< sourceToDest blockId dests
+            (map (fmap Ui.trackId) tree)
     pure dests
 
 -- | Track pairs of the children of the given tree, sorted by tracknum.
-get_children :: Ui.M m => TrackTree.TrackTree -> m [(TrackId, Track.Track)]
-get_children =
+getChildren :: Ui.M m => TrackTree.TrackTree -> m [(TrackId, Track.Track)]
+getChildren =
     fmap (map snd . Lists.sortOn fst) . mapM resolve . concatMap Tree.flatten
     where
     resolve tinfo = do
-        track <- Ui.get_track (Ui.track_id tinfo)
-        pure (Ui.track_tracknum tinfo, (Ui.track_id tinfo, track))
+        track <- Ui.getTrack (Ui.trackId tinfo)
+        pure (Ui.trackTracknum tinfo, (Ui.trackId tinfo, track))
 
-source_to_dest :: Ui.M m => BlockId -> Block.ScoreDestinations
+sourceToDest :: Ui.M m => BlockId -> Block.ScoreDestinations
     -> [Tree.Tree TrackId] -> m [Tree.Tree TrackNum]
-source_to_dest block_id dests = mapM $ Traversable.mapM $ \track_id -> do
-    dest_id <- maybe (Ui.throw $ "no destination for " <> showt track_id)
-        (pure . fst) (lookup track_id dests)
-    dest_tracknum block_id dest_id
+sourceToDest blockId dests = mapM $ Traversable.mapM $ \trackId -> do
+    destId <- maybe (Ui.throw $ "no destination for " <> showt trackId)
+        (pure . fst) (lookup trackId dests)
+    destTracknum blockId destId
 
 -- | Get the edges that are part of the destination track structure.  This
 -- is so I can clear out the old skeleton before replacing it with the new one.
@@ -184,22 +184,22 @@ source_to_dest block_id dests = mapM $ Traversable.mapM $ \track_id -> do
 -- remains.  This only returns edges where both ends are in the destination
 -- tracks, so if you manually add a non-integrated parent or child it should
 -- remain that way.
-destination_edges :: Ui.M m => BlockId -> [TrackId] -> m [Skeleton.Edge]
-destination_edges block_id track_ids = do
-    tracknums <- mapM (dest_tracknum block_id) track_ids
-    edges <- Skeleton.flatten <$> Ui.get_skeleton block_id
+destinationEdges :: Ui.M m => BlockId -> [TrackId] -> m [Skeleton.Edge]
+destinationEdges blockId trackIds = do
+    tracknums <- mapM (destTracknum blockId) trackIds
+    edges <- Skeleton.flatten <$> Ui.getSkeleton blockId
     pure $ filter (\(p, c) -> p `elem` tracknums && c `elem` tracknums) edges
 
-dest_tracknum :: Ui.M m => BlockId -> TrackId -> m TrackNum
-dest_tracknum block_id track_id = Ui.require
-    ("integrated track " <> showt track_id <> " not in " <> showt block_id)
-    =<< Ui.tracknum_of block_id track_id
+destTracknum :: Ui.M m => BlockId -> TrackId -> m TrackNum
+destTracknum blockId trackId = Ui.require
+    ("integrated track " <> showt trackId <> " not in " <> showt blockId)
+    =<< Ui.tracknumOf blockId trackId
 
-add_skeleton :: Ui.M m => BlockId -> [Tree.Tree TrackNum] -> m ()
-add_skeleton block_id tree = do
+addSkeleton :: Ui.M m => BlockId -> [Tree.Tree TrackNum] -> m ()
+addSkeleton blockId tree = do
     skel <- Ui.require "score integrated somehow created a cyclic skeleton"
-        =<< Skeleton.add_edges (Trees.edges tree) <$> Ui.get_skeleton block_id
-    Ui.set_skeleton block_id skel
+        =<< Skeleton.addEdges (Trees.edges tree) <$> Ui.getSkeleton blockId
+    Ui.setSkeleton blockId skel
 
 -- ** merge
 
@@ -209,99 +209,99 @@ add_skeleton block_id tree = do
 --
 -- Control and pitch tracks are matched or created by title, but the note track
 -- title is ignored.
-merge_pairs :: Ui.M m => MergeTitles -> BlockId -> [TrackPair]
+mergePairs :: Ui.M m => MergeTitles -> BlockId -> [TrackPair]
     -> m (Maybe Block.NoteDestination)
-merge_pairs merge_titles block_id pairs = do
-    triples <- mapMaybeM (merge_pair block_id) pairs
+mergePairs mergeTitles blockId pairs = do
+    triples <- mapMaybeM (mergePair blockId) pairs
     case triples of
         [] -> pure Nothing
-        (source_title, note_id, note_index) : controls -> do
+        (sourceTitle, noteId, noteIndex) : controls -> do
             -- TODO I could merge them, but I need the previous integrated
             -- title
             -- What about the control track titles?  I use those as keys, so I
             -- can't change them without breaking the link.
-            when (merge_titles == ReplaceTitles) $ do
-                Ui.set_track_title note_id source_title
-            pure $ Just $ Block.NoteDestination key (note_id, note_index) $
+            when (mergeTitles == ReplaceTitles) $ do
+                Ui.setTrackTitle noteId sourceTitle
+            pure $ Just $ Block.NoteDestination key (noteId, noteIndex) $
                 Map.fromList
-                    [ (title, (track_id, index))
-                    | (title, track_id, index) <- controls
+                    [ (title, (trackId, index))
+                    | (title, trackId, index) <- controls
                     ]
     where
     -- TODO once I use track keys I have to propagate this from the pairing.
     key = ""
 
-merge_pair :: Ui.M m => BlockId -> TrackPair
+mergePair :: Ui.M m => BlockId -> TrackPair
     -> m (Maybe (Text, TrackId, Block.EventIndex))
-merge_pair block_id pair = case pair of
+mergePair blockId pair = case pair of
     (Nothing, Left _) -> pure Nothing -- not reached
     (Just (Convert.Track title events), Left tracknum) -> do
         -- Track was deleted or it doesn't exist yet, so create it.
-        track_id <- Create.track block_id tracknum title
-            (Events.from_list (map Event.unmodified events))
-        pure $ Just (title, track_id, make_index events)
-    (Nothing, Right (track_id, _)) -> do
+        trackId <- Create.track blockId tracknum title
+            (Events.fromList (map Event.unmodified events))
+        pure $ Just (title, trackId, makeIndex events)
+    (Nothing, Right (trackId, _)) -> do
         -- Integrate no longer wants the track.  Don't delete the track in case
         -- there are manually created events on it.
-        clear_generated_events track_id
+        clearGeneratedEvents trackId
         pure Nothing
     (Just (Convert.Track title events), Right dest) -> do
-        merge_track events dest
-        pure $ Just (title, fst dest, make_index events)
+        mergeTrack events dest
+        pure $ Just (title, fst dest, makeIndex events)
 
-score_merge_pair :: Ui.M m => BlockId -> ScoreTrackPair
+scoreMergePair :: Ui.M m => BlockId -> ScoreTrackPair
     -> m (Maybe (TrackId, (TrackId, Block.EventIndex)))
-score_merge_pair block_id pair = case pair of
+scoreMergePair blockId pair = case pair of
     (Nothing, Left _) -> pure Nothing -- not reached
-    (Just (source_id, events), Left tracknum) -> do
+    (Just (sourceId, events), Left tracknum) -> do
         -- Track was deleted or never existed.
-        let stacked = add_event_stacks block_id source_id events
-        title <- Ui.get_track_title source_id
-        track_id <- Create.track block_id tracknum
-            title (Events.from_list (map Event.unmodified stacked))
-        pure $ Just (source_id, (track_id, make_index stacked))
-    (Nothing, Right (track_id, _)) -> do
+        let stacked = addEventStacks blockId sourceId events
+        title <- Ui.getTrackTitle sourceId
+        trackId <- Create.track blockId tracknum
+            title (Events.fromList (map Event.unmodified stacked))
+        pure $ Just (sourceId, (trackId, makeIndex stacked))
+    (Nothing, Right (trackId, _)) -> do
         -- Integrate no longer wants the track.  Don't delete the track in case
         -- there are manually created events on it.
-        clear_generated_events track_id
+        clearGeneratedEvents trackId
         pure Nothing
-    (Just (source_id, events), Right dest) -> do
-        let stacked = add_event_stacks block_id source_id events
-        merge_track stacked dest
-        pure $ Just (source_id, (fst dest, make_index stacked))
+    (Just (sourceId, events), Right dest) -> do
+        let stacked = addEventStacks blockId sourceId events
+        mergeTrack stacked dest
+        pure $ Just (sourceId, (fst dest, makeIndex stacked))
 
-clear_generated_events :: Ui.M m => TrackId -> m ()
-clear_generated_events track_id = Ui.modify_events track_id $
-    Events.from_list . filter (Maybe.isNothing . Event.stack) . Events.ascending
+clearGeneratedEvents :: Ui.M m => TrackId -> m ()
+clearGeneratedEvents trackId = Ui.modifyEvents trackId $
+    Events.fromList . filter (Maybe.isNothing . Event.stack) . Events.ascending
 
 -- | This implements a 3-way merge.  First, diff the recorded index (which
 -- is a pristine copy of the previous integrate) against the current contents
 -- of the track.  This gives the edits that have been applied manually against
 -- the integrate output.  Then those edits are replayed against the new
 -- integrate output.
-merge_track :: Ui.M m => [Event.Event] -> Dest -> m ()
-merge_track source_events (track_id, index) = do
-    old_events <- Events.ascending <$> Ui.get_events track_id
-    let (deletes, edits) = diff_events index old_events
-        new_events = apply deletes edits source_events
-    Ui.modify_some_events track_id (const new_events)
+mergeTrack :: Ui.M m => [Event.Event] -> Dest -> m ()
+mergeTrack sourceEvents (trackId, index) = do
+    oldEvents <- Events.ascending <$> Ui.getEvents trackId
+    let (deletes, edits) = diffEvents index oldEvents
+        newEvents = apply deletes edits sourceEvents
+    Ui.modifySomeEvents trackId (const newEvents)
 
 -- | Create an index from integrated tracks.  Since they are integrated, they
 -- should all have stacks, so events without stacks are discarded.
-make_index :: [Event.Event] -> Block.EventIndex
-make_index events = Map.fromList
-    [(key, event) | (Just key, event) <- Lists.keyOn index_key events]
+makeIndex :: [Event.Event] -> Block.EventIndex
+makeIndex events = Map.fromList
+    [(key, event) | (Just key, event) <- Lists.keyOn indexKey events]
 
 -- | Unlike derive integration, the events are copied directly from the
 -- source, and hence don't have stacks.
-add_event_stacks :: BlockId -> TrackId -> Events.Events -> [Event.Event]
-add_event_stacks block_id track_id = map add_stack . Events.ascending
+addEventStacks :: BlockId -> TrackId -> Events.Events -> [Event.Event]
+addEventStacks blockId trackId = map addStack . Events.ascending
     where
-    add_stack event = Event.stack_ #= Just (make_stack event) $ event
-    make_stack event = Event.Stack
-        { Event.stack_stack =
-            Stack.from_innermost [Stack.Track track_id, Stack.Block block_id]
-        , Event.stack_key = Event.start event
+    addStack event = Event.stack_ #= Just (makeStack event) $ event
+    makeStack event = Event.Stack
+        { Event.stackStack =
+            Stack.fromInnermost [Stack.Track trackId, Stack.Block blockId]
+        , Event.stackKey = Event.start event
         }
 
 -- ** pair
@@ -338,96 +338,96 @@ type Dest = (TrackId, Block.EventIndex)
     tracks should be added adjacent to their sisters, and the first integrate
     will append the generated tracks to the end of the block.
 -}
-pair_tracks :: [Maybe TrackId] -- ^ Tracks in the block, in tracknum order.
+pairTracks :: [Maybe TrackId] -- ^ Tracks in the block, in tracknum order.
     -- Nothing for non-event tracks like rulers.
     -> Convert.Tracks -> [Block.NoteDestination] -> [[TrackPair]]
     -- ^ Each [TrackPair] is (note : controls).
-pair_tracks track_ids tracks dests = map (filter is_valid) $
-    snd $ List.mapAccumL resolve1 (length track_ids) $ map pairs_of $
+pairTracks trackIds tracks dests = map (filter isValid) $
+    snd $ List.mapAccumL resolve1 (length trackIds) $ map pairsOf $
         Lists.zipPadded tracks dests
     where
     -- Pair up the tracks.
-    pairs_of (Lists.First (note, controls)) = map Lists.First (note : controls)
-    pairs_of (Lists.Second (Block.NoteDestination key note controls)) =
+    pairsOf (Lists.First (note, controls)) = map Lists.First (note : controls)
+    pairsOf (Lists.Second (Block.NoteDestination key note controls)) =
         map Lists.Second (note : Map.elems controls)
-    pairs_of (Lists.Both track dest) = pair_destination track dest
+    pairsOf (Lists.Both track dest) = pairDestination track dest
 
-    resolve1 next_tracknum pairs = List.mapAccumL resolve next_tracknum pairs
+    resolve1 nextTracknum pairs = List.mapAccumL resolve nextTracknum pairs
     -- Figure out tracknums.
-    resolve next_tracknum (Lists.First track) =
-        (next_tracknum + 1, (Just track, Left next_tracknum))
-    resolve next_tracknum (Lists.Second dest) = case tracknum_of (fst dest) of
+    resolve nextTracknum (Lists.First track) =
+        (nextTracknum + 1, (Just track, Left nextTracknum))
+    resolve nextTracknum (Lists.Second dest) = case tracknumOf (fst dest) of
         -- Track deleted and the integrate no longer wants it.
         -- Ugly, but (Nothing, Left) can be code for "ignore me".
-        Nothing -> (next_tracknum, (Nothing, Left 0))
+        Nothing -> (nextTracknum, (Nothing, Left 0))
         Just tracknum -> (tracknum + 1, (Nothing, Right dest))
-    resolve next_tracknum (Lists.Both track dest) = case tracknum_of (fst dest) of
-        Nothing -> (next_tracknum + 1, (Just track, Left next_tracknum))
+    resolve nextTracknum (Lists.Both track dest) = case tracknumOf (fst dest) of
+        Nothing -> (nextTracknum + 1, (Just track, Left nextTracknum))
         Just tracknum -> (tracknum + 1, (Just track, Right dest))
-    tracknum_of track_id = List.elemIndex (Just track_id) track_ids
-    is_valid (Nothing, Left _) = False
-    is_valid _ = True
+    tracknumOf trackId = List.elemIndex (Just trackId) trackIds
+    isValid (Nothing, Left _) = False
+    isValid _ = True
 
 -- | Pair up the controls based on the track title, which should be the control
 -- name.
-pair_destination :: (Convert.Track, [Convert.Track]) -> Block.NoteDestination
+pairDestination :: (Convert.Track, [Convert.Track]) -> Block.NoteDestination
     -> [Lists.Paired Convert.Track (TrackId, Block.EventIndex)]
-pair_destination (note, controls)
-        (Block.NoteDestination key note_dest control_dests) =
-    Lists.Both note note_dest : pair_controls controls control_dests
+pairDestination (note, controls)
+        (Block.NoteDestination key noteDest controlDests) =
+    Lists.Both note noteDest : pairControls controls controlDests
     where
-    pair_controls tracks dests =
+    pairControls tracks dests =
         map snd $ Lists.pairSorted (Lists.sortOn fst keyed) $
         Map.toAscList dests
-        where keyed = Lists.keyOn Convert.track_title tracks
+        where keyed = Lists.keyOn Convert.trackTitle tracks
 
 -- | Pair up tracks in an analogous way to 'pair_tracks'.  The difference is
 -- that ScoreDestinations are matched up by TrackId, so I don't have to do any
 -- sketchy zipping heuristics.  I still have to guess about the output tracknum
 -- for new tracks though.
-score_pair_tracks :: [Maybe TrackId] -> [(TrackId, Track.Track)]
+scorePairTracks :: [Maybe TrackId] -> [(TrackId, Track.Track)]
     -> Block.ScoreDestinations -> [ScoreTrackPair]
-score_pair_tracks track_ids sources dests =
-    snd (List.mapAccumL pair_in_order (length track_ids) sources)
+scorePairTracks trackIds sources dests =
+    snd (List.mapAccumL pairInOrder (length trackIds) sources)
         ++ deleted
     where
-    pair_in_order next_tracknum source@(source_id, _) =
-        case lookup source_id dests of
+    pairInOrder nextTracknum source@(sourceId, _) =
+        case lookup sourceId dests of
             -- make new track
             Nothing ->
-                (next_tracknum + 1, (make_source source, Left next_tracknum))
+                (nextTracknum + 1, (makeSource source, Left nextTracknum))
             -- merge
-            Just dest -> (tracknum + 1, (make_source source, Right dest))
-                where tracknum = tracknum_of next_tracknum dest
-    deleted = mapMaybe deleted_track dests
-    deleted_track (source_id, dest) = case lookup source_id sources of
+            Just dest -> (tracknum + 1, (makeSource source, Right dest))
+                where tracknum = tracknumOf nextTracknum dest
+    deleted = mapMaybe deletedTrack dests
+    deletedTrack (sourceId, dest) = case lookup sourceId sources of
         Nothing -> Just (Nothing, Right dest)
         Just _ -> Nothing
-    make_source (source_id, source) =
-        Just (source_id, Track.track_events source)
-    tracknums = Map.fromList [(track_id, tracknum) |
-        (tracknum, Just track_id) <- zip [0..] track_ids]
-    tracknum_of deflt (source_id, _) =
-        Map.findWithDefault deflt source_id tracknums
+    makeSource (sourceId, source) =
+        Just (sourceId, Track.trackEvents source)
+    tracknums = Map.fromList [(trackId, tracknum) |
+        (tracknum, Just trackId) <- zip [0..] trackIds]
+    tracknumOf deflt (sourceId, _) =
+        Map.findWithDefault deflt sourceId tracknums
 
 
 -- ** diff
 
 -- | Find out how to merge new integrated output with user edits by diffing it
 -- against the old integrated output.
-diff_events :: Block.EventIndex -- ^ results of last integrate
+diffEvents :: Block.EventIndex -- ^ results of last integrate
     -> [Event.Event]
     -- ^ current events, which is last integrate plus user edits
     -> (Set Event.IndexKey, [Edit])
     -- ^ set of deleted events, and edited events
-diff_events index events = (deletes, edits)
+diffEvents index events = (deletes, edits)
     where
     deletes = Set.difference (Map.keysSet index) $
-        Set.fromList (mapMaybe index_key events)
+        Set.fromList (mapMaybe indexKey events)
     edits = map (diff index) events
 
 diff :: Block.EventIndex -> Event.Event -> Edit
-diff index new = case index_key new of
+diff index new = case indexKey new of
     Nothing -> Add new
     Just key -> case Map.lookup key index of
         -- Events with a stack but not in the index shouldn't happen, they
@@ -437,17 +437,17 @@ diff index new = case index_key new of
         -- TODO This could be a symptom of tracks not lining up anymore.
         -- I should emit a warning.
         Nothing -> Add (Event.stack_ #= Nothing $ new)
-        Just old -> Edit key (diff_event old new)
+        Just old -> Edit key (diffEvent old new)
 
-index_key :: Event.Event -> Maybe Event.IndexKey
-index_key = fmap Event.stack_key . Event.stack
+indexKey :: Event.Event -> Maybe Event.IndexKey
+indexKey = fmap Event.stackKey . Event.stack
 
-diff_event :: Event.Event -> Event.Event -> [Modify]
-diff_event old new = concat
+diffEvent :: Event.Event -> Event.Event -> [Modify]
+diffEvent old new = concat
     [ cmp (Event.start old) (Event.start new) (Position (Event.start new))
     , cmp (Event.duration old) (Event.duration new)
         (Duration (Event.duration new))
-    , diff_text (Event.text old) (Event.text new)
+    , diffText (Event.text old) (Event.text new)
     ]
     where cmp x y val = if x == y then [] else [val]
 
@@ -459,14 +459,14 @@ diff_event old new = concat
 --
 -- I don't check for suffixes because suffixing an event would change
 -- a generator to a transformer, which in unlikely.
-diff_text :: Text -> Text -> [Modify]
-diff_text old new
+diffText :: Text -> Text -> [Modify]
+diffText old new
     | old == new = []
-    | old `Text.isSuffixOf` new && ends_with_pipe prefix = [Prefix prefix]
+    | old `Text.isSuffixOf` new && endsWithPipe prefix = [Prefix prefix]
     | otherwise = [Set new]
     where
     prefix = Text.take (Text.length new - Text.length old) new
-    ends_with_pipe text = "|" `Text.isSuffixOf` pre && Text.all (==' ') post
+    endsWithPipe text = "|" `Text.isSuffixOf` pre && Text.all (==' ') post
         where (pre, post) = Text.breakOnEnd "|" text
 
 data Edit
@@ -489,32 +489,32 @@ instance Pretty Edit where
 
 instance Pretty Modify where pretty = showt
 
-is_modified :: Edit -> Bool
-is_modified (Edit _ mods) = not (null mods)
-is_modified _ = True
+isModified :: Edit -> Bool
+isModified (Edit _ mods) = not (null mods)
+isModified _ = True
 
 -- ** apply
 
 apply :: Set Event.IndexKey -- ^ events that were deleted
     -> [Edit] -> [Event.Event] -- ^ results of current integrate
     -> Events.Events
-apply deletes adds_edits = make . mapMaybe edit
+apply deletes addsEdits = make . mapMaybe edit
     where
     -- Adds go afterwards so they can replace coincident events.
-    make events = Events.from_list (events ++ adds)
+    make events = Events.fromList (events ++ adds)
     edit event
         | Event.start event `Set.member` deletes = Nothing
-        | Just mods@(_:_) <- Map.lookup (Event.start event) edit_map =
-            Just $ apply_modifications mods event
+        | Just mods@(_:_) <- Map.lookup (Event.start event) editMap =
+            Just $ applyModifications mods event
         -- A new event from the integrate.
         | otherwise = Just $ Event.unmodified event
-    edit_map = Map.fromList $ filter (not . null . snd) edits
-    (adds, edits) = Either.partitionEithers (map to_either adds_edits)
-    to_either (Add event) = Left event
-    to_either (Edit key mods) = Right (key, mods)
+    editMap = Map.fromList $ filter (not . null . snd) edits
+    (adds, edits) = Either.partitionEithers (map toEither addsEdits)
+    toEither (Add event) = Left event
+    toEither (Edit key mods) = Right (key, mods)
 
-apply_modifications :: [Modify] -> Event.Event -> Event.Event
-apply_modifications mods event = foldl' go event mods
+applyModifications :: [Modify] -> Event.Event -> Event.Event
+applyModifications mods event = foldl' go event mods
     where
     go event mod = ($event) $ case mod of
         Position p -> Event.start_ #= p

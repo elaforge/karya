@@ -3,7 +3,7 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 -- | Setup StaticConfig.
-module User.Elaforge.Config (load_static_config) where
+module User.Elaforge.Config (loadStaticConfig) where
 import qualified Data.Map as Map
 import qualified System.FilePath as FilePath
 
@@ -41,97 +41,97 @@ import           Global
 keycaps :: Bool
 keycaps = False
 
-im_play_direct :: Bool
-im_play_direct = False
+imPlayDirect :: Bool
+imPlayDirect = False
 
-load_static_config :: IO StaticConfig.StaticConfig
-load_static_config = do
-    app_dir <- Path.get_app_dir
-    instrument_db <- LoadInstruments.load app_dir
-    midi <- get_midi_config instrument_db
+loadStaticConfig :: IO StaticConfig.StaticConfig
+loadStaticConfig = do
+    appDir <- Path.getAppDir
+    instrumentDb <- LoadInstruments.load appDir
+    midi <- getMidiConfig instrumentDb
     pure $ StaticConfig.StaticConfig
-        { instrument_db
-        , global_cmds
+        { instrumentDb
+        , globalCmds
         , builtins = C.All.builtins
-        , setup_cmd = parse_args
-        , post_setup_cmd = pure ()
+        , setupCmd = parseArgs
+        , postSetupCmd = pure ()
         , midi
-        , highlight_colors = Config.highlight_colors
-        , im_play_direct
+        , highlightColors = Config.highlightColors
+        , imPlayDirect
         , keycaps
         }
 
-parse_args :: [String] -> Either Text (Cmd.CmdT IO Cmd.Status)
-parse_args = \case
-    ["med", fname] -> Right $ load_med fname
-    ["mod-sexpr", fname] -> Right $ load_mod_sexpr fname
-    args -> ParseArgs.parse_args args
+parseArgs :: [String] -> Either Text (Cmd.CmdT IO Cmd.Status)
+parseArgs = \case
+    ["med", fname] -> Right $ loadMed fname
+    ["mod-sexpr", fname] -> Right $ loadModSexpr fname
+    args -> ParseArgs.parseArgs args
 
-oxygen8_v2 :: Controller.TransportConfig
-oxygen8_v2 = Controller.TransportConfig
-    { config_repeat = note_on Key.cs_1
-    , config_backward = note_on Key.ds_1
-    , config_forward = note_on Key.fs_1
-    , config_stop = note_on Key.gs_1
-    , config_play = note_on Key.as_1
-    , config_record = note_on Key.cs0
+oxygen8V2 :: Controller.TransportConfig
+oxygen8V2 = Controller.TransportConfig
+    { configRepeat = noteOn Key.cs_1
+    , configBackward = noteOn Key.ds_1
+    , configForward = noteOn Key.fs_1
+    , configStop = noteOn Key.gs_1
+    , configPlay = noteOn Key.as_1
+    , configRecord = noteOn Key.cs0
     }
-    where note_on = Controller.note_on
+    where noteOn = Controller.noteOn
 
-global_cmds :: [Msg.Msg -> Cmd.CmdT IO Cmd.Status]
-global_cmds =
-    [ Controller.transport oxygen8_v2
+globalCmds :: [Msg.Msg -> Cmd.CmdT IO Cmd.Status]
+globalCmds =
+    [ Controller.transport oxygen8V2
     ]
 
-get_midi_config :: Cmd.InstrumentDb -> IO StaticConfig.Midi
-get_midi_config db = do
-    full_host <- Network.getHostName
-    case takeWhile (/='.') full_host of
-        "tammananny" -> pure $ Tammananny.midi_config db
-        "hobbes" -> pure $ Hobbes.midi_config db
-        "groqmac" -> pure $ Hobbes.midi_config db
+getMidiConfig :: Cmd.InstrumentDb -> IO StaticConfig.Midi
+getMidiConfig db = do
+    fullHost <- Network.getHostName
+    case takeWhile (/='.') fullHost of
+        "tammananny" -> pure $ Tammananny.midiConfig db
+        "hobbes" -> pure $ Hobbes.midiConfig db
+        "groqmac" -> pure $ Hobbes.midiConfig db
         host -> do
           Log.warn $ "no midi configuration for host: " <> showt host
-          pure default_midi
+          pure defaultMidi
 
-default_midi :: StaticConfig.Midi
-default_midi = StaticConfig.Midi
-    { rdev_map = mempty
-    , wdev_map = StaticConfig.make_wdev_map
+defaultMidi :: StaticConfig.Midi
+defaultMidi = StaticConfig.Midi
+    { rdevMap = mempty
+    , wdevMap = StaticConfig.makeWdevMap
         [("loop" <> showt n, iac n) | n <- [1..4]]
-    , read_devices = mempty
-    , play_cache = Just (Midi.write_device "loop4", 15)
+    , readDevices = mempty
+    , playCache = Just (Midi.writeDevice "loop4", 15)
     }
     where iac n = "IAC Driver " <> showt n
 
 -- * mod
 
-load_mod_sexpr :: FilePath -> Cmd.CmdT IO Cmd.Status
-load_mod_sexpr fname =
-    convert_mod fname =<< Cmd.require_right id =<< liftIO (ModSexpr.load fname)
+loadModSexpr :: FilePath -> Cmd.CmdT IO Cmd.Status
+loadModSexpr fname =
+    convertMod fname =<< Cmd.requireRight id =<< liftIO (ModSexpr.load fname)
 
-load_med :: FilePath -> Cmd.CmdT IO Cmd.Status
-load_med fname = convert_mod fname =<< liftIO (Load.Med.load fname)
+loadMed :: FilePath -> Cmd.CmdT IO Cmd.Status
+loadMed fname = convertMod fname =<< liftIO (Load.Med.load fname)
 
-convert_mod :: Cmd.M m => FilePath -> ModT.Module -> m Cmd.Status
-convert_mod fname mod = do
-    state <- Cmd.require_right pretty $ Load.Mod.convert (fn_to_ns fname) $
-        ModT.transpose_instruments transpose $
-        ModT.map_instruments inst_map mod
+convertMod :: Cmd.M m => FilePath -> ModT.Module -> m Cmd.Status
+convertMod fname mod = do
+    state <- Cmd.requireRight pretty $ Load.Mod.convert (fnToNs fname) $
+        ModT.transposeInstruments transpose $
+        ModT.mapInstruments instMap mod
     Ui.put state
     pure Cmd.Done
     where
-    inst_map = Map.findWithDefault mempty (FilePath.takeFileName fname)
-        inst_maps
+    instMap = Map.findWithDefault mempty (FilePath.takeFileName fname)
+        instMaps
     transpose = Map.findWithDefault mempty (FilePath.takeFileName fname)
-        transpose_maps
+        transposeMaps
 
-fn_to_ns :: FilePath -> Id.Namespace
-fn_to_ns = Id.namespace . txt . fromMaybe (error "postcondition") . Lists.head
+fnToNs :: FilePath -> Id.Namespace
+fnToNs = Id.namespace . txt . fromMaybe (error "postcondition") . Lists.head
     . Lists.split (=='.') . FilePath.takeFileName
 
-inst_maps :: Map FilePath (Map Text Text)
-inst_maps = Map.fromList
+instMaps :: Map FilePath (Map Text Text)
+instMaps = Map.fromList
     [ ("underwater", Map.fromList
         [ ("Takerimba", "marim")
         , ("SoftShake", "shake")
@@ -180,8 +180,8 @@ inst_maps = Map.fromList
         ]
     ]
 
-transpose_maps :: Map FilePath (Map ScoreT.Instrument Pitch.NoteNumber)
-transpose_maps = Map.fromList
+transposeMaps :: Map FilePath (Map ScoreT.Instrument Pitch.NoteNumber)
+transposeMaps = Map.fromList
     [ ("green-mold.sexp",) $ Map.fromList
         [ ("b1", -12*3)
         , ("b2", -12*3)

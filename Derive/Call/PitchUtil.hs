@@ -30,74 +30,74 @@ import           Types
 
 type PitchOrTranspose = Either PSignal.Pitch Pitch.Transpose
 
-resolve_pitch_transpose :: PSignal.Pitch -> PitchOrTranspose -> PSignal.Pitch
-resolve_pitch_transpose pitch = either id (flip Pitches.transpose pitch)
+resolvePitchTranspose :: PSignal.Pitch -> PitchOrTranspose -> PSignal.Pitch
+resolvePitchTranspose pitch = either id (flip Pitches.transpose pitch)
 
 -- * interpolator call
 
-interpolator_call :: Text -> ControlUtil.CurveD
+interpolatorCall :: Text -> ControlUtil.CurveD
     -> ControlUtil.InterpolatorTime Derive.Pitch
     -> Derive.Generator Derive.Pitch
-interpolator_call name_suffix (ControlUtil.CurveD name get_arg curve)
-        interpolator_time =
-    Derive.generator1 Module.prelude (Derive.CallName (name <> name_suffix))
+interpolatorCall nameSuffix (ControlUtil.CurveD name getArg curve)
+        interpolatorTime =
+    Derive.generator1 Module.prelude (Derive.CallName (name <> nameSuffix))
         Tags.prev doc
     $ Sig.call ((,,,)
-    <$> pitch_arg
-    <*> either id (const $ pure $ DeriveT.RealDuration 0) interpolator_time
-    <*> get_arg <*> from_env
-    ) $ \(to, time, curve_arg, from) args -> do
+    <$> pitchArg
+    <*> either id (const $ pure $ DeriveT.RealDuration 0) interpolatorTime
+    <*> getArg <*> fromEnv
+    ) $ \(to, time, curveArg, from) args -> do
         time <- if Args.duration args == 0
-            then case interpolator_time of
+            then case interpolatorTime of
                 Left _ -> pure time
-                Right (get_time, _) -> get_time args
-            else DeriveT.RealDuration <$> Args.real_duration args
-        (start, end) <- Call.duration_from_start args time
-        make_segment_from (curve curve_arg)
-            (min start end) (prev_val from args) (max start end) to
+                Right (getTime, _) -> getTime args
+            else DeriveT.RealDuration <$> Args.realDuration args
+        (start, end) <- Call.durationFromStart args time
+        makeSegmentFrom (curve curveArg)
+            (min start end) (prevVal from args) (max start end) to
     where
     doc = Doc.Doc $ "Interpolate from the previous value to the given one."
-        <> either (const "") ((" "<>) . snd) interpolator_time
+        <> either (const "") ((" "<>) . snd) interpolatorTime
     -- The only difference between this and ControlUtil.interpolator_call is
     -- the 'interpolate' call and 'pitch_arg'.
 
-pitch_arg :: Sig.Parser PitchOrTranspose
-pitch_arg = Sig.required "pitch"
+pitchArg :: Sig.Parser PitchOrTranspose
+pitchArg = Sig.required "pitch"
     "Destination pitch, or a transposition from the previous one."
 
 -- | Use this for calls that start from the previous value, to give a way
 -- to override that behaviour.
-from_env :: Sig.Parser (Maybe PSignal.Pitch)
-from_env = Sig.environ "from" Sig.Both (Nothing :: Maybe Sig.Dummy)
+fromEnv :: Sig.Parser (Maybe PSignal.Pitch)
+fromEnv = Sig.environ "from" Sig.Both (Nothing :: Maybe Sig.Dummy)
     "Start from this pitch. If unset, use the previous pitch."
 
-prev_val :: Maybe PSignal.Pitch -> Derive.PitchArgs -> Maybe PSignal.Pitch
-prev_val from args = from <|> (snd <$> Args.prev_pitch args)
+prevVal :: Maybe PSignal.Pitch -> Derive.PitchArgs -> Maybe PSignal.Pitch
+prevVal from args = from <|> (snd <$> Args.prevPitch args)
 
 -- | Pitch version of 'ControlUtil.interpolator_variations'.
-interpolator_variations :: [(Expr.Symbol, Derive.Generator Derive.Pitch)]
-interpolator_variations = concat
-    [ ControlUtil.interpolator_variations_ interpolator_call sym curve
-    | (sym, curve) <- ControlUtil.standard_curves
+interpolatorVariations :: [(Expr.Symbol, Derive.Generator Derive.Pitch)]
+interpolatorVariations = concat
+    [ ControlUtil.interpolatorVariations_ interpolatorCall sym curve
+    | (sym, curve) <- ControlUtil.standardCurves
     ]
 
 
 -- * interpolate
 
 -- | Make a curve segment from the previous value, if there was one.
-make_segment_from :: Curve -> RealTime -> Maybe PSignal.Pitch -> RealTime
+makeSegmentFrom :: Curve -> RealTime -> Maybe PSignal.Pitch -> RealTime
     -> PitchOrTranspose -> Derive.Deriver PSignal.PSignal
-make_segment_from curve start maybe_from end to = case maybe_from of
+makeSegmentFrom curve start maybeFrom end to = case maybeFrom of
     Nothing -> pure $ case to of
-        Left to -> PSignal.from_sample start to
+        Left to -> PSignal.fromSample start to
         Right _ -> mempty
-    Just from -> make_segment curve start from end
-        (resolve_pitch_transpose from to)
+    Just from -> makeSegment curve start from end
+        (resolvePitchTranspose from to)
 
-make_segment :: Curve -> RealTime -> PSignal.Pitch -> RealTime
+makeSegment :: Curve -> RealTime -> PSignal.Pitch -> RealTime
     -> PSignal.Pitch -> Derive.Deriver PSignal.PSignal
-make_segment curve x1 y1 x2 y2 = do
-    srate <- Call.get_srate
+makeSegment curve x1 y1 x2 y2 = do
+    srate <- Call.getSrate
     pure $ segment srate curve x1 y1 x2 y2
 
 type Interpolate = RealTime -> PSignal.Pitch -> RealTime -> PSignal.Pitch
@@ -113,22 +113,22 @@ segment srate curve x1 y1 x2 y2
     -- I can't optimize y1==y2, which means flat breakpoints on a nonlinear
     -- curve get redundant samples.
     | otherwise = case curve of
-        ControlUtil.Linear -> PSignal.from_pairs [(x1, y1), (x2, y2)]
-        ControlUtil.Function curvef -> PSignal.from_pairs $ map (make curvef) $
+        ControlUtil.Linear -> PSignal.fromPairs [(x1, y1), (x2, y2)]
+        ControlUtil.Function curvef -> PSignal.fromPairs $ map (make curvef) $
             Lists.rangeEnd x1 x2 (1/srate)
     where
     make curvef x
         -- Otherwise if x1==x2 then I get y1.
         | x >= x2 = (x2, y2)
-        | otherwise = (x, y_at curvef x)
-    y_at curvef = Pitches.interpolated y1 y2
+        | otherwise = (x, yAt curvef x)
+    yAt curvef = Pitches.interpolated y1 y2
         . curvef . Num.normalize (secs x1) (secs x2) . secs
-        where secs = RealTime.to_seconds
+        where secs = RealTime.toSeconds
 
 -- * breakpoints
 
 -- | Create line segments between the given breakpoints.
 breakpoints :: SRate -> Curve -> [(RealTime, PSignal.Pitch)] -> PSignal.PSignal
-breakpoints _ ControlUtil.Linear = PSignal.from_pairs
+breakpoints _ ControlUtil.Linear = PSignal.fromPairs
 breakpoints srate curve =
-    ControlUtil.signal_breakpoints PSignal.from_sample (segment srate curve)
+    ControlUtil.signalBreakpoints PSignal.fromSample (segment srate curve)

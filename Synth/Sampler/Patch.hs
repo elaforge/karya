@@ -70,7 +70,7 @@ patch name = Patch
     , _convert = const $ Except.throwError "not implemented"
     , _preprocess = id
     , _effect = Nothing
-    , _karyaPatch = ImInst.make_patch Im.Patch.patch
+    , _karyaPatch = ImInst.makePatch Im.Patch.patch
     , _allFilenames = mempty
     }
 
@@ -81,7 +81,7 @@ patchKarya name setKarya = Patch
     , _convert = const $ Except.throwError "not implemented"
     , _preprocess = id
     , _effect = Nothing
-    , _karyaPatch = setKarya $ ImInst.make_patch Im.Patch.patch
+    , _karyaPatch = setKarya $ ImInst.makePatch Im.Patch.patch
     , _allFilenames = mempty
     }
 
@@ -97,8 +97,8 @@ simple name filename sampleNn = (patch name)
                 Sample.pitchToRatio sampleNn pitch
             }
     , _allFilenames = Set.singleton filename
-    , _karyaPatch = ImInst.make_patch $ Im.Patch.patch
-        { Im.Patch.patch_controls = Control.supportPitch <> Control.supportDyn
+    , _karyaPatch = ImInst.makePatch $ Im.Patch.patch
+        { Im.Patch.patchControls = Control.supportPitch <> Control.supportDyn
         }
     }
 
@@ -120,9 +120,9 @@ runConvert = Identity.runIdentity . Except.runExceptT . Log.run
 applyStandardControls :: Note.Note -> Sample.Sample -> Sample.Sample
 applyStandardControls note =
     apply Control.volume (\sig sample -> sample
-        { Sample.envelope = Signal.sig_multiply sig (Sample.envelope sample) })
+        { Sample.envelope = Signal.sigMultiply sig (Sample.envelope sample) })
     . apply Control.pan (\sig sample -> sample
-        { Sample.pan = Signal.sig_add sig (Sample.pan sample) })
+        { Sample.pan = Signal.sigAdd sig (Sample.pan sample) })
     where
     apply c set = maybe id set (Map.lookup c (Note.controls note))
 
@@ -167,5 +167,5 @@ checkControls patch effectControls effectConfig = concat
     renamed =
         Set.map (\c -> Map.findWithDefault c c toScoreControl) effectControls
     patchOverlaps = Set.intersection renamed patchControls
-    patchControls = Map.keysSet $ Im.Patch.patch_controls $
-        ImInst.patch_patch $ _karyaPatch patch
+    patchControls = Map.keysSet $ Im.Patch.patchControls $
+        ImInst.patchPatch $ _karyaPatch patch

@@ -14,8 +14,8 @@ import Prelude hiding (head, last)
 import qualified Util.Num as Num
 import qualified Util.TimeVector as TimeVector
 import Util.TimeVector
-       (Sample(..), constant, drop_before, drop_at_after, within, map_y,
-        map_err)
+       (Sample(..), constant, dropBefore, dropAtAfter, within, mapY,
+        mapErr)
 
 import qualified Midi.Midi as Midi
 import Global
@@ -30,20 +30,20 @@ type X = RealTime
 -- * re-exports
 
 head, last :: Signal -> Maybe (X, Y)
-head = fmap TimeVector.to_pair . TimeVector.head
-last = fmap TimeVector.to_pair . TimeVector.last
+head = fmap TimeVector.toPair . TimeVector.head
+last = fmap TimeVector.toPair . TimeVector.last
 
 at :: X -> Signal -> Y
 at x = fromMaybe 0 . TimeVector.at x
 
-from_pairs :: [(X, Y)] -> Signal
-from_pairs = TimeVector.from_pairs
+fromPairs :: [(X, Y)] -> Signal
+fromPairs = TimeVector.fromPairs
 
-to_pairs :: Signal -> [(X, Y)]
-to_pairs = TimeVector.to_pairs
+toPairs :: Signal -> [(X, Y)]
+toPairs = TimeVector.toPairs
 
-scalar_add :: Y -> Signal -> Signal
-scalar_add y = TimeVector.map_y (+y)
+scalarAdd :: Y -> Signal -> Signal
+scalarAdd y = TimeVector.mapY (+y)
 
 -- * clip_bounds
 
@@ -52,13 +52,13 @@ scalar_add y = TimeVector.map_y (+y)
 --
 -- TODO return Y value too, maybe just each (X, Y) where it goes out of range,
 -- suppressing adjacent samples.
-clip_bounds :: Y -> Y -> Signal -> (Signal, [(X, X)])
-clip_bounds low high sig = (clipped, reverse out_of_range)
+clipBounds :: Y -> Y -> Signal -> (Signal, [(X, X)])
+clipBounds low high sig = (clipped, reverse outOfRange)
     where
-    clipped = if Prelude.null out_of_range then sig
-        else TimeVector.map_y (Num.clamp low high) sig
-    (ranges, in_clip) = TimeVector.foldl' go ([], Nothing) sig
-    out_of_range = case (in_clip, TimeVector.last sig) of
+    clipped = if Prelude.null outOfRange then sig
+        else TimeVector.mapY (Num.clamp low high) sig
+    (ranges, inClip) = TimeVector.foldl' go ([], Nothing) sig
+    outOfRange = case (inClip, TimeVector.last sig) of
         (Just start, Just (TimeVector.Sample end _)) -> (start, end) : ranges
         _ -> ranges
     go state@(accum, Nothing) (TimeVector.Sample x y)
@@ -78,17 +78,17 @@ clip_bounds low high sig = (clipped, reverse out_of_range)
     0, they should share.  Unless the overlap occurs during the decay of one or
     both notes, at which point 0 transposition is ok.
 -}
-pitches_share :: Bool -> X -> X
+pitchesShare :: Bool -> X -> X
     -> Midi.Key -> Signal -> Midi.Key -> Signal -> Bool
-pitches_share in_decay start end initial1 sig1 initial2 sig2
-    | not in_decay && initial1 == initial2 = False
-    | otherwise = pitch_eq (sig1 ! start) (sig2 ! start)
-        && pitch_eq (sig1 ! end) (sig2 ! end)
-        && signals_share pitch_eq start in1 in2
+pitchesShare inDecay start end initial1 sig1 initial2 sig2
+    | not inDecay && initial1 == initial2 = False
+    | otherwise = pitchEq (sig1 ! start) (sig2 ! start)
+        && pitchEq (sig1 ! end) (sig2 ! end)
+        && signalsShare pitchEq start in1 in2
     where
     in1 = TimeVector.within start end sig1
     in2 = TimeVector.within start end sig2
-    pitch_eq = nns_share initial1 initial2
+    pitchEq = nnsShare initial1 initial2
     (!) sig x = fromMaybe 0 $ TimeVector.at x sig
 
 -- | I need to sample points from start to end, including the start and the
@@ -97,20 +97,20 @@ pitches_share in_decay start end initial1 sig1 initial2 sig2
 --
 -- Segment.within may return samples before start to get the proper value so
 -- I ignore samples before the start.  Start itself is tested explicitly above.
-{-# INLINE signals_share #-}
-signals_share :: (Y -> Y -> Bool) -> X -> TimeVector.Unboxed
+{-# INLINE signalsShare #-}
+signalsShare :: (Y -> Y -> Bool) -> X -> TimeVector.Unboxed
     -> TimeVector.Unboxed -> Bool
-signals_share eq start vec1 vec2 = go 0 0 0 0
+signalsShare eq start vec1 vec2 = go 0 0 0 0
     where
-    go prev_ay prev_by i1 i2 =
-        case TimeVector.resample1 prev_ay prev_by len1 len2 i1 i2 vec1 vec2 of
+    go prevAy prevBy i1 i2 =
+        case TimeVector.resample1 prevAy prevBy len1 len2 i1 i2 vec1 vec2 of
             Nothing -> True
             Just (x, ay, by, i1, i2) ->
                 (x <= start || eq ay by) && go ay by i1 i2
     len1 = TimeVector.length vec1
     len2 = TimeVector.length vec2
 
-nns_share :: Midi.Key -> Midi.Key -> Y -> Y -> Bool
-nns_share initial1 initial2 nn1 nn2 =
-    floor ((nn1 - Midi.from_key initial1) * 1000)
-        == floor ((nn2 - Midi.from_key initial2) * 1000)
+nnsShare :: Midi.Key -> Midi.Key -> Y -> Y -> Bool
+nnsShare initial1 initial2 nn1 nn2 =
+    floor ((nn1 - Midi.fromKey initial1) * 1000)
+        == floor ((nn2 - Midi.fromKey initial2) * 1000)

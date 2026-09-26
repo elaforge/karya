@@ -36,7 +36,7 @@ e_sai_shiv_1_2 = date 2023 4 3 $
 e_sai_shiv_3 :: Korvai
 e_sai_shiv_3 = date 2023 4 3 $
     exercise $ source "https://www.youtube.com/watch?v=VkfSoWLe7NE" $
-    comment "kita clarity" $ korvaiS Tala.misra_chapu
+    comment "kita clarity" $ korvaiS Tala.misraChapu
     [sd kto1234, kto1234, su (r2 kto1234)]
     where
     kto num = g $ repeat num kt . o.__

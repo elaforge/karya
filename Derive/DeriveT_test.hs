@@ -11,8 +11,8 @@ import qualified Derive.DeriveT as DeriveT
 
 test_map_str :: Test
 test_map_str = do
-    let f modify = fmap (ShowVal.show_val . fmap (DeriveT.map_str modify))
-            . Parse.parse_expr
+    let f modify = fmap (ShowVal.showVal . fmap (DeriveT.mapStr modify))
+            . Parse.parseExpr
     -- Mostly this is testing that show_val is a proper inverse of
     -- Parse.parse_expr.
-    right_equal (f (const "1") "23 23 '23' | 42") "23 23 '1' | 42"
+    rightEqual (f (const "1") "23 23 '23' | 42") "23 23 '1' | 42"

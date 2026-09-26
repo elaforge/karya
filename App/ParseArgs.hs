@@ -3,7 +3,7 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 -- | Parse the command line and load files.
-module App.ParseArgs (parse_args) where
+module App.ParseArgs (parseArgs) where
 import qualified Control.Monad.Trans as Trans
 import qualified Data.Text as Text
 
@@ -17,17 +17,17 @@ import           Global
 
 
 -- | By default, this winds up in 'App.StaticConfig.setup_cmd'.
-parse_args :: [String] -> Either Text (Cmd.CmdT IO Cmd.Status)
-parse_args = \case
-    [] -> Right $ Save.load_template "save/default" >> pure Cmd.Done
+parseArgs :: [String] -> Either Text (Cmd.CmdT IO Cmd.Status)
+parseArgs = \case
+    [] -> Right $ Save.loadTemplate "save/default" >> pure Cmd.Done
     -- Load a template.
-    ["-t", fn] -> Right $ Save.load_template fn >> pure Cmd.Done
-    ["midi", fn] -> Right $ load_midi fn
+    ["-t", fn] -> Right $ Save.loadTemplate fn >> pure Cmd.Done
+    ["midi", fn] -> Right $ loadMidi fn
     [fn] -> Right $ Save.load fn >> pure Cmd.Done
-    [fn, ref_or_commit] -> Right $ do
-        commit <- Cmd.require ("not a ref or commit: " <> txt ref_or_commit)
-            =<< Trans.liftIO (SaveGit.infer_commit fn ref_or_commit)
-        Save.load_git fn (Just commit)
+    [fn, refOrCommit] -> Right $ do
+        commit <- Cmd.require ("not a ref or commit: " <> txt refOrCommit)
+            =<< Trans.liftIO (SaveGit.inferCommit fn refOrCommit)
+        Save.loadGit fn (Just commit)
         pure Cmd.Done
     args -> Left $ Text.unlines
         [ "Expected:"
@@ -41,8 +41,8 @@ parse_args = \case
         , "But got: " <> pretty args
         ]
 
-load_midi :: FilePath -> Cmd.CmdT IO Cmd.Status
-load_midi fn = do
-    block_id <- Load.Midi.load fn
-    Create.unfitted_view block_id
+loadMidi :: FilePath -> Cmd.CmdT IO Cmd.Status
+loadMidi fn = do
+    blockId <- Load.Midi.load fn
+    Create.unfittedView blockId
     pure Cmd.Done

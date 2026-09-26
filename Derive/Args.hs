@@ -34,10 +34,10 @@ import           Types
 
 
 context :: PassedArgs a -> Context a
-context = Derive.passed_ctx
+context = Derive.passedCtx
 
 event :: PassedArgs a -> Event.Event
-event = Derive.ctx_event . context
+event = Derive.ctxEvent . context
 
 orientation :: PassedArgs a -> Types.Orientation
 orientation = Event.orientation . event
@@ -71,31 +71,31 @@ negative = (==Types.Negative) . orientation
 
 -- ** from 'Derive.ctx_prev_val'
 
-prev_control :: Derive.ControlArgs -> Maybe (RealTime, Signal.Y)
-prev_control = Signal.last <=< prev_val
+prevControl :: Derive.ControlArgs -> Maybe (RealTime, Signal.Y)
+prevControl = Signal.last <=< prevVal
 
-prev_pitch :: Derive.PitchArgs -> Maybe (RealTime, PSignal.Pitch)
-prev_pitch = PSignal.last <=< prev_val
+prevPitch :: Derive.PitchArgs -> Maybe (RealTime, PSignal.Pitch)
+prevPitch = PSignal.last <=< prevVal
 
-prev_event :: Derive.NoteArgs -> Maybe Score.Event
-prev_event = prev_val
+prevEvent :: Derive.NoteArgs -> Maybe Score.Event
+prevEvent = prevVal
 
-prev_event_pitch :: PassedArgs Score.Event -> Maybe PSignal.Pitch
-prev_event_pitch args =
-    fmap snd . PSignal.last . Score.event_pitch =<< prev_val args
+prevEventPitch :: PassedArgs Score.Event -> Maybe PSignal.Pitch
+prevEventPitch args =
+    fmap snd . PSignal.last . Score.eventPitch =<< prevVal args
 
 -- | Polymorphic version of 'prev_control' or 'prev_pitch'.
-prev_val_end :: Derive.Taggable a => PassedArgs a -> Maybe RealTime
-prev_val_end = extract <=< prev_val
+prevValEnd :: Derive.Taggable a => PassedArgs a -> Maybe RealTime
+prevValEnd = extract <=< prevVal
     where
-    extract val = case Derive.to_tagged val of
-        Derive.TagEvent event -> Just $ Score.event_end event
+    extract val = case Derive.toTagged val of
+        Derive.TagEvent event -> Just $ Score.eventEnd event
         Derive.TagControl sig -> fst <$> Signal.last sig
         Derive.TagPitch sig -> fst <$> PSignal.last sig
 
 -- | Get the previous val.  See NOTE [prev-val].
-prev_val :: PassedArgs a -> Maybe a
-prev_val = Derive.ctx_prev_val . context
+prevVal :: PassedArgs a -> Maybe a
+prevVal = Derive.ctxPrevVal . context
 
 -- ** from 'Derive.state_prev_val'
 
@@ -105,97 +105,97 @@ prev_val = Derive.ctx_prev_val . context
 --     prev <- prev_note
 --     return $ PSignal.last . Score.event_pitch =<< prev
 
-prev_note_pitch :: RealTime -> Derive.Deriver (Maybe PSignal.Pitch)
-prev_note_pitch start = justm prev_note $
-    pure . (`PSignal.at_negative` start) . Score.event_pitch
+prevNotePitch :: RealTime -> Derive.Deriver (Maybe PSignal.Pitch)
+prevNotePitch start = justm prevNote $
+    pure . (`PSignal.atNegative` start) . Score.eventPitch
 
 -- | Get the previous note.  Unlike 'prev_val', this always gets the previous
 -- Score.Event, even if you're evaluating a control track under the note track.
 --
 -- TODO it doesn't really belong here since it doesn't use PassedArgs, but
 -- this is where I would look for a function for the previous value.
-prev_note :: Derive.Deriver (Maybe Score.Event)
-prev_note = do
+prevNote :: Derive.Deriver (Maybe Score.Event)
+prevNote = do
     -- TODO this happens if you're not inverting, but that should be ok, right?
     addr <- Derive.require "lookup_prev_note: no state_note_track"
-        =<< Derive.gets (Derive.state_note_track . Derive.state_dynamic)
-    Derive.gets $ Derive.from_tagged <=< Map.lookup addr . Derive.state_prev_val
-        . Derive.state_threaded
+        =<< Derive.gets (Derive.stateNoteTrack . Derive.stateDynamic)
+    Derive.gets $ Derive.fromTagged <=< Map.lookup addr . Derive.statePrevVal
+        . Derive.stateThreaded
 
 -- ** 'Derive.state_pitch_map'
 
 -- | Pitch at the time of the next event in this track.
-lookup_next_pitch :: PassedArgs a -> Derive.Deriver (Maybe PSignal.Pitch)
-lookup_next_pitch = maybe (pure Nothing) lookup_pitch_at . next_start
+lookupNextPitch :: PassedArgs a -> Derive.Deriver (Maybe PSignal.Pitch)
+lookupNextPitch = maybe (pure Nothing) lookupPitchAt . nextStart
 
-lookup_prev_pitch :: PassedArgs a -> Derive.Deriver (Maybe PSignal.Pitch)
-lookup_prev_pitch = maybe (pure Nothing) lookup_pitch_at . prev_start
+lookupPrevPitch :: PassedArgs a -> Derive.Deriver (Maybe PSignal.Pitch)
+lookupPrevPitch = maybe (pure Nothing) lookupPitchAt . prevStart
 
 -- | Pitch at the time of the next note event of this track's
 -- 'Derive.state_note_track'.
-lookup_next_note_pitch :: ScoreTime -> Derive.Deriver (Maybe PSignal.Pitch)
-lookup_next_note_pitch start =
-    justm (note_after start <$> get_note_events) $
-    lookup_pitch_at . Event.start
+lookupNextNotePitch :: ScoreTime -> Derive.Deriver (Maybe PSignal.Pitch)
+lookupNextNotePitch start =
+    justm (noteAfter start <$> getNoteEvents) $
+    lookupPitchAt . Event.start
 
-lookup_prev_note_pitch :: ScoreTime -> Derive.Deriver (Maybe PSignal.Pitch)
-lookup_prev_note_pitch start =
-    justm (note_before start <$> get_note_events) $
-    lookup_pitch_at . Event.start
+lookupPrevNotePitch :: ScoreTime -> Derive.Deriver (Maybe PSignal.Pitch)
+lookupPrevNotePitch start =
+    justm (noteBefore start <$> getNoteEvents) $
+    lookupPitchAt . Event.start
 
-note_before :: TrackTime -> Events.Events -> Maybe Event.Event
-note_before p = Events.last . fst . Events.split_exclude p
+noteBefore :: TrackTime -> Events.Events -> Maybe Event.Event
+noteBefore p = Events.last . fst . Events.splitExclude p
 
-note_after :: TrackTime -> Events.Events -> Maybe Event.Event
-note_after p = Events.head . snd . Events.split_exclude p
+noteAfter :: TrackTime -> Events.Events -> Maybe Event.Event
+noteAfter p = Events.head . snd . Events.splitExclude p
 
-get_note_events :: Derive.Deriver Events.Events
-get_note_events = do
+getNoteEvents :: Derive.Deriver Events.Events
+getNoteEvents = do
     -- TODO this happens if you're not inverting, is that ok?
-    (_, track_id) <- Derive.require "no state_note_track"
-        =<< Derive.gets (Derive.state_note_track . Derive.state_dynamic)
-    Track.track_events <$> Derive.get_track track_id
+    (_, trackId) <- Derive.require "no state_note_track"
+        =<< Derive.gets (Derive.stateNoteTrack . Derive.stateDynamic)
+    Track.trackEvents <$> Derive.getTrack trackId
 
 -- | Get a logical pitch at the given time, via 'Derive.state_pitch_map'.
 -- As documented by 'Derive.state_pitch_map', the pitch map is unset while
 -- evaluating the pitch map, so pitch calls that use this shouldn't be
 -- surprised if it's Nothing.
-lookup_pitch_at :: TrackTime -> Derive.Deriver (Maybe PSignal.Pitch)
-lookup_pitch_at pos = justm (Internal.get_dynamic Derive.state_pitch_map) $
-    \(maybe_sig, logs) -> do
-        mapM_ (Log.write . Log.add_prefix ("lookup_pitch_at " <> pretty pos)) $
-            filter ((>=Log.Warn) . Log.msg_priority) logs
+lookupPitchAt :: TrackTime -> Derive.Deriver (Maybe PSignal.Pitch)
+lookupPitchAt pos = justm (Internal.getDynamic Derive.statePitchMap) $
+    \(maybeSig, logs) -> do
+        mapM_ (Log.write . Log.addPrefix ("lookup_pitch_at " <> pretty pos)) $
+            filter ((>=Log.Warn) . Log.msgPriority) logs
         -- PSignal is actually in TrackTime, see 'Derive.state_pitch_map'.
-        pure $ flip PSignal.at (RealTime.from_score pos) =<< maybe_sig
+        pure $ flip PSignal.at (RealTime.fromScore pos) =<< maybeSig
 
 -- | Like 'lookup_pitch_at', except for parsed pitches.  Normally you'd pass
 -- 'Derive.Call.get_pitch_functions' to make a 'Pitch.Pitch'.
-lookup_parsed_pitch_at :: (Pitch.Note -> Maybe a) -> TrackTime
+lookupParsedPitchAt :: (Pitch.Note -> Maybe a) -> TrackTime
     -> Derive.Deriver (Maybe a)
-lookup_parsed_pitch_at parse_pitch pos =
-    justm (lookup_pitch_at pos) $ \pitch -> do
+lookupParsedPitchAt parsePitch pos =
+    justm (lookupPitchAt pos) $ \pitch -> do
         rpos <- Derive.real pos
         -- TODO transposes may be out of sync because state_pitch_map is in
         -- TrackTime.
-        note <- Pitches.pitch_note =<< Derive.resolve_pitch rpos pitch
-        Just <$> Derive.require "unparseable pitch" (parse_pitch note)
+        note <- Pitches.pitchNote =<< Derive.resolvePitch rpos pitch
+        Just <$> Derive.require "unparseable pitch" (parsePitch note)
 
 -- ** eval
 
 -- | Unused, but might be used again if I need to evaluate the next event.
 eval :: Derive.CallableExpr d => Context x -> Event.Event -> [Event.Event]
     -> Derive.Deriver (Stream.Stream d)
-eval ctx event prev = case Parse.parse_expr (Event.text event) of
+eval ctx event prev = case Parse.parseExpr (Event.text event) of
     Left err -> Derive.throw $ "parse error: " <> err
-    Right expr -> Eval.eval_expr False prev_ctx expr
+    Right expr -> Eval.evalExpr False prevCtx expr
         where
-        prev_ctx = ctx
-            { Derive.ctx_prev_val = Nothing
-            , Derive.ctx_event = event
-            , Derive.ctx_prev_events = prev
-            , Derive.ctx_next_events =
-                Derive.ctx_event ctx : Derive.ctx_next_events ctx
-            , Derive.ctx_event_end = Event.start $ Derive.ctx_event ctx
+        prevCtx = ctx
+            { Derive.ctxPrevVal = Nothing
+            , Derive.ctxEvent = event
+            , Derive.ctxPrevEvents = prev
+            , Derive.ctxNextEvents =
+                Derive.ctxEvent ctx : Derive.ctxNextEvents ctx
+            , Derive.ctxEventEnd = Event.start $ Derive.ctxEvent ctx
             }
 
 -- | Get the pitch at the time of the next event, when evaluating a pitch
@@ -207,14 +207,14 @@ eval ctx event prev = case Parse.parse_expr (Event.text event) of
 -- inverted then the event at or after the end of the event will be included.
 -- But 'Derive.Control.trim_signal' will clip that sample off to avoid
 -- a spurious pitch change at the end of the note.
-eval_next_pitch :: Derive.PitchArgs -> Derive.Deriver (Maybe PSignal.Pitch)
-eval_next_pitch = maybe (pure Nothing) eval_pitch . Lists.head . next_events
+evalNextPitch :: Derive.PitchArgs -> Derive.Deriver (Maybe PSignal.Pitch)
+evalNextPitch = maybe (pure Nothing) evalPitch . Lists.head . nextEvents
 
-eval_pitch :: Event.Event -> Derive.Deriver (Maybe PSignal.Pitch)
-eval_pitch event = justm (to_maybe <$> Eval.eval_event event) $ \stream -> do
+evalPitch :: Event.Event -> Derive.Deriver (Maybe PSignal.Pitch)
+evalPitch event = justm (toMaybe <$> Eval.evalEvent event) $ \stream -> do
     start <- Derive.real (Event.start event)
-    pure $ PSignal.at (mconcat $ Stream.events_of stream) start
-    where to_maybe = either (const Nothing) Just
+    pure $ PSignal.at (mconcat $ Stream.eventsOf stream) start
+    where toMaybe = either (const Nothing) Just
 
 -- * event timing
 
@@ -224,17 +224,17 @@ start = Event.start . event
 duration :: PassedArgs a -> TrackTime
 duration = Event.duration . event
 
-real_duration :: PassedArgs a -> Derive.Deriver RealTime
-real_duration args = (-) <$> real_end args <*> real_start args
+realDuration :: PassedArgs a -> Derive.Deriver RealTime
+realDuration args = (-) <$> realEnd args <*> realStart args
 
-real_start :: PassedArgs a -> Derive.Deriver RealTime
-real_start = Derive.real . start
+realStart :: PassedArgs a -> Derive.Deriver RealTime
+realStart = Derive.real . start
 
 end :: PassedArgs a -> TrackTime
 end = Event.end . event
 
-real_end :: PassedArgs a -> Derive.Deriver RealTime
-real_end = Derive.real . end
+realEnd :: PassedArgs a -> Derive.Deriver RealTime
+realEnd = Derive.real . end
 
 -- | The start of the next event, or the end of the block if there is no next
 -- event.
@@ -242,41 +242,41 @@ real_end = Derive.real . end
 -- Used by calls to determine their extent, especially control calls, which
 -- have no explicit duration.
 next :: PassedArgs a -> TrackTime
-next = Derive.ctx_event_end . context
+next = Derive.ctxEventEnd . context
 
 -- | End of the next event, or the end of the block if there is no next event.
-next_end :: PassedArgs a -> TrackTime
-next_end args = maybe (next args) Event.end (Lists.head (next_events args))
+nextEnd :: PassedArgs a -> TrackTime
+nextEnd args = maybe (next args) Event.end (Lists.head (nextEvents args))
 
 -- | Get the start of the next event, if there is one.
 --
 -- This is similar to 'next', except that it will be Nothing at the end of
 -- the block.
-next_start :: PassedArgs a -> Maybe TrackTime
-next_start = fmap Event.start . Lists.head . next_events
+nextStart :: PassedArgs a -> Maybe TrackTime
+nextStart = fmap Event.start . Lists.head . nextEvents
 
 -- | Start time of the previous event.
-prev_start :: PassedArgs a -> Maybe TrackTime
-prev_start = fmap Event.start . Lists.head . prev_events
+prevStart :: PassedArgs a -> Maybe TrackTime
+prevStart = fmap Event.start . Lists.head . prevEvents
 
 -- | End time of the previous event.
-prev_end :: PassedArgs a -> Maybe TrackTime
-prev_end = fmap Event.end . Lists.head . prev_events
+prevEnd :: PassedArgs a -> Maybe TrackTime
+prevEnd = fmap Event.end . Lists.head . prevEvents
 
-prev_events, next_events :: PassedArgs a -> [Event.Event]
-next_events = Derive.ctx_next_events . context
-prev_events = Derive.ctx_prev_events . context
+prevEvents, nextEvents :: PassedArgs a -> [Event.Event]
+nextEvents = Derive.ctxNextEvents . context
+prevEvents = Derive.ctxPrevEvents . context
 
 -- ** modify
 
 -- | Modify the duration of the ctx_event.  This is a hack, because calls run
 -- in TrackTime, instead of using Derive.place.
-set_duration :: TrackTime -> PassedArgs a -> PassedArgs a
-set_duration dur args = args
-    { Derive.passed_ctx = ctx
-        { Derive.ctx_event = Event.duration_ #= dur $ Derive.ctx_event ctx }
+setDuration :: TrackTime -> PassedArgs a -> PassedArgs a
+setDuration dur args = args
+    { Derive.passedCtx = ctx
+        { Derive.ctxEvent = Event.duration_ #= dur $ Derive.ctxEvent ctx }
     }
-    where ctx = Derive.passed_ctx args
+    where ctx = Derive.passedCtx args
 
 -- ** range
 
@@ -286,20 +286,20 @@ set_duration dur args = args
 range :: PassedArgs a -> (TrackTime, TrackTime)
 range = Event.range . event
 
-real_range :: PassedArgs a -> Derive.Deriver (RealTime, RealTime)
-real_range args = (,) <$> Derive.real start <*> Derive.real end
+realRange :: PassedArgs a -> Derive.Deriver (RealTime, RealTime)
+realRange args = (,) <$> Derive.real start <*> Derive.real end
     where (start, end) = range args
 
 -- | Like 'range', but if the duration is 0, then the end is 'next' event.
-range_or_next :: PassedArgs a -> (TrackTime, TrackTime)
-range_or_next args
+rangeOrNext :: PassedArgs a -> (TrackTime, TrackTime)
+rangeOrNext args
     | start == end = (start, next args)
     | otherwise = (start, end)
     where (start, end) = range args
 
-real_range_or_next :: PassedArgs a -> Derive.Deriver (RealTime, RealTime)
-real_range_or_next args = (,) <$> Derive.real start <*> Derive.real end
-    where (start, end) = range_or_next args
+realRangeOrNext :: PassedArgs a -> Derive.Deriver (RealTime, RealTime)
+realRangeOrNext args = (,) <$> Derive.real start <*> Derive.real end
+    where (start, end) = rangeOrNext args
 
 -- | The current event's start and end times.
 --
@@ -311,16 +311,16 @@ real_range_or_next args = (,) <$> Derive.real start <*> Derive.real end
 -- (note_start, note_start), which should cause the call to just emit its final
 -- sample at the note-start, which will both get the correct value for the
 -- event and not destroy the earlier track signal fragment.
-range_or_note_end :: PassedArgs a -> Derive.Deriver (TrackTime, TrackTime)
-range_or_note_end args
+rangeOrNoteEnd :: PassedArgs a -> Derive.Deriver (TrackTime, TrackTime)
+rangeOrNoteEnd args
     | start == end = do
-        note_start <- Derive.lookup_val EnvKey.note_start
-        note_end <- Derive.lookup_val EnvKey.note_end
-        case (note_start, note_end) of
-            (Just note_start, Just note_end)
-                | start < note_start -> pure (note_start, note_start)
+        noteStart <- Derive.lookupVal EnvKey.noteStart
+        noteEnd <- Derive.lookupVal EnvKey.noteEnd
+        case (noteStart, noteEnd) of
+            (Just noteStart, Just noteEnd)
+                | start < noteStart -> pure (noteStart, noteStart)
                 | otherwise ->
-                    pure (start, min (next args) (max end note_end))
+                    pure (start, min (next args) (max end noteEnd))
             _ -> pure (start, next args)
     | otherwise = pure (start, end)
     where (start, end) = range args
@@ -331,19 +331,19 @@ range_or_note_end args
 extent :: PassedArgs a -> (TrackTime, TrackTime)
 extent = (\e -> (Event.start e, Event.duration e)) . event
 
-real_extent :: PassedArgs a -> Derive.Deriver (RealTime, RealTime)
-real_extent args = do
+realExtent :: PassedArgs a -> Derive.Deriver (RealTime, RealTime)
+realExtent args = do
     let e = event args
     start <- Derive.real (Event.start e)
     end <- Derive.real (Event.end e)
     pure (start, end - start)
 
 -- | Event range as it appears on the track, regardless of slicing.
-range_on_track :: PassedArgs a -> (TrackTime, TrackTime)
-range_on_track args = (shifted + start, shifted + end)
+rangeOnTrack :: PassedArgs a -> (TrackTime, TrackTime)
+rangeOnTrack args = (shifted + start, shifted + end)
     where
     (start, end) = range args
-    shifted = Derive.ctx_track_shifted (context args)
+    shifted = Derive.ctxTrackShifted (context args)
 
 -- | This normalizes a deriver to start at 0 and have a duration of 1, provided
 -- that the deriver is placed at the start and dur of the given args.  This is
@@ -356,8 +356,8 @@ normalized args = Derive.place (- (start / dur)) (1 / dur)
     dur = if dur_ == 0 then 1 else dur_
 
 -- | Like 'normalized', but only shifts start to 0.
-normalized_start :: PassedArgs a -> Derive.Deriver b -> Derive.Deriver b
-normalized_start args = Derive.at (- start args)
+normalizedStart :: PassedArgs a -> Derive.Deriver b -> Derive.Deriver b
+normalizedStart args = Derive.at (- start args)
 
 {- NOTE [prev-val]
 

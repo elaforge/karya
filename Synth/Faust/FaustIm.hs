@@ -51,8 +51,8 @@ main = do
     logFname <- Config.getLogFilename "faust.log"
     logHdl <- Log.rotate logFname
     Log.configure $ const $ Log.State
-        { state_write_msg = Log.write_formatted logHdl
-        , state_priority = Log.Notice
+        { stateWriteMsg = Log.writeFormatted logHdl
+        , statePriority = Log.Notice
         }
     patches <- InstrumentC.getPatches
     thread <- Concurrent.myThreadId

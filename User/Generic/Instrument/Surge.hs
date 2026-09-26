@@ -11,11 +11,11 @@ import qualified Cmd.Instrument.MidiInst as MidiInst
 synth :: MidiInst.Synth
 synth =
     MidiInst.synth "surge" "https://surge-synthesizer.github.io/index.html" $
-        MidiInst.synth_controls controls
-        [MidiInst.default_patch pb_range []]
+        MidiInst.synthControls controls
+        [MidiInst.defaultPatch pbRange []]
     where
     controls = [(40 + n, String.fromString $ "macro" <> show n) | n <- [1..8]]
 
 -- PB range when in MPE mode.
-pb_range :: (Int, Int)
-pb_range = (-48, 48)
+pbRange :: (Int, Int)
+pbRange = (-48, 48)

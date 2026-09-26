@@ -164,7 +164,7 @@ writeAll = write Nothing
 
 write :: Maybe [Korvai.GInstrument] -> FilePath -> Korvai.Score -> IO ()
 write mbInstruments fname score =
-    Files.writeLines fname $ map Html.un_html $
+    Files.writeLines fname $ map Html.unHtml $
         render mbInstruments defaultAbstractions score
 
 
@@ -224,7 +224,7 @@ renderAbstraction :: (Solkattu.Notation stroke, Ord stroke)
     => Text -> Korvai.Instrument stroke -> Korvai.Score
     -> (Text, Format.Abstraction) -> [Html.Html]
 renderAbstraction instName inst score (aname, abstraction) =
-    Html.tag_attrs "div" attrs Nothing
+    Html.tagAttrs "div" attrs Nothing
     : (case score of
         Korvai.Single korvai -> render korvai
         Korvai.Tani _ parts -> concatMap partHtmls parts)
@@ -329,7 +329,7 @@ chooseAbstraction abstractions instrument =
     where
     -- <label> makes the text clickable too.
     radio val = Html.tag "label" $
-        Html.tag_attrs "input" (attrs val) (Just (Html.html val))
+        Html.tagAttrs "input" (attrs val) (Just (Html.html val))
     attrs val =
         [ ("type", "radio")
         , ("onchange", "showAbstraction('" <> instrument <> "', this.value)")
@@ -545,7 +545,7 @@ formatTable :: Talas.Tala -> Int -> Korvai.Section ()
     -> [(Maybe Format.Ruler, [(S.State, Symbol)])] -> [(Bool, [Html.Html])]
 formatTable tala _sectionIndex section rows = map row $ zipFirstFinal rows
     where
-    td (tags, body) = Html.tag_attrs "td" tags (Just body)
+    td (tags, body) = Html.tagAttrs "td" tags (Just body)
     row (isFirst, (mbRuler, cells), isFinal) = case mbRuler of
         Just ruler ->
             ( True
@@ -559,7 +559,7 @@ formatTable tala _sectionIndex section rows = map row $ zipFirstFinal rows
             . map (mkCell isFinal) . List.groupBy merge . zip [0..] $ cells
     sectionTags isFirst
         | not isFirst || Text.null tags = ""
-        | otherwise = Html.tag_attrs "span" [("style", "font-size:50%")] $
+        | otherwise = Html.tagAttrs "span" [("style", "font-size:50%")] $
             Just $ Html.html tags
         where tags = Format.showTags (Korvai.sectionTags section)
     -- Merge together the sustains after an attack.  They will likely have an
@@ -627,7 +627,7 @@ spellRests = spell
     single = "_"
 
 isRest :: Html.Html -> Bool
-isRest = (=="_") . Text.strip . Html.un_html
+isRest = (=="_") . Text.strip . Html.unHtml
 
 
 -- * implementation

@@ -53,39 +53,39 @@ import           Global
     p-isep      kontakt/wayang-isep
 -}
 patches :: [MidiInst.Patch]
-patches = map (MidiInst.code #= code <> with_weak)
-    [ set_scale BaliScales.Umbang $ patch "wayang-umbang"
-    , set_scale BaliScales.Isep $ patch "wayang-isep"
+patches = map (MidiInst.code #= code <> withWeak)
+    [ setScale BaliScales.Umbang $ patch "wayang-umbang"
+    , setScale BaliScales.Isep $ patch "wayang-isep"
     , MidiInst.doc #= "Tuned to 12TET." $ patch "wayang12"
     ] ++ map pasang
     [ patch "wayang"
-    , MidiInst.range (BaliScales.instrument_range Wayang.pemade) $
+    , MidiInst.range (BaliScales.instrumentRange Wayang.pemade) $
         patch "wayang-pemade"
-    , MidiInst.range (BaliScales.instrument_range Wayang.kantilan) $
+    , MidiInst.range (BaliScales.instrumentRange Wayang.kantilan) $
         patch "wayang-kantilan"
     ]
     where
-    pasang = MidiInst.dummy Bali.pasang_msg
-        . (MidiInst.code #= Bali.pasang_code <> with_weak)
-    code = MidiInst.postproc (Gangsa.mute_postproc (Attrs.mute <> Attrs.loose))
-        <> MidiInst.null_call DUtil.constant_pitch
-    with_weak = MidiInst.null_call $ DUtil.zero_duration "note"
+    pasang = MidiInst.dummy Bali.pasangMsg
+        . (MidiInst.code #= Bali.pasangCode <> withWeak)
+    code = MidiInst.postproc (Gangsa.mutePostproc (Attrs.mute <> Attrs.loose))
+        <> MidiInst.nullCall DUtil.constantPitch
+    withWeak = MidiInst.nullCall $ DUtil.zeroDuration "note"
         "This a normal note with non-zero duration, but when the duration is\
         \ zero, it uses the `weak` call."
-        (Sub.inverting Gender.weak_call)
-        (Sub.inverting $ Note.default_note Note.use_attributes)
-    patch name = set_params $ MidiInst.named_patch (-24, 24) name []
-    set_params = MidiInst.patch
-        %= MidiInst.add_flags [Patch.UseFinalNoteOff]
+        (Sub.inverting Gender.weakCall)
+        (Sub.inverting $ Note.defaultNote Note.useAttributes)
+    patch name = setParams $ MidiInst.namedPatch (-24, 24) name []
+    setParams = MidiInst.patch
+        %= MidiInst.addFlags [Patch.UseFinalNoteOff]
             . (Patch.defaults#Patch.decay #= Just 0)
-            . (Patch.attribute_map #= attribute_map)
-    set_scale tuning =
+            . (Patch.attributeMap #= attributeMap)
+    setScale tuning =
         (MidiInst.patch#Patch.defaults#Patch.scale
-            #= Just (Wayang.instrument_scale False Wayang.laras_sawan tuning))
+            #= Just (Wayang.instrumentScale False Wayang.larasSawan tuning))
         . MidiInst.environ EnvKey.tuning tuning
 
-attribute_map :: Patch.AttributeMap
-attribute_map = Common.attribute_map
+attributeMap :: Patch.AttributeMap
+attributeMap = Common.attributeMap
     [ (Attrs.mute <> Attrs.loose, ([Patch.Keyswitch Key2.a_2], keymap))
     , (Attrs.mute,                ([Patch.Keyswitch Key2.b_2], keymap))
     , (mempty, ([], Just $ Patch.PitchedKeymap Key2.c3 Key2.c7 Key2.c3))

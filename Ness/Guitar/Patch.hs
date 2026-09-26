@@ -16,11 +16,11 @@ import Ness.Guitar
 import Global
 
 
-c_location :: Control.Control
-c_location = "location"
+cLocation :: Control.Control
+cLocation = "location"
 
-c_finger :: Control.Control
-c_finger = "finger"
+cFinger :: Control.Control
+cFinger = "finger"
 
 instruments :: [Instrument]
 instruments =
@@ -76,7 +76,7 @@ guitarStrings = map make
         , sRadius = radius
         , sT60 = (15, t60)
         , sNn = nn
-        , sName = NN.karya_name nn
+        , sName = NN.karyaName nn
         , sOutputs = [Output 0.9 pan, Output 0.7 (pan + 0.2)]
         }
 
@@ -96,7 +96,7 @@ guitarStrings2 = map make
         , sRadius = radius
         , sT60 = (15, t60)
         , sNn = nn
-        , sName = NN.karya_name nn
+        , sName = NN.karyaName nn
         , sOutputs = [Output 0.9 (pan - 0.2), Output 0.7 pan]
         }
 
@@ -114,7 +114,7 @@ bassStrings = map make
         , sRadius = radius
         , sT60 = (15, 3)
         , sNn = nn
-        , sName = NN.karya_name nn
+        , sName = NN.karyaName nn
         , sOutputs =  outputsAt 0.5
         }
 

@@ -17,12 +17,12 @@ import           Util.Test
 
 test_convert_tracks :: Test
 test_convert_tracks = do
-    let f = Midi.convert_tracks . map (fmap mkmidi)
-    let midi_tracks =
+    let f = Midi.convertTracks . map (fmap mkmidi)
+    let midiTracks =
             [ ("a", [on Key.c4, on Key.d4, off Key.c4, off Key.d4])
             , ("b", [on Key.e4, cc 42, off Key.e4])
             ]
-    let (tracks, skel, warns) = f midi_tracks
+    let (tracks, skel, warns) = f midiTracks
     equal (map (fmap Map.toList) tracks)
         [ (">a", [(0, (2, ""))])
         , ("*", [(0, (0, "4c"))])
@@ -42,7 +42,7 @@ test_convert_tracks = do
 
 test_split_track :: Test
 test_split_track = do
-    let f = map extract . fst . Midi.split_track
+    let f = map extract . fst . Midi.splitTrack
             . map (fmap (M.ChannelMessage 0))
         extract (Midi.NoteTrack notes pitches controls) =
             (Map.toList notes, Map.toList pitches,
@@ -69,7 +69,7 @@ test_split_track = do
 
 test_collect_notes :: Test
 test_collect_notes = do
-    let f = Midi.collect_notes . mkmidi
+    let f = Midi.collectNotes . mkmidi
     equal (f [on Key.c4]) ([], [(0, Key.c4)])
     equal (f [on Key.c4, off Key.c4]) ([(0, 1, Key.c4, 127, [])], [])
     equal (f [on Key.c4, on Key.d4, cc 42, off Key.c4, off Key.d4])

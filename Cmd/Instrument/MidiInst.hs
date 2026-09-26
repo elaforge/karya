@@ -5,27 +5,27 @@
 -- | Utilities for the instrument definitions in "Local.Instrument".
 module Cmd.Instrument.MidiInst (
     Synth, synth
-    , extract_warns
-    , make_inst
+    , extractWarns
+    , makeInst
     -- * code
-    , make_code
+    , makeCode
     , Code(..), Call
-    , generator, transformer, both, note_calls
-    , note_generators, note_transformers, val_calls
-    , null_call, null_calls
+    , generator, transformer, both, noteCalls
+    , noteGenerators, noteTransformers, valCalls
+    , nullCall, nullCalls
     , postproc, cmd, thru
 
     -- * Patch
     , Patch(..), patch, common
-    , make_patch, patch_from_pair, named_patch, default_patch
+    , makePatch, patchFromPair, namedPatch, defaultPatch
     -- ** modify
-    , dummy, code, doc, attribute_map, decay, synth_controls
-    , add_flag, add_flags, pressure, add_common_flag, triggered
-    , control_defaults
+    , dummy, code, doc, attributeMap, decay, synthControls
+    , addFlag, addFlags, pressure, addCommonFlag, triggered
+    , controlDefaults
     -- ** environ
-    , environ, range, nn_range
+    , environ, range, nnRange
     -- ** per-allocation
-    , inst_range
+    , instRange
     -- * allocations
     , allocations, config, config1
 
@@ -72,55 +72,55 @@ type Synth = Inst.SynthDecl Cmd.InstrumentCode
 
 synth :: InstT.SynthName -> Text -> [Patch] -> Synth
 synth name doc patches = Inst.SynthDecl
-    { synthd_name = name
-    , synthd_doc = doc
-    , synthd_patches
-    , synthd_warns
+    { synthdName = name
+    , synthdDoc = doc
+    , synthdPatches
+    , synthdWarns
     }
     where
-    name_of = (patch#Patch.name #$)
-    (synthd_patches, synthd_warns) = extract_warns $
-        zip (map name_of patches) $ map make_inst patches
+    nameOf = (patch#Patch.name #$)
+    (synthdPatches, synthdWarns) = extractWarns $
+        zip (map nameOf patches) $ map makeInst patches
 
-extract_warns :: [(Text, (code, [Library.Shadowed]))]
+extractWarns :: [(Text, (code, [Library.Shadowed]))]
     -> ([(Text, code)], [Text])
-extract_warns insts =
+extractWarns insts =
     ( zip names codes
     , concat
-        [ map (((name <> ": ") <>) . Library.show_shadowed) shadowed
+        [ map (((name <> ": ") <>) . Library.showShadowed) shadowed
         | (name, shadowed) <- zip names shadoweds
         ]
     )
     where
     (names, (codes, shadoweds)) = unzip <$> unzip insts
 
-make_inst :: Patch -> (Inst.Inst Cmd.InstrumentCode, [Library.Shadowed])
-make_inst (Patch patch dummy common) = (, shadowed) $ Inst.Inst
-    { inst_backend = case dummy of
+makeInst :: Patch -> (Inst.Inst Cmd.InstrumentCode, [Library.Shadowed])
+makeInst (Patch patch dummy common) = (, shadowed) $ Inst.Inst
+    { instBackend = case dummy of
         Nothing -> Inst.Midi patch
         Just msg -> Inst.Dummy msg
-    , inst_common = common { Common.common_code = code }
+    , instCommon = common { Common.commonCode = code }
     }
-    where (code, shadowed) = make_code (Common.common_code common)
+    where (code, shadowed) = makeCode (Common.commonCode common)
 
-make_code :: Code -> (Cmd.InstrumentCode, [Library.Shadowed])
-make_code (Code library inst_postproc inst_cmds inst_thru) =
-    ( Cmd.InstrumentCode { inst_calls, inst_postproc, inst_cmds, inst_thru }
+makeCode :: Code -> (Cmd.InstrumentCode, [Library.Shadowed])
+makeCode (Code library instPostproc instCmds instThru) =
+    ( Cmd.InstrumentCode { instCalls, instPostproc, instCmds, instThru }
     , shadowed
     )
-    where (inst_calls, shadowed) = compile_library library
+    where (instCalls, shadowed) = compileLibrary library
 
 -- | InstrumentCalls doesn't have modules, so just pull everything out of every
 -- module.
-compile_library :: Library.Library
+compileLibrary :: Library.Library
     -> (Derive.InstrumentCalls, [Library.Shadowed])
-compile_library = first convert . Library.compile
+compileLibrary = first convert . Library.compile
     where
     convert (Derive.Scopes gen trans track val) = Derive.Scopes
-        { scopes_generator = extract $ Derive.scope_note gen
-        , scopes_transformer = extract $ Derive.scope_note trans
-        , scopes_track = extract $ Derive.scope_note track
-        , scopes_val = extract val
+        { scopesGenerator = extract $ Derive.scopeNote gen
+        , scopesTransformer = extract $ Derive.scopeNote trans
+        , scopesTrack = extract $ Derive.scopeNote track
+        , scopesVal = extract val
         }
     -- TODO this doesn't warn about shadowed entries, but I'd have to extend
     -- 'synth' to be in LogMonad.
@@ -132,10 +132,10 @@ compile_library = first convert . Library.compile
 -- | A version of 'Cmd.InstrumentCode' that's more convenient for record update
 -- syntax.
 data Code = Code
-    { code_library :: !Library.Library
-    , code_postproc :: !Cmd.InstrumentPostproc
-    , code_cmds :: ![Cmd.HandlerId]
-    , code_thru :: !(Maybe Cmd.ThruFunction)
+    { codeLibrary :: !Library.Library
+    , codePostproc :: !Cmd.InstrumentPostproc
+    , codeCmds :: ![Cmd.HandlerId]
+    , codeThru :: !(Maybe Cmd.ThruFunction)
     }
 
 instance Pretty Code where
@@ -179,52 +179,52 @@ both name calls =
 -- | Add the given call as the null note call to the note track.  This also
 -- binds 'Symbols.default_note', since that's supposed to be the \"named\" way
 -- to call \"\".
-null_call :: Derive.Generator Derive.Note -> Code
-null_call = note_calls . null_calls
+nullCall :: Derive.Generator Derive.Note -> Code
+nullCall = noteCalls . nullCalls
 
-null_calls :: Derive.Generator Derive.Note -> [Call Derive.Note]
-null_calls call =
-    [ generator Symbols.null_note call
-    , generator Symbols.default_note call
+nullCalls :: Derive.Generator Derive.Note -> [Call Derive.Note]
+nullCalls call =
+    [ generator Symbols.nullNote call
+    , generator Symbols.defaultNote call
     ]
 
-note_calls :: [Call Derive.Note] -> Code
-note_calls calls =
-    note_generators ([(name, c) | Generator name c <- calls]
+noteCalls :: [Call Derive.Note] -> Code
+noteCalls calls =
+    noteGenerators ([(name, c) | Generator name c <- calls]
         ++ [(name, c) | Both name c _ <- calls])
-    <> note_transformers ([(name, c) | Transformer name c <- calls]
+    <> noteTransformers ([(name, c) | Transformer name c <- calls]
         ++ [(name, c) | Both name _ c <- calls])
 
 -- | Add the given calls to the note track scope.
-note_generators :: [(Expr.Symbol, Derive.Generator Derive.Note)] -> Code
-note_generators calls = mempty { code_library = Library.generators calls }
+noteGenerators :: [(Expr.Symbol, Derive.Generator Derive.Note)] -> Code
+noteGenerators calls = mempty { codeLibrary = Library.generators calls }
 
 -- | Add the given calls to the note track scope.
-note_transformers :: [(Expr.Symbol, Derive.Transformer Derive.Note)] -> Code
-note_transformers calls = mempty { code_library = Library.transformers calls }
+noteTransformers :: [(Expr.Symbol, Derive.Transformer Derive.Note)] -> Code
+noteTransformers calls = mempty { codeLibrary = Library.transformers calls }
 
-val_calls :: [(Expr.Symbol, Derive.ValCall)] -> Code
-val_calls calls = mempty { code_library = Library.vals calls }
+valCalls :: [(Expr.Symbol, Derive.ValCall)] -> Code
+valCalls calls = mempty { codeLibrary = Library.vals calls }
 
 postproc :: Cmd.InstrumentPostproc -> Code
-postproc post = mempty { code_postproc = post }
+postproc post = mempty { codePostproc = post }
 
 cmd :: Cmd.HandlerId -> Code
-cmd c = mempty { code_cmds = [c] }
+cmd c = mempty { codeCmds = [c] }
 
 thru :: Cmd.ThruFunction -> Code
-thru f = mempty { code_thru = Just f }
+thru f = mempty { codeThru = Just f }
 
 -- * Patch
 
 data Patch = Patch
-    { patch_patch :: Patch.Patch
-    , patch_dummy :: Maybe Text
-    , patch_common :: Common.Common Code
+    { patchPatch :: Patch.Patch
+    , patchDummy :: Maybe Text
+    , patchCommon :: Common.Common Code
     }
 
-patch = Lens.lens patch_patch (\r a -> r { patch_patch = a })
-common = Lens.lens patch_common (\r a -> r { patch_common = a })
+patch = Lens.lens patchPatch (\r a -> r { patchPatch = a })
+common = Lens.lens patchCommon (\r a -> r { patchCommon = a })
 
 instance Pretty Patch where
     format (Patch patch dummy common) = Pretty.record "Patch"
@@ -233,38 +233,38 @@ instance Pretty Patch where
         , ("common", Pretty.format common)
         ]
 
-make_patch :: Patch.Patch -> Patch
-make_patch p = Patch
-    { patch_patch = p
-    , patch_dummy = Nothing
-    , patch_common = Common.common mempty
+makePatch :: Patch.Patch -> Patch
+makePatch p = Patch
+    { patchPatch = p
+    , patchDummy = Nothing
+    , patchCommon = Common.common mempty
     }
 
 -- | Convert patches as emitted by 'Patch.Sysex.Patch'.
-patch_from_pair :: (Patch.Patch, Common.Common ()) -> Patch
-patch_from_pair (patch, common) = (make_patch patch)
-    { patch_common = common { Common.common_code = mempty } }
+patchFromPair :: (Patch.Patch, Common.Common ()) -> Patch
+patchFromPair (patch, common) = (makePatch patch)
+    { patchCommon = common { Common.commonCode = mempty } }
 
 -- | Make a patch, with a few parameters that tend to be unique per patch.
 -- Controls come last because they are often a long list.
 --
 -- TODO I don't love the name, but 'patch' is already taken by the lens.
-named_patch :: Control.PbRange -> InstT.Name
+namedPatch :: Control.PbRange -> InstT.Name
     -> [(Midi.Control, ScoreT.Control)] -> Patch
-named_patch pb_range name controls =
-    make_patch $ (Patch.patch pb_range name)
-        { Patch.patch_control_map = Control.control_map controls }
+namedPatch pbRange name controls =
+    makePatch $ (Patch.patch pbRange name)
+        { Patch.patchControlMap = Control.controlMap controls }
 
 -- | Make a default patch for the synth.
-default_patch :: Control.PbRange -> [(Midi.Control, ScoreT.Control)] -> Patch
-default_patch pb_range controls =
-    make_patch $ (Patch.patch pb_range Patch.default_name)
-        { Patch.patch_control_map = Control.control_map controls }
+defaultPatch :: Control.PbRange -> [(Midi.Control, ScoreT.Control)] -> Patch
+defaultPatch pbRange controls =
+    makePatch $ (Patch.patch pbRange Patch.defaultName)
+        { Patch.patchControlMap = Control.controlMap controls }
 
 -- ** modify
 
 dummy :: Text -> Patch -> Patch
-dummy msg patch = patch { patch_dummy = Just msg }
+dummy msg patch = patch { patchDummy = Just msg }
 
 code :: Lens Patch Code
 code = common # Common.code
@@ -272,62 +272,62 @@ code = common # Common.code
 doc :: Lens Patch Doc.Doc
 doc = common # Common.doc
 
-attribute_map :: Lens Patch Patch.AttributeMap
-attribute_map = patch # Patch.attribute_map
+attributeMap :: Lens Patch Patch.AttributeMap
+attributeMap = patch # Patch.attributeMap
 
 decay :: Lens Patch (Maybe RealTime)
 decay = patch # Patch.defaults # Patch.decay
 
 -- | Annotate all the patches with some global controls.
-synth_controls :: [(Midi.Control, ScoreT.Control)] -> [Patch] -> [Patch]
-synth_controls controls = map $
-    patch # Patch.control_map %= (Control.control_map controls <>)
+synthControls :: [(Midi.Control, ScoreT.Control)] -> [Patch] -> [Patch]
+synthControls controls = map $
+    patch # Patch.controlMap %= (Control.controlMap controls <>)
 
-add_flag :: Patch.Flag -> Patch.Patch -> Patch.Patch
-add_flag flag =
-    Patch.defaults#Patch.flags %= Just . Patch.add_flag flag . fromMaybe mempty
+addFlag :: Patch.Flag -> Patch.Patch -> Patch.Patch
+addFlag flag =
+    Patch.defaults#Patch.flags %= Just . Patch.addFlag flag . fromMaybe mempty
 
-add_flags :: [Patch.Flag] -> Patch.Patch -> Patch.Patch
-add_flags flags = Patch.defaults#Patch.flags
+addFlags :: [Patch.Flag] -> Patch.Patch -> Patch.Patch
+addFlags flags = Patch.defaults#Patch.flags
     %= Just . Set.union (Set.fromList flags) . fromMaybe mempty
 
 -- | Set a patch to pressure control.
 pressure :: Patch -> Patch
 pressure = patch %= (Patch.defaults#Patch.decay #= Just 0)
-    . add_flag Patch.Pressure
+    . addFlag Patch.Pressure
 
-add_common_flag :: Common.Flag -> Patch -> Patch
-add_common_flag flag = common#Common.flags %= Set.insert flag
+addCommonFlag :: Common.Flag -> Patch -> Patch
+addCommonFlag flag = common#Common.flags %= Set.insert flag
 
 triggered :: Patch -> Patch
-triggered = add_common_flag Common.Triggered
+triggered = addCommonFlag Common.Triggered
 
-control_defaults :: [(ScoreT.Control, Signal.Y)] -> Patch -> Patch
-control_defaults controls =
-    patch#Patch.defaults#Patch.control_defaults #= Just (Map.fromList controls)
+controlDefaults :: [(ScoreT.Control, Signal.Y)] -> Patch -> Patch
+controlDefaults controls =
+    patch#Patch.defaults#Patch.controlDefaults #= Just (Map.fromList controls)
 
 -- ** environ
 
 -- | The instrument will also set the given environ when it comes into scope.
 environ :: REnv.ToVal a => Env.Key -> a -> Patch -> Patch
-environ name val = common %= Common.add_environ name val
+environ name val = common %= Common.addEnviron name val
 
 -- | Set instrument range.
 range :: Scale.Range -> Patch -> Patch
-range range = environ EnvKey.instrument_bottom (Scale.range_bottom range)
-    . environ EnvKey.instrument_top (Scale.range_top range)
+range range = environ EnvKey.instrumentBottom (Scale.rangeBottom range)
+    . environ EnvKey.instrumentTop (Scale.rangeTop range)
 
-nn_range :: (Pitch.NoteNumber, Pitch.NoteNumber) -> Patch -> Patch
-nn_range (bottom, top) = environ EnvKey.instrument_bottom bottom
-    . environ EnvKey.instrument_top top
+nnRange :: (Pitch.NoteNumber, Pitch.NoteNumber) -> Patch -> Patch
+nnRange (bottom, top) = environ EnvKey.instrumentBottom bottom
+    . environ EnvKey.instrumentTop top
 
 -- ** per-allocation
 
 -- | Like 'range', but set it in the allocation, not the patch.
-inst_range :: Scale.Range -> Common.Config -> Common.Config
-inst_range range =
-    Common.add_cenviron EnvKey.instrument_bottom (Scale.range_bottom range)
-    . Common.add_cenviron EnvKey.instrument_top (Scale.range_top range)
+instRange :: Scale.Range -> Common.Config -> Common.Config
+instRange range =
+    Common.addCenviron EnvKey.instrumentBottom (Scale.rangeBottom range)
+    . Common.addCenviron EnvKey.instrumentTop (Scale.rangeTop range)
 
 -- * Allocations
 
@@ -336,14 +336,14 @@ allocations ::
         Common.Config -> Common.Config, UiConfig.Backend)]
     -- ^ (inst, qualified, set_config, backend)
     -> UiConfig.Allocations
-allocations = UiConfig.make_allocations . map make
+allocations = UiConfig.makeAllocations . map make
     where
-    make (name, qualified, set_config, backend) =
+    make (name, qualified, setConfig, backend) =
         ( name
         , UiConfig.Allocation
-            { alloc_qualified = qualified
-            , alloc_config = set_config Common.empty_config
-            , alloc_backend = backend
+            { allocQualified = qualified
+            , allocConfig = setConfig Common.emptyConfig
+            , allocBackend = backend
             }
         )
 

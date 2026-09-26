@@ -60,15 +60,15 @@ import           Global
 
 
 -- | I use this file to only start one logview at a time.
-pid_file :: FilePath
-pid_file = "log/logview.pid"
+pidFile :: FilePath
+pidFile = "log/logview.pid"
 
 -- | Initial contents of the filter field.
-initial_filter :: Text
-initial_filter = "**"
+initialFilter :: Text
+initialFilter = "**"
 
-initial_size :: (Int, Int)
-initial_size = (900, 300)
+initialSize :: (Int, Int)
+initialSize = (900, 300)
 
 -- | Built-in list of catch patterns.
 --
@@ -77,18 +77,18 @@ initial_size = (900, 300)
 -- 'Process.global_status_pattern'.  But it still seems conceivable that
 -- someday I may want logview to catch things the app didn't explicitly mean to
 -- be caught, so I'll leave this functionality in for now.
-default_catch_patterns :: [Process.CatchPattern]
-default_catch_patterns = [Process.global_status_pattern]
+defaultCatchPatterns :: [Process.CatchPattern]
+defaultCatchPatterns = [Process.globalStatusPattern]
 
 -- | Remember this many log msgs.
-default_history :: Int
-default_history = 1000
+defaultHistory :: Int
+defaultHistory = 1000
 
 -- | UI will remember this many bytes.  This is not the same as
 -- 'default_history' because the history will remember filtered out msgs, and
 -- the UI doesn't bother to preserve msg boundaries so it uses bytes.
-default_max_bytes :: Int
-default_max_bytes = default_history * 100
+defaultMaxBytes :: Int
+defaultMaxBytes = defaultHistory * 100
 
 data Flag = Help | Seek (Maybe Integer) | Print | History Int | File FilePath
     | Geometry FltkUtil.Geometry
@@ -104,7 +104,7 @@ options =
     , GetOpt.Option [] ["print"] (GetOpt.NoArg Print)
         "print formatted logs to stdout instead of bringing up the GUI"
     , GetOpt.Option [] ["history"]
-        (GetOpt.ReqArg (History . read) (show default_history))
+        (GetOpt.ReqArg (History . read) (show defaultHistory))
         "remember this many lines"
     , GetOpt.Option [] ["file"] (GetOpt.ReqArg File "seq.log")
         "read from this file"
@@ -123,10 +123,10 @@ main = do
     unless (null args) $
         usage ("unparsed args: " ++ show args)
     when (Help `elem` flags) (usage "usage:")
-    whenJustM write_pid $ \pid -> do
+    whenJustM writePid $ \pid -> do
         putStrLn $ "logview already running with pid " ++ show pid
         System.Exit.exitSuccess
-    logview flags `Exception.finally` Directory.removeFile pid_file
+    logview flags `Exception.finally` Directory.removeFile pidFile
     where
     usage msg = do
         putStrLn $ "ERROR: " ++ msg
@@ -137,139 +137,139 @@ main = do
 logview :: [Flag] -> IO ()
 logview flags = do
     let seek = fromMaybe (Just 0) $ Lists.last [s | Seek s <- flags]
-        history = fromMaybe default_history $
+        history = fromMaybe defaultHistory $
             Lists.last [n | History n <- flags]
-    filename <- maybe Tail.log_filename pure $
+    filename <- maybe Tail.logFilename pure $
         Lists.last [n | File n <- flags]
     hdl <- Tail.open filename seek
-    log_chan <- STM.newTChanIO
-    gui_chan <- if Print `elem` flags then pure Nothing
-        else Just <$> Fltk.new_channel
-    main_thread <- Concurrent.myThreadId
-    Concurrent.forkFinally (tail_loop log_chan hdl) $ \result -> do
+    logChan <- STM.newTChanIO
+    guiChan <- if Print `elem` flags then pure Nothing
+        else Just <$> Fltk.newChannel
+    mainThread <- Concurrent.myThreadId
+    Concurrent.forkFinally (tailLoop logChan hdl) $ \result -> do
         putStrLn $ "tail loop died: " ++ either show (const "no exception")
             (result :: Either Exception.SomeException ())
-        maybe (Concurrent.killThread main_thread) Fltk.quit gui_chan
-    case gui_chan of
-        Nothing -> print_logs log_chan
-        Just chan -> gui geometry chan log_chan filename history
+        maybe (Concurrent.killThread mainThread) Fltk.quit guiChan
+    case guiChan of
+        Nothing -> printLogs logChan
+        Just chan -> gui geometry chan logChan filename history
             where geometry = Lists.head [g | Geometry g <- flags]
     where
-    tail_loop log_chan hdl = do
+    tailLoop logChan hdl = do
         (msg, hdl) <- Tail.tail hdl
-        STM.atomically $ TChan.writeTChan log_chan msg
-        tail_loop log_chan hdl
+        STM.atomically $ TChan.writeTChan logChan msg
+        tailLoop logChan hdl
 
 -- | If a logview is already running, return its pid, otherwise write the
 -- current pid.
-write_pid :: IO (Maybe Posix.ProcessID)
-write_pid = do
+writePid :: IO (Maybe Posix.ProcessID)
+writePid = do
     -- I have to use ByteString.readFile and writeFile to avoid GHC's obnoxious
     -- file locking.
-    pid_str <- Exceptions.ignoreEnoent $ ByteString.readFile pid_file
-    existing <- case ByteString.readInt =<< pid_str of
+    pidStr <- Exceptions.ignoreEnoent $ ByteString.readFile pidFile
+    existing <- case ByteString.readInt =<< pidStr of
         Just (pid_, _) -> do
-            maybe_cmd <- Processes.commandName pid
-            pure $ if maybe False ("logview" `List.isSuffixOf`) maybe_cmd
+            maybeCmd <- Processes.commandName pid
+            pure $ if maybe False ("logview" `List.isSuffixOf`) maybeCmd
                 then Just pid else Nothing
             where pid = fromIntegral pid_
         _ -> pure Nothing
     when (existing == Nothing) $ do
         pid <- Posix.getProcessID
-        ByteString.writeFile pid_file (ByteString.pack (show pid) <> "\n")
+        ByteString.writeFile pidFile (ByteString.pack (show pid) <> "\n")
     pure existing
 
 gui :: Maybe FltkUtil.Geometry -> Fltk.Channel -> LogChan -> FilePath -> Int
     -> IO ()
-gui geometry chan log_chan filename history = do
+gui geometry chan logChan filename history = do
     filename <- Directory.canonicalizePath filename
     let (x, y, w, h) =
-            FltkUtil.xywh 20 20 (fst initial_size) (snd initial_size) geometry
-    win <- Fltk.run_action $
-        LogViewC.create x y w h filename default_max_bytes
-    Fltk.run_action $ LogViewC.set_filter win initial_filter
-    let state = (Process.initial_state initial_filter)
-            { Process.state_catch_patterns = default_catch_patterns }
-    Concurrent.forkIO $ handle_msgs chan state history log_chan win
-    Fltk.event_loop chan
+            FltkUtil.xywh 20 20 (fst initialSize) (snd initialSize) geometry
+    win <- Fltk.runAction $
+        LogViewC.create x y w h filename defaultMaxBytes
+    Fltk.runAction $ LogViewC.setFilter win initialFilter
+    let state = (Process.initialState initialFilter)
+            { Process.stateCatchPatterns = defaultCatchPatterns }
+    Concurrent.forkIO $ handleMsgs chan state history logChan win
+    Fltk.eventLoop chan
 
-print_logs :: LogChan -> IO ()
-print_logs log_chan = forever $
-    Text.IO.putStrLn . Log.format_msg
-        =<< STM.atomically (TChan.readTChan log_chan)
+printLogs :: LogChan -> IO ()
+printLogs logChan = forever $
+    Text.IO.putStrLn . Log.formatMsg
+        =<< STM.atomically (TChan.readTChan logChan)
 
 data Msg = NewLog Log.Msg | ClickedWord Text | FilterChanged Text
     deriving (Show)
 
-handle_msgs :: Fltk.Channel -> Process.State -> Int -> LogChan
+handleMsgs :: Fltk.Channel -> Process.State -> Int -> LogChan
     -> LogViewC.Window -> IO ()
-handle_msgs chan st history log_chan win = do
-    Path.AppDir app_dir_ <- Path.get_app_dir
-    let app_dir = txt app_dir_ <> "/"
+handleMsgs chan st history logChan win = do
+    Path.AppDir appDir_ <- Path.getAppDir
+    let appDir = txt appDir_ <> "/"
     flip State.evalStateT st $ forever $ do
-        ui_msg <- liftIO $ get_msg log_chan win
-        case ui_msg of
+        uiMsg <- liftIO $ getMsg logChan win
+        case uiMsg of
             NewLog msg_ -> do
-                let msg = strip_paths app_dir msg_
-                State.modify (Process.add_msg history msg)
-                handle_new_msg chan win msg
-            ClickedWord word -> liftIO $ handle_clicked_word word
+                let msg = stripPaths appDir msg_
+                State.modify (Process.addMsg history msg)
+                handleNewMsg chan win msg
+            ClickedWord word -> liftIO $ handleClickedWord word
             FilterChanged expr -> do
                 -- clear and redisplay msgs with new filter
-                send_action chan $ LogViewC.clear_logs win
+                sendAction chan $ LogViewC.clearLogs win
                 State.modify $ \st ->
-                    st { Process.state_filter = Process.compile_filter expr }
-                all_msgs <- State.gets (reverse . Process.state_msgs)
-                mapM_ (handle_new_msg chan win) all_msgs
+                    st { Process.stateFilter = Process.compileFilter expr }
+                allMsgs <- State.gets (reverse . Process.stateMsgs)
+                mapM_ (handleNewMsg chan win) allMsgs
 
 -- | Internally I use absolute paths, but they're pretty verbose.  So turn
 -- them back into relative paths.
-strip_paths :: Text -> Log.Msg -> Log.Msg
-strip_paths dir msg =
-    msg { Log.msg_text = Text.replace dir "" $ Log.msg_text msg }
+stripPaths :: Text -> Log.Msg -> Log.Msg
+stripPaths dir msg =
+    msg { Log.msgText = Text.replace dir "" $ Log.msgText msg }
 
-handle_new_msg :: Fltk.Channel -> LogViewC.Window -> Log.Msg
+handleNewMsg :: Fltk.Channel -> LogViewC.Window -> Log.Msg
     -> State.StateT Process.State IO ()
-handle_new_msg chan win msg = do
+handleNewMsg chan win msg = do
     state <- State.get
-    let (styled, new_state) = Process.process_msg state msg
-    State.put new_state
+    let (styled, newState) = Process.processMsg state msg
+    State.put newState
     case styled of
-        Just (Process.StyledText txt style) -> send_action chan $ do
-            LogViewC.append_log win txt style
+        Just (Process.StyledText txt style) -> sendAction chan $ do
+            LogViewC.appendLog win txt style
             -- This is an experimental feature to draw more attention when
             -- there's an interesting log msg.
-            when (Log.msg_priority msg >= Log.Warn) $
-                LogViewC.bring_to_front win
+            when (Log.msgPriority msg >= Log.Warn) $
+                LogViewC.bringToFront win
         Nothing -> pure ()
-    let new_status = Process.state_status new_state
-    when (Process.state_status state /= new_status) $ do
-        let (Process.StyledText status style) = Process.render_status new_status
-        send_action chan $ LogViewC.set_status win status style
-        State.modify $ \st -> st { Process.state_status = new_status }
+    let newStatus = Process.stateStatus newState
+    when (Process.stateStatus state /= newStatus) $ do
+        let (Process.StyledText status style) = Process.renderStatus newStatus
+        sendAction chan $ LogViewC.setStatus win status style
+        State.modify $ \st -> st { Process.stateStatus = newStatus }
 
-handle_clicked_word :: Text -> IO ()
-handle_clicked_word word
+handleClickedWord :: Text -> IO ()
+handleClickedWord word
     | "{" `Text.isPrefixOf` word && "}" `Text.isSuffixOf` word =
-        send_to_seq (Text.drop 1 (Text.dropEnd 1 word))
+        sendToSeq (Text.drop 1 (Text.dropEnd 1 word))
     | otherwise = putStrLn $ "logview: unknown clicked word: " ++ show word
 
-send_action :: State.MonadIO m => Fltk.Channel -> Fltk.Fltk () -> m ()
-send_action chan = liftIO . Fltk.action chan
+sendAction :: State.MonadIO m => Fltk.Channel -> Fltk.Fltk () -> m ()
+sendAction chan = liftIO . Fltk.action chan
 
-send_to_seq :: Text -> IO ()
-send_to_seq cmd = do
-    response <- ReplProtocol.query_cmd_simple cmd
+sendToSeq :: Text -> IO ()
+sendToSeq cmd = do
+    response <- ReplProtocol.queryCmdSimple cmd
     unless (Text.null response) $
         Text.IO.putStrLn $ "response: " <> response
 
-get_msg :: LogChan -> LogViewC.Window -> IO Msg
-get_msg log_chan win = STM.atomically $
-    fmap NewLog (STM.readTChan log_chan)
-    `STM.orElse` fmap parse_ui_msg (Fltk.read_msg win)
+getMsg :: LogChan -> LogViewC.Window -> IO Msg
+getMsg logChan win = STM.atomically $
+    fmap NewLog (STM.readTChan logChan)
+    `STM.orElse` fmap parseUiMsg (Fltk.readMsg win)
 
-parse_ui_msg :: Fltk.Msg LogViewC.MsgType -> Msg
-parse_ui_msg (Fltk.Msg typ s) = case typ of
+parseUiMsg :: Fltk.Msg LogViewC.MsgType -> Msg
+parseUiMsg (Fltk.Msg typ s) = case typ of
     LogViewC.Click -> ClickedWord s
     LogViewC.Command -> FilterChanged s
     LogViewC.Unknown n -> error $ "unknown msg type: " ++ show n

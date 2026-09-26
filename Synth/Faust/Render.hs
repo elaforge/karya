@@ -198,7 +198,7 @@ renderPatch emitMessage patch config mbState notifyState notes start_ =
         -- in some special logic to detect that and reset the state, which
         -- means notes have to be stateless.
         silence = Audio.synchronizeToSize 0 (_blockSize config) $
-            Audio.takeS (RealTime.to_seconds silenceS) Audio.silence
+            Audio.takeS (RealTime.toSeconds silenceS) Audio.silence
         firstNote = maybe 0 Note.start $ Lists.head $
             dropWhile ((==0) . initialDynamic) notes
         -- Emit silence from the start time until the first note, if there is
@@ -372,7 +372,7 @@ renderInput :: (Monad m, TypeLits.KnownNat rate)
 renderInput start bps
     | null bps = Nothing
     | otherwise = Just $ Audio.linear True $ shiftBack bps
-    where shiftBack = map $ first (subtract (RealTime.to_seconds start))
+    where shiftBack = map $ first (subtract (RealTime.toSeconds start))
 
 -- ** extract breakpoints
 

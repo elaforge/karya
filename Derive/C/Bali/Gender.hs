@@ -5,9 +5,9 @@
 -- | Ornaments for gender.  The unique thing about gender technique is the
 -- delayed damping, so these calls deal with delayed damping.
 module Derive.C.Bali.Gender (
-    library, ngoret_variations
-    , interval_arg, ngoret, c_realize_ngoret, realize_ngoret
-    , weak, weak_call
+    library, ngoretVariations
+    , intervalArg, ngoret, cRealizeNgoret, realizeNgoret
+    , weak, weakCall
 ) where
 import qualified Util.Log as Log
 import qualified Util.Lists as Lists
@@ -42,18 +42,18 @@ import           Types
 library :: Library.Library
 library = mconcat
     [ Library.generators $
-        (("weak", c_weak) : ngoret_variations gender_ngoret)
+        (("weak", cWeak) : ngoretVariations genderNgoret)
     , Library.transformers
-        [ ("realize-ngoret", c_realize_ngoret)
-        , ("infer-damp-simple", c_infer_damp_simple)
+        [ ("realize-ngoret", cRealizeNgoret)
+        , ("infer-damp-simple", cInferDampSimple)
         ]
     ]
 
-ngoret_variations :: (Sig.Parser (Maybe Pitch.Transpose) -> call)
+ngoretVariations :: (Sig.Parser (Maybe Pitch.Transpose) -> call)
     -> [(Expr.Symbol, call)]
-ngoret_variations make =
+ngoretVariations make =
     [ ("'", make $ pure Nothing)
-    , ("'n", make $ Just <$> interval_arg)
+    , ("'n", make $ Just <$> intervalArg)
     , ("'^", make $ pure $ Just $ Pitch.Diatonic (-1))
     , ("'-", make $ pure $ Just $ Pitch.Diatonic 0)
     , ("'_", make $ pure $ Just $ Pitch.Diatonic 1)
@@ -64,17 +64,17 @@ module_ = "bali" <> "gender"
 
 -- * ngoret
 
-gender_ngoret :: Sig.Parser (Maybe Pitch.Transpose)
+genderNgoret :: Sig.Parser (Maybe Pitch.Transpose)
     -> Derive.Generator Derive.Note
-gender_ngoret = ngoret module_ True damp_arg
+genderNgoret = ngoret module_ True dampArg
     where
-    damp_arg = Sig.defaulted "damp" (0.5 :: RealTime)
+    dampArg = Sig.defaulted "damp" (0.5 :: RealTime)
         "Time that the grace note overlaps with this one. So the total\
         \ duration is time+damp, though it will be clipped to the\
         \ end of the current note."
 
-interval_arg :: Sig.Parser Pitch.Transpose
-interval_arg = Typecheck.default_diatonic <$> Sig.required "interval"
+intervalArg :: Sig.Parser Pitch.Transpose
+intervalArg = Typecheck.defaultDiatonic <$> Sig.required "interval"
     "The grace note is this interval from the destination pitch."
 
 -- | Other instruments also have ngoret, but without gender's special damping
@@ -85,68 +85,68 @@ ngoret :: Module.Module -> Bool
     -- ^ Time grace note overlaps with this one.
     -> Sig.Parser (Maybe Pitch.Transpose)
     -> Derive.Generator Derive.Note
-ngoret module_ late_damping damp_arg interval_arg =
+ngoret module_ lateDamping dampArg intervalArg =
     Derive.generator module_ "ngoret"
-    (Tags.inst <> Tags.ornament <> Tags.requires_postproc)
+    (Tags.inst <> Tags.ornament <> Tags.requiresPostproc)
     ("Insert an intermediate grace note in the \"ngoret\" style.\
     \ The grace note moves up for `'^`, down for `'_`, or is based\
     \ on the previous note's pitch for `'`.\
     \\nThis requires the `realize-ngoret` postproc."
     ) $ Sig.call ((,,,,)
-    <$> interval_arg
+    <$> intervalArg
     <*> Sig.defaulted "time" (0.1 :: Double)
         "Time between the grace note start and the main note. If there isn't\
         \ enough room after the previous note, it will be halfway between\
         \ the previous note and this one."
-    <*> damp_arg
+    <*> dampArg
     <*> Sig.defaulted "dyn" (0.75 :: Double)
         "The grace note's dyn will be this multiplier of the current dyn."
     <*> Sig.environ "damp-threshold" Sig.Prefixed  (0.15 :: Double)
         "A grace note with this much time will cause the previous note to be\
         \ shortened to not overlap. Under the threshold, and the damping of\
         \ the previous note will be delayed until the end of the grace note."
-    ) $ \(maybe_interval
+    ) $ \(maybeInterval
         , Typecheck.RealTimeFunction time
         , Typecheck.RealTimeFunction damp
-        , dyn_scale
-        , damp_threshold
+        , dynScale
+        , dampThreshold
         ) args ->
-    Sub.inverting_args args $ \args -> do
-        start <- Args.real_start args
+    Sub.invertingArgs args $ \args -> do
+        start <- Args.realStart args
         time <- Derive.real (time start)
         damp <- Derive.real (damp start)
-        maybe_pitch <- case maybe_interval of
+        maybePitch <- case maybeInterval of
             Nothing -> pure Nothing
             Just transpose ->
-                Just . Pitches.transpose transpose <$> Call.get_pitch start
-        dyn <- (*dyn_scale) <$> Call.dynamic start
+                Just . Pitches.transpose transpose <$> Call.getPitch start
+        dyn <- (*dynScale) <$> Call.dynamic start
 
-        grace_start <- Derive.score (start - time)
+        graceStart <- Derive.score (start - time)
         -- If there isn't room for the grace note, use the midpoint between the
         -- prev note and this one.
-        grace_start <- pure $ case Args.prev_start args of
-            Nothing -> grace_start
-            Just prev -> max grace_start $ (prev + Args.start args) / 2
-        real_grace_start <- Derive.real grace_start
-        let with_flags
-                | late_damping && prev_touches = Call.add_flags $
-                    if start - real_grace_start < damp_threshold
-                        then extend_previous else shorten_previous
+        graceStart <- pure $ case Args.prevStart args of
+            Nothing -> graceStart
+            Just prev -> max graceStart $ (prev + Args.start args) / 2
+        realGraceStart <- Derive.real graceStart
+        let withFlags
+                | lateDamping && prevTouches = Call.addFlags $
+                    if start - realGraceStart < dampThreshold
+                        then extendPrevious else shortenPrevious
                 | otherwise = id
-            prev_touches = maybe False (>= Args.start args) (Args.prev_end args)
-        overlap <- Call.score_duration (Args.start args) damp
-        let grace_end = Args.start args + overlap
-            grace_note = case maybe_pitch of
-                Nothing -> Call.add_flags infer_pitch_flag Call.note
-                Just pitch -> Call.pitched_note pitch
-        Derive.place grace_start (grace_end - grace_start)
-                (with_flags $ Call.with_dynamic dyn grace_note)
+            prevTouches = maybe False (>= Args.start args) (Args.prevEnd args)
+        overlap <- Call.scoreDuration (Args.start args) damp
+        let graceEnd = Args.start args + overlap
+            graceNote = case maybePitch of
+                Nothing -> Call.addFlags inferPitchFlag Call.note
+                Just pitch -> Call.pitchedNote pitch
+        Derive.place graceStart (graceEnd - graceStart)
+                (withFlags $ Call.withDynamic dyn graceNote)
             <> Derive.place (Args.start args) (Args.duration args) Call.note
 
 -- ** realize
 
-c_realize_ngoret :: Derive.Transformer Derive.Note
-c_realize_ngoret = Derive.transformer module_ "realize-ngoret"
+cRealizeNgoret :: Derive.Transformer Derive.Note
+cRealizeNgoret = Derive.transformer module_ "realize-ngoret"
     (Tags.inst <> Tags.postproc)
     ("Realize pitches and positions emited by the `ngoret` call.\
     \ This is necessary because it needs to know the positions and pitches\
@@ -154,89 +154,89 @@ c_realize_ngoret = Derive.transformer module_ "realize-ngoret"
     \ when evaluating the track. This call needs a "
     <> ShowVal.doc EnvKey.hand <> " envron to figure out which which note\
     \ follows which."
-    ) $ Sig.call0t $ \_ deriver -> realize_ngoret =<< deriver
+    ) $ Sig.call0t $ \_ deriver -> realizeNgoret =<< deriver
 
-realize_ngoret :: Stream.Stream Score.Event -> Derive.NoteDeriver
-realize_ngoret =
-    Post.apply_m $ fmap merge . mapM realize . Lists.groupSort Post.hand_key
+realizeNgoret :: Stream.Stream Score.Event -> Derive.NoteDeriver
+realizeNgoret =
+    Post.applyM $ fmap merge . mapM realize . Lists.groupSort Post.handKey
     where
     -- TODO do I want to ignore streams with irrelevant instruments?
-    realize = fmap (map (uncurry realize_damped) . Lists.zipNext)
-        . apply realize_infer_pitch
+    realize = fmap (map (uncurry realizeDamped) . Lists.zipNext)
+        . apply realizeInferPitch
     apply f = mapMaybeM (apply1 f) . Lists.zipNeighbors
         where
         apply1 f (prev, event, next) = case f prev event next of
             Right event -> pure $ Just event
             Left err -> do
-                Derive.with_event_stack event $ Log.warn err
+                Derive.withEventStack event $ Log.warn err
                 pure Nothing
-    merge = Lists.mergeLists Score.event_start
+    merge = Lists.mergeLists Score.eventStart
 
-realize_infer_pitch :: Maybe Score.Event -> Score.Event
+realizeInferPitch :: Maybe Score.Event -> Score.Event
     -> Maybe Score.Event -> Either Text Score.Event
-realize_infer_pitch maybe_prev event maybe_next
-    | Score.has_flags infer_pitch_flag event = do
-        prev <- require "no previous event" maybe_prev
-        next <- require "no next event" maybe_next
-        pitch <- first ("can't infer pitch: "<>) $ infer_pitch prev next
+realizeInferPitch maybePrev event maybeNext
+    | Score.hasFlags inferPitchFlag event = do
+        prev <- require "no previous event" maybePrev
+        next <- require "no next event" maybeNext
+        pitch <- first ("can't infer pitch: "<>) $ inferPitch prev next
         -- Also make sure the grace note doesn't go past the end of the next
         -- note.
-        let dur = min (Score.event_duration event)
-                (Score.event_end next - Score.event_start event)
-        pure $ Score.remove_flags infer_pitch_flag $ Score.set_duration dur $
-            Score.set_pitch (PSignal.constant pitch) event
+        let dur = min (Score.eventDuration event)
+                (Score.eventEnd next - Score.eventStart event)
+        pure $ Score.removeFlags inferPitchFlag $ Score.setDuration dur $
+            Score.setPitch (PSignal.constant pitch) event
     | otherwise = pure event
     where require err = maybe (Left err) pure
 
-realize_damped :: Score.Event -> Maybe Score.Event -> Score.Event
-realize_damped event maybe_next =
-    Score.remove_flags (extend_previous <> shorten_previous) $
-        maybe id set_dur maybe_next event
+realizeDamped :: Score.Event -> Maybe Score.Event -> Score.Event
+realizeDamped event maybeNext =
+    Score.removeFlags (extendPrevious <> shortenPrevious) $
+        maybe id setDur maybeNext event
     where
-    set_dur next
-        | Score.has_flags extend_previous next =
-            Score.set_duration (Score.event_end next - start)
-        | Score.has_flags shorten_previous next =
-            Score.set_duration (Score.event_start next - start)
+    setDur next
+        | Score.hasFlags extendPrevious next =
+            Score.setDuration (Score.eventEnd next - start)
+        | Score.hasFlags shortenPrevious next =
+            Score.setDuration (Score.eventStart next - start)
         | otherwise = id
-        where start = Score.event_start event
+        where start = Score.eventStart event
 
-infer_pitch :: Score.Event -> Score.Event -> Either Text PSignal.Pitch
-infer_pitch prev next = do
-    prev_nn <- tryJust ("no prev nn: " <> Score.short_event prev) $
-        Score.initial_nn prev
-    next_nn <- tryJust ("no next nn: " <> Score.short_event next) $
-        Score.initial_nn next
+inferPitch :: Score.Event -> Score.Event -> Either Text PSignal.Pitch
+inferPitch prev next = do
+    prevNn <- tryJust ("no prev nn: " <> Score.shortEvent prev) $
+        Score.initialNn prev
+    nextNn <- tryJust ("no next nn: " <> Score.shortEvent next) $
+        Score.initialNn next
     let steps
-            | prev_nn == next_nn = 0
-            | prev_nn < next_nn = -1
+            | prevNn == nextNn = 0
+            | prevNn < nextNn = -1
             | otherwise = 1
-    Pitches.transpose_d steps <$>
-        tryJust ("no pitch at " <> pretty (Score.event_start next))
-            (Score.pitch_at (Score.event_start next) next)
+    Pitches.transposeD steps <$>
+        tryJust ("no pitch at " <> pretty (Score.eventStart next))
+            (Score.pitchAt (Score.eventStart next) next)
 
 -- | Mark events whose should have their pitch inferred from the previous and
 -- next events.
-infer_pitch_flag :: Flags.Flags
-infer_pitch_flag = Flags.flag "infer-pitch"
+inferPitchFlag :: Flags.Flags
+inferPitchFlag = Flags.flag "infer-pitch"
 
 -- | Mark grace notes that were damped late, and whose previous event should be
 -- extended to be damped together.
-extend_previous :: Flags.Flags
-extend_previous = Flags.flag "extend-previous-duration"
+extendPrevious :: Flags.Flags
+extendPrevious = Flags.flag "extend-previous-duration"
 
 -- | Mark grace notes that don't cause a late damp.  The previous event's
 -- duration should be shortened to end where the grace note begins.
-shorten_previous :: Flags.Flags
-shorten_previous = Flags.flag "shorten-previous-duration"
+shortenPrevious :: Flags.Flags
+shortenPrevious = Flags.flag "shorten-previous-duration"
 
 -- * weak
 
-c_weak :: Derive.Generator Derive.Note
-c_weak = Derive.generator module_ "weak" Tags.inst
+cWeak :: Derive.Generator Derive.Note
+cWeak = Derive.generator module_ "weak" Tags.inst
     "Weak notes are filler notes."
     $ Sig.call (
-    Sig.defaulted_env "strength" Derive.Unprefixed (0.5 :: Double)
+    Sig.defaultedEnv "strength" Derive.Unprefixed (0.5 :: Double)
         "From low strength to high, omit the note, then play it muted, and\
         \ then play it open but softly."
     ) $ \strength -> Sub.inverting (weak strength)
@@ -244,22 +244,22 @@ c_weak = Derive.generator module_ "weak" Tags.inst
 weak :: Signal.Y -> Derive.PassedArgs a -> Derive.NoteDeriver
 weak strength args = do
     -- This biases mute values to be lower, and 0 before it unmutes.
-    let mute = max 0 $ 1 - (strength + (1 - unmute_threshold))
-    if strength <= omit_threshold then mempty
-        else Call.with_constant Controls.mute mute $ Call.placed_note args
+    let mute = max 0 $ 1 - (strength + (1 - unmuteThreshold))
+    if strength <= omitThreshold then mempty
+        else Call.withConstant Controls.mute mute $ Call.placedNote args
     where
-    omit_threshold = 0.25
-    unmute_threshold = 0.75
+    omitThreshold = 0.25
+    unmuteThreshold = 0.75
 
-weak_call :: Derive.PassedArgs a -> Derive.NoteDeriver
-weak_call args = do
+weakCall :: Derive.PassedArgs a -> Derive.NoteDeriver
+weakCall args = do
     -- TODO This is nonstandard, because usually signals are resolved
     -- implicitly as arguments.  But DUtil.zero_duration doesn't really plug
     -- into Sig.call.  Maybe it should reapply `weak` instead of calling it
     -- directly?  In any case, I think the result should be the same.
-    strength <- fmap (maybe 0.5 ScoreT.val_of) $
-        Derive.control_at "strength" =<< Args.real_start args
-    weak strength (Args.set_duration dur args)
+    strength <- fmap (maybe 0.5 ScoreT.valOf) $
+        Derive.controlAt "strength" =<< Args.realStart args
+    weak strength (Args.setDuration dur args)
     where dur = Args.next args - Args.start args
 
 -- * im
@@ -279,30 +279,30 @@ weak_call args = do
     2 can be simultaneous.  Otherwise, you need a certain amount of time when
     that hand is not busy damping.
 -}
-c_infer_damp_simple :: Derive.Transformer Derive.Note
-c_infer_damp_simple =
+cInferDampSimple :: Derive.Transformer Derive.Note
+cInferDampSimple =
     Derive.transformer (module_ <> "im") "infer-damp-simple" Tags.postproc
     ("Simple gender damping. Duration is extended if the next note on the same\
     \ hand has the same pitch and the gap is < " <> ShowVal.doc gap <> ".")
     $ Sig.callt (Sig.required "insts" "Apply damping to these instruments.")
     $ \insts _args ->
-        fmap $ Post.emap1_ (infer insts) . Post.nexts_by Post.hand_key
+        fmap $ Post.emap1_ (infer insts) . Post.nextsBy Post.handKey
     where
     infer insts =
-        Post.only fst (Post.has_instrument insts) $ infer_damp_simple gap
+        Post.only fst (Post.hasInstrument insts) $ inferDampSimple gap
     -- Less than this much time before the next note of the same pitch means
     -- extend the duration.
     gap = 0.15
 
-infer_damp_simple :: RealTime -> (Score.Event, [Score.Event]) -> Score.Event
-infer_damp_simple gap (event, nexts)
-    | Score.event_duration event /= 0 && new_end > Score.event_end event =
-        Score.set_duration (new_end - Score.event_start event) event
+inferDampSimple :: RealTime -> (Score.Event, [Score.Event]) -> Score.Event
+inferDampSimple gap (event, nexts)
+    | Score.eventDuration event /= 0 && newEnd > Score.eventEnd event =
+        Score.setDuration (newEnd - Score.eventStart event) event
     | otherwise = event
     where
-    new_end = go event nexts
+    newEnd = go event nexts
     go prev (next:nexts)
-        | Score.event_start next - Score.event_end prev <= gap
-                && Score.initial_note prev == Score.initial_note next
+        | Score.eventStart next - Score.eventEnd prev <= gap
+                && Score.initialNote prev == Score.initialNote next
             = go next nexts
-    go prev _ = Score.event_end prev
+    go prev _ = Score.eventEnd prev

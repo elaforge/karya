@@ -9,12 +9,12 @@ import qualified Derive.DeriveTest as DeriveTest
 
 test_mapc :: Test
 test_mapc = do
-    let run extract = DeriveTest.extract extract . DeriveTest.derive_tracks ""
-    strings_like
-        (snd $ run (DeriveTest.e_control "c")
+    let run extract = DeriveTest.extract extract . DeriveTest.deriveTracks ""
+    stringsLike
+        (snd $ run (DeriveTest.eControl "c")
             [("> | mapc in_valid \"(smooth 2)", [(0, 8, "")])])
         ["expected Control * or PControl"]
-    equal (run (DeriveTest.e_control "c")
+    equal (run (DeriveTest.eControl "c")
         [ ("> | mapc c \"(smooth 2)", [(0, 8, "")])
         , ("c", [(0, 0, "0"), (4, 0, "1")])
         ])

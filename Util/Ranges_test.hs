@@ -40,7 +40,7 @@ test_invert = do
 
 test_overlapping :: Test
 test_overlapping = do
-    let closed r1 r2 = Ranges.overlapping_closed
+    let closed r1 r2 = Ranges.overlappingClosed
             (Ranges.ranges r1) (Ranges.ranges r2)
         open r1 r2 = Ranges.overlapping (Ranges.ranges r1) (Ranges.ranges r2)
     equal (closed [(0, 1)] [(1, 2)]) True

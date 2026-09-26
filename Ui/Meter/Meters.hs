@@ -8,23 +8,23 @@
 -- everything that depends on Cmd.Meter.
 module Ui.Meter.Meters where
 import qualified Ui.Meter.Meter as Meter
-import           Ui.Meter.Meter (AbstractMeter(..), regular_subdivision)
+import           Ui.Meter.Meter (AbstractMeter(..), regularSubdivision)
 
 
 -- half/measure, quarter/half, eighth/quarter, ...
 -- These use 1s to help keep the timestep mnemonics in sync with staff notation
 -- durations, as documented in "Cmd.Meter".
 m84, m64, m54, m44, m34 :: AbstractMeter
-m84 = regular_subdivision [4, 2, 2, 2, 2]
-m64 = regular_subdivision [2, 3, 2, 2, 2]
-m54 = regular_subdivision [1, 5, 2, 2, 2]
-m44 = regular_subdivision [2, 2, 2, 2, 2]
-m34 = regular_subdivision [1, 3, 2, 2, 2]
-m24 = regular_subdivision [1, 2, 2, 2, 2]
-m14 = regular_subdivision [1, 1, 2, 2, 2]
+m84 = regularSubdivision [4, 2, 2, 2, 2]
+m64 = regularSubdivision [2, 3, 2, 2, 2]
+m54 = regularSubdivision [1, 5, 2, 2, 2]
+m44 = regularSubdivision [2, 2, 2, 2, 2]
+m34 = regularSubdivision [1, 3, 2, 2, 2]
+m24 = regularSubdivision [1, 2, 2, 2, 2]
+m14 = regularSubdivision [1, 1, 2, 2, 2]
 
 m98 :: AbstractMeter
-m98 = regular_subdivision [1, 3, 3, 2, 2]
+m98 = regularSubdivision [1, 3, 3, 2, 2]
 
 simple :: Int -> Int -> Maybe AbstractMeter
 simple num denom = case (num, denom) of
@@ -43,23 +43,23 @@ simple num denom = case (num, denom) of
     -- The problem is I have to use integral subdivisions.
 
 -- | 4 * 4/4 bars.
-m44_4 :: AbstractMeter
-m44_4 = Meter.repeat 4 m44
+m444 :: AbstractMeter
+m444 = Meter.repeat 4 m44
 
 -- | 4 sections of 4/4 bars.
 --
 -- @LRuler.modify =<< LRuler.fit_to_end Meters.m44_block block_id@
-m44_block :: [AbstractMeter]
-m44_block = replicate 4 m44_4
+m44Block :: [AbstractMeter]
+m44Block = replicate 4 m444
 
-m3p3p2_8 :: AbstractMeter
-m3p3p2_8 = Meter.repeat 1 $ Meter.subdivides [2, 2, 2, 2] $
+m3p3p28 :: AbstractMeter
+m3p3p28 = Meter.repeat 1 $ Meter.subdivides [2, 2, 2, 2] $
     D [D [T, T, T], D [T, T, T], D [T, T]]
 
 -- | 2+2+2 / 8, 4 quarters per measure
-m2p2p2_8 :: AbstractMeter
-m2p2p2_8 = regular_subdivision [1, 3, 2, 2, 2, 2]
+m2p2p28 :: AbstractMeter
+m2p2p28 = regularSubdivision [1, 3, 2, 2, 2, 2]
 
 -- | 3+3 / 8, 2 dotted quarters per measure
-m3p3_8 :: AbstractMeter
-m3p3_8 = regular_subdivision [1, 2, 3, 2, 2, 2]
+m3p38 :: AbstractMeter
+m3p38 = regularSubdivision [1, 2, 3, 2, 2, 2]

@@ -26,50 +26,50 @@ import           Types
 
 -- | Multiply the controls in the selection by the given amount.
 multiply :: Signal.Y -> Cmd.CmdL ()
-multiply factor = map_val (*factor)
+multiply factor = mapVal (*factor)
 
 -- | Multiply but keep in 0--1.
 multiply01 :: Signal.Y -> Cmd.CmdL ()
-multiply01 factor = map_val (Num.clamp 0 1 . (*factor))
+multiply01 factor = mapVal (Num.clamp 0 1 . (*factor))
 
 -- | Multiply but keep in -1 -- 1.
-multiply_11 :: Signal.Y -> Cmd.CmdL ()
-multiply_11 factor = map_val (Num.clamp (-1) 1 . (*factor))
+multiply11 :: Signal.Y -> Cmd.CmdL ()
+multiply11 factor = mapVal (Num.clamp (-1) 1 . (*factor))
 
 -- | Round selected controls to the given number of decimal places.  Useful
 -- after a 'multiply'.
 round :: Int -> Cmd.CmdL ()
-round places = map_val $
+round places = mapVal $
     (/ 10^places) . fromIntegral . Prelude.round . (* 10^places)
 
-map_val :: Cmd.M m => (Signal.Y -> Signal.Y) -> m ()
-map_val f = ModifyEvents.selection $
-    ModifyEvents.text $ \text -> fromMaybe text (ControlTrack.modify_val f text)
+mapVal :: Cmd.M m => (Signal.Y -> Signal.Y) -> m ()
+mapVal f = ModifyEvents.selection $
+    ModifyEvents.text $ \text -> fromMaybe text (ControlTrack.modifyVal f text)
 
 -- | Map controls with the given name.
-map_named :: Cmd.M m => Text -> (Signal.Y -> Signal.Y) -> ModifyEvents.Track m
-map_named name f =
-    ModifyEvents.tracks_named (==name) $ ModifyEvents.text $ \text ->
-        fromMaybe text (ControlTrack.modify_val f text)
+mapNamed :: Cmd.M m => Text -> (Signal.Y -> Signal.Y) -> ModifyEvents.Track m
+mapNamed name f =
+    ModifyEvents.tracksNamed (==name) $ ModifyEvents.text $ \text ->
+        fromMaybe text (ControlTrack.modifyVal f text)
 
-score_to_hex :: Cmd.CmdL ()
-score_to_hex = ModifyEvents.all_blocks $
-    ModifyEvents.tracks_named ParseTitle.is_signal_track $
-        ModifyEvents.text to_hex
+scoreToHex :: Cmd.CmdL ()
+scoreToHex = ModifyEvents.allBlocks $
+    ModifyEvents.tracksNamed ParseTitle.isSignalTrack $
+        ModifyEvents.text toHex
 
-block_to_hex :: BlockId -> Cmd.CmdL ()
-block_to_hex block_id = ModifyEvents.block block_id $
-    ModifyEvents.tracks_named ParseTitle.is_signal_track $
-        ModifyEvents.text to_hex
+blockToHex :: BlockId -> Cmd.CmdL ()
+blockToHex blockId = ModifyEvents.block blockId $
+    ModifyEvents.tracksNamed ParseTitle.isSignalTrack $
+        ModifyEvents.text toHex
 
-to_hex :: Text -> Text
-to_hex text =
-    either (const text) to_num $
-        Derive.Parse.parse_val (ControlTrack._val partial)
+toHex :: Text -> Text
+toHex text =
+    either (const text) toNum $
+        Derive.Parse.parseVal (ControlTrack._val partial)
     where
-    to_num v = case DeriveT.constant_val v of
+    toNum v = case DeriveT.constantVal v of
         Just (ScoreT.Typed ScoreT.Untyped n)
             | 0 <= n && n <= 1 -> ControlTrack.unparse $
-                partial { ControlTrack._val = ShowVal.show_hex_val n }
+                partial { ControlTrack._val = ShowVal.showHexVal n }
         _ -> text
     partial = ControlTrack.parse text

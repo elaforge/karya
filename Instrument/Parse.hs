@@ -37,39 +37,39 @@ type Annotation = Tag.Tag
 --
 -- TODO other attributes are not supported, but if there were, they could look
 -- like @*pb-range=12 *flag=pressure@
-parse_annotations :: FilePath
+parseAnnotations :: FilePath
     -> IO (Either String (Map InstT.Qualified [Annotation]))
-parse_annotations fn = do
-    result <- Parse.file mempty p_annotation_file () fn
+parseAnnotations fn = do
+    result <- Parse.file mempty pAnnotationFile () fn
     pure $ bimap show (Map.fromListWith (++)) result
 
-p_annotation_file :: Parser st [(InstT.Qualified, [Annotation])]
-p_annotation_file = concat <$> P.many line <* P.eof
-    where line = ((:[]) <$> P.try p_annotation_line) <|> (p_eol >> pure [])
+pAnnotationFile :: Parser st [(InstT.Qualified, [Annotation])]
+pAnnotationFile = concat <$> P.many line <* P.eof
+    where line = ((:[]) <$> P.try pAnnotationLine) <|> (pEol >> pure [])
 
-p_annotation_line :: Parser st (InstT.Qualified, [Annotation])
-p_annotation_line =
-    ((,) <$> lexeme p_qualified <*> P.many (lexeme p_tag)) <* p_eol
+pAnnotationLine :: Parser st (InstT.Qualified, [Annotation])
+pAnnotationLine =
+    ((,) <$> lexeme pQualified <*> P.many (lexeme pTag)) <* pEol
 
-p_qualified :: Parser st InstT.Qualified
-p_qualified =
+pQualified :: Parser st InstT.Qualified
+pQualified =
     InstT.Qualified <$> chars <*> (P.char '/' *> chars) <?> "qualified"
-    where chars = P.takeWhile1 Id.is_id_char
+    where chars = P.takeWhile1 Id.isIdChar
 
-p_tag :: Parser st Tag.Tag
-p_tag =
-    (,) <$> P.takeWhile1 tag_char
-    <*> P.option "" (P.char '=' *> P.takeWhile1 tag_char)
-    where tag_char c = Char.isAlphaNum c || c == '-'
+pTag :: Parser st Tag.Tag
+pTag =
+    (,) <$> P.takeWhile1 tagChar
+    <*> P.option "" (P.char '=' *> P.takeWhile1 tagChar)
+    where tagChar c = Char.isAlphaNum c || c == '-'
 
 lexeme :: Parser st a -> Parser st a
-lexeme p = p <* p_whitespace
+lexeme p = p <* pWhitespace
 
-p_eol :: Parser st ()
-p_eol = p_whitespace <* P.char '\n'
+pEol :: Parser st ()
+pEol = pWhitespace <* P.char '\n'
 
-p_whitespace :: Parser st ()
-p_whitespace = P.skipMany (P.oneOfC " \t") >> P.option () comment
+pWhitespace :: Parser st ()
+pWhitespace = P.skipMany (P.oneOfC " \t") >> P.option () comment
     where comment = P.char '#' >> P.skipMany (P.satisfy (/='\n'))
 
 
@@ -88,73 +88,73 @@ p_whitespace = P.skipMany (P.oneOfC " \t") >> P.option () comment
 
     Comments start with @#@, and blank lines are ignored.
 -}
-patch_file :: FilePath -> IO [Sysex.Patch]
-patch_file fn = either (errorIO . ("parse patches: " <>)) pure
-    =<< parse_patch_file fn
+patchFile :: FilePath -> IO [Sysex.Patch]
+patchFile fn = either (errorIO . ("parse patches: " <>)) pure
+    =<< parsePatchFile fn
 
-parse_patch_file :: String -> IO (Either Text [Sysex.Patch])
-parse_patch_file fn =
-    fmap (map (second (Sysex.add_file fn))) <$>
-        Parse.file mempty p_patch_file empty_state fn
+parsePatchFile :: String -> IO (Either Text [Sysex.Patch])
+parsePatchFile fn =
+    fmap (map (second (Sysex.addFile fn))) <$>
+        Parse.file mempty pPatchFile emptyState fn
 
 data State = State
-    { state_bank :: Int
-    , state_patch_num :: Midi.Program
+    { stateBank :: Int
+    , statePatchNum :: Midi.Program
     } deriving (Show)
 
-empty_state :: State
-empty_state = State 0 0
+emptyState :: State
+emptyState = State 0 0
 
 data PatchLine = PatchLine
-    { patch_name :: Text
-    , patch_bank :: Int
-    , patch_program :: Midi.Program
-    , patch_tags :: [Tag.Tag]
+    { patchName :: Text
+    , patchBank :: Int
+    , patchProgram :: Midi.Program
+    , patchTags :: [Tag.Tag]
     } deriving (Show)
 
-p_patch_file :: Parser State [Sysex.Patch]
-p_patch_file = do
-    patches <- Maybe.catMaybes <$> P.many p_line
-    pure $ map (make_patch (-2, 2)) (inherit_prev_category patches)
+pPatchFile :: Parser State [Sysex.Patch]
+pPatchFile = do
+    patches <- Maybe.catMaybes <$> P.many pLine
+    pure $ map (makePatch (-2, 2)) (inheritPrevCategory patches)
     where
-    inherit_prev_category = snd . List.mapAccumL inherit Nothing
-    inherit maybe_prev patch = case lookup Tag.category tags of
-            Nothing -> case maybe_prev of
+    inheritPrevCategory = snd . List.mapAccumL inherit Nothing
+    inherit maybePrev patch = case lookup Tag.category tags of
+            Nothing -> case maybePrev of
                 Nothing -> (Nothing, patch)
                 Just prev -> (Just prev,
-                    patch { patch_tags = (Tag.category, prev) : tags })
+                    patch { patchTags = (Tag.category, prev) : tags })
             Just cat -> (Just cat, patch)
-        where tags = patch_tags patch
+        where tags = patchTags patch
 
-make_patch :: Control.PbRange -> PatchLine -> Sysex.Patch
-make_patch pb_range (PatchLine name bank patch_num tags) = (patch, common)
+makePatch :: Control.PbRange -> PatchLine -> Sysex.Patch
+makePatch pbRange (PatchLine name bank patchNum tags) = (patch, common)
     where
-    patch = (Patch.patch pb_range name)
-        { Patch.patch_initialize =
-            Patch.initialize_midi $ Midi.program_change bank patch_num
+    patch = (Patch.patch pbRange name)
+        { Patch.patchInitialize =
+            Patch.initializeMidi $ Midi.programChange bank patchNum
         }
-    common = (Common.common ()) { Common.common_tags = tags }
+    common = (Common.common ()) { Common.commonTags = tags }
 
-p_line :: Parser State (Maybe PatchLine)
-p_line =
-    (p_bank_decl >> pure Nothing)
-    <|> (p_eol >> pure Nothing)
-    <|> fmap Just p_patch_line
+pLine :: Parser State (Maybe PatchLine)
+pLine =
+    (pBankDecl >> pure Nothing)
+    <|> (pEol >> pure Nothing)
+    <|> fmap Just pPatchLine
 
-p_patch_line :: Parser State PatchLine
-p_patch_line = do
+pPatchLine :: Parser State PatchLine
+pPatchLine = do
     name <- P.takeWhile1 (`notElem` ['\n', ','])
-    tags <- P.option [] $ comma >> P.sepBy1 p_tag comma
-    p_eol
+    tags <- P.option [] $ comma >> P.sepBy1 pTag comma
+    pEol
     st <- State.get
-    State.put $ st { state_patch_num = state_patch_num st + 1 }
-    pure $ PatchLine name (state_bank st) (state_patch_num st) tags
+    State.put $ st { statePatchNum = statePatchNum st + 1 }
+    pure $ PatchLine name (stateBank st) (statePatchNum st) tags
     where
     comma = lexeme (P.char ',')
 
-p_bank_decl :: Parser State ()
-p_bank_decl = do
+pBankDecl :: Parser State ()
+pBankDecl = do
     P.string "*bank"
     P.space1
-    n <- Parse.p_nat
-    State.modify' $ \st -> st { state_bank = n, state_patch_num = 0 }
+    n <- Parse.pNat
+    State.modify' $ \st -> st { stateBank = n, statePatchNum = 0 }

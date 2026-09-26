@@ -33,42 +33,42 @@ import           Types
 
 library :: Library.Library
 library = Library.transformers
-    [ ("pizz-arp", c_pizz_arp)
-    , ("avoid-overlap", c_avoid_overlap)
-    , ("zero-duration-mute", c_zero_duration_mute)
-    , ("extend-duration", c_extend_duration)
-    , ("apply-attributes", c_apply_attributes)
+    [ ("pizz-arp", cPizzArp)
+    , ("avoid-overlap", cAvoidOverlap)
+    , ("zero-duration-mute", cZeroDurationMute)
+    , ("extend-duration", cExtendDuration)
+    , ("apply-attributes", cApplyAttributes)
     ]
 
 -- * pizz arp
 
-c_pizz_arp :: Derive.Transformer Derive.Note
-c_pizz_arp = Derive.transformer Module.prelude "pizz-arp"
+cPizzArp :: Derive.Transformer Derive.Note
+cPizzArp = Derive.transformer Module.prelude "pizz-arp"
     (Tags.postproc <> Tags.inst)
     "Arpeggiate simultaneous notes with `+pizz`. The order is arbitrary but\
     \ probably in track order.  TODO sort by pitch?" $
     Sig.callt (Sig.defaulted "time" (0.02 :: RealTime)
         "Insert this much time between each note."
     ) $
-    \time _args deriver -> Ly.when_lilypond deriver $
-        pizz_arp time =<< deriver
+    \time _args deriver -> Ly.whenLilypond deriver $
+        pizzArp time =<< deriver
 
-pizz_arp :: RealTime -> Stream.Stream Score.Event -> Derive.NoteDeriver
-pizz_arp time = map_simultaneous 0.025 (Score.has_attribute Attrs.pizz) $
+pizzArp :: RealTime -> Stream.Stream Score.Event -> Derive.NoteDeriver
+pizzArp time = mapSimultaneous 0.025 (Score.hasAttribute Attrs.pizz) $
     \(event :| chord) -> pure
         [ Score.move (+t) event
         | (t, event) <- zip (Lists.range_ 0 time) (event : chord)
         ]
 
-map_simultaneous :: RealTime
+mapSimultaneous :: RealTime
     -- ^ events starting closer than this amount are considered simultaneous
     -> (Score.Event -> Bool)
     -- ^ only process events that pass this predicate
     -> (NonEmpty Score.Event -> Derive.Deriver [Score.Event])
     -- ^ process simultaneous events
     -> Stream.Stream Score.Event -> Derive.NoteDeriver
-map_simultaneous eta accept f =
-    fmap Stream.from_sorted_list . go . Stream.to_list
+mapSimultaneous eta accept f =
+    fmap Stream.fromSortedList . go . Stream.toList
     where
     go [] = pure []
     go (LEvent.Log log : events) = (LEvent.Log log :) <$> go events
@@ -77,21 +77,21 @@ map_simultaneous eta accept f =
         | otherwise = (LEvent.Event event :) <$> go events
     collect event events = do
         out <- f (event :| wanted)
-        out_rest <- go rest
+        outRest <- go rest
         pure $ map LEvent.Event (out ++ unwanted) ++ map LEvent.Log logs
-            ++ out_rest
+            ++ outRest
         where
-        start = Score.event_start event
+        start = Score.eventStart event
         (with, rest) = span
-            (LEvent.log_or ((<=start) . subtract eta . Score.event_start))
+            (LEvent.logOr ((<=start) . subtract eta . Score.eventStart))
             events
         (chord, logs) = LEvent.partition with
         (wanted, unwanted) = List.partition accept chord
 
 -- * avoid overlap
 
-c_avoid_overlap :: Derive.Transformer Derive.Note
-c_avoid_overlap = Derive.transformer Module.prelude "avoid-overlap"
+cAvoidOverlap :: Derive.Transformer Derive.Note
+cAvoidOverlap = Derive.transformer Module.prelude "avoid-overlap"
     (Tags.postproc <> Tags.inst)
     "Notes with the same instrument and starting pitch are shortened so they\
     \ don't overlap with each other.  This simulates keyboard instruments, \
@@ -99,33 +99,33 @@ c_avoid_overlap = Derive.transformer Module.prelude "avoid-overlap"
     \ This also happens to be what MIDI expects, since it's based on keyboards."
     $ Sig.callt (Sig.defaulted "time" (0.1 :: Double)
         "Ensure at least this much time between two notes of the same pitch.")
-    $ \time _args deriver -> Ly.when_lilypond deriver $
-        avoid_overlap time <$> deriver
+    $ \time _args deriver -> Ly.whenLilypond deriver $
+        avoidOverlap time <$> deriver
 
-avoid_overlap :: RealTime -> Stream.Stream Score.Event
+avoidOverlap :: RealTime -> Stream.Stream Score.Event
     -> Stream.Stream Score.Event
-avoid_overlap time = Post.emap1_ modify . next_same_pitch
+avoidOverlap time = Post.emap1_ modify . nextSamePitch
     where
     modify (event, []) = event
     modify (event, next : _)
-        | overlaps event next = Score.set_duration dur event
+        | overlaps event next = Score.setDuration dur event
         | otherwise = event
         where
-        dur = max Note.min_duration $
-            Score.event_start next - time - Score.event_start event
-    overlaps event next = Score.event_end event + time > Score.event_start next
+        dur = max Note.minDuration $
+            Score.eventStart next - time - Score.eventStart event
+    overlaps event next = Score.eventEnd event + time > Score.eventStart next
 
 -- | For each event, get the next events with the same instrument and starting
 -- pitch.
-next_same_pitch :: Stream.Stream Score.Event
+nextSamePitch :: Stream.Stream Score.Event
     -> Stream.Stream (Score.Event, [Score.Event])
-next_same_pitch = Post.emap1_ check . Stream.zip_on Post.nexts
+nextSamePitch = Post.emap1_ check . Stream.zipOn Post.nexts
     where
     check (nexts, event) = (event, filter (same event) nexts)
     same event next =
-        Score.event_instrument event == Score.event_instrument next
-        && Maybe.isJust nn && nn == Score.initial_nn next
-        where nn = Score.initial_nn event
+        Score.eventInstrument event == Score.eventInstrument next
+        && Maybe.isJust nn && nn == Score.initialNn next
+        where nn = Score.initialNn event
 
 
 -- * zero dur mute
@@ -134,8 +134,8 @@ next_same_pitch = Post.emap1_ check . Stream.zip_on Post.nexts
 -- transformation.  This one is limited to attrs because it's a postproc, and
 -- it's a postproc because otherwise it's hard to tell if a note is really
 -- zero duration and not just an infer-duration note.
-c_zero_duration_mute :: Derive.Transformer Derive.Note
-c_zero_duration_mute = Derive.transformer Module.prelude
+cZeroDurationMute :: Derive.Transformer Derive.Note
+cZeroDurationMute = Derive.transformer Module.prelude
     "zero-duration-mute" (Tags.postproc <> Tags.inst)
     "Add attributes to zero duration events."
     $ Sig.callt ((,)
@@ -144,15 +144,15 @@ c_zero_duration_mute = Derive.transformer Module.prelude
     ) $ \(attrs, dyn) _args deriver -> Post.emap1_ (add attrs dyn) <$> deriver
     where
     add attrs dyn event
-        | Score.event_duration event == 0 =
-            Score.modify_dynamic (*dyn) $ Score.add_attributes attrs event
+        | Score.eventDuration event == 0 =
+            Score.modifyDynamic (*dyn) $ Score.addAttributes attrs event
         | otherwise = event
 
 
 -- * extend duration
 
-c_extend_duration :: Derive.Transformer Derive.Note
-c_extend_duration = Derive.transformer Module.prelude "extend-duration"
+cExtendDuration :: Derive.Transformer Derive.Note
+cExtendDuration = Derive.transformer Module.prelude "extend-duration"
     Tags.postproc ("Extend the duration of notes with certain attributes.\
     \ This is appropriate for attributes like " <> ShowVal.doc Attrs.staccato
     <> ", which might already have their own built-in duration, and sound\
@@ -161,51 +161,51 @@ c_extend_duration = Derive.transformer Module.prelude "extend-duration"
     <$> Sig.required "attrs" "Extend durations of notes with these attrs."
     <*> Sig.defaulted "dur" (RealTime.seconds 2)
         "Extend to a minimum of this duration."
-    ) $ \(attrs, dur) _args deriver -> Ly.when_lilypond deriver $
-        extend_duration attrs dur <$> deriver
+    ) $ \(attrs, dur) _args deriver -> Ly.whenLilypond deriver $
+        extendDuration attrs dur <$> deriver
 
 -- | Don't overlap with another note with the same pitch, as in 'avoid_overlap'.
-extend_duration :: [Attrs.Attributes] -> RealTime -> Stream.Stream Score.Event
+extendDuration :: [Attrs.Attributes] -> RealTime -> Stream.Stream Score.Event
     -> Stream.Stream Score.Event
-extend_duration attrs dur = Post.emap1_ extend . next_same_pitch
+extendDuration attrs dur = Post.emap1_ extend . nextSamePitch
     where
     extend (event, nexts)
-        | any (\a -> Score.has_attribute a event) attrs =
-            Score.duration (max $ maybe dur (min dur) max_dur) event
+        | any (\a -> Score.hasAttribute a event) attrs =
+            Score.duration (max $ maybe dur (min dur) maxDur) event
         | otherwise = event
-        where max_dur = diff event <$> Lists.head nexts
-    diff e1 e2 = max 0 $ Score.event_start e2 - Score.event_start e1 - 0.05
+        where maxDur = diff event <$> Lists.head nexts
+    diff e1 e2 = max 0 $ Score.eventStart e2 - Score.eventStart e1 - 0.05
 
 
 -- * apply attributes
 
-c_apply_attributes :: Derive.Transformer Derive.Note
-c_apply_attributes = Derive.transformer Module.prelude "apply-attributes"
+cApplyAttributes :: Derive.Transformer Derive.Note
+cApplyAttributes = Derive.transformer Module.prelude "apply-attributes"
     Tags.postproc ("Apply attributes by control signal. This looks for\
-        \ controls with a " <> ShowVal.doc control_prefix <> " prefix.\
-        \ A control named " <> ShowVal.doc (control_prefix <> "a-b")
+        \ controls with a " <> ShowVal.doc controlPrefix <> " prefix.\
+        \ A control named " <> ShowVal.doc (controlPrefix <> "a-b")
 
         <> " will, when non-zero, add the `+a+b` attributes to its events."
-    ) $ Sig.call0t $ \_args deriver -> Post.emap1_ apply_attributes <$> deriver
+    ) $ Sig.call0t $ \_args deriver -> Post.emap1_ applyAttributes <$> deriver
 
 -- | For all controls that start with 'control_prefix' and are positive during
 -- the event start, add those attributes to the event.
 --
 -- TODO a possible variation would be to take 0<v<1 as a probability of
 -- applying the attribute.
-apply_attributes :: Score.Event -> Score.Event
-apply_attributes event = Score.add_attributes (mconcat attrs_to_apply) event
+applyAttributes :: Score.Event -> Score.Event
+applyAttributes event = Score.addAttributes (mconcat attrsToApply) event
     where
     controls :: [(Attrs.Attributes, ScoreT.Control)]
-    controls = Lists.keyOnJust control_attributes $ Map.keys $
-        Score.event_controls event
-    attrs_to_apply = map fst $ filter ((>0) . get . snd) controls
-    get c = maybe 0 ScoreT.val_of $
-        Score.control_at (Score.event_start event) c event
+    controls = Lists.keyOnJust controlAttributes $ Map.keys $
+        Score.eventControls event
+    attrsToApply = map fst $ filter ((>0) . get . snd) controls
+    get c = maybe 0 ScoreT.valOf $
+        Score.controlAt (Score.eventStart event) c event
 
-control_attributes :: ScoreT.Control -> Maybe Attrs.Attributes
-control_attributes = fmap (Attrs.attrs . Text.split (=='-'))
-    . Text.stripPrefix control_prefix . ScoreT.control_name
+controlAttributes :: ScoreT.Control -> Maybe Attrs.Attributes
+controlAttributes = fmap (Attrs.attrs . Text.split (=='-'))
+    . Text.stripPrefix controlPrefix . ScoreT.controlName
 
-control_prefix :: Text
-control_prefix = "attr-"
+controlPrefix :: Text
+controlPrefix = "attr-"

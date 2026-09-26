@@ -6,22 +6,22 @@
 -- | Tracklang parsers.  Many of the parsers in here should be inverses of
 -- the 'ShowVal.ShowVal' class.
 module Derive.Parse (
-    comment_remove, comment
-    , parse_expr
-    , parse_val, parse_attrs, parse_num, parse_call
-    , lex1, lex, split_pipeline, join_pipeline
-    , unparsed_call
+    commentRemove, comment
+    , parseExpr
+    , parseVal, parseAttrs, parseNum, parseCall
+    , lex1, lex, splitPipeline, joinPipeline
+    , unparsedCall
     , UnquotedString(..)
 
     -- * parsers
-    , lexeme, p_pipe, p_expr, p_pcontrol_ref, p_identifier, p_symbol
+    , lexeme, pPipe, pExpr, pPcontrolRef, pIdentifier, pSymbol
     -- * expand macros
-    , expand_macros
+    , expandMacros
     -- * for Parse.Ky
-    , p_val
-    , p_unparsed_expr, p_null_call, p_single_quote_string
-    , p_equal_generic
-    , empty_line, spaces
+    , pVal
+    , pUnparsedExpr, pNullCall, pSingleQuoteString
+    , pEqualGeneric
+    , emptyLine, spaces
 #ifdef TESTING
     , module Derive.Parse
 #endif
@@ -58,8 +58,8 @@ import           Global
 -- | The comment for tracklang is --, but if an event starts with this comment,
 -- the whole event is ignored.  A normal comment would mean the event exists,
 -- but has no expression.
-comment_remove :: Text
-comment_remove = "--|"
+commentRemove :: Text
+commentRemove = "--|"
 
 comment :: Text
 comment = "--"
@@ -75,46 +75,46 @@ comment = "--"
     a type parameter would have to propagate that far, or a SOURCE import would
     include that much.
 -}
-{-# NOINLINE memo_table #-}
-memo_table :: IORef.IORef (HashMap Text (Either Text DeriveT.Expr))
-memo_table = Unsafe.unsafePerformIO (IORef.newIORef mempty)
+{-# NOINLINE memoTable #-}
+memoTable :: IORef.IORef (HashMap Text (Either Text DeriveT.Expr))
+memoTable = Unsafe.unsafePerformIO (IORef.newIORef mempty)
 
-parse_expr :: Text -> Either Text DeriveT.Expr
-parse_expr str
+parseExpr :: Text -> Either Text DeriveT.Expr
+parseExpr str
     -- micro-optimize, but probably irrelevant
     | Text.null str = Right $ Expr.call0 "" :| []
     | otherwise = case HashMap.lookup str table of
         Just expr -> expr
         Nothing -> write (HashMap.insert str expr) `seq` expr
-            where expr = parse_expr_raw str
+            where expr = parseExprRaw str
     where
     -- With concurrent access this can duplicate work, but since it's a cache
     -- that should be fine.  Also I don't do a strict modify, it probably makes
     -- no difference but the theory is to spend minimal time adding the entry,
     -- and the next call will force the thunk.
-    table = Unsafe.unsafePerformIO $ IORef.readIORef memo_table
-    write = Unsafe.unsafePerformIO . IORef.modifyIORef memo_table
+    table = Unsafe.unsafePerformIO $ IORef.readIORef memoTable
+    write = Unsafe.unsafePerformIO . IORef.modifyIORef memoTable
 
-{-# SCC parse_expr_raw #-}
-parse_expr_raw :: Text -> Either Text DeriveT.Expr
-parse_expr_raw = parse (p_expr True)
+{-# SCC parseExprRaw #-}
+parseExprRaw :: Text -> Either Text DeriveT.Expr
+parseExprRaw = parse (pExpr True)
 
 -- | Parse a single Val.
-{-# SCC parse_val #-}
-parse_val :: Text -> Either Text DeriveT.Val
-parse_val = ParseText.parse1 (lexeme (p_val UnquotedLoose))
+{-# SCC parseVal #-}
+parseVal :: Text -> Either Text DeriveT.Val
+parseVal = ParseText.parse1 (lexeme (pVal UnquotedLoose))
 
 -- | Parse attributes in the form +a+b.
-parse_attrs :: String -> Either Text Attrs.Attributes
-parse_attrs = parse p_attributes . Text.pack
+parseAttrs :: String -> Either Text Attrs.Attributes
+parseAttrs = parse pAttributes . Text.pack
 
 -- | Parse a number or hex code, without a type suffix.
-parse_num :: Text -> Either Text Signal.Y
-parse_num = ParseText.parse1 (lexeme (p_hex <|> p_untyped_num))
+parseNum :: Text -> Either Text Signal.Y
+parseNum = ParseText.parse1 (lexeme (pHex <|> pUntypedNum))
 
 -- | Extract only the call part of the text.
-parse_call :: Text -> Maybe Text
-parse_call text = case parse_expr_raw text of
+parseCall :: Text -> Maybe Text
+parseCall text = case parseExprRaw text of
     Right expr -> case NonEmpty.last expr of
         Expr.Call (Expr.Symbol call) _ -> Just call
     _ -> Nothing
@@ -129,7 +129,7 @@ parse p = ParseText.parse1 (spaces >> p)
 -- this leaves on trailing whitespace, so you can concatenate the lexed out
 -- words and get the original input back.
 lex1 :: Text -> (Text, Text)
-lex1 text = case parse ((,) <$> p_lex1 <*> A.takeWhile (const True)) text of
+lex1 text = case parse ((,) <$> pLex1 <*> A.takeWhile (const True)) text of
     Right ((), rest) ->
         (Text.take (Text.length text - Text.length rest) text, rest)
     Left _ -> (text, "")
@@ -149,34 +149,34 @@ lex text
 --
 -- This preserves trailing spaces on the words, because track editors use that
 -- to infer edits in progress.
-split_pipeline :: Text -> [[Text]]
-split_pipeline =
+splitPipeline :: Text -> [[Text]]
+splitPipeline =
     Lists.mapTail (drop 1) . Lists.splitBefore ((=="|") . Text.strip) . lex
 
-join_pipeline :: [[Text]] -> Text
-join_pipeline =
+joinPipeline :: [[Text]] -> Text
+joinPipeline =
     mconcat . List.intercalate [" | "] . map (Lists.mapLast Text.stripEnd)
 
 -- | This returns () on success and the caller will see how many chars were
 -- consumed.  Attoparsec doesn't keep track of byte position, and always
 -- backtracks.  I think this means I can't reuse 'p_term'.
-p_lex1 :: A.Parser ()
-p_lex1 =
-    (str <|> parens <|> (p_equal_operator *> pure ()) <|> unparsed <|> p_comment
+pLex1 :: A.Parser ()
+pLex1 =
+    (str <|> parens <|> (pEqualOperator *> pure ()) <|> unparsed <|> pComment
             <|> word)
-        *> (A.skipWhile is_whitespace)
+        *> (A.skipWhile isWhitespace)
     where
-    str = p_single_quote_string >> pure ()
+    str = pSingleQuoteString >> pure ()
     parens = do
         A.char '('
-        A.many $ parens <|> str <|> (A.takeWhile1 content_char >> pure ())
+        A.many $ parens <|> str <|> (A.takeWhile1 contentChar >> pure ())
         A.char ')'
         pure ()
-    word = A.skipWhile (\c -> c /= '(' && is_word_char c)
-    content_char c = c /= '(' && c /= ')' && c /= '\''
-    unparsed = A.string (Expr.unsym unparsed_call)
+    word = A.skipWhile (\c -> c /= '(' && isWordChar c)
+    contentChar c = c /= '(' && c /= ')' && c /= '\''
+    unparsed = A.string (Expr.unsym unparsedCall)
         *> A.skipWhile (\c -> c /= '|' && c /= ')')
-    p_comment = A.string comment *> A.skipWhile (const True)
+    pComment = A.string comment *> A.skipWhile (const True)
 
 -- * expand macros
 
@@ -184,23 +184,23 @@ p_lex1 =
 -- to implement ID macros for the REPL.
 --
 -- A macro looks like \@valid-id-chars.
-expand_macros :: (Text -> Text) -> Text -> Either Text Text
-expand_macros replacement text
+expandMacros :: (Text -> Text) -> Text -> Either Text Text
+expandMacros replacement text
     | not $ "@" `Text.isInfixOf` text = Right text
-    | otherwise = ParseText.parse1 (p_macros replacement) text
+    | otherwise = ParseText.parse1 (pMacros replacement) text
 
-p_macros :: (Text -> Text) -> A.Parser Text
-p_macros replace = do
-    chunks <- A.many1 $ p_macro replace <|> p_chunk
-        <|> (("\""<>) . (<>"\"") <$> p_hs_string)
+pMacros :: (Text -> Text) -> A.Parser Text
+pMacros replace = do
+    chunks <- A.many1 $ pMacro replace <|> pChunk
+        <|> (("\""<>) . (<>"\"") <$> pHsString)
     pure $ mconcat chunks
     where
-    p_chunk = A.takeWhile1 (\c -> c /= '"' && c /= '@')
+    pChunk = A.takeWhile1 (\c -> c /= '"' && c /= '@')
 
-p_macro :: (Text -> Text) -> A.Parser Text
-p_macro replacement = do
+pMacro :: (Text -> Text) -> A.Parser Text
+pMacro replacement = do
     A.char '@'
-    replacement <$> (unbackslash <$> bare_string)
+    replacement <$> (unbackslash <$> bareString)
     where
     -- Strip escaped quotes, because 'show' will turn it back into haskell
     -- and re-add them.  This will mess up all the other zillion backslash
@@ -212,10 +212,10 @@ p_macro replacement = do
         strip ('\\':c:cs) = c : strip cs
         strip (c:cs) = c : strip cs
         strip [] = []
-    bare_string = A.takeWhile1 (\c -> Id.is_id_char c || c == '/')
+    bareString = A.takeWhile1 (\c -> Id.isIdChar c || c == '/')
 
-p_hs_string :: A.Parser Text
-p_hs_string =
+pHsString :: A.Parser Text
+pHsString =
     ParseText.between (A.char '"') (A.char '"') $ mconcat <$> A.many chunk
     where
     chunk = (A.char '\\' >> Text.cons '\\' <$> A.take 1)
@@ -223,143 +223,143 @@ p_hs_string =
 
 -- * toplevel parsers
 
-p_expr :: Bool -> A.Parser DeriveT.Expr
-p_expr toplevel = do
+pExpr :: Bool -> A.Parser DeriveT.Expr
+pExpr toplevel = do
     -- It definitely matches at least one, because p_null_call always matches.
-    c : cs <- A.sepBy1 (p_toplevel_call toplevel) p_pipe
+    c : cs <- A.sepBy1 (pToplevelCall toplevel) pPipe
     pure $ c :| cs
 
 -- | A toplevel call has a few special syntactic forms, other than the plain
 -- @call arg arg ...@ form parsed by 'p_call'.
-p_toplevel_call :: Bool -> A.Parser DeriveT.Call
-p_toplevel_call toplevel =
-    p_unparsed_expr <|> p_equal <|> p_call toplevel <|> p_null_call
+pToplevelCall :: Bool -> A.Parser DeriveT.Call
+pToplevelCall toplevel =
+    pUnparsedExpr <|> pEqual <|> pCall toplevel <|> pNullCall
 
 -- | Parse a 'unparsed_call'.
-p_unparsed_expr :: A.Parser DeriveT.Call
-p_unparsed_expr = do
-    A.string $ Expr.unsym unparsed_call
+pUnparsedExpr :: A.Parser DeriveT.Call
+pUnparsedExpr = do
+    A.string $ Expr.unsym unparsedCall
     text <- A.takeWhile $ \c -> c /= '|' && c /= ')'
-    let arg = Expr.Str $ Text.strip $ strip_comment text
-    pure $ Expr.Call unparsed_call [Expr.Literal $ DeriveT.VStr arg]
+    let arg = Expr.Str $ Text.strip $ stripComment text
+    pure $ Expr.Call unparsedCall [Expr.Literal $ DeriveT.VStr arg]
     where
     -- Normally comments are considered whitespace by 'spaces_to_eol'.  Normal
     -- tokenization is suppressed for 'unparsed_call' so that doesn't happen,
     -- but I still want to allow comments, for consistency.
-    strip_comment = fst . Text.breakOn comment
+    stripComment = fst . Text.breakOn comment
 
 -- | This is a magic call name that suppresses normal parsing.  Instead, the
 -- rest of the event expression is passed as a string.  The only characters
 -- that can't be used are ) and |, so an unparsed call can still be included in
 -- a sub expression.
-unparsed_call :: Expr.Symbol
-unparsed_call = "!"
+unparsedCall :: Expr.Symbol
+unparsedCall = "!"
 
-p_pipe :: A.Parser ()
-p_pipe = void $ lexeme (A.char '|')
+pPipe :: A.Parser ()
+pPipe = void $ lexeme (A.char '|')
 
-p_equal :: A.Parser (Expr.Call DeriveT.Val)
-p_equal = do
-    (lhs, sym, rhs) <- p_equal_generic (lexeme p_term)
+pEqual :: A.Parser (Expr.Call DeriveT.Val)
+pEqual = do
+    (lhs, sym, rhs) <- pEqualGeneric (lexeme pTerm)
     pure $ Expr.Call Symbols.equal $
         literal lhs : rhs ++ maybe [] (:[]) (literal <$> sym)
     where literal = Expr.Literal . DeriveT.VStr
 
-p_equal_generic :: A.Parser a -> A.Parser (Expr.Str, Maybe Expr.Str, [a])
-p_equal_generic rhs_term = do
-    lhs <- (Expr.unstr <$> p_str) <|> (Expr.unsym <$> p_symbol True)
+pEqualGeneric :: A.Parser a -> A.Parser (Expr.Str, Maybe Expr.Str, [a])
+pEqualGeneric rhsTerm = do
+    lhs <- (Expr.unstr <$> pStr) <|> (Expr.unsym <$> pSymbol True)
     spaces
-    mb_sym <- p_equal_operator
+    mbSym <- pEqualOperator
     spaces
-    rhs <- A.many1 rhs_term
-    pure (Expr.Str lhs, Expr.Str . Text.singleton <$> mb_sym, rhs)
+    rhs <- A.many1 rhsTerm
+    pure (Expr.Str lhs, Expr.Str . Text.singleton <$> mbSym, rhs)
 
-p_equal_operator :: A.Parser (Maybe Char)
-p_equal_operator = A.char '=' *> optional (A.satisfy (A.inClass merge_symbols))
+pEqualOperator :: A.Parser (Maybe Char)
+pEqualOperator = A.char '=' *> optional (A.satisfy (A.inClass mergeSymbols))
 
 -- | Valid symbols after =.  This should correspond to the keys in
 -- Equal.symbol_to_merge.  It could have more symbols, but then that syntax
 -- becomes unavailable.  E.g. previously % was in the list, but then
 -- @x=%control@ has to be written @x = %control@.
-merge_symbols :: [Char]
-merge_symbols = "-+*@"
+mergeSymbols :: [Char]
+mergeSymbols = "-+*@"
 
-p_call :: Bool -> A.Parser (Expr.Call DeriveT.Val)
-p_call toplevel = Expr.Call
-    <$> lexeme (p_symbol toplevel)
-    <*> lexeme (A.sepBy p_term spaces1)
+pCall :: Bool -> A.Parser (Expr.Call DeriveT.Val)
+pCall toplevel = Expr.Call
+    <$> lexeme (pSymbol toplevel)
+    <*> lexeme (A.sepBy pTerm spaces1)
 
-p_null_call :: A.Parser (Expr.Call a)
-p_null_call = pure (Expr.Call "" []) <?> "null call"
+pNullCall :: A.Parser (Expr.Call a)
+pNullCall = pure (Expr.Call "" []) <?> "null call"
 
 -- | Any word in call position is considered a Str.  This means that
 -- you can have calls like @4@ and @>@, which are useful names for notes or
 -- ornaments.
-p_symbol :: Bool -- ^ A call at the top level can allow a ).
+pSymbol :: Bool -- ^ A call at the top level can allow a ).
     -> A.Parser Expr.Symbol
-p_symbol toplevel = Expr.Symbol <$> p_word toplevel
+pSymbol toplevel = Expr.Symbol <$> pWord toplevel
 
-p_word :: Bool -> A.Parser Text
-p_word toplevel =
-    A.takeWhile1 (if toplevel then is_toplevel_word_char else is_word_char)
+pWord :: Bool -> A.Parser Text
+pWord toplevel =
+    A.takeWhile1 (if toplevel then isToplevelWordChar else isWordChar)
 
-p_term :: A.Parser (Expr.Term DeriveT.Val)
-p_term = Expr.Literal <$> p_val UnquotedLoose <|> Expr.ValCall <$> p_sub_call
+pTerm :: A.Parser (Expr.Term DeriveT.Val)
+pTerm = Expr.Literal <$> pVal UnquotedLoose <|> Expr.ValCall <$> pSubCall
     <?> "term"
 
-p_sub_call :: A.Parser (Expr.Call DeriveT.Val)
-p_sub_call = ParseText.between (A.char '(') (A.char ')') (p_call False)
+pSubCall :: A.Parser (Expr.Call DeriveT.Val)
+pSubCall = ParseText.between (A.char '(') (A.char ')') (pCall False)
 
-p_val :: UnquotedString -> A.Parser DeriveT.Val
-p_val unquoted =
-    DeriveT.VAttributes <$> p_attributes
-    <|> DeriveT.num <$> p_hex
-    <|> DeriveT.VSignal . fmap Signal.constant <$> p_num
-    <|> DeriveT.VStr <$> p_str
-    <|> DeriveT.VControlRef <$> p_control_ref
-    <|> DeriveT.VPControlRef <$> p_pcontrol_ref
-    <|> DeriveT.VQuoted <$> p_quoted
+pVal :: UnquotedString -> A.Parser DeriveT.Val
+pVal unquoted =
+    DeriveT.VAttributes <$> pAttributes
+    <|> DeriveT.num <$> pHex
+    <|> DeriveT.VSignal . fmap Signal.constant <$> pNum
+    <|> DeriveT.VStr <$> pStr
+    <|> DeriveT.VControlRef <$> pControlRef
+    <|> DeriveT.VPControlRef <$> pPcontrolRef
+    <|> DeriveT.VQuoted <$> pQuoted
     <|> (A.char '_' >> pure DeriveT.VNotGiven)
     <|> (A.char ';' >> pure DeriveT.VSeparator)
-    <|> DeriveT.VStr <$> p_unquoted_str unquoted
+    <|> DeriveT.VStr <$> pUnquotedStr unquoted
 
-p_num :: A.Parser (ScoreT.Typed Signal.Y)
-p_num = do
-    num <- p_untyped_num
+pNum :: A.Parser (ScoreT.Typed Signal.Y)
+pNum = do
+    num <- pUntypedNum
     let suffix (typ, suf) = A.string suf >> pure typ
     typ <- A.choice $ map suffix codes
     pure $ ScoreT.Typed typ num
     where
-    codes = zip ScoreT.all_types $ map ScoreT.type_to_code ScoreT.all_types
+    codes = zip ScoreT.allTypes $ map ScoreT.typeToCode ScoreT.allTypes
 
-p_untyped_num :: A.Parser Signal.Y
-p_untyped_num = p_ratio <|> ParseText.p_float
+pUntypedNum :: A.Parser Signal.Y
+pUntypedNum = pRatio <|> ParseText.pFloat
     -- It may seem as if this should include p_hex, but I don't want it
     -- for p_num, because none of the type codes make sense for a 0-1
     -- normalized value.
 
-p_ratio :: A.Parser Signal.Y
-p_ratio = do
+pRatio :: A.Parser Signal.Y
+pRatio = do
     sign <- A.option '+' (A.satisfy (\c -> c == '+' || c == '-'))
-    num <- ParseText.p_nat
+    num <- ParseText.pNat
     A.char '/'
-    denom <- ParseText.p_nat
+    denom <- ParseText.pNat
     pure $ (if sign == '-' then -1 else 1)
         * fromIntegral num / fromIntegral denom
 
 -- | Parse numbers of the form @`0x`00@ or @0x00@, with an optional @-@ prefix
 -- for negation.
-p_hex :: A.Parser Signal.Y
-p_hex = do
+pHex :: A.Parser Signal.Y
+pHex = do
     sign <- A.option 1 (A.char '-' >> pure (-1))
-    A.string ShowVal.hex_prefix <|> A.string "0x"
+    A.string ShowVal.hexPrefix <|> A.string "0x"
     let higit c = '0' <= c && c <= '9' || 'a' <= c && c <= 'f'
     c1 <- A.satisfy higit
     c2 <- A.satisfy higit
-    pure $ fromIntegral (parse_hex c1 c2) / 0xff * sign
+    pure $ fromIntegral (parseHex c1 c2) / 0xff * sign
 
-parse_hex :: Char -> Char -> Int
-parse_hex c1 c2 = higit c1 * 16 + higit c2
+parseHex :: Char -> Char -> Int
+parseHex c1 c2 = higit c1 * 16 + higit c2
     where
     higit c
         | '0' <= c && c <= '9' = fromEnum c - fromEnum '0'
@@ -367,41 +367,41 @@ parse_hex c1 c2 = higit c1 * 16 + higit c2
 
 -- | A string is anything between single quotes.  A single quote itself is
 -- represented by two single quotes in a row.
-p_str :: A.Parser Expr.Str
-p_str = Expr.Str <$> p_single_quote_string
+pStr :: A.Parser Expr.Str
+pStr = Expr.Str <$> pSingleQuoteString
 
-p_single_quote_string :: A.Parser Text
-p_single_quote_string = do
+pSingleQuoteString :: A.Parser Text
+pSingleQuoteString = do
     chunks <- A.many1 $
         ParseText.between (A.char '\'') (A.char '\'') (A.takeTill (=='\''))
     pure $ Text.intercalate "'" chunks
 
 -- There's no particular reason to restrict attrs to idents, but this will
 -- force some standardization on the names.
-p_attributes :: A.Parser Attrs.Attributes
-p_attributes = A.char '+'
-    *> (Attrs.attrs <$> A.sepBy (p_identifier False "+") (A.char '+'))
+pAttributes :: A.Parser Attrs.Attributes
+pAttributes = A.char '+'
+    *> (Attrs.attrs <$> A.sepBy (pIdentifier False "+") (A.char '+'))
 
-p_control_ref :: A.Parser DeriveT.ControlRef
-p_control_ref = do
+pControlRef :: A.Parser DeriveT.ControlRef
+pControlRef = do
     A.char '%'
-    control <- ScoreT.Control <$> A.option "" (p_identifier False ",")
-    deflt <- ParseText.optional (A.char ',' >> p_num)
+    control <- ScoreT.Control <$> A.option "" (pIdentifier False ",")
+    deflt <- ParseText.optional (A.char ',' >> pNum)
     pure $ DeriveT.Ref control (fmap Signal.constant <$> deflt)
     <?> "control"
 
 -- | Unlike 'p_control_ref', this doesn't parse a comma and a default value,
 -- because pitches don't have literals.  Instead, use the @#@ val call.
-p_pcontrol_ref :: A.Parser DeriveT.PControlRef
-p_pcontrol_ref = DeriveT.Ref <$> p_pcontrol <*> pure Nothing
+pPcontrolRef :: A.Parser DeriveT.PControlRef
+pPcontrolRef = DeriveT.Ref <$> pPcontrol <*> pure Nothing
     where
-    p_pcontrol = do
+    pPcontrol = do
         A.char '#'
-        ScoreT.PControl <$> p_identifier True ""
+        ScoreT.PControl <$> pIdentifier True ""
         <?> "pitch control"
 
-p_quoted :: A.Parser DeriveT.Quoted
-p_quoted = ParseText.between "\"(" ")" (DeriveT.Quoted <$> p_expr False)
+pQuoted :: A.Parser DeriveT.Quoted
+pQuoted = ParseText.between "\"(" ")" (DeriveT.Quoted <$> pExpr False)
 
 data UnquotedString = UnquotedStrict | UnquotedLoose deriving (Eq, Show)
 
@@ -412,12 +412,12 @@ data UnquotedString = UnquotedStrict | UnquotedLoose deriving (Eq, Show)
 -- This should be a superset of what 'p_identifier' will accept, so if IDs use
 -- 'p_identifier' and 'Id.valid_symbol', they will also be parseable without
 -- quotes.
-p_unquoted_str :: UnquotedString -> A.Parser Expr.Str
-p_unquoted_str unquoted = do
+pUnquotedStr :: UnquotedString -> A.Parser Expr.Str
+pUnquotedStr unquoted = do
     sym <- Text.cons
-        <$> A.satisfy ShowVal.is_unquoted_head
+        <$> A.satisfy ShowVal.isUnquotedHead
         <*> A.takeWhile (case unquoted of
-            UnquotedLoose -> is_word_char
+            UnquotedLoose -> isWordChar
             UnquotedStrict -> \c -> range 'a' 'z' c || range 'A' 'Z' c
                 || range '0' '9' c || c == '-' || c == '.')
     -- If I have an unbalanced quote, it may parse as an unquoted string with
@@ -435,11 +435,11 @@ p_unquoted_str unquoted = do
 --
 -- @until@ gives additional chars that stop parsing, for idents that are
 -- embedded in another lexeme.
-p_identifier :: Bool -> String -> A.Parser Text
-p_identifier null_ok until = do
+pIdentifier :: Bool -> String -> A.Parser Text
+pIdentifier nullOk until = do
     -- TODO attoparsec docs say it's faster to do the check manually, profile
     -- and see if it makes a difference.
-    ident <- (if null_ok then A.takeWhile else A.takeWhile1)
+    ident <- (if nullOk then A.takeWhile else A.takeWhile1)
         -- A.notInClass was buggy in old versions of attoparsec, and got
         -- turned into just an IntSet.
         -- (A.notInClass (until ++ " \n\t|=)")) -- buggy?
@@ -450,9 +450,9 @@ p_identifier null_ok until = do
     -- This forces identifiers to be separated with spaces, except with | and
     -- =.  Otherwise @sym>inst@ is parsed as a call @sym >inst@, which I don't
     -- want to support.
-    unless ((null_ok && Text.null ident) || Id.valid_symbol ident) $
+    unless ((nullOk && Text.null ident) || Id.validSymbol ident) $
         fail $ "invalid chars in identifier, expected "
-            <> untxt Id.symbol_description <> ": " <> show ident
+            <> untxt Id.symbolDescription <> ": " <> show ident
     pure ident
 
 -- | A word is as permissive as possible, and is terminated by whitespace.
@@ -469,14 +469,14 @@ p_identifier null_ok until = do
 -- even at the toplevel, but I have @ly-(@ and @ly-)@ calls and I kind of like
 -- how those look.  I guess it's a crummy justification, but no need to change
 -- it unless toplevel gives more more trouble.
-is_toplevel_word_char :: Char -> Bool
-is_toplevel_word_char c = ShowVal.is_unquoted_body c
+isToplevelWordChar :: Char -> Bool
+isToplevelWordChar c = ShowVal.isUnquotedBody c
     && c /= ';' -- This is so the ; separator can appear anywhere.
     -- TODO remove it when I remove VSeparator
 
 -- | Anything except whitespace, "=);"
-is_word_char :: Char -> Bool
-is_word_char c = is_toplevel_word_char c && c /= ')'
+isWordChar :: Char -> Bool
+isWordChar c = isToplevelWordChar c && c /= ')'
 
 lexeme :: A.Parser a -> A.Parser a
 lexeme = (<* spaces)
@@ -485,30 +485,30 @@ lexeme = (<* spaces)
 -- lines, is indented.
 spaces :: A.Parser ()
 spaces = do
-    spaces_to_eol
+    spacesToEol
     A.option () $ do
         A.skip (=='\n')
-        A.skipMany empty_line
+        A.skipMany emptyLine
         -- The next non-empty line has to be indented.
-        A.skip is_whitespace
-        A.skipWhile is_whitespace
+        A.skip isWhitespace
+        A.skipWhile isWhitespace
 
 -- | Like 'spaces', but require a space at the beginning.
 spaces1 :: A.Parser ()
 spaces1 = A.char ' ' *> spaces
 
-empty_line :: A.Parser ()
-empty_line = spaces_to_eol >> A.skip (=='\n')
+emptyLine :: A.Parser ()
+emptyLine = spacesToEol >> A.skip (=='\n')
 
-spaces_to_eol :: A.Parser ()
-spaces_to_eol = do
-    A.skipWhile is_whitespace
+spacesToEol :: A.Parser ()
+spacesToEol = do
+    A.skipWhile isWhitespace
     comment <- A.option "" (A.string comment)
     unless (Text.null comment) $
         A.skipWhile (\c -> c /= '\n')
 
-is_whitespace :: Char -> Bool
-is_whitespace c = c == ' ' || c == '\t'
+isWhitespace :: Char -> Bool
+isWhitespace c = c == ' ' || c == '\t'
 
 optional :: Applicative.Alternative f => f a -> f (Maybe a)
 optional = A.option Nothing . fmap Just

@@ -21,8 +21,8 @@ import           Global
 import           Util.Test
 
 
-diff_contents :: Bool
-diff_contents = False
+diffContents :: Bool
+diffContents = False
 
 test_samples_exist :: Test
 test_samples_exist = do
@@ -35,11 +35,11 @@ test_samples_exist = do
     forM_ allFilenames $ \(name, dir, fnames) -> unless (exclude name) $ do
         ifM (not <$> Directory.doesDirectoryExist (root </> dir))
             (putStrLn $ "=== no sample directory: " <> root </> dir) $ do
-        not_equal (length fnames) 0
+        notEqual (length fnames) 0
         forM_ fnames $ \fname ->
             unlessM (Directory.doesFileExist (root </> fname)) $
                 failure $ name <> ": " <> txt fname
-        when diff_contents $
+        when diffContents $
             diffDirContents name dir fnames
     where
     -- This one lets you directly pick samples at "runtime".
@@ -68,7 +68,7 @@ diff xs ys = ([x | Diff.First x <- diffs], [x | Diff.Second x <- diffs])
 allFilenames :: [(Note.PatchName, FilePath, [FilePath])]
 allFilenames = mapMaybe extract $ Map.toAscList $ Patch._patches PatchDb.db
     where
-    extract (name, patch) = case ImInst.patch_dummy (Patch._karyaPatch patch) of
+    extract (name, patch) = case ImInst.patchDummy (Patch._karyaPatch patch) of
         Just _ -> Nothing
         Nothing -> Just
             ( name

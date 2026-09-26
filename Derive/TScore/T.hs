@@ -38,10 +38,10 @@ data Toplevel
 -- | call is a parameter, because 'SubBlock' will later be resolved to
 -- 'CallText'.
 data Block tracks = Block
-    { block_id :: Id.BlockId
-    , block_directives :: [Directive]
-    , block_title :: Text
-    , block_tracks :: tracks
+    { blockId :: Id.BlockId
+    , blockDirectives :: [Directive]
+    , blockTitle :: Text
+    , blockTracks :: tracks
     } deriving (Eq, Show)
 
 data WrappedTracks = WrappedTracks Pos [Tracks Call]
@@ -57,15 +57,15 @@ data Track call = Track
     -- | Some arbitrary symbols.  This has no meaning except to make the track
     -- with its title unique on this block.  This is so that tracks have an
     -- identity, and I can detect track moves, adds, and deletes.
-    { track_key :: Text
+    { trackKey :: Text
     -- | The track title will include a > if the original syntax did, or be ""
     -- if the track has no title at all, which is only possible for the first
     -- one, e.g. [a] or [a > b].  This way unparse can emit the same
     -- abbreviated syntax.
-    , track_title :: Text
-    , track_directives :: [Directive]
-    , track_tokens :: [Token call (NPitch Pitch) NDuration Duration]
-    , track_pos :: Pos
+    , trackTitle :: Text
+    , trackDirectives :: [Directive]
+    , trackTokens :: [Token call (NPitch Pitch) NDuration Duration]
+    , trackPos :: Pos
     } deriving (Eq, Show)
 
 data Directive = Directive Pos Text (Maybe Text)
@@ -78,45 +78,45 @@ data Token call pitch ndur rdur
     | TRest Pos (Rest rdur)
     deriving (Eq, Show)
 
-token_pos :: Token call pitch ndur rdur -> Pos
-token_pos = \case
+tokenPos :: Token call pitch ndur rdur -> Pos
+tokenPos = \case
     TBarline pos _ -> pos
     TNote pos _ -> pos
     TRest pos _ -> pos
 
-token_name :: Token call pitch ndur rdur -> Text
-token_name = \case
+tokenName :: Token call pitch ndur rdur -> Text
+tokenName = \case
     TBarline {} -> "barline"
     TNote {} -> "note"
     TRest {} -> "rest"
 
-map_call :: (call1 -> call2)
+mapCall :: (call1 -> call2)
     -> Token call1 pitch ndur rdur -> Token call2 pitch ndur rdur
-map_call f = \case
+mapCall f = \case
     TBarline pos a -> TBarline pos a
-    TNote pos note -> TNote pos (note { note_call = f (note_call note) })
+    TNote pos note -> TNote pos (note { noteCall = f (noteCall note) })
     TRest pos a -> TRest pos a
 
-map_pitch :: Applicative m => (pitch1 -> m pitch2)
+mapPitch :: Applicative m => (pitch1 -> m pitch2)
     -> Token call pitch1 ndur rdur -> m (Token call pitch2 ndur rdur)
-map_pitch f = \case
+mapPitch f = \case
     TBarline pos a -> pure $ TBarline pos a
     TNote pos note ->
-        TNote pos . (\a -> note { note_pitch = a}) <$> f (note_pitch note)
+        TNote pos . (\a -> note { notePitch = a}) <$> f (notePitch note)
     TRest pos a -> pure $ TRest pos a
 
-map_note_duration :: Applicative m => (dur1 -> m dur2)
+mapNoteDuration :: Applicative m => (dur1 -> m dur2)
     -> Token call pitch dur1 rdur -> m (Token call pitch dur2 rdur)
-map_note_duration f = \case
+mapNoteDuration f = \case
     TBarline pos a -> pure $ TBarline pos a
-    TNote pos note -> TNote pos . (\a -> note { note_duration = a }) <$>
-        f (note_duration note)
+    TNote pos note -> TNote pos . (\a -> note { noteDuration = a }) <$>
+        f (noteDuration note)
     TRest pos (Rest dur) -> pure $ TRest pos (Rest dur)
 
-map_note :: Applicative m
+mapNote :: Applicative m
     => (Note call1 pitch1 ndur -> m (Note call2 pitch2 ndur))
     -> Token call1 pitch1 ndur rdur -> m (Token call2 pitch2 ndur rdur)
-map_note f = \case
+mapNote f = \case
     TBarline pos a -> pure $ TBarline pos a
     TNote pos note -> TNote pos <$> f note
     TRest pos a -> pure $ TRest pos a
@@ -128,14 +128,14 @@ data Barline = Barline Rank | AssertCoincident
     deriving (Eq, Show)
 
 data Note call pitch dur = Note
-    { note_call :: call
-    , note_pitch :: pitch
+    { noteCall :: call
+    , notePitch :: pitch
     -- | The generated event should have 0 duration.
-    , note_zero_duration :: Bool
-    , note_duration :: dur
+    , noteZeroDuration :: Bool
+    , noteDuration :: dur
     -- | This is redundant with 'TNote's Pos, but convenient, since Check will
     -- later strip away 'Token's.
-    , note_pos :: Pos
+    , notePos :: Pos
     } deriving (Eq, Show)
 
 data Call = Call CallText
@@ -161,8 +161,8 @@ instance Pretty pitch => Pretty (NPitch pitch) where
     pretty CopyFrom = "CopyFrom"
 
 data Pitch = Pitch
-    { pitch_octave :: Octave
-    , pitch_call :: Text
+    { pitchOctave :: Octave
+    , pitchCall :: Text
     } deriving (Eq, Show)
 
 type PitchText = Text
@@ -176,10 +176,10 @@ data NDuration = NDuration Duration | CallDuration
 data Duration = Duration
     -- | Durations are specified as two optional integers: int1, or int1:int2.
     -- The interpretation is up to the dur Directive.
-    { dur_int1 :: Maybe Int
-    , dur_int2 :: Maybe Int
-    , dur_dots :: Int
-    , dur_tie :: Bool
+    { durInt1 :: Maybe Int
+    , durInt2 :: Maybe Int
+    , durDots :: Int
+    , durTie :: Bool
     } deriving (Eq, Show)
 
 -- * error
@@ -193,26 +193,26 @@ data Error = Error Pos Text
 instance Pretty Error where
     pretty (Error (Pos pos) msg) = pretty pos <> ": " <> msg
 
-fake_pos :: Pos
-fake_pos = Pos (-1)
+fakePos :: Pos
+fakePos = Pos (-1)
 
-show_error :: Text -> Error -> Text
-show_error source (Error pos msg) =
-    Texts.unlines2 msg $ fromMaybe "" $ show_pos source pos
+showError :: Text -> Error -> Text
+showError source (Error pos msg) =
+    Texts.unlines2 msg $ fromMaybe "" $ showPos source pos
 
-show_pos :: Text -> Pos -> Maybe Text
-show_pos source pos = fmt <$> find_pos source pos
+showPos :: Text -> Pos -> Maybe Text
+showPos source pos = fmt <$> findPos source pos
     where
-    fmt (line_num, char_num, line) = Text.unlines
-        [ Text.justifyRight 3 ' ' (showt line_num) <> " | " <> line
-        , Text.replicate (3 + 3 + char_num) " " <> "^"
+    fmt (lineNum, charNum, line) = Text.unlines
+        [ Text.justifyRight 3 ' ' (showt lineNum) <> " | " <> line
+        , Text.replicate (3 + 3 + charNum) " " <> "^"
         ]
 
 -- | Find the line and position on that line.
-find_pos :: Text -> Pos -> Maybe (Int, Int, Text) -- ^ (linenum, col, line)
-find_pos source (Pos pos) =
+findPos :: Text -> Pos -> Maybe (Int, Int, Text) -- ^ (linenum, col, line)
+findPos source (Pos pos) =
     case Lists.dropBefore (fst . snd) pos (zip [1..] lines) of
-        (line_num, (start, line)) : _ -> Just (line_num, pos - start, line)
+        (lineNum, (start, line)) : _ -> Just (lineNum, pos - start, line)
         _ -> Nothing
     where
     lines = Lists.scanlOn (+) ((+1) . Text.length) 0 $ Text.lines source

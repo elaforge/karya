@@ -104,8 +104,8 @@ patchTests fname tests = go tests . zip [1..]
 extractNakedTests :: Text -> [Test]
 extractNakedTests = go . zip [1..] . Lists.zipPrev . Text.lines
     where
-    go ((i, (mb_prev, line)) : lines)
-        | Just def <- hasTestFunction line, Just prev <- mb_prev
+    go ((i, (mbPrev, line)) : lines)
+        | Just def <- hasTestFunction line, Just prev <- mbPrev
         , not ((def <> " ::") `Text.isPrefixOf` prev) = Test
             { testLineNumber = i
             , testName = def

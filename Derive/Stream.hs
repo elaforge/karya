@@ -8,24 +8,25 @@
 module Derive.Stream (
     Stream
     -- * construct
-    , empty, from_logs, from_event_logs, from_events, from_sorted_list
-    , from_event, from_sorted_events
+    , empty, fromLogs, fromEventLogs, fromEvents, fromSortedList
+    , fromEvent, fromSortedEvents
     -- * extract
-    , to_list, write_logs, partition, logs_of, events_of, length
+    , toList, writeLogs, partition, logsOf, eventsOf, length
     -- * transform
-    , take_while, drop_while, cat_maybes
+    , takeWhile, dropWhile, catMaybes
     , sort
-    , merge_asc_lists
-    , merge_log, merge_logs
-    , levent_key
+    , mergeAscLists
+    , mergeLog, mergeLogs
+    , leventKey
     -- ** specific transformations
-    , first, first_last
+    , first, firstLast
     -- ** zip
-    , zip, zip_on, zip3, zip3_on, zip4
+    , zip, zipOn, zip3, zip3On, zip4
     -- * misc util
-    , pretty_short_events, short_events
+    , prettyShortEvents, shortEvents
 ) where
-import Prelude hiding (length, zip, zip3)
+import Prelude hiding (length, dropWhile, takeWhile, zip, zip3)
+import qualified Prelude
 import qualified Control.DeepSeq as DeepSeq
 import qualified Data.List as List
 
@@ -82,18 +83,18 @@ instance Monoid Sorted where
     mappend = (<>)
 
 emap :: ([LEvent.LEvent a] -> [LEvent.LEvent b]) -> Stream a -> Stream b
-emap f = from_sorted_list . f . to_list
+emap f = fromSortedList . f . toList
 
 instance Semigroup (Stream Score.Event) where
     s1 <> s2 =
-        from_sorted_list $ Lists.mergeOn levent_key (to_list s1) (to_list s2)
+        fromSortedList $ Lists.mergeOn leventKey (toList s1) (toList s2)
     -- Stream s1 e1 <> Stream s2 e2 = case (s1, s2) of
     --     (Sorted, Sorted) -> from_sorted_list $ Lists.mergeOn levent_key e1 e2
     --     _ -> from_list (e1 <> e2)
 instance Monoid (Stream Score.Event) where
-    mempty = from_sorted_list mempty
+    mempty = fromSortedList mempty
     mappend = (<>)
-    mconcat = from_sorted_list . Lists.mergeLists levent_key . map to_list
+    mconcat = fromSortedList . Lists.mergeLists leventKey . map toList
     -- mconcat streams = from_sorted_list groups
     --     where
     --     groups = Lists.mergeLists levent_key
@@ -105,7 +106,7 @@ instance Monoid (Stream Score.Event) where
 -- such a big deal.
 
 instance Semigroup (Stream Signal.Control) where
-    s1 <> s2 = from_sorted_list (to_list s1 <> to_list s2)
+    s1 <> s2 = fromSortedList (toList s1 <> toList s2)
 
 -- | Signal.Control streams don't need sorted order.
 instance Monoid (Stream Signal.Control) where
@@ -113,13 +114,13 @@ instance Monoid (Stream Signal.Control) where
     mappend = (<>)
 
 instance Semigroup (Stream PSignal.PSignal) where
-    s1 <> s2 = from_sorted_list (to_list s1 <> to_list s2)
+    s1 <> s2 = fromSortedList (toList s1 <> toList s2)
 instance Monoid (Stream PSignal.PSignal) where
     mempty = empty
     mappend = (<>)
 
 instance DeepSeq.NFData a => DeepSeq.NFData (Stream a) where
-    rnf = DeepSeq.rnf . to_list
+    rnf = DeepSeq.rnf . toList
 
 instance Pretty a => Pretty (Stream a) where
     -- format (Stream sorted events) =
@@ -129,61 +130,61 @@ instance Pretty a => Pretty (Stream a) where
 -- * construct
 
 empty :: Stream a
-empty = from_sorted_list []
+empty = fromSortedList []
 
-from_logs :: [Log.Msg] -> Stream a
-from_logs = from_sorted_list . map LEvent.Log
+fromLogs :: [Log.Msg] -> Stream a
+fromLogs = fromSortedList . map LEvent.Log
 
-from_event_logs :: a -> [Log.Msg] -> Stream a
-from_event_logs e logs = from_sorted_list (LEvent.Event e : map LEvent.Log logs)
+fromEventLogs :: a -> [Log.Msg] -> Stream a
+fromEventLogs e logs = fromSortedList (LEvent.Event e : map LEvent.Log logs)
 
-from_sorted_list :: [LEvent.LEvent a] -> Stream a
-from_sorted_list = Stream -- Sorted
+fromSortedList :: [LEvent.LEvent a] -> Stream a
+fromSortedList = Stream -- Sorted
 
-from_list :: [LEvent.LEvent a] -> Stream a
-from_list = Stream -- Unsorted
+fromList :: [LEvent.LEvent a] -> Stream a
+fromList = Stream -- Unsorted
 
-from_events :: [a] -> Stream a
-from_events = from_list . map LEvent.Event
+fromEvents :: [a] -> Stream a
+fromEvents = fromList . map LEvent.Event
 
-from_event :: a -> Stream a
-from_event = from_sorted_list . (:[]) . LEvent.Event
+fromEvent :: a -> Stream a
+fromEvent = fromSortedList . (:[]) . LEvent.Event
 
 -- | Promise that the stream is really sorted.
-from_sorted_events :: [a] -> Stream a
-from_sorted_events = from_sorted_list . map LEvent.Event
+fromSortedEvents :: [a] -> Stream a
+fromSortedEvents = fromSortedList . map LEvent.Event
 
 -- * extract
 
-to_list :: Stream a -> [LEvent.LEvent a]
-to_list (Stream events) = events
+toList :: Stream a -> [LEvent.LEvent a]
+toList (Stream events) = events
 
-write_logs :: Log.LogMonad m => Stream a -> m [a]
-write_logs = LEvent.write_logs . to_list
+writeLogs :: Log.LogMonad m => Stream a -> m [a]
+writeLogs = LEvent.writeLogs . toList
 
 partition :: Stream a -> ([a], [Log.Msg])
-partition = LEvent.partition . to_list
+partition = LEvent.partition . toList
 
-logs_of :: Stream a -> [Log.Msg]
-logs_of = LEvent.logs_of . to_list
+logsOf :: Stream a -> [Log.Msg]
+logsOf = LEvent.logsOf . toList
 
-events_of :: Stream a -> [a]
-events_of = LEvent.events_of . to_list
+eventsOf :: Stream a -> [a]
+eventsOf = LEvent.eventsOf . toList
 
 length :: Stream a -> Int
-length = List.length . to_list
+length = List.length . toList
 
 -- * transform
 
-take_while :: (a -> Bool) -> Stream a -> Stream a
-take_while = emap . takeWhile . LEvent.log_or
+takeWhile :: (a -> Bool) -> Stream a -> Stream a
+takeWhile = emap . Prelude.takeWhile . LEvent.logOr
 
-drop_while :: (a -> Bool) -> Stream a -> Stream a
-drop_while = emap . dropWhile . LEvent.log_or
+dropWhile :: (a -> Bool) -> Stream a -> Stream a
+dropWhile = emap . Prelude.dropWhile . LEvent.logOr
 
 -- | 'Data.Maybe.catMaybes' for Stream.
-cat_maybes :: Stream (Maybe a) -> Stream a
-cat_maybes = emap go
+catMaybes :: Stream (Maybe a) -> Stream a
+catMaybes = emap go
     where
     go [] = []
     go (x : xs) = case x of
@@ -195,7 +196,7 @@ sort :: Stream Score.Event -> Stream Score.Event
 -- sort s@(Stream Sorted _) = s
 -- sort (Stream Unsorted events) =
 --     from_sorted_list $ Lists.sortOn levent_key events
-sort (Stream events) = from_sorted_list $ Lists.sortOn levent_key events
+sort (Stream events) = fromSortedList $ Lists.sortOn leventKey events
 
 -- | Merge sorted lists of events.  If the lists themselves are also sorted,
 -- I can produce output without scanning the entire input list, so this should
@@ -204,27 +205,27 @@ sort (Stream events) = from_sorted_list $ Lists.sortOn levent_key events
 -- This assumes all the streams are sorted.  I could check first, but this
 -- would destroy the laziness.  Instead, let it be out of order, and Convert
 -- will complain about it.
-merge_asc_lists :: [Stream Score.Event] -> Stream Score.Event
-merge_asc_lists streams = from_sorted_list $
-    Lists.mergeAscLists levent_key (map to_list streams)
+mergeAscLists :: [Stream Score.Event] -> Stream Score.Event
+mergeAscLists streams = fromSortedList $
+    Lists.mergeAscLists leventKey (map toList streams)
 
 -- | This will make logs always merge ahead of score events, but that should
 -- be ok.
-levent_key :: LEvent.LEvent Score.Event -> RealTime
-levent_key (LEvent.Log _) = -1/0 -- -Infinity
-levent_key (LEvent.Event event) = Score.event_start event
+leventKey :: LEvent.LEvent Score.Event -> RealTime
+leventKey (LEvent.Log _) = -1/0 -- -Infinity
+leventKey (LEvent.Event event) = Score.eventStart event
 
-merge_log :: Log.Msg -> Stream a -> Stream a
-merge_log log = emap (LEvent.Log log :)
+mergeLog :: Log.Msg -> Stream a -> Stream a
+mergeLog log = emap (LEvent.Log log :)
 
-merge_logs :: [Log.Msg] -> Stream e -> Stream e
-merge_logs logs = emap (map LEvent.Log logs ++)
+mergeLogs :: [Log.Msg] -> Stream e -> Stream e
+mergeLogs logs = emap (map LEvent.Log logs ++)
 
 -- ** specific transformations
 
 -- | Apply to the first Event that matches the predicate.
 first :: (a -> Bool) -> (a -> a) -> Stream a -> Stream a
-first matches f = from_sorted_list . go . to_list
+first matches f = fromSortedList . go . toList
     where
     go [] = []
     go (e : es) = case e of
@@ -233,37 +234,37 @@ first matches f = from_sorted_list . go . to_list
 
 -- | Apply to the first and last Event that matches the predicate.  If there
 -- are fewer than 2 such events, do nothing.
-first_last :: (a -> Bool) -> (a -> a) -> (a -> a) -> Stream a -> Stream a
-first_last matches start end = from_sorted_list . at_start . to_list
+firstLast :: (a -> Bool) -> (a -> a) -> (a -> a) -> Stream a -> Stream a
+firstLast matches start end = fromSortedList . atStart . toList
     where
-    at_start [] = []
-    at_start (e : es) = case e of
+    atStart [] = []
+    atStart (e : es) = case e of
         LEvent.Event e | matches e ->
             if any (LEvent.either matches (const False)) es
-                then LEvent.Event (start e) : at_end es
+                then LEvent.Event (start e) : atEnd es
                 else LEvent.Event e : es
-        _ -> e : at_start es
-    at_end [] = []
-    at_end (e : es) = case e of
+        _ -> e : atStart es
+    atEnd [] = []
+    atEnd (e : es) = case e of
         LEvent.Event e | matches e
-                && null (dropWhile (LEvent.log_or (not . matches)) es) ->
+                && null (Prelude.dropWhile (LEvent.logOr (not . matches)) es) ->
             LEvent.Event (end e) : es
-        _ -> e : at_end es
+        _ -> e : atEnd es
 
 -- ** zip
 
 zip :: [a] -> Stream x -> Stream (a, x)
 zip as = emap $ LEvent.zip as
 
-zip_on :: ([a] -> [b]) -> Stream a -> Stream (b, a)
-zip_on key = emap $ \xs -> LEvent.zip (key (LEvent.events_of xs)) xs
+zipOn :: ([a] -> [b]) -> Stream a -> Stream (b, a)
+zipOn key = emap $ \xs -> LEvent.zip (key (LEvent.eventsOf xs)) xs
 
 zip3 :: [a] -> [b] -> Stream x -> Stream (a, b, x)
 zip3 as bs = emap $ LEvent.zip3 as bs
 
-zip3_on :: ([a] -> [b]) -> ([a] -> [c]) -> Stream a -> Stream (b, c, a)
-zip3_on key1 key2 = emap $ \xs ->
-    LEvent.zip3 (key1 (LEvent.events_of xs)) (key2 (LEvent.events_of xs)) xs
+zip3On :: ([a] -> [b]) -> ([a] -> [c]) -> Stream a -> Stream (b, c, a)
+zip3On key1 key2 = emap $ \xs ->
+    LEvent.zip3 (key1 (LEvent.eventsOf xs)) (key2 (LEvent.eventsOf xs)) xs
 
 zip4 :: [a] -> [b] -> [c] -> Stream x -> Stream (a, b, c, x)
 zip4 as bs cs = emap $ LEvent.zip4 as bs cs
@@ -271,8 +272,8 @@ zip4 as bs cs = emap $ LEvent.zip4 as bs cs
 -- * misc util
 
 -- | Like 'Score.short_events', but works on a Stream.
-pretty_short_events :: Stream Score.Event -> Text
-pretty_short_events = pretty . Pretty.formattedList '[' ']' . short_events
+prettyShortEvents :: Stream Score.Event -> Text
+prettyShortEvents = pretty . Pretty.formattedList '[' ']' . shortEvents
 
-short_events :: Stream Score.Event -> [Text]
-short_events = map (LEvent.either Score.short_event pretty) . to_list
+shortEvents :: Stream Score.Event -> [Text]
+shortEvents = map (LEvent.either Score.shortEvent pretty) . toList

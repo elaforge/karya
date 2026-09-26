@@ -92,19 +92,19 @@ import           Global
 import           Types
 
 
-modify_play_multiplier :: Cmd.M m => (RealTime -> RealTime) -> m ()
-modify_play_multiplier f = do
-    Cmd.modify_play_state $ \st -> st
-        { Cmd.state_play_multiplier = to_1 $ f (Cmd.state_play_multiplier st) }
+modifyPlayMultiplier :: Cmd.M m => (RealTime -> RealTime) -> m ()
+modifyPlayMultiplier f = do
+    Cmd.modifyPlayState $ \st -> st
+        { Cmd.statePlayMultiplier = to1 $ f (Cmd.statePlayMultiplier st) }
     -- A change in state_play_multiplier is not damage for MIDI because it only
     -- affects playback, but it is damage for im, which needs to rerender
     -- audio.  Since there is no change to Ui.State, I have to force a rederive
     -- here.
-    whenM has_im Cmd.invalidate_performances
+    whenM hasIm Cmd.invalidatePerformances
     where
     -- Set to 1 if I'm this close.  Otherwise repeated multiplies don't
     -- necessarily come back exactly.
-    to_1 val
+    to1 val
         | abs (1 - val) <= threshold = 1
         | otherwise = val
     threshold = 0.01
@@ -115,194 +115,194 @@ modify_play_multiplier f = do
 -- realtime play, then step play, and then it just sends all notes off.  If
 -- it does the last one, it returns False in case you want to go stop something
 -- else.
-cmd_context_stop :: Cmd.CmdT IO Bool
-cmd_context_stop = gets Cmd.state_play_control >>= \case
+cmdContextStop :: Cmd.CmdT IO Bool
+cmdContextStop = gets Cmd.statePlayControl >>= \case
     [] -> do
-        step_playing <- Cmd.gets $
-            Maybe.isJust . Cmd.state_step . Cmd.state_play
-        if step_playing
-            then StepPlay.cmd_clear >> pure True
+        stepPlaying <- Cmd.gets $
+            Maybe.isJust . Cmd.stateStep . Cmd.statePlay
+        if stepPlaying
+            then StepPlay.cmdClear >> pure True
             -- play_cache may still be streaming after the karya transport
             -- stops.
             else do
-                Cmd.all_notes_off
-                stop_im
-                liftIO Sc.Play.force_stop
+                Cmd.allNotesOff
+                stopIm
+                liftIO Sc.Play.forceStop
                 pure False
     ctls -> stop ctls >> pure True
 
-cmd_stop :: Cmd.CmdT IO Cmd.Status
-cmd_stop = do
-    stop =<< gets Cmd.state_play_control
+cmdStop :: Cmd.CmdT IO Cmd.Status
+cmdStop = do
+    stop =<< gets Cmd.statePlayControl
     pure Cmd.Done
 
 stop :: [Transport.PlayControl] -> Cmd.CmdT IO ()
 stop ctls = do
-    liftIO $ mapM_ Transport.stop_player ctls
-    stop_im
+    liftIO $ mapM_ Transport.stopPlayer ctls
+    stopIm
 
 -- | Stop im stream, if playing.  See NOTE [play-im].
-stop_im :: Cmd.CmdT IO ()
-stop_im = whenJustM im_addr $ \(wdev, chan) ->
+stopIm :: Cmd.CmdT IO ()
+stopIm = whenJustM imAddr $ \(wdev, chan) ->
     Cmd.midi wdev $ Midi.ChannelMessage chan Im.Play.stop
 
-has_im :: Cmd.M m => m Bool
-has_im = Maybe.isJust <$> im_addr
+hasIm :: Cmd.M m => m Bool
+hasIm = Maybe.isJust <$> imAddr
 
 -- * play
 
-set_previous_play :: Cmd.M m => Text -> Cmd.CmdId Cmd.PlayArgs -> m ()
-set_previous_play name cmd = Cmd.modify_play_state $ \st ->
-    st { Cmd.state_previous_play = Just (Cmd.PlayCmd name cmd) }
+setPreviousPlay :: Cmd.M m => Text -> Cmd.CmdId Cmd.PlayArgs -> m ()
+setPreviousPlay name cmd = Cmd.modifyPlayState $ \st ->
+    st { Cmd.statePreviousPlay = Just (Cmd.PlayCmd name cmd) }
 
 -- | Play the local block from its beginning.
-local_block :: Cmd.M m => m Cmd.PlayArgs
-local_block = do
-    block_id <- Cmd.get_focused_block
-    from_score block_id Nothing 0 Nothing
+localBlock :: Cmd.M m => m Cmd.PlayArgs
+localBlock = do
+    blockId <- Cmd.getFocusedBlock
+    fromScore blockId Nothing 0 Nothing
 
 -- | Start playing from the point selection on the local block.  If the
 -- selection is a range, loop that range forever.
-local_selection :: Cmd.M m => m Cmd.PlayArgs
-local_selection = do
-    (block_id, _, track_id, _) <- Selection.get_insert
+localSelection :: Cmd.M m => m Cmd.PlayArgs
+localSelection = do
+    (blockId, _, trackId, _) <- Selection.getInsert
     sel <- Selection.get
-    let (pos, repeat_at) = if Sel.is_point sel
-            then (Sel.start_pos sel, Nothing)
+    let (pos, repeatAt) = if Sel.isPoint sel
+            then (Sel.startPos sel, Nothing)
             else Just <$> Sel.range sel
-    from_score block_id (Just track_id) pos repeat_at
+    fromScore blockId (Just trackId) pos repeatAt
 
 -- | Play the current block's performance from the previous
 -- 'Cmd.state_play_step'.
-local_previous :: Cmd.M m => m Cmd.PlayArgs
-local_previous = do
-    step <- gets Cmd.state_play_step
-    (block_id, tracknum, track_id, pos) <- Selection.get_insert
-    prev <- TimeStep.rewind step block_id tracknum pos
-    local_from block_id track_id (fromMaybe 0 prev)
+localPrevious :: Cmd.M m => m Cmd.PlayArgs
+localPrevious = do
+    step <- gets Cmd.statePlayStep
+    (blockId, tracknum, trackId, pos) <- Selection.getInsert
+    prev <- TimeStep.rewind step blockId tracknum pos
+    localFrom blockId trackId (fromMaybe 0 prev)
 
 -- | Play the current block's performance from the top of the window.
-local_top :: Cmd.M m => m Cmd.PlayArgs
-local_top = do
-    (block_id, track_id, top) <- top_of_block
-    local_from block_id track_id top
+localTop :: Cmd.M m => m Cmd.PlayArgs
+localTop = do
+    (blockId, trackId, top) <- topOfBlock
+    localFrom blockId trackId top
 
-local_from :: Cmd.M m => BlockId -> TrackId -> TrackTime -> m Cmd.PlayArgs
-local_from block_id track_id pos =
-    from_score block_id (Just track_id) pos Nothing
+localFrom :: Cmd.M m => BlockId -> TrackId -> TrackTime -> m Cmd.PlayArgs
+localFrom blockId trackId pos =
+    fromScore blockId (Just trackId) pos Nothing
 
 -- | Play the root block from its beginning.
-root_block :: Cmd.M m => m Cmd.PlayArgs
-root_block = do
-    Ui.lookup_root_id >>= \case
-        Nothing -> local_block
-        Just root_id -> from_score root_id Nothing 0 Nothing
+rootBlock :: Cmd.M m => m Cmd.PlayArgs
+rootBlock = do
+    Ui.lookupRootId >>= \case
+        Nothing -> localBlock
+        Just rootId -> fromScore rootId Nothing 0 Nothing
 
 -- | Play the root performance from the selection on the root block.  This
 -- is useful to manually set a point to start playing.
-root_from_root_selection :: Cmd.M m => m Cmd.PlayArgs
-root_from_root_selection = do
-    (block_id, _, track_id, pos) <- Selection.get_root_insert
-    from_score block_id (Just track_id) pos Nothing
+rootFromRootSelection :: Cmd.M m => m Cmd.PlayArgs
+rootFromRootSelection = do
+    (blockId, _, trackId, pos) <- Selection.getRootInsert
+    fromScore blockId (Just trackId) pos Nothing
 
 -- | The same as 'local_selection', but use the root performance.
-root_selection :: Cmd.M m => m Cmd.PlayArgs
-root_selection = do
-    (block_id, _, track_id, _) <- Selection.get_insert
+rootSelection :: Cmd.M m => m Cmd.PlayArgs
+rootSelection = do
+    (blockId, _, trackId, _) <- Selection.getInsert
     sel <- Selection.get
-    let (pos, repeat_at)
-            | Sel.is_point sel = (Sel.start_pos sel, Nothing)
+    let (pos, repeatAt)
+            | Sel.isPoint sel = (Sel.startPos sel, Nothing)
             | otherwise = Just <$> Sel.range sel
-    Ui.lookup_root_id >>= \case
-        Nothing -> local_selection
-        Just root_id -> do
-            perf <- get_performance root_id
-            let realtime_at = Perf.lookup_realtime perf block_id (Just track_id)
-            real_repeat_at <- maybe (pure Nothing) realtime_at repeat_at
-            maybe local_selection (from_realtime root_id real_repeat_at)
-                =<< realtime_at pos
+    Ui.lookupRootId >>= \case
+        Nothing -> localSelection
+        Just rootId -> do
+            perf <- getPerformance rootId
+            let realtimeAt = Perf.lookupRealtime perf blockId (Just trackId)
+            realRepeatAt <- maybe (pure Nothing) realtimeAt repeatAt
+            maybe localSelection (fromRealtime rootId realRepeatAt)
+                =<< realtimeAt pos
 
 -- | Find the previous step on the focused block, get its RealTime, and play
 -- from the root at that RealTime.  If this block isn't linked from the root,
 -- then fall back on 'local_previous'.
-root_previous :: Cmd.M m => m Cmd.PlayArgs
-root_previous = do
-    (block_id, tracknum, track_id, pos) <- Selection.get_insert
-    step <- gets Cmd.state_play_step
-    prev <- fromMaybe pos <$> TimeStep.rewind step block_id tracknum pos
-    root_from block_id track_id prev
+rootPrevious :: Cmd.M m => m Cmd.PlayArgs
+rootPrevious = do
+    (blockId, tracknum, trackId, pos) <- Selection.getInsert
+    step <- gets Cmd.statePlayStep
+    prev <- fromMaybe pos <$> TimeStep.rewind step blockId tracknum pos
+    rootFrom blockId trackId prev
 
 -- | Like 'root_previous', but play from the top of the selected block.
-root_top :: Cmd.M m => m Cmd.PlayArgs
-root_top = do
-    (block_id, track_id, top) <- top_of_block
-    root_from block_id track_id top
+rootTop :: Cmd.M m => m Cmd.PlayArgs
+rootTop = do
+    (blockId, trackId, top) <- topOfBlock
+    rootFrom blockId trackId top
 
-top_of_block :: Cmd.M m => m (BlockId, TrackId, TrackTime)
-top_of_block = do
-    (block_id, _, track_id, _) <- Selection.get_insert
-    view_id <- Cmd.get_focused_view
-    top <- Zoom.offset . Block.view_zoom <$> Ui.get_view view_id
-    pure (block_id, track_id, top)
+topOfBlock :: Cmd.M m => m (BlockId, TrackId, TrackTime)
+topOfBlock = do
+    (blockId, _, trackId, _) <- Selection.getInsert
+    viewId <- Cmd.getFocusedView
+    top <- Zoom.offset . Block.viewZoom <$> Ui.getView viewId
+    pure (blockId, trackId, top)
 
-root_from :: Cmd.M m => BlockId -> TrackId -> TrackTime -> m Cmd.PlayArgs
-root_from block_id track_id pos = do
-    play_root <- maybe_root_from block_id track_id pos
-    maybe (local_from block_id track_id pos) pure play_root
+rootFrom :: Cmd.M m => BlockId -> TrackId -> TrackTime -> m Cmd.PlayArgs
+rootFrom blockId trackId pos = do
+    playRoot <- maybeRootFrom blockId trackId pos
+    maybe (localFrom blockId trackId pos) pure playRoot
 
-maybe_root_from :: Cmd.M m => BlockId -> TrackId -> ScoreTime
+maybeRootFrom :: Cmd.M m => BlockId -> TrackId -> ScoreTime
     -> m (Maybe Cmd.PlayArgs)
-maybe_root_from block_id track_id pos =
-    justm Ui.lookup_root_id $ \root_id -> do
-        perf <- get_performance root_id
-        justm (Perf.lookup_realtime perf block_id (Just track_id) pos) $
-            \start -> Just <$> from_realtime root_id Nothing start
+maybeRootFrom blockId trackId pos =
+    justm Ui.lookupRootId $ \rootId -> do
+        perf <- getPerformance rootId
+        justm (Perf.lookupRealtime perf blockId (Just trackId) pos) $
+            \start -> Just <$> fromRealtime rootId Nothing start
 
-from_score :: Cmd.M m => BlockId
+fromScore :: Cmd.M m => BlockId
     -> Maybe TrackId -- ^ Track to play from.  Since different tracks can have
     -- different tempos, a track is needed to convert to RealTime.  If not
     -- given, use the first track that has tempo information.
     -> ScoreTime -- ^ Convert to RealTime and start playing from this time.
     -> Maybe ScoreTime
     -> m Cmd.PlayArgs
-from_score block_id start_track start_pos repeat_at = do
-    start <- get_realtime block_id block_id start_track start_pos
-    repeat_at <- maybe (pure Nothing)
-        (fmap Just . get_realtime block_id block_id start_track) repeat_at
-    from_realtime block_id repeat_at start
+fromScore blockId startTrack startPos repeatAt = do
+    start <- getRealtime blockId blockId startTrack startPos
+    repeatAt <- maybe (pure Nothing)
+        (fmap Just . getRealtime blockId blockId startTrack) repeatAt
+    fromRealtime blockId repeatAt start
 
-get_realtime :: Cmd.M m => BlockId
+getRealtime :: Cmd.M m => BlockId
     -- ^ Lookup realtime according to the performance of this block.
     -> BlockId
     -- ^ Lookup realtime at the position (TrackId, ScoreTime) within this block.
     -> Maybe TrackId -> ScoreTime
     -> m RealTime
-get_realtime perf_block play_block maybe_track_id pos = do
-    perf <- get_performance perf_block
-    maybe_start <- Perf.lookup_realtime perf play_block maybe_track_id pos
-    case maybe_start of
-        Nothing -> Cmd.throw $ "play " <> showt perf_block
+getRealtime perfBlock playBlock maybeTrackId pos = do
+    perf <- getPerformance perfBlock
+    maybeStart <- Perf.lookupRealtime perf playBlock maybeTrackId pos
+    case maybeStart of
+        Nothing -> Cmd.throw $ "play " <> showt perfBlock
             <> " has no tempo information"
         Just start -> pure start
 
-get_performance :: Cmd.M m => BlockId -> m Cmd.Performance
-get_performance block_id = do
-    perf <- Perf.get_current block_id
-    write_logs block_id perf
+getPerformance :: Cmd.M m => BlockId -> m Cmd.Performance
+getPerformance blockId = do
+    perf <- Perf.getCurrent blockId
+    writeLogs blockId perf
     pure perf
 
-write_logs :: Cmd.M m => BlockId -> Cmd.Performance -> m ()
-write_logs block_id perf = unless (Cmd.perf_logs_written perf) $ do
+writeLogs :: Cmd.M m => BlockId -> Cmd.Performance -> m ()
+writeLogs blockId perf = unless (Cmd.perfLogsWritten perf) $ do
     -- There are so many cache msgs it clogs up logview.  I'm writing a summary
     -- anyway so I can filter them out.
-    mapM_ Log.write $ filter (not . Cache.is_cache_log) (Cmd.perf_logs perf)
+    mapM_ Log.write $ filter (not . Cache.isCacheLog) (Cmd.perfLogs perf)
     -- Logview can only display one set of stats, so only show the root block.
-    whenM ((== Just block_id) <$> Ui.lookup_root_id) $
-        record_cache_stats (Cmd.perf_logs perf)
-    Cmd.modify_play_state $ \st -> st
-        { Cmd.state_current_performance = Map.insert block_id
-            (perf { Cmd.perf_logs_written = True })
-            (Cmd.state_current_performance st)
+    whenM ((== Just blockId) <$> Ui.lookupRootId) $
+        recordCacheStats (Cmd.perfLogs perf)
+    Cmd.modifyPlayState $ \st -> st
+        { Cmd.stateCurrentPerformance = Map.insert blockId
+            (perf { Cmd.perfLogsWritten = True })
+            (Cmd.stateCurrentPerformance st)
         }
 
 -- | Summarize the cache stats and emit them as global status msgs.
@@ -318,176 +318,176 @@ write_logs block_id perf = unless (Cmd.perf_logs_written perf) $ do
 -- prefixed with a tilde to make them sort last in the logview status line.
 --
 -- 'Cmd.Repl.LPerf.cache_stats' gives a more complete summary.
-record_cache_stats :: Cmd.M m => [Log.Msg] -> m ()
-record_cache_stats logs = do
-    let (rederived, cached) = extract_cache_stats get_block_id logs
-    Cmd.set_global_status "~C" $ "[" <> showt (length cached) <> " / "
+recordCacheStats :: Cmd.M m => [Log.Msg] -> m ()
+recordCacheStats logs = do
+    let (rederived, cached) = extractCacheStats getBlockId logs
+    Cmd.setGlobalStatus "~C" $ "[" <> showt (length cached) <> " / "
         <> showt (Num.sum (map snd cached)) <> "] "
-        <> elide (Text.unwords (map (Id.ident_name . fst) cached))
-    status_keys <- Cmd.gets (Map.keysSet . Cmd.state_global_status)
+        <> elide (Text.unwords (map (Id.identName . fst) cached))
+    statusKeys <- Cmd.gets (Map.keysSet . Cmd.stateGlobalStatus)
     let keys = map (("~X "<>) . fst) rederived
         gone = Set.filter ("~X " `Text.isPrefixOf`) $
-            status_keys Set.\\ Set.fromList keys
-    forM_ (zip keys (map snd rederived)) $ \(key, block_ids) ->
-        Cmd.set_global_status key $ "[" <> showt (length block_ids) <> "] "
-            <> elide (Text.unwords (map Id.ident_name block_ids))
-    forM_ (Set.toList gone) $ \key -> Cmd.set_global_status key ""
+            statusKeys Set.\\ Set.fromList keys
+    forM_ (zip keys (map snd rederived)) $ \(key, blockIds) ->
+        Cmd.setGlobalStatus key $ "[" <> showt (length blockIds) <> "] "
+            <> elide (Text.unwords (map Id.identName blockIds))
+    forM_ (Set.toList gone) $ \key -> Cmd.setGlobalStatus key ""
     where
-    max_chars = 45
+    maxChars = 45
     elide s
-        | Text.length s > max_chars = Text.take (max_chars-3) s <> "..."
+        | Text.length s > maxChars = Text.take (maxChars-3) s <> "..."
         | otherwise = s
 
-extract_cache_stats :: (Log.Msg -> Maybe k) -> [Log.Msg]
+extractCacheStats :: (Log.Msg -> Maybe k) -> [Log.Msg]
     -> ([(Text, [k])], [(k, Int)])
     -- ^ (cache misses, cache hits):
     -- ([(because, [key])], [(key, cached_vals)])
-extract_cache_stats key logs = (rederived, cached)
+extractCacheStats key logs = (rederived, cached)
     where
     -- [("because xyz", [bid, bid, bid, ...])]
     rederived = map (second (map fst)) $ Lists.keyedGroupSort snd
-        [(block_id, because) | (block_id, Left because) <- stats]
+        [(blockId, because) | (blockId, Left because) <- stats]
     -- [(bid1, 42), (bid2, 32), ...]
-    cached = [(block_id, vals) | (block_id, Right vals) <- stats]
+    cached = [(blockId, vals) | (blockId, Right vals) <- stats]
     stats = mapMaybe extract logs
     extract log = case key log of
         Nothing -> Nothing
-        Just block_id
-            | Just because <- Cache.cache_miss_reason log ->
-                Just (block_id, Left because)
-            | Just vals <- Cache.cache_hit_events log ->
-                Just (block_id, Right vals)
+        Just blockId
+            | Just because <- Cache.cacheMissReason log ->
+                Just (blockId, Left because)
+            | Just vals <- Cache.cacheHitEvents log ->
+                Just (blockId, Right vals)
             | otherwise -> Nothing
 
 -- | Get block cache stats.
-get_block_id :: Log.Msg -> Maybe BlockId
-get_block_id = Stack.block_of <=< Lists.head . Stack.innermost <=< Log.msg_stack
+getBlockId :: Log.Msg -> Maybe BlockId
+getBlockId = Stack.blockOf <=< Lists.head . Stack.innermost <=< Log.msgStack
 
 -- | Get track cache stats.
-get_track_id :: Log.Msg -> Maybe (BlockId, TrackId)
-get_track_id = Stack.block_track_of <=< Log.msg_stack
+getTrackId :: Log.Msg -> Maybe (BlockId, TrackId)
+getTrackId = Stack.blockTrackOf <=< Log.msgStack
 
 -- | Play the performance of the given block starting from the given time.
-from_realtime :: Cmd.M m => BlockId -> Maybe RealTime -> RealTime
+fromRealtime :: Cmd.M m => BlockId -> Maybe RealTime -> RealTime
     -> m Cmd.PlayArgs
-from_realtime block_id repeat_at start_ = do
+fromRealtime blockId repeatAt start_ = do
     -- Since 0 is considered "the beginning", even if that happens to be before
     -- 0, there's no point asking for something before 0, and will just cause
     -- play to seem to wedge for a moment.  'PlayUtil.perform_from' has
     -- a special hack to notice and include notes < 0.
     let start = max 0 start_
-    perf <- Perf.get_current block_id
-    multiplier <- gets (recip . Cmd.state_play_multiplier)
+    perf <- Perf.getCurrent blockId
+    multiplier <- gets (recip . Cmd.statePlayMultiplier)
 
-    maybe_sync <- gets Cmd.state_sync
-    case maybe_sync of
+    maybeSync <- gets Cmd.stateSync
+    case maybeSync of
         -- Don't bother with a MMC Goto if I'm going to send MTC.
-        Just sync | not (Cmd.sync_mtc sync) ->
-            Cmd.midi (Cmd.sync_device sync) $ Selection.mmc_goto sync start
+        Just sync | not (Cmd.syncMtc sync) ->
+            Cmd.midi (Cmd.syncDevice sync) $ Selection.mmcGoto sync start
         _ -> pure ()
     -- MTC rounds up to the previous whole frame, so the mtc might start
     -- slightly before the notes.
     -- TODO actually DAWs need a bit of time to sync, so maybe I should start
     -- further in advance.
-    let mtc = PlayUtil.shift_midi 1 start $ map LEvent.Event $
-            generate_mtc maybe_sync start
+    let mtc = PlayUtil.shiftMidi 1 start $ map LEvent.Event $
+            generateMtc maybeSync start
 
-    im_play_direct <- Cmd.gets $ Cmd.config_im_play_direct . Cmd.state_config
-    im_insts <- get_im_insts
-    mb_play_cache_addr <- if im_play_direct || Set.null im_insts
+    imPlayDirect <- Cmd.gets $ Cmd.configImPlayDirect . Cmd.stateConfig
+    imInsts <- getImInsts
+    mbPlayCacheAddr <- if imPlayDirect || Set.null imInsts
         then pure Nothing
-        else im_addr
-    muted <- Perf.muted_im_instruments block_id
-    score_path <- Cmd.gets Cmd.score_path
-    let im_msgs = maybe []
-            (im_play_msgs score_path block_id muted (start * multiplier))
-            mb_play_cache_addr
+        else imAddr
+    muted <- Perf.mutedImInstruments blockId
+    scorePath <- Cmd.gets Cmd.scorePath
+    let imMsgs = maybe []
+            (imPlayMsgs scorePath blockId muted (start * multiplier))
+            mbPlayCacheAddr
 
-    (midi_msgs, sc_msgs) <- PlayUtil.perform_from start (Cmd.perf_events perf)
-    let adjust0 = get_adjust0 start (not (null im_msgs)) midi_msgs
-            (Cmd.perf_events perf)
-    midi_msgs <- pure $ PlayUtil.shift_midi multiplier adjust0 midi_msgs
+    (midiMsgs, scMsgs) <- PlayUtil.performFrom start (Cmd.perfEvents perf)
+    let adjust0 = getAdjust0 start (not (null imMsgs)) midiMsgs
+            (Cmd.perfEvents perf)
+    midiMsgs <- pure $ PlayUtil.shiftMidi multiplier adjust0 midiMsgs
 
     -- See doc for "Cmd.PlayC" for why I return a magic value.
     pure $ Cmd.PlayArgs
-        { play_sync = maybe_sync
-        , play_name = pretty block_id
-        , play_midi = im_msgs ++ merge_midi midi_msgs mtc
-        , play_sc = Sc.Note.PlayNotes
-            { shift = adjust0, stretch = multiplier, notes = sc_msgs }
-        , play_inv_tempo = Just $ \stop ->
-            Cmd.perf_inv_tempo perf stop . (+adjust0) . (/multiplier)
-        , play_repeat_at = (*multiplier) . subtract start <$> repeat_at
-        , play_im_end = if Set.null im_insts then Nothing
-            else subtract adjust0 . Score.event_end <$> Util.Vector.find_end
-                ((`Set.member` im_insts) . Score.event_instrument)
-                (Cmd.perf_events perf)
-        , play_im_direct = if Set.null im_insts || not im_play_direct
+        { playSync = maybeSync
+        , playName = pretty blockId
+        , playMidi = imMsgs ++ mergeMidi midiMsgs mtc
+        , playSc = Sc.Note.PlayNotes
+            { shift = adjust0, stretch = multiplier, notes = scMsgs }
+        , playInvTempo = Just $ \stop ->
+            Cmd.perfInvTempo perf stop . (+adjust0) . (/multiplier)
+        , playRepeatAt = (*multiplier) . subtract start <$> repeatAt
+        , playImEnd = if Set.null imInsts then Nothing
+            else subtract adjust0 . Score.eventEnd <$> Util.Vector.findEnd
+                ((`Set.member` imInsts) . Score.eventInstrument)
+                (Cmd.perfEvents perf)
+        , playImDirect = if Set.null imInsts || not imPlayDirect
             then Nothing
             else Just $ Cmd.PlayDirectArgs
-                { play_score_path = score_path
-                , play_block_id = block_id
-                , play_muted = muted
-                , play_start = start * multiplier
+                { playScorePath = scorePath
+                , playBlockId = blockId
+                , playMuted = muted
+                , playStart = start * multiplier
                 }
         }
 
-get_adjust0 :: RealTime -> Bool -> [LEvent.LEvent Midi.WriteMessage]
+getAdjust0 :: RealTime -> Bool -> [LEvent.LEvent Midi.WriteMessage]
     -> Vector.Vector Score.Event -> RealTime
-get_adjust0 start has_im midi_msgs events = negative_start - im_latency
+getAdjust0 start hasIm midiMsgs events = negativeStart - imLatency
     where
     -- Events can wind up before 0, say if there's a grace note on a note at 0.
     -- To have them play correctly, perform_from will give me negative events
     -- when starting from 0, and then I have to shift the start time back to
     -- consider the first event the new 0.
-    negative_start
-        | start == 0 && fst_msg < 0 = fst_msg
+    negativeStart
+        | start == 0 && fstMsg < 0 = fstMsg
         | otherwise = start
     -- The first MIDI msg will incorporate any possible leading controls.
     -- The first Score.Event should be after that, unless there's an im
     -- event at negative time.
-    fst_msg = min first_score (PlayUtil.first_time midi_msgs)
-    first_score = maybe 0 Score.event_start $ Lists.head $ Vector.toList $
+    fstMsg = min firstScore (PlayUtil.firstTime midiMsgs)
+    firstScore = maybe 0 Score.eventStart $ Lists.head $ Vector.toList $
         Vector.take 1 events
-    im_latency = if has_im
+    imLatency = if hasIm
         then toSeconds Shared.Config.startLatency else 0
     -- This duplicates AUtil.toSeconds, but AUtil winds up importing
     -- Audio.Audio, and hence VectorC, which incurs a dep on vector.cc.o.
     toSeconds = RealTime.seconds
         . AudioT.framesToSeconds Shared.Config.samplingRate
 
-get_im_insts :: Cmd.M m => m (Set ScoreT.Instrument)
-get_im_insts = do
-    allocs <- Ui.config#UiConfig.allocations_map <#> Ui.get
+getImInsts :: Cmd.M m => m (Set ScoreT.Instrument)
+getImInsts = do
+    allocs <- Ui.config#UiConfig.allocationsMap <#> Ui.get
     pure $ Set.fromList $ map fst $
-        filter (UiConfig.is_im_allocation . snd) $ Map.toList allocs
+        filter (UiConfig.isImAllocation . snd) $ Map.toList allocs
 
 -- TODO: I still support explicitly allocated play-cache for historical
 -- reasons, but eventually I should just standardize on config_play_cache?
-im_addr :: Cmd.M m => m (Maybe Patch.Addr)
-im_addr = do
-    allocs <- Ui.config#UiConfig.allocations_map <#> Ui.get
-    config_play_cache <- Cmd.gets $ Cmd.config_play_cache . Cmd.state_config
-    case List.find is_play_cache (Map.elems allocs) of
-        Nothing -> pure config_play_cache
-        Just alloc -> case UiConfig.alloc_backend alloc of
-            UiConfig.Midi config -> case Patch.config_addrs config of
+imAddr :: Cmd.M m => m (Maybe Patch.Addr)
+imAddr = do
+    allocs <- Ui.config#UiConfig.allocationsMap <#> Ui.get
+    configPlayCache <- Cmd.gets $ Cmd.configPlayCache . Cmd.stateConfig
+    case List.find isPlayCache (Map.elems allocs) of
+        Nothing -> pure configPlayCache
+        Just alloc -> case UiConfig.allocBackend alloc of
+            UiConfig.Midi config -> case Patch.configAddrs config of
                 [addr] -> pure (Just addr)
                 [] -> Cmd.throw $
-                    pretty UiConfig.play_cache <> " allocation with no addrs"
+                    pretty UiConfig.playCache <> " allocation with no addrs"
                 _ -> Cmd.throw $
-                    pretty UiConfig.play_cache <> " allocation with >1 addrs"
+                    pretty UiConfig.playCache <> " allocation with >1 addrs"
             _ -> Cmd.throw $
-                pretty UiConfig.play_cache <> " with non-MIDI allocation"
+                pretty UiConfig.playCache <> " with non-MIDI allocation"
     where
-    is_play_cache = (==UiConfig.play_cache) . UiConfig.alloc_qualified
+    isPlayCache = (==UiConfig.playCache) . UiConfig.allocQualified
 
-im_play_msgs :: FilePath -> BlockId -> Set ScoreT.Instrument -> RealTime
+imPlayMsgs :: FilePath -> BlockId -> Set ScoreT.Instrument -> RealTime
     -> Patch.Addr -> [LEvent.LEvent Midi.WriteMessage]
-im_play_msgs score_path block_id muted start (wdev, chan) =
+imPlayMsgs scorePath blockId muted start (wdev, chan) =
     zipWith msg ts $ concat
-        [ Im.Play.encode_time start
-        , Im.Play.encode_play_config score_path block_id muted
+        [ Im.Play.encodeTime start
+        , Im.Play.encodePlayConfig scorePath blockId muted
         , [Im.Play.start]
         ]
     where
@@ -501,13 +501,13 @@ im_play_msgs score_path block_id muted start (wdev, chan) =
     ts = map RealTime.milliseconds [0..]
 
 -- | Merge a finite list of notes with an infinite list of MTC.
-merge_midi :: [LEvent.LEvent Midi.WriteMessage]
+mergeMidi :: [LEvent.LEvent Midi.WriteMessage]
     -> [LEvent.LEvent Midi.WriteMessage] -> [LEvent.LEvent Midi.WriteMessage]
-merge_midi = merge_until (LEvent.either Midi.wmsg_ts (const 0))
+mergeMidi = mergeUntil (LEvent.either Midi.wmsgTs (const 0))
 
 -- | Merge until the leftmost list runs out.
-merge_until :: Ord k => (a -> k) -> [a] -> [a] -> [a]
-merge_until key = go
+mergeUntil :: Ord k => (a -> k) -> [a] -> [a] -> [a]
+mergeUntil key = go
     where
     go xs [] = xs
     go [] _ = []
@@ -515,25 +515,25 @@ merge_until key = go
         | key x <= key y = x : go xs (y:ys)
         | otherwise = y : go (x:xs) ys
 
-generate_mtc :: Maybe Cmd.SyncConfig -> RealTime -> [Midi.WriteMessage]
-generate_mtc (Just sync) start | Cmd.sync_mtc sync =
-    map make $ (0, Midi.mtc_sync rate smpte) : Midi.generate_mtc rate frame
+generateMtc :: Maybe Cmd.SyncConfig -> RealTime -> [Midi.WriteMessage]
+generateMtc (Just sync) start | Cmd.syncMtc sync =
+    map make $ (0, Midi.mtcSync rate smpte) : Midi.generateMtc rate frame
     where
-    smpte = Midi.frame_to_smpte rate frame
-    frame = Midi.seconds_to_frame rate (RealTime.to_seconds start)
-    rate = Cmd.sync_frame_rate sync
+    smpte = Midi.frameToSmpte rate frame
+    frame = Midi.secondsToFrame rate (RealTime.toSeconds start)
+    rate = Cmd.syncFrameRate sync
     make (secs, msg) =
-        Midi.WriteMessage (Cmd.sync_device sync) (RealTime.seconds secs) msg
-generate_mtc _ _ = []
+        Midi.WriteMessage (Cmd.syncDevice sync) (RealTime.seconds secs) msg
+generateMtc _ _ = []
 
-lookup_current_performance :: Cmd.M m => BlockId -> m (Maybe Cmd.Performance)
-lookup_current_performance block_id =
-    Map.lookup block_id <$> gets Cmd.state_current_performance
+lookupCurrentPerformance :: Cmd.M m => BlockId -> m (Maybe Cmd.Performance)
+lookupCurrentPerformance blockId =
+    Map.lookup blockId <$> gets Cmd.stateCurrentPerformance
 
 -- * implementation
 
 gets :: Cmd.M m => (Cmd.PlayState -> a) -> m a
-gets f = Cmd.gets (f . Cmd.state_play)
+gets f = Cmd.gets (f . Cmd.statePlay)
 
 
 {- NOTE [play-im]

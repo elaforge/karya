@@ -23,8 +23,8 @@ import           Global
 
 -- | These controls should be combined with addition by default instead of
 -- multiplication.
-additive_controls :: [Control]
-additive_controls = [octave, diatonic, chromatic, nn, hz]
+additiveControls :: [Control]
+additiveControls = [octave, diatonic, chromatic, nn, hz]
 
 -- | Used as the default control by control block calls.  This is because
 -- a ControlCall produces a Signal, but for it to be derived in a block it
@@ -50,32 +50,32 @@ sustain :: Control
 sustain = "sus"
 
 -- | Add an absolute amount of real time to the duration of each note.
-sustain_abs :: Control
-sustain_abs = "sus-abs"
+sustainAbs :: Control
+sustainAbs = "sus-abs"
 
-sustain_set :: Control
-sustain_set = "sus-set"
+sustainSet :: Control
+sustainSet = "sus-set"
 
 -- | Start offset, in RealTime.  This is added to event start times.  The end
 -- times stay the same, so it changes note duration, and is limited to not
 -- force a note to 0 duration.
-start_s :: Control
-start_s = "start-s"
+startS :: Control
+startS = "start-s"
 
 -- | Start offset, in ScoreTime.
-start_t :: Control
-start_t = "start-t"
+startT :: Control
+startT = "start-t"
 
 -- * internal
 
 -- | Save ambient dyn before an integrate.  See usage in
 -- "Cmd.Integrate.Convert".
-dynamic_integrate :: Control
-dynamic_integrate = "dyn-integrate"
+dynamicIntegrate :: Control
+dynamicIntegrate = "dyn-integrate"
 
-integrate_keep :: Set Control
-integrate_keep =
-    Set.fromList [dynamic_integrate, Control EnvKey.voice]
+integrateKeep :: Set Control
+integrateKeep =
+    Set.fromList [dynamicIntegrate, Control EnvKey.voice]
     <> transposers
 
 -- * specific to instruments
@@ -112,13 +112,13 @@ mod = "mod"
 -- will get both breath controller and note on velocity from the 'dynamic'
 -- control, but sometimes I need separate control.  This can be used to
 -- override the note on velocity.
-attack_velocity :: Control
-attack_velocity = "attack-vel"
+attackVelocity :: Control
+attackVelocity = "attack-vel"
 
 -- | Normally the NoteOff velocity is the same as 'dynamic', but if set, this
 -- force it to a particular value.
-release_velocity :: Control
-release_velocity = "release-vel"
+releaseVelocity :: Control
+releaseVelocity = "release-vel"
 
 -- * transposition
 
@@ -128,14 +128,14 @@ release_velocity = "release-vel"
 transposers :: Set Control
 transposers = Set.fromList [octave, diatonic, chromatic, nn, hz]
 
-transpose_control :: Pitch.Transpose -> (Double, Control)
-transpose_control t = case t of
+transposeControl :: Pitch.Transpose -> (Double, Control)
+transposeControl t = case t of
     Pitch.Diatonic d -> (d, diatonic)
     Pitch.Chromatic d -> (d, chromatic)
     Pitch.Nn d -> (d, nn)
 
-transpose_type :: ScoreT.Type -> Maybe Control
-transpose_type t = case t of
+transposeType :: ScoreT.Type -> Maybe Control
+transposeType t = case t of
     ScoreT.Diatonic -> Just diatonic
     ScoreT.Chromatic -> Just chromatic
     ScoreT.Nn -> Just nn
@@ -191,9 +191,9 @@ q = "q"
 -- | Often 'mod' is mapped to vibrato, but when it's more specifically vibrato
 -- depth rather than general modulation, whatever that is, it's nicer to use
 -- a more specific name.
-vib, vib_speed :: Control
+vib, vibSpeed :: Control
 vib = "vib"
-vib_speed = "vib-speed"
+vibSpeed = "vib-speed"
 
 mc :: Int -> Control
 mc = ScoreT.Control . ("mc"<>) . showt
@@ -210,7 +210,7 @@ mc4 = mc 4
 -- * shared with im
 
 variation :: Control
-variation = from_shared Shared.Control.variation
+variation = fromShared Shared.Control.variation
 
-from_shared :: Shared.Control.Control -> Control
-from_shared (Shared.Control.Control a) = ScoreT.Control a
+fromShared :: Shared.Control.Control -> Control
+fromShared (Shared.Control.Control a) = ScoreT.Control a

@@ -30,130 +30,130 @@ import           Types
 
 -- | Transform TracklikeIds.
 tracks :: Ui.M m => BlockId -> (Block.TracklikeId -> Block.TracklikeId) -> m ()
-tracks block_id f = do
-    block <- modify <$> Ui.get_block block_id
+tracks blockId f = do
+    block <- modify <$> Ui.getBlock blockId
     Ui.modify $ \st -> st
-        { Ui.state_blocks = Map.insert block_id block (Ui.state_blocks st) }
+        { Ui.stateBlocks = Map.insert blockId block (Ui.stateBlocks st) }
     where
     modify block = block
-        { Block.block_tracks = map modify_track (Block.block_tracks block) }
-    modify_track t = t { Block.tracklike_id = f (Block.tracklike_id t) }
+        { Block.blockTracks = map modifyTrack (Block.blockTracks block) }
+    modifyTrack t = t { Block.tracklikeId = f (Block.tracklikeId t) }
 
 -- * map IDs
 
 -- | Map a function across the IDs in the given state.  Any collisions are
 -- thrown in Left.
-map_state_ids :: (Id.Id -> Id.Id) -> Ui.State -> Either Ui.Error Ui.State
-map_state_ids f state = Ui.exec state (map_ids f)
+mapStateIds :: (Id.Id -> Id.Id) -> Ui.State -> Either Ui.Error Ui.State
+mapStateIds f state = Ui.exec state (mapIds f)
 
 -- | Transform IDs, but don't update view_id pointer map.  So only use this
 -- when you are sure there are no visible views (\"invisible\" views occur
 -- after they are created but before the sync).  This should probably only be
 -- used by 'map_state_ids'.
-map_ids :: Ui.M m => (Id.Id -> Id.Id) -> m ()
-map_ids f = do
-    map_view_ids f
-    map_block_ids f
-    map_track_ids f
-    map_ruler_ids f
+mapIds :: Ui.M m => (Id.Id -> Id.Id) -> m ()
+mapIds f = do
+    mapViewIds f
+    mapBlockIds f
+    mapTrackIds f
+    mapRulerIds f
 
-map_namespace :: Ui.M m => (Id.Namespace -> Id.Namespace) -> m ()
-map_namespace modify = map_ids set
-    where set ident = Id.set_namespace (modify (Id.id_namespace ident)) ident
+mapNamespace :: Ui.M m => (Id.Namespace -> Id.Namespace) -> m ()
+mapNamespace modify = mapIds set
+    where set ident = Id.setNamespace (modify (Id.idNamespace ident)) ident
 
-map_view_ids :: Ui.M m => (Id.Id -> Id.Id) -> m ()
-map_view_ids f = do
-    views <- Ui.gets Ui.state_views
-    new_views <- safe_map_keys "state_views" (Id.modify f) views
-    Ui.modify $ \st -> st { Ui.state_views = new_views }
+mapViewIds :: Ui.M m => (Id.Id -> Id.Id) -> m ()
+mapViewIds f = do
+    views <- Ui.gets Ui.stateViews
+    newViews <- safeMapKeys "state_views" (Id.modify f) views
+    Ui.modify $ \st -> st { Ui.stateViews = newViews }
 
 -- | Rename a BlockId.  Views are updated to point to the new block.
-map_block_ids :: Ui.M m => (Id.Id -> Id.Id) -> m ()
-map_block_ids f = do
-    maybe_root <- Ui.lookup_root_id
-    let new_root = fmap (Id.BlockId . f . Id.unpack_id) maybe_root
-    blocks <- Ui.gets Ui.state_blocks
-    new_blocks <- safe_map_keys "state_blocks" modify blocks
-    views <- Ui.gets Ui.state_views
-    let new_views = Map.map
-            (\v -> v { Block.view_block = modify $ Block.view_block v })
+mapBlockIds :: Ui.M m => (Id.Id -> Id.Id) -> m ()
+mapBlockIds f = do
+    maybeRoot <- Ui.lookupRootId
+    let newRoot = fmap (Id.BlockId . f . Id.unpackId) maybeRoot
+    blocks <- Ui.gets Ui.stateBlocks
+    newBlocks <- safeMapKeys "state_blocks" modify blocks
+    views <- Ui.gets Ui.stateViews
+    let newViews = Map.map
+            (\v -> v { Block.viewBlock = modify $ Block.viewBlock v })
             views
     Ui.modify $ \st -> st
-        { Ui.state_blocks = map_block <$> new_blocks
-        , Ui.state_views = new_views
+        { Ui.stateBlocks = mapBlock <$> newBlocks
+        , Ui.stateViews = newViews
         }
-    Ui.modify_config $ \config -> config { UiConfig.config_root = new_root }
+    Ui.modifyConfig $ \config -> config { UiConfig.configRoot = newRoot }
     where
-    map_block b = b
-        { Block.block_integrated =
-            fmap (first modify) (Block.block_integrated b)
+    mapBlock b = b
+        { Block.blockIntegrated =
+            fmap (first modify) (Block.blockIntegrated b)
         }
     modify = Id.modify f
 
-map_track_ids :: Ui.M m => (Id.Id -> Id.Id) -> m ()
-map_track_ids f = do
-    tracks <- Ui.gets Ui.state_tracks
-    new_tracks <- safe_map_keys "state_tracks" modify tracks
-    blocks <- Ui.gets Ui.state_blocks
-    let new_blocks = Map.map map_block blocks
+mapTrackIds :: Ui.M m => (Id.Id -> Id.Id) -> m ()
+mapTrackIds f = do
+    tracks <- Ui.gets Ui.stateTracks
+    newTracks <- safeMapKeys "state_tracks" modify tracks
+    blocks <- Ui.gets Ui.stateBlocks
+    let newBlocks = Map.map mapBlock blocks
     Ui.modify $ \st -> st
-        { Ui.state_tracks = new_tracks, Ui.state_blocks = new_blocks }
+        { Ui.stateTracks = newTracks, Ui.stateBlocks = newBlocks }
     where
-    map_block b = b
-        { Block.block_tracks =
-            map (map_track modify) (Block.block_tracks b)
-        , Block.block_integrated =
-            fmap (fmap map_track_dests) (Block.block_integrated b)
-        , Block.block_integrated_tracks =
-            map (\(tid, dests) -> (modify tid, map_track_dests dests))
-                (Block.block_integrated_tracks b)
-        , Block.block_integrated_manual =
-            fmap (fmap map_note_dest) (Block.block_integrated_manual b)
+    mapBlock b = b
+        { Block.blockTracks =
+            map (mapTrack modify) (Block.blockTracks b)
+        , Block.blockIntegrated =
+            fmap (fmap mapTrackDests) (Block.blockIntegrated b)
+        , Block.blockIntegratedTracks =
+            map (\(tid, dests) -> (modify tid, mapTrackDests dests))
+                (Block.blockIntegratedTracks b)
+        , Block.blockIntegratedManual =
+            fmap (fmap mapNoteDest) (Block.blockIntegratedManual b)
         }
     -- This is getting complicated with integrate.  A generic map like uniplate
     -- would be able to do this automatically.
-    map_track f = map_merged f . map_track_id f
-    map_track_id f track = case Block.tracklike_id track of
+    mapTrack f = mapMerged f . mapTrackId f
+    mapTrackId f track = case Block.tracklikeId track of
         Block.TId tid rid ->
-            Block.modify_id (const (Block.TId (f tid) rid)) track
+            Block.modifyId (const (Block.TId (f tid) rid)) track
         _ -> track
-    map_merged f track = track
-        { Block.track_merged = Set.map f (Block.track_merged track) }
-    map_track_dests = \case
+    mapMerged f track = track
+        { Block.trackMerged = Set.map f (Block.trackMerged track) }
+    mapTrackDests = \case
         Block.DeriveDestinations dests ->
-            Block.DeriveDestinations $ map map_note_dest dests
+            Block.DeriveDestinations $ map mapNoteDest dests
         Block.ScoreDestinations dests ->
             Block.ScoreDestinations $ map (bimap modify (first modify)) dests
-    map_note_dest (Block.NoteDestination key note controls) =
+    mapNoteDest (Block.NoteDestination key note controls) =
         Block.NoteDestination
-            { dest_key = key
-            , dest_note = first modify note
-            , dest_controls = fmap (first modify) controls
+            { destKey = key
+            , destNote = first modify note
+            , destControls = fmap (first modify) controls
             }
     modify = Id.modify f
 
-map_ruler_ids :: Ui.M m => (Id.Id -> Id.Id) -> m ()
-map_ruler_ids f = do
-    rulers <- Ui.gets Ui.state_rulers
-    new_rulers <- safe_map_keys "state_rulers" (Id.modify f) rulers
+mapRulerIds :: Ui.M m => (Id.Id -> Id.Id) -> m ()
+mapRulerIds f = do
+    rulers <- Ui.gets Ui.stateRulers
+    newRulers <- safeMapKeys "state_rulers" (Id.modify f) rulers
 
-    blocks <- Ui.gets Ui.state_blocks
-    let new_blocks = Map.map
-            (\b -> b { Block.block_tracks =
-                map (map_track (Id.modify f)) (Block.block_tracks b) })
+    blocks <- Ui.gets Ui.stateBlocks
+    let newBlocks = Map.map
+            (\b -> b { Block.blockTracks =
+                map (mapTrack (Id.modify f)) (Block.blockTracks b) })
             blocks
     Ui.modify $ \st ->
-        st { Ui.state_rulers = new_rulers, Ui.state_blocks = new_blocks }
+        st { Ui.stateRulers = newRulers, Ui.stateBlocks = newBlocks }
     where
-    map_track f track = case Block.tracklike_id track of
+    mapTrack f track = case Block.tracklikeId track of
         Block.TId tid rid ->
-            Block.modify_id (const (Block.TId tid (f rid))) track
-        Block.RId rid -> Block.modify_id (const (Block.RId (f rid))) track
+            Block.modifyId (const (Block.TId tid (f rid))) track
+        Block.RId rid -> Block.modifyId (const (Block.RId (f rid))) track
         _ -> track
 
-safe_map_keys :: (Ui.M m, Ord k, Show k) =>
+safeMapKeys :: (Ui.M m, Ord k, Show k) =>
     String -> (k -> k) -> Map k v -> m (Map k v)
-safe_map_keys name f fm0
+safeMapKeys name f fm0
     | Map.size fm1 == Map.size fm0 = pure fm1
     | otherwise = Ui.throw $ "keys collided in " <> showt name <> ": "
         <> showt (Map.keys (Map.difference fm0 fm1))
@@ -162,86 +162,86 @@ safe_map_keys name f fm0
 -- * namespace
 
 -- | Destroy all views, blocks, tracks, and rulers with the given namespace.
-destroy_namespace :: Ui.M m => Id.Namespace -> m ()
-destroy_namespace ns = do
+destroyNamespace :: Ui.M m => Id.Namespace -> m ()
+destroyNamespace ns = do
     -- Will destroy any views too.
-    mapM_ Ui.destroy_block =<< Ui.gets (in_ns . Map.keys . Ui.state_blocks)
-    mapM_ Ui.destroy_track =<< Ui.gets (in_ns . Map.keys . Ui.state_tracks)
-    mapM_ Ui.destroy_ruler =<< Ui.gets (in_ns . Map.keys . Ui.state_rulers)
+    mapM_ Ui.destroyBlock =<< Ui.gets (inNs . Map.keys . Ui.stateBlocks)
+    mapM_ Ui.destroyTrack =<< Ui.gets (inNs . Map.keys . Ui.stateTracks)
+    mapM_ Ui.destroyRuler =<< Ui.gets (inNs . Map.keys . Ui.stateRulers)
     where
-    in_ns :: Id.Ident a => [a] -> [a]
-    in_ns = filter $ (==ns) . Id.ident_namespace
+    inNs :: Id.Ident a => [a] -> [a]
+    inNs = filter $ (==ns) . Id.identNamespace
 
 -- | Replace the namespace of the second state with the one from the first
 -- state.
-replace_namespace :: Id.Namespace -> Ui.State -> Ui.State -> Ui.State
-replace_namespace ns from to = to
-    { Ui.state_views = merge Ui.state_views
-    , Ui.state_blocks = merge Ui.state_blocks
-    , Ui.state_tracks = merge Ui.state_tracks
-    , Ui.state_rulers = merge Ui.state_rulers
+replaceNamespace :: Id.Namespace -> Ui.State -> Ui.State -> Ui.State
+replaceNamespace ns from to = to
+    { Ui.stateViews = merge Ui.stateViews
+    , Ui.stateBlocks = merge Ui.stateBlocks
+    , Ui.stateTracks = merge Ui.stateTracks
+    , Ui.stateRulers = merge Ui.stateRulers
     }
     where
     merge field =
         Map.union (Map.filterWithKey (\k _ -> wanted k) (field from)) (field to)
-        where wanted = (==ns) . Id.ident_namespace
+        where wanted = (==ns) . Id.identNamespace
 
 -- * code
 
 type UpdateM a = Logger.Logger Text a
 
 -- | Modify tracklang code: block titles, track titles, events.
-map_code :: (Text -> Text) -> Ui.State -> (Ui.State, [Text])
-map_code modify state = Logger.runId $ do
-    tracks <- mapM (\(tid, track) -> (tid,) <$> u_track tid track)
-        (Map.toList (Ui.state_tracks state))
-    blocks <- mapM (\(bid, block) -> (bid,) <$> u_block bid block)
-        (Map.toList (Ui.state_blocks state))
+mapCode :: (Text -> Text) -> Ui.State -> (Ui.State, [Text])
+mapCode modify state = Logger.runId $ do
+    tracks <- mapM (\(tid, track) -> (tid,) <$> uTrack tid track)
+        (Map.toList (Ui.stateTracks state))
+    blocks <- mapM (\(bid, block) -> (bid,) <$> uBlock bid block)
+        (Map.toList (Ui.stateBlocks state))
     pure $ state
-        { Ui.state_tracks = Map.fromList tracks
-        , Ui.state_blocks = Map.fromList blocks
+        { Ui.stateTracks = Map.fromList tracks
+        , Ui.stateBlocks = Map.fromList blocks
         }
     where
-    u_track track_id track = do
-        let old = Track.track_title track
+    uTrack trackId track = do
+        let old = Track.trackTitle track
         let new = modify old
-        log (pretty track_id) old new
-        events <- Events.from_list <$>
-            mapM u_event (Events.ascending (Track.track_events track))
-        pure $ track { Track.track_title = new, Track.track_events = events }
-    u_event event = do
+        log (pretty trackId) old new
+        events <- Events.fromList <$>
+            mapM uEvent (Events.ascending (Track.trackEvents track))
+        pure $ track { Track.trackTitle = new, Track.trackEvents = events }
+    uEvent event = do
         let old = Event.text event
         let new = modify old
         log (pretty (Event.start event)) old new
-        pure $ Event.set_text_raw new event
-    u_block block_id block = do
-        let old = Block.block_title block
+        pure $ Event.setTextRaw new event
+    uBlock blockId block = do
+        let old = Block.blockTitle block
         let new = modify old
-        log (pretty block_id) old new
-        pure $ block { Block.block_title = new }
+        log (pretty blockId) old new
+        pure $ block { Block.blockTitle = new }
     log place old new
         | new /= old = Logger.log $ place <> ": "
-            <> ShowVal.show_val old <> " -> " <> ShowVal.show_val new
+            <> ShowVal.showVal old <> " -> " <> ShowVal.showVal new
         | otherwise = pure ()
 
 -- * merge
 
 -- | Merge ID maps from the states together.  Collisions will throw.
 -- The 'Ui.Config' comes from the first state.
-merge_states :: Ui.State -> Ui.State -> Either Ui.Error Ui.State
-merge_states st0 st1 = Ui.exec st0 $ do
-    views <- safe_union "views" (Ui.state_views st0) (Ui.state_views st1)
-    blocks <- safe_union "blocks" (Ui.state_blocks st0) (Ui.state_blocks st1)
-    tracks <- safe_union "tracks" (Ui.state_tracks st0) (Ui.state_tracks st1)
-    rulers <- safe_union "rulers" (Ui.state_rulers st0) (Ui.state_rulers st1)
+mergeStates :: Ui.State -> Ui.State -> Either Ui.Error Ui.State
+mergeStates st0 st1 = Ui.exec st0 $ do
+    views <- safeUnion "views" (Ui.stateViews st0) (Ui.stateViews st1)
+    blocks <- safeUnion "blocks" (Ui.stateBlocks st0) (Ui.stateBlocks st1)
+    tracks <- safeUnion "tracks" (Ui.stateTracks st0) (Ui.stateTracks st1)
+    rulers <- safeUnion "rulers" (Ui.stateRulers st0) (Ui.stateRulers st1)
     Ui.modify $ \st -> st
-        { Ui.state_views = views, Ui.state_blocks = blocks
-        , Ui.state_tracks = tracks, Ui.state_rulers = rulers
+        { Ui.stateViews = views, Ui.stateBlocks = blocks
+        , Ui.stateTracks = tracks, Ui.stateRulers = rulers
         }
 
-safe_union :: (Ui.M m, Ord k, Show k) => String
+safeUnion :: (Ui.M m, Ord k, Show k) => String
     -> Map k a -> Map k a -> m (Map k a)
-safe_union name fm0 fm1
+safeUnion name fm0 fm1
     | Map.null overlapping = pure fm
     | otherwise = Ui.throw $ "keys collided in " <> showt name <> ": "
         <> showt (Map.keys overlapping)
@@ -251,25 +251,25 @@ safe_union name fm0 fm1
 -- * intern
 
 -- | Increase sharing in event text with an intern table.
-intern_text :: Ui.State -> (Ui.State, Map Text Int)
-intern_text state =
-    (state { Ui.state_tracks = Map.fromAscList tracks }, Map.map snd table)
+internText :: Ui.State -> (Ui.State, Map Text Int)
+internText state =
+    (state { Ui.stateTracks = Map.fromAscList tracks }, Map.map snd table)
     where
-    (table, tracks) = List.mapAccumL intern_track Map.empty
-        (Map.toAscList (Ui.state_tracks state))
-    intern_track state (track_id, track) =
-        ( state2, (track_id
-        , track { Track.track_events = Events.from_list events })
+    (table, tracks) = List.mapAccumL internTrack Map.empty
+        (Map.toAscList (Ui.stateTracks state))
+    internTrack state (trackId, track) =
+        ( state2, (trackId
+        , track { Track.trackEvents = Events.fromList events })
         )
         where
-        (state2, events) = List.mapAccumL Event.intern_event state
-            (Events.ascending (Track.track_events track))
+        (state2, events) = List.mapAccumL Event.internEvent state
+            (Events.ascending (Track.trackEvents track))
 
-intern_stats :: Map Text Int -> (Memory.Size, Int)
-intern_stats table =
-    (Memory.fromBytes $ Num.sum (map stats (Map.toList table)), total_hits)
+internStats :: Map Text Int -> (Memory.Size, Int)
+internStats table =
+    (Memory.fromBytes $ Num.sum (map stats (Map.toList table)), totalHits)
     where
-    total_hits = Num.sum (Map.elems table) - Map.size table
+    totalHits = Num.sum (Map.elems table) - Map.size table
     stats (text, hits) = size * (hits - 1)
         where size = Text.length text * 2 + 3 * 4 -- pointer + length + start
 
@@ -281,31 +281,31 @@ data Stats = Stats
     , _events :: Int
     } deriving (Show)
 
-short_stats :: Ui.State -> Text
-short_stats state = Text.unwords
+shortStats :: Ui.State -> Text
+shortStats state = Text.unwords
     [ "blocks:" <> showt _blocks
     , "tracks:" <> showt _tracks
     , "events:" <> showt _events
     ]
     where Stats { _blocks, _tracks, _events } = stats state
 
-show_stats :: Ui.State -> Text
-show_stats state = Text.unlines
+showStats :: Ui.State -> Text
+showStats state = Text.unlines
     [ "blocks: " <> showt _blocks
     , "tracks: " <> showt _tracks
-        <> " (" <> Num.showFloat 2 per_block <>  " per block)"
+        <> " (" <> Num.showFloat 2 perBlock <>  " per block)"
     , "events: " <> showt _events
-        <> " (" <> Num.showFloat 2 per_event <> " per track)"
+        <> " (" <> Num.showFloat 2 perEvent <> " per track)"
     ]
     where
-    per_block = fromIntegral _tracks / fromIntegral _blocks
-    per_event = fromIntegral _events / fromIntegral _tracks
+    perBlock = fromIntegral _tracks / fromIntegral _blocks
+    perEvent = fromIntegral _events / fromIntegral _tracks
     Stats { _blocks, _tracks, _events } = stats state
 
 stats :: Ui.State -> Stats
 stats state = Stats
-    { _blocks = Map.size (Ui.state_blocks state)
-    , _tracks = Map.size (Ui.state_tracks state)
-    , _events = Num.sum $ map (Events.length . Track.track_events) $
-        Map.elems $ Ui.state_tracks state
+    { _blocks = Map.size (Ui.stateBlocks state)
+    , _tracks = Map.size (Ui.stateTracks state)
+    , _events = Num.sum $ map (Events.length . Track.trackEvents) $
+        Map.elems $ Ui.stateTracks state
     }

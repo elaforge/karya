@@ -8,7 +8,7 @@
 -- and since it's for a random seed, doesn't care about being well-distributed.
 -- So I use the addition algorithm, which has been stable for a while.
 module Util.Seed (
-    Seed(to_seed), (&)
+    Seed(toSeed), (&)
 ) where
 import qualified Data.Text as Text
 import qualified Data.Text.Array as Text.Array
@@ -20,10 +20,10 @@ import qualified System.IO.Unsafe as Unsafe
 
 
 class Seed a where
-    to_seed :: Int -> a -> Int
+    toSeed :: Int -> a -> Int
 
 (&) :: Seed a => Int -> a -> Int
-(&) = to_seed
+(&) = toSeed
 infixl 1 &
 
 combine :: Int -> Int -> Int
@@ -32,32 +32,32 @@ combine = (+)
 -- combine h1 h2 = (h1 * 16777619) `Bit.xor` h2
 
 instance Seed Int where
-    to_seed salt n = combine salt n
+    toSeed salt n = combine salt n
 
 instance Seed Word.Word64 where
-    to_seed salt n = salt `combine` fromIntegral n
+    toSeed salt n = salt `combine` fromIntegral n
 instance Seed Word.Word32 where
-    to_seed salt n = salt `combine` fromIntegral n
+    toSeed salt n = salt `combine` fromIntegral n
 
 instance Seed Double where
-    to_seed salt n = to_seed salt
+    toSeed salt n = toSeed salt
         ((Unsafe.unsafeDupablePerformIO $ Foreign.with n $
             Foreign.peek . Foreign.castPtr) :: Word.Word64)
 
 instance Seed Text.Text where
-    to_seed = simple_text
+    toSeed = simpleText
 
-simple_text :: Int -> Text.Text -> Int
-simple_text = Text.foldl' (\n -> (n+) . fromEnum)
+simpleText :: Int -> Text.Text -> Int
+simpleText = Text.foldl' (\n -> (n+) . fromEnum)
 
-_prim_text :: Int -> Text.Text -> Int
-_prim_text salt t = salt `combine` prim_text_sum t
+_primText :: Int -> Text.Text -> Int
+_primText salt t = salt `combine` primTextSum t
 
 -- | Sum the components of the Text directly.  In theory this should be faster
 -- than Text.foldl', since it skips decoding to a Char, but in practice it
 -- seems to be just the same.
-prim_text_sum :: Text.Text -> Int
-prim_text_sum (Text.Internal.Text array offset len) = go 0 offset
+primTextSum :: Text.Text -> Int
+primTextSum (Text.Internal.Text array offset len) = go 0 offset
     where
     go !accum offset
         | offset < end =

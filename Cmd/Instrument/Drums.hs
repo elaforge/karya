@@ -47,8 +47,8 @@ stroke char name attrs = Stroke
     , _group = ""
     }
 
-stroke_dyn :: Char -> Expr.Symbol -> Attributes -> Signal.Y -> Stroke
-stroke_dyn char name attrs dyn = (stroke char name attrs) { _dynamic = dyn }
+strokeDyn :: Char -> Expr.Symbol -> Attributes -> Signal.Y -> Stroke
+strokeDyn char name attrs dyn = (stroke char name attrs) { _dynamic = dyn }
 
 instance Pretty Stroke where
     format (Stroke name attrs char dyn group) = Pretty.record "Stroke"
@@ -59,23 +59,23 @@ instance Pretty Stroke where
         , ("group", Pretty.format group)
         ]
 
-c_bd2   = stroke 'a' "bd2"    (bd <> v2)
-c_bd    = stroke 'z' "bd"     bd
-c_sn2   = stroke 's' "sn2"    (snare <> v2)
-c_sn    = stroke 'x' "sn"     snare
-c_rim   = stroke 'v' "rim"    rim
-c_ltom  = stroke 'b' "ltom"   (tom <> low)
-c_mtom  = stroke 'n' "mtom"   (tom <> middle)
-c_hmtom = stroke 'j' "hmtom"  (tom <> Attrs.attr "high-mid")
-c_htom  = stroke 'm' "htom"   (tom <> high)
+cBd2   = stroke 'a' "bd2"    (bd <> v2)
+cBd    = stroke 'z' "bd"     bd
+cSn2   = stroke 's' "sn2"    (snare <> v2)
+cSn    = stroke 'x' "sn"     snare
+cRim   = stroke 'v' "rim"    rim
+cLtom  = stroke 'b' "ltom"   (tom <> low)
+cMtom  = stroke 'n' "mtom"   (tom <> middle)
+cHmtom = stroke 'j' "hmtom"  (tom <> Attrs.attr "high-mid")
+cHtom  = stroke 'm' "htom"   (tom <> high)
 
 -- Also doubles as closed hh, if both exist.
-c_hh    = stroke 'q' "hh"     hh
-c_ohh   = stroke 'w' "ohh"    (open <> hh)
-c_phh   = stroke 'e' "phh"    (pedal <> hh)
+cHh    = stroke 'q' "hh"     hh
+cOhh   = stroke 'w' "ohh"    (open <> hh)
+cPhh   = stroke 'e' "phh"    (pedal <> hh)
 
-c_ride  = stroke 't' "ride"   ride
-c_bell  = stroke '5' "bell"   (Attrs.attr "bell")
-c_crash = stroke 'y' "crash"  crash
+cRide  = stroke 't' "ride"   ride
+cBell  = stroke '5' "bell"   (Attrs.attr "bell")
+cCrash = stroke 'y' "crash"  crash
 
 -- TODO other drum style ornaments like double strikes, rolls, etc.

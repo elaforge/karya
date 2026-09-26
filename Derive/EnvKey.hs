@@ -25,8 +25,8 @@ attributes = "attr"
 -- | ScoreTime: the block deriver sets it to the ScoreTime end of the block.
 -- Blocks always start at zero, but this is the only way for a call to know if
 -- an event is at the end of the block.
-block_end :: Key
-block_end = "block-end"
+blockEnd :: Key
+blockEnd = "block-end"
 
 -- | VStr: Set to the control that is being derived, inside of a control
 -- track.
@@ -46,12 +46,12 @@ key = "key"
 -- | VNum (ScoreTime): End time of the note event.  This is set when evaluating
 -- note events so that inverted control tracks know when their parent event
 -- ends.
-note_end :: Key
-note_end = "note-end"
+noteEnd :: Key
+noteEnd = "note-end"
 
 -- | This is just like 'note_end', except, you know, the other end.
-note_start :: Key
-note_start = "note-start"
+noteStart :: Key
+noteStart = "note-start"
 
 -- | VStr: Set along with 'control' to the 'Derive.Derive.Merge' function
 -- which will be used for this control track.  Calls can use this to subvert
@@ -91,16 +91,16 @@ tempo = "tempo"
 -- | VNum: this is the count of the tracks with the same instrument, starting
 -- from 0 on the left.  So three tracks named @>pno@ would be 0, 1, and 2,
 -- respectively.  Used with "Derive.Call.InferTrackVoice".
-track_voice :: Key
-track_voice = "track-voice"
+trackVoice :: Key
+trackVoice = "track-voice"
 
 -- * internal
 
 -- | RealTime: suppress other notes until this time, inclusive.  Only events
 -- without a suppress-until will be retained.  Applied by @infer-duration@, see
 -- "Derive.Call.Post.Move".
-suppress_until :: Key
-suppress_until = "suppress-until"
+suppressUntil :: Key
+suppressUntil = "suppress-until"
 
 -- | VNum: This is a bit of a hack for the dynamic to velocity conversion in
 -- "Perform.Midi.Convert".  The default note deriver stashes the control
@@ -109,29 +109,29 @@ suppress_until = "suppress-until"
 -- because control functions don't exist after MIDI conversion.
 --
 -- Details in NOTE [EnvKey.dynamic_val].
-dynamic_val :: Key
-dynamic_val = "dyn-val"
+dynamicVal :: Key
+dynamicVal = "dyn-val"
 
 -- | Like 'dynamic_val', but for the release velocity.  Set from
 -- 'Derive.Controls.release_velocity'.
-release_val :: Key
-release_val = "release-val"
+releaseVal :: Key
+releaseVal = "release-val"
 
 -- | VNum: Set from 'Derive.Controls.attack_velocity' in the same way as
 -- 'release_val'.
-attack_val :: Key
-attack_val = "attack-val"
+attackVal :: Key
+attackVal = "attack-val"
 
 -- | RealTime: This stores the RealTime sum of 'Derive.Controls.start_s' and
 -- 'Derive.Controls.start_t', and is later applied by the @apply-start-offset@
 -- postproc.
-start_offset_val :: Key
-start_offset_val = "start-offset-val"
+startOffsetVal :: Key
+startOffsetVal = "start-offset-val"
 
 -- | Bool: Control tracks normally range from 0 to 1, or -1 to 1.  This is set
 -- for control tracks which range >0.  That's just the tempo track for now.
-control_gt_0 :: Key
-control_gt_0 = "control-gt-0"
+controlGt0 :: Key
+controlGt0 = "control-gt-0"
 
 -- * supported by not so core derivers
 
@@ -145,19 +145,19 @@ control_gt_0 = "control-gt-0"
 --
 -- For instruments with less complicated scale requirements, NoteNumber is
 -- simpler.
-instrument_top :: Key
-instrument_top = "inst-top"
+instrumentTop :: Key
+instrumentTop = "inst-top"
 
-instrument_bottom :: Key
-instrument_bottom = "inst-bottom"
+instrumentBottom :: Key
+instrumentBottom = "inst-bottom"
 
 -- | List of constant VPSignal: tuning of open strings for this instrument.
 -- The pitches should be probably absolute NNs, not in any scale, so they work
 -- regardless of which scale you happen to be in.
 --
 -- TODO maybe it should be VNotePitch as with 'instrument_top'?
-open_strings :: Key
-open_strings = "open-strings"
+openStrings :: Key
+openStrings = "open-strings"
 
 -- | constant VPSignal: Select a string to play on.  Presumably it should be
 -- from one of the 'open_strings'.  TODO currently I address strings by pitch.

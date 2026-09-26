@@ -41,29 +41,29 @@ import           Types
 -- | Read score from the file, and create a new block if it's the first time,
 -- or integrate changes the next time.  Changes made to the file should be
 -- merged into the block it creates.
-integrate_file :: Cmd.CmdT IO (Maybe BlockId)
-integrate_file = do
-    score <- read_score fname
-    mb_block_id <- integrate_score (txt (FilePath.takeFileName fname)) score
-    whenJust mb_block_id (void . Create.view)
-    pure mb_block_id
+integrateFile :: Cmd.CmdT IO (Maybe BlockId)
+integrateFile = do
+    score <- readScore fname
+    mbBlockId <- integrateScore (txt (FilePath.takeFileName fname)) score
+    whenJust mbBlockId (void . Create.view)
+    pure mbBlockId
     where
     fname = "Example/integrate-score"
 
-integrate_score :: Ui.M m => Text -> Score -> m (Maybe BlockId)
-integrate_score name score = do
-    block_id <- Ui.require "invalid name" $ Id.make $ Id.id namespace name
+integrateScore :: Ui.M m => Text -> Score -> m (Maybe BlockId)
+integrateScore name score = do
+    blockId <- Ui.require "invalid name" $ Id.make $ Id.id namespace name
     -- Make a m44 ruler up to the give end time.  Rulers are not quite as
     -- unreasonably complicated as they used to be.
-    let end = ScoreTime.from_double $ maximum [s + d | (s, d, _, _) <- score]
-    ruler_id <- RulerUtil.replace block_id $ const $ Right $
-        Ruler.meter_ruler $ RulerUtil.meter_until Meters.m44 1 4 end
-    Manual.block source_key block_id ruler_id block_title [(note, controls)]
+    let end = ScoreTime.fromDouble $ maximum [s + d | (s, d, _, _) <- score]
+    rulerId <- RulerUtil.replace blockId $ const $ Right $
+        Ruler.meterRuler $ RulerUtil.meterUntil Meters.m44 1 4 end
+    Manual.block sourceKey blockId rulerId blockTitle [(note, controls)]
     where
-    (note, controls) = Manual.convert_note_track source_key (note_track 0 score)
-    block_title = ""
+    (note, controls) = Manual.convertNoteTrack sourceKey (noteTrack 0 score)
+    blockTitle = ""
     -- See Block.SourceKey
-    source_key = name
+    sourceKey = name
     -- IDs have a namespace, originally so you could merge different scores
     -- without name collisions.  It's also convenient to put all generated
     -- score into its own namespace.
@@ -76,32 +76,32 @@ integrate_score name score = do
 -- and it expects its caller 'ModifyNotes.selection' to have cleared the old
 -- notes.
 -- insert_at_selection :: Cmd.M m => FilePath -> m ()
-insert_at_selection :: FilePath -> Cmd.CmdT IO ()
-insert_at_selection fname = do
-    score <- read_score fname
-    (block_id, _, track_id, at) <- Selection.get_insert
-    insert score block_id track_id at
+insertAtSelection :: FilePath -> Cmd.CmdT IO ()
+insertAtSelection fname = do
+    score <- readScore fname
+    (blockId, _, trackId, at) <- Selection.getInsert
+    insert score blockId trackId at
 
 insert :: Ui.M m => Score -> BlockId -> TrackId -> TrackTime -> m ()
-insert score block_id track_id at =
-    ModifyNotes.write_tracks block_id [track_id] [note_track at score]
+insert score blockId trackId at =
+    ModifyNotes.writeTracks blockId [trackId] [noteTrack at score]
 
 -- | Convert the simple score to ModifyNotes.NoteTrack, which is a generic
 -- high level representation of the track structure.  Since karya represents
 -- pitch and control tracks separately from the notes, they have to be
 -- extracted.
-note_track :: TrackTime -> Score -> ModifyNotes.NoteTrack
-note_track offset score = ModifyNotes.NoteTrack (mk_events notes) control_tracks
+noteTrack :: TrackTime -> Score -> ModifyNotes.NoteTrack
+noteTrack offset score = ModifyNotes.NoteTrack (mkEvents notes) controlTracks
     where
-    control_tracks = Map.fromList
-        [ (ModifyNotes.Pitch Pitch.empty_scale, mk_events pitches)
-        , (ModifyNotes.Control "dyn", mk_events dyns)
+    controlTracks = Map.fromList
+        [ (ModifyNotes.Pitch Pitch.emptyScale, mkEvents pitches)
+        , (ModifyNotes.Control "dyn", mkEvents dyns)
         ]
     notes = [(start, dur, "") | (start, dur, _, _) <- score]
     pitches = [(start, 0, pitch) | (start, _, pitch, _) <- score]
-    dyns = [(start, 0, ShowVal.show_val dyn) | (start, _, _, dyn) <- score]
-    mk_events = Events.from_list . map mk_event
-    mk_event (start, dur, text) =
+    dyns = [(start, 0, ShowVal.showVal dyn) | (start, _, _, dyn) <- score]
+    mkEvents = Events.fromList . map mkEvent
+    mkEvent (start, dur, text) =
         Event.event (offset + realToFrac start) (realToFrac dur) text
 
 
@@ -114,13 +114,13 @@ score =
     , (1, 1, "4d", 0.75)
     ]
 
-read_score :: FilePath -> Cmd.CmdT IO Score
-read_score fname = do
+readScore :: FilePath -> Cmd.CmdT IO Score
+readScore fname = do
     score <- liftIO $ Text.IO.readFile fname
-    Cmd.require_right id $ parse_score score
+    Cmd.requireRight id $ parseScore score
 
-parse_score :: Text -> Either Text Score
-parse_score = mapM parse . Text.lines
+parseScore :: Text -> Either Text Score
+parseScore = mapM parse . Text.lines
     where
     parse line = case Text.words line of
         [start, dur, pitch, dyn] -> maybe fail Right $

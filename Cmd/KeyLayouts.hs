@@ -9,10 +9,10 @@
 -- Ultimately this is necessary because some keys are mapped based on their
 -- physical location.
 module Cmd.KeyLayouts (
-    Layout, layout, to_unshifted, to_shifted, from_qwerty, to_qwerty
+    Layout, layout, toUnshifted, toShifted, fromQwerty, toQwerty
     , qwerty, dvorak
-    , qwerty_unshifted, qwerty_shifted
-    , qwerty_unshifted_rows, qwerty_shifted_rows
+    , qwertyUnshifted, qwertyShifted
+    , qwertyUnshiftedRows, qwertyShiftedRows
 ) where
 import qualified Data.Map as Map
 
@@ -24,57 +24,57 @@ import           Global
 
 data Layout = Layout
     -- | Map from the shifted key to the unshifted one.
-    { map_to_unshifted :: Map Char Char
-    , map_to_shifted :: Map Char Char
+    { mapToUnshifted :: Map Char Char
+    , mapToShifted :: Map Char Char
     -- | Map from the layout to qwerty.
-    , map_from_qwerty :: Map Char Char
-    , map_to_qwerty :: Map Char Char
+    , mapFromQwerty :: Map Char Char
+    , mapToQwerty :: Map Char Char
     } deriving (Show)
 
-to_unshifted :: Layout -> Char -> Maybe Char
-to_unshifted layout c = Map.lookup c (map_to_unshifted layout)
+toUnshifted :: Layout -> Char -> Maybe Char
+toUnshifted layout c = Map.lookup c (mapToUnshifted layout)
 
-to_shifted :: Layout -> Char -> Maybe Char
-to_shifted layout c = Map.lookup c (map_to_shifted layout)
+toShifted :: Layout -> Char -> Maybe Char
+toShifted layout c = Map.lookup c (mapToShifted layout)
 
-from_qwerty :: Layout -> Char -> Maybe Char
-from_qwerty layout c = Map.lookup c (map_from_qwerty layout)
+fromQwerty :: Layout -> Char -> Maybe Char
+fromQwerty layout c = Map.lookup c (mapFromQwerty layout)
 
-to_qwerty :: Layout -> Char -> Maybe Char
-to_qwerty layout c = Map.lookup c (map_to_qwerty layout)
+toQwerty :: Layout -> Char -> Maybe Char
+toQwerty layout c = Map.lookup c (mapToQwerty layout)
 
 layout :: String -> [Char] -> [Char] -> Layout
 layout name unshifted shifted
     | length unshifted /= length shifted =
         errorStack $ prefix <> "(unshifted, shifted) not the same length: "
             <> showt (Lists.zipPadded unshifted shifted)
-    | length unshifted /= length qwerty_unshifted =
+    | length unshifted /= length qwertyUnshifted =
         errorStack $ prefix <> "size should be "
-            <> showt (length qwerty_unshifted) <> " but is "
+            <> showt (length qwertyUnshifted) <> " but is "
             <> showt (length unshifted)
     | otherwise = Layout
-        { map_to_unshifted = Map.fromList $ zip shifted unshifted
-        , map_to_shifted = Map.fromList $ zip unshifted shifted
-        , map_from_qwerty = from_qwerty
-        , map_to_qwerty = Maps.invert from_qwerty
+        { mapToUnshifted = Map.fromList $ zip shifted unshifted
+        , mapToShifted = Map.fromList $ zip unshifted shifted
+        , mapFromQwerty = fromQwerty
+        , mapToQwerty = Maps.invert fromQwerty
         }
     where
-    from_qwerty = Map.fromList $
-        zip (qwerty_unshifted ++ qwerty_shifted) (unshifted ++ shifted)
+    fromQwerty = Map.fromList $
+        zip (qwertyUnshifted ++ qwertyShifted) (unshifted ++ shifted)
     prefix = showt name <> ": "
 
-qwerty_unshifted, qwerty_shifted :: [Char]
-qwerty_unshifted = concat qwerty_unshifted_rows
-qwerty_shifted = concat qwerty_shifted_rows
+qwertyUnshifted, qwertyShifted :: [Char]
+qwertyUnshifted = concat qwertyUnshiftedRows
+qwertyShifted = concat qwertyShiftedRows
 
-qwerty_unshifted_rows, qwerty_shifted_rows :: [[Char]]
-qwerty_unshifted_rows =
+qwertyUnshiftedRows, qwertyShiftedRows :: [[Char]]
+qwertyUnshiftedRows =
     [ "`1234567890-="
     , "qwertyuiop[]\\"
     , "asdfghjkl;'"
     , "zxcvbnm,./"
     ]
-qwerty_shifted_rows =
+qwertyShiftedRows =
     [ "~!@#$%^&*()_+"
     , "QWERTYUIOP{}|"
     , "ASDFGHJKL:\""
@@ -82,7 +82,7 @@ qwerty_shifted_rows =
     ]
 
 qwerty :: Layout
-qwerty = layout "qwerty" qwerty_unshifted qwerty_shifted
+qwerty = layout "qwerty" qwertyUnshifted qwertyShifted
 
 dvorak :: Layout
 dvorak = layout "dvorak"

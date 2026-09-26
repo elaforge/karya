@@ -14,11 +14,11 @@ import           Util.Test
 
 test_quantize_timestep :: Test
 test_quantize_timestep = do
-    let f mode step events = LEvent.quantize_timestep mode step
-            UiTest.default_block_id (UiTest.mk_tid 1)
-            (map UiTest.make_event [(s, e, "") | (s, e) <- events])
+    let f mode step events = LEvent.quantizeTimestep mode step
+            UiTest.defaultBlockId (UiTest.mkTid 1)
+            (map UiTest.makeEvent [(s, e, "") | (s, e) <- events])
         run mode marks step events = map extract <$>
-            run_ruler marks [(">", [])] (f mode step events)
+            runRuler marks [(">", [])] (f mode step events)
         extract e = (Event.start e, Event.duration e)
 
     let marks1 = map (, 0) [0, 1, 2, 3, 4]
@@ -53,8 +53,8 @@ test_quantize_timestep = do
     equal (run LEvent.End marks2 "w" [(0.5, 0.1)]) (Just [(0.5, 0.5)])
     equal (run LEvent.End marks2 "w" [(0.5, 0.5)]) (Just [(0.5, 0.5)])
 
-run_ruler :: [(TrackTime, UiTest.RankNum)] -> [UiTest.TrackSpec]
+runRuler :: [(TrackTime, UiTest.RankNum)] -> [UiTest.TrackSpec]
     -> Ui.StateId a -> a
-run_ruler marks tracks = UiTest.eval $ UiTest.exec Ui.empty $
-    UiTest.mkblock_ruler (UiTest.mkruler_ranks marks) UiTest.default_block_id
+runRuler marks tracks = UiTest.eval $ UiTest.exec Ui.empty $
+    UiTest.mkblockRuler (UiTest.mkrulerRanks marks) UiTest.defaultBlockId
         "" tracks

@@ -27,60 +27,60 @@ scales :: [Scale.Definition]
 scales = [make "edo"]
 
 make :: Pitch.ScaleId -> Scale.Definition
-make scale_id = Scale.Make scale_id (pattern, call_doc) (make_edo scale_id)
+make scaleId = Scale.Make scaleId (pattern, callDoc) (makeEdo scaleId)
     where
-    pattern = TheoryFormat.fmt_pattern $ TheoryFormat.letters 25
-    call_doc = Scales.annotate_call_doc Scales.standard_transposers
-        doc [] Scales.default_scale_degree_doc
+    pattern = TheoryFormat.fmtPattern $ TheoryFormat.letters 25
+    callDoc = Scales.annotateCallDoc Scales.standardTransposers
+        doc [] Scales.defaultScaleDegreeDoc
     doc = "Construct a scale from equal divisions of the octave.\
-        \ The number of divisions are given by " <> ShowVal.doc edo_divisions
+        \ The number of divisions are given by " <> ShowVal.doc edoDivisions
         <> ". The intervals that correspond to diatonic notes are from "
-        <> ShowVal.doc edo_intervals <> ", which defaults to all 1s.\
+        <> ShowVal.doc edoIntervals <> ", which defaults to all 1s.\
         \ Because the diatonic intervals are given explicitly, there are no\
         \ keys, and because the notes per octave is variable, diatonic notes\
         \ start from A, rather than the conventional C."
 
-make_edo :: Pitch.ScaleId -> Env.Environ -> Scale.LookupScale
+makeEdo :: Pitch.ScaleId -> Env.Environ -> Scale.LookupScale
     -> Either DeriveT.PitchError Scale.Scale
-make_edo scale_id env _ = do
-    divisions <- parse_divisions env
-    intervals <- parse_intervals divisions env
+makeEdo scaleId env _ = do
+    divisions <- parseDivisions env
+    intervals <- parseIntervals divisions env
     let layout = Theory.layout intervals
-    let fmt = TheoryFormat.letters (Theory.layout_pc_per_octave layout)
-    let default_key = Theory.key (Pitch.Degree 0 0) "" intervals layout
-    let smap = (ChromaticScales.scale_map layout fmt mempty default_key)
-            { ChromaticScales.smap_semis_to_nn = \_config ->
-                pure . semis_to_nn divisions
+    let fmt = TheoryFormat.letters (Theory.layoutPcPerOctave layout)
+    let defaultKey = Theory.key (Pitch.Degree 0 0) "" intervals layout
+    let smap = (ChromaticScales.scaleMap layout fmt mempty defaultKey)
+            { ChromaticScales.smapSemisToNn = \_config ->
+                pure . semisToNn divisions
             }
-    pure $ ChromaticScales.make_scale scale_id smap "unused doc"
+    pure $ ChromaticScales.makeScale scaleId smap "unused doc"
 
-semis_to_nn :: Int -> Pitch.FSemi -> Pitch.NoteNumber
-semis_to_nn divisions = Pitch.NoteNumber . (+12) . (*step)
+semisToNn :: Int -> Pitch.FSemi -> Pitch.NoteNumber
+semisToNn divisions = Pitch.NoteNumber . (+12) . (*step)
     where step = 12 / fromIntegral divisions
 
-edo_divisions :: Env.Key
-edo_divisions = "edo-divisions"
+edoDivisions :: Env.Key
+edoDivisions = "edo-divisions"
 
-edo_intervals :: Env.Key
-edo_intervals = "edo-intervals"
+edoIntervals :: Env.Key
+edoIntervals = "edo-intervals"
 
-parse_divisions :: Env.Environ -> Either DeriveT.PitchError Int
-parse_divisions =
-    Scales.read_environ (Just . Typecheck.positive) Nothing edo_divisions
+parseDivisions :: Env.Environ -> Either DeriveT.PitchError Int
+parseDivisions =
+    Scales.readEnviron (Just . Typecheck.positive) Nothing edoDivisions
 
-parse_intervals :: Int -> Env.Environ -> Either DeriveT.PitchError [Pitch.Semi]
-parse_intervals divisions =
-    Scales.read_environ_ (check <=< parse)
-        (Just (Right (replicate divisions 1))) edo_intervals
+parseIntervals :: Int -> Env.Environ -> Either DeriveT.PitchError [Pitch.Semi]
+parseIntervals divisions =
+    Scales.readEnviron_ (check <=< parse)
+        (Just (Right (replicate divisions 1))) edoIntervals
     where
     parse (Left xs) = Right xs
     parse (Right sym) = maybe
-        (Left $ Just $ "not one of: " <> pretty (Map.keys named_intervals))
-        Right (Map.lookup sym named_intervals)
+        (Left $ Just $ "not one of: " <> pretty (Map.keys namedIntervals))
+        Right (Map.lookup sym namedIntervals)
     check intervals
         | Num.sum intervals == divisions = Right intervals
         | otherwise = Left $ Just $ "sum " <> pretty intervals
             <> " should equal divisions " <> pretty divisions
 
-named_intervals :: Map Text [Pitch.Semi]
-named_intervals = Map.fromList Just.named_intervals
+namedIntervals :: Map Text [Pitch.Semi]
+namedIntervals = Map.fromList Just.namedIntervals

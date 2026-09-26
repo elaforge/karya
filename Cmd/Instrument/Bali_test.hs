@@ -12,9 +12,9 @@ import qualified Perform.Pitch as Pitch
 test_wrap_octaves :: Test
 test_wrap_octaves = do
     let f low high = unpitch
-            . Bali.wrap_octaves (Scale.Range (pitch low) (pitch high)) . pitch
+            . Bali.wrapOctaves (Scale.Range (pitch low) (pitch high)) . pitch
         pitch = uncurry Pitch.pitch
-        unpitch p = (Pitch.pitch_octave p, Pitch.pitch_pc p)
+        unpitch p = (Pitch.pitchOctave p, Pitch.pitchPc p)
     let f12 = f (1, 1) (2, 1)
     equal (f12 (3, 1)) (2, 1)
     equal (f12 (3, 2)) (1, 2)

@@ -3,7 +3,7 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 -- | The 'Zoom' type.
-module Ui.Zoom (Zoom(..), to_pixels, to_time) where
+module Ui.Zoom (Zoom(..), toPixels, toTime) where
 import ForeignC
 import qualified Util.FFI as FFI
 import qualified Util.Num as Num
@@ -32,17 +32,17 @@ instance CStorable Zoom where
     peek zoomp = do
         offset <- (#peek Zoom, offset) zoomp
         factor <- (#peek Zoom, factor) zoomp :: IO CDouble
-        return $ Zoom offset (FFI.hs_double factor)
+        return $ Zoom offset (FFI.hsDouble factor)
     poke zoomp (Zoom offset factor) = do
         (#poke Zoom, offset) zoomp offset
-        (#poke Zoom, factor) zoomp (FFI.c_double factor)
+        (#poke Zoom, factor) zoomp (FFI.cDouble factor)
 
 -- | Convert a position at a given zoom factor to a pixel position.  Doesn't
 -- take the zoom offset into account.
-to_pixels :: Zoom -> TrackTime -> Int
-to_pixels zoom pos = Num.d2i $ ScoreTime.to_double pos * factor zoom
+toPixels :: Zoom -> TrackTime -> Int
+toPixels zoom pos = Num.d2i $ ScoreTime.toDouble pos * factor zoom
 
 -- | Convert a pixel position to a TrackTime at the given zoom factor.
 -- Doesn't take the zoom offset into account.
-to_time :: Zoom -> Int -> TrackTime
-to_time zoom pixels = ScoreTime.from_double (fromIntegral pixels / factor zoom)
+toTime :: Zoom -> Int -> TrackTime
+toTime zoom pixels = ScoreTime.fromDouble (fromIntegral pixels / factor zoom)

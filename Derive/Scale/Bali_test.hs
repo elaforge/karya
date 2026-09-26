@@ -10,7 +10,7 @@ import qualified Perform.Pitch as Pitch
 
 test_extend_scale :: Test
 test_extend_scale = do
-    let f = Bali.extend_scale 2
+    let f = Bali.extendScale 2
         p = Pitch.pitch
     equal (f (p 1 0) (p 2 0) (p 1 0) [12, 13]) [12, 13, 24]
     equal (f (p 1 0) (p 2 1) (p 1 0) [12, 13]) [12, 13, 24, 25]

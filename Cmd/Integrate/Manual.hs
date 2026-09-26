@@ -26,45 +26,45 @@ import           Global
 import           Types
 
 
-convert_note_track :: Block.SourceKey -> ModifyNotes.NoteTrack
+convertNoteTrack :: Block.SourceKey -> ModifyNotes.NoteTrack
     -> (Convert.Track, [Convert.Track])
-convert_note_track key (ModifyNotes.NoteTrack notes controls) =
-    ( convert_track ParseTitle.note_track notes
+convertNoteTrack key (ModifyNotes.NoteTrack notes controls) =
+    ( convertTrack ParseTitle.noteTrack notes
     , map convert (Map.toAscList controls)
     )
     where
-    convert (ModifyNotes.Pitch scale_id, events) =
-        convert_track (ParseTitle.scale_to_title scale_id) events
+    convert (ModifyNotes.Pitch scaleId, events) =
+        convertTrack (ParseTitle.scaleToTitle scaleId) events
     convert (ModifyNotes.Control control, events) =
-        convert_track (ParseTitle.control_to_title (ScoreT.untyped control))
+        convertTrack (ParseTitle.controlToTitle (ScoreT.untyped control))
             events
-    convert_track title = Convert.Track title
-        . map (add_stack key) . Events.ascending
+    convertTrack title = Convert.Track title
+        . map (addStack key) . Events.ascending
 
-add_stack :: Block.SourceKey -> Event.Event -> Event.Event
-add_stack key event =
+addStack :: Block.SourceKey -> Event.Event -> Event.Event
+addStack key event =
     Event.stack_ #= Just (Event.Stack stack (Event.start event)) $ event
     where stack = Stack.add (Stack.Call key) Stack.empty
 
 -- | Create or re-integrate a block with the given tracks.
 block :: Ui.M m => Block.SourceKey -> BlockId -> RulerId -> Text
     -> Convert.Tracks -> m (Maybe BlockId)
-block source_key block_id ruler_id block_title tracks = do
-    (dests, created) <- Ui.lookup_block block_id >>= \case
+block sourceKey blockId rulerId blockTitle tracks = do
+    (dests, created) <- Ui.lookupBlock blockId >>= \case
         Nothing -> do
-            Ui.create_block (Id.unpack_id block_id) block_title
-                [Block.track (Block.RId ruler_id) Config.ruler_width]
+            Ui.createBlock (Id.unpackId blockId) blockTitle
+                [Block.track (Block.RId rulerId) Config.rulerWidth]
             pure ([], True)
         Just exist -> do
-            Ui.set_ruler_id block_id ruler_id
-            case Map.lookup source_key (Block.block_integrated_manual exist) of
+            Ui.setRulerId blockId rulerId
+            case Map.lookup sourceKey (Block.blockIntegratedManual exist) of
                 Nothing -> Ui.throw $
-                    "block to integrate already exists: " <> pretty block_id
+                    "block to integrate already exists: " <> pretty blockId
                 Just dests -> do
-                    Ui.set_block_title block_id block_title
+                    Ui.setBlockTitle blockId blockTitle
                     pure (dests, False)
-    new_dests <- Merge.merge_tracks Merge.ReplaceTitles block_id tracks dests
-    Ui.set_integrated_manual block_id source_key (Just new_dests)
+    newDests <- Merge.mergeTracks Merge.ReplaceTitles blockId tracks dests
+    Ui.setIntegratedManual blockId sourceKey (Just newDests)
     when created $ do
-        BlockConfig.toggle_merge_all block_id
-    pure $ if created then Just block_id else Nothing
+        BlockConfig.toggleMergeAll blockId
+    pure $ if created then Just blockId else Nothing

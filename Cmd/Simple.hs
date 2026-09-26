@@ -82,135 +82,135 @@ instance Pretty Allocation where
         Im -> "Im"
         Sc -> "Sc"
 
-from_score :: ScoreTime -> Double
-from_score = ScoreTime.to_double
+fromScore :: ScoreTime -> Double
+fromScore = ScoreTime.toDouble
 
-from_real :: RealTime -> Double
-from_real = RealTime.to_seconds
+fromReal :: RealTime -> Double
+fromReal = RealTime.toSeconds
 
 event :: Event.Event -> Event
 event e =
-    (from_score (Event.start e), from_score (Event.duration e), Event.text e)
+    (fromScore (Event.start e), fromScore (Event.duration e), Event.text e)
 
-score_event :: Score.Event -> ScoreEvent
-score_event evt =
-    ( from_real (Score.event_start evt)
-    , from_real (Score.event_duration evt)
-    , untxt $ Score.event_text evt
-    , Score.initial_nn evt
+scoreEvent :: Score.Event -> ScoreEvent
+scoreEvent evt =
+    ( fromReal (Score.eventStart evt)
+    , fromReal (Score.eventDuration evt)
+    , untxt $ Score.eventText evt
+    , Score.initialNn evt
     )
 
-perf_event :: Midi.Types.Event -> PerfEvent
-perf_event evt =
-    ( untxt $ ScoreT.instrument_name $ Midi.Types.patch_name $
-        Midi.Types.event_patch evt
-    , from_real start
-    , from_real (Midi.Types.event_duration evt)
-    , Pitch.nn (MSignal.at start (Midi.Types.event_pitch evt))
+perfEvent :: Midi.Types.Event -> PerfEvent
+perfEvent evt =
+    ( untxt $ ScoreT.instrumentName $ Midi.Types.patchName $
+        Midi.Types.eventPatch evt
+    , fromReal start
+    , fromReal (Midi.Types.eventDuration evt)
+    , Pitch.nn (MSignal.at start (Midi.Types.eventPitch evt))
     )
-    where start = Midi.Types.event_start evt
+    where start = Midi.Types.eventStart evt
 
 -- * state
 
-dump_state :: Ui.M m => m State
-dump_state = do
+dumpState :: Ui.M m => m State
+dumpState = do
     state <- Ui.get
-    blocks <- mapM dump_block (Map.keys (Ui.state_blocks state))
+    blocks <- mapM dumpBlock (Map.keys (Ui.stateBlocks state))
     pure
         ( Ui.config#UiConfig.ky #$ state
-        , dump_allocations $ Ui.config#UiConfig.allocations #$ state
+        , dumpAllocations $ Ui.config#UiConfig.allocations #$ state
         , blocks
         )
 
-load_state :: Ui.M m => State -> m Ui.State
-load_state (ky, allocs, blocks) =
-    Ui.exec_rethrow "convert state" Ui.empty $ do
-        mapM_ make_block blocks
+loadState :: Ui.M m => State -> m Ui.State
+loadState (ky, allocs, blocks) =
+    Ui.execRethrow "convert state" Ui.empty $ do
+        mapM_ makeBlock blocks
         Ui.modify $ (Ui.config#UiConfig.ky #= ky)
             . (Ui.config#UiConfig.allocations #= allocations allocs)
 
 -- * block
 
-dump_block :: Ui.M m => BlockId -> m Block
-dump_block block_id = do
-    block <- Ui.get_block block_id
-    tracks <- mapM dump_tracklike (Block.block_tracklike_ids block)
-    tree <- TrackTree.track_tree_of block_id
-    pure (Id.ident_text block_id, Block.block_title block, tracks,
-        to_skel tree)
+dumpBlock :: Ui.M m => BlockId -> m Block
+dumpBlock blockId = do
+    block <- Ui.getBlock blockId
+    tracks <- mapM dumpTracklike (Block.blockTracklikeIds block)
+    tree <- TrackTree.trackTreeOf blockId
+    pure (Id.identText blockId, Block.blockTitle block, tracks,
+        toSkel tree)
     where
-    to_skel = concatMap go
+    toSkel = concatMap go
         where
         go (Tree.Node track subs) =
             [(num track, num (Tree.rootLabel sub)) | sub <- subs]
-            ++ to_skel subs
-    num = Ui.track_tracknum
+            ++ toSkel subs
+    num = Ui.trackTracknum
 
-load_block :: Cmd.M m => Block -> m Ui.State
-load_block block = Ui.exec_rethrow "convert block" Ui.empty $
-    make_block block
+loadBlock :: Cmd.M m => Block -> m Ui.State
+loadBlock block = Ui.execRethrow "convert block" Ui.empty $
+    makeBlock block
 
-read_block :: FilePath -> Cmd.CmdT IO Ui.State
-read_block fn = do
-    simple_block <- liftIO (readIO =<< readFile fn :: IO Block)
-    load_block simple_block
+readBlock :: FilePath -> Cmd.CmdT IO Ui.State
+readBlock fn = do
+    simpleBlock <- liftIO (readIO =<< readFile fn :: IO Block)
+    loadBlock simpleBlock
 
-make_block :: Ui.M m => Block -> m BlockId
-make_block (id_name, title, tracks, skel) = do
-    tracks <- mapM load_tracklike tracks
-    block_id <- Ui.create_block (Id.read_id id_name) title tracks
-    Ui.set_skeleton block_id (Skeleton.make skel)
-    pure block_id
+makeBlock :: Ui.M m => Block -> m BlockId
+makeBlock (idName, title, tracks, skel) = do
+    tracks <- mapM loadTracklike tracks
+    blockId <- Ui.createBlock (Id.readId idName) title tracks
+    Ui.setSkeleton blockId (Skeleton.make skel)
+    pure blockId
 
-dump_tracklike :: Ui.M m => Block.TracklikeId -> m (Maybe Track)
-dump_tracklike =
-    maybe (pure Nothing) (fmap Just . dump_track) . Block.track_id_of
+dumpTracklike :: Ui.M m => Block.TracklikeId -> m (Maybe Track)
+dumpTracklike =
+    maybe (pure Nothing) (fmap Just . dumpTrack) . Block.trackIdOf
 
-load_tracklike :: Ui.M m => Maybe Track -> m Block.Track
-load_tracklike Nothing = pure $ Block.track (Block.RId Ui.no_ruler) 0
-load_tracklike (Just track) = load_track track
+loadTracklike :: Ui.M m => Maybe Track -> m Block.Track
+loadTracklike Nothing = pure $ Block.track (Block.RId Ui.noRuler) 0
+loadTracklike (Just track) = loadTrack track
 
 -- * track
 
-dump_track :: Ui.M m => TrackId -> m Track
-dump_track track_id = do
-    track <- Ui.get_track track_id
-    pure (simplify_track track_id track)
+dumpTrack :: Ui.M m => TrackId -> m Track
+dumpTrack trackId = do
+    track <- Ui.getTrack trackId
+    pure (simplifyTrack trackId track)
 
-simplify_track :: TrackId -> Track.Track -> Track
-simplify_track track_id track =
-    (Id.ident_text track_id, Track.track_title track, map event events)
-    where events = Events.ascending (Track.track_events track)
+simplifyTrack :: TrackId -> Track.Track -> Track
+simplifyTrack trackId track =
+    (Id.identText trackId, Track.trackTitle track, map event events)
+    where events = Events.ascending (Track.trackEvents track)
 
-load_track :: Ui.M m => Track -> m Block.Track
-load_track (id_name, title, events) = do
-    track_id <- Ui.create_track (Id.read_id id_name) $
-        Track.track title (Events.from_list (map load_event events))
-    pure $ Block.track (Block.TId track_id Ui.no_ruler) Config.track_width
+loadTrack :: Ui.M m => Track -> m Block.Track
+loadTrack (idName, title, events) = do
+    trackId <- Ui.createTrack (Id.readId idName) $
+        Track.track title (Events.fromList (map loadEvent events))
+    pure $ Block.track (Block.TId trackId Ui.noRuler) Config.trackWidth
 
-load_event :: Event -> Event.Event
-load_event (start, dur, text) =
-    Event.event (ScoreTime.from_double start) (ScoreTime.from_double dur) text
+loadEvent :: Event -> Event.Event
+loadEvent (start, dur, text) =
+    Event.event (ScoreTime.fromDouble start) (ScoreTime.fromDouble dur) text
 
-dump_selection :: Cmd.CmdL [(TrackId, [Event])]
-dump_selection = map (second (map event)) <$> Selection.events
+dumpSelection :: Cmd.CmdL [(TrackId, [Event])]
+dumpSelection = map (second (map event)) <$> Selection.events
 
 -- * allocations
 
-dump_allocations :: UiConfig.Allocations -> Allocations
-dump_allocations (UiConfig.Allocations allocs) = do
+dumpAllocations :: UiConfig.Allocations -> Allocations
+dumpAllocations (UiConfig.Allocations allocs) = do
     (inst, alloc) <- Map.toList allocs
-    let simple_alloc = case UiConfig.alloc_backend alloc of
-            UiConfig.Midi config -> Midi $ addrs_of config
+    let simpleAlloc = case UiConfig.allocBackend alloc of
+            UiConfig.Midi config -> Midi $ addrsOf config
             UiConfig.Im -> Im
             UiConfig.Dummy {} -> Dummy
             UiConfig.Sc -> Sc
-    let qualified = InstT.show_qualified $ UiConfig.alloc_qualified alloc
-    pure (ScoreT.instrument_name inst, (qualified, simple_alloc))
+    let qualified = InstT.showQualified $ UiConfig.allocQualified alloc
+    pure (ScoreT.instrumentName inst, (qualified, simpleAlloc))
     where
-    addrs_of config =
-        [ (Midi.write_device_text dev, chan)
-        | (dev, chan) <- Patch.config_addrs config
+    addrsOf config =
+        [ (Midi.writeDeviceText dev, chan)
+        | (dev, chan) <- Patch.configAddrs config
         ]
 
 allocations :: Allocations -> UiConfig.Allocations
@@ -218,16 +218,16 @@ allocations = UiConfig.Allocations . Map.fromList . map allocation
 
 allocation :: (Instrument, (Qualified, Allocation))
     -> (ScoreT.Instrument, UiConfig.Allocation)
-allocation (inst, (qual, simple_alloc)) =
+allocation (inst, (qual, simpleAlloc)) =
     (ScoreT.Instrument inst, UiConfig.allocation qualified backend)
     where
-    qualified = InstT.parse_qualified qual
-    backend = case simple_alloc of
+    qualified = InstT.parseQualified qual
+    backend = case simpleAlloc of
         Dummy -> UiConfig.Dummy ""
         Im -> UiConfig.Im
         Sc -> UiConfig.Sc
         Midi addrs -> UiConfig.Midi $ Patch.config
-            [ ((Midi.write_device dev, chan), Nothing)
+            [ ((Midi.writeDevice dev, chan), Nothing)
             | (dev,chan) <- addrs
             ]
 
@@ -240,34 +240,34 @@ type ExactPerfEvent =
     , [(RealTime, Signal.Y)], (Signal.Y, Signal.Y), Stack.Stack
     )
 
-dump_exact_perf_event :: Midi.Types.Event -> ExactPerfEvent
-dump_exact_perf_event (Midi.Types.Event start dur patch controls pitch svel evel
+dumpExactPerfEvent :: Midi.Types.Event -> ExactPerfEvent
+dumpExactPerfEvent (Midi.Types.Event start dur patch controls pitch svel evel
         stack) =
-    ( ScoreT.instrument_name (Midi.Types.patch_name patch)
+    ( ScoreT.instrumentName (Midi.Types.patchName patch)
     , start, dur
-    , map (bimap ScoreT.control_name MSignal.to_pairs) (Map.toList controls)
-    , MSignal.to_pairs pitch
+    , map (bimap ScoreT.controlName MSignal.toPairs) (Map.toList controls)
+    , MSignal.toPairs pitch
     , (svel, evel)
     , stack
     )
 
-load_exact_perf_event :: (InstT.Qualified -> Maybe Midi.Types.Patch)
+loadExactPerfEvent :: (InstT.Qualified -> Maybe Midi.Types.Patch)
     -> ExactPerfEvent -> Maybe Midi.Types.Event
-load_exact_perf_event lookup_patch (inst, start, dur, controls, pitch,
+loadExactPerfEvent lookupPatch (inst, start, dur, controls, pitch,
         (svel, evel), stack) = do
-    patch <- lookup_patch (InstT.parse_qualified inst)
+    patch <- lookupPatch (InstT.parseQualified inst)
     pure $ Midi.Types.Event
-        { event_patch = patch
-        , event_start = start
-        , event_duration = dur
-        , event_controls = control_map controls
-        , event_pitch = MSignal.from_pairs pitch
-        , event_start_velocity = svel
-        , event_end_velocity = evel
-        , event_stack = stack
+        { eventPatch = patch
+        , eventStart = start
+        , eventDuration = dur
+        , eventControls = controlMap controls
+        , eventPitch = MSignal.fromPairs pitch
+        , eventStartVelocity = svel
+        , eventEndVelocity = evel
+        , eventStack = stack
         }
 
-control_map :: [(Text, [(RealTime, Signal.Y)])]
+controlMap :: [(Text, [(RealTime, Signal.Y)])]
     -> Map ScoreT.Control MSignal.Signal
-control_map kvs = Map.fromList
-    [(ScoreT.Control k, MSignal.from_pairs vs) | (k, vs) <- kvs]
+controlMap kvs = Map.fromList
+    [(ScoreT.Control k, MSignal.fromPairs vs) | (k, vs) <- kvs]

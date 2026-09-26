@@ -26,19 +26,19 @@ import           Util.Test
 test_parse_instruments :: Test
 test_parse_instruments = do
     let parse = fmap (Map.elems . UiConfig.unallocations)
-            . parse_instruments
+            . parseInstruments
     let alloc synth name = UiConfig.Allocation (InstT.Qualified synth name)
-    right_equal (parse "") []
-    right_equal (parse ">i im/xyz [ms] im")
+    rightEqual (parse "") []
+    rightEqual (parse ">i im/xyz [ms] im")
         [alloc "im" "xyz" config UiConfig.Im]
-    right_equal (parse ">i midi/p [ms] dev 1")
+    rightEqual (parse ">i midi/p [ms] dev 1")
         [alloc "midi" "p" config (UiConfig.Midi (midi [0]))]
-    right_equal (parse ">i sc/ [ms] sc\n{controls: {dyn: .25}}")
+    rightEqual (parse ">i sc/ [ms] sc\n{controls: {dyn: .25}}")
         [alloc "sc" "" (config_ [(Controls.dynamic, 0.25)]) UiConfig.Sc]
-    left_like (parse ">i sc/ [ms] sc {decay: 1}") "midi fields for sc"
-    left_like (parse ">i sc/ [ms] sc\n>i sc/ [ms] sc\n")
+    leftLike (parse ">i sc/ [ms] sc {decay: 1}") "midi fields for sc"
+    leftLike (parse ">i sc/ [ms] sc\n>i sc/ [ms] sc\n")
         "duplicate instrument names: i"
-    right_equal
+    rightEqual
         (parse ">i1 midi/ [ms] dev 1 2 {decay: 1}\n-- hi\n>i2 im/ [ms] im\n")
         [ alloc "midi" "" config $
             UiConfig.Midi $ Patch.settings#Patch.decay #= Just 1 $
@@ -48,11 +48,11 @@ test_parse_instruments = do
 
 test_equal :: Test
 test_equal = do
-    let parse = fmap (Map.elems . UiConfig.unallocations) . parse_instruments
+    let parse = fmap (Map.elems . UiConfig.unallocations) . parseInstruments
     let alloc synth name = UiConfig.Allocation (InstT.Qualified synth name)
     let legong = Patch.Scale "legong-umbang" $
             Vector.Unboxed.fromList $ [1, 2] <> replicate (128 - 2) (-1)
-    right_equal (parse
+    rightEqual (parse
         ">i1 / [ms] dev 1\n\
         \>i2 / [ms] dev 2 { scale: legong-umbang }\n\
         \legong-umbang = [1, 2]\n")
@@ -64,8 +64,8 @@ test_equal = do
 
 test_un_instruments :: Test
 test_un_instruments = do
-    let parse = parse_instruments
-    let un = I.un_instruments (const Nothing)
+    let parse = parseInstruments
+    let un = I.unInstruments (const Nothing)
     let ky =
             ">i1 midi/ [Ms] dev 1\n\
             \    {decay: 1s}\n\
@@ -74,67 +74,67 @@ test_un_instruments = do
             \    }\n\
             \>i3 midi/ [ms] dev 2..4\n\
             \>i4 im/ [ms] im\n"
-    right_equal (un =<< parse ky) ky
+    rightEqual (un =<< parse ky) ky
     let ky =
             ">i1 midi/ [ms] dev 1\n\
             \{ scale: { name: legong, key_to_nn: [1, 2, 3] } }\n\
             \>i2 midi/ [ms] dev 2\n\
             \{ scale: { name: legong, key_to_nn: [1, 2, 3] } }\n"
-    right_equal (un =<< parse ky)
+    rightEqual (un =<< parse ky)
         ">i1 midi/ [ms] dev 1\n\
         \    {scale: legong}\n\
         \>i2 midi/ [ms] dev 2\n\
         \    {scale: legong}\n\
         \legong = [1, 2, 3, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1]\n"
 
-parse_instruments :: Text -> Either Text UiConfig.Allocations
-parse_instruments = Parse.parse I.p_instruments
+parseInstruments :: Text -> Either Text UiConfig.Allocations
+parseInstruments = Parse.parse I.pInstruments
 
 config :: Common.Config
-config = Common.empty_config
+config = Common.emptyConfig
 
 config_ :: [(ScoreT.Control, Signal.Y)] -> Common.Config
-config_ cs = Common.empty_config { Common.config_controls = Map.fromList cs }
+config_ cs = Common.emptyConfig { Common.configControls = Map.fromList cs }
 
 midi :: [Midi.Channel] -> Patch.Config
 midi chans = Patch.config [((dev, chan), Nothing) | chan <- chans]
 
 dev :: Midi.WriteDevice
-dev = Midi.write_device "dev"
+dev = Midi.writeDevice "dev"
 
 test_p_alloc_line :: Test
 test_p_alloc_line = do
-    let f = p_alloc_line
+    let f = pAllocLine
     let syn = InstT.Qualified "syn" ""
-    right_equal (f ">i syn/p [ms] im -- hi") $
-        I.Allocation "i" (InstT.Qualified "syn" "p") I.empty_config I.Im
-    let loop1 = Midi.write_device "loop1"
-    right_equal (f ">i syn/ [ms] loop1 2 1") $
-        I.Allocation "i" syn I.empty_config (I.Midi loop1 [0, 1])
-    right_equal (f ">i syn/ [ms] loop1 1..3 5") $
-        I.Allocation "i" syn I.empty_config (I.Midi loop1 [0, 1, 2, 4])
-    left_like (f ">i syn/ [ms] loop1 0") "should be in range"
-    left_like (f ">i syn/ [ms] loop1") "expecting * nat"
-    left_like (f ">i syn/ [ms] loop1 x") "expecting * nat"
-    right_equal (f ">i syn/ [ms] sc") $
-        I.Allocation "i" syn I.empty_config I.Sc
-    right_equal (f ">i syn/ [Ms] dummy") $
+    rightEqual (f ">i syn/p [ms] im -- hi") $
+        I.Allocation "i" (InstT.Qualified "syn" "p") I.emptyConfig I.Im
+    let loop1 = Midi.writeDevice "loop1"
+    rightEqual (f ">i syn/ [ms] loop1 2 1") $
+        I.Allocation "i" syn I.emptyConfig (I.Midi loop1 [0, 1])
+    rightEqual (f ">i syn/ [ms] loop1 1..3 5") $
+        I.Allocation "i" syn I.emptyConfig (I.Midi loop1 [0, 1, 2, 4])
+    leftLike (f ">i syn/ [ms] loop1 0") "should be in range"
+    leftLike (f ">i syn/ [ms] loop1") "expecting * nat"
+    leftLike (f ">i syn/ [ms] loop1 x") "expecting * nat"
+    rightEqual (f ">i syn/ [ms] sc") $
+        I.Allocation "i" syn I.emptyConfig I.Sc
+    rightEqual (f ">i syn/ [Ms] dummy") $
         I.Allocation "i" syn (I.Config True False) I.Dummy
-    left_like (f ">i syn/ [msq]") "expecting ']'"
+    leftLike (f ">i syn/ [msq]") "expecting ']'"
 
 test_alloc_line_roundtrip :: Test
 test_alloc_line_roundtrip = do
     let syn = InstT.Qualified "syn" "p"
     let trip alloc =
             ( Right alloc
-            , p_alloc_line $ Text.unlines $ I.un_alloc_line alloc
+            , pAllocLine $ Text.unlines $ I.unAllocLine alloc
             )
     uncurry equal $ trip $
-        I.Allocation "i" syn I.empty_config I.Im
+        I.Allocation "i" syn I.emptyConfig I.Im
     uncurry equal $ trip $
         I.Allocation "i" syn (I.Config False True) (I.Midi dev [0, 2])
     uncurry equal $ trip $
         I.Allocation "i" syn (I.Config True False) (I.Midi dev [2])
 
-p_alloc_line :: Text -> Either Text I.Allocation
-p_alloc_line = Parse.parse I.p_alloc_line
+pAllocLine :: Text -> Either Text I.Allocation
+pAllocLine = Parse.parse I.pAllocLine

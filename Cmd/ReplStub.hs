@@ -5,7 +5,7 @@
 -- | A stub module that doesn't do a good job at interpreting haskell but does
 -- a great job at linking quickly.
 module Cmd.ReplStub (
-    Session, make_session
+    Session, makeSession
     , interpreter, interpret, complete
 ) where
 import Control.Monad
@@ -17,8 +17,8 @@ import Global
 
 type Session = ()
 
-make_session :: IO Session
-make_session = pure ()
+makeSession :: IO Session
+makeSession = pure ()
 
 interpreter :: Session -> IO ()
 interpreter () = forever $ Thread.delay 10

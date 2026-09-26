@@ -10,29 +10,29 @@ import qualified Derive.DeriveTest as DeriveTest
 
 test_ratio :: Test
 test_ratio = do
-    let e_nns = DeriveTest.extract DeriveTest.e_nns
-        e_tsig r =
-            ( lookup (UiTest.default_block_id, UiTest.mk_tid 3)
-                (DeriveTest.e_tsigs r)
-            , DeriveTest.e_tsig_logs r
+    let eNns = DeriveTest.extract DeriveTest.eNns
+        eTsig r =
+            ( lookup (UiTest.defaultBlockId, UiTest.mkTid 3)
+                (DeriveTest.eTsigs r)
+            , DeriveTest.eTsigLogs r
             )
-    let run ratio base = DeriveTest.derive_tracks_setup
-            (DeriveTest.with_tsig_tracknums [3]) ""
+    let run ratio base = DeriveTest.deriveTracksSetup
+            (DeriveTest.withTsigTracknums [3]) ""
             [ (">i1", [(0, 1, "")])
             , ("*twelve #ratio-source", [(0, 0, base)])
             , ("*ratio", [(0, 0, ratio)])
             ]
     -- Bah, 'hz_to_nn . nn_to_hz' introduces imprecision.
-    equalf 0.001 (e_nns $ run "1/1" "4c") ([[(0, 60)]], [])
-    equalf 0.001 (e_nns $ run "2/1" "4c") ([[(0, 72)]], [])
-    equalf 0.001 (e_nns $ run "-2/1" "4c") ([[(0, 48)]], [])
+    equalf 0.001 (eNns $ run "1/1" "4c") ([[(0, 60)]], [])
+    equalf 0.001 (eNns $ run "2/1" "4c") ([[(0, 72)]], [])
+    equalf 0.001 (eNns $ run "-2/1" "4c") ([[(0, 48)]], [])
     let tracks =
             [ (">i1", [(0, 1, "")])
             , ("*ratio", [(0, 0, "1/1")])
             , ("*twelve #ratio-source", [(0, 0, "4c")])
             ]
-    equal (e_nns $ DeriveTest.derive_tracks "" tracks)
+    equal (eNns $ DeriveTest.deriveTracks "" tracks)
         ([[]], ["no named pitch #ratio-source"])
 
     -- This actually tests that Control.eval_signal sets the scale properly.
-    equalf 0.001 (e_tsig $ run "2/1" "4c") (Just [(0, 72)], [])
+    equalf 0.001 (eTsig $ run "2/1" "4c") (Just [(0, 72)], [])

@@ -28,8 +28,8 @@ patches = (:[]) $ (Patch.patch "metronome")
     { Patch._dir = "metronome"
     , Patch._convert = convert
     , Patch._allFilenames = Set.fromList $ Map.elems nnToSample
-    , Patch._karyaPatch = ImInst.make_patch $ Im.Patch.patch
-        { Im.Patch.patch_controls = mconcat
+    , Patch._karyaPatch = ImInst.makePatch $ Im.Patch.patch
+        { Im.Patch.patchControls = mconcat
             [ Control.supportPitch
             , Control.supportDyn
             ]

@@ -21,11 +21,11 @@ import           ForeignC
 
 
 data Style = Style
-    { style_font :: Font
-    , style_face :: [FontFace]
-    , style_size :: Int
-    , style_text_color :: Color.Color
-    , style_event_color :: Color.Color
+    { styleFont :: Font
+    , styleFace :: [FontFace]
+    , styleSize :: Int
+    , styleTextColor :: Color.Color
+    , styleEventColor :: Color.Color
     } deriving (Eq, Show)
 
 data Font = Helvetica | Times | Courier
@@ -45,23 +45,23 @@ newtype StyleId = StyleId Word.Word8
 
 instance CStorable Style where
     sizeOf _ = #size EventStyle
-    alignment = alignment . style_text_color
+    alignment = alignment . styleTextColor
     peek = error "EventStyle peek unimplemented"
-    poke stylep (Style font face size text_color event_color) = do
+    poke stylep (Style font face size textColor eventColor) = do
         (#poke EventStyle, font) stylep
-            (FFI.c_int (font_code font + face_code face))
-        (#poke EventStyle, size) stylep (FFI.c_nat size)
-        (#poke EventStyle, text_color) stylep text_color
-        (#poke EventStyle, event_color) stylep event_color
+            (FFI.cInt (fontCode font + faceCode face))
+        (#poke EventStyle, size) stylep (FFI.cNat size)
+        (#poke EventStyle, text_color) stylep textColor
+        (#poke EventStyle, event_color) stylep eventColor
 
-font_code :: Font -> Int
-font_code font = case font of
+fontCode :: Font -> Int
+fontCode font = case font of
     Helvetica -> #const FL_HELVETICA
     Times -> #const FL_TIMES
     Courier -> #const FL_COURIER
 
-face_code :: [FontFace] -> Int
-face_code = Num.sum . map code . List.nub
+faceCode :: [FontFace] -> Int
+faceCode = Num.sum . map code . List.nub
     where
     code face = case face of
         Bold -> #const FL_BOLD

@@ -5,7 +5,7 @@
 -- | Local instrument definition with nothing in it.  If you have MIDI
 -- instruments you'll want to put some basic configuration in here.
 -- See User\/Elaforge\/Instrument for examples.
-module User.Generic.Instrument (midi_synths, all_loads) where
+module User.Generic.Instrument (midiSynths, allLoads) where
 import qualified Cmd.Instrument.MidiInst as MidiInst
 import qualified Derive.ScoreT as ScoreT
 import qualified Instrument.InstT as InstT
@@ -16,9 +16,9 @@ import qualified User.Generic.Instrument.Surge as Surge
 
 
 -- | Synth declarations for each synth that is declared purely.
-midi_synths :: [MidiInst.Synth]
-midi_synths =
-    [ generic_synth
+midiSynths :: [MidiInst.Synth]
+midiSynths =
+    [ genericSynth
     , GeneralMidi.synth
     , OBXd.synth
     , Surge.synth
@@ -26,22 +26,22 @@ midi_synths =
 
 -- | Each synth that caches to disk has a function to make the cache, and one
 -- to load it.
-all_loads :: [(InstT.SynthName, (MidiInst.MakeDb, MidiInst.Load))]
-all_loads = []
+allLoads :: [(InstT.SynthName, (MidiInst.MakeDb, MidiInst.Load))]
+allLoads = []
 
-generic_synth :: MidiInst.Synth
-generic_synth =
+genericSynth :: MidiInst.Synth
+genericSynth =
     MidiInst.synth "generic"
         "Generic MIDI instrument with no special configuration." $
-        MidiInst.synth_controls controls patches
+        MidiInst.synthControls controls patches
     where
     -- Special control names, e.g.: (16, "morph-x"), (17, "morph-y")
     controls :: [(Midi.Control, ScoreT.Control)]
     controls = []
 
     patches :: [MidiInst.Patch]
-    patches = [MidiInst.default_patch pb_range []]
+    patches = [MidiInst.defaultPatch pbRange []]
     -- Pitch bend range.  Most MIDI patches default to a whole-step in each
     -- direction, which is pretty limiting.  You should configure yours to
     -- some wider range.
-    pb_range = (-2, 2)
+    pbRange = (-2, 2)

@@ -14,16 +14,16 @@ import Global
 
 test_interpolate :: Test
 test_interpolate = do
-    let run scale_at = DeriveTest.extract extract $ DeriveTest.derive_tracks
+    let run scaleAt = DeriveTest.extract extract $ DeriveTest.deriveTracks
             "scale-from=twelve-r | scale-to=raga | key-to=hemavati\
                 \ | scale=interpolate" $
-            ("scale-at", scale_at)
-                : UiTest.note_track [(n, 1, p) | (n, p) <- notes]
+            ("scale-at", scaleAt)
+                : UiTest.noteTrack [(n, 1, p) | (n, p) <- notes]
             where
             notes = zip (Lists.range_ 0 1) ["4s", "4r", "4g", "4m"]
-        extract e = fromMaybe (error "no nn") $ Score.initial_nn e
+        extract e = fromMaybe (error "no nn") $ Score.initialNn e
     let major = [60, 62, 64, 65]
-        hemavati = [Pitch.modify_hz (*n) 60 | n <- [1, 9/8, 6/5, 7/5]]
+        hemavati = [Pitch.modifyHz (*n) 60 | n <- [1, 9/8, 6/5, 7/5]]
     equal (run [(0, 0,"0")]) (major, [])
     equalf 0.01 (run [(0, 0,"1")]) (hemavati, [])
     equalf 0.01 (run [(0, 0, ".5")]) (map (/2) (zipWith (+) major hemavati), [])

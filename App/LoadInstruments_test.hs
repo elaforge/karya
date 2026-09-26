@@ -11,8 +11,8 @@ import           Util.Test
 
 test_warns :: Test
 test_warns = do
-    (_, warns) <- LoadInstruments.load_synths (Path.AppDir ".")
+    (_, warns) <- LoadInstruments.loadSynths (Path.AppDir ".")
     -- TODO Fix it:
     -- ["sc-kempli: shadowed note calls in module inst: \"+\": +; +"]
     equal warns []
-    equal LoadInstruments.synth_warnings []
+    equal LoadInstruments.synthWarnings []

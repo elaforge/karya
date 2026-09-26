@@ -12,7 +12,7 @@ import Types
 
 
 run :: [(ScoreTime, Text)] -> [(RealTime, Signal.Y)]
-run = CallTest.run_control
+run = CallTest.runControl
 
 test_set :: Test
 test_set = do
@@ -28,9 +28,9 @@ test_set_transformer = do
 
 test_set_prev :: Test
 test_set_prev = do
-    let run ex tracks = DeriveTest.extract ex $ DeriveTest.derive_tracks "" $
+    let run ex tracks = DeriveTest.extract ex $ DeriveTest.deriveTracks "" $
             (">", [(0, 1, ""), (1, 1, ""), (2, 1, "")]) : tracks
-    equal (run (DeriveTest.e_control "c")
+    equal (run (DeriveTest.eControl "c")
             [("c", [(0, 0, ".5"), (1, 0, "'"), (2, 0, "'")])])
         ([[(0, 0.5)], [(1, 0.5)], [(2, 0.5)]], [])
 
@@ -44,8 +44,8 @@ test_porta = do
 
 test_abs :: Test
 test_abs = do
-    let run = DeriveTest.extract (DeriveTest.e_control "c")
-            . DeriveTest.derive_tracks_linear "" . (++ [(">", [(0, 1, "")])])
+    let run = DeriveTest.extract (DeriveTest.eControl "c")
+            . DeriveTest.deriveTracksLinear "" . (++ [(">", [(0, 1, "")])])
     equal (run [("c", [(0, 0, ".5")]), ("c", [(0, 0, ".5")])])
         ([[(0, 0.25)]], [])
     equal (run [("c", [(0, 0, ".5")]), ("c", [(0, 0, "abs .75")])])
@@ -71,7 +71,7 @@ test_linear :: Test
 test_linear = do
     equal (run [(0, "1"), (2, "i 0")]) [(0, 1), (2, 0)]
     -- Explicit duration overrides.
-    equal (CallTest.run_control_dur [(0, 0, "1"), (2, 2, "i 0")])
+    equal (CallTest.runControlDur [(0, 0, "1"), (2, 2, "i 0")])
         [(0, 1), (2, 1), (4, 0)]
 
 test_linear_next :: Test
@@ -97,8 +97,8 @@ test_nested = do
     -- dropping a non-discontinuity with equal samples.
     -- TODO remove when I can get rid of drop_discontinuity_at.
     let run = DeriveTest.extract extract
-            . DeriveTest.derive_blocks
-        extract e = (DeriveTest.e_start_dur e, DeriveTest.e_dyn e)
+            . DeriveTest.deriveBlocks
+        extract e = (DeriveTest.eStartDur e, DeriveTest.eDyn e)
     let ui = run
             [ ("top",
                 [ ("dyn", [(0, 0, "1"), (4, 0, "1"), (8, 0, "i .5"),
@@ -159,17 +159,17 @@ test_down_from = do
 
 test_pedal :: Test
 test_pedal = do
-    equal (CallTest.run_control_dur [(0, 1, "ped .5")])
+    equal (CallTest.runControlDur [(0, 1, "ped .5")])
         [(0, 0.5), (1, 0.5), (1, 0)]
     -- Goes back to the original value.
-    equal (CallTest.run_control_dur [(0, 0, "1"), (1, 1, "ped .5")])
+    equal (CallTest.runControlDur [(0, 0, "1"), (1, 1, "ped .5")])
         [(0, 1), (1, 1), (1, 0.5), (2, 0.5), (2, 1)]
-    equal (CallTest.run_control_dur [(0, 0, "pedal-dur=.5 | ped .5")])
+    equal (CallTest.runControlDur [(0, 0, "pedal-dur=.5 | ped .5")])
         [(0, 0.5), (0.5, 0.5), (0.5, 0)]
 
 test_swell :: Test
 test_swell = do
-    equal (CallTest.run_control_dur [(0, 8, "swell 0 1 .5")])
+    equal (CallTest.runControlDur [(0, 8, "swell 0 1 .5")])
         [(0, 0), (4, 1), (8, 0)]
-    equal (CallTest.run_control_dur [(0, 4, "swell 0 1 0")])
+    equal (CallTest.runControlDur [(0, 4, "swell 0 1 0")])
         [(0, 1), (4, 0)]

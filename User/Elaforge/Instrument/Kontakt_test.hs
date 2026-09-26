@@ -24,42 +24,42 @@ import Util.Test
 test_pasang_thru :: Test
 test_pasang_thru = do
     -- This is also a test for 'Bali.pasang_thru'.
-    let note_on = CmdTest.note_on 1
-    result <- run_pasang (note_on (Pitch.pitch 4 0))
-    equal (CmdTest.e_logs result) []
-    equal (CmdTest.e_midi result)
-        [ Midi.ChannelMessage 6 (Midi.NoteOn open_ks 64)
+    let noteOn = CmdTest.noteOn 1
+    result <- runPasang (noteOn (Pitch.pitch 4 0))
+    equal (CmdTest.eLogs result) []
+    equal (CmdTest.eMidi result)
+        [ Midi.ChannelMessage 6 (Midi.NoteOn openKs 64)
         , Midi.ChannelMessage 6 (Midi.PitchBend 0)
         , Midi.ChannelMessage 6 (Midi.NoteOn 60 127)
-        , Midi.ChannelMessage 7 (Midi.NoteOn open_ks 64)
+        , Midi.ChannelMessage 7 (Midi.NoteOn openKs 64)
         , Midi.ChannelMessage 7 (Midi.PitchBend 0)
         , Midi.ChannelMessage 7 (Midi.NoteOn 60 127)
         ]
-    result <- run_pasang (note_on (Pitch.pitch 4 1))
-    equal (CmdTest.e_logs result) []
-    equal (CmdTest.e_midi result)
-        [ Midi.ChannelMessage 6 (Midi.NoteOn open_ks 64)
+    result <- runPasang (noteOn (Pitch.pitch 4 1))
+    equal (CmdTest.eLogs result) []
+    equal (CmdTest.eMidi result)
+        [ Midi.ChannelMessage 6 (Midi.NoteOn openKs 64)
         , Midi.ChannelMessage 6 (Midi.PitchBend 0)
         , Midi.ChannelMessage 6 (Midi.NoteOn 62 127)
-        , Midi.ChannelMessage 7 (Midi.NoteOn open_ks 64)
+        , Midi.ChannelMessage 7 (Midi.NoteOn openKs 64)
         , Midi.ChannelMessage 7 (Midi.PitchBend 0)
         , Midi.ChannelMessage 7 (Midi.NoteOn 62 127)
         ]
 
-open_ks :: Midi.Key
-open_ks = Key2.c1
+openKs :: Midi.Key
+openKs = Key2.c1
 
-run_pasang :: InputNote.Input -> IO (CmdTest.Result Cmd.Status)
-run_pasang input =
-    CmdTest.run_with_performance ui_state cmd_state $ do
-        CmdTest.set_point_sel 1 0
-        scale <- Perf.get_scale =<< Selection.track
-        Cmd.lift_id $ mapM_ Cmd.write_thru
-            =<< Bali.pasang_thru scale mempty input
+runPasang :: InputNote.Input -> IO (CmdTest.Result Cmd.Status)
+runPasang input =
+    CmdTest.runWithPerformance uiState cmdState $ do
+        CmdTest.setPointSel 1 0
+        scale <- Perf.getScale =<< Selection.track
+        Cmd.liftId $ mapM_ Cmd.writeThru
+            =<< Bali.pasangThru scale mempty input
         pure Cmd.Continue
     where
-    cmd_state = DeriveTest.setup_cmd setup CmdTest.default_cmd_state
-    ui_state = DeriveTest.setup_ui setup $
-        snd $ UiTest.run_mkview [(">pemade | scale=legong", [])]
-    setup = DeriveTest.with_synths allocs [Kontakt.synth]
-    allocs = ScGamelan.kebyar_allocations "loop1"
+    cmdState = DeriveTest.setupCmd setup CmdTest.defaultCmdState
+    uiState = DeriveTest.setupUi setup $
+        snd $ UiTest.runMkview [(">pemade | scale=legong", [])]
+    setup = DeriveTest.withSynths allocs [Kontakt.synth]
+    allocs = ScGamelan.kebyarAllocations "loop1"

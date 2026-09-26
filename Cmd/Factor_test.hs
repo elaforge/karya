@@ -17,33 +17,33 @@ import           Util.Test
 
 test_selection_alts :: Test
 test_selection_alts = do
-    let run relative = CmdTest.run_tracks tracks $ do
-            CmdTest.set_sel 1 1 1 3
-            Factor.selection_alts relative 3 (UiTest.mkid "sub")
-        tracks = UiTest.regular_notes 4
-    let get_block = Lists.head
-            <=< UiTest.extract_block_id UiTest.default_block_id
-            . CmdTest.result_ui_state
+    let run relative = CmdTest.runTracks tracks $ do
+            CmdTest.setSel 1 1 1 3
+            Factor.selectionAlts relative 3 (UiTest.mkid "sub")
+        tracks = UiTest.regularNotes 4
+    let getBlock = Lists.head
+            <=< UiTest.extractBlockId UiTest.defaultBlockId
+            . CmdTest.resultUiState
     let result = run True
-    equal (CmdTest.result_val result)
+    equal (CmdTest.resultVal result)
         (Right $ Just $ map UiTest.bid ["b1-sub1", "b1-sub2", "b1-sub3"])
-    equal (get_block result)
+    equal (getBlock result)
         (Just (">", [(0, 1, ""), (1, 2, "alt -sub1 -sub2 -sub3"), (3, 1, "")]))
-    equal (Map.keys (Ui.state_views (CmdTest.result_ui_state result)))
+    equal (Map.keys (Ui.stateViews (CmdTest.resultUiState result)))
         (map UiTest.vid ["b1-sub1.v1", "b1-sub2.v1", "b1-sub3.v1", "v.b1"])
 
     let result = run False
-    equal (CmdTest.result_val result)
+    equal (CmdTest.resultVal result)
         (Right $ Just $ map UiTest.bid ["sub1", "sub2", "sub3"])
-    equal (get_block result)
+    equal (getBlock result)
         (Just (">", [(0, 1, ""), (1, 2, "alt sub1 sub2 sub3"), (3, 1, "")]))
 
 test_selection :: Test
 test_selection = do
-    let run tracks subs start end = UiTest.extract_blocks $
-            CmdTest.result_ui_state $ CmdTest.run_ui Ui.empty $ do
-                parent_v : _ <- UiTest.mkviews (("b", [(">", tracks)]) : subs)
-                CmdTest.set_sel_on parent_v 1 start 1 end
+    let run tracks subs start end = UiTest.extractBlocks $
+            CmdTest.resultUiState $ CmdTest.runUi Ui.empty $ do
+                parentV : _ <- UiTest.mkviews (("b", [(">", tracks)]) : subs)
+                CmdTest.setSelOn parentV 1 start 1 end
                 Factor.selection_ True False (UiTest.mkid "sub")
     equal (run [(0, 1, "a"), (1, 1, "b")] [] 0 1)
         [ ("b", [(">", [(0, 1, "sub"), (1, 1, "b")])])

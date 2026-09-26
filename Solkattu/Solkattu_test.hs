@@ -85,16 +85,16 @@ test_vary = do
 test_parseSollus :: Test
 test_parseSollus = do
     let f = Solkattu.parseSollus
-    right_equal (f "tari _ki") [Just Ta, Just Ri, Nothing, Just Ki]
+    rightEqual (f "tari _ki") [Just Ta, Just Ri, Nothing, Just Ki]
     -- requires backtracking: ki tat hom -> ki ta thom
-    right_equal (f "kitathom") $ map Just [Ki, Ta, Thom]
+    rightEqual (f "kitathom") $ map Just [Ki, Ta, Thom]
     -- Spaces are ignored, but force word interpretation.
-    right_equal (f "kita thom") $ map Just [Ki, Ta, Thom]
-    left_like (f "kitat hom") "no parse for \"hom\""
+    rightEqual (f "kita thom") $ map Just [Ki, Ta, Thom]
+    leftLike (f "kitat hom") "no parse for \"hom\""
     -- allow elided n
-    right_equal (f "ginathom") $ map Just [Gin, Na, Thom]
-    left_like (f "takadina") "multiple parses"
-    right_equal (f "takadinna") $ map Just [Ta, Ka, Din, Na]
+    rightEqual (f "ginathom") $ map Just [Gin, Na, Thom]
+    leftLike (f "takadina") "multiple parses"
+    rightEqual (f "takadinna") $ map Just [Ta, Ka, Din, Na]
 
 -- * utils
 

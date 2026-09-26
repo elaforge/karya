@@ -22,7 +22,7 @@ import           Util.Test
 test_control :: Test
 test_control = do
     let f = extract controls controls . run . map mkmsg
-        controls = Map.assocs . Synth.note_controls
+        controls = Map.assocs . Synth.noteControls
     let (active, notes, ws) = f
             [ (0, 0, NoteOn 64 38)
             , (100, 0, ControlChange 2 100)
@@ -48,7 +48,7 @@ test_control = do
 
 test_warns :: Test
 test_warns = do
-    let f = extract Synth.note_start Synth.note_start . run . map mkmsg
+    let f = extract Synth.noteStart Synth.noteStart . run . map mkmsg
     let (active, notes, warns) = f
             [ (0, 0, NoteOn 64 38)
             , (100, 0, NoteOn 64 100)
@@ -57,7 +57,7 @@ test_warns = do
     equal active []
     equal notes [ts 100] -- one one cancelled
     equal (map fst warns) [ts 100, ts 200]
-    strings_like (map snd warns)
+    stringsLike (map snd warns)
         [ "sounding notes: [dev:0 e4(64) 0s--"
         , "multiple sounding notes:"
         ]
@@ -66,9 +66,9 @@ test_warns = do
 
 test_pretty :: Test
 test_pretty = do
-    let f = map Text.strip . Text.lines . Synth.pretty_state . run . map mkmsg
-        chan0 = in_order . map (0,)
-    strings_like (f $ in_order
+    let f = map Text.strip . Text.lines . Synth.prettyState . run . map mkmsg
+        chan0 = inOrder . map (0,)
+    stringsLike (f $ inOrder
         [ (0, NoteOn 64 10), (0, NoteOn 64 20)
         , (0, NoteOff 64 30), (0, NoteOff 64 40)
         ])
@@ -97,7 +97,7 @@ test_pretty = do
 
 test_pitch :: Test
 test_pitch = do
-    let f = extract Synth.note_pitch id . run . map mkmsg
+    let f = extract Synth.notePitch id . run . map mkmsg
     let (active, notes, warns) = f
             [ (0, 0, PitchBend 0.5)
             , (0, 0, NoteOn 64 38)
@@ -106,12 +106,12 @@ test_pitch = do
             , (1000, 0, NoteOff 64 38)
             ]
     equal active []
-    equal (map Synth.note_pitch notes) [65]
-    equal (map Synth.note_pitches notes) [[(ts 100, 66), (ts 200, 62)]]
+    equal (map Synth.notePitch notes) [65]
+    equal (map Synth.notePitches notes) [[(ts 100, 66), (ts 200, 62)]]
     equal warns []
 
 run :: [Midi.WriteMessage] -> Synth.State
-run = Synth.run Synth.empty_state
+run = Synth.run Synth.emptyState
 
 ts :: Integer -> RealTime.RealTime
 ts = RealTime.milliseconds
@@ -119,19 +119,19 @@ ts = RealTime.milliseconds
 extract :: (Synth.SoundingNote -> a) -> (Synth.Note -> b) -> Synth.State
     -> ([a], [b], [(RealTime.RealTime, Text)])
 extract active done state =
-    ( map active (concat (Map.elems (Synth.state_active state)))
-    , map done (Synth.state_notes state)
-    , [(Midi.wmsg_ts wmsg, msg) | (wmsg, msg) <- Synth.state_warns state]
+    ( map active (concat (Map.elems (Synth.stateActive state)))
+    , map done (Synth.stateNotes state)
+    , [(Midi.wmsgTs wmsg, msg) | (wmsg, msg) <- Synth.stateWarns state]
     )
 
 mkmsg :: (Integer, Midi.Channel, ChannelMessage) -> Midi.WriteMessage
 mkmsg (ts, chan, msg) = Midi.WriteMessage
-    (Midi.write_device "dev") (RealTime.milliseconds ts)
+    (Midi.writeDevice "dev") (RealTime.milliseconds ts)
     (Midi.ChannelMessage chan msg)
 
-in_order :: [(Midi.Channel, ChannelMessage)]
+inOrder :: [(Midi.Channel, ChannelMessage)]
     -> [(Integer, Midi.Channel, ChannelMessage)]
-in_order msgs =
+inOrder msgs =
     [ (ts * 1000, chan, msg)
     | (ts, (chan, msg)) <- zip [0..] msgs
     ]

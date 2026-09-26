@@ -3,12 +3,8 @@ all be multiples of 4 spaces), and there are no tabs.
 
 No line is longer than 80 columns.
 
-All lower case names are lower_with_underscores even though it's not haskell
-standard.  All upper case names are haskell standard CamelCase.  If I started
-again I'd use lowerUpper, but it's too late to change now.  Some modules in
-Util, which are nominally independent, are in lowerUpper, but I'm a bit
-inconsistent.  Synth/* and Solkattu/* are camelCase.  Acrynyms are words, so
-MidiTest, not MIDITest, and NoteId, not NoteID.  It looks weird but it's
+The usual camelCase, except tests which start with `test_`.  Acrynyms are words,
+so MidiTest, not MIDITest, and NoteId, not NoteID.  It looks weird but it's
 consistent.
 
 Operators are wrapped on the following line, with some exceptions like =, <-,
@@ -50,24 +46,24 @@ import a module with foreign deps.  Technically it should be able to if you
 give it the object files but since it's the entire GUI library and associated
 system libraries I've never been able to get that to work.
 
-I'm inconsistent about record fields.  Originally I used `rec_xyz` where `rec`
+I'm inconsistent about record fields.  Originally I used `recXyz` where `rec`
 is an abbreviation of the record type name, but lately I've been using just
 `_xyz`.  It's hard to do that everywhere though, because they can collide
 within the module.  Yeah, it's annoying.  The lenses, if there are any, omit
-the leading `rec_`.  I write lenses by hand, no TH, because TH is a hassle.
+the leading `rec`.  I write lenses by hand, no TH, because TH is a hassle.
 I'm inconsistent about lenses, but generally only add them for records that are
 nested in other records.  Records in Haskell are just inconsistent and awkward
 in general.
 
-Cmds begin with cmd_.  But not always.  I'm not very convinced of the value of
-this convention.  The idea with cmd_ is that the cmd_* version can be directly
-bound to a key, and it will get various default parameters from context and
-call the non-cmd_ prefixed version with more parameters.  Lately I've been
-omitting the prefix.
+Cmds begin with `cmd`.  But not always.  I'm not very convinced of the value of
+this convention.  The idea with `cmd` is that the `cmd*` version can be
+directly bound to a key, and it will get various default parameters from
+context and call the non-cmd prefixed version with more parameters.  Lately
+I've been omitting the prefix.
 
-Calls begin with c_.  I use this convention pretty consistently, where the c_
-prefixed version has the documentation, signature, and any further arg
-parsing, and the non-prefixed version has the actual logic.
+Calls begin with `c`.  I use this convention pretty consistently, where the `c`
+prefixed version has the documentation, signature, and any further arg parsing,
+and the non-prefixed version has the actual logic.
 
 Most types should be in Show and Pretty, for debugging and interactive use.
 Types that cannot use the automatic Show instance may derive their own.  If so,
@@ -76,5 +72,5 @@ they should emit valid haskell syntax because non-valid syntax will break
 `((xyz))` to distinguish them from automatic instances.
 
 There's a convention where functions that look something up are prefixed with
-`lookup_` if they return Nothing on failure, and `get_` if they throw an
+`lookup` if they return Nothing on failure, and `get` if they throw an
 exception on failure.

@@ -65,7 +65,7 @@ renderInstrument sr
 -}
 data Airbox = Airbox
     { aWidth, aDepth, aHeight :: Meters
-    , aC_a, aRho_a :: Double
+    , aCA, aRhoA :: Double
     , aOutputs :: [AirboxOutput]
     } deriving (Eq, Ord, Show)
 

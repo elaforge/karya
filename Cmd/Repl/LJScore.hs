@@ -13,9 +13,9 @@ import qualified Derive.JScore.JScore as JScore
 import           Global
 
 
-integrate_file :: FilePath -> Cmd.CmdL Text
-integrate_file fname = JScore.integrate_file fname >>= \case
+integrateFile :: FilePath -> Cmd.CmdL Text
+integrateFile fname = JScore.integrateFile fname >>= \case
     Left errors -> pure $ Text.unlines errors
-    Right (mb_toplevel, new_blocks) -> do
-        whenJust mb_toplevel (void . Create.view)
-        pure $ Text.unwords (map pretty (maybe id (:) mb_toplevel new_blocks))
+    Right (mbToplevel, newBlocks) -> do
+        whenJust mbToplevel (void . Create.view)
+        pure $ Text.unwords (map pretty (maybe id (:) mbToplevel newBlocks))

@@ -43,13 +43,13 @@ import           Util.Test
 
 
 gap :: RealTime
-gap = Perform.adjacent_note_gap
+gap = Perform.adjacentNoteGap
 
-cc_lead :: RealTime
-cc_lead = Perform.control_lead_time
+ccLead :: RealTime
+ccLead = Perform.controlLeadTime
 
-min_cc_lead :: RealTime
-min_cc_lead = Perform.min_control_lead_time
+minCcLead :: RealTime
+minCcLead = Perform.minControlLeadTime
 
 -- * perform
 
@@ -57,11 +57,11 @@ test_perform :: Test
 test_perform = do
     let f events = do
             let (msgs, warns) = perform config2 $
-                    Lists.sortOn Types.event_start (map mkevent events)
+                    Lists.sortOn Types.eventStart (map mkevent events)
             equal warns []
             pure $ extract msgs
-        extract = PerformTest.extract PerformTest.e_chan_msg
-            . filter (Midi.is_note . Midi.wmsg_msg)
+        extract = PerformTest.extract PerformTest.eChanMsg
+            . filter (Midi.isNote . Midi.wmsgMsg)
 
     -- fractional notes get their own channels
     msgs <- f
@@ -127,13 +127,13 @@ test_perform = do
 
 test_perform_voices :: Test
 test_perform_voices = do
-    let f configs = first e_note_ons . perform (mk_configs configs)
+    let f configs = first eNoteOns . perform (mkConfigs configs)
             . map (mkevent . mke)
         mke (p, start) = (patch1, p, start, 1, [])
-        mk_configs chans =
+        mkConfigs chans =
             Map.singleton i
-                (Perform.addrs_config [((dev1, c), v) | (c, v) <- chans])
-            where i = Types.patch_name patch1
+                (Perform.addrsConfig [((dev1, c), v) | (c, v) <- chans])
+            where i = Types.patchName patch1
     let config12 = [(0, Just 1), (1, Just 2)]
     equal (f config12 [("a", 0)]) ([(0, (0, Key.c4))], [])
     -- b gets bumped to the next channel.
@@ -152,15 +152,15 @@ test_perform_voices = do
 
 test_aftertouch :: Test
 test_aftertouch = do
-    let f = e_ts_chan_msg . fst . perform config1
-                . Lists.sortOn Types.event_start . map event
+    let f = eTsChanMsg . fst . perform config1
+                . Lists.sortOn Types.eventStart . map event
         event (pitch, start, dur, aftertouch) = mkevent
             (patch1, pitch, start, dur,
-                [(Controls.aftertouch, MSignal.from_pairs aftertouch)])
+                [(Controls.aftertouch, MSignal.fromPairs aftertouch)])
     equal (f [("a", 0, 1, [(0, 1)]), ("b", 0, 1, [(0, 0)])])
-        [ (-min_cc_lead, 0, Aftertouch Key.c4 127)
-        , (-min_cc_lead, 0, Aftertouch Key.cs4 0)
-        , (-min_cc_lead, 0, PitchBend 0)
+        [ (-minCcLead, 0, Aftertouch Key.c4 127)
+        , (-minCcLead, 0, Aftertouch Key.cs4 0)
+        , (-minCcLead, 0, PitchBend 0)
         , (0, 0, NoteOn Key.c4 100)
         , (0, 0, NoteOn Key.cs4 100)
         , (1 - gap, 0, NoteOff Key.c4 100)
@@ -171,34 +171,34 @@ test_controls :: Test
 test_controls = do
     let f extract = first extract . perform config1
             . map mkpevent . (:[])
-        e_pitch = PerformTest.extract_msg_ts PerformTest.e_pitchbend
-        e_control = PerformTest.extract_msg_ts (PerformTest.e_cc 1)
-    equal (f e_pitch (0, 4, [(0, 60), (1, 60.5)], []))
-        ([(-min_cc_lead, 0), (1, 0.5)], [])
+        ePitch = PerformTest.extractMsgTs PerformTest.ePitchbend
+        eControl = PerformTest.extractMsgTs (PerformTest.eCc 1)
+    equal (f ePitch (0, 4, [(0, 60), (1, 60.5)], []))
+        ([(-minCcLead, 0), (1, 0.5)], [])
     -- Ignore discontinuities, MIDI is already discontinuous.
-    equal (f e_pitch (0, 4, [(0, 60), (1, 60), (1, 60.5)], []))
-        ([(-min_cc_lead, 0), (1, 0.5)], [])
-    equal (f e_control (0, 4, [(0, 60)], [("cc1", [(0, 0), (1, 0.5)])]))
-        ([(-min_cc_lead, 0), (1, 64)], [])
+    equal (f ePitch (0, 4, [(0, 60), (1, 60), (1, 60.5)], []))
+        ([(-minCcLead, 0), (1, 0.5)], [])
+    equal (f eControl (0, 4, [(0, 60)], [("cc1", [(0, 0), (1, 0.5)])]))
+        ([(-minCcLead, 0), (1, 64)], [])
     -- Ignore discontinuities, MIDI is already discontinuous.
-    equal (f e_control (0, 4, [(0, 60)], [("cc1", [(0, 0), (1, 0), (1, 0.5)])]))
-        ([(-min_cc_lead, 0), (1, 64)], [])
+    equal (f eControl (0, 4, [(0, 60)], [("cc1", [(0, 0), (1, 0), (1, 0.5)])]))
+        ([(-minCcLead, 0), (1, 64)], [])
 
 test_controls_after_note_off :: Test
 test_controls_after_note_off = do
     -- Test that controls happen during note off, but don't interfere with
     -- other notes.  This corresponds to the comment in 'Perform.perform_note'.
     let f = fst . perform config2 . map mkevent
-        e_ts_cmsg = PerformTest.extract_msg_ts PerformTest.e_cmsg
-        sig xs = [(Controls.vol, MSignal.from_pairs xs)]
+        eTsCmsg = PerformTest.extractMsgTs PerformTest.eCmsg
+        sig xs = [(Controls.vol, MSignal.fromPairs xs)]
 
     let msgs = f
             [ (patch2, "a", 0, 1, sig [(0, 1), (1.95, 0.5)])
             , (patch2, "b", 2, 1, sig [(2, 1)])
             ]
     -- Signal at 1.95 dropped because of the next note on.
-    equal (e_ts_cmsg msgs)
-        [ (-min_cc_lead, ControlChange 7 127), (-min_cc_lead, PitchBend 0)
+    equal (eTsCmsg msgs)
+        [ (-minCcLead, ControlChange 7 127), (-minCcLead, PitchBend 0)
         , (0, NoteOn 60 100)
         , (1 - gap, NoteOff 60 100)
         , (2, NoteOn 61 100), (3 - gap, NoteOff 61 100)
@@ -209,8 +209,8 @@ test_controls_after_note_off = do
             , (patch2, "b", 2, 1, sig [(2, 1)])
             ]
     -- But not this time, because its within the first note.
-    equal (e_ts_cmsg msgs)
-        [ (-min_cc_lead, ControlChange 7 127), (-min_cc_lead, PitchBend 0)
+    equal (eTsCmsg msgs)
+        [ (-minCcLead, ControlChange 7 127), (-minCcLead, PitchBend 0)
         , (0, NoteOn 60 100)
         , (1.95, ControlChange 7 64)
         , (2 - gap, NoteOff 60 100)
@@ -223,8 +223,8 @@ test_controls_after_note_off = do
             , (patch2, "b", 2, 1, sig [(2, 1)])
             ]
     -- Room enough for both.
-    equal (e_ts_cmsg msgs)
-        [ (-min_cc_lead, ControlChange 7 127), (-min_cc_lead, PitchBend 0)
+    equal (eTsCmsg msgs)
+        [ (-minCcLead, ControlChange 7 127), (-minCcLead, PitchBend 0)
         , (0, NoteOn 60 100)
         , (1 - gap, NoteOff 60 100)
         , (1.5, ControlChange 7 64)
@@ -233,8 +233,8 @@ test_controls_after_note_off = do
         ]
 
     -- 0.5 visible even though it's after the end of the decay.
-    let e_cc7 = PerformTest.extract_msg (PerformTest.e_cc 7)
-    equal (e_cc7 $ f
+    let eCc7 = PerformTest.extractMsg (PerformTest.eCc 7)
+    equal (eCc7 $ f
             [ (patch1, "a", 0, 1, sig [(0, 1), (4, 0.5)])
             , (patch1, "a", 8, 1, [])
             ])
@@ -245,24 +245,24 @@ test_control_lead_time = do
     -- verify that controls are given lead time if they are on their own
     -- channels, and not if they aren't
     let run = extract . perform config2 . mkevents
-        run_inst1 = extract . perform config2 . mkevents_patch
-        extract = first e_ts_chan_msg
-    let vol start = (Controls.vol, linear_interp [(start, 0), (start + 2, 1)])
-    equal (run_inst1 [("a", 0, 4, []), ("b2", 4, 4, [])])
-        ([ (-min_cc_lead, 0, PitchBend 0)
+        runInst1 = extract . perform config2 . mkeventsPatch
+        extract = first eTsChanMsg
+    let vol start = (Controls.vol, linearInterp [(start, 0), (start + 2, 1)])
+    equal (runInst1 [("a", 0, 4, []), ("b2", 4, 4, [])])
+        ([ (-minCcLead, 0, PitchBend 0)
          , (0, 0, NoteOn 60 100)
-         , (4 - cc_lead, 1, PitchBend 0.5)
+         , (4 - ccLead, 1, PitchBend 0.5)
          , (4 - gap, 0, NoteOff 60 100)
          , (4, 1, NoteOn 61 100)
          , (8 - gap, 1, NoteOff 61 100)
          ], [])
 
-    equal (run_inst1 [("a", 0, 4, []), ("b", 2, 4, [vol 2])])
-        ([ (-min_cc_lead, 0, PitchBend 0)
+    equal (runInst1 [("a", 0, 4, []), ("b", 2, 4, [vol 2])])
+        ([ (-minCcLead, 0, PitchBend 0)
          , (0, 0, NoteOn 60 100)
 
-         , (2 - cc_lead, 1, ControlChange 7 0)
-         , (2 - cc_lead, 1, PitchBend 0)
+         , (2 - ccLead, 1, ControlChange 7 0)
+         , (2 - ccLead, 1, PitchBend 0)
 
          , (2, 1, NoteOn 61 100)
          , (3, 1, ControlChange 7 64)
@@ -273,8 +273,8 @@ test_control_lead_time = do
 
     -- Non-overlapping notes means they go on the same channel, but there's no
     -- room for control lead.
-    equal (run_inst1 [("a", 0, 4, []), ("b", 4, 4, [vol 4])])
-        ([ (-min_cc_lead, 0, PitchBend 0)
+    equal (runInst1 [("a", 0, 4, []), ("b", 4, 4, [vol 4])])
+        ([ (-minCcLead, 0, PitchBend 0)
          , (0, 0, NoteOn 60 100)
          , (4 - gap, 0, NoteOff 60 100)
          , (4 - gap, 0, ControlChange 7 0)
@@ -286,16 +286,16 @@ test_control_lead_time = do
 
     -- Force them to be on the same channel, so I wind up with 'min_cc_lead'.
     equal (run [(patch2, "a", 0, 8, []), (patch2, "b2", 4, 4, [])])
-        ([ (-min_cc_lead, 2, PitchBend 0)
+        ([ (-minCcLead, 2, PitchBend 0)
          , (0, 2, NoteOn 60 100)
-         , (4 - min_cc_lead, 2, PitchBend 0.5)
+         , (4 - minCcLead, 2, PitchBend 0.5)
          , (4, 2, NoteOn 61 100)
          , (8 - gap, 2, NoteOff 60 100)
          , (8 - gap, 2, NoteOff 61 100)
          ], [])
 
     equal (run [(patch2, "a", 0, 4, []), (patch2, "b", 4, 4, [vol 4])])
-        ([ (-min_cc_lead, 2, PitchBend 0)
+        ([ (-minCcLead, 2, PitchBend 0)
          , (0, 2, NoteOn 60 100)
          , (4 - gap, 2, NoteOff 60 100)
          , (4 - gap, 2, ControlChange 7 0)
@@ -308,8 +308,8 @@ test_control_lead_time = do
 test_pedal :: Test
 test_pedal = do
     let f = extract . perform config1 . mkevents
-        extract = first $ PerformTest.extract_msg $ PerformTest.e_cc 64
-    let pedal sig = (Controls.pedal, MSignal.from_pairs sig)
+        extract = first $ PerformTest.extractMsg $ PerformTest.eCc 64
+    let pedal sig = (Controls.pedal, MSignal.fromPairs sig)
     -- The pedal extends note duration, so I get the pedal-off even though it's
     -- a long ways past the supposed end of the note.
     equal (f [(patch1, "a", 0, 2, [pedal [(0, 1), (40, 0)]])]) ([127, 0], [])
@@ -323,7 +323,7 @@ test_msgs_sorted = do
     -- Ensure that msgs are in order, even after control lead time.
     let f = extract . perform config1 . map mkevent
         mkevent (s, dur, pitch) = mkpevent (s, dur, [(s, pitch)], [])
-        extract = first e_ts_chan_msg
+        extract = first eTsChanMsg
     let (msgs, logs) = f [(0, 1, 40.5), (1, 1, 40.5), (1, 1, 42.75)]
         ts = map (\(ts, _, _) -> ts) msgs
     equal logs []
@@ -332,7 +332,7 @@ test_msgs_sorted = do
 
 -- Bad signal that goes over 1 at 1 and 3.
 badsig :: ScoreT.Control -> (ScoreT.Control, MSignal.Signal)
-badsig cont = (cont, linear_interp [(0, 0), (1.5, 1.5), (2.5, 0.5), (4, 2)])
+badsig cont = (cont, linearInterp [(0, 0), (1.5, 1.5), (2.5, 0.5), (4, 2)])
 
 test_clip_warns :: Test
 test_clip_warns = do
@@ -346,14 +346,14 @@ test_clip_warns = do
         -- why it changed when RealTime became integral
         , "vol clipped: 4s--4s"
         ]
-    check ("valid: " <> pretty msgs) (all_msgs_valid msgs)
+    check ("valid: " <> pretty msgs) (allMsgsValid msgs)
 
 test_keyswitch_share_chan :: Test
 test_keyswitch_share_chan = do
     let f evts = first extract $ perform config1 (map make evts)
-        extract = map snd . e_note_ons
-        make (ks, pitch, start) = mkevent (ks_inst ks, pitch, start, 1, [])
-        ks_inst ks = patch1 { Types.patch_keyswitches = ks }
+        extract = map snd . eNoteOns
+        make (ks, pitch, start) = mkevent (ksInst ks, pitch, start, 1, [])
+        ksInst ks = patch1 { Types.patchKeyswitches = ks }
         ks1 = [Patch.Keyswitch Key.c1]
         ks2 = [Patch.Keyswitch Key.d1]
 
@@ -371,40 +371,40 @@ test_keyswitch_share_chan = do
 
 test_perform_lazy :: Test
 test_perform_lazy = do
-    let perform evts = perform_notes [(evt, (dev1, 0)) | evt <- evts]
+    let perform evts = performNotes [(evt, (dev1, 0)) | evt <- evts]
     let endless = map mkevent [(patch1, Text.singleton n, ts, 4, [])
             | (n, ts) <- zip (cycle ['a'..'g']) (Lists.range_ 0 4)]
     let (msgs, _warns) = perform endless
-    res <- run_timeout 1 $ pure (take 20 msgs)
+    res <- runTimeout 1 $ pure (take 20 msgs)
     equal (fmap length res) (Just 20)
 
 test_no_pitch :: Test
 test_no_pitch = do
     let event = (mkevent (patch1, "a", 0, 2, []))
-            { Types.event_pitch = MSignal.constant 0 }
+            { Types.eventPitch = MSignal.constant 0 }
     let (midi, logs) = perform config1 [event]
-    equal (map Midi.wmsg_msg midi) []
+    equal (map Midi.wmsgMsg midi) []
     equal logs ["event has no valid pitches"]
 
 -- * perform_note
 
 test_min_duration :: Test
 test_min_duration = do
-    let f = extract . expect_no_logs . perform_notes . map make
+    let f = extract . expectNoLogs . performNotes . map make
         extract = mapMaybe $ \wmsg ->
-            (,) (Midi.wmsg_ts wmsg) <$> note_key (Midi.wmsg_msg wmsg)
+            (,) (Midi.wmsgTs wmsg) <$> noteKey (Midi.wmsgMsg wmsg)
         make (pitch, start, dur) =
             (mkevent (patch1, pitch, start, dur, []), (dev1, 0))
-        min_dur = Perform.min_note_duration
-    equal (f [("a", 1, 0)]) [(1, (True, Key.c4)), (1+min_dur, (False, Key.c4))]
+        minDur = Perform.minNoteDuration
+    equal (f [("a", 1, 0)]) [(1, (True, Key.c4)), (1+minDur, (False, Key.c4))]
 
 test_pitch_curve :: Test
 test_pitch_curve = do
     let event pitch = mkpevent (1, 0.5, pitch, [])
-    let f evt = Lists.dropDups id (map Midi.wmsg_msg msgs)
+    let f evt = Lists.dropDups id (map Midi.wmsgMsg msgs)
             where
-            msgs = LEvent.events_of $ fst $
-                Perform.perform_note 0 Nothing evt (dev1, 1)
+            msgs = LEvent.eventsOf $ fst $
+                Perform.performNote 0 Nothing evt (dev1, 1)
         chan msgs = map (Midi.ChannelMessage 1) msgs
 
     equal (f (event [(1, 42.5)]))
@@ -418,80 +418,80 @@ test_pitch_curve = do
             , Midi.PitchBend 1
             ])
 
-    let notes prev evt = [(Midi.wmsg_ts msg, Midi.wmsg_msg msg) | msg <- msgs]
+    let notes prev evt = [(Midi.wmsgTs msg, Midi.wmsgMsg msg) | msg <- msgs]
             where
-            msgs = LEvent.events_of $ fst $
-                Perform.perform_note (secs prev) Nothing evt (dev1, 1)
+            msgs = LEvent.eventsOf $ fst $
+                Perform.performNote (secs prev) Nothing evt (dev1, 1)
     -- Try to use the control_lead_time unless the previous note is too close.
     equal (head (notes 0 (event [(1, 42.5)])))
         (0.9, Midi.ChannelMessage 1 (Midi.PitchBend 0.5))
     equal (head (notes 1 (event [(1, 42.5)])))
-        (1 - min_cc_lead, Midi.ChannelMessage 1 (Midi.PitchBend 0.5))
+        (1 - minCcLead, Midi.ChannelMessage 1 (Midi.PitchBend 0.5))
 
 test_keyswitch :: Test
 test_keyswitch = do
-    let e_note_on = mapMaybe $ \wmsg ->
-            (,) (Midi.wmsg_ts wmsg) <$> note_on_key (Midi.wmsg_msg wmsg)
-        e_note = mapMaybe $ \wmsg ->
-            (,) (Midi.wmsg_ts wmsg) <$> note_key (Midi.wmsg_msg wmsg)
-        ks_inst ks hold = patch1
-            { Types.patch_keyswitches = ks
-            , Types.patch_hold_keyswitches = hold
+    let eNoteOn = mapMaybe $ \wmsg ->
+            (,) (Midi.wmsgTs wmsg) <$> noteOnKey (Midi.wmsgMsg wmsg)
+        eNote = mapMaybe $ \wmsg ->
+            (,) (Midi.wmsgTs wmsg) <$> noteKey (Midi.wmsgMsg wmsg)
+        ksInst ks hold = patch1
+            { Types.patchKeyswitches = ks
+            , Types.patchHoldKeyswitches = hold
             }
-        with_addr (ks, hold, pitch, start, dur) =
-            (mkevent (ks_inst ks hold, pitch, start, dur, []), (dev1, 0))
+        withAddr (ks, hold, pitch, start, dur) =
+            (mkevent (ksInst ks hold, pitch, start, dur, []), (dev1, 0))
         ks1 = [Patch.Keyswitch Key.c1]
         ks2 = [Patch.Keyswitch Key.d1]
-    let ks_lead = Perform.keyswitch_lead_time
-        min_dur = Perform.min_note_duration
-    let f extract = extract . expect_no_logs . perform_notes . map with_addr
+    let ksLead = Perform.keyswitchLeadTime
+        minDur = Perform.minNoteDuration
+    let f extract = extract . expectNoLogs . performNotes . map withAddr
 
     -- Redundant ks not emitted.
-    equal (f e_note_on [(ks1, False, "a", 0, 1), (ks1, False, "b", 10, 10)])
-        [ (0 - ks_lead, Key.c1)
+    equal (f eNoteOn [(ks1, False, "a", 0, 1), (ks1, False, "b", 10, 10)])
+        [ (0 - ksLead, Key.c1)
         , (0, Key.c4)
         , (10, Key.cs4)
         ]
     -- Keyswitch changed.
-    equal (f e_note_on [(ks1, False, "a", 0, 1), (ks2, False, "b", 10, 10)])
-        [ (0 - ks_lead, Key.c1), (0, Key.c4)
-        , (10 - ks_lead, Key.d1), (10, Key.cs4)
+    equal (f eNoteOn [(ks1, False, "a", 0, 1), (ks2, False, "b", 10, 10)])
+        [ (0 - ksLead, Key.c1), (0, Key.c4)
+        , (10 - ksLead, Key.d1), (10, Key.cs4)
         ]
 
     -- No keyswitch to keyswitch.
-    equal (f e_note_on [([], False, "a", 0, 1), (ks1, False, "b", 10, 10)])
+    equal (f eNoteOn [([], False, "a", 0, 1), (ks1, False, "b", 10, 10)])
         [ (0, Key.c4)
-        , (10 - ks_lead, Key.c1), (10, Key.cs4)
+        , (10 - ksLead, Key.c1), (10, Key.cs4)
         ]
 
     -- Multiple keyswitches.
-    let result = f e_note [(ks1 ++ ks2, False, "a", 0, 1)]
+    let result = f eNote [(ks1 ++ ks2, False, "a", 0, 1)]
     equal (map fst result) (List.sort (map fst result))
     equal result
-        [ (-ks_lead, (True, Key.c1)), (-ks_lead, (True, Key.d1))
+        [ (-ksLead, (True, Key.c1)), (-ksLead, (True, Key.d1))
         , (0, (True, Key.c4))
-        , (-ks_lead+min_dur, (False, Key.c1))
-        , (-ks_lead+min_dur, (False, Key.d1))
+        , (-ksLead+minDur, (False, Key.c1))
+        , (-ksLead+minDur, (False, Key.d1))
         , (1 - gap, (False, Key.c4))
         ]
     -- Multiple keyswitches on multiple notes.
-    equal (f e_note [(ks1 ++ ks2, False, "a", 0, 1), (ks1, False, "b", 1, 1)])
-        [ (-ks_lead, (True, Key.c1)), (-ks_lead, (True, Key.d1))
+    equal (f eNote [(ks1 ++ ks2, False, "a", 0, 1), (ks1, False, "b", 1, 1)])
+        [ (-ksLead, (True, Key.c1)), (-ksLead, (True, Key.d1))
         , (0, (True, Key.c4))
-        , (-ks_lead+min_dur, (False, Key.c1))
-        , (-ks_lead+min_dur, (False, Key.d1))
+        , (-ksLead+minDur, (False, Key.c1))
+        , (-ksLead+minDur, (False, Key.d1))
         , (1 - gap, (False, Key.c4))
 
-        , (1-ks_lead, (True, Key.c1))
+        , (1-ksLead, (True, Key.c1))
         , (1, (True, Key.cs4))
-        , (1-ks_lead+min_dur, (False, Key.c1))
+        , (1-ksLead+minDur, (False, Key.c1))
         , (2 - gap, (False, Key.cs4))
         ]
 
     -- Hold keyswitch.
-    equal (f e_note [(ks1, True, "a", 0, 1), (ks1, True, "b", 1, 1),
+    equal (f eNote [(ks1, True, "a", 0, 1), (ks1, True, "b", 1, 1),
             ([], False, "c", 2, 1)])
-        [ (0 - ks_lead, (True, Key.c1))
+        [ (0 - ksLead, (True, Key.c1))
         , (0, (True, Key.c4))
         , (1 - gap, (False, Key.c4)), (1, (True, Key.cs4))
         , (2 - gap, (False, Key.cs4)), (2 - gap, (False, Key.c1))
@@ -501,58 +501,58 @@ test_keyswitch = do
     -- control switches
     let cs1 = [Patch.ControlSwitch 1 10]
         cs2 = [Patch.ControlSwitch 1 20]
-        e_msg = mapMaybe $ \wmsg ->
-            (,) (Midi.wmsg_ts wmsg) <$> note_on_cc (Midi.wmsg_msg wmsg)
-        note_on_cc msg
-            | Midi.is_note_on msg || Midi.is_cc msg = Just msg
+        eMsg = mapMaybe $ \wmsg ->
+            (,) (Midi.wmsgTs wmsg) <$> noteOnCc (Midi.wmsgMsg wmsg)
+        noteOnCc msg
+            | Midi.isNoteOn msg || Midi.isCc msg = Just msg
             | otherwise = Nothing
-    equal (f e_msg [(cs1, False, "a", 0, 1), (cs2, False, "b", 1, 1)])
-        [ (0 - ks_lead, Midi.ChannelMessage 0 (Midi.ControlChange 1 10))
+    equal (f eMsg [(cs1, False, "a", 0, 1), (cs2, False, "b", 1, 1)])
+        [ (0 - ksLead, Midi.ChannelMessage 0 (Midi.ControlChange 1 10))
         , (0, Midi.ChannelMessage 0 (Midi.NoteOn Key.c4 100))
-        , (1 - ks_lead, Midi.ChannelMessage 0 (Midi.ControlChange 1 20))
+        , (1 - ksLead, Midi.ChannelMessage 0 (Midi.ControlChange 1 20))
         , (1, Midi.ChannelMessage 0 (Midi.NoteOn Key.cs4 100))
         ]
 
 test_keyswitch_aftertouch :: Test
 test_keyswitch_aftertouch = do
-    let f = expect_no_logs . perform_notes . map with_addr
-        with_addr (ks, pitch, start, dur) =
-            (mkevent (ks_inst ks, pitch, start, dur, []), (dev1, 0))
-        ks_inst ks = patch1
-            { Types.patch_keyswitches = [Patch.Aftertouch ks] }
-        e_at = mapMaybe $ \wmsg -> case Midi.wmsg_msg wmsg of
+    let f = expectNoLogs . performNotes . map withAddr
+        withAddr (ks, pitch, start, dur) =
+            (mkevent (ksInst ks, pitch, start, dur, []), (dev1, 0))
+        ksInst ks = patch1
+            { Types.patchKeyswitches = [Patch.Aftertouch ks] }
+        eAt = mapMaybe $ \wmsg -> case Midi.wmsgMsg wmsg of
             Midi.ChannelMessage _ (Midi.Aftertouch k v) -> Just (k, v)
             _ -> Nothing
-    equal (e_at $ f [(42, "a", 0, 1)]) [(Key.c4, 42)]
+    equal (eAt $ f [(42, "a", 0, 1)]) [(Key.c4, 42)]
     -- The same AT is emitted for both pitches.
-    equal (e_at $ f [(42, "a", 0, 1), (42, "b", 0, 1)])
+    equal (eAt $ f [(42, "a", 0, 1), (42, "b", 0, 1)])
         [(Key.c4, 42), (Key.cs4, 42)]
 
 -- ** extract
 
-all_msgs_valid :: Midi.WriteMessages -> Bool
-all_msgs_valid wmsgs = all Midi.valid_msg (map Midi.wmsg_msg wmsgs)
+allMsgsValid :: Midi.WriteMessages -> Bool
+allMsgsValid wmsgs = all Midi.validMsg (map Midi.wmsgMsg wmsgs)
 
-e_note_ons :: Midi.WriteMessages -> [(RealTime, (Midi.Channel, Midi.Key))]
-e_note_ons wmsgs =
+eNoteOns :: Midi.WriteMessages -> [(RealTime, (Midi.Channel, Midi.Key))]
+eNoteOns wmsgs =
     [ (ts, (chan, key))
-    | (ts, (chan, Midi.NoteOn key _)) <- mapMaybe e_channel_msg wmsgs
+    | (ts, (chan, Midi.NoteOn key _)) <- mapMaybe eChannelMsg wmsgs
     ]
 
-e_channel_msg :: Midi.WriteMessage
+eChannelMsg :: Midi.WriteMessage
     -> Maybe (RealTime, (Midi.Channel, Midi.ChannelMessage))
-e_channel_msg wmsg = case Midi.wmsg_msg wmsg of
-    Midi.ChannelMessage chan msg -> Just (Midi.wmsg_ts wmsg, (chan, msg))
+eChannelMsg wmsg = case Midi.wmsgMsg wmsg of
+    Midi.ChannelMessage chan msg -> Just (Midi.wmsgTs wmsg, (chan, msg))
     _ -> Nothing
 
-e_ts_chan_msg :: [Midi.WriteMessage]
+eTsChanMsg :: [Midi.WriteMessage]
     -> [(RealTime, Midi.Channel, ChannelMessage)]
-e_ts_chan_msg = map (\(a, (b, c)) -> (a, b, c))
-    .  PerformTest.extract_msg_ts PerformTest.e_chan_msg
+eTsChanMsg = map (\(a, (b, c)) -> (a, b, c))
+    .  PerformTest.extractMsgTs PerformTest.eChanMsg
 
 -- TODO move to a more general purpose place?
-run_timeout :: Thread.Seconds -> IO a -> IO (Maybe a)
-run_timeout timeout action = do
+runTimeout :: Thread.Seconds -> IO a -> IO (Maybe a)
+runTimeout timeout action = do
     mvar <- Concurrent.newEmptyMVar
     th1 <- Concurrent.forkIO $ do
         val <- action
@@ -564,35 +564,35 @@ run_timeout timeout action = do
     mapM_ Concurrent.killThread [th1, th2]
     pure result
 
-note_key :: Midi.Message -> Maybe (Bool, Midi.Key)
-note_key = fmap (\(_, on, key) -> (on, key)) . PerformTest.e_note_on_off
+noteKey :: Midi.Message -> Maybe (Bool, Midi.Key)
+noteKey = fmap (\(_, on, key) -> (on, key)) . PerformTest.eNoteOnOff
 
-note_on_key :: Midi.Message -> Maybe Midi.Key
-note_on_key key
-    | Just (True, key) <- note_key key = Just key
+noteOnKey :: Midi.Message -> Maybe Midi.Key
+noteOnKey key
+    | Just (True, key) <- noteKey key = Just key
     | otherwise = Nothing
 
 perform :: Perform.Configs -> [Types.Event] -> ([Midi.WriteMessage], [Text])
-perform configs = first consistent_order . DeriveTest.extract_levents id
-    . fst . Perform.perform Perform.initial_state configs . map LEvent.Event
+perform configs = first consistentOrder . DeriveTest.extractLevents id
+    . fst . Perform.perform Perform.initialState configs . map LEvent.Event
 
-sort_groups :: (Eq k, Ord a) => (a -> k) -> [a] -> [a]
-sort_groups key = concatMap List.sort . List.groupBy (\a b -> key a == key b)
+sortGroups :: (Eq k, Ord a) => (a -> k) -> [a] -> [a]
+sortGroups key = concatMap List.sort . List.groupBy (\a b -> key a == key b)
 
 -- | 'Perform.resort' scrambles msgs that have the same timestamp.  That should
 -- be fine, so tests that rely on their ordering are being overspecific.  So
 -- put them in a consistent order so tests don't break every time I mess with
 -- postproc.
-consistent_order :: [Midi.WriteMessage] -> [Midi.WriteMessage]
-consistent_order = sort_groups Midi.wmsg_ts
+consistentOrder :: [Midi.WriteMessage] -> [Midi.WriteMessage]
+consistentOrder = sortGroups Midi.wmsgTs
 
-perform_notes :: [(Types.Event, Patch.Addr)] -> ([Midi.WriteMessage], [Text])
-perform_notes = DeriveTest.extract_levents id . fst
-    . Perform.perform_notes Perform.empty_perform_state . map LEvent.Event
+performNotes :: [(Types.Event, Patch.Addr)] -> ([Midi.WriteMessage], [Text])
+performNotes = DeriveTest.extractLevents id . fst
+    . Perform.performNotes Perform.emptyPerformState . map LEvent.Event
 
-expect_no_logs :: HasCallStack => (a, [Text]) -> a
-expect_no_logs (val, []) = val
-expect_no_logs (_, logs) =
+expectNoLogs :: HasCallStack => (a, [Text]) -> a
+expectNoLogs (val, []) = val
+expectNoLogs (_, logs) =
     error $ untxt $ "expected no logs: " <> Text.unlines logs
 
 -- * post process
@@ -603,15 +603,15 @@ test_post_process_drop_dup_controls = do
         mkpb chan val = Midi.ChannelMessage chan (Midi.PitchBend val)
         mkwmsgs msgs = [Midi.WriteMessage dev1 ts msg
                 | (ts, msg) <- zip (Lists.range_ 0 1) msgs]
-        extract wmsg = (Midi.wmsg_ts wmsg, Midi.wmsg_msg wmsg)
-    let f = map extract . LEvent.events_of . fst
-            . Perform.drop_dup_controls Map.empty . map LEvent.Event
+        extract wmsg = (Midi.wmsgTs wmsg, Midi.wmsgMsg wmsg)
+    let f = map extract . LEvent.eventsOf . fst
+            . Perform.dropDupControls Map.empty . map LEvent.Event
     let msgs = [mkcc 0 1 10, mkcc 1 1 10, mkcc 0 1 11, mkcc 0 2 10]
     -- no drops
     equal (f (mkwmsgs msgs)) (zip (Lists.range_ 0 1) msgs)
-    let with_dev dmsgs = [Midi.WriteMessage dev ts msg
+    let withDev dmsgs = [Midi.WriteMessage dev ts msg
                 | (ts, (dev, msg)) <- zip (Lists.range_ 0 1) dmsgs]
-    equal (f (with_dev [(dev1, mkcc 0 1 10), (dev2, mkcc 0 1 10)]))
+    equal (f (withDev [(dev1, mkcc 0 1 10), (dev2, mkcc 0 1 10)]))
         [(0, mkcc 0 1 10), (1, mkcc 0 1 10)]
     -- dup is dropped
     equal (f (mkwmsgs [mkcc 0 1 10, mkcc 0 2 10, mkcc 0 1 10]))
@@ -627,10 +627,10 @@ test_post_process_avoid_overlaps = do
     let f = extract . fst . perform configs
             . map (\(a, b, c, d) -> mkevent (a, b, c, d, []))
         extract = map (first (Num.roundDigits 1))
-            . PerformTest.extract_msg_ts PerformTest.e_note_on_off
+            . PerformTest.extractMsgTs PerformTest.eNoteOnOff
         configs = Map.fromList
-            [ (Types.patch_name patch1, Perform.Config [((dev1, 0), Nothing)])
-            , (Types.patch_name patch2, Perform.Config [((dev1, 1), Nothing)])
+            [ (Types.patchName patch1, Perform.Config [((dev1, 0), Nothing)])
+            , (Types.patchName patch2, Perform.Config [((dev1, 1), Nothing)])
             ]
 
     -- No overlap.
@@ -676,14 +676,14 @@ test_post_process_avoid_overlaps = do
 test_perform_control :: Test
 test_perform_control = do
     -- Bad signal that goes over 1 in two places.
-    let sig = (Controls.vol, linear_interp
+    let sig = (Controls.vol, linearInterp
             [(0, 0), (1, 1.5), (2, 0), (2.5, 0), (3, 2)])
-        (msgs, warns) = Perform.perform_control Control.empty_map
+        (msgs, warns) = Perform.performControl Control.emptyMap
             (secs 0) (secs 0) (Just $ secs 4) 42 sig
 
     -- controls are not emitted after they reach steady values
     check ("valid: " <> pretty (map snd msgs)) $
-        all Midi.valid_chan_msg (map snd msgs)
+        all Midi.validChanMsg (map snd msgs)
     -- goes over in 2 places
     equal (length warns) 2
 
@@ -693,16 +693,16 @@ test_control_overlap = do
     -- mess up the next note.
     let events =
             [ (mkevent (patch2, "a", 0, 1, []))
-                { Types.event_pitch =
-                    MSignal.from_pairs [(0.0, 81.0), (0.9999, 79)]
+                { Types.eventPitch =
+                    MSignal.fromPairs [(0.0, 81.0), (0.9999, 79)]
                 }
             , mkevent (patch2, "b", 1, 1, [])
             ]
-        extract = PerformTest.extract_msg_ts PerformTest.e_cmsg
+        extract = PerformTest.extractMsgTs PerformTest.eCmsg
     let (midi, logs) = perform config2 events
     equal logs []
     equal (extract midi)
-        [ (-min_cc_lead, PitchBend 0)
+        [ (-minCcLead, PitchBend 0)
         , (0, NoteOn Key.a5 100), (1-gap, NoteOff Key.a5 100)
         , (1, NoteOn Key.cs4 100), (2-gap, NoteOff Key.cs4 100)
         ]
@@ -735,18 +735,18 @@ test_channelize = do
         [0, 1]
 
     -- still can't share because of the control lead time
-    let evt0_end = Perform.note_end (pevent (0, 2, []))
+    let evt0End = Perform.noteEnd (pevent (0, 2, []))
     equal (f
         [ (0, 2, [(0, 60)])
-        , (evt0_end, 2, [(evt0_end, 60.5)])
+        , (evt0End, 2, [(evt0End, 60.5)])
         ])
         [0, 1]
 
     -- can finally share
-    let evt0_end2 = evt0_end + cc_lead
+    let evt0End2 = evt0End + ccLead
     equal (f
         [ (0, 2, [(0, 60)])
-        , (evt0_end2, 2, [(evt0_end2, 60.5)])
+        , (evt0End2, 2, [(evt0End2, 60.5)])
         ])
         [0, 0]
 
@@ -760,7 +760,7 @@ test_channelize = do
 test_can_share_chan :: Test
 test_can_share_chan = do
     let f evt1 evt2 = Maybe.isNothing $
-            Perform.can_share_chan (mkpevent evt1) (mkpevent evt2)
+            Perform.canShareChan (mkpevent evt1) (mkpevent evt2)
 
     -- Can't share, becase there is explicitly time for a leading pitch
     -- bend in the second event.
@@ -781,12 +781,12 @@ test_can_share_chan = do
     equal (f (0, 2, [(0, 60)], []) (2, 2, [(2, 60.5)], [])) False
 
     -- Still can't share because of the control lead time.
-    let e0_end = Perform.note_end (mkpevent (0, 2, [], []))
-    equal (f (0, 2, [(0, 60)], []) (e0_end, 2, [(e0_end, 60.5)], [])) False
+    let e0End = Perform.noteEnd (mkpevent (0, 2, [], []))
+    equal (f (0, 2, [(0, 60)], []) (e0End, 2, [(e0End, 60.5)], [])) False
 
     -- Finally can share.
-    let e0_end2 = e0_end + cc_lead
-    equal (f (0, 2, [(0, 60)], []) (e0_end2, 2, [(e0_end2, 60.5)], [])) True
+    let e0End2 = e0End + ccLead
+    equal (f (0, 2, [(0, 60)], []) (e0End2, 2, [(e0End2, 60.5)], [])) True
 
     -- First pitch can't share because it's bent from its original pitch.
     -- Actually they could if the bend is integral and perform_note were
@@ -814,20 +814,20 @@ test_can_share_chan = do
 
 test_overlap_map :: Test
 test_overlap_map = do
-    let extent e = (Types.event_start e, Types.event_duration e)
+    let extent e = (Types.eventStart e, Types.eventDuration e)
     let f overlapping event =
             ((extent event, map (extent . fst) overlapping), [])
-    let events = mkevents_patch
+    let events = mkeventsPatch
             [ ("a", 0, 2, [])
             , ("b", 1, 3, [])
             , ("c", 2, 2, [])
             , ("d", 6, 2, [])
             ]
-    let to_sec = map $ \(event, overlap) -> (sec event, map sec overlap)
-            where sec (a, b) = (RealTime.to_seconds a, RealTime.to_seconds b)
-        ex = map snd . LEvent.events_of . fst
+    let toSec = map $ \(event, overlap) -> (sec event, map sec overlap)
+            where sec (a, b) = (RealTime.toSeconds a, RealTime.toSeconds b)
+        ex = map snd . LEvent.eventsOf . fst
     -- remember that overlap includes cc lead and decay
-    equal (to_sec (ex (Perform.overlap_map [] f (map LEvent.Event events))))
+    equal (toSec (ex (Perform.overlapMap [] f (map LEvent.Event events))))
         [ ((0, 2), [])
         , ((1, 3), [(0, 2)])
         , ((2, 2), [(1, 3), (0, 2)])
@@ -836,7 +836,7 @@ test_overlap_map = do
 
 channelize :: Perform.Configs -> [Types.Event]
     -> [(Types.Event, Perform.Channel)]
-channelize configs events = LEvent.events_of $ fst $
+channelize configs events = LEvent.eventsOf $ fst $
     Perform.channelize [] configs (map LEvent.Event events)
 
 -- * allot
@@ -845,8 +845,8 @@ test_allot :: Test
 test_allot = do
     let mk inst chan start = (mkevent (inst, "a", start, 1, []), chan)
         mk1 = mk patch1
-        f = map (snd . snd) . LEvent.events_of . allot config1 . in_time
-        in_time mks = zipWith ($) mks (Lists.range_ 0 1)
+        f = map (snd . snd) . LEvent.eventsOf . allot config1 . inTime
+        inTime mks = zipWith ($) mks (Lists.range_ 0 1)
 
     -- They should alternate channels, according to LRU.
     equal (f [mk1 0, mk1 1, mk1 2, mk1 3]) [0, 1, 0, 1]
@@ -871,21 +871,21 @@ test_allot_warn = do
     let f = mapMaybe extract . allot config1
             . map (\(evt, chan) -> (mkevent evt, chan))
         extract (LEvent.Event (e, (dev, chan))) = Just $ Left
-            ( ScoreT.instrument_name $ Types.patch_name $ Types.event_patch e
+            ( ScoreT.instrumentName $ Types.patchName $ Types.eventPatch e
             , pretty dev
             , chan
             )
-        extract (LEvent.Log msg) = Just $ Right $ DeriveTest.show_log msg
-    let no_patch = PerformTest.mkpatch "no_patch"
+        extract (LEvent.Log msg) = Just $ Right $ DeriveTest.showLog msg
+    let noPatch = PerformTest.mkpatch "no_patch"
     equal (f [((patch1, "a", 0, 1, []), 0)])
         [Left ("patch1", "dev1", 0)]
-    equal (f [((no_patch, "a", 0, 1, []), 0), ((no_patch, "b", 1, 2, []), 0)])
+    equal (f [((noPatch, "a", 0, 1, []), 0), ((noPatch, "b", 1, 2, []), 0)])
         (replicate 2 $ Right "no allocation for no_patch")
 
 allot :: Perform.Configs -> [(Types.Event, Perform.Channel)]
     -> [LEvent.LEvent (Types.Event, Patch.Addr)]
 allot configs events = fst $
-    Perform.allot Perform.empty_allot_state configs (map LEvent.Event events)
+    Perform.allot Perform.emptyAllotState configs (map LEvent.Event events)
 
 -- * setup
 
@@ -903,18 +903,18 @@ mkevents :: [EventSpec] -> [Types.Event]
 mkevents = map mkevent
 
 mkevent :: EventSpec -> Types.Event
-mkevent (patch, pitch, start, dur, controls) = PerformTest.empty_event
-    { Types.event_start = start
-    , Types.event_duration = dur
-    , Types.event_patch = patch
-    , Types.event_controls = Map.fromList controls
-    , Types.event_pitch = psig start pitch
+mkevent (patch, pitch, start, dur, controls) = PerformTest.emptyEvent
+    { Types.eventStart = start
+    , Types.eventDuration = dur
+    , Types.eventPatch = patch
+    , Types.eventControls = Map.fromList controls
+    , Types.eventPitch = psig start pitch
     }
     where
-    psig pos p = MSignal.from_pairs [(pos, to_pitch p)]
-    to_pitch p = fromMaybe (error ("no pitch " <> show p))
-        (lookup p pitch_map)
-    pitch_map = zip (map Text.singleton ['a'..'z']) [60..]
+    psig pos p = MSignal.fromPairs [(pos, toPitch p)]
+    toPitch p = fromMaybe (error ("no pitch " <> show p))
+        (lookup p pitchMap)
+    pitchMap = zip (map Text.singleton ['a'..'z']) [60..]
         ++ zip (map ((<>"2") . Text.singleton) ['a'..'z']) [60.5..]
 
 type PEvent = (RealTime, RealTime, [(Signal.X, Signal.Y)],
@@ -922,43 +922,43 @@ type PEvent = (RealTime, RealTime, [(Signal.X, Signal.Y)],
 
 -- | Similar to mkevent, but allow a pitch curve.
 mkpevent :: PEvent -> Types.Event
-mkpevent (start, dur, psig, controls) = PerformTest.empty_event
-    { Types.event_start = start
-    , Types.event_duration = dur
-    , Types.event_controls = Simple.control_map controls
-    , Types.event_pitch =
-        MSignal.map_y Convert.round_pitch (MSignal.from_pairs psig)
+mkpevent (start, dur, psig, controls) = PerformTest.emptyEvent
+    { Types.eventStart = start
+    , Types.eventDuration = dur
+    , Types.eventControls = Simple.controlMap controls
+    , Types.eventPitch =
+        MSignal.mapY Convert.roundPitch (MSignal.fromPairs psig)
     }
 
-mkevents_patch :: [(Text, RealTime, RealTime, [Control])] -> [Types.Event]
-mkevents_patch = map (\(a, b, c, d) -> mkevent (patch1, a, b, c, d))
+mkeventsPatch :: [(Text, RealTime, RealTime, [Control])] -> [Types.Event]
+mkeventsPatch = map (\(a, b, c, d) -> mkevent (patch1, a, b, c, d))
 
 -- | Make a signal with linear interpolation between the points.
-linear_interp :: [(Signal.X, Signal.Y)] -> MSignal.Signal
-linear_interp = MSignal.from_pairs . interpolate
+linearInterp :: [(Signal.X, Signal.Y)] -> MSignal.Signal
+linearInterp = MSignal.fromPairs . interpolate
     where
     interpolate :: [(RealTime, Signal.Y)] -> [(RealTime, Signal.Y)]
     interpolate ((x0, y0) : rest@((x1, y1) : _))
         | x0 >= x1 = interpolate rest
-        | otherwise = [(x, TimeVector.y_at x0 y0 x1 y1 x)
+        | otherwise = [(x, TimeVector.yAt x0 y0 x1 y1 x)
             | x <- Lists.rangeEnd x0 (x1-1) 1] ++ interpolate rest
     interpolate val = val
 
 dev1, dev2 :: Midi.WriteDevice
-dev1 = Midi.write_device "dev1"
-dev2 = Midi.write_device "dev2"
+dev1 = Midi.writeDevice "dev1"
+dev2 = Midi.writeDevice "dev2"
 
 config1 :: Perform.Configs
 config1 = Map.fromList
-    [ (Types.patch_name patch1,
-        Perform.addrs_config [((dev1, 0), Nothing), ((dev1, 1), Nothing)])
+    [ (Types.patchName patch1,
+        Perform.addrsConfig [((dev1, 0), Nothing), ((dev1, 1), Nothing)])
     ]
 
 -- Also includes patch2.
 config2 :: Perform.Configs
 config2 = Map.fromList
-    [ (Types.patch_name patch1,
-        Perform.addrs_config [((dev1, 0), Nothing), ((dev1, 1), Nothing)])
-    , (Types.patch_name patch2,
-        Perform.addrs_config [((dev2, 2), Nothing)])
+    [ (Types.patchName patch1,
+        Perform.addrsConfig [((dev1, 0), Nothing), ((dev1, 1), Nothing)])
+    , (Types.patchName patch2,
+        Perform.addrsConfig [((dev2, 2), Nothing)])
     ]

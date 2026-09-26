@@ -468,9 +468,9 @@ hsToCc = Map.fromList $
     , ("Util/Fltk.hs", ["Util/fltk_interface.cc"])
     , ("Synth/Faust/PatchC.hs", map ("Synth/Faust"</>) ["patch_c.cc"])
     , ("Util/VectorC.hs", ["Util/vectorc.cc"])
-    ] ++ map (, ["Ui/c_interface.cc"]) c_interface
+    ] ++ map (, ["Ui/c_interface.cc"]) cInterface
     where
-    c_interface =
+    cInterface =
         [ "Ui/BlockC.hsc", "Ui/KeycapsC.hsc", "Ui/RulerC.hsc", "Ui/StyleC.hsc"
         , "Ui/SymbolC.hsc", "Ui/TrackC.hsc", "Ui/UiMsgC.hsc"
         ]
@@ -1197,10 +1197,10 @@ dispatch modeConfig targets
         , ("md",) $ action $ need . map docToHtml =<< getMarkdown
         , ("profile",) $ action $ do
             need [runProfile]
-            let with_scc = "-fprof-auto-top"
+            let withScc = "-fprof-auto-top"
                     `elem` hcFlags (configFlags (modeConfig Profile))
             Util.system "tools/summarize_profile.py"
-                [if with_scc then "scc" else "no-scc"]
+                [if withScc then "scc" else "no-scc"]
         , ("show-debug",) $ action $ liftIO $ PPrint.pprint (modeConfig Debug)
         , ("show-opt",) $ action $ liftIO $ PPrint.pprint (modeConfig Opt)
         , ("tests",) $ action allTests

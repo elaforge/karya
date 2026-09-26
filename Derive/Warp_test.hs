@@ -16,14 +16,14 @@ import           Types
 import           Util.Test
 
 
-signal_identity :: Warp.Warp
-signal_identity = Warp.from_signal $ Signal.from_pairs
-    [(0, 0), (RealTime.large, RealTime.to_seconds RealTime.large)]
+signalIdentity :: Warp.Warp
+signalIdentity = Warp.fromSignal $ Signal.fromPairs
+    [(0, 0), (RealTime.large, RealTime.toSeconds RealTime.large)]
 
 test_negative_time :: Test
 test_negative_time = do
     -- Implicitly linear before 0.
-    forM_ [ident, signal_identity] $ \w -> do
+    forM_ [ident, signalIdentity] $ \w -> do
         equal (Warp.warp w (-3)) (-3)
         equal (Warp.unwarp w (-3)) (-3)
         equal (Warp.warp (Warp.shift 2 w) (-3)) (-1)
@@ -38,8 +38,8 @@ test_shift_stretch_linear = do
         with transform expected = do
             equal (map (Warp.warp (transform ident)) t03) expected
             uncurry equal (trip (transform ident))
-            equal (map (Warp.warp (transform signal_identity)) t03) expected
-            uncurry equal (trip (transform signal_identity))
+            equal (map (Warp.warp (transform signalIdentity)) t03) expected
+            uncurry equal (trip (transform signalIdentity))
     with id [0, 1, 2, 3]
     with (shift 2) [2, 3, 4, 5]
     with (stretch 2) [0, 2, 4, 6]
@@ -50,16 +50,16 @@ test_shift_stretch_linear = do
 
 test_shift_stretch_compose_equivalence :: Test
 test_shift_stretch_compose_equivalence = do
-    let shift_c x w = Warp.compose w (shift x ident)
-        stretch_c factor w = Warp.compose w (stretch factor ident)
+    let shiftC x w = Warp.compose w (shift x ident)
+        stretchC factor w = Warp.compose w (stretch factor ident)
     let with :: HasCallStack => Warp.Warp -> Warp.Warp -> Test
         with w1 w2 = equal (map (Warp.warp w1) t03) (map (Warp.warp w2) t03)
-    with (shift 1 ident) (shift_c 1 ident)
-    with (stretch 2 ident) (stretch_c 2 ident)
+    with (shift 1 ident) (shiftC 1 ident)
+    with (stretch 2 ident) (stretchC 2 ident)
     with (shift 1 $ stretch 2 ident)
-        (shift_c 1 $ stretch_c 2 ident)
+        (shiftC 1 $ stretchC 2 ident)
     with (stretch 2 $ shift 1 ident)
-        (stretch_c 2 $ shift_c 1 ident)
+        (stretchC 2 $ shiftC 1 ident)
 
 test_shift_stretch_signal :: Test
 test_shift_stretch_signal = do
@@ -106,7 +106,7 @@ test_compose = do
 
 test_tempo_at :: Test
 test_tempo_at = do
-    let f = Warp.tempo_at
+    let f = Warp.tempoAt
     equal (f ident 4) 1
     equal (f (Warp.stretch 2 ident) 4) 0.5
     equal (f (make [(0, 0), (10, 10)]) 4) 1
@@ -122,7 +122,7 @@ trip :: Warp.Warp -> ([ScoreTime], [ScoreTime])
 trip w = (t03, map (Warp.unwarp w . Warp.warp w) t03)
 
 make :: [(RealTime, Signal.Y)] -> Warp.Warp
-make = Warp.from_signal . Signal.from_pairs
+make = Warp.fromSignal . Signal.fromPairs
 
 ident :: Warp.Warp
 ident = Warp.identity

@@ -36,32 +36,32 @@ import           Types
 library :: Library.Library
 library = mconcat
     [ Library.generators $
-        [ ("set", c_set)
-        , ("'", c_set_prev)
-        , ("p", c_porta)
-        , ("abs", c_abs)
-        , ("dyn-pp", c_dynamic "pp" 0.05)
-        , ("dyn-p", c_dynamic "p" 0.25)
-        , ("dyn-mf", c_dynamic "mf" 0.5)
-        , ("dyn-f", c_dynamic "f" 0.75)
-        , ("dyn-ff", c_dynamic "ff" 0.95)
+        [ ("set", cSet)
+        , ("'", cSetPrev)
+        , ("p", cPorta)
+        , ("abs", cAbs)
+        , ("dyn-pp", cDynamic "pp" 0.05)
+        , ("dyn-p", cDynamic "p" 0.25)
+        , ("dyn-mf", cDynamic "mf" 0.5)
+        , ("dyn-f", cDynamic "f" 0.75)
+        , ("dyn-ff", cDynamic "ff" 0.95)
 
         -- misc
-        , ("bp>", c_breakpoint_next)
-        , ("bpm", c_bpm)
-        , ("n", c_neighbor)
-        , ("d", c_down)
-        , ("df", c_down_from)
-        , ("uf", c_up_from)
-        , ("u", c_up)
+        , ("bp>", cBreakpointNext)
+        , ("bpm", cBpm)
+        , ("n", cNeighbor)
+        , ("d", cDown)
+        , ("df", cDownFrom)
+        , ("uf", cUpFrom)
+        , ("u", cUp)
 
         -- not sure which one I'll like better
-        , ("`ped`", c_pedal)
-        , ("ped", c_pedal)
-        , ("swell", c_swell)
-        ] ++ ControlUtil.interpolator_variations
-    , Library.pattern pattern_generator
-    , Library.pattern pattern_transformer
+        , ("`ped`", cPedal)
+        , ("ped", cPedal)
+        , ("swell", cSwell)
+        ] ++ ControlUtil.interpolatorVariations
+    , Library.pattern patternGenerator
+    , Library.pattern patternTransformer
     ]
 
 -- | This is a special pattern for control tracks that lets you directly type
@@ -71,113 +71,113 @@ library = mconcat
 -- Formerly, control tracks used a slightly different parser to enable the same
 -- thing, but that turned out to be awkward when I wanted to implement
 -- 'Derive.Eval.eval_event'.
-pattern_generator :: Derive.PatternCall (Derive.Generator Derive.Control)
-pattern_generator = pattern_call $ \val -> generator1 "set" mempty
+patternGenerator :: Derive.PatternCall (Derive.Generator Derive.Control)
+patternGenerator = patternCall $ \val -> generator1 "set" mempty
     "Emit a sample with no interpolation. This accepts either decimal\
     \ numbers or hex numbers that look like `\\`0x\\`xx`.  The hex\
     \ is divided by 255, so they represent a number between 0 and 1.\n" $
     Sig.call0 $ \args -> do
-        pos <- Args.real_start args
-        pure $! Signal.from_sample pos val
+        pos <- Args.realStart args
+        pure $! Signal.fromSample pos val
 
-pattern_transformer :: Derive.PatternCall (Derive.Transformer Derive.Control)
-pattern_transformer = pattern_call $ \val ->
+patternTransformer :: Derive.PatternCall (Derive.Transformer Derive.Control)
+patternTransformer = patternCall $ \val ->
     Derive.transformer Module.prelude "set" mempty
     "Prepend a sample to a signal. This is useful to create a discontinuity,\
     \ e.g. interpolate to a value and then jump to another one."
     $ Sig.call0t $ \args deriver -> do
-        pos <- Args.real_start args
-        Post.signal (<> Signal.from_sample pos val) deriver
+        pos <- Args.realStart args
+        Post.signal (<> Signal.fromSample pos val) deriver
 
-pattern_call :: (Signal.Y -> Derive.Call d)
+patternCall :: (Signal.Y -> Derive.Call d)
     -> Derive.PatternCall (Derive.Call d)
-pattern_call call = Derive.PatternCall
-    { pat_description = "numbers and hex"
-    , pat_doc = Derive.extract_doc (call 0)
-    , pat_function = \(Expr.Symbol sym) -> pure $! case Parse.parse_num sym of
+patternCall call = Derive.PatternCall
+    { patDescription = "numbers and hex"
+    , patDoc = Derive.extractDoc (call 0)
+    , patFunction = \(Expr.Symbol sym) -> pure $! case Parse.parseNum sym of
         Left _ -> Nothing
         Right val -> Just $ call val
     }
 
-c_set :: Derive.Generator Derive.Control
-c_set = generator1 "set" mempty "Emit a sample with no interpolation." $
+cSet :: Derive.Generator Derive.Control
+cSet = generator1 "set" mempty "Emit a sample with no interpolation." $
     Sig.call (Sig.required "to" "Destination value.") $ \to args -> do
-        pos <- Args.real_start args
-        pure $! Signal.from_sample pos to
+        pos <- Args.realStart args
+        pure $! Signal.fromSample pos to
 
-c_set_prev :: Derive.Generator Derive.Control
-c_set_prev = Derive.generator Module.prelude "set-prev" Tags.prev
+cSetPrev :: Derive.Generator Derive.Control
+cSetPrev = Derive.generator Module.prelude "set-prev" Tags.prev
     "Re-set the previous value. This can be used to extend a breakpoint."
-    $ Sig.call0 $ \args -> case Args.prev_control args of
+    $ Sig.call0 $ \args -> case Args.prevControl args of
         Nothing -> pure Stream.empty
         Just (x, y) -> do
-            start <- Args.real_start args
+            start <- Args.realStart args
             pure $ if start > x
-                then Stream.from_event $ Signal.from_sample start y
+                then Stream.fromEvent $ Signal.fromSample start y
                 else Stream.empty
 
-c_porta :: Derive.Generator Derive.Control
-c_porta = generator1 "porta" mempty
+cPorta :: Derive.Generator Derive.Control
+cPorta = generator1 "porta" mempty
     "Interpolate between two values. This is similar to `i>>`,  but intended\
     \ to be higher level, in that instruments or scores can override it to\
     \ represent an idiomatic portamento."
     $ Sig.call ((,,,,)
     <$> Sig.required "to" "Destination value."
     <*> (Typecheck._real <$> Sig.defaulted "time"
-        ControlUtil.default_interpolation_time "Time to reach destination.")
-    <*> Sig.defaulted_env "place" Sig.Both (Typecheck.Normalized 1)
+        ControlUtil.defaultInterpolationTime "Time to reach destination.")
+    <*> Sig.defaultedEnv "place" Sig.Both (Typecheck.Normalized 1)
         "Placement, from before to after the call."
-    <*> ControlUtil.from_env <*> ControlUtil.curve_env
+    <*> ControlUtil.fromEnv <*> ControlUtil.curveEnv
     ) $ \(to, time, place, from, curve) args -> do
-        let maybe_from = from <|> (snd <$> Args.prev_control args)
+        let maybeFrom = from <|> (snd <$> Args.prevControl args)
         time <- if Args.duration args == 0
             then pure time
-            else DeriveT.RealDuration <$> Args.real_duration args
-        (start, end) <- ControlUtil.place_range place (Args.start args) time
-        ControlUtil.make_segment_from curve start maybe_from end to
+            else DeriveT.RealDuration <$> Args.realDuration args
+        (start, end) <- ControlUtil.placeRange place (Args.start args) time
+        ControlUtil.makeSegmentFrom curve start maybeFrom end to
 
-c_abs :: Derive.Generator Derive.Control
-c_abs = Derive.generator1 Module.prelude "abs" mempty
+cAbs :: Derive.Generator Derive.Control
+cAbs = Derive.generator1 Module.prelude "abs" mempty
     "Set the control to an absolute value, provided this control is combined\
     \ via multiplication."
     $ Sig.call (Sig.required "val" "Set to this value.") $ \val args ->
-        set_absolute val =<< Args.real_start args
+        setAbsolute val =<< Args.realStart args
 
-c_dynamic :: Derive.CallName -> Signal.Y -> Derive.Generator Derive.Control
-c_dynamic name val = Derive.generator1 Module.prelude name mempty
+cDynamic :: Derive.CallName -> Signal.Y -> Derive.Generator Derive.Control
+cDynamic name val = Derive.generator1 Module.prelude name mempty
     "Set the control to an absolute value. This is useful for the `dyn`\
     \ control, so a part can override the dynamic in scope."
     $ Sig.call (Sig.defaulted "val" val "Set to this value.") $ \val args ->
-        set_absolute val =<< Args.real_start args
+        setAbsolute val =<< Args.realStart args
 
-set_absolute :: Signal.Y -> RealTime -> Derive.Deriver Signal.Control
-set_absolute val pos = do
-    control <- Derive.lookup_val EnvKey.control
-    merge <- Derive.lookup_val EnvKey.merge
+setAbsolute :: Signal.Y -> RealTime -> Derive.Deriver Signal.Control
+setAbsolute val pos = do
+    control <- Derive.lookupVal EnvKey.control
+    merge <- Derive.lookupVal EnvKey.merge
     out <- set control merge
-    pure $ Signal.from_sample pos out
+    pure $ Signal.fromSample pos out
     where
     set Nothing _ = pure val
     set (Just control) Nothing =
         Derive.throw $ "merge not set for " <> pretty control
     set (Just control) (Just merge) =
-        maybe (pure val) (Derive.require_right id . invert_merge merge val)
-            =<< Derive.untyped_control_at (ScoreT.Control control) pos
+        maybe (pure val) (Derive.requireRight id . invertMerge merge val)
+            =<< Derive.untypedControlAt (ScoreT.Control control) pos
 
 -- | Figure out what value to emit which, once merged with the signal in scope,
 -- will become the given absolute value.  TODO this is kind of a crazy hack and
 -- I'm not sure if I'm in love with it.
-invert_merge :: Text -> Signal.Y -> Signal.Y -> Either Text Signal.Y
-invert_merge merge val current_val = case Map.lookup merge inverters of
+invertMerge :: Text -> Signal.Y -> Signal.Y -> Either Text Signal.Y
+invertMerge merge val currentVal = case Map.lookup merge inverters of
     Nothing -> Left $ "no way to invert merge type: " <> merge
-    Just f -> Right $ f current_val val
+    Just f -> Right $ f currentVal val
     where
     inverters = Map.fromList
         [ ("set", \_ new -> new)
-        , (n Derive.merge_add, \old new -> new - old)
-        , (n Derive.merge_sub, \old new -> old - new)
-        , (n Derive.merge_mul, \old new -> if old == 0 then 0 else new / old)
-        , (n Derive.merge_scale, Signal.scale_invert)
+        , (n Derive.mergeAdd, \old new -> new - old)
+        , (n Derive.mergeSub, \old new -> old - new)
+        , (n Derive.mergeMul, \old new -> if old == 0 then 0 else new / old)
+        , (n Derive.mergeScale, Signal.scaleInvert)
         ]
     n (Derive.Merger name _ _) = name
     n Derive.Set = "set"
@@ -187,66 +187,66 @@ invert_merge merge val current_val = case Map.lookup merge inverters of
 -- * misc
 
 -- TODO it's linear for now, but I could add an env val to set interpolation
-c_breakpoint_next :: Derive.Generator Derive.Control
-c_breakpoint_next = generator1 "breakpoint" mempty
+cBreakpointNext :: Derive.Generator Derive.Control
+cBreakpointNext = generator1 "breakpoint" mempty
     "Interpolate between the given values. Breakpoints start at this event and\
     \ end at the next one."
     $ Sig.call (Sig.many1 "val" "Breakpoints are distributed evenly between\
         \ this event and the next event.")
     $ \vals args -> do
-        (start, end) <- Args.real_range_or_next args
-        srate <- Call.get_srate
+        (start, end) <- Args.realRangeOrNext args
+        srate <- Call.getSrate
         pure $ ControlUtil.breakpoints srate ControlUtil.Linear $
             ControlUtil.distribute start end (NonEmpty.toList vals)
 
-c_bpm :: Derive.Generator Derive.Control
-c_bpm = generator1 "bpm" mempty
+cBpm :: Derive.Generator Derive.Control
+cBpm = generator1 "bpm" mempty
     "Set a tempo value for the given bpm, which is just (/60)."
     $ Sig.call (Sig.required "bpm" "")
     $ \val args -> do
-        pos <- Args.real_start args
-        pure $! Signal.from_sample pos (val / 60)
+        pos <- Args.realStart args
+        pure $! Signal.fromSample pos (val / 60)
 
-c_neighbor :: Derive.Generator Derive.Control
-c_neighbor = generator1 "neighbor" mempty
+cNeighbor :: Derive.Generator Derive.Control
+cNeighbor = generator1 "neighbor" mempty
     ("Emit a slide from a value to 0 in absolute time. This is the control\
     \ equivalent of the neighbor pitch call."
     ) $ Sig.call ((,,)
     <$> Sig.defaulted "neighbor" (1 :: Double) "Start at this value."
     <*> Sig.defaulted "time" (Typecheck.real 0.1) "Time taken to get to 0."
-    <*> ControlUtil.curve_env
+    <*> ControlUtil.curveEnv
     ) $ \(neighbor, Typecheck.DefaultReal time, curve) args -> do
-        (start, end) <- Call.duration_from_start args time
-        ControlUtil.make_segment curve start neighbor end 0
+        (start, end) <- Call.durationFromStart args time
+        ControlUtil.makeSegment curve start neighbor end 0
 
-c_up :: Derive.Generator Derive.Control
-c_up = generator1 "u" Tags.prev
+cUp :: Derive.Generator Derive.Control
+cUp = generator1 "u" Tags.prev
     "Ascend at the given speed until the value reaches a limit or the next\
     \ event."
     $ Sig.call ((,,,)
     <$> Sig.defaulted "speed" (1 :: Double) "Ascend this amount per second."
     <*> Sig.defaulted "limit" (Nothing :: Maybe Double) "Stop at this value."
-    <*> ControlUtil.from_env
-    <*> Sig.environ_key EnvKey.control_gt_0 False
+    <*> ControlUtil.fromEnv
+    <*> Sig.environKey EnvKey.controlGt0 False
         "Whether or not to limit to 1 by default."
     ) $ \(speed, limit, from, gt0) args ->
-        make_slope args Nothing
+        makeSlope args Nothing
             (if gt0 then limit else Just $ fromMaybe 1 limit)
             from speed
 
-c_down :: Derive.Generator Derive.Control
-c_down = generator1 "d" Tags.prev
+cDown :: Derive.Generator Derive.Control
+cDown = generator1 "d" Tags.prev
     "Descend at the given speed until the value reaches a limit or the next\
     \ event."
     $ Sig.call ((,,)
     <$> Sig.defaulted "speed" (1 :: Double) "Descend this amount per second."
     <*> Sig.defaulted "limit" (0 :: Double) "Stop at this value."
-    <*> ControlUtil.from_env
+    <*> ControlUtil.fromEnv
     ) $ \(speed, limit, from) args ->
-        make_slope args (Just limit) Nothing from (-speed)
+        makeSlope args (Just limit) Nothing from (-speed)
 
-c_down_from :: Derive.Generator Derive.Control
-c_down_from = generator1 "df" mempty
+cDownFrom :: Derive.Generator Derive.Control
+cDownFrom = generator1 "df" mempty
     "Drop from a certain value. This is like `d` with `from`, but more\
     \ convenient to write."
     $ Sig.call ((,,)
@@ -254,28 +254,28 @@ c_down_from = generator1 "df" mempty
     <*> Sig.defaulted "speed" (1 :: Double) "Descend this amount per second."
     <*> Sig.defaulted "limit" (0 :: Double) "Stop at this value."
     ) $ \(from, speed, limit) args ->
-        make_slope args (Just limit) Nothing (Just from) (-speed)
+        makeSlope args (Just limit) Nothing (Just from) (-speed)
 
-c_up_from :: Derive.Generator Derive.Control
-c_up_from = generator1 "uf" mempty "Like df, but up."
+cUpFrom :: Derive.Generator Derive.Control
+cUpFrom = generator1 "uf" mempty "Like df, but up."
     $ Sig.call ((,,)
     <$> Sig.defaulted "from" (0 :: Double) "Start at this value."
     <*> Sig.defaulted "speed" (1 :: Double) "Ascend this amount per second."
     <*> Sig.defaulted "limit" (1 :: Double) "Stop at this value."
     ) $ \(from, speed, limit) args ->
-        make_slope args (Just limit) Nothing (Just from) speed
+        makeSlope args (Just limit) Nothing (Just from) speed
 
-make_slope :: Derive.ControlArgs -> Maybe Signal.Y -> Maybe Signal.Y
+makeSlope :: Derive.ControlArgs -> Maybe Signal.Y -> Maybe Signal.Y
     -> Maybe Signal.Y -> Double -> Derive.Deriver Signal.Control
-make_slope args low high maybe_from slope =
-    case maybe_from <|> ControlUtil.prev_val maybe_from args of
+makeSlope args low high maybeFrom slope =
+    case maybeFrom <|> ControlUtil.prevVal maybeFrom args of
         Nothing -> pure mempty
         Just from -> do
-            (start, end) <- Args.real_range_or_next args
-            pure $ ControlUtil.slope_to_limit low high from slope start end
+            (start, end) <- Args.realRangeOrNext args
+            pure $ ControlUtil.slopeToLimit low high from slope start end
 
-c_pedal :: Derive.Generator Derive.Control
-c_pedal = generator1 "pedal" mempty
+cPedal :: Derive.Generator Derive.Control
+cPedal = generator1 "pedal" mempty
     ("Unlike most control events, this uses a duration. Set the control to\
     \ the given value for the event's duration, and reset to the old\
     \ value afterwards."
@@ -284,13 +284,13 @@ c_pedal = generator1 "pedal" mempty
     <*> Sig.environ "dur" Sig.Prefixed (0.05 :: Double)
         "Use this duration if the event duration is 0."
     ) $ \(val, dur) args -> do
-        (start, end) <- Args.real_range args
+        (start, end) <- Args.realRange args
         end <- pure $ if start == end then end + dur else end
-        let prev = maybe 0 snd $ Args.prev_control args
-        pure $ Signal.from_pairs [(start, val), (end, val), (end, prev)]
+        let prev = maybe 0 snd $ Args.prevControl args
+        pure $ Signal.fromPairs [(start, val), (end, val), (end, prev)]
 
-c_swell :: Derive.Generator Derive.Control
-c_swell = generator1 "swell" mempty
+cSwell :: Derive.Generator Derive.Control
+cSwell = generator1 "swell" mempty
     "Start at the given value, interpolate to a peak, then back to the\
     \ original value. Uses duration."
     $ Sig.call ((,,)
@@ -299,10 +299,10 @@ c_swell = generator1 "swell" mempty
     <*> Sig.defaulted "bias" (0.5 :: Double)
         "0 puts the peak at the start, 1 at the end."
     ) $ \(val, peak, bias) args -> do
-        (start, end) <- Args.real_range args
+        (start, end) <- Args.realRange args
         let middle = Num.clamp start end $
                 Num.scale start end (RealTime.seconds bias)
-        srate <- Call.get_srate
+        srate <- Call.getSrate
         pure $ ControlUtil.breakpoints srate ControlUtil.Linear
             [(start, val), (middle, peak), (end, val)]
 

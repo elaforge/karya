@@ -16,9 +16,9 @@ import qualified Cmd.EditUtil as EditUtil
 import qualified Cmd.InputNote as InputNote
 import qualified Cmd.Instrument.MidiInst as MidiInst
 import           Cmd.Instrument.MidiInst
-    (Code, allocations, both, cmd, extract_warns, generator, inst_range,
-     make_code, note_calls, note_generators, note_transformers, null_call,
-     postproc, transformer, val_calls)
+    (Code, allocations, both, cmd, extractWarns, generator, instRange,
+     makeCode, noteCalls, noteGenerators, noteTransformers, nullCall,
+     postproc, transformer, valCalls)
 import qualified Cmd.MidiThru as MidiThru
 
 import qualified Derive.EnvKey as EnvKey
@@ -42,37 +42,37 @@ import           Global
 type Synth = Inst.SynthDecl Cmd.InstrumentCode
 
 synth :: InstT.SynthName -> Text -> [(InstT.Name, Patch)] -> Synth
-synth name doc patch_map = Inst.SynthDecl
-    { synthd_name = name
-    , synthd_doc = doc
-    , synthd_patches
-    , synthd_warns
+synth name doc patchMap = Inst.SynthDecl
+    { synthdName = name
+    , synthdDoc = doc
+    , synthdPatches
+    , synthdWarns
     }
     where
-    (synthd_patches, synthd_warns) = extract_warns $
-        map (second make_inst) patch_map
+    (synthdPatches, synthdWarns) = extractWarns $
+        map (second makeInst) patchMap
 
 data Patch = Patch
-    { patch_patch :: Patch.Patch
-    , patch_dummy :: Maybe Text
-    , patch_common :: Common.Common Code
+    { patchPatch :: Patch.Patch
+    , patchDummy :: Maybe Text
+    , patchCommon :: Common.Common Code
     }
 
-make_patch :: Patch.Patch -> Patch
-make_patch p = Patch
-    { patch_patch = p
-    , patch_dummy = Nothing
-    , patch_common = Common.common mempty
+makePatch :: Patch.Patch -> Patch
+makePatch p = Patch
+    { patchPatch = p
+    , patchDummy = Nothing
+    , patchCommon = Common.common mempty
     }
 
-patch = Lens.lens patch_patch (\r a -> r { patch_patch = a })
-common = Lens.lens patch_common (\r a -> r { patch_common = a })
+patch = Lens.lens patchPatch (\r a -> r { patchPatch = a })
+common = Lens.lens patchCommon (\r a -> r { patchCommon = a })
 
 -- | Cause this to have a Dummy backend.  It's a bit sloppy in that the
 -- contents of 'patch_patch' will be ignored, but it's convenient in that
 -- it lets me reuse all the functions in here for dummies too.
 dummy :: Text -> Patch -> Patch
-dummy msg patch = patch { patch_dummy = Just msg }
+dummy msg patch = patch { patchDummy = Just msg }
 
 code :: Lens Patch Code
 code = common # Common.code
@@ -80,17 +80,17 @@ code = common # Common.code
 doc :: Lens Patch Doc.Doc
 doc = common # Common.doc
 
-make_inst :: Patch -> (Inst.Inst Cmd.InstrumentCode, [Library.Shadowed])
-make_inst (Patch patch dummy common) =
+makeInst :: Patch -> (Inst.Inst Cmd.InstrumentCode, [Library.Shadowed])
+makeInst (Patch patch dummy common) =
     ( Inst.Inst
-        { inst_backend = case dummy of
+        { instBackend = case dummy of
             Nothing -> Inst.Im patch
             Just msg -> Inst.Dummy msg
-        , inst_common = common { Common.common_code = code }
+        , instCommon = common { Common.commonCode = code }
         }
     , shadowed
     )
-    where (code, shadowed) = make_code (Common.common_code common)
+    where (code, shadowed) = makeCode (Common.commonCode common)
 
 -- TODO: these are copy paste from MidiInst, only 'common' is different.
 -- I should be able to share the code.
@@ -102,7 +102,7 @@ environ name val = common %= cenviron name val
 cenviron :: REnv.ToVal a => EnvKey.Key -> a
     -> Common.Common code -> Common.Common code
 cenviron name val =
-    Common.environ %= (REnv.from_list [(name, REnv.to_val val)] <>)
+    Common.environ %= (REnv.fromList [(name, REnv.toVal val)] <>)
 
 -- | Set instrument range.
 range :: Scale.Range -> Patch -> Patch
@@ -110,54 +110,54 @@ range range = common %= crange range
 
 crange :: Scale.Range -> Common.Common code -> Common.Common code
 crange range =
-    cenviron EnvKey.instrument_bottom (Scale.range_bottom range)
-    . cenviron EnvKey.instrument_top (Scale.range_top range)
+    cenviron EnvKey.instrumentBottom (Scale.rangeBottom range)
+    . cenviron EnvKey.instrumentTop (Scale.rangeTop range)
 
-nn_range :: (Pitch.NoteNumber, Pitch.NoteNumber) -> Patch -> Patch
-nn_range (bottom, top) =
-    environ EnvKey.instrument_bottom bottom
-    . environ EnvKey.instrument_top top
+nnRange :: (Pitch.NoteNumber, Pitch.NoteNumber) -> Patch -> Patch
+nnRange (bottom, top) =
+    environ EnvKey.instrumentBottom bottom
+    . environ EnvKey.instrumentTop top
 
 -- | Adapt a 'Thru.ThruFunction' to 'Cmd.ThruFunction'.
 thru :: Thru.ThruFunction -> Code
-thru thru_f = MidiInst.thru convert
+thru thruF = MidiInst.thru convert
     where
     convert scale attrs input = do
-        inst <- Cmd.abort_unless =<< EditUtil.lookup_instrument
+        inst <- Cmd.abortUnless =<< EditUtil.lookupInstrument
         -- I drop InputNote.NodeId for both of these, because im doesn't
         -- support multiple notes yet.
-        MidiThru.convert_input inst scale input >>= \case
+        MidiThru.convertInput inst scale input >>= \case
             InputNote.NoteOn _ pitch velocity ->
-                case thru_f [Thru.Note pitch velocity attrs 0] of
+                case thruF [Thru.Note pitch velocity attrs 0] of
                     Left err -> Cmd.throw err
                     Right msg -> pure [Cmd.ImThru msg]
             InputNote.NoteOff _ _ -> pure [Cmd.ImThru Thru.Stop]
             _ -> pure []
 
-add_flag :: Common.Flag -> Patch -> Patch
-add_flag flag = common#Common.flags %= Set.insert flag
+addFlag :: Common.Flag -> Patch -> Patch
+addFlag flag = common#Common.flags %= Set.insert flag
 
 triggered :: Patch -> Patch
-triggered = add_flag Common.Triggered
+triggered = addFlag Common.Triggered
 
-im_allocations :: [(ScoreT.Instrument, Text, Common.Config -> Common.Config)]
+imAllocations :: [(ScoreT.Instrument, Text, Common.Config -> Common.Config)]
     -- ^ (inst, qualified, set_config)
     -> UiConfig.Allocations
-im_allocations = UiConfig.make_allocations . map (_make_allocation UiConfig.Im)
+imAllocations = UiConfig.makeAllocations . map (_makeAllocation UiConfig.Im)
 
-dummy_allocations :: [(ScoreT.Instrument, Text, Common.Config -> Common.Config)]
+dummyAllocations :: [(ScoreT.Instrument, Text, Common.Config -> Common.Config)]
     -- ^ (inst, qualified, set_config)
     -> UiConfig.Allocations
-dummy_allocations =
-    UiConfig.make_allocations . map (_make_allocation (UiConfig.Dummy ""))
+dummyAllocations =
+    UiConfig.makeAllocations . map (_makeAllocation (UiConfig.Dummy ""))
 
-_make_allocation :: UiConfig.Backend
+_makeAllocation :: UiConfig.Backend
     -> (a, Text, Common.Config -> Common.Config) -> (a, UiConfig.Allocation)
-_make_allocation backend (name, qualified, set_config) =
+_makeAllocation backend (name, qualified, setConfig) =
     ( name
     , UiConfig.Allocation
-        { alloc_qualified = InstT.parse_qualified qualified
-        , alloc_config = set_config Common.empty_config
-        , alloc_backend = backend
+        { allocQualified = InstT.parseQualified qualified
+        , allocConfig = setConfig Common.emptyConfig
+        , allocBackend = backend
         }
     )

@@ -27,16 +27,16 @@ import           Util.Test
 
 test_note_to_call :: Test
 test_note_to_call = do
-    let run_title title ps = DeriveTest.extract extract $
-            DeriveTest.derive_tracks ""
+    let runTitle title ps = DeriveTest.extract extract $
+            DeriveTest.deriveTracks ""
             [ (title, [(t, 1, "") | (t, _) <- times ps])
             , ("*just", [(t, 0, p) | (t, p) <- times ps])
             ]
             where
             times = zip (Lists.range_ 0 1)
-        extract = fmap Pitch.nn_to_hz . Score.initial_nn
+        extract = fmap Pitch.nnToHz . Score.initialNn
     let run key base =
-            run_title ("> | just-base = " <> base <> " | key = " <> key)
+            runTitle ("> | just-base = " <> base <> " | key = " <> key)
 
     -- Scale starts at 4c by default, and tunes to just-base.
     equalf 0.001 (run "c-maj" "440" ["4c"]) ([Just 440], [])
@@ -59,20 +59,20 @@ test_note_to_call = do
         ([Just 440, Just 660, Just 990], [])
     equalf 0.001 (runa ["4c", "P5", "-P5"]) ([Just 440, Just 660, Just 440], [])
 
-    let acc = JustScales.smap_accidental_interval
-            (Just.scale_map TheoryFormat.absolute_c)
+    let acc = JustScales.smapAccidentalInterval
+            (Just.scaleMap TheoryFormat.absoluteC)
     equalf 0.001 (runa ["4c", "4c#", "4cb"])
         ([Just 440, Just $ 440 * acc, Just $ 440 / acc], [])
 
     -- tuning
-    let runt t = run_title ("> | just-base=440 | key=c-maj | tuning=" <> t)
+    let runt t = runTitle ("> | just-base=440 | key=c-maj | tuning=" <> t)
     equalf 0.001 (runt "limit-5" ["4d"]) ([Just (440 * 9/8)], [])
     equalf 0.001 (runt "limit-7" ["4d"]) ([Just (440 * 8/7)], [])
 
 test_transpose_smooth :: Test
 test_transpose_smooth = do
-    let run = DeriveTest.extract DeriveTest.e_nns $
-            DeriveTest.derive_tracks "scale=raga | key=kharaharapriya"
+    let run = DeriveTest.extract DeriveTest.eNns $
+            DeriveTest.deriveTracks "scale=raga | key=kharaharapriya"
             [ ("*", [(0, 0, "4g")])
             , ("t-dia",
                 [(0, 0, "-1"), (1, 0, "-.7"), (2, 0, "-.4"), (3, 0, "0")])
@@ -86,22 +86,22 @@ test_transpose_smooth = do
 
 test_note_to_call_relative :: Test
 test_note_to_call_relative = do
-    let run key p = DeriveTest.extract extract $ DeriveTest.derive_tracks ""
+    let run key p = DeriveTest.extract extract $ DeriveTest.deriveTracks ""
             [ ("*just-r | key = " <> key, [(0, 0, p)])
             , ("> | just-base = 440", [(0, 1, "")])
             ]
-        extract = fmap Pitch.nn_to_hz . Score.initial_nn
+        extract = fmap Pitch.nnToHz . Score.initialNn
     equalf 0.001 (run "a-maj" "4s") ([Just 440], [])
     equalf 0.001 (run "a-maj" "4p") ([Just (440 * 3/2)], [])
 
 test_input_to_note :: Test
 test_input_to_note = do
-    let f smap key = either (const "") Pitch.note_text <$>
-            JustScales.input_to_note smap (ScaleTest.key_environ key)
-        rel = make_scale_map True
-        abs = make_scale_map False
-        ascii oct = CmdTest.ascii_kbd . CmdTest.oct_pc oct
-        piano oct = CmdTest.piano_kbd . CmdTest.oct_pc oct
+    let f smap key = either (const "") Pitch.noteText <$>
+            JustScales.inputToNote smap (ScaleTest.keyEnviron key)
+        rel = makeScaleMap True
+        abs = makeScaleMap False
+        ascii oct = CmdTest.asciiKbd . CmdTest.octPc oct
+        piano oct = CmdTest.pianoKbd . CmdTest.octPc oct
     let notes empty n = map (("0-"<>) . showt) [1..n] ++ replicate empty ""
             ++ map (("1-"<>) . showt) [1..6] ++ replicate empty ""
 
@@ -147,38 +147,38 @@ test_input_to_note = do
     equal [f (rel 9) "h" (piano 0 pc) | pc <- [0..14]]
         (["-1-8", "-1-9", "", "", "", "", ""] ++ take 8 (notes 5 9))
 
-make_scale_map :: Bool -> Int -> JustScales.ScaleMap
-make_scale_map relative per_oct =
-    JustScales.scale_map keys default_key Nothing fmt
+makeScaleMap :: Bool -> Int -> JustScales.ScaleMap
+makeScaleMap relative perOct =
+    JustScales.scaleMap keys defaultKey Nothing fmt
     where
     fmt = if relative
-        then TheoryFormat.make_relative_format "" degrees
-            (JustScales.make_relative_fmt keys default_key)
-        else TheoryFormat.letters per_oct
+        then TheoryFormat.makeRelativeFormat "" degrees
+            (JustScales.makeRelativeFmt keys defaultKey)
+        else TheoryFormat.letters perOct
     degrees =
-        TheoryFormat.make_degrees ["-" <> showt pc | pc <- [1..per_oct]]
-    default_key = JustScales.Key 0 mempty
-    keys = Map.fromList $ take per_oct
+        TheoryFormat.makeDegrees ["-" <> showt pc | pc <- [1..perOct]]
+    defaultKey = JustScales.Key 0 mempty
+    keys = Map.fromList $ take perOct
         [ (Pitch.Key (Text.singleton c), JustScales.Key pc mempty)
         | (c, pc) <- zip "abcdefghijklmnopq" [0..]
         ]
 
 test_input_to_nn :: Test
 test_input_to_nn = do
-    let scale = ScaleTest.get_scale Just.scales "just"
-    let f = DeriveTest.setup_deriver (DeriveTest.with_key "c-maj")
-            . Scale.scale_input_to_nn scale 0
-        input = CmdTest.ascii_kbd . CmdTest.oct_pc Pitch.middle_octave
+    let scale = ScaleTest.getScale Just.scales "just"
+    let f = DeriveTest.setupDeriver (DeriveTest.withKey "c-maj")
+            . Scale.scaleInputToNn scale 0
+        input = CmdTest.asciiKbd . CmdTest.octPc Pitch.middleOctave
         run = second (first prettys) . DeriveTest.eval Ui.empty . f . input
-    equalf 0.01 (run 0) $ Right (Right NN.middle_c)
-    equalf 0.01 (run 1) $ Right $ Right $ Pitch.modify_hz (* (9/8)) NN.middle_c
+    equalf 0.01 (run 0) $ Right (Right NN.middleC)
+    equalf 0.01 (run 1) $ Right $ Right $ Pitch.modifyHz (* (9/8)) NN.middleC
 
 test_transpose_controls :: Test
 test_transpose_controls = do
-    let f p = DeriveTest.extract Score.initial_nn $
-            DeriveTest.derive_tracks "scale=just" $
-            UiTest.note_track [(0, 1, p)]
-        d4 = Pitch.modify_hz (* (9/8)) NN.c4
+    let f p = DeriveTest.extract Score.initialNn $
+            DeriveTest.deriveTracks "scale=just" $
+            UiTest.noteTrack [(0, 1, p)]
+        d4 = Pitch.modifyHz (* (9/8)) NN.c4
     equalf 0.01 (f "t-chrom=1 | -- 4c") ([Just d4], [])
     equalf 0.01 (f "t-dia=1 | -- 4c") ([Just d4], [])
     equalf 0.01 (f "t-oct=1 | -- 4c") ([Just NN.c5], [])

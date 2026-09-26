@@ -81,29 +81,29 @@ karyaPatch :: FilePath -> StrokeMap art -> ConvertMap art
     -> [(Maybe Char, Expr.Symbol, Derive.Generator Derive.Note)]
     -> ImInst.Patch
 karyaPatch dir smap cmap configOf extraCalls =
-    CUtil.im_drum_patch (map fst smap.strokes) $
+    CUtil.imDrumPatch (map fst smap.strokes) $
     ImInst.code #= code $
     makePatch smap.attributeMap (Maybe.isJust cmap.naturalNn)
     where
     extraCmds = [(char, sym) | (Just char, sym, _) <- extraCalls]
-    code = CUtil.drum_code_cmd extraCmds thru
+    code = CUtil.drumCodeCmd extraCmds thru
         [ (stroke, set (configOf mbArt))
         | (stroke, mbArt) <- smap.strokes
         ]
-        <> ImInst.note_generators [(sym, call) | (_, sym, call) <- extraCalls]
+        <> ImInst.noteGenerators [(sym, call) | (_, sym, call) <- extraCalls]
     set config = config { CUtil._transform = Code.withVariation }
     thru = Util.imThruFunction dir (convert smap.attributeMap cmap)
 
 -- | Make an unconfigured patch, without code, in case it's too custom for
 -- 'karyaPatch'.
 makePatch :: Common.AttributeMap a -> Bool -> ImInst.Patch
-makePatch attributeMap hasNaturalNn = ImInst.make_patch $ Im.Patch.patch
-    { Im.Patch.patch_controls = mconcat
+makePatch attributeMap hasNaturalNn = ImInst.makePatch $ Im.Patch.patch
+    { Im.Patch.patchControls = mconcat
         [ Control.supportDyn
         , Control.supportVariation
         , if hasNaturalNn then Control.supportPitch else mempty
         ]
-    , Im.Patch.patch_attribute_map = const () <$> attributeMap
+    , Im.Patch.patchAttributeMap = const () <$> attributeMap
     }
 
 -- * convert
@@ -306,7 +306,7 @@ strokeMapTable stops table = StrokeMap
     { stops =
         stopMap [(art, group) | (_, _, Stroke _ art group) <- table] stops
     , strokes = strokes
-    , attributeMap = Common.attribute_map $
+    , attributeMap = Common.attributeMap $
         [ (attrs, art)
         | (_, _, call) <- table
         , Just attrs <- [attrsOf call], Just art <- [artOf call]
@@ -373,12 +373,12 @@ strokeMap stops strokes attributeMap = StrokeMap
     -- This is awkward because I want to preserve the art, but unlike
     -- 'strokeMapTable', I can't guarantee a 1:1 attr:art mapping.
     strokeToArt attr = fmap snd
-        . (`Common.lookup_attributes` attributeMap)
+        . (`Common.lookupAttributes` attributeMap)
         . Drums._attributes $ attr
     artToGroup = do
         stroke <- strokes
         art <- maybe [] ((:[]) . snd) $
-            Common.lookup_attributes (Drums._attributes stroke) attributeMap
+            Common.lookupAttributes (Drums._attributes stroke) attributeMap
         pure (art, Drums._group stroke)
 
 stopMap :: Ord art => [(art, Drums.Group)]
@@ -412,7 +412,7 @@ inferEnd smap note nexts =
         Just stop -> Note.start stop
     where
     stops = maybe mempty (flip Maps.getM smap.stops) (noteArt note)
-    noteArt = fmap snd . (`Common.lookup_attributes` smap.attributeMap)
+    noteArt = fmap snd . (`Common.lookupAttributes` smap.attributeMap)
         . Note.attributes
 
 -- * file list

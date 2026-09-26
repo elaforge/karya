@@ -64,15 +64,15 @@ data UiDamage = UiDamage
     -- | This specifically means there was change on the given tracks.
     , _tracks :: Map TrackId (Ranges.Ranges TrackTime)
     , _rulers :: Set RulerId
-    , _bring_to_front :: Set ViewId
+    , _bringToFront :: Set ViewId
     -- | If the TrackNum is set, set keyboard focus on that track's title.
     -- Otherwise, focus on the block title.
-    , _title_focus :: Maybe (ViewId, Maybe TrackNum)
+    , _titleFocus :: Maybe (ViewId, Maybe TrackNum)
     -- | This is purely to trigger 'is_score_damage'.
     -- TODO: Ui.state_config changes should do this so Diff.score_changed
     -- dosen't need to compare UiConfig.Config each time, but modification
     -- happens through lenses...
-    , _score_damage :: Bool
+    , _scoreDamage :: Bool
     } deriving (Eq, Show, Generics.Generic)
 
 instance Semigroup UiDamage where
@@ -87,17 +87,17 @@ instance Monoid UiDamage where
 
 instance Pretty UiDamage where format = Pretty.formatG_
 
-view_damage :: ViewId -> UiDamage
-view_damage id = mempty { _views = Set.singleton id }
+viewDamage :: ViewId -> UiDamage
+viewDamage id = mempty { _views = Set.singleton id }
 
-block_damage :: BlockId -> UiDamage
-block_damage id = mempty { _blocks = Set.singleton id }
+blockDamage :: BlockId -> UiDamage
+blockDamage id = mempty { _blocks = Set.singleton id }
 
-track_damage :: TrackId -> Ranges.Ranges TrackTime -> UiDamage
-track_damage id range = mempty { _tracks = Map.singleton id range }
+trackDamage :: TrackId -> Ranges.Ranges TrackTime -> UiDamage
+trackDamage id range = mempty { _tracks = Map.singleton id range }
 
-ruler_damage :: RulerId -> UiDamage
-ruler_damage id = mempty { _rulers = Set.singleton id }
+rulerDamage :: RulerId -> UiDamage
+rulerDamage id = mempty { _rulers = Set.singleton id }
 
 data Update t u
     = View ViewId View
@@ -164,21 +164,21 @@ data State
 
 instance DeepSeq.NFData (Update t u) where
     rnf update = case update of
-        View view_id update -> view_id `seq` update `seq` ()
-        Block block_id update -> block_id `seq` update `seq` ()
-        Track track_id update -> track_id `seq` update `seq` ()
-        Ruler ruler_id -> ruler_id `seq` ()
+        View viewId update -> viewId `seq` update `seq` ()
+        Block blockId update -> blockId `seq` update `seq` ()
+        Track trackId update -> trackId `seq` update `seq` ()
+        Ruler rulerId -> rulerId `seq` ()
         State u -> u `seq` ()
 
 instance (Pretty t, Pretty u) => Pretty (Update t u) where
     format = \case
-        View view_id update -> Pretty.constructor "View"
-            [Pretty.format view_id, Pretty.format update]
-        Block block_id update -> Pretty.constructor "Block"
-            [Pretty.format block_id, Pretty.format update]
-        Track track_id update -> Pretty.constructor "Track"
-            [Pretty.format track_id, Pretty.format update]
-        Ruler ruler_id -> Pretty.constructor "Ruler" [Pretty.format ruler_id]
+        View viewId update -> Pretty.constructor "View"
+            [Pretty.format viewId, Pretty.format update]
+        Block blockId update -> Pretty.constructor "Block"
+            [Pretty.format blockId, Pretty.format update]
+        Track trackId update -> Pretty.constructor "Track"
+            [Pretty.format trackId, Pretty.format update]
+        Ruler rulerId -> Pretty.constructor "Ruler" [Pretty.format rulerId]
         State update -> Pretty.constructor "State" [Pretty.format update]
 
 instance Pretty View where
@@ -186,8 +186,8 @@ instance Pretty View where
         CreateView -> "CreateView"
         DestroyView -> "DestroyView"
         ViewSize rect -> Pretty.constructor "ViewSize" [Pretty.format rect]
-        Status status is_root -> Pretty.constructor "Status"
-            [Pretty.format status, Pretty.format is_root]
+        Status status isRoot -> Pretty.constructor "Status"
+            [Pretty.format status, Pretty.format isRoot]
         TrackScroll width ->
             Pretty.constructor "TrackScroll" [Pretty.format width]
         Zoom zoom -> Pretty.constructor "Zoom" [Pretty.format zoom]
@@ -203,8 +203,8 @@ instance Pretty t => Pretty (Block t) where
             [Pretty.format s]
         BlockConfig config -> Pretty.constructor "BlockConfig"
             [Pretty.format config]
-        BlockSkeleton skel int_skel -> Pretty.constructor "BlockSkeleton"
-            [Pretty.format skel, Pretty.format int_skel]
+        BlockSkeleton skel intSkel -> Pretty.constructor "BlockSkeleton"
+            [Pretty.format skel, Pretty.format intSkel]
         RemoveTrack n -> Pretty.constructor "RemoveTrack"
             [Pretty.format n]
         InsertTrack n t -> Pretty.constructor "InsertTrack"
@@ -225,41 +225,41 @@ instance Pretty Track where
 instance Pretty State where
     format update = case update of
         Config config -> Pretty.constructor "Config" [Pretty.format config]
-        CreateBlock block_id _ -> Pretty.constructor "CreateBlock"
-            [Pretty.format block_id]
-        DestroyBlock block_id -> Pretty.constructor "DestroyBlock"
-            [Pretty.format block_id]
-        CreateTrack track_id _ -> Pretty.constructor "CreateTrack"
-            [Pretty.format track_id]
-        DestroyTrack track_id -> Pretty.constructor "DestroyTrack"
-            [Pretty.format track_id]
-        CreateRuler ruler_id _ -> Pretty.constructor "CreateRuler"
-            [Pretty.format ruler_id]
-        DestroyRuler ruler_id -> Pretty.constructor "DestroyRuler"
-            [Pretty.format ruler_id]
+        CreateBlock blockId _ -> Pretty.constructor "CreateBlock"
+            [Pretty.format blockId]
+        DestroyBlock blockId -> Pretty.constructor "DestroyBlock"
+            [Pretty.format blockId]
+        CreateTrack trackId _ -> Pretty.constructor "CreateTrack"
+            [Pretty.format trackId]
+        DestroyTrack trackId -> Pretty.constructor "DestroyTrack"
+            [Pretty.format trackId]
+        CreateRuler rulerId _ -> Pretty.constructor "CreateRuler"
+            [Pretty.format rulerId]
+        DestroyRuler rulerId -> Pretty.constructor "DestroyRuler"
+            [Pretty.format rulerId]
 
-update_id :: Update t State -> Maybe Id.Id
-update_id = \case
-    View view_id _ -> ident view_id
-    Block block_id _ -> ident block_id
-    Track track_id _ -> ident track_id
-    Ruler ruler_id -> ident ruler_id
+updateId :: Update t State -> Maybe Id.Id
+updateId = \case
+    View viewId _ -> ident viewId
+    Block blockId _ -> ident blockId
+    Track trackId _ -> ident trackId
+    Ruler rulerId -> ident rulerId
     State st -> case st of
         Config {} -> Nothing
-        CreateBlock block_id _ -> ident block_id
-        DestroyBlock block_id -> ident block_id
-        CreateTrack track_id _ -> ident track_id
-        DestroyTrack track_id -> ident track_id
-        CreateRuler ruler_id _ -> ident ruler_id
-        DestroyRuler ruler_id -> ident ruler_id
+        CreateBlock blockId _ -> ident blockId
+        DestroyBlock blockId -> ident blockId
+        CreateTrack trackId _ -> ident trackId
+        DestroyTrack trackId -> ident trackId
+        CreateRuler rulerId _ -> ident rulerId
+        DestroyRuler rulerId -> ident rulerId
     where
     ident :: Id.Ident a => a -> Maybe Id.Id
-    ident = Just . Id.unpack_id
+    ident = Just . Id.unpackId
 
 -- | Convert a UiUpdate to a DisplayUpdate by stripping out all the UiUpdate
 -- parts.
-to_display :: UiUpdate -> Maybe DisplayUpdate
-to_display = \case
+toDisplay :: UiUpdate -> Maybe DisplayUpdate
+toDisplay = \case
     View vid update -> Just $ View vid update
     Block bid update -> Block bid <$> case update of
         BlockTitle a -> Just $ BlockTitle a
@@ -272,16 +272,16 @@ to_display = \case
     Ruler rid -> Just $ Ruler rid
     State {} -> Nothing
 
-to_ui :: UiDamage -> [UiUpdate]
-to_ui (UiDamage { _tracks, _rulers, _bring_to_front, _title_focus }) = concat
-    [ [ Track tid $ maybe TrackAllEvents (uncurry TrackEvents) mb_range
+toUi :: UiDamage -> [UiUpdate]
+toUi (UiDamage { _tracks, _rulers, _bringToFront, _titleFocus }) = concat
+    [ [ Track tid $ maybe TrackAllEvents (uncurry TrackEvents) mbRange
       | (tid, range) <- Map.toList _tracks
-      , Just mb_range <- [Ranges.extract1 range]
+      , Just mbRange <- [Ranges.extract1 range]
       ]
     , map Ruler (Set.toList _rulers)
-    , map (flip View BringToFront) (Set.toList _bring_to_front)
+    , map (flip View BringToFront) (Set.toList _bringToFront)
     , maybe [] (\(vid, tracknum) -> [View vid (TitleFocus tracknum)])
-        _title_focus
+        _titleFocus
     ]
     -- views and blocks not converted, but they tell diff where to look.
 
@@ -294,41 +294,41 @@ to_ui (UiDamage { _tracks, _rulers, _bring_to_front, _title_focus }) = concat
 -- I should move entirely to collecting updates and get rid of diff.  But as
 -- long as diff is fairly efficient, when directed to the appropriate places
 -- via UiDamage, then it still seems less error prone to do the diff.
-to_damage :: UiUpdate -> UiDamage
-to_damage = \case
-    View view_id view -> case view of
+toDamage :: UiUpdate -> UiDamage
+toDamage = \case
+    View viewId view -> case view of
         -- I can discard BringToFront and TitleFocus because they're just
         -- instructions to Sync and don't indicate UI damage.
         BringToFront {} -> mempty
         TitleFocus {} -> mempty
-        _ -> view_damage view_id
-    Block block_id _ -> block_damage block_id
-    Track track_id track -> track_damage track_id $ case track of
+        _ -> viewDamage viewId
+    Block blockId _ -> blockDamage blockId
+    Track trackId track -> trackDamage trackId $ case track of
         TrackEvents s e -> Ranges.range s e
         _ -> Ranges.everything
-    Ruler ruler_id -> ruler_damage ruler_id
+    Ruler rulerId -> rulerDamage rulerId
     State state -> case state of
         Config {} -> mempty
-        CreateBlock block_id _ -> block_damage block_id
-        DestroyBlock block_id -> block_damage block_id
-        CreateTrack track_id _ -> track_damage track_id Ranges.everything
-        DestroyTrack track_id -> track_damage track_id Ranges.everything
-        CreateRuler ruler_id _ -> ruler_damage ruler_id
-        DestroyRuler ruler_id -> ruler_damage ruler_id
+        CreateBlock blockId _ -> blockDamage blockId
+        DestroyBlock blockId -> blockDamage blockId
+        CreateTrack trackId _ -> trackDamage trackId Ranges.everything
+        DestroyTrack trackId -> trackDamage trackId Ranges.everything
+        CreateRuler rulerId _ -> rulerDamage rulerId
+        DestroyRuler rulerId -> rulerDamage rulerId
 
 -- * functions
 
 -- | Updates which purely manipulate the view are not recorded by undo.
-is_view_update :: UiUpdate -> Bool
-is_view_update = \case
-    View _ view_update -> case view_update of
+isViewUpdate :: UiUpdate -> Bool
+isViewUpdate = \case
+    View _ viewUpdate -> case viewUpdate of
         CreateView {} -> False
         DestroyView -> False
         _ -> True
-    Block _ block_update -> case block_update of
+    Block _ blockUpdate -> case blockUpdate of
         BlockConfig _ -> True
         _ -> False
-    Track _ track_update -> case track_update of
+    Track _ trackUpdate -> case trackUpdate of
         TrackBg {} -> True
         TrackRender {} -> True
         _ -> False
@@ -336,27 +336,27 @@ is_view_update = \case
 
 -- | Score damage is used by Diff.score_changed to determine if a change has
 -- happened which is worthy of saving to disk, or recording for undo.
-is_score_damage :: UiDamage -> Bool
-is_score_damage (UiDamage { _tracks, _rulers, _score_damage }) =
+isScoreDamage :: UiDamage -> Bool
+isScoreDamage (UiDamage { _tracks, _rulers, _scoreDamage }) =
     -- This doesn't check _blocks, because those happen on any block change at
     -- all, which includes UI-only things like Block.config_skel_box.
-    _score_damage || not (Map.null _tracks) || not (Set.null _rulers)
+    _scoreDamage || not (Map.null _tracks) || not (Set.null _rulers)
 
 -- | Does an update imply a change which would require rederiving?
-track_changed :: UiUpdate -> Maybe (TrackId, Ranges.Ranges ScoreTime)
-track_changed (Track tid update) = case update of
+trackChanged :: UiUpdate -> Maybe (TrackId, Ranges.Ranges ScoreTime)
+trackChanged (Track tid update) = case update of
     TrackEvents start end -> Just (tid, Ranges.range start end)
     TrackAllEvents -> Just (tid, Ranges.everything)
     TrackTitle _ -> Just (tid, Ranges.everything)
     _ -> Nothing
-track_changed _ = Nothing
+trackChanged _ = Nothing
 
 -- | Some Updates have to happen before others.
 sort :: [DisplayUpdate] -> [DisplayUpdate]
-sort = Lists.sortOn sort_key
+sort = Lists.sortOn sortKey
 
-sort_key :: DisplayUpdate -> Int
-sort_key = \case
+sortKey :: DisplayUpdate -> Int
+sortKey = \case
     -- Other updates may refer to the created view.
     View _ (CreateView {}) -> 0
     -- No sense syncing updates to a view that's going to go away, so destroy

@@ -6,9 +6,9 @@
 module Derive.Parse.Ky (
     Ky(..), Loaded(..)
     , Definitions(..), Definition
-    , load_ky
-    , parse_ky
-    , replace_section
+    , loadKy
+    , parseKy
+    , replaceSection
     -- ** types
     , Expr(..), Call(..), Term(..), Var(..)
 #ifdef TESTING
@@ -55,9 +55,9 @@ type Code = Text
 
 -- | A parsed .ky file
 data Ky a = Ky
-    { ky_definitions :: Definitions
-    , ky_imports :: [a]
-    , ky_instruments :: UiConfig.Allocations
+    { kyDefinitions :: Definitions
+    , kyImports :: [a]
+    , kyInstruments :: UiConfig.Allocations
     } deriving (Show)
 
 instance Semigroup (Ky a) where
@@ -77,11 +77,11 @@ data Import = Import !FilePath !String
 -- | This is a mirror of 'Derive.Library', but with expressions instead of
 -- calls.  (generators, transformers)
 data Definitions = Definitions
-    { def_note :: !([Definition], [Definition])
-    , def_control :: !([Definition], [Definition])
-    , def_pitch :: !([Definition], [Definition])
-    , def_val :: ![Definition]
-    , def_aliases :: ![(ScoreT.Instrument, ScoreT.Instrument)]
+    { defNote :: !([Definition], [Definition])
+    , defControl :: !([Definition], [Definition])
+    , defPitch :: !([Definition], [Definition])
+    , defVal :: ![Definition]
+    , defAliases :: ![(ScoreT.Instrument, ScoreT.Instrument)]
     } deriving (Show)
 
 instance Semigroup Definitions where
@@ -100,42 +100,42 @@ type Definition = (FilePath, (Expr.Symbol, Expr))
 
 -- | Parse ky text and load and parse all the files it imports.  'parse_ky'
 -- describes the format of the ky file.
-load_ky :: [FilePath] -> Code -> IO (Either ParseText.Error (Ky Loaded))
-load_ky paths content = Except.runExceptT $ do
+loadKy :: [FilePath] -> Code -> IO (Either ParseText.Error (Ky Loaded))
+loadKy paths content = Except.runExceptT $ do
     ky <- tryRight $ first (ParseText.prefix "<score>: ") $
-        parse_ky "" content
-    kys <- load_ky_file paths Set.empty (ky_imports ky)
-    pure $ mconcat $ ky { ky_imports = [Loaded "" content] } : kys
+        parseKy "" content
+    kys <- loadKyFile paths Set.empty (kyImports ky)
+    pure $ mconcat $ ky { kyImports = [Loaded "" content] } : kys
 
-load_ky_file :: [FilePath] -> Set FilePath -> [Import]
+loadKyFile :: [FilePath] -> Set FilePath -> [Import]
     -> Except.ExceptT ParseText.Error IO [Ky Loaded]
-load_ky_file _ _ [] = pure []
-load_ky_file paths loaded (Import fname lib : imports)
+loadKyFile _ _ [] = pure []
+loadKyFile paths loaded (Import fname lib : imports)
     | lib `Set.member` loaded = pure []
     | otherwise = do
         let prefix = txt lib <> ": "
         (fname, content) <- tryRight . first (ParseText.message . (prefix<>))
-            =<< liftIO (find_ky paths fname lib)
+            =<< liftIO (findKy paths fname lib)
         ky <- tryRight . first (ParseText.prefix prefix) $
-            parse_ky fname content
-        kys <- load_ky_file paths (Set.insert lib loaded)
-            (imports ++ ky_imports ky)
-        pure $ ky { ky_imports = [Loaded fname content] } : kys
+            parseKy fname content
+        kys <- loadKyFile paths (Set.insert lib loaded)
+            (imports ++ kyImports ky)
+        pure $ ky { kyImports = [Loaded fname content] } : kys
 
 -- | Find the file in the given paths and return its filename and contents.
-find_ky :: [FilePath] -> FilePath -> FilePath
+findKy :: [FilePath] -> FilePath -> FilePath
     -> IO (Either Error (FilePath, Code))
-find_ky paths from fname =
-    maybe (Left not_found) id <$>
+findKy paths from fname =
+    maybe (Left notFound) id <$>
         firstJusts (map (\dir -> get (dir </> fname)) paths)
     where
-    not_found = "ky file not found: " <> txt fname
+    notFound = "ky file not found: " <> txt fname
         <> (if from == "" then "" else " from " <> txt from)
         <> " (searched " <> Text.intercalate ", " (map txt paths) <> ")"
-    get fn = fmap (fmap (fn,)) <$> read_file fn
+    get fn = fmap (fmap (fn,)) <$> readKy fn
 
-read_file :: FilePath -> IO (Maybe (Either Error Text))
-read_file fn = Exception.try (Text.IO.readFile fn) >>= pure . \case
+readKy :: FilePath -> IO (Maybe (Either Error Text))
+readKy fn = Exception.try (Text.IO.readFile fn) >>= pure . \case
     Left exc
         | IO.Error.isDoesNotExistError exc -> Nothing
         | otherwise -> Just $ Left $ txt $ fn <> ": " <> show exc
@@ -173,42 +173,42 @@ read_file fn = Exception.try (Text.IO.readFile fn) >>= pure . \case
     - Calls are defined as "Derive.Call.Macro"s, which means they can include
     $variables, which become arguments to the call.
 -}
-parse_ky :: FilePath -> Code -> Either ParseText.Error (Ky Import)
-parse_ky fname text = do
-    (imports, sections) <- first ParseText.message $ checked_sections text
-    (instrument_section, sections) <- pure
-        ( Map.lookup Instruments.instrument_section sections
-        , Map.delete Instruments.instrument_section sections
+parseKy :: FilePath -> Code -> Either ParseText.Error (Ky Import)
+parseKy fname text = do
+    (imports, sections) <- first ParseText.message $ checkedSections text
+    (instrumentSection, sections) <- pure
+        ( Map.lookup Instruments.instrumentSection sections
+        , Map.delete Instruments.instrumentSection sections
         )
     let extra = Set.toList $
-            Map.keysSet sections `Set.difference` Set.fromList valid_titles
+            Map.keysSet sections `Set.difference` Set.fromList validTitles
     unless (null extra) $
         Left $ ParseText.message $
             "unknown sections: " <> Text.intercalate ", " extra
-    imports <- ParseText.parse p_imports imports
-    parsed <- traverse parse_section sections
+    imports <- ParseText.parse pImports imports
+    parsed <- traverse parseSection sections
     let get header = Map.findWithDefault [] header parsed
         get2 kind =
             ( get (kind <> " " <> generator)
             , get (kind <> " " <> transformer)
             )
-    aliases <- first (ParseText.Error Nothing) $ mapM parse_alias (get alias)
-    allocs <- case instrument_section of
+    aliases <- first (ParseText.Error Nothing) $ mapM parseAlias (get alias)
+    allocs <- case instrumentSection of
         Just lines@((lineno, _) : _) ->
-            parse_instruments fname lineno $ map snd lines
+            parseInstruments fname lineno $ map snd lines
         _ -> Right mempty
-    let add_fname = map (fname,)
-        add_fname2 = bimap add_fname add_fname
+    let addFname = map (fname,)
+        addFname2 = bimap addFname addFname
     pure $ Ky
-        { ky_definitions = Definitions
-            { def_note = add_fname2 $ get2 note
-            , def_control = add_fname2 $ get2 control
-            , def_pitch = add_fname2 $ get2 pitch
-            , def_val = add_fname $ get val
-            , def_aliases = aliases
+        { kyDefinitions = Definitions
+            { defNote = addFname2 $ get2 note
+            , defControl = addFname2 $ get2 control
+            , defPitch = addFname2 $ get2 pitch
+            , defVal = addFname $ get val
+            , defAliases = aliases
             }
-        , ky_imports = map (Import fname) imports
-        , ky_instruments = allocs
+        , kyImports = map (Import fname) imports
+        , kyInstruments = allocs
         }
     where
     val = "val"
@@ -218,37 +218,37 @@ parse_ky fname text = do
     generator = "generator"
     transformer = "transformer"
     alias = "alias"
-    valid_titles = val : alias :
+    validTitles = val : alias :
         [ t1 <> " " <> t2
         | t1 <- [note, control, pitch], t2 <- [generator, transformer]
         ]
-    parse_section [] = pure []
-    parse_section ((lineno, line0) : lines) =
-        first (ParseText.offset (lineno, 0)) $ ParseText.parse p_section $
+    parseSection [] = pure []
+    parseSection ((lineno, line0) : lines) =
+        first (ParseText.offset (lineno, 0)) $ ParseText.parse pSection $
             Text.unlines (line0 : map snd lines)
 
 -- | The lineno is the 0-based line of the first line of the section, which
 -- becomes the 1-based starting line for megaparsec.
-parse_instruments :: FilePath -> Line -> [Text]
+parseInstruments :: FilePath -> Line -> [Text]
     -> Either ParseText.Error UiConfig.Allocations
-parse_instruments fname lineno lines =
+parseInstruments fname lineno lines =
     -- TODO convert megaparsec line numbers back to ParseText._position?
     first (ParseText.Error Nothing) $
-        Util.Parse.parseFromLine (lineno+1) fname Instruments.p_instruments
+        Util.Parse.parseFromLine (lineno+1) fname Instruments.pInstruments
             (Text.unlines lines)
 
 -- | The alias section allows only @alias = inst@ definitions.
-parse_alias :: (Expr.Symbol, Expr)
+parseAlias :: (Expr.Symbol, Expr)
     -> Either Error (ScoreT.Instrument, ScoreT.Instrument)
-parse_alias (lhs, rhs) = first (msg<>) $ case rhs of
+parseAlias (lhs, rhs) = first (msg<>) $ case rhs of
     Expr (Call rhs [] :| [])
-        | not (Id.valid_symbol (Expr.unsym lhs)) -> Left "lhs not a valid id"
-        | not (Id.valid_symbol (Expr.unsym rhs)) -> Left "rhs not a valid id"
+        | not (Id.validSymbol (Expr.unsym lhs)) -> Left "lhs not a valid id"
+        | not (Id.validSymbol (Expr.unsym rhs)) -> Left "rhs not a valid id"
         | otherwise -> Right (convert lhs, convert rhs)
         where convert (Expr.Symbol a) = ScoreT.Instrument a
     _ -> Left "rhs not a symbol"
     where
-    msg = "alias " <> ShowVal.show_val lhs <> " = " <> ShowVal.show_val rhs
+    msg = "alias " <> ShowVal.showVal lhs <> " = " <> ShowVal.showVal rhs
         <> ": "
 
 -- * parse ky file
@@ -260,8 +260,8 @@ type Title = Text
 type Line = Int
 
 -- | Split sections into a Map with section name keys, and numbered lines.
-checked_sections :: Code -> Either Error (Code, Map Title [(Line, Text)])
-checked_sections = traverse check . extract . parse_sections
+checkedSections :: Code -> Either Error (Code, Map Title [(Line, Text)])
+checkedSections = traverse check . extract . parseSections
     where
     check (sections, []) = Right sections
     check (_, dups) =
@@ -274,24 +274,24 @@ checked_sections = traverse check . extract . parse_sections
 -- section before the first section title, used for imports.
 -- A title is a line that's all letters or spaces, ending with ':',
 -- enumerated in valid_titles.
-parse_sections :: Code -> [Section]
-parse_sections =
-    merge . Lists.splitWith parse_header . zip [0..] . Text.lines
+parseSections :: Code -> [Section]
+parseSections =
+    merge . Lists.splitWith parseHeader . zip [0..] . Text.lines
     where
     merge (pre, sections) = ("", pre) : sections
-    parse_header (_, line)
+    parseHeader (_, line)
         | Just (title, ':') <- Text.unsnoc line
         , Text.all (\c -> Char.isAsciiLower c || c == ' ') title =
             Just title
         | otherwise = Nothing
 
-unparse_section :: (Title, [Text]) -> Code
-unparse_section (section, lines) =
+unparseSection :: (Title, [Text]) -> Code
+unparseSection (section, lines) =
     (if section == "" then "" else section <> ":\n") <> Text.unlines lines
 
-replace_section :: Title -> (Text -> Text) -> Code -> Code
-replace_section title modify =
-    mconcatMap unparse_section . map mod . parse_sections
+replaceSection :: Title -> (Text -> Text) -> Code -> Code
+replaceSection title modify =
+    mconcatMap unparseSection . map mod . parseSections
     where
     mod (title2, lines)
         | title == title2 = (modify title, map (modify . snd) lines)
@@ -299,26 +299,26 @@ replace_section title modify =
 
 -- * parse inside sections
 
-p_imports :: A.Parser [FilePath]
-p_imports =
-    A.skipMany Parse.empty_line *> many p_import <* A.skipMany Parse.empty_line
+pImports :: A.Parser [FilePath]
+pImports =
+    A.skipMany Parse.emptyLine *> many pImport <* A.skipMany Parse.emptyLine
     where
-    p_import = A.string "import" *> Parse.spaces
-        *> (untxt <$> Parse.p_single_quote_string)
+    pImport = A.string "import" *> Parse.spaces
+        *> (untxt <$> Parse.pSingleQuoteString)
         <* Parse.spaces <* A.char '\n'
 
-p_section :: A.Parser [(Expr.Symbol, Expr)]
-p_section = A.skipMany Parse.empty_line *> many p_definition
-    <* A.skipMany Parse.empty_line
+pSection :: A.Parser [(Expr.Symbol, Expr)]
+pSection = A.skipMany Parse.emptyLine *> many pDefinition
+    <* A.skipMany Parse.emptyLine
 
-p_definition :: A.Parser (Expr.Symbol, Expr)
-p_definition = do
-    assignee <- Parse.p_symbol True
+pDefinition :: A.Parser (Expr.Symbol, Expr)
+pDefinition = do
+    assignee <- Parse.pSymbol True
     Parse.spaces
     A.skip (=='=')
     Parse.spaces
-    expr <- p_expr_ky
-    A.skipMany Parse.empty_line
+    expr <- pExprKy
+    A.skipMany Parse.emptyLine
     pure (assignee, expr)
 
 -- * types
@@ -337,65 +337,65 @@ data Term = VarTerm !Var | ValCall !Call | Literal !DeriveT.Val
 newtype Var = Var Text deriving (Show)
 
 instance ShowVal.ShowVal Expr where
-    show_val (Expr calls) = Text.intercalate " | " $
-        map ShowVal.show_val (NonEmpty.toList calls)
+    showVal (Expr calls) = Text.intercalate " | " $
+        map ShowVal.showVal (NonEmpty.toList calls)
 
 instance ShowVal.ShowVal Call where
-    show_val (Call sym args) = Text.unwords $
-        ShowVal.show_val sym : map ShowVal.show_val args
+    showVal (Call sym args) = Text.unwords $
+        ShowVal.showVal sym : map ShowVal.showVal args
 
 instance ShowVal.ShowVal Term where
-    show_val (VarTerm var) = ShowVal.show_val var
-    show_val (ValCall call) = "(" <> ShowVal.show_val call <> ")"
-    show_val (Literal val) = ShowVal.show_val val
+    showVal (VarTerm var) = ShowVal.showVal var
+    showVal (ValCall call) = "(" <> ShowVal.showVal call <> ")"
+    showVal (Literal val) = ShowVal.showVal val
 
 instance ShowVal.ShowVal Var where
-    show_val (Var name) = "$" <> name
+    showVal (Var name) = "$" <> name
 
 -- * parsers
 
 -- | As 'Expr' parallels 'Expr.Expr', these parsers parallel 'p_expr' and so
 -- on.
-p_expr_ky :: A.Parser Expr
-p_expr_ky = do
+pExprKy :: A.Parser Expr
+pExprKy = do
     -- It definitely matches at least one, because p_null_call always matches.
-    c : cs <- A.sepBy1 p_toplevel_call_ky Parse.p_pipe
+    c : cs <- A.sepBy1 pToplevelCallKy Parse.pPipe
     pure $ Expr (c :| cs)
 
-p_toplevel_call_ky :: A.Parser Call
-p_toplevel_call_ky =
-    call_to_ky <$> Parse.p_unparsed_expr
-    <|> p_equal_ky
-    <|> p_call_ky
-    <|> call_to_ky <$> Parse.p_null_call
+pToplevelCallKy :: A.Parser Call
+pToplevelCallKy =
+    callToKy <$> Parse.pUnparsedExpr
+    <|> pEqualKy
+    <|> pCallKy
+    <|> callToKy <$> Parse.pNullCall
 
-call_to_ky :: DeriveT.Call -> Call
-call_to_ky (Expr.Call sym args) = Call sym (map convert args)
+callToKy :: DeriveT.Call -> Call
+callToKy (Expr.Call sym args) = Call sym (map convert args)
     where
     convert (Expr.Literal val) = Literal val
-    convert (Expr.ValCall call) = ValCall (call_to_ky call)
+    convert (Expr.ValCall call) = ValCall (callToKy call)
 
-p_equal_ky :: A.Parser Call
-p_equal_ky = do
-    (lhs, sym, rhs) <- Parse.p_equal_generic p_term_ky
+pEqualKy :: A.Parser Call
+pEqualKy = do
+    (lhs, sym, rhs) <- Parse.pEqualGeneric pTermKy
     pure $ Call Symbols.equal $
         literal lhs : rhs ++ maybe [] (:[]) (literal <$> sym)
     where literal = Literal . DeriveT.VStr
 
-p_sub_call_ky :: A.Parser Call
-p_sub_call_ky = ParseText.between (A.char '(') (A.char ')') p_call_ky
+pSubCallKy :: A.Parser Call
+pSubCallKy = ParseText.between (A.char '(') (A.char ')') pCallKy
 
-p_call_ky :: A.Parser Call
-p_call_ky = Call <$> Parse.lexeme (Parse.p_symbol False) <*> many p_term_ky
+pCallKy :: A.Parser Call
+pCallKy = Call <$> Parse.lexeme (Parse.pSymbol False) <*> many pTermKy
 
-p_term_ky :: A.Parser Term
-p_term_ky =
-    Parse.lexeme $ VarTerm <$> p_var
-    <|> Literal <$> Parse.p_val Parse.UnquotedLoose
-    <|> ValCall <$> p_sub_call_ky
+pTermKy :: A.Parser Term
+pTermKy =
+    Parse.lexeme $ VarTerm <$> pVar
+    <|> Literal <$> Parse.pVal Parse.UnquotedLoose
+    <|> ValCall <$> pSubCallKy
 
-p_var :: A.Parser Var
-p_var = A.char '$' *> (Var <$> A.takeWhile1 is_var_char)
+pVar :: A.Parser Var
+pVar = A.char '$' *> (Var <$> A.takeWhile1 isVarChar)
 
-is_var_char :: Char -> Bool
-is_var_char c = 'a' <= c || 'z' <= c || c == '-'
+isVarChar :: Char -> Bool
+isVarChar c = 'a' <= c || 'z' <= c || c == '-'

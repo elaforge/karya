@@ -33,38 +33,38 @@ main = do
     Encoding.setLocaleEncoding Encoding.utf8
     args <- Environment.getArgs
     case args of
-        [haddock_dir, input] ->
-            Text.IO.putStr =<< linkify haddock_dir input
+        [haddockDir, input] ->
+            Text.IO.putStr =<< linkify haddockDir input
                 =<< Text.IO.readFile input
         _ -> putStrLn "usage: linkify path/to/haddock/dir doc/text"
 
 linkify :: FilePath -> FilePath -> Text -> IO Text
-linkify haddock_dir input_file text = do
-    files <- get_files "."
+linkify haddockDir inputFile text = do
+    files <- getFiles "."
     let (out, logs) = Logger.runId $ Texts.mapDelimitedM False '\''
-            (link_quoted files haddock_dir) text
+            (linkQuoted files haddockDir) text
     unless (null logs) $
-        Text.IO.hPutStrLn IO.stderr $ "** " <> txt input_file
+        Text.IO.hPutStrLn IO.stderr $ "** " <> txt inputFile
             <> ": broken link: " <> Text.intercalate ", " logs
     pure out
 
-get_files :: FilePath -> IO Texts.Files
-get_files dir = do
+getFiles :: FilePath -> IO Texts.Files
+getFiles dir = do
     files <- Files.listRecursive (maybe False Char.isUpper . Lists.head) dir
     pure $ Set.fromList files
 
-link_quoted :: Texts.Files -> FilePath -> Text -> Logger.Logger Text Text
-link_quoted files haddock_dir text
-    | looks_like_link text = case Texts.haddockUrl files haddock_dir text of
+linkQuoted :: Texts.Files -> FilePath -> Text -> Logger.Logger Text Text
+linkQuoted files haddockDir text
+    | looksLikeLink text = case Texts.haddockUrl files haddockDir text of
         Nothing -> do
             Logger.log text
             pure $ "'" <> text <> "'"
-        Just url -> pure $ markdown_link text url
+        Just url -> pure $ markdownLink text url
     | otherwise = pure $ "'" <> text <> "'"
 
-looks_like_link :: Text -> Bool
-looks_like_link text =
+looksLikeLink :: Text -> Bool
+looksLikeLink text =
     "." `Text.isInfixOf` text && Char.isUpper (Text.head text)
 
-markdown_link :: Text -> String -> Text
-markdown_link text url = "[" <> text <> "](" <> Text.pack url <> ")"
+markdownLink :: Text -> String -> Text
+markdownLink text url = "[" <> text <> "](" <> Text.pack url <> ")"

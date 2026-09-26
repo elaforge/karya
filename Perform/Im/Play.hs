@@ -4,8 +4,8 @@
 
 -- | Fire up the play-cache vst.
 module Perform.Im.Play (
-    play_cache_synth
-    , encode_time, encode_play_config, decode_time, start, stop
+    playCacheSynth
+    , encodeTime, encodePlayConfig, decodeTime, start, stop
 ) where
 import qualified Data.Bits as Bits
 import           Data.Bits ((.&.), (.|.))
@@ -29,25 +29,25 @@ import           Global
 import           Types
 
 
-play_cache_synth :: Inst.SynthDecl Cmd.InstrumentCode
-play_cache_synth = Inst.SynthDecl
-    { synthd_name = InstT.synth UiConfig.play_cache
-    , synthd_doc = "play_cache VST, to play the output of offline synthesizers."
-    , synthd_patches = [(Patch.default_name, inst)]
-    , synthd_warns = []
+playCacheSynth :: Inst.SynthDecl Cmd.InstrumentCode
+playCacheSynth = Inst.SynthDecl
+    { synthdName = InstT.synth UiConfig.playCache
+    , synthdDoc = "play_cache VST, to play the output of offline synthesizers."
+    , synthdPatches = [(Patch.defaultName, inst)]
+    , synthdWarns = []
     }
     where
     inst = Inst.Inst
-        { inst_backend = Inst.Midi $ Patch.patch (0, 0) Patch.default_name
-        , inst_common = Common.doc #= doc $ Common.common Cmd.empty_code
+        { instBackend = Inst.Midi $ Patch.patch (0, 0) Patch.defaultName
+        , instCommon = Common.doc #= doc $ Common.common Cmd.emptyCode
         }
     doc = "This dummy patch is just to give a way to configure the MIDI\
         \ channel of the play_cache VST. It's never actually played, and the\
         \ instrument should never be used in the score."
 
-to_sample :: RealTime -> Int
-to_sample t =
-    round $ RealTime.to_seconds t * fromIntegral Shared.Config.samplingRate
+toSample :: RealTime -> Int
+toSample t =
+    round $ RealTime.toSeconds t * fromIntegral Shared.Config.samplingRate
 
 -- | Emit MIDI messages that tell play_cache to get ready to start playing at
 -- the given time.
@@ -58,29 +58,29 @@ to_sample t =
 -- anything I'm likely to write.  TODO since this can't represent negative
 -- times, and the DAW likely doesn't like them either, I'll have to normalize
 -- the output.
-encode_time :: RealTime -> [Midi.ChannelMessage]
-encode_time t = [at 0, at 1, at 2, at 3]
+encodeTime :: RealTime -> [Midi.ChannelMessage]
+encodeTime t = [at 0, at 1, at 2, at 3]
     where
     at i = Midi.Aftertouch (fromIntegral i)
         (fromIntegral $ Bits.shiftR pos (i * 7) .&. 0x7f)
-    pos = to_sample t
+    pos = toSample t
 
 -- | Send the block to play, along with muted instruments, if any.  Each
 -- is separated by a \0.
-encode_play_config :: FilePath -> BlockId -> Set ScoreT.Instrument
+encodePlayConfig :: FilePath -> BlockId -> Set ScoreT.Instrument
     -> [Midi.ChannelMessage]
-encode_play_config score_path block_id muted =
-    encode_text $ Text.intercalate "\0" $
-        txt (Shared.Config.playFilename score_path block_id)
-            : map ScoreT.instrument_name (Set.toList muted)
+encodePlayConfig scorePath blockId muted =
+    encodeText $ Text.intercalate "\0" $
+        txt (Shared.Config.playFilename scorePath blockId)
+            : map ScoreT.instrumentName (Set.toList muted)
 
 -- | Encode text in MIDI.  This uses a PitchBend to encode a pair of
 -- characters, with a leading '\DEL' to mark the start of the sequence, and
 -- possibly padding with a ' ' at the end.
 --
 -- TODO this only works for ASCII, because the PitchBend encoding is 7-bit.
-encode_text :: Text -> [Midi.ChannelMessage]
-encode_text text = [Midi.PitchBendInt (ord c1) (ord c2) | (c1, c2) <- name]
+encodeText :: Text -> [Midi.ChannelMessage]
+encodeText text = [Midi.PitchBendInt (ord c1) (ord c2) | (c1, c2) <- name]
     where
     ord = fromIntegral . Char.ord
     -- Prepend 0x7f to tell PlayCache to clear any accumulated junk.  It
@@ -91,15 +91,15 @@ encode_text text = [Midi.PitchBendInt (ord c1) (ord c2) | (c1, c2) <- name]
     pairs [] = []
 
 -- | Just to test 'encode_time'.  play_cache does this internally.
-decode_time :: [Midi.ChannelMessage] -> Int
-decode_time = foldr go 0
+decodeTime :: [Midi.ChannelMessage] -> Int
+decodeTime = foldr go 0
     where
     go (Midi.Aftertouch key val) frames =
-        set_offset (Midi.from_key key) (fromIntegral val) frames
+        setOffset (Midi.fromKey key) (fromIntegral val) frames
     go _ frames = frames
 
-set_offset :: Int -> Int -> Int -> Int
-set_offset key val frames = cleared .|. Bits.shiftL val index
+setOffset :: Int -> Int -> Int -> Int
+setOffset key val frames = cleared .|. Bits.shiftL val index
     where
     cleared = frames .&. Bits.complement (Bits.shiftL 0x7f index)
     index = key * 7

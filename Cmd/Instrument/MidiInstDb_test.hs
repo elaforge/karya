@@ -20,26 +20,26 @@ import           Util.Test
 
 test_generate_names :: Test
 test_generate_names = do
-    let f = first extract . MidiInstDb.generate_names . map (uncurry mkpatch)
+    let f = first extract . MidiInstDb.generateNames . map (uncurry mkpatch)
         extract = map (second name) . Map.toList
-        name = Patch.patch_name .  MidiInst.patch_patch
+        name = Patch.patchName .  MidiInst.patchPatch
     -- different initialization gets split
-    equal (f [("a", pgm_change 1), (" a", pgm_change 2)])
+    equal (f [("a", pgmChange 1), (" a", pgmChange 2)])
         ([("a1", "a"), ("a2", " a")],
             ["split into a1, a2: a (a.vc),  a ( a.vc)"])
 
-    equal (f [("a", pgm_change 1), (" a", pgm_change 1)])
+    equal (f [("a", pgmChange 1), (" a", pgmChange 1)])
         ([("a", "a")], ["dropped patches with the same initialization as "
             <> "a (a.vc):  a ( a.vc)"])
     -- no dropping needed if the names are different
-    equal (f [("a", pgm_change 1), ("b", pgm_change 1)])
+    equal (f [("a", pgmChange 1), ("b", pgmChange 1)])
         ([("a", "a"), ("b", "b")], [])
 
 mkpatch :: InstT.Name -> Patch.InitializePatch -> MidiInst.Patch
 mkpatch name init =
     MidiInst.common#Common.tags #= [(Tag.file, name <> ".vc")] $
     MidiInst.patch#Patch.initialize #= init $
-    MidiInst.named_patch (-2, 2) name []
+    MidiInst.namedPatch (-2, 2) name []
 
-pgm_change :: Midi.Program -> Patch.InitializePatch
-pgm_change = Patch.initialize_midi . Midi.program_change 0
+pgmChange :: Midi.Program -> Patch.InitializePatch
+pgmChange = Patch.initializeMidi . Midi.programChange 0

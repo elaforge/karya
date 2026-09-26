@@ -11,7 +11,7 @@ import App.ReplProtocol (Query(..), Response(..), CmdResult(..), Result(..))
 
 test_serialize :: Test
 test_serialize = do
-    let f a expected = (expected a, round_trip a)
+    let f a expected = (expected a, roundTrip a)
     uncurry equal (f QSaveFile Right)
     uncurry equal (f (QCommand "hi") Right)
     uncurry equal (f (RSaveFile (Just "path")) Right)
@@ -21,5 +21,5 @@ test_serialize = do
     uncurry equal (f (cmd (Raw "blah") [Log.msg Log.Notice Nothing "hi"]) Right)
     uncurry equal (f (cmd (Format "blah") []) Right)
 
-round_trip :: Serialize.Serialize a => a -> Either String a
-round_trip = Serialize.decode . Serialize.encode
+roundTrip :: Serialize.Serialize a => a -> Either String a
+roundTrip = Serialize.decode . Serialize.encode

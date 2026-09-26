@@ -25,7 +25,7 @@ test_mridangam = do
     let ((_events, midi), logs) =
             perform $ run "3g#" [["k", "t", "n", "d", "i"]]
     equal logs []
-    equal (e_key midi)
+    equal (eKey midi)
         [ Key.fs2, Key.fs3
         , Key.c4, Key.c5
         , Key.c7
@@ -33,13 +33,13 @@ test_mridangam = do
 
     -- Ensure multiple calls works.  This is already tested in
     -- "Derive.Call_test", but here's another test.
-    equal (DeriveTest.extract DeriveTest.e_attributes $ run "3b" [["od"]])
+    equal (DeriveTest.extract DeriveTest.eAttributes $ run "3b" [["od"]])
         (["+thom", "+din"], [])
 
     -- I get ControlChange.
     let ((_events, midi), logs) = perform $ run "3g#" [["n", "d"], ["o/"]]
     equal logs []
-    let extract = mapMaybe Midi.channel_message . DeriveTest.extract_midi_msg
+    let extract = mapMaybe Midi.channelMessage . DeriveTest.extractMidiMsg
     equal (extract midi)
         -- 102 2 is CUtil.make_cc_keymap setting thom<>up
         [ Midi.ControlChange 102 2, Midi.NoteOn Key.fs1 127
@@ -50,7 +50,7 @@ test_mridangam = do
 
 test_mridangam_pitched_strokes :: Test
 test_mridangam_pitched_strokes = do
-    let extract = first (e_key . snd) . perform
+    let extract = first (eKey . snd) . perform
     equal (extract $ derive "4d" [["k", "n"]]) ([42, 66], [])
     -- 'n' moves, 'k' doesn't.
     equal (extract $ derive "4e" [["k", "n"]]) ([42, 68], [])
@@ -63,14 +63,14 @@ derive pitch =
 
 perform :: Derive.Result
     -> (([Midi.Types.Event], [Midi.WriteMessage]), [Log.Msg])
-perform = KontaktTest.perform allocs . Derive.r_events
+perform = KontaktTest.perform allocs . Derive.rEvents
 
 allocs :: UiConfig.Allocations
-allocs = DeriveTest.simple_allocs [("m", "kontakt/mridangam-d")]
+allocs = DeriveTest.simpleAllocs [("m", "kontakt/mridangam-d")]
 
-e_key :: [Midi.WriteMessage] -> [Midi.Key]
-e_key msgs = [key | Midi.NoteOn key _ <- e_note_on msgs]
+eKey :: [Midi.WriteMessage] -> [Midi.Key]
+eKey msgs = [key | Midi.NoteOn key _ <- eNoteOn msgs]
 
-e_note_on :: [Midi.WriteMessage] -> [Midi.ChannelMessage]
-e_note_on = mapMaybe Midi.channel_message . filter Midi.is_note_on
-    . DeriveTest.extract_midi_msg
+eNoteOn :: [Midi.WriteMessage] -> [Midi.ChannelMessage]
+eNoteOn = mapMaybe Midi.channelMessage . filter Midi.isNoteOn
+    . DeriveTest.extractMidiMsg

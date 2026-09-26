@@ -14,30 +14,30 @@ test_move_tracks :: Test
 test_move_tracks = do
     let f state sources dest = extract $
             UiTest.exec state $
-            BlockConfig.move_tracks UiTest.default_block_id sources dest
-        extract st = (mconcatMap fst $ UiTest.extract_tracks st,
-            UiTest.extract_skeleton st)
+            BlockConfig.moveTracks UiTest.defaultBlockId sources dest
+        extract st = (mconcatMap fst $ UiTest.extractTracks st,
+            UiTest.extractSkeleton st)
 
     -- Testing skeleton seems extra, but I might not have other tests that
     -- skeleton works right with Ui.move_track.
-    let skel_state skel = UiTest.exec Ui.empty $ UiTest.mkblocks_skel $ (:[]) $
-                ( ( UiTest.default_block_name
+    let skelState skel = UiTest.exec Ui.empty $ UiTest.mkblocksSkel $ (:[]) $
+                ( ( UiTest.defaultBlockName
                   , [(showt n, []) | n <- [1..4]]
                   )
                 , skel
                 )
     -- Move up.
-    equal (f (skel_state [(2, 3)]) [1] 3) ("2314", [(1, 2)])
-    equal (f (skel_state [(3, 4)]) [1, 2] 3) ("3124", [(1, 4)])
+    equal (f (skelState [(2, 3)]) [1] 3) ("2314", [(1, 2)])
+    equal (f (skelState [(3, 4)]) [1, 2] 3) ("3124", [(1, 4)])
     -- Move down.
-    equal (f (skel_state [(2, 3)]) [3] 1) ("3124", [(3, 1)])
-    equal (f (skel_state [(2, 3)]) [3] 1) ("3124", [(3, 1)])
+    equal (f (skelState [(2, 3)]) [3] 1) ("3124", [(3, 1)])
+    equal (f (skelState [(2, 3)]) [3] 1) ("3124", [(3, 1)])
 
     -- The moved tracks are tweaked to avoid splitting up merged tracks.
     let merged = UiTest.exec Ui.empty $ do
             UiTest.mkblock [(showt n, []) | n <- [1..4]]
-            Ui.merge_track UiTest.default_block_id 1 2
-            Ui.merge_track UiTest.default_block_id 3 4
+            Ui.mergeTrack UiTest.defaultBlockId 1 2
+            Ui.mergeTrack UiTest.defaultBlockId 3 4
     equal (fst $ f merged [1, 2] 3) "3412"
     equal (fst $ f merged [1, 2] 4) "3412"
     equal (fst $ f merged [3, 4] 1) "3412"

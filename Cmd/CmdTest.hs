@@ -55,75 +55,75 @@ import           Types
 
 data Result val = Result
     -- | A Nothing val means it aborted.
-    { result_val :: Either Text (Maybe val)
-    , result_cmd_state :: Cmd.State
-    , result_ui_state :: Ui.State
-    , result_ui_damage :: Update.UiDamage
-    , result_logs :: [Log.Msg]
-    , result_thru :: [Cmd.Thru]
+    { resultVal :: Either Text (Maybe val)
+    , resultCmdState :: Cmd.State
+    , resultUiState :: Ui.State
+    , resultUiDamage :: Update.UiDamage
+    , resultLogs :: [Log.Msg]
+    , resultThru :: [Cmd.Thru]
     }
 
-result_failed :: Result a -> Maybe Text
-result_failed = either Just (const Nothing) . result_ok
+resultFailed :: Result a -> Maybe Text
+resultFailed = either Just (const Nothing) . resultOk
 
-result_ok :: Result a -> Either Text a
-result_ok res = case result_val res of
+resultOk :: Result a -> Either Text a
+resultOk res = case resultVal res of
     Right (Just val) -> Right val
     Right Nothing -> Left "aborted"
     Left err -> Left err
 
 -- | Run cmd with the given tracks.
-run_tracks :: [UiTest.TrackSpec] -> Cmd.CmdId a -> Result a
-run_tracks tracks = run (make_tracks tracks) default_cmd_state
+runTracks :: [UiTest.TrackSpec] -> Cmd.CmdId a -> Result a
+runTracks tracks = run (makeTracks tracks) defaultCmdState
 
-run_blocks :: [UiTest.BlockSpec] -> Cmd.CmdId a -> Result a
-run_blocks blocks = run (snd $ UiTest.run Ui.empty $ UiTest.mkblocks blocks)
-    default_cmd_state
+runBlocks :: [UiTest.BlockSpec] -> Cmd.CmdId a -> Result a
+runBlocks blocks = run (snd $ UiTest.run Ui.empty $ UiTest.mkblocks blocks)
+    defaultCmdState
 
 -- | Like 'run_tracks', but the ruler only extends to the end of the last
 -- event.
-run_tracks_ruler :: [UiTest.TrackSpec] -> Cmd.CmdId a -> Result a
-run_tracks_ruler tracks = run (make_tracks_ruler tracks) default_cmd_state
+runTracksRuler :: [UiTest.TrackSpec] -> Cmd.CmdId a -> Result a
+runTracksRuler tracks = run (makeTracksRuler tracks) defaultCmdState
 
 -- | Derive the tracks and then run the cmd with the performance available.
-run_tracks_with_performance :: [UiTest.TrackSpec] -> Cmd.CmdT IO a
+runTracksWithPerformance :: [UiTest.TrackSpec] -> Cmd.CmdT IO a
     -> IO (Result a)
-run_tracks_with_performance tracks =
-    run_with_performance (make_tracks tracks) default_cmd_state
+runTracksWithPerformance tracks =
+    runWithPerformance (makeTracks tracks) defaultCmdState
 
-run_with_performance :: Ui.State -> Cmd.State -> Cmd.CmdT IO a
+runWithPerformance :: Ui.State -> Cmd.State -> Cmd.CmdT IO a
     -> IO (Result a)
-run_with_performance ustate cstate cmd = do
-    cstate <- update_performance Ui.empty ustate cstate mempty
-    run_io ustate cstate cmd
+runWithPerformance ustate cstate cmd = do
+    cstate <- updatePerformance Ui.empty ustate cstate mempty
+    runIo ustate cstate cmd
 
-make_tracks :: [UiTest.TrackSpec] -> Ui.State
-make_tracks = snd . UiTest.run_mkview
+makeTracks :: [UiTest.TrackSpec] -> Ui.State
+makeTracks = snd . UiTest.runMkview
 
-make_tracks_ruler :: [UiTest.TrackSpec] -> Ui.State
-make_tracks_ruler = snd . make
+makeTracksRuler :: [UiTest.TrackSpec] -> Ui.State
+makeTracksRuler = snd . make
     where
     make tracks = UiTest.run Ui.empty $
-        UiTest.mkblock_view (UiTest.default_block_name <> "=ruler", tracks)
+        UiTest.mkblockView (UiTest.defaultBlockName <> "=ruler", tracks)
 
 -- | Run a cmd and return everything you could possibly be interested in.
 run :: Ui.State -> Cmd.State -> Cmd.CmdId a -> Result a
 run ustate1 cstate1 cmd = Result
-    { result_val = val
-    , result_cmd_state = cstate2
-    , result_ui_state = ustate2
-    , result_ui_damage = update
-    , result_logs = logs
-    , result_thru = midi_msgs
+    { resultVal = val
+    , resultCmdState = cstate2
+    , resultUiState = ustate2
+    , resultUiDamage = update
+    , resultLogs = logs
+    , resultThru = midiMsgs
     }
     where
-    (cstate2, midi_msgs, logs, result) = Cmd.run_id ustate1 cstate1 cmd
+    (cstate2, midiMsgs, logs, result) = Cmd.runId ustate1 cstate1 cmd
     (val, ustate2, update) = case result of
         Left err -> (Left (pretty err), ustate1, mempty)
         Right (v, ustate2, update) -> (Right v, ustate2, update)
 
-run_io :: Ui.State -> Cmd.State -> Cmd.CmdT IO a -> IO (Result a)
-run_io ustate1 cstate1 cmd = do
+runIo :: Ui.State -> Cmd.State -> Cmd.CmdT IO a -> IO (Result a)
+runIo ustate1 cstate1 cmd = do
     (cstate2, thru, logs, result) <-
         Cmd.run Nothing ustate1 cstate1 (Just <$> cmd)
     let (val, ustate2, update) = case result of
@@ -131,15 +131,15 @@ run_io ustate1 cstate1 cmd = do
             Right (v, ustate2, update) -> (Right v, ustate2, update)
     pure $ Result val cstate2 ustate2 update logs thru
 
-run_ui :: Ui.State -> Cmd.CmdId a -> Result a
-run_ui ustate = run ustate default_cmd_state
+runUi :: Ui.State -> Cmd.CmdId a -> Result a
+runUi ustate = run ustate defaultCmdState
 
-run_ui_io :: Ui.State -> Cmd.CmdT IO a -> IO (Result a)
-run_ui_io ustate = run_io ustate default_cmd_state
+runUiIo :: Ui.State -> Cmd.CmdT IO a -> IO (Result a)
+runUiIo ustate = runIo ustate defaultCmdState
 
 -- | Run a Cmd and return just the value.
 eval :: Ui.State -> Cmd.State -> Cmd.CmdId a -> a
-eval ustate cstate cmd = case result_val (run ustate cstate cmd) of
+eval ustate cstate cmd = case resultVal (run ustate cstate cmd) of
     Left err -> error $ "eval got StateError: " <> show err
     Right Nothing -> error "eval: cmd aborted"
     Right (Just val) -> val
@@ -147,81 +147,81 @@ eval ustate cstate cmd = case result_val (run ustate cstate cmd) of
 -- | Like 'run', but with a selection on the given track at 0 and note
 -- duration set to what will be a ScoreTime 1 with the ruler supplied by
 -- UiTest.
-run_sel :: TrackNum -> [UiTest.TrackSpec] -> Cmd.CmdId a -> Result a
-run_sel tracknum track_specs cmd = run_tracks track_specs $ do
+runSel :: TrackNum -> [UiTest.TrackSpec] -> Cmd.CmdId a -> Result a
+runSel tracknum trackSpecs cmd = runTracks trackSpecs $ do
     -- Add one because UiTest inserts a rule at track 0.
-    set_sel (tracknum+1) 0 (tracknum+1) 0
+    setSel (tracknum+1) 0 (tracknum+1) 0
     cmd
 
-run_again :: Result a -> Cmd.CmdId b -> Result b
-run_again res = run (result_ui_state res) (result_cmd_state res)
+runAgain :: Result a -> Cmd.CmdId b -> Result b
+runAgain res = run (resultUiState res) (resultCmdState res)
 
 -- | Update performances after running a Cmd and getting its Result.
-update_perf :: Ui.State -> Result val -> IO (Result val)
-update_perf ui_from res = do
-    cmd_state <- update_performance ui_from (result_ui_state res)
-        (result_cmd_state res) (result_ui_damage res)
-    pure $ res { result_cmd_state = cmd_state }
+updatePerf :: Ui.State -> Result val -> IO (Result val)
+updatePerf uiFrom res = do
+    cmdState <- updatePerformance uiFrom (resultUiState res)
+        (resultCmdState res) (resultUiDamage res)
+    pure $ res { resultCmdState = cmdState }
 
 -- | Run a DeriveTest extractor on a CmdTest Result.
-extract_derive :: (Score.Event -> a) -> Result x -> ([a], [Text])
-extract_derive ex = DeriveTest.extract ex . extract_derive_result
+extractDerive :: (Score.Event -> a) -> Result x -> ([a], [Text])
+extractDerive ex = DeriveTest.extract ex . extractDeriveResult
 
 -- | Reconstruct a Derive.Result from the root performance, or throw an
 -- exception if there is a problem getting it.
-extract_derive_result :: Result a -> Derive.Result
-extract_derive_result res =
-    maybe (eval (result_ui_state res) (result_cmd_state res) mkres)
-        (error . (msg<>) . untxt) (result_failed res)
+extractDeriveResult :: Result a -> Derive.Result
+extractDeriveResult res =
+    maybe (eval (resultUiState res) (resultCmdState res) mkres)
+        (error . (msg<>) . untxt) (resultFailed res)
     where
     msg = "extract_derive_result: cmd failed so result is probably not right: "
     mkres = do
         Cmd.Performance
-            { perf_derive_cache, perf_events, perf_logs
-            , perf_track_dynamic, perf_integrated, perf_warps
-            , perf_track_signals
-            } <- Perf.get_root
-        let stream = Stream.merge_logs perf_logs $
-                Stream.from_sorted_events (Vector.toList perf_events)
+            { perfDeriveCache, perfEvents, perfLogs
+            , perfTrackDynamic, perfIntegrated, perfWarps
+            , perfTrackSignals
+            } <- Perf.getRoot
+        let stream = Stream.mergeLogs perfLogs $
+                Stream.fromSortedEvents (Vector.toList perfEvents)
         pure $ Derive.Result
-            { r_events = stream
-            , r_cache = perf_derive_cache
-            , r_track_warps = perf_warps
-            , r_track_signals = perf_track_signals
-            , r_track_dynamic = perf_track_dynamic
-            , r_integrated = perf_integrated
-            , r_state =
+            { rEvents = stream
+            , rCache = perfDeriveCache
+            , rTrackWarps = perfWarps
+            , rTrackSignals = perfTrackSignals
+            , rTrackDynamic = perfTrackDynamic
+            , rIntegrated = perfIntegrated
+            , rState =
                 error "can't fake a Derive.State for an extracted Result"
             }
 
 -- | Update the performances based on the UI state change and updates.  This
 -- manually runs that part of the responder, and is needed for tests that rely
 -- on the performances.
-update_performance :: Ui.State -> Ui.State -> Cmd.State
+updatePerformance :: Ui.State -> Ui.State -> Cmd.State
     -> Update.UiDamage -> IO Cmd.State
-update_performance ui_from ui_to cmd_state ui_damage = do
-    let (ui_updates, _) = Diff.diff ui_damage ui_from ui_to
+updatePerformance uiFrom uiTo cmdState uiDamage = do
+    let (uiUpdates, _) = Diff.diff uiDamage uiFrom uiTo
     chan <- Chan.newChan
-    let damage = Diff.derive_diff ui_from ui_to ui_damage ui_updates
-    cstate <- Performance.update_performance
+    let damage = Diff.deriveDiff uiFrom uiTo uiDamage uiUpdates
+    cstate <- Performance.updatePerformance
         (\bid status -> Chan.writeChan chan (bid, status))
-        ui_to (set_immediate cmd_state) damage
+        uiTo (setImmediate cmdState) damage
     -- This will delay until the perform thread has derived enough of the
     -- performance to hand over.
-    (block_id, perf) <- read_perf chan
-    let insert st = st { Cmd.state_performance = Map.insert block_id perf
-            (Cmd.state_performance st) }
-    pure $ cstate { Cmd.state_play = insert (Cmd.state_play cstate) }
+    (blockId, perf) <- readPerf chan
+    let insert st = st { Cmd.statePerformance = Map.insert blockId perf
+            (Cmd.statePerformance st) }
+    pure $ cstate { Cmd.statePlay = insert (Cmd.statePlay cstate) }
     where
     -- Get rid of the derive wait to avoid making tests slow.
-    set_immediate state = state
-        { Cmd.state_derive_immediately = Map.keysSet (Ui.state_blocks ui_to)
+    setImmediate state = state
+        { Cmd.stateDeriveImmediately = Map.keysSet (Ui.stateBlocks uiTo)
         }
-    read_perf chan = do
-        (block_id, status) <- Chan.readChan chan
+    readPerf chan = do
+        (blockId, status) <- Chan.readChan chan
         case status of
-            Msg.DeriveComplete perf _ -> pure (block_id, perf)
-            _ -> read_perf chan
+            Msg.DeriveComplete perf _ -> pure (blockId, perf)
+            _ -> readPerf chan
 
 -- | Run several cmds, threading the state through.  The first cmd that fails
 -- aborts the whole operation.
@@ -231,79 +231,79 @@ thread ustate cstate cmds = foldl f (Right (ustate, cstate)) cmds
     where
     f (Right (ustate, cstate)) cmd = case run ustate cstate cmd of
         Result (Right _) cstate2 ustate2 _ logs _ ->
-            DeriveTest.trace_logs logs $ Right (ustate2, cstate2)
+            DeriveTest.traceLogs logs $ Right (ustate2, cstate2)
         Result (Left err) _ _ _ _ _ -> Left (showt err)
     f (Left err) _ = Left err
 
 -- | Make some tracks and call 'thread'.
-thread_tracks :: [UiTest.TrackSpec] -> (Cmd.State -> Cmd.State)
+threadTracks :: [UiTest.TrackSpec] -> (Cmd.State -> Cmd.State)
     -> [Cmd.CmdId a] -> Either Text (Ui.State, Cmd.State)
-thread_tracks tracks modify_cmd_state cmds =
-    thread ustate (modify_cmd_state default_cmd_state) cmds
-    where (_, ustate) = UiTest.run_mkview tracks
+threadTracks tracks modifyCmdState cmds =
+    thread ustate (modifyCmdState defaultCmdState) cmds
+    where (_, ustate) = UiTest.runMkview tracks
 
-default_cmd_state :: Cmd.State
-default_cmd_state = mk_cmd_state UiTest.default_db
+defaultCmdState :: Cmd.State
+defaultCmdState = mkCmdState UiTest.defaultDb
 
-mk_cmd_state :: Cmd.InstrumentDb -> Cmd.State
-mk_cmd_state db = (Cmd.initial_state (DeriveTest.cmd_config db))
-    { Cmd.state_focused_view = Just UiTest.default_view_id
-    , Cmd.state_edit = default_edit_state
-    , Cmd.state_play = default_play_state
+mkCmdState :: Cmd.InstrumentDb -> Cmd.State
+mkCmdState db = (Cmd.initialState (DeriveTest.cmdConfig db))
+    { Cmd.stateFocusedView = Just UiTest.defaultViewId
+    , Cmd.stateEdit = defaultEditState
+    , Cmd.statePlay = defaultPlayState
     }
 
-default_play_state :: Cmd.PlayState
-default_play_state =
-    Cmd.initial_play_state { Cmd.state_play_step = UiTest.step1 }
+defaultPlayState :: Cmd.PlayState
+defaultPlayState =
+    Cmd.initialPlayState { Cmd.statePlayStep = UiTest.step1 }
 
-default_edit_state :: Cmd.EditState
-default_edit_state = Cmd.initial_edit_state
-    { Cmd.state_time_step = UiTest.step1
-    , Cmd.state_note_duration = UiTest.step1
+defaultEditState :: Cmd.EditState
+defaultEditState = Cmd.initialEditState
+    { Cmd.stateTimeStep = UiTest.step1
+    , Cmd.stateNoteDuration = UiTest.step1
     }
 
 -- ** cmds
 
 -- | This has a hack where if post start_pos and cur_pos are negative, use a
 -- negative selection.
-set_sel :: Cmd.M m => Types.TrackNum -> ScoreTime -> Types.TrackNum
+setSel :: Cmd.M m => Types.TrackNum -> ScoreTime -> Types.TrackNum
     -> ScoreTime -> m ()
-set_sel = set_sel_on UiTest.default_view_id
+setSel = setSelOn UiTest.defaultViewId
 
-set_sel_on :: Cmd.M m => ViewId -> Types.TrackNum -> ScoreTime
+setSelOn :: Cmd.M m => ViewId -> Types.TrackNum -> ScoreTime
     -> Types.TrackNum -> ScoreTime -> m ()
-set_sel_on view_id start_track start_pos cur_track cur_pos = do
-    Cmd.modify $ \st -> st { Cmd.state_focused_view = Just view_id }
-    Ui.set_selection view_id Config.insert_selnum (Just sel)
+setSelOn viewId startTrack startPos curTrack curPos = do
+    Cmd.modify $ \st -> st { Cmd.stateFocusedView = Just viewId }
+    Ui.setSelection viewId Config.insertSelnum (Just sel)
     where
     sel = Sel.Selection
-        { start_track = start_track
-        , start_pos = abs start_pos
-        , cur_track = cur_track
-        , cur_pos = abs cur_pos
-        , orientation = if start_pos >= 0 && cur_pos >= 0 then Sel.Positive
-            else if start_pos <= 0 && cur_pos <= 0 then Sel.Negative
+        { startTrack = startTrack
+        , startPos = abs startPos
+        , curTrack = curTrack
+        , curPos = abs curPos
+        , orientation = if startPos >= 0 && curPos >= 0 then Sel.Positive
+            else if startPos <= 0 && curPos <= 0 then Sel.Negative
             else error $ "both start_pos and cur_pos should be + or -: "
-                <> show (start_pos, cur_pos)
+                <> show (startPos, curPos)
         }
 
-set_point_sel :: Ui.M m => Types.TrackNum -> ScoreTime -> m Cmd.Status
-set_point_sel tracknum pos = do
-    set_point_sel_block UiTest.default_block_name tracknum pos
+setPointSel :: Ui.M m => Types.TrackNum -> ScoreTime -> m Cmd.Status
+setPointSel tracknum pos = do
+    setPointSelBlock UiTest.defaultBlockName tracknum pos
     pure Cmd.Done
 
 -- | Set a point selection on the default view of the given block name.
-set_point_sel_block :: Ui.M m => Text -> Types.TrackNum -> ScoreTime -> m ()
-set_point_sel_block block_name tracknum pos =
-    Ui.set_selection view_id Config.insert_selnum
+setPointSelBlock :: Ui.M m => Text -> Types.TrackNum -> ScoreTime -> m ()
+setPointSelBlock blockName tracknum pos =
+    Ui.setSelection viewId Config.insertSelnum
         (Just (Sel.point tracknum pos Sel.Positive))
-    where view_id = UiTest.mk_vid_name block_name
+    where viewId = UiTest.mkVidName blockName
 
-select_all :: Cmd.M m => m ()
-select_all = do
-    tracks <- Ui.track_count UiTest.default_block_id
-    end <- Ui.block_end UiTest.default_block_id
-    set_sel_on UiTest.default_view_id 1 0 (tracks - 1) end
+selectAll :: Cmd.M m => m ()
+selectAll = do
+    tracks <- Ui.trackCount UiTest.defaultBlockId
+    end <- Ui.blockEnd UiTest.defaultBlockId
+    setSelOn UiTest.defaultViewId 1 0 (tracks - 1) end
 
 
 -- * extractors
@@ -314,28 +314,28 @@ type Extracted val = Either Text (val, [Text])
 
 -- | Run this on either 'extract' or 'extract_state' when you don't care about
 -- the logs.
-trace_logs :: Extracted a -> Either Text a
-trace_logs res = case res of
+traceLogs :: Extracted a -> Either Text a
+traceLogs res = case res of
     Right (b, logs) -> (if null logs then id else trace logs) (Right b)
     Left a -> Left a
     where
     trace = Debug.traceStr . Text.strip . Text.unlines . ("\tlogged:":)
 
-e_logs :: Result a -> [Text]
-e_logs = map DeriveTest.show_log . DeriveTest.trace_low_prio . result_logs
+eLogs :: Result a -> [Text]
+eLogs = map DeriveTest.showLog . DeriveTest.traceLowPrio . resultLogs
 
-e_performance :: BlockId -> Result a -> Maybe Cmd.Performance
-e_performance block_id = Map.lookup block_id . Cmd.state_performance
-    . Cmd.state_play . result_cmd_state
+ePerformance :: BlockId -> Result a -> Maybe Cmd.Performance
+ePerformance blockId = Map.lookup blockId . Cmd.statePerformance
+    . Cmd.statePlay . resultCmdState
 
-e_events :: BlockId -> Result a -> [Score.Event]
-e_events block_id = maybe [] (Vector.toList . Cmd.perf_events)
-    . e_performance block_id
+eEvents :: BlockId -> Result a -> [Score.Event]
+eEvents blockId = maybe [] (Vector.toList . Cmd.perfEvents)
+    . ePerformance blockId
 
-e_midi :: Result a -> [Midi.Message]
-e_midi result =
-    [ Midi.wmsg_msg msg
-    | Cmd.MidiThru (Interface.Midi msg) <- result_thru result
+eMidi :: Result a -> [Midi.Message]
+eMidi result =
+    [ Midi.wmsgMsg msg
+    | Cmd.MidiThru (Interface.Midi msg) <- resultThru result
     ]
 
 
@@ -345,181 +345,181 @@ e_midi result =
 -- check on a cmd operation, so it also returns logs and whether the cmd
 -- failed or not (the latter is mandatory since otherwise there is no value).
 extract :: (val -> e) -> Result val -> Extracted (Maybe e)
-extract f res = case result_val res of
-    Right val -> Right (fmap f val, e_logs res)
+extract f res = case resultVal res of
+    Right val -> Right (fmap f val, eLogs res)
     Left err -> Left err
 
 -- ** state
 
 -- | Get something out of the Result from one of the states.  Like 'extract',
 -- this is meant to be used as the single check on a cmd operation.
-extract_state :: (Ui.State -> Cmd.State -> e) -> Result val -> Extracted e
-extract_state f res = maybe
-    (Right (f (result_ui_state res) (result_cmd_state res), e_logs res))
-    Left (result_failed res)
+extractState :: (Ui.State -> Cmd.State -> e) -> Result val -> Extracted e
+extractState f res = maybe
+    (Right (f (resultUiState res) (resultCmdState res), eLogs res))
+    Left (resultFailed res)
 
-extract_ui_state :: (Ui.State -> e) -> Result val -> Extracted e
-extract_ui_state f = extract_state (\state _ -> f state)
+extractUiState :: (Ui.State -> e) -> Result val -> Extracted e
+extractUiState f = extractState (\state _ -> f state)
 
-e_tracks :: Result a -> Extracted [UiTest.TrackSpec]
-e_tracks = extract_ui_state UiTest.extract_tracks
+eTracks :: Result a -> Extracted [UiTest.TrackSpec]
+eTracks = extractUiState UiTest.extractTracks
 
-e_pitch_tracks :: Result a -> Extracted [[UiTest.EventSpec]]
-e_pitch_tracks = extract_ui_state $
-    UiTest.to_pitch_spec . UiTest.to_note_spec . UiTest.extract_tracks
+ePitchTracks :: Result a -> Extracted [[UiTest.EventSpec]]
+ePitchTracks = extractUiState $
+    UiTest.toPitchSpec . UiTest.toNoteSpec . UiTest.extractTracks
 
-extract_ui :: Ui.StateId e -> Result v -> Extracted e
-extract_ui m = extract_ui_state $ \state -> UiTest.eval state m
+extractUi :: Ui.StateId e -> Result v -> Extracted e
+extractUi m = extractUiState $ \state -> UiTest.eval state m
 
 -- * inst db
 
 -- | Configure ustate and cstate with the given instruments.
-set_synths_simple :: [MidiInst.Synth] -> DeriveTest.SimpleAllocations
+setSynthsSimple :: [MidiInst.Synth] -> DeriveTest.SimpleAllocations
     -> Ui.State -> Cmd.State -> (Ui.State, Cmd.State)
-set_synths_simple synths simple_allocs ui_state cmd_state =
-    ( (Ui.config#UiConfig.allocations #= allocs) ui_state
-    , cmd_state
-        { Cmd.state_config = (Cmd.state_config cmd_state)
-            { Cmd.config_instrument_db = db }
+setSynthsSimple synths simpleAllocs uiState cmdState =
+    ( (Ui.config#UiConfig.allocations #= allocs) uiState
+    , cmdState
+        { Cmd.stateConfig = (Cmd.stateConfig cmdState)
+            { Cmd.configInstrumentDb = db }
         }
     )
     where
-    db = DeriveTest.synths_to_db synths
-    allocs = DeriveTest.simple_allocs simple_allocs
+    db = DeriveTest.synthsToDb synths
+    allocs = DeriveTest.simpleAllocs simpleAllocs
 
 -- * msg
 
-empty_context :: UiMsg.Context
-empty_context = UiMsg.Context Nothing Nothing False
+emptyContext :: UiMsg.Context
+emptyContext = UiMsg.Context Nothing Nothing False
 
-make_key_mods :: [Key.Modifier] -> UiMsg.KbdState -> Key.Key -> Msg.Msg
-make_key_mods mods state k = Msg.Ui
-    (UiMsg.UiMsg empty_context (UiMsg.MsgEvent (UiMsg.Kbd state mods k text)))
+makeKeyMods :: [Key.Modifier] -> UiMsg.KbdState -> Key.Key -> Msg.Msg
+makeKeyMods mods state k = Msg.Ui
+    (UiMsg.UiMsg emptyContext (UiMsg.MsgEvent (UiMsg.Kbd state mods k text)))
     where
     text = case (k, state) of
         (Key.Char c, UiMsg.KeyDown) -> Just c
         _ -> Nothing
 
-make_key :: UiMsg.KbdState -> Key.Key -> Msg.Msg
-make_key = make_key_mods []
+makeKey :: UiMsg.KbdState -> Key.Key -> Msg.Msg
+makeKey = makeKeyMods []
 
 keypress :: Key.Key -> [Msg.Msg]
-keypress k = [make_key UiMsg.KeyDown k, make_key UiMsg.KeyUp k]
+keypress k = [makeKey UiMsg.KeyDown k, makeKey UiMsg.KeyUp k]
 
 keypresses :: [Key.Key] -> [Msg.Msg]
 keypresses = concatMap keypress
 
-key_down :: Char -> Msg.Msg
-key_down = make_key UiMsg.KeyDown . Key.Char
+keyDown :: Char -> Msg.Msg
+keyDown = makeKey UiMsg.KeyDown . Key.Char
 
-key_up :: Char -> Msg.Msg
-key_up = make_key UiMsg.KeyUp . Key.Char
+keyUp :: Char -> Msg.Msg
+keyUp = makeKey UiMsg.KeyUp . Key.Char
 
 backspace :: Msg.Msg
-backspace = make_key UiMsg.KeyDown Key.Backspace
+backspace = makeKey UiMsg.KeyDown Key.Backspace
 
 mouse :: Bool -> Types.MouseButton -> TrackNum -> ScoreTime -> Msg.Msg
 mouse down btn track pos = Msg.Ui $ UiMsg.UiMsg context $
     UiMsg.MsgEvent $ UiMsg.Mouse $ UiMsg.MouseEvent state [] (42, 2) 0 True
     where
     state = if down then UiMsg.MouseDown btn else UiMsg.MouseUp btn
-    context = empty_context { UiMsg.ctx_track = Just (track, UiMsg.Track pos) }
+    context = emptyContext { UiMsg.ctxTrack = Just (track, UiMsg.Track pos) }
 
 drag :: Types.MouseButton -> TrackNum -> ScoreTime -> Msg.Msg
 drag btn track pos = Msg.Ui $ UiMsg.UiMsg context $
     UiMsg.MsgEvent $ UiMsg.Mouse $
         UiMsg.MouseEvent (UiMsg.MouseDrag btn) [] (42, 2) 0 False
     where
-    context = empty_context { UiMsg.ctx_track = Just (track, UiMsg.Track pos) }
+    context = emptyContext { UiMsg.ctxTrack = Just (track, UiMsg.Track pos) }
 
-make_midi :: Midi.ChannelMessage -> Msg.Msg
-make_midi chan_msg = Msg.Midi $
-    Midi.ReadMessage (Midi.read_device "test") 0
-        (Midi.ChannelMessage 0 chan_msg)
+makeMidi :: Midi.ChannelMessage -> Msg.Msg
+makeMidi chanMsg = Msg.Midi $
+    Midi.ReadMessage (Midi.readDevice "test") 0
+        (Midi.ChannelMessage 0 chanMsg)
 
-note_on :: Int -> Pitch.Pitch -> InputNote.Input
-note_on note_id pitch = InputNote.NoteOn (InputNote.NoteId note_id)
+noteOn :: Int -> Pitch.Pitch -> InputNote.Input
+noteOn noteId pitch = InputNote.NoteOn (InputNote.NoteId noteId)
     (Pitch.Input Pitch.AsciiKbd pitch 0) 1
 
-note_on_nn :: Pitch.NoteNumber -> InputNote.Input
-note_on_nn nn = InputNote.NoteOn note_id (InputNote.nn_to_input nn) 1
-    where note_id = InputNote.NoteId $ floor nn
+noteOnNn :: Pitch.NoteNumber -> InputNote.Input
+noteOnNn nn = InputNote.NoteOn noteId (InputNote.nnToInput nn) 1
+    where noteId = InputNote.NoteId $ floor nn
 
-note_off :: Int -> InputNote.GenericInput a
-note_off note_id = InputNote.NoteOff (InputNote.NoteId note_id) 1
+noteOff :: Int -> InputNote.GenericInput a
+noteOff noteId = InputNote.NoteOff (InputNote.NoteId noteId) 1
 
-pitch_change :: Int -> Pitch.Pitch -> InputNote.Input
-pitch_change note_id pitch = InputNote.PitchChange (InputNote.NoteId note_id)
+pitchChange :: Int -> Pitch.Pitch -> InputNote.Input
+pitchChange noteId pitch = InputNote.PitchChange (InputNote.NoteId noteId)
     (Pitch.Input Pitch.AsciiKbd pitch 0)
 
-pitch_change_nn :: Int -> Pitch.NoteNumber -> InputNote.Input
-pitch_change_nn note_id nn =
-    InputNote.PitchChange (InputNote.NoteId note_id) (InputNote.nn_to_input nn)
+pitchChangeNn :: Int -> Pitch.NoteNumber -> InputNote.Input
+pitchChangeNn noteId nn =
+    InputNote.PitchChange (InputNote.NoteId noteId) (InputNote.nnToInput nn)
 
 control :: Int -> ScoreT.Control -> Signal.Y -> InputNote.GenericInput a
-control note_id cont val =
-    InputNote.Control (InputNote.NoteId note_id) cont val
+control noteId cont val =
+    InputNote.Control (InputNote.NoteId noteId) cont val
 
-m_note_on :: Pitch.NoteNumber -> Msg.Msg
-m_note_on = Msg.InputNote . note_on_nn
+mNoteOn :: Pitch.NoteNumber -> Msg.Msg
+mNoteOn = Msg.InputNote . noteOnNn
 
-m_note_off :: Int -> Msg.Msg
-m_note_off = Msg.InputNote . note_off
+mNoteOff :: Int -> Msg.Msg
+mNoteOff = Msg.InputNote . noteOff
 
-m_control :: Int -> ScoreT.Control -> Signal.Y -> Msg.Msg
-m_control note_id cont val = Msg.InputNote (control note_id cont val)
+mControl :: Int -> ScoreT.Control -> Signal.Y -> Msg.Msg
+mControl noteId cont val = Msg.InputNote (control noteId cont val)
 
-m_pitch_change :: Int -> Pitch.NoteNumber -> Msg.Msg
-m_pitch_change nid = Msg.InputNote . pitch_change_nn nid
+mPitchChange :: Int -> Pitch.NoteNumber -> Msg.Msg
+mPitchChange nid = Msg.InputNote . pitchChangeNn nid
 
 -- * Pitch.Input
 
-ascii_kbd :: Pitch.Pitch -> Pitch.Input
-ascii_kbd pitch = Pitch.Input Pitch.AsciiKbd pitch 0
+asciiKbd :: Pitch.Pitch -> Pitch.Input
+asciiKbd pitch = Pitch.Input Pitch.AsciiKbd pitch 0
 
-piano_kbd :: Pitch.Pitch -> Pitch.Input
-piano_kbd pitch = Pitch.Input Pitch.PianoKbd pitch 0
+pianoKbd :: Pitch.Pitch -> Pitch.Input
+pianoKbd pitch = Pitch.Input Pitch.PianoKbd pitch 0
 
 pitch :: Pitch.Octave -> Pitch.PitchClass -> Pitch.Accidentals -> Pitch.Pitch
 pitch oct pc accs = Pitch.Pitch oct (Pitch.Degree pc accs)
 
-oct_pc :: Pitch.Octave -> Pitch.PitchClass -> Pitch.Pitch
-oct_pc oct pc = pitch oct pc 0
+octPc :: Pitch.Octave -> Pitch.PitchClass -> Pitch.Pitch
+octPc oct pc = pitch oct pc 0
 
 -- * setup cmds
 
-set_scale :: Cmd.M m => BlockId -> BlockId -> TrackId -> Pitch.ScaleId -> m ()
-set_scale root_id block_id track_id scale_id = set_env root_id block_id track_id
-    [(EnvKey.scale, DeriveT.VStr (Expr.scale_id_to_str scale_id))]
+setScale :: Cmd.M m => BlockId -> BlockId -> TrackId -> Pitch.ScaleId -> m ()
+setScale rootId blockId trackId scaleId = setEnv rootId blockId trackId
+    [(EnvKey.scale, DeriveT.VStr (Expr.scaleIdToStr scaleId))]
 
 -- | Fake up just enough Performance to have environ in it.
-set_env :: Cmd.M m => BlockId -> BlockId -> TrackId
+setEnv :: Cmd.M m => BlockId -> BlockId -> TrackId
     -> [(Env.Key, DeriveT.Val)] -> m ()
-set_env root_id block_id track_id environ =
-    Cmd.modify_play_state $ \st -> st
-        { Cmd.state_performance_threads = Map.insert root_id
+setEnv rootId blockId trackId environ =
+    Cmd.modifyPlayState $ \st -> st
+        { Cmd.statePerformanceThreads = Map.insert rootId
             (Cmd.Thread $ Unsafe.unsafePerformIO $ Async.async (pure ()))
-            (Cmd.state_performance_threads st)
-        , Cmd.state_performance = Map.insert root_id perf
-            (Cmd.state_performance st)
+            (Cmd.statePerformanceThreads st)
+        , Cmd.statePerformance = Map.insert rootId perf
+            (Cmd.statePerformance st)
         }
     where
-    track_dyn = Map.singleton (block_id, track_id)
-        (Derive.initial_dynamic (Env.from_list environ))
-    perf = empty_performance { Cmd.perf_track_dynamic = track_dyn }
+    trackDyn = Map.singleton (blockId, trackId)
+        (Derive.initialDynamic (Env.fromList environ))
+    perf = emptyPerformance { Cmd.perfTrackDynamic = trackDyn }
 
-empty_performance :: Msg.Performance
-empty_performance = Cmd.Performance
-    { perf_derive_cache = mempty
-    , perf_events = mempty
-    , perf_logs = []
-    , perf_logs_written = True
-    , perf_track_dynamic = mempty
-    , perf_integrated = []
-    , perf_damage = mempty
-    , perf_warps = []
-    , perf_track_signals = mempty
-    , perf_block_deps = mempty
-    , perf_track_instruments = mempty
-    , perf_ui_state = Ui.empty
+emptyPerformance :: Msg.Performance
+emptyPerformance = Cmd.Performance
+    { perfDeriveCache = mempty
+    , perfEvents = mempty
+    , perfLogs = []
+    , perfLogsWritten = True
+    , perfTrackDynamic = mempty
+    , perfIntegrated = []
+    , perfDamage = mempty
+    , perfWarps = []
+    , perfTrackSignals = mempty
+    , perfBlockDeps = mempty
+    , perfTrackInstruments = mempty
+    , perfUiState = Ui.empty
     }

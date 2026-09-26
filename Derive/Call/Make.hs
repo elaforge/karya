@@ -29,56 +29,56 @@ import qualified Perform.Signal as Signal
 
 
 -- | This is a specialization of 'transform_notes' that adds Attributes.
-attributed_note :: Module.Module -> Attrs.Attributes
+attributedNote :: Module.Module -> Attrs.Attributes
     -> Library.Calls Derive.Note
-attributed_note module_ attrs = transform_notes module_
-    (Derive.CallName $ "note with " <> ShowVal.show_val attrs) Tags.attr
-    "Add attributes to the notes." Sig.no_args
-    (\() -> Call.add_attributes attrs)
+attributedNote module_ attrs = transformNotes module_
+    (Derive.CallName $ "note with " <> ShowVal.showVal attrs) Tags.attr
+    "Add attributes to the notes." Sig.noArgs
+    (\() -> Call.addAttributes attrs)
 
 -- | This is a specialization of 'transform_notes' that sets an environ value.
-environ_note :: Typecheck.ToVal a => Module.Module -> Derive.CallName
+environNote :: Typecheck.ToVal a => Module.Module -> Derive.CallName
     -> Tags.Tags -> Doc.Doc -> Env.Key -> a -> Library.Calls Derive.Note
-environ_note module_ name tags doc key val =
-    transform_notes module_ name tags doc Sig.no_args $
-        \() -> Derive.with_val key val
+environNote module_ name tags doc key val =
+    transformNotes module_ name tags doc Sig.noArgs $
+        \() -> Derive.withVal key val
 
 -- | This is a specialization of 'transform_notes' that sets a control.
-control_note :: Module.Module -> Derive.CallName -> ScoreT.Control -> Signal.Y
+controlNote :: Module.Module -> Derive.CallName -> ScoreT.Control -> Signal.Y
     -> Library.Calls Derive.Note
-control_note module_ name control val = transform_notes module_ name mempty
-    ("Note with " <> Doc.literal (ShowVal.show_val control <> " = "
-        <> ShowVal.show_val val) <> ".")
-    Sig.no_args $ \() -> Derive.with_constant_control control val
+controlNote module_ name control val = transformNotes module_ name mempty
+    ("Note with " <> Doc.literal (ShowVal.showVal control <> " = "
+        <> ShowVal.showVal val) <> ".")
+    Sig.noArgs $ \() -> Derive.withConstantControl control val
 
 -- | 'transform_notes_args' without the PassedArgs.
-transform_notes :: Module.Module -> Derive.CallName -> Tags.Tags -> Doc.Doc
+transformNotes :: Module.Module -> Derive.CallName -> Tags.Tags -> Doc.Doc
     -> Sig.Parser a -> (a -> Derive.NoteDeriver -> Derive.NoteDeriver)
     -> Library.Calls Derive.Note
-transform_notes module_ name tags transform_doc sig transform =
-    transform_notes_args module_ name tags transform_doc sig
+transformNotes module_ name tags transformDoc sig transform =
+    transformNotesArgs module_ name tags transformDoc sig
         (\params _args deriver -> transform params deriver)
 
 -- | The generator either derives subs or derives a new Call.note if there are
 -- no subs, and then applies the transform.  The transformer call just applies
 -- the transform.
-transform_notes_args :: Module.Module -> Derive.CallName -> Tags.Tags
+transformNotesArgs :: Module.Module -> Derive.CallName -> Tags.Tags
     -> Doc.Doc -> Sig.Parser a
     -> (a -> Derive.PassedArgs Score.Event -> Derive.NoteDeriver
         -> Derive.NoteDeriver)
     -> Library.Calls Derive.Note
-transform_notes_args module_ name tags transform_doc sig transform =
+transformNotesArgs module_ name tags transformDoc sig transform =
     Library.Calls generator transformer
     where
     generator = Derive.generator module_ name (tags <> Tags.subs)
-        (transform_doc <> "\n" <> generator_doc) $
-        Sig.call sig $ \params args -> Sub.sub_events args >>= \case
-            [] -> transform params args $ Sub.inverting Call.placed_note args
+        (transformDoc <> "\n" <> generatorDoc) $
+        Sig.call sig $ \params args -> Sub.subEvents args >>= \case
+            [] -> transform params args $ Sub.inverting Call.placedNote args
             subs -> mconcat $ map (transform params args . Sub.derive) subs
-    generator_doc = "If there are notes in child tracks, apply the\
+    generatorDoc = "If there are notes in child tracks, apply the\
         \ transformation to them. Otherwise apply the transformation to the\
         \ null note call."
-    transformer = Derive.transformer module_ name tags transform_doc $
+    transformer = Derive.transformer module_ name tags transformDoc $
         Sig.callt sig $ \params args deriver -> transform params args deriver
 
 -- | Create a transformer that just sets an environ value.  This is higher
@@ -86,103 +86,103 @@ transform_notes_args module_ name tags transform_doc sig transform =
 environ :: (Typecheck.ToVal val, Derive.Taggable d) =>
     Module.Module -> Env.Key -> Doc.Doc -> Sig.Parser a
     -> (a -> val) -> Derive.Transformer d
-environ module_ key key_doc sig extract =
+environ module_ key keyDoc sig extract =
     Derive.transformer module_ (Derive.CallName key) mempty
-        ("Set the " <> key_doc <> " environ variable.")
+        ("Set the " <> keyDoc <> " environ variable.")
     $ Sig.callt sig $ \val _args ->
-        Derive.with_val key (extract val)
+        Derive.withVal key (extract val)
 
 -- | Make a call that sets an environ key to a specific value.
-environ_val :: (ShowVal.ShowVal a, Typecheck.ToVal a, Derive.Taggable d) =>
+environVal :: (ShowVal.ShowVal a, Typecheck.ToVal a, Derive.Taggable d) =>
     Module.Module -> Derive.CallName -> Env.Key -> a -> Doc.Doc
     -> Derive.Transformer d
-environ_val module_ name key val extra_doc =
-    Derive.transformer module_ name mempty (Texts.unwords2 doc extra_doc) $
-        Sig.call0t $ \_args -> Derive.with_val key val
+environVal module_ name key val extraDoc =
+    Derive.transformer module_ name mempty (Texts.unwords2 doc extraDoc) $
+        Sig.call0t $ \_args -> Derive.withVal key val
     where
-    doc = Doc.literal (ShowVal.show_val key <> " = " <> ShowVal.show_val val)
+    doc = Doc.literal (ShowVal.showVal key <> " = " <> ShowVal.showVal val)
         <> "."
 
 -- | Make a call that adds a flag.
-add_flag :: Module.Module -> Derive.CallName -> Doc.Doc -> Flags.Flags
+addFlag :: Module.Module -> Derive.CallName -> Doc.Doc -> Flags.Flags
     -> Derive.Transformer Score.Event
-add_flag module_ name doc flags =
+addFlag module_ name doc flags =
     Derive.transformer module_ name Tags.postproc doc $
-    Sig.call0t $ \_args -> fmap $ Post.emap1_ $ Score.add_flags flags
+    Sig.call0t $ \_args -> fmap $ Post.emap1_ $ Score.addFlags flags
 
 -- * modify
 
 -- | Make a modified version of an existing call.  Args are the same.
-modify_generator :: Module.Module -> Derive.CallName -> Doc.Doc
+modifyGenerator :: Module.Module -> Derive.CallName -> Doc.Doc
     -> Derive.TransformerF a -> Derive.Generator a -> Derive.Generator a
-modify_generator module_ name doc transform =
-    modify_call module_ name doc $ \gfunc -> gfunc
-        { Derive.gfunc_f = \args -> transform args (Derive.gfunc_f gfunc args)
+modifyGenerator module_ name doc transform =
+    modifyCall module_ name doc $ \gfunc -> gfunc
+        { Derive.gfuncF = \args -> transform args (Derive.gfuncF gfunc args)
         }
 
 -- | Like 'modify_generator', but inherit metadata from the original call.
-modify_generator_ :: Doc.Doc
+modifyGenerator_ :: Doc.Doc
     -> Derive.TransformerF a -> Derive.Generator a -> Derive.Generator a
-modify_generator_ doc_prefix transform call =
-    modify_generator (Derive.cdoc_module cdoc) (Derive.call_name call)
-        (Texts.unlines2 doc_prefix (Derive.cdoc_doc cdoc))
+modifyGenerator_ docPrefix transform call =
+    modifyGenerator (Derive.cdocModule cdoc) (Derive.callName call)
+        (Texts.unlines2 docPrefix (Derive.cdocDoc cdoc))
         transform call
-    where cdoc = Derive.call_doc call
+    where cdoc = Derive.callDoc call
 
 -- | Make a modified version of an existing call.  Args are the same.
-modify_transformer :: Module.Module -> Derive.CallName -> Doc.Doc
+modifyTransformer :: Module.Module -> Derive.CallName -> Doc.Doc
     -> Derive.TransformerF a -> Derive.Transformer a -> Derive.Transformer a
-modify_transformer module_ name doc transform =
-    modify_call module_ name doc $ \tfunc args -> transform args . tfunc args
+modifyTransformer module_ name doc transform =
+    modifyCall module_ name doc $ \tfunc args -> transform args . tfunc args
 
-modify_transformer_ :: Doc.Doc
+modifyTransformer_ :: Doc.Doc
     -> Derive.TransformerF a -> Derive.Transformer a -> Derive.Transformer a
-modify_transformer_ doc_prefix transform call =
-    modify_transformer (Derive.cdoc_module cdoc) (Derive.call_name call)
-        (Texts.unlines2 doc_prefix (Derive.cdoc_doc cdoc))
+modifyTransformer_ docPrefix transform call =
+    modifyTransformer (Derive.cdocModule cdoc) (Derive.callName call)
+        (Texts.unlines2 docPrefix (Derive.cdocDoc cdoc))
         transform call
-    where cdoc = Derive.call_doc call
+    where cdoc = Derive.callDoc call
 
 -- | Modify a generator transformer pair, inheriting metadata.
-modify_calls_ :: Doc.Doc
+modifyCalls_ :: Doc.Doc
     -> Derive.TransformerF a
     -> Library.Calls a -> Library.Calls a
-modify_calls_ doc_prefix transform (Library.Calls gen trans) = Library.Calls
-    { generator = modify_generator_ doc_prefix transform gen
-    , transformer = modify_transformer_ doc_prefix transform trans
+modifyCalls_ docPrefix transform (Library.Calls gen trans) = Library.Calls
+    { generator = modifyGenerator_ docPrefix transform gen
+    , transformer = modifyTransformer_ docPrefix transform trans
     }
 
-modify_call :: Module.Module -> Derive.CallName -> Doc.Doc
+modifyCall :: Module.Module -> Derive.CallName -> Doc.Doc
     -> (a -> b) -> Derive.Call a -> Derive.Call b
-modify_call module_ name doc modify call = Derive.Call
-    { call_name = name
-    , call_doc = Derive.CallDoc
-        { cdoc_tags = Derive.cdoc_tags (Derive.call_doc call)
-        , cdoc_module = module_
-        , cdoc_doc = doc
-        , cdoc_args = Derive.cdoc_args (Derive.call_doc call)
+modifyCall module_ name doc modify call = Derive.Call
+    { callName = name
+    , callDoc = Derive.CallDoc
+        { cdocTags = Derive.cdocTags (Derive.callDoc call)
+        , cdocModule = module_
+        , cdocDoc = doc
+        , cdocArgs = Derive.cdocArgs (Derive.callDoc call)
         }
-    , call_func = modify $ Derive.call_func call
+    , callFunc = modify $ Derive.callFunc call
     }
 
 -- * val calls
 
-constant_val :: (Typecheck.ToVal a, ShowVal.ShowVal a) =>
+constantVal :: (Typecheck.ToVal a, ShowVal.ShowVal a) =>
     Module.Module -> Derive.CallName -> Doc.Doc -> a -> Derive.ValCall
-constant_val module_ name doc val = Derive.val_call module_  name mempty
+constantVal module_ name doc val = Derive.valCall module_  name mempty
     (Texts.unlines2 doc ("Constant: " <> ShowVal.doc val)) $
     Sig.call0 $ \_args -> pure val
 
 -- | Make a new ValCall from an existing one, by mapping over its output.
-modify_vcall :: Derive.ValCall -> Module.Module -> Derive.CallName -> Doc.Doc
+modifyVcall :: Derive.ValCall -> Module.Module -> Derive.CallName -> Doc.Doc
     -> (DeriveT.Val -> DeriveT.Val) -> Derive.ValCall
-modify_vcall vcall module_ name doc f = Derive.Call
-    { call_name = name
-    , call_doc = Derive.CallDoc
-        { cdoc_tags = Derive.cdoc_tags (Derive.call_doc vcall)
-        , cdoc_module = module_
-        , cdoc_doc = doc
-        , cdoc_args = Derive.cdoc_args (Derive.call_doc vcall)
+modifyVcall vcall module_ name doc f = Derive.Call
+    { callName = name
+    , callDoc = Derive.CallDoc
+        { cdocTags = Derive.cdocTags (Derive.callDoc vcall)
+        , cdocModule = module_
+        , cdocDoc = doc
+        , cdocArgs = Derive.cdocArgs (Derive.callDoc vcall)
         }
-    , call_func = fmap f . Derive.call_func vcall
+    , callFunc = fmap f . Derive.callFunc vcall
     }

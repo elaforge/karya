@@ -12,7 +12,7 @@ import Types
 
 test_set_start :: Test
 test_set_start = do
-    let f p = extract $ Event.set_start p (Event.event 4 (-2) "a")
+    let f p = extract $ Event.setStart p (Event.event 4 (-2) "a")
     equal (map f (Lists.range 0 5 1))
         [(0, 2), (1, 1), (2, -0), (3, -1), (4, -2), (5, -3)]
 

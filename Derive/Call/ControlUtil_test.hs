@@ -18,16 +18,16 @@ test_breakpoints :: Test
 test_breakpoints = do
     let make start end = ControlUtil.breakpoints 1 ControlUtil.Linear
             . ControlUtil.distribute start end
-    let f start end = Signal.to_pairs . make start end
+    let f start end = Signal.toPairs . make start end
     equal (f 4 8  []) []
     equal (f 4 8  [1]) [(4, 1)]
     equal (f 4 8  [0, 1, 0]) [(4, 0), (6, 1), (8, 0)]
 
 test_modify :: Test
 test_modify = do
-    let run title = DeriveTest.extract DeriveTest.e_dyn
-            . DeriveTest.derive_tracks_setup with_call title
-        with_call = CallTest.with_control_generator "g" c_gen
+    let run title = DeriveTest.extract DeriveTest.eDyn
+            . DeriveTest.deriveTracksSetup withCall title
+        withCall = CallTest.withControlGenerator "g" cGen
     let tracks dyn =
             [ (">", [(0, 8, "")])
             , ("dyn set", [(0, 0, dyn)])
@@ -43,17 +43,17 @@ test_modify = do
     equal (run "default-merge set dyn" (tracks ".25"))
         ([[(0, 0.25), (4, 0.25), (4, 0.5), (6, 0.5), (6, 0.25)]], [])
     where
-    c_gen :: Derive.Generator Derive.Control
-    c_gen = CallTest.generator1 $ \args -> do
-        (start, end) <- Args.real_range args
-        let signal = Signal.from_sample start 0.5
-        ControlUtil.modify_with Derive.DefaultMerge Controls.dynamic end signal
+    cGen :: Derive.Generator Derive.Control
+    cGen = CallTest.generator1 $ \args -> do
+        (start, end) <- Args.realRange args
+        let signal = Signal.fromSample start 0.5
+        ControlUtil.modifyWith Derive.DefaultMerge Controls.dynamic end signal
         pure mempty
 
 test_slope_to_limit :: Test
 test_slope_to_limit = do
-    let f low high from slope = Signal.to_pairs $
-            ControlUtil.slope_to_limit low high from slope 4 8
+    let f low high from slope = Signal.toPairs $
+            ControlUtil.slopeToLimit low high from slope 4 8
     equal (f Nothing Nothing 0 1) [(4, 0), (8, 4)]
     equal (f (Just 0) (Just 2) 0 1) [(4, 0), (6, 2)]
     equal (f (Just 0) (Just 8) 0 1) [(4, 0), (8, 4)]
@@ -70,8 +70,8 @@ test_slope_to_limit = do
 
 test_smooth_absolute :: Test
 test_smooth_absolute = do
-    let f time = Signal.to_pairs
-            . ControlUtil.smooth_absolute ControlUtil.Linear 1 time
+    let f time = Signal.toPairs
+            . ControlUtil.smoothAbsolute ControlUtil.Linear 1 time
         s020 = [(0, 0), (2, 2), (4, 0)]
     equal (f 2 [(0, 0), (2, 2)]) [(0, 0), (2, 0), (4, 2)]
     equal (f 2 s020) [(0, 0), (2, 0), (4, 2), (6, 0)]
@@ -87,8 +87,8 @@ test_smooth_absolute = do
 
 test_smooth_relative :: Test
 test_smooth_relative = do
-    let f time = Signal.to_pairs
-            . ControlUtil.smooth_relative ControlUtil.Linear 1 (const time)
+    let f time = Signal.toPairs
+            . ControlUtil.smoothRelative ControlUtil.Linear 1 (const time)
     equal (f 0 [(0, 0), (4, 4), (8, 0)])
         [(0, 0), (4, 0), (4, 4), (8, 4), (8, 0)]
     equal (f 0.5 [(0, 0), (4, 4), (8, 0)])
@@ -98,13 +98,13 @@ test_smooth_relative = do
 
 test_split_samples :: Test
 test_split_samples = do
-    let abs = ControlUtil.split_samples_absolute
+    let abs = ControlUtil.splitSamplesAbsolute
     equal (abs 1 [(0, 0), (4, 4), (8, 0)])
         [(0, 0), (4, 0), (5, 4), (8, 4), (9, 0)]
     equal (abs (-1) [(0, 0), (4, 4), (8, 0)])
         [(0, 0), (3, 0), (4, 4), (7, 4), (8, 0)]
 
-    let rel time = ControlUtil.split_samples_relative (const time)
+    let rel time = ControlUtil.splitSamplesRelative (const time)
     equal (rel 0.25 [(0, 0), (4, 4), (8, 0)])
         [(0, 0), (3, 0), (4, 4), (7, 4), (8, 0)]
     equal (rel 1 [(0, 0), (4, 4), (8, 0)])

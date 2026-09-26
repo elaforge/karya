@@ -21,12 +21,12 @@ import           Util.Test
 
 convert :: ModT.Module
     -> Either Text [(BlockId, (UiTest.BlockSpec, [Skeleton.Edge]))]
-convert = (bimap pretty UiTest.dump_blocks) . Mod.convert UiTest.test_ns
+convert = (bimap pretty UiTest.dumpBlocks) . Mod.convert UiTest.test_ns
 
 test_convert :: Test
 test_convert = do
     let f = fmap (map (fst . snd)) . convert . mkmod ["s1", "s2"]
-    right_equal
+    rightEqual
         (f
             [ (8, [ [(0, (Just 60, 1, []))] ])
             , (8, [ [(1, (Just 62, 2, [ModT.Volume 0.5]))] ])
@@ -41,7 +41,7 @@ test_convert = do
         , ("score", [(">", [(0, 1, "b1"), (1, 1, "b2")])])
         ]
     -- CutBlock drops notes at and after it, but after the line its own.
-    right_equal
+    rightEqual
         (f
             [ ( 8
               , [ [ (0, (Just 60, 1, []))
@@ -63,7 +63,7 @@ test_convert = do
 
 test_make_skeleton :: Test
 test_make_skeleton = do
-    let f = Skeleton.flatten . Mod.make_skeleton
+    let f = Skeleton.flatten . Mod.makeSkeleton
     equal (f []) []
     equal (f [['a'], ['b', 'c']]) [(2, 3)]
     equal (f [['a', 'b'], ['c', 'd', 'e']]) [(1, 2), (3, 4), (4, 5)]
@@ -71,7 +71,7 @@ test_make_skeleton = do
 test_convert_note :: Test
 test_convert_note = do
     let f linenum cmds lines =
-            extract $ e_note $ convert_note linenum cmds lines
+            extract $ eNote $ convertNote linenum cmds lines
         extract (s, d, _inst, call, _, _) = (s, d, call)
     equal (f 1 [] []) (1/8, 4 - 1/8, "")
     -- stops at next note
@@ -83,8 +83,8 @@ test_convert_note = do
 
 test_convert_note_controls :: Test
 test_convert_note_controls = do
-    let f linenum cmds future_lines =
-            extract $ e_note $ convert_note linenum cmds future_lines
+    let f linenum cmds futureLines =
+            extract $ eNote $ convertNote linenum cmds futureLines
         extract (s, d, _, _, _, controls) = (s, d, controls)
     let next = [(16, ModT.Line (Just 1) 0 [])]
         cmd c = ModT.Line Nothing 0 [c]
@@ -94,20 +94,20 @@ test_convert_note_controls = do
             ++ [(64, cmd (ModT.Volume 0.75))]))
         (0, 2, [("dyn", [(0, 0, "`0x`80"), (1, 0, "`0x`40")])])
 
-    let e_controls (_, _, a) = a
+    let eControls (_, _, a) = a
     let up = ModT.VolumeSlide
         up1 = up 1
     -- volume + crescendo
-    equal (e_controls $ f 0 [up1] []) [("dyn", [(0, 1/8, "uf `0x`80 1")])]
-    equal (e_controls $ f 0 [up1] [(1, cmd up1), (2, cmd up1)])
+    equal (eControls $ f 0 [up1] []) [("dyn", [(0, 1/8, "uf `0x`80 1")])]
+    equal (eControls $ f 0 [up1] [(1, cmd up1), (2, cmd up1)])
         [("dyn", [(0, 3/8, "uf `0x`80 1")])]
-    equal (e_controls $ f 0 [up1] [(1, cmd up1), (2, cmd (up 2))])
+    equal (eControls $ f 0 [up1] [(1, cmd up1), (2, cmd (up 2))])
         [("dyn", [(0, 2/8, "uf `0x`80 1"), (2/8, 1/8, "u 2")])]
 
-convert_note :: Mod.LineNum -> [ModT.Command] -> [(Mod.LineNum, ModT.Line)]
+convertNote :: Mod.LineNum -> [ModT.Command] -> [(Mod.LineNum, ModT.Line)]
     -> Mod.Note
-convert_note linenum cmds lines =
-    Mod.convert_note 32 default_tempo inst linenum 60 cmds lines
+convertNote linenum cmds lines =
+    Mod.convertNote 32 defaultTempo inst linenum 60 cmds lines
     where inst = ModT.Instrument (ScoreT.Instrument "inst") (Just 0.5)
 
 -- * make
@@ -118,35 +118,35 @@ mkmod :: [ScoreT.Instrument] -> [(Int, [TrackSpec])] -> ModT.Module
 mkmod insts blocks = ModT.Module
     { _instruments = IntMap.fromList $ zip [1..]
         [ModT.Instrument inst Nothing | inst <- insts]
-    , _default_tempo = default_tempo
+    , _defaultTempo = defaultTempo
     , _blocks = map mkblock blocks
-    , _block_order = Map.singleton "score" [0 .. length blocks - 1]
+    , _blockOrder = Map.singleton "score" [0 .. length blocks - 1]
     }
 
 mkblock :: (Int, [TrackSpec]) -> ModT.Block
 mkblock (len, tracks) = ModT.Block len (map mktrack tracks)
 
 mktrack :: TrackSpec -> ModT.Track
-mktrack = ModT.make_track . map mkline
+mktrack = ModT.makeTrack . map mkline
 
 mkline :: (Int, (Maybe Pitch.NoteNumber, Int, [ModT.Command]))
     -> (Int, ModT.Line)
 mkline (row, (pitch, inst, cmds)) = (row, ModT.Line pitch inst cmds)
 
-default_tempo :: ModT.Tempo
-default_tempo = ModT.Tempo 33 6
+defaultTempo :: ModT.Tempo
+defaultTempo = ModT.Tempo 33 6
 
 -- * extract
 
-e_note :: Mod.Note -> (TrackTime, TrackTime, Text, Text, Pitch.NoteNumber,
+eNote :: Mod.Note -> (TrackTime, TrackTime, Text, Text, Pitch.NoteNumber,
     [(Text, [(TrackTime, TrackTime, Text)])])
-e_note (Mod.Note start dur inst call pitch controls) =
+eNote (Mod.Note start dur inst call pitch controls) =
     ( start, dur
-    , pretty (ModT._instrument_name inst)
+    , pretty (ModT._instrumentName inst)
     , call
     , pitch
-    , Map.toList $ map e_event <$> controls
+    , Map.toList $ map eEvent <$> controls
     )
 
-e_event :: Event.Event -> (TrackTime, TrackTime, Text)
-e_event e = (Event.start e, Event.duration e, Event.text e)
+eEvent :: Event.Event -> (TrackTime, TrackTime, Text)
+eEvent e = (Event.start e, Event.duration e, Event.text e)

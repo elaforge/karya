@@ -56,71 +56,71 @@ import           Types
 library :: Library.Library
 library = mconcat
     [ Library.both
-        [ ("o", c_harmonic)
-        , (Symbols.mute, Make.attributed_note Module.prelude Attrs.mute)
-        , (".", Make.attributed_note Module.prelude Attrs.staccato)
-        , ("{", Make.attributed_note Module.prelude Attrs.porta)
+        [ ("o", cHarmonic)
+        , (Symbols.mute, Make.attributedNote Module.prelude Attrs.mute)
+        , (".", Make.attributedNote Module.prelude Attrs.staccato)
+        , ("{", Make.attributedNote Module.prelude Attrs.porta)
         -- I'd use '>', but then it overrides the empty instrument call in note
         -- tracks.  Besides, this way it has a nice symmetry with '^'.
-        , (Symbols.accent, c_accent)
-        , (Symbols.weak, c_weak)
+        , (Symbols.accent, cAccent)
+        , (Symbols.weak, cWeak)
 
-        , ("-", c_shorten_lengthen True)
-        , ("+", c_shorten_lengthen False)
+        , ("-", cShortenLengthen True)
+        , ("+", cShortenLengthen False)
         ]
     , Library.generators
-        [ ("(", c_slur Nothing)
+        [ ("(", cSlur Nothing)
         -- These do different things in lilypond mode, but in normal
         -- performance they are just the same as a slur.
-        , ("^(", c_slur (Just Call.Up))
-        , ("_(", c_slur (Just Call.Down))
+        , ("^(", cSlur (Just Call.Up))
+        , ("_(", cSlur (Just Call.Down))
         ]
     , Library.transformers
-        [ ("sus-a", c_sustain_abs)
-        , ("sus", c_sustain)
+        [ ("sus-a", cSustainAbs)
+        , ("sus", cSustain)
         ]
-    , Library.pattern pattern_attr_generator
-    , Library.pattern pattern_attr_transformer
+    , Library.pattern patternAttrGenerator
+    , Library.pattern patternAttrTransformer
     ]
 
 -- * attr pattern
 
-pattern_attr_generator :: Derive.PatternCall (Derive.Generator Derive.Note)
-pattern_attr_generator = make_pattern_attr $ \attrs ->
-    Library.generator $ Make.attributed_note Module.prelude attrs
+patternAttrGenerator :: Derive.PatternCall (Derive.Generator Derive.Note)
+patternAttrGenerator = makePatternAttr $ \attrs ->
+    Library.generator $ Make.attributedNote Module.prelude attrs
 
-pattern_attr_transformer :: Derive.PatternCall (Derive.Transformer Derive.Note)
-pattern_attr_transformer = make_pattern_attr $ \attrs ->
-    Library.transformer $ Make.attributed_note Module.prelude attrs
+patternAttrTransformer :: Derive.PatternCall (Derive.Transformer Derive.Note)
+patternAttrTransformer = makePatternAttr $ \attrs ->
+    Library.transformer $ Make.attributedNote Module.prelude attrs
 
-make_pattern_attr :: (Attrs.Attributes -> call) -> Derive.PatternCall call
-make_pattern_attr call = Derive.PatternCall
-    { pat_description = "attribute starting with `+` or `=`"
-    , pat_doc = Derive.extract_doc $ Library.generator $
-        Make.attributed_note Module.prelude (Attrs.attr "example-attr")
-    , pat_function = \(Expr.Symbol sym) -> parse_symbol sym
+makePatternAttr :: (Attrs.Attributes -> call) -> Derive.PatternCall call
+makePatternAttr call = Derive.PatternCall
+    { patDescription = "attribute starting with `+` or `=`"
+    , patDoc = Derive.extractDoc $ Library.generator $
+        Make.attributedNote Module.prelude (Attrs.attr "example-attr")
+    , patFunction = \(Expr.Symbol sym) -> parseSymbol sym
     }
     where
-    parse_symbol sym = case Text.uncons sym of
-        Just (c, _) | c == '+' || c == '=' -> case Parse.parse_val sym of
+    parseSymbol sym = case Text.uncons sym of
+        Just (c, _) | c == '+' || c == '=' -> case Parse.parseVal sym of
             Right (DeriveT.VAttributes attrs) -> pure $ Just (call attrs)
             _ -> pure Nothing
         _ -> pure Nothing
 
 -- * harmonic
 
-c_harmonic :: Library.Calls Derive.Note
-c_harmonic = Make.transform_notes Module.prelude "harmonic"
+cHarmonic :: Library.Calls Derive.Note
+cHarmonic = Make.transformNotes Module.prelude "harmonic"
     (Tags.attr <> Tags.ly)
     "Harmonic, with lilypond for natural and artificial harmonic notation."
     ((,)
     <$> Sig.defaulted "type" (Nothing :: Maybe Sig.Dummy) "Type of harmonic."
-    <*> lily_harmonic_sig
-    ) $ \(htype, lily_args) deriver -> Ly.when_lilypond
-            (lily_harmonic lily_args (fromMaybe Natural htype) deriver)
-            (Call.add_attributes (Attrs.harm <> harm_attrs htype) deriver)
+    <*> lilyHarmonicSig
+    ) $ \(htype, lilyArgs) deriver -> Ly.whenLilypond
+            (lilyHarmonic lilyArgs (fromMaybe Natural htype) deriver)
+            (Call.addAttributes (Attrs.harm <> harmAttrs htype) deriver)
     where
-    harm_attrs htype = case htype of
+    harmAttrs htype = case htype of
         Nothing -> mempty
         Just Natural -> Attrs.natural
         Just Artificial -> Attrs.artificial
@@ -130,66 +130,66 @@ data HarmonicType = Natural | Artificial
 
 instance Typecheck.Typecheck HarmonicType
 instance ShowVal.ShowVal HarmonicType where
-    show_val Natural = "nat"
-    show_val Artificial = "art"
+    showVal Natural = "nat"
+    showVal Artificial = "art"
 
 -- | Args for 'lily_harmonic'.
-lily_harmonic_sig :: Sig.Parser ([PSignal.Pitch], Maybe PSignal.Pitch, Bool)
-lily_harmonic_sig = (,,)
-    <$> Sig.environ_key EnvKey.open_strings ([] :: [Sig.Dummy])
+lilyHarmonicSig :: Sig.Parser ([PSignal.Pitch], Maybe PSignal.Pitch, Bool)
+lilyHarmonicSig = (,,)
+    <$> Sig.environKey EnvKey.openStrings ([] :: [Sig.Dummy])
         "Pitches of open strings."
-    <*> Sig.environ_key EnvKey.string (Nothing :: Maybe Sig.Dummy)
+    <*> Sig.environKey EnvKey.string (Nothing :: Maybe Sig.Dummy)
         "Play on this string."
-    <*> Sig.environ_key "harmonic-force-diamond" False
+    <*> Sig.environKey "harmonic-force-diamond" False
         "If true, use string+diamond notation even for the 2nd natural\
         \ harmonic."
 
-lily_harmonic :: ([PSignal.Pitch], Maybe PSignal.Pitch, Bool)
+lilyHarmonic :: ([PSignal.Pitch], Maybe PSignal.Pitch, Bool)
     -> HarmonicType -> Derive.NoteDeriver -> Derive.NoteDeriver
-lily_harmonic (open_strings, string, force_diamond) htype deriver = do
-    open_strings <- mapM StringUtil.string open_strings
+lilyHarmonic (openStrings, string, forceDiamond) htype deriver = do
+    openStrings <- mapM StringUtil.string openStrings
     string <- traverse StringUtil.string string
-    Post.emap_m_ id
-        (lily_harmonic_event force_diamond htype open_strings string)
+    Post.emapM_ id
+        (lilyHarmonicEvent forceDiamond htype openStrings string)
         =<< deriver
     -- Ly should have one that skips code events
 
-lily_harmonic_event :: Bool -> HarmonicType -> [StringUtil.String]
+lilyHarmonicEvent :: Bool -> HarmonicType -> [StringUtil.String]
     -> Maybe StringUtil.String -> Score.Event -> Derive.Deriver [Score.Event]
-lily_harmonic_event force_diamond htype open_strings string event = do
-    nn <- Derive.require "no pitch" $ Score.initial_nn event
-    (string, harmonic) <- Derive.require_right id $ case htype of
-        Natural -> natural_harmonic open_strings string nn
-        Artificial -> artificial_harmonic lowest nn
+lilyHarmonicEvent forceDiamond htype openStrings string event = do
+    nn <- Derive.require "no pitch" $ Score.initialNn event
+    (string, harmonic) <- Derive.requireRight id $ case htype of
+        Natural -> naturalHarmonic openStrings string nn
+        Artificial -> artificialHarmonic lowest nn
             where
-            lowest = maybe 0 StringUtil.str_nn $
-                string <|> Lists.head open_strings
+            lowest = maybe 0 StringUtil.strNn $
+                string <|> Lists.head openStrings
     -- When the lilypond backend sees Attrs.harm it knows it's inherently nv.
-    let add_harm = Score.add_attributes Attrs.harm
-    map add_harm <$> if harmonic <= 2 && not force_diamond
+    let addHarm = Score.addAttributes Attrs.harm
+    map addHarm <$> if harmonic <= 2 && not forceDiamond
         then pure
-            [Ly.add_note_code (Ly.append Constants.All, "-\\flageolet") event]
+            [Ly.addNoteCode (Ly.append Constants.All, "-\\flageolet") event]
         else do
             interval <- Derive.require
                 ("harmonic not supported: " <> showt harmonic)
-                (touch_interval harmonic)
-            pure $ harmonic_code string (string + interval) event
+                (touchInterval harmonic)
+            pure $ harmonicCode string (string + interval) event
 
-harmonic_code :: Pitch.NoteNumber -> Pitch.NoteNumber -> Score.Event
+harmonicCode :: Pitch.NoteNumber -> Pitch.NoteNumber -> Score.Event
     -> [Score.Event]
-harmonic_code stopped touched event =
-    [ with_pitch stopped
-    , Ly.add_note_code (Ly.note_append Constants.All, "\\harmonic") $
-        with_pitch touched
+harmonicCode stopped touched event =
+    [ withPitch stopped
+    , Ly.addNoteCode (Ly.noteAppend Constants.All, "\\harmonic") $
+        withPitch touched
     ]
     where
-    with_pitch nn =
-        Score.set_pitch (PSignal.constant (Twelve.nn_pitch nn)) event
+    withPitch nn =
+        Score.setPitch (PSignal.constant (Twelve.nnPitch nn)) event
 
 -- | Where should I touch the string to play the nth harmonic of a base
 -- frequency?
-touch_interval :: StringUtil.Harmonic -> Maybe Pitch.NoteNumber
-touch_interval harmonic = case harmonic of
+touchInterval :: StringUtil.Harmonic -> Maybe Pitch.NoteNumber
+touchInterval harmonic = case harmonic of
     2 -> Just 12
     3 -> Just 7
     4 -> Just 5
@@ -202,43 +202,43 @@ touch_interval harmonic = case harmonic of
     -- So I'll just hard code some low harmonics and deal with high ones if
     -- I need them some day.
 
-highest_harmonic :: StringUtil.Harmonic
-highest_harmonic = 6
+highestHarmonic :: StringUtil.Harmonic
+highestHarmonic = 6
 
 -- | If string is given, try to find this pitch in the harmonics of that
 -- string.  Otherwise, find the string from open_strings which has this as
 -- its lowest harmonic.
-natural_harmonic :: [StringUtil.String] -> Maybe StringUtil.String
+naturalHarmonic :: [StringUtil.String] -> Maybe StringUtil.String
     -> Pitch.NoteNumber -> Either Text (Pitch.NoteNumber, StringUtil.Harmonic)
     -- ^ (selected string, harmonic)
-natural_harmonic [] Nothing nn = Right (Pitch.modify_hz (/2) nn, 2)
-natural_harmonic open_strings maybe_string nn =
-    first StringUtil.str_nn <$>
-        StringUtil.find_harmonic False highest_harmonic open_strings
-            maybe_string nn
+naturalHarmonic [] Nothing nn = Right (Pitch.modifyHz (/2) nn, 2)
+naturalHarmonic openStrings maybeString nn =
+    first StringUtil.strNn <$>
+        StringUtil.findHarmonic False highestHarmonic openStrings
+            maybeString nn
 
 -- | Pick the lowest harmonic which is above the given lowest string.
-artificial_harmonic :: Pitch.NoteNumber -> Pitch.NoteNumber
+artificialHarmonic :: Pitch.NoteNumber -> Pitch.NoteNumber
     -> Either Text (Pitch.NoteNumber, StringUtil.Harmonic)
     -- ^ (stopped pitch, harmonic)
-artificial_harmonic lowest_string nn =
+artificialHarmonic lowestString nn =
     tryJust ("artificial harmonic for " <> pretty nn
-        <> " must be above lowest string " <> pretty lowest_string) $
+        <> " must be above lowest string " <> pretty lowestString) $
     fmap (first (Pitch.nn . round)) $
-        Lists.head $ filter ((>lowest_string) . fst) $
+        Lists.head $ filter ((>lowestString) . fst) $
         -- I assume the octave is not convenient for an artificial harmonic,
         -- but that's not true in higher pitches.  Maybe I could allow it, but
         -- make it least preferred?
-        Lists.keyOn base_of [3..highest_harmonic]
-    where base_of h = Pitch.modify_hz (/ fromIntegral h) nn
+        Lists.keyOn baseOf [3..highestHarmonic]
+    where baseOf h = Pitch.modifyHz (/ fromIntegral h) nn
 
 -- * slur
 
 -- | I'm not really sure how fancy calls should be.  On one hand, high level
 -- calls should get a nice result automatically.  On the other hand, they're
 -- not very composable if they override things like %sus-abs.
-c_slur :: Maybe Call.UpDown -> Derive.Generator Derive.Note
-c_slur direction = Derive.generator Module.prelude "legato"
+cSlur :: Maybe Call.UpDown -> Derive.Generator Derive.Note
+cSlur direction = Derive.generator Module.prelude "legato"
     (Tags.attr <> Tags.subs <> Tags.ly)
     "Play the transformed notes legato. This just makes all but the last\
     \ overlap slightly.\
@@ -257,20 +257,20 @@ c_slur direction = Derive.generator Module.prelude "legato"
         \ will still override `%sus-abs`, which you may not want."
     <*> Sig.defaulted "dyn" (1 :: Double)
         "Scale dyn for notes after the first one by this amount."
-    ) $ \(overlap, maybe_detach, dyn) args ->
-    Ly.when_lilypond (lily_slur direction args) $
-        note_slur overlap maybe_detach dyn =<< Sub.sub_events args
+    ) $ \(overlap, maybeDetach, dyn) args ->
+    Ly.whenLilypond (lilySlur direction args) $
+        noteSlur overlap maybeDetach dyn =<< Sub.subEvents args
 
-note_slur :: RealTime -> Maybe RealTime -> Signal.Y -> [[SubT.Event]]
+noteSlur :: RealTime -> Maybe RealTime -> Signal.Y -> [[SubT.Event]]
     -> Derive.NoteDeriver
-note_slur overlap maybe_detach dyn = Sub.derive . concatMap apply
+noteSlur overlap maybeDetach dyn = Sub.derive . concatMap apply
     where
-    apply = Lists.mapInit (fmap (set_sustain overlap))
-        . apply_dyn dyn . maybe id apply_detach maybe_detach
+    apply = Lists.mapInit (fmap (setSustain overlap))
+        . applyDyn dyn . maybe id applyDetach maybeDetach
 
-lily_slur :: Maybe Call.UpDown -> Derive.PassedArgs d -> Derive.NoteDeriver
-lily_slur direction =
-    Ly.notes_around_ly (Ly.append Constants.First, prefix <> "(")
+lilySlur :: Maybe Call.UpDown -> Derive.PassedArgs d -> Derive.NoteDeriver
+lilySlur direction =
+    Ly.notesAroundLy (Ly.append Constants.First, prefix <> "(")
         (Ly.append Constants.Last, ")")
     where
     prefix = case direction of
@@ -293,9 +293,9 @@ lily_slur direction =
 
 -- | This is not in 'note_calls', instruments that support this are expected to
 -- override @(@ with it.
-c_attr_slur :: Attrs.Attributes -> Attrs.Attributes
+cAttrSlur :: Attrs.Attributes -> Attrs.Attributes
     -> Derive.Generator Derive.Note
-c_attr_slur first_attr rest_attr = Derive.generator Module.instrument "legato"
+cAttrSlur firstAttr restAttr = Derive.generator Module.instrument "legato"
     (Tags.attr <> Tags.subs <> Tags.ly)
     "Make a phrase legato by applying the `+legato` attribute. This is for\
     \ instruments that understand it, for instance with a keyswitch for\
@@ -307,64 +307,64 @@ c_attr_slur first_attr rest_attr = Derive.generator Module.instrument "legato"
     <*> Sig.defaulted "dyn" (1 :: Double)
         "Scale dyn for notes after the first one by\
         \ this amount. Otherwise, transition samples can be too loud."
-    ) $ \(detach, dyn) args -> Ly.when_lilypond (lily_slur Nothing args) $
-        note_slur 0.02 detach dyn
-            . map (Lists.mapHead (fmap (Call.add_attributes first_attr)))
-            . map (Lists.mapTail (fmap (Call.add_attributes rest_attr)))
-                =<< Sub.sub_events args
+    ) $ \(detach, dyn) args -> Ly.whenLilypond (lilySlur Nothing args) $
+        noteSlur 0.02 detach dyn
+            . map (Lists.mapHead (fmap (Call.addAttributes firstAttr)))
+            . map (Lists.mapTail (fmap (Call.addAttributes restAttr)))
+                =<< Sub.subEvents args
 
-apply_detach :: RealTime -> [SubT.Event] -> [SubT.Event]
-apply_detach detach = Lists.mapLast (fmap (set_sustain (-detach)))
+applyDetach :: RealTime -> [SubT.Event] -> [SubT.Event]
+applyDetach detach = Lists.mapLast (fmap (setSustain (-detach)))
 
-apply_dyn :: Signal.Y -> [SubT.Event] -> [SubT.Event]
-apply_dyn dyn = Lists.mapTail (fmap (Call.multiply_dynamic dyn))
+applyDyn :: Signal.Y -> [SubT.Event] -> [SubT.Event]
+applyDyn dyn = Lists.mapTail (fmap (Call.multiplyDynamic dyn))
 
-set_sustain :: RealTime -> Derive.Deriver a -> Derive.Deriver a
-set_sustain = Call.with_constant Controls.sustain_abs . RealTime.to_seconds
+setSustain :: RealTime -> Derive.Deriver a -> Derive.Deriver a
+setSustain = Call.withConstant Controls.sustainAbs . RealTime.toSeconds
 
 -- * misc
 
 -- | This is the same as 'c_lengthen', but it's here for symmetry with
 -- 'c_sustain'.  Also, conceptually this is lower level, while c_lengthen
 -- is meant to be modified to whatever is locally appropriate.
-c_sustain_abs :: Derive.Transformer Derive.Note
-c_sustain_abs = Derive.transformer Module.prelude "sus-a" mempty
+cSustainAbs :: Derive.Transformer Derive.Note
+cSustainAbs = Derive.transformer Module.prelude "sus-a" mempty
     ("Simple legato, extend the duration of the transformed notes by the given\
-    \ amount. This works by setting " <> ShowVal.doc Controls.sustain_abs
+    \ amount. This works by setting " <> ShowVal.doc Controls.sustainAbs
     <> "."
     ) $ Sig.callt (Sig.defaulted "time" (Typecheck.real 0.25)
         "Add this duration to the note.")
     $ \(Typecheck.DefaultReal time) args deriver -> do
-        time <- Call.real_duration (Args.end args) time
-        set_sustain time deriver
+        time <- Call.realDuration (Args.end args) time
+        setSustain time deriver
 
-c_sustain :: Derive.Transformer Derive.Note
-c_sustain = Derive.transformer Module.prelude "sus" mempty
+cSustain :: Derive.Transformer Derive.Note
+cSustain = Derive.transformer Module.prelude "sus" mempty
     ("Simple legato, extend the duration of the transformed notes by the given\
     \ amount. This works by setting " <> ShowVal.doc Controls.sustain
     <> "."
     ) $ Sig.callt (Sig.defaulted "amount" (1.5 :: Double)
         "Multiply the note's duration by this.")
-    $ \amount _args -> Call.with_constant Controls.sustain amount
+    $ \amount _args -> Call.withConstant Controls.sustain amount
 
-c_shorten_lengthen :: Bool -> Library.Calls Derive.Note
-c_shorten_lengthen shorten = Make.transform_notes Module.prelude
+cShortenLengthen :: Bool -> Library.Calls Derive.Note
+cShortenLengthen shorten = Make.transformNotes Module.prelude
     (if shorten then "shorten" else "lengthen") mempty
     ("Lengthen or Shorten a note duration, by adding to or subtracting from "
-        <> ShowVal.doc Controls.sustain_abs <> ".")
+        <> ShowVal.doc Controls.sustainAbs <> ".")
     (Sig.defaulted "time" (0.15 :: Double) "Subtract this duration.") $ \time ->
-        Call.with_constant Controls.sustain_abs
+        Call.withConstant Controls.sustainAbs
             (if shorten then -time else time)
 
-c_accent :: Library.Calls Derive.Note
-c_accent = Make.transform_notes Module.prelude "accent" Tags.ly
+cAccent :: Library.Calls Derive.Note
+cAccent = Make.transformNotes Module.prelude "accent" Tags.ly
     "Accent the note by multiplying its dynamic."
     (Sig.defaulted "dyn" (1.5 :: Double) "Multiply dynamic.") $ \dyn ->
         -- Adding Attrs.accent makes lilypond attach a '>'.
-        Call.add_attributes Attrs.accent . Call.multiply_dynamic dyn
+        Call.addAttributes Attrs.accent . Call.multiplyDynamic dyn
 
-c_weak :: Library.Calls Derive.Note
-c_weak = Make.transform_notes Module.prelude "weak" mempty
+cWeak :: Library.Calls Derive.Note
+cWeak = Make.transformNotes Module.prelude "weak" mempty
     "Weaken the note by multiplying its dynamic."
     (Sig.defaulted "dyn" (0.35 :: Double) "Multiply dynamic.") $ \dyn ->
-        Call.multiply_dynamic dyn
+        Call.multiplyDynamic dyn

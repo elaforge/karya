@@ -28,9 +28,9 @@ test_interpolate :: Test
 test_interpolate = do
     let f = Texts.interpolate "hi ${var1} there ${var2}: ${var1}"
             . Map.fromList
-    left_like (f []) "template variable not given: var1, var2"
+    leftLike (f []) "template variable not given: var1, var2"
     equal (f [("var1", "a"), ("var2", "b")]) (Right "hi a there b: a")
-    left_like (f [("var1", "a"), ("var2", "b"), ("var3", "c")])
+    leftLike (f [("var1", "a"), ("var2", "b"), ("var3", "c")])
         "not in template: var3"
 
 test_columns :: Test

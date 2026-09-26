@@ -40,42 +40,42 @@ import           Types
 
 -- | Make a simple scale where there is a direct mapping from input to note to
 -- nn.
-make_scale :: Pitch.ScaleId -> DegreeMap -> Text -> Doc.Doc -> Scale.Scale
-make_scale scale_id dmap pattern doc = Scale.Scale
-    { scale_id = scale_id
-    , scale_pattern = pattern
-    , scale_symbols = []
-    , scale_transposers = standard_transposers
-    , scale_read = const $ read_note dmap
-    , scale_show = const $ show_pitch dmap
-    , scale_bottom = Pitch.pitch (dm_start_octave dmap) (dm_start_pc dmap)
-    , scale_layout = Scale.diatonic_layout (dm_per_octave dmap)
-    , scale_transpose = transpose dmap
-    , scale_enharmonics = no_enharmonics
-    , scale_note_to_call = mapped_note_to_call dmap scale
-    , scale_input_to_note = input_to_note dmap
-    , scale_input_to_nn = mapped_input_to_nn dmap
-    , scale_call_doc = call_doc standard_transposers dmap doc
+makeScale :: Pitch.ScaleId -> DegreeMap -> Text -> Doc.Doc -> Scale.Scale
+makeScale scaleId dmap pattern doc = Scale.Scale
+    { scaleId = scaleId
+    , scalePattern = pattern
+    , scaleSymbols = []
+    , scaleTransposers = standardTransposers
+    , scaleRead = const $ readNote dmap
+    , scaleShow = const $ showPitch dmap
+    , scaleBottom = Pitch.pitch (dmStartOctave dmap) (dmStartPc dmap)
+    , scaleLayout = Scale.diatonicLayout (dmPerOctave dmap)
+    , scaleTranspose = transpose dmap
+    , scaleEnharmonics = noEnharmonics
+    , scaleNoteToCall = mappedNoteToCall dmap scale
+    , scaleInputToNote = inputToNote dmap
+    , scaleInputToNn = mappedInputToNn dmap
+    , scaleCallDoc = callDoc standardTransposers dmap doc
     }
-    where scale = PSignal.Scale scale_id standard_transposers
+    where scale = PSignal.Scale scaleId standardTransposers
 
 -- | An empty scale that doesn't do anything.
-empty_scale :: Pitch.ScaleId -> Text -> Derive.DocumentedCall -> Scale.Scale
-empty_scale scale_id pattern doc = Scale.Scale
-    { scale_id = scale_id
-    , scale_pattern = pattern
-    , scale_symbols = []
-    , scale_transposers = standard_transposers
-    , scale_read = \_ _ -> Left DeriveT.NotImplemented
-    , scale_show = \_ _ -> Left DeriveT.NotImplemented
-    , scale_bottom = Pitch.pitch 1 0
-    , scale_layout = Scale.layout []
-    , scale_transpose = \_ _ _ _ -> Left DeriveT.NotImplemented
-    , scale_enharmonics = no_enharmonics
-    , scale_note_to_call = const Nothing
-    , scale_input_to_note = \_ _ -> Left DeriveT.NotImplemented
-    , scale_input_to_nn = \ _ _ -> pure $ Left DeriveT.NotImplemented
-    , scale_call_doc = doc
+emptyScale :: Pitch.ScaleId -> Text -> Derive.DocumentedCall -> Scale.Scale
+emptyScale scaleId pattern doc = Scale.Scale
+    { scaleId = scaleId
+    , scalePattern = pattern
+    , scaleSymbols = []
+    , scaleTransposers = standardTransposers
+    , scaleRead = \_ _ -> Left DeriveT.NotImplemented
+    , scaleShow = \_ _ -> Left DeriveT.NotImplemented
+    , scaleBottom = Pitch.pitch 1 0
+    , scaleLayout = Scale.layout []
+    , scaleTranspose = \_ _ _ _ -> Left DeriveT.NotImplemented
+    , scaleEnharmonics = noEnharmonics
+    , scaleNoteToCall = const Nothing
+    , scaleInputToNote = \_ _ -> Left DeriveT.NotImplemented
+    , scaleInputToNn = \ _ _ -> pure $ Left DeriveT.NotImplemented
+    , scaleCallDoc = doc
     }
 
 -- * types
@@ -83,36 +83,36 @@ empty_scale scale_id pattern doc = Scale.Scale
 -- TODO this is no longer used.  But still an example of a simple scale.
 -- Move it some place like SimpleScales?
 data DegreeMap = DegreeMap
-    { dm_to_semis :: Map Pitch.Note Pitch.Semi
-    , dm_to_note :: Vector.Vector Pitch.Note
-    , dm_to_nn :: Vector.Vector Pitch.NoteNumber
+    { dmToSemis :: Map Pitch.Note Pitch.Semi
+    , dmToNote :: Vector.Vector Pitch.Note
+    , dmToNn :: Vector.Vector Pitch.NoteNumber
     -- | Number of scale steps per octave.  Actually, simple scales are just
     -- a collection of frequencies and don't need to have a notion of an
     -- octave.  But since the input mechanism wants to orient around octaves,
     -- it needs to know how many keys to assign to each octave.  So if your
     -- scale has no octaves, then just set this to 7, that way it lines up with
     -- the piano keyboard.
-    , dm_per_octave :: Pitch.Semi
-    , dm_start_octave :: Pitch.Octave
-    , dm_start_pc :: Pitch.PitchClass
+    , dmPerOctave :: Pitch.Semi
+    , dmStartOctave :: Pitch.Octave
+    , dmStartPc :: Pitch.PitchClass
     } deriving (Show)
 
 instance Pretty DegreeMap where
     format dmap = Pretty.format $ Map.fromList $ do
-        (note, semis) <- Map.toList (dm_to_semis dmap)
-        pure (semis, (note, dm_to_nn dmap !? semis))
+        (note, semis) <- Map.toList (dmToSemis dmap)
+        pure (semis, (note, dmToNn dmap !? semis))
 
-degree_map :: Pitch.PitchClass
+degreeMap :: Pitch.PitchClass
     -> Pitch.Octave -- ^ The first Note is this Octave and PitchClass.
     -> Pitch.PitchClass
     -> [Pitch.Note] -> [Pitch.NoteNumber] -> DegreeMap
-degree_map per_octave start_octave start_pc notes_ nns_ = DegreeMap
-    { dm_to_semis = Map.fromList (zip notes [0..])
-    , dm_to_note = Vector.fromList notes
-    , dm_to_nn = Vector.fromList nns
-    , dm_per_octave = per_octave
-    , dm_start_octave = start_octave
-    , dm_start_pc = start_pc
+degreeMap perOctave startOctave startPc notes_ nns_ = DegreeMap
+    { dmToSemis = Map.fromList (zip notes [0..])
+    , dmToNote = Vector.fromList notes
+    , dmToNn = Vector.fromList nns
+    , dmPerOctave = perOctave
+    , dmStartOctave = startOctave
+    , dmStartPc = startPc
     }
     where
     -- Guard against infinite notes or nns.
@@ -123,33 +123,33 @@ type SemisToNoteNumber = PSignal.PitchConfig -> Pitch.Semi
 
 -- * scale functions
 
-read_note :: DegreeMap -> Pitch.Note -> Either DeriveT.PitchError Pitch.Pitch
-read_note dmap note = semis_to_pitch dmap <$>
-    justErr (DeriveT.UnparseableNote note) (Map.lookup note (dm_to_semis dmap))
+readNote :: DegreeMap -> Pitch.Note -> Either DeriveT.PitchError Pitch.Pitch
+readNote dmap note = semisToPitch dmap <$>
+    justErr (DeriveT.UnparseableNote note) (Map.lookup note (dmToSemis dmap))
 
-show_pitch :: DegreeMap -> Pitch.Pitch -> Either DeriveT.PitchError Pitch.Note
-show_pitch dmap pitch = justErr
+showPitch :: DegreeMap -> Pitch.Pitch -> Either DeriveT.PitchError Pitch.Note
+showPitch dmap pitch = justErr
     (DeriveT.PitchError ("invalid pitch: " <> pretty pitch)) $
-    dm_to_note dmap !? pitch_to_semis dmap pitch
+    dmToNote dmap !? pitchToSemis dmap pitch
 
 -- ** transpose
 
 transpose :: DegreeMap -> Derive.Transpose
 transpose dmap _transposition _environ steps pitch
-    | Maybe.isJust $ dm_to_note dmap !? transposed =
-        Right $ semis_to_pitch dmap transposed
-    | otherwise = Left $ DeriveT.OutOfRangeError DeriveT.out_of_range
-    where transposed = pitch_to_semis dmap pitch + steps
+    | Maybe.isJust $ dmToNote dmap !? transposed =
+        Right $ semisToPitch dmap transposed
+    | otherwise = Left $ DeriveT.OutOfRangeError DeriveT.outOfRange
+    where transposed = pitchToSemis dmap pitch + steps
 
 -- | Transpose function for a non-transposing scale.
-non_transposing :: Derive.Transpose
-non_transposing _ _ _ _ = Left DeriveT.NotImplemented
+nonTransposing :: Derive.Transpose
+nonTransposing _ _ _ _ = Left DeriveT.NotImplemented
 
 -- | Indicate that this scale responds to the standard set of transpose
 -- signals.  It still has to implement the support in its
 -- 'Scale.scale_note_to_call'.
-standard_transposers :: Set ScoreT.Control
-standard_transposers = Set.fromList
+standardTransposers :: Set ScoreT.Control
+standardTransposers = Set.fromList
     [ Controls.octave, Controls.chromatic, Controls.diatonic
     , Controls.nn, Controls.hz
     ]
@@ -159,52 +159,52 @@ standard_transposers = Set.fromList
 -- | A specialization of 'note_to_call' that operates on scales with
 -- a 'DegreeMap', i.e. a static map from notes to degrees, and from degrees to
 -- NNs.
-mapped_note_to_call :: DegreeMap -> PSignal.Scale
+mappedNoteToCall :: DegreeMap -> PSignal.Scale
     -> Pitch.Note -> Maybe Derive.ValCall
-mapped_note_to_call dmap scale note = do
-    semis <- Map.lookup note (dm_to_semis dmap)
-    Just $ note_to_call (dm_per_octave dmap) (Just max_semi)
-        scale (semis_to_nn semis) (semis_to_note semis)
+mappedNoteToCall dmap scale note = do
+    semis <- Map.lookup note (dmToSemis dmap)
+    Just $ noteToCall (dmPerOctave dmap) (Just maxSemi)
+        scale (semisToNn semis) (semisToNote semis)
     where
-    max_semi = Vector.length (dm_to_nn dmap)
-    semis_to_nn semis _config transpose =
-        justErr err $ dm_to_nn dmap !? (semis + transpose)
+    maxSemi = Vector.length (dmToNn dmap)
+    semisToNn semis _config transpose =
+        justErr err $ dmToNn dmap !? (semis + transpose)
         where
-        err = DeriveT.out_of_range_error (semis + transpose) (0, max_semi)
-    semis_to_note semis transpose = dm_to_note dmap !? (semis + transpose)
+        err = DeriveT.outOfRangeError (semis + transpose) (0, maxSemi)
+    semisToNote semis transpose = dmToNote dmap !? (semis + transpose)
 
 -- | Create a note call that respects chromatic and diatonic transposition.
 -- However, diatonic transposition is mapped to chromatic transposition,
 -- so this is for scales that don't distinguish.
-note_to_call :: Pitch.Semi -> Maybe Pitch.Semi -> PSignal.Scale
+noteToCall :: Pitch.Semi -> Maybe Pitch.Semi -> PSignal.Scale
     -> SemisToNoteNumber -> (Pitch.Semi -> Maybe Pitch.Note) -> Derive.ValCall
-note_to_call per_octave max_semi scale semis_to_nn semis_to_note =
-    ScaleDegree.scale_degree scale pitch_nn pitch_note
+noteToCall perOctave maxSemi scale semisToNn semisToNote =
+    ScaleDegree.scaleDegree scale pitchNn pitchNote
     where
-    pitch_nn :: Scale.PitchNn
-    pitch_nn config = to_nn transpose_steps frac config
-        where (transpose_steps, frac) = properFraction $ transposition config
-    to_nn semis frac config
-        | frac == 0 = semis_to_nn config semis
+    pitchNn :: Scale.PitchNn
+    pitchNn config = toNn transposeSteps frac config
+        where (transposeSteps, frac) = properFraction $ transposition config
+    toNn semis frac config
+        | frac == 0 = semisToNn config semis
         | otherwise = Num.scale
-            <$> semis_to_nn config semis
-            <*> semis_to_nn config (semis + 1)
+            <$> semisToNn config semis
+            <*> semisToNn config (semis + 1)
             <*> pure (Pitch.NoteNumber frac)
-    pitch_note :: Scale.PitchNote
-    pitch_note config = justErr err $ semis_to_note semis
+    pitchNote :: Scale.PitchNote
+    pitchNote config = justErr err $ semisToNote semis
         where
         semis = floor $ transposition config
-        err = DeriveT.OutOfRangeError $ DeriveT.out_of_range
-            { DeriveT.oor_degree = Just (fromIntegral semis)
-            , DeriveT.oor_valid = (0,) <$> max_semi
+        err = DeriveT.OutOfRangeError $ DeriveT.outOfRange
+            { DeriveT.oorDegree = Just (fromIntegral semis)
+            , DeriveT.oorValid = (0,) <$> maxSemi
             }
     transposition config =
-        get Controls.octave * fromIntegral per_octave
+        get Controls.octave * fromIntegral perOctave
             + get Controls.chromatic + get Controls.diatonic
-        where get c = Map.findWithDefault 0 c (PSignal.pitch_controls config)
+        where get c = Map.findWithDefault 0 c (PSignal.pitchControls config)
 
-add_pc :: DegreeMap -> Pitch.PitchClass -> Pitch.Pitch -> Pitch.Pitch
-add_pc dmap = Pitch.add_pc (dm_per_octave dmap)
+addPc :: DegreeMap -> Pitch.PitchClass -> Pitch.Pitch -> Pitch.Pitch
+addPc dmap = Pitch.addPc (dmPerOctave dmap)
 
 -- ** input
 
@@ -212,24 +212,24 @@ type InputToNote = Env.Environ -> Pitch.Input
     -> Either DeriveT.PitchError Pitch.Note
 
 -- | Input to note for simple scales without keys.
-input_to_note :: DegreeMap -> InputToNote
-input_to_note dmap _environ (Pitch.Input kbd pitch frac) = do
-    steps <- simple_kbd_to_scale dmap kbd pitch
-    note <- justErr DeriveT.InvalidInput $ dm_to_note dmap !? steps
-    pure $ ScaleDegree.pitch_expr frac note
+inputToNote :: DegreeMap -> InputToNote
+inputToNote dmap _environ (Pitch.Input kbd pitch frac) = do
+    steps <- simpleKbdToScale dmap kbd pitch
+    note <- justErr DeriveT.InvalidInput $ dmToNote dmap !? steps
+    pure $ ScaleDegree.pitchExpr frac note
 
 type InputToNn = ScoreTime -> Pitch.Input
     -> Derive.Deriver (Either DeriveT.PitchError Pitch.NoteNumber)
 
 -- | Input to NoteNumber for scales that have a direct relationship between
 -- Degree and NoteNumber.
-mapped_input_to_nn :: DegreeMap -> InputToNn
-mapped_input_to_nn dmap = \_pos (Pitch.Input kbd pitch frac) -> pure $ do
-    semis <- simple_kbd_to_scale dmap kbd pitch
-    justErr (DeriveT.OutOfRangeError DeriveT.out_of_range) $
-        to_nn semis frac
+mappedInputToNn :: DegreeMap -> InputToNn
+mappedInputToNn dmap = \_pos (Pitch.Input kbd pitch frac) -> pure $ do
+    semis <- simpleKbdToScale dmap kbd pitch
+    justErr (DeriveT.OutOfRangeError DeriveT.outOfRange) $
+        toNn semis frac
     where
-    to_nn semis frac
+    toNn semis frac
         | frac == 0 = lookup semis
         | frac > 0 = do
             nn <- lookup semis
@@ -239,11 +239,11 @@ mapped_input_to_nn dmap = \_pos (Pitch.Input kbd pitch frac) -> pure $ do
             nn <- lookup semis
             prev <- lookup (semis - 1)
             pure $ Num.scale prev nn (Pitch.NoteNumber (frac + 1))
-    lookup semis = dm_to_nn dmap !? semis
+    lookup semis = dmToNn dmap !? semis
 
-set_direct_input_to_nn :: Scale.Scale -> Scale.Scale
-set_direct_input_to_nn scale = scale
-    { Scale.scale_input_to_nn = direct_input_to_nn }
+setDirectInputToNn :: Scale.Scale -> Scale.Scale
+setDirectInputToNn scale = scale
+    { Scale.scaleInputToNn = directInputToNn }
 
 -- | An Input maps directly to a NoteNumber.  This is an efficient
 -- implementation for scales tuned to 12TET.
@@ -253,39 +253,39 @@ set_direct_input_to_nn scale = scale
 -- diatonic transposition would make this not so direct any more.  And in
 -- any case, "Cmd.MidiThru" shouldn't let through any transposers other than
 -- octave.
-direct_input_to_nn :: InputToNn
-direct_input_to_nn pos (Pitch.Input _ pitch frac) = do
-    controls <- Derive.controls_at =<< Derive.real pos
+directInputToNn :: InputToNn
+directInputToNn pos (Pitch.Input _ pitch frac) = do
+    controls <- Derive.controlsAt =<< Derive.real pos
     let octaves = Map.findWithDefault 0 Controls.octave controls
     pure $ Right $ nn + Pitch.nn (frac + octaves * 12)
     where
-    nn = fromIntegral $ Theory.semis_to_nn $
-        Theory.pitch_to_semis Theory.piano_layout pitch
+    nn = fromIntegral $ Theory.semisToNn $
+        Theory.pitchToSemis Theory.pianoLayout pitch
 
 -- | Convert input to nn by going through note_to_call.  This works for
 -- complicated scales that retune based on the environment but is more work.
-computed_input_to_nn :: InputToNote -> (Pitch.Note -> Maybe Derive.ValCall)
+computedInputToNn :: InputToNote -> (Pitch.Note -> Maybe Derive.ValCall)
     -> InputToNn
-computed_input_to_nn input_to_note note_to_call pos input = do
-    env <- Derive.get_environ
-    case get_call env of
+computedInputToNn inputToNote noteToCall pos input = do
+    env <- Derive.getEnviron
+    case getCall env of
         Left err -> pure $ Left err
         Right (note, call) -> do
-            pitch <- Eval.apply_pitch pos call
-            controls <- Derive.controls_at =<< Derive.real pos
-            nn <- Derive.require_right
+            pitch <- Eval.applyPitch pos call
+            controls <- Derive.controlsAt =<< Derive.real pos
+            nn <- Derive.requireRight
                     ((("evaluating note " <> pretty note <> ": ")<>) . pretty) $
-                PSignal.pitch_nn $
-                PSignal.apply_config (PSignal.PitchConfig env controls) pitch
+                PSignal.pitchNn $
+                PSignal.applyConfig (PSignal.PitchConfig env controls) pitch
             pure $ Right nn
     where
-    get_call env = do
-        note <- input_to_note env input
-        (note,) <$> justErr (DeriveT.UnparseableNote note) (note_to_call note)
+    getCall env = do
+        note <- inputToNote env input
+        (note,) <$> justErr (DeriveT.UnparseableNote note) (noteToCall note)
 
-make_nn :: Maybe Pitch.NoteNumber -> Pitch.NoteNumber -> Maybe Pitch.NoteNumber
+makeNn :: Maybe Pitch.NoteNumber -> Pitch.NoteNumber -> Maybe Pitch.NoteNumber
     -> Pitch.Frac -> Maybe Pitch.NoteNumber
-make_nn mprev nn mnext frac
+makeNn mprev nn mnext frac
     | frac == 0 = Just nn
     | frac > 0 = fmap (\next -> interpolate nn next) mnext
     | otherwise = fmap (\prev -> interpolate prev nn) mprev
@@ -294,37 +294,37 @@ make_nn mprev nn mnext frac
 
 -- *** diatonic
 
-simple_kbd_to_scale :: DegreeMap -> Pitch.KbdType -> Pitch.Pitch
+simpleKbdToScale :: DegreeMap -> Pitch.KbdType -> Pitch.Pitch
     -> Either DeriveT.PitchError Pitch.Semi
-simple_kbd_to_scale dmap kbd pitch =
-    pitch_to_semis dmap <$> kbd_to_scale kbd (dm_per_octave dmap) 0 pitch
+simpleKbdToScale dmap kbd pitch =
+    pitchToSemis dmap <$> kbdToScale kbd (dmPerOctave dmap) 0 pitch
 
-pitch_to_semis :: DegreeMap -> Pitch.Pitch -> Pitch.Semi
-pitch_to_semis dmap (Pitch.Pitch oct (Pitch.Degree pc accs)) =
-    (oct - dm_start_octave dmap) * dm_per_octave dmap
-        + pc - dm_start_pc dmap + accs
+pitchToSemis :: DegreeMap -> Pitch.Pitch -> Pitch.Semi
+pitchToSemis dmap (Pitch.Pitch oct (Pitch.Degree pc accs)) =
+    (oct - dmStartOctave dmap) * dmPerOctave dmap
+        + pc - dmStartPc dmap + accs
 
-semis_to_pitch :: DegreeMap -> Pitch.Semi -> Pitch.Pitch
-semis_to_pitch dmap semis =
-    Pitch.add_pc per_oct (dm_start_pc dmap) $
-        Pitch.Pitch (oct + dm_start_octave dmap) (Pitch.Degree pc 0)
+semisToPitch :: DegreeMap -> Pitch.Semi -> Pitch.Pitch
+semisToPitch dmap semis =
+    Pitch.addPc perOct (dmStartPc dmap) $
+        Pitch.Pitch (oct + dmStartOctave dmap) (Pitch.Degree pc 0)
     where
-    (oct, pc) = semis `divMod` per_oct
-    per_oct = dm_per_octave dmap
+    (oct, pc) = semis `divMod` perOct
+    perOct = dmPerOctave dmap
 
-kbd_to_scale :: Pitch.KbdType -> Pitch.PitchClass -> Pitch.PitchClass
+kbdToScale :: Pitch.KbdType -> Pitch.PitchClass -> Pitch.PitchClass
     -> Pitch.Pitch -> Either DeriveT.PitchError Pitch.Pitch
-kbd_to_scale kbd pc_per_octave tonic =
-    justErr DeriveT.InvalidInput . lookup_kbd_to_scale kbd pc_per_octave tonic
+kbdToScale kbd pcPerOctave tonic =
+    justErr DeriveT.InvalidInput . lookupKbdToScale kbd pcPerOctave tonic
 
 -- | Convert an absolute Pitch in the input keyboard's layout to a relative
 -- Pitch within a scale with the given number of diatonic steps per octave, or
 -- Nothing if that key should have no pitch.
-lookup_kbd_to_scale :: Pitch.KbdType -> Pitch.PitchClass -> Pitch.PitchClass
+lookupKbdToScale :: Pitch.KbdType -> Pitch.PitchClass -> Pitch.PitchClass
     -> Pitch.Pitch -> Maybe Pitch.Pitch
-lookup_kbd_to_scale kbd pc_per_octave tonic pitch = case kbd of
-    Pitch.PianoKbd -> piano_kbd_pitch tonic pc_per_octave pitch
-    Pitch.AsciiKbd -> Just $ ascii_kbd_pitch pc_per_octave pitch
+lookupKbdToScale kbd pcPerOctave tonic pitch = case kbd of
+    Pitch.PianoKbd -> pianoKbdPitch tonic pcPerOctave pitch
+    Pitch.AsciiKbd -> Just $ asciiKbdPitch pcPerOctave pitch
 
 {- Scale octave doesn't match the kbd octave, but is absolute:
 
@@ -350,16 +350,16 @@ lookup_kbd_to_scale kbd pc_per_octave tonic pitch = case kbd of
 -- the relative PitchClass.  That way, a D on a 6 note scale starting on D is
 -- 1, and a C is Nothing.  Thus, the returned Pitch is relative to the given
 -- tonic, so it should be formatted as-is, without the key.
-piano_kbd_pitch :: Pitch.PitchClass -> Pitch.PitchClass -> Pitch.Pitch
+pianoKbdPitch :: Pitch.PitchClass -> Pitch.PitchClass -> Pitch.Pitch
     -> Maybe Pitch.Pitch
-piano_kbd_pitch tonic pc_per_octave (Pitch.Pitch oct (Pitch.Degree pc accs))
-    | relative_pc >= pc_per_octave = Nothing
+pianoKbdPitch tonic pcPerOctave (Pitch.Pitch oct (Pitch.Degree pc accs))
+    | relativePc >= pcPerOctave = Nothing
     | otherwise =
-        Just $ Pitch.Pitch (oct1 + oct_diff) (Pitch.Degree relative_pc accs)
+        Just $ Pitch.Pitch (oct1 + octDiff) (Pitch.Degree relativePc accs)
     where
-    (oct1, pc1) = adjust_octave pc_per_octave 7 oct pc
-    (oct_diff, relative_pc) = (pc1 - tonic) `divMod` max_pc
-    max_pc = ceiling (fromIntegral pc_per_octave / 7) * 7
+    (oct1, pc1) = adjustOctave pcPerOctave 7 oct pc
+    (octDiff, relativePc) = (pc1 - tonic) `divMod` maxPc
+    maxPc = ceiling (fromIntegral pcPerOctave / 7) * 7
 
 -- | The ASCII kbd is relative.  This means that relative scales always start
 -- on \"C\".  So the tonic note of a key in a relative scale is irrelevant,
@@ -369,31 +369,31 @@ piano_kbd_pitch tonic pc_per_octave (Pitch.Pitch oct (Pitch.Degree pc accs))
 --
 -- Unlike 'absolute_to_pitch', if the scale octave is not an even multiple of
 -- the kbd octave (10), the extra notes wrap to the next highest octave.
-ascii_kbd_pitch :: Pitch.PitchClass -> Pitch.Pitch -> Pitch.Pitch
-ascii_kbd_pitch pc_per_octave (Pitch.Pitch oct (Pitch.Degree pc accs)) =
-    Pitch.Pitch (add_oct + oct1) (Pitch.Degree pc2 accs)
+asciiKbdPitch :: Pitch.PitchClass -> Pitch.Pitch -> Pitch.Pitch
+asciiKbdPitch pcPerOctave (Pitch.Pitch oct (Pitch.Degree pc accs)) =
+    Pitch.Pitch (addOct + oct1) (Pitch.Degree pc2 accs)
     where
-    (oct1, pc1) = adjust_octave pc_per_octave 10 oct pc
+    (oct1, pc1) = adjustOctave pcPerOctave 10 oct pc
     -- If the scale is shorter than the kbd, go up to the next octave on
     -- the same row.
-    (add_oct, pc2) = pc1 `divMod` pc_per_octave
+    (addOct, pc2) = pc1 `divMod` pcPerOctave
 
 -- | Try to fit a note from a keyboard into a scale.  Round the note up to the
 -- nearest multiple of the keyboard octave and adjust the octave accordingly.
-adjust_octave :: Pitch.PitchClass -> Pitch.PitchClass -> Pitch.Octave
+adjustOctave :: Pitch.PitchClass -> Pitch.PitchClass -> Pitch.Octave
     -> Pitch.PitchClass -> (Pitch.Octave, Pitch.PitchClass)
-adjust_octave pc_per_octave kbd_per_octave oct pc =
-    (oct2, offset * kbd_per_octave + pc)
+adjustOctave pcPerOctave kbdPerOctave oct pc =
+    (oct2, offset * kbdPerOctave + pc)
     where
-    rows = ceiling $ fromIntegral pc_per_octave / fromIntegral kbd_per_octave
+    rows = ceiling $ fromIntegral pcPerOctave / fromIntegral kbdPerOctave
     (oct2, offset) = oct `divMod` rows
 
 
 -- ** call_doc
 
-call_doc :: Set ScoreT.Control -> DegreeMap -> Doc.Doc -> Derive.DocumentedCall
-call_doc transposers dmap doc =
-    annotate_call_doc transposers doc fields default_scale_degree_doc
+callDoc :: Set ScoreT.Control -> DegreeMap -> Doc.Doc -> Derive.DocumentedCall
+callDoc transposers dmap doc =
+    annotateCallDoc transposers doc fields defaultScaleDegreeDoc
     where
     fields
         | Vector.null notes = []
@@ -401,43 +401,43 @@ call_doc transposers dmap doc =
         where
         bottom = notes Vector.! 0
         top = notes Vector.! (Vector.length notes - 1)
-        notes = dm_to_note dmap
+        notes = dmToNote dmap
 
 -- | Documentation of the standard 'Call.Pitch.scale_degree'.
-default_scale_degree_doc :: Derive.DocumentedCall
-default_scale_degree_doc = scale_degree_doc ScaleDegree.scale_degree
+defaultScaleDegreeDoc :: Derive.DocumentedCall
+defaultScaleDegreeDoc = scaleDegreeDoc ScaleDegree.scaleDegree
 
-scale_degree_doc ::
+scaleDegreeDoc ::
     (PSignal.Scale -> Scale.PitchNn -> Scale.PitchNote -> Derive.ValCall)
     -> Derive.DocumentedCall
-scale_degree_doc scale_degree =
-    Derive.extract_doc $ scale_degree PSignal.no_scale err err
+scaleDegreeDoc scaleDegree =
+    Derive.extractDoc $ scaleDegree PSignal.noScale err err
     where err _ = Left $ PSignal.PitchError "it was just an example!"
 
-annotate_call_doc :: Set ScoreT.Control -> Doc.Doc -> [(Doc.Doc, Doc.Doc)]
+annotateCallDoc :: Set ScoreT.Control -> Doc.Doc -> [(Doc.Doc, Doc.Doc)]
     -> Derive.DocumentedCall -> Derive.DocumentedCall
-annotate_call_doc transposers doc fields = prepend_doc extra_doc
+annotateCallDoc transposers doc fields = prependDoc extraDoc
     where
-    extra_doc = doc <> "\n\n" <> join (transposers_field ++ fields)
-    transposers_field =
+    extraDoc = doc <> "\n\n" <> join (transposersField ++ fields)
+    transposersField =
         [("transposers", Doc.Doc $ pretty transposers) |
             not (Set.null transposers)]
     join = Texts.enumeration
         . map (\(k, v) -> k <> ": " <> v) . filter ((/="") . snd)
 
-add_doc :: Doc.Doc -> Scale.Scale -> Scale.Scale
-add_doc doc scale = scale
-    { Scale.scale_call_doc = prepend_doc doc (Scale.scale_call_doc scale) }
+addDoc :: Doc.Doc -> Scale.Scale -> Scale.Scale
+addDoc doc scale = scale
+    { Scale.scaleCallDoc = prependDoc doc (Scale.scaleCallDoc scale) }
 
 -- *** DocumentedCall
 
 -- | Prepend a bit of text to the documentation.
-prepend_doc :: Doc.Doc -> Derive.DocumentedCall -> Derive.DocumentedCall
-prepend_doc text = modify_doc ((text <> "\n") <>)
+prependDoc :: Doc.Doc -> Derive.DocumentedCall -> Derive.DocumentedCall
+prependDoc text = modifyDoc ((text <> "\n") <>)
 
-modify_doc :: (Doc.Doc -> Doc.Doc) -> Derive.DocumentedCall
+modifyDoc :: (Doc.Doc -> Doc.Doc) -> Derive.DocumentedCall
     -> Derive.DocumentedCall
-modify_doc modify (Derive.DocumentedCall name doc) =
+modifyDoc modify (Derive.DocumentedCall name doc) =
     Derive.DocumentedCall name (annotate doc)
     where
     annotate (Derive.CallDoc module_ tags cdoc args) =
@@ -445,67 +445,67 @@ modify_doc modify (Derive.DocumentedCall name doc) =
 
 -- * util
 
-no_enharmonics :: Derive.Enharmonics
-no_enharmonics _ _ = Right []
+noEnharmonics :: Derive.Enharmonics
+noEnharmonics _ _ = Right []
 
 -- | Like 'read_environ_', but with a simpler parser.
-read_environ :: (Typecheck.Typecheck a, ShowVal.ShowVal a)
+readEnviron :: (Typecheck.Typecheck a, ShowVal.ShowVal a)
     => (a -> Maybe val)
     -> Maybe val -- ^ if Just, a missing value gets this, otherwise error
     -> Env.Key -> Env.Environ -> Either DeriveT.PitchError val
-read_environ parse maybe_deflt =
-    read_environ_ (maybe (Left Nothing) Right . parse) (Right <$> maybe_deflt)
+readEnviron parse maybeDeflt =
+    readEnviron_ (maybe (Left Nothing) Right . parse) (Right <$> maybeDeflt)
 
 -- | Like 'read_environ', except the default is given to the parse function.
-read_environ_default :: (Typecheck.Typecheck a, ShowVal.ShowVal a) =>
+readEnvironDefault :: (Typecheck.Typecheck a, ShowVal.ShowVal a) =>
     (a -> Maybe val) -> Maybe a
     -> Env.Key -> Env.Environ -> Either DeriveT.PitchError val
-read_environ_default parse maybe_deflt name =
-    read_environ_ (maybe (Left Nothing) Right . parse)
-        (parse_default <$> maybe_deflt) name
+readEnvironDefault parse maybeDeflt name =
+    readEnviron_ (maybe (Left Nothing) Right . parse)
+        (parseDefault <$> maybeDeflt) name
     where
-    parse_default val = case parse val of
+    parseDefault val = case parse val of
         Just a -> Right a
-        Nothing -> environ_error $
-            "can't parse default: " <> ShowVal.show_val val
-    environ_error = Left . DeriveT.EnvironError name . Just
+        Nothing -> environError $
+            "can't parse default: " <> ShowVal.showVal val
+    environError = Left . DeriveT.EnvironError name . Just
 
 -- | Read and parse an environ value, or throw a ScaleError.
 -- This takes a parse function in addition to the usual Typecheck, because
 -- scales and keys don't use use Typecheck, beyond ensuring it's a string.
-read_environ_ :: (Typecheck.Typecheck a, ShowVal.ShowVal a)
+readEnviron_ :: (Typecheck.Typecheck a, ShowVal.ShowVal a)
     => (a -> Either (Maybe Text) val) -> Maybe (Either PSignal.PitchError val)
     -> Env.Key -> Env.Environ -> Either DeriveT.PitchError val
-read_environ_ parse maybe_deflt name env = case Env.get_val name env of
+readEnviron_ parse maybeDeflt name env = case Env.getVal name env of
     Left (Env.WrongType expected) ->
-        environ_error ("expected type " <> pretty expected)
-    Left Env.NotFound -> case maybe_deflt of
+        environError ("expected type " <> pretty expected)
+    Left Env.NotFound -> case maybeDeflt of
         Nothing -> Left $ DeriveT.EnvironError name Nothing
         Just deflt -> deflt
-    Right val -> parse_val val
+    Right val -> parseVal val
     where
-    parse_val val = case parse val of
+    parseVal val = case parse val of
         Right a -> Right a
-        Left msg -> environ_error $ ShowVal.show_val val <> ": "
+        Left msg -> environError $ ShowVal.showVal val <> ": "
             <> fromMaybe "can't parse" msg
-    environ_error = Left . DeriveT.EnvironError name . Just
+    environError = Left . DeriveT.EnvironError name . Just
 
 
 -- ** keys
 
-environ_key :: Env.Environ -> Maybe Pitch.Key
-environ_key = fmap Pitch.Key . Env.maybe_val EnvKey.key
+environKey :: Env.Environ -> Maybe Pitch.Key
+environKey = fmap Pitch.Key . Env.maybeVal EnvKey.key
 
 -- | Find a key in a map, or throw a ScaleError.
-get_key :: key -> Map Pitch.Key key -> Maybe Pitch.Key
+getKey :: key -> Map Pitch.Key key -> Maybe Pitch.Key
     -> Either DeriveT.PitchError key
-get_key deflt _ Nothing = Right deflt
-get_key _ keys (Just key) = justErr (key_error key) (Map.lookup key keys)
+getKey deflt _ Nothing = Right deflt
+getKey _ keys (Just key) = justErr (keyError key) (Map.lookup key keys)
 
-lookup_key :: key -> Map Pitch.Key key -> Maybe Pitch.Key -> Maybe key
-lookup_key deflt _ Nothing = Just deflt
-lookup_key _ keys (Just key) = Map.lookup key keys
+lookupKey :: key -> Map Pitch.Key key -> Maybe Pitch.Key -> Maybe key
+lookupKey deflt _ Nothing = Just deflt
+lookupKey _ keys (Just key) = Map.lookup key keys
 
-key_error :: Pitch.Key -> DeriveT.PitchError
-key_error (Pitch.Key key) =
+keyError :: Pitch.Key -> DeriveT.PitchError
+keyError (Pitch.Key key) =
     DeriveT.EnvironError EnvKey.key (Just $ "unknown key: " <> key)

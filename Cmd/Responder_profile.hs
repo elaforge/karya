@@ -26,72 +26,72 @@ import qualified Ui.UiTest as UiTest
 import           Global
 
 
-profile_edits_middle = do
+profileEditsMiddle = do
     -- Test editing a large score in the middle as a real user would.
-    Log.configure $ \st -> st { Log.state_priority = Log.Warn }
-    let edit_block_id = UiTest.bid "b1.5.0"
-    let (view_id, ui_state) = UiTest.run Ui.empty $ do
-            Ui.modify_config $
-                UiConfig.allocations #= UiTest.default_allocations
-            Derive_profile.make_nested_controls 15 3 60
-            view_id <- Create.unfitted_view edit_block_id
-            UiTest.select_point view_id 1 0.0
-            pure view_id
-    let cmd_state = modify_edit_state
-            (ResponderTest.mk_cmd_state ui_state view_id) $ \st ->
-                st { Cmd.state_edit_mode = Cmd.ValEdit }
+    Log.configure $ \st -> st { Log.statePriority = Log.Warn }
+    let editBlockId = UiTest.bid "b1.5.0"
+    let (viewId, uiState) = UiTest.run Ui.empty $ do
+            Ui.modifyConfig $
+                UiConfig.allocations #= UiTest.defaultAllocations
+            Derive_profile.makeNestedControls 15 3 60
+            viewId <- Create.unfittedView editBlockId
+            UiTest.selectPoint viewId 1 0.0
+            pure viewId
+    let cmdState = modifyEditState
+            (ResponderTest.mkCmdState uiState viewId) $ \st ->
+                st { Cmd.stateEditMode = Cmd.ValEdit }
     -- pprint (UiTest.extract_tracks_of edit_block_id ui_state)
 
-    let wait = [(CmdTest.make_key UiMsg.KeyDown Key.ShiftL, 0.1),
-            (CmdTest.make_key UiMsg.KeyUp Key.ShiftL, 4)]
-        alter_note = [(CmdTest.m_note_on 64, 1), (CmdTest.m_note_off 64, 1)]
-        keys = concat $ replicate 4 alter_note
-    ResponderTest.thread_delay True (ui_state, cmd_state) (wait ++ keys)
+    let wait = [(CmdTest.makeKey UiMsg.KeyDown Key.ShiftL, 0.1),
+            (CmdTest.makeKey UiMsg.KeyUp Key.ShiftL, 4)]
+        alterNote = [(CmdTest.mNoteOn 64, 1), (CmdTest.mNoteOff 64, 1)]
+        keys = concat $ replicate 4 alterNote
+    ResponderTest.threadDelay True (uiState, cmdState) (wait ++ keys)
     pure ()
 
-profile_null_cmd = do
+profileNullCmd = do
     -- Test a msg that matches no cmds so I can see how much garbage it
     -- produces by itself.
     let states = ResponderTest.mkstates [(">i1", [(0, 0, "")])]
     let key = CmdTest.keypress Key.ShiftL
     let keys = take (10*1024) (cycle key)
-    cpu <- time_cpu $ ResponderTest.thread False states keys
+    cpu <- timeCpu $ ResponderTest.thread False states keys
     Printf.printf "%.2f sec, %.4f sec per cmd\n"
         (secs cpu) (secs cpu / (10*1024))
 
-profile_selection = do
-    Log.configure $ \st -> st { Log.state_priority = Log.Warn }
-    let (ui_state, cmd_state) = ResponderTest.mkstates [(">i1", [(0, 0, "")])]
-    let ui_state2 = ui_state { Ui.state_rulers =
-            Map.insert (UiTest.rid "b1.r0") (UiTest.mkruler_44 256 1)
-                (Ui.state_rulers ui_state) }
-    let cmd_state2 = modify_edit_state cmd_state $ \st -> st
-            { Cmd.state_time_step = TimeStep.time_step
+profileSelection = do
+    Log.configure $ \st -> st { Log.statePriority = Log.Warn }
+    let (uiState, cmdState) = ResponderTest.mkstates [(">i1", [(0, 0, "")])]
+    let uiState2 = uiState { Ui.stateRulers =
+            Map.insert (UiTest.rid "b1.r0") (UiTest.mkruler44 256 1)
+                (Ui.stateRulers uiState) }
+    let cmdState2 = modifyEditState cmdState $ \st -> st
+            { Cmd.stateTimeStep = TimeStep.timeStep
                 (TimeStep.AbsoluteMark TimeStep.AllMarklists Meter.Q)
             }
-    let states = (ui_state2, cmd_state2)
-    let one_cycle = take (256*2) (cycle (CmdTest.keypress Key.Down))
+    let states = (uiState2, cmdState2)
+    let oneCycle = take (256*2) (cycle (CmdTest.keypress Key.Down))
             ++ take (256*2) (cycle (CmdTest.keypress Key.Up))
-    let keys = take (10*1024) (cycle one_cycle)
-    cpu <- time_cpu $ ResponderTest.thread False states keys
+    let keys = take (10*1024) (cycle oneCycle)
+    cpu <- timeCpu $ ResponderTest.thread False states keys
     Printf.printf "%.2f sec, %.4f sec per cmd\n"
         (secs cpu) (secs cpu / (10*1024))
 
-profile_thru = do
-    let (ui_state, cmd_state) = ResponderTest.mkstates [(">i1", [(0, 0, "")])]
+profileThru = do
+    let (uiState, cmdState) = ResponderTest.mkstates [(">i1", [(0, 0, "")])]
     let ncmds = 10 * 1024
-    let key = [CmdTest.make_midi (Midi.NoteOn 60 20),
-            CmdTest.make_midi (Midi.NoteOff 60 20)]
+    let key = [CmdTest.makeMidi (Midi.NoteOn 60 20),
+            CmdTest.makeMidi (Midi.NoteOff 60 20)]
         keys = take ncmds (cycle key)
-    cpu <- time_cpu $ ResponderTest.thread False (ui_state, cmd_state) keys
+    cpu <- timeCpu $ ResponderTest.thread False (uiState, cmdState) keys
     Printf.printf "%.2f sec, %.4f sec per cmd\n"
         (secs cpu) (secs cpu / fromIntegral ncmds)
 
-time_cpu :: IO a -> IO Thread.Seconds
-time_cpu = fmap (Thread.metricCpu . snd) . Thread.timeAction
+timeCpu :: IO a -> IO Thread.Seconds
+timeCpu = fmap (Thread.metricCpu . snd) . Thread.timeAction
 
 secs :: Thread.Seconds -> Double
 secs = realToFrac
 
-modify_edit_state :: Cmd.State -> (Cmd.EditState -> Cmd.EditState) -> Cmd.State
-modify_edit_state st f = st { Cmd.state_edit = f (Cmd.state_edit st) }
+modifyEditState :: Cmd.State -> (Cmd.EditState -> Cmd.EditState) -> Cmd.State
+modifyEditState st f = st { Cmd.stateEdit = f (Cmd.stateEdit st) }

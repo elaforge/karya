@@ -14,10 +14,10 @@ depth = 10
 -- to_logs = (:[])
 -- from_logs = id
 
-profile_no_anything = runprof (pure ())
-profile_logging_no_state = runprof (Logger.log 1)
-profile_no_logging = runprof increment
-profile_logging = runprof (increment >> Logger.log 1)
+profileNoAnything = runprof (pure ())
+profileLoggingNoState = runprof (Logger.log 1)
+profileNoLogging = runprof increment
+profileLogging = runprof (increment >> Logger.log 1)
 
 type Log a = State.StateT Int (Logger.LoggerT Int Identity.Identity) a
 
@@ -28,7 +28,7 @@ increment = do
 -- increment = State.modify $! (+1)
 
 runprof m = do
-    let ((val, state), logs) = run $ run_lots depth m
+    let ((val, state), logs) = run $ runLots depth m
     putStrLn $ "logs: " ++ show (length logs)
     putStrLn $ "values: " ++ show (take 10 logs)
     putStrLn $ "(val, state): " ++ show (val, state)
@@ -36,12 +36,12 @@ runprof m = do
 run :: Log a -> ((a, Int), [Int])
 run = Identity.runIdentity . Logger.run . flip State.runStateT 0
 
-run_lots :: Int -> Log () -> Log Int
-run_lots depth m
+runLots :: Int -> Log () -> Log Int
+runLots depth m
     | depth <= 0 = m >> (pure $! 1)
     | otherwise = do
-        x1 <- run_lots (depth-1) m
-        x2 <- run_lots (depth-1) m
-        x3 <- run_lots (depth-1) m
-        x4 <- run_lots (depth-1) m
+        x1 <- runLots (depth-1) m
+        x2 <- runLots (depth-1) m
+        x3 <- runLots (depth-1) m
+        x4 <- runLots (depth-1) m
         pure $! (1 + x1 + x2 + x3 + x4)

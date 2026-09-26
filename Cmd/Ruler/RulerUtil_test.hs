@@ -21,12 +21,12 @@ import           Util.Test
 
 test_modify :: Test
 test_modify = do
-    let f with_ruler scope =
+    let f withRuler scope =
             extract $ snd $ run make $
-                RulerUtil.modify scope UiTest.default_block_id
+                RulerUtil.modify scope UiTest.defaultBlockId
                     (const $ Right $ mkruler ["X", "Y"])
-            where make = if with_ruler then make_sections else make_no_ruler 2
-        extract st = (track_rulers st, extract_rulers st)
+            where make = if withRuler then makeSections else makeNoRuler 2
+        extract st = (trackRulers st, extractRulers st)
         xy = ["X", "Y"]
     -- Both are modified.
     equal (f True RulerUtil.Block)
@@ -47,10 +47,10 @@ test_modify = do
 
 test_local :: Test
 test_local = do
-    let f scope = extract $ snd $ run make_sections $
-            RulerUtil.local scope UiTest.default_block_id
+    let f scope = extract $ snd $ run makeSections $
+            RulerUtil.local scope UiTest.defaultBlockId
                 (const $ Right $ mkruler ["X", "Y"])
-        extract st = (track_rulers st, extract_rulers st)
+        extract st = (trackRulers st, extractRulers st)
         xy = ["X", "Y"]
         unmodified n = ("s" <> showt n, ["s" <> showt n])
     -- They're unique to the block, so modify.
@@ -71,41 +71,41 @@ run make action = UiTest.run Ui.empty (make >> action)
 
 -- | Make a block with two ruler sections.
 -- TODO I also want to make sure only the section ruler id is set.
-make_sections :: Ui.M m => m ()
-make_sections = do
-    Ui.set_namespace UiTest.test_ns
+makeSections :: Ui.M m => m ()
+makeSections = do
+    Ui.setNamespace UiTest.test_ns
     r1 <- Create.ruler "s1" (mkruler ["s1"])
     t1 <- mktrack 1
     r2 <- Create.ruler "s2" (mkruler ["s2"])
     t2 <- mktrack 3
-    UiTest.create_block (Id.unpack_id block_id) ""
+    UiTest.createBlock (Id.unpackId blockId) ""
         [ Block.RId r1, Block.TId t1 r1
         , Block.RId r2, Block.TId t2 r2
         ]
-    Ui.set_skeleton block_id =<< UiTest.parse_skeleton block_id
+    Ui.setSkeleton blockId =<< UiTest.parseSkeleton blockId
     where
-    block_id = UiTest.default_block_id
-    mktrack n = Ui.create_track
-        (Id.unpack_id (UiTest.mk_tid_block block_id n))
-        (UiTest.empty_track ">")
+    blockId = UiTest.defaultBlockId
+    mktrack n = Ui.createTrack
+        (Id.unpackId (UiTest.mkTidBlock blockId n))
+        (UiTest.emptyTrack ">")
 
-make_no_ruler :: Ui.M m => Int -> m ()
-make_no_ruler ntracks =
-    void $ UiTest.mkblock_ruler_id Ui.no_ruler
-        UiTest.default_block_id "" (replicate ntracks (">", []))
+makeNoRuler :: Ui.M m => Int -> m ()
+makeNoRuler ntracks =
+    void $ UiTest.mkblockRulerId Ui.noRuler
+        UiTest.defaultBlockId "" (replicate ntracks (">", []))
 
-track_rulers :: Ui.State -> [Text]
-track_rulers = map Id.ident_name . Block.ruler_ids_of
-    . map Block.tracklike_id . Block.block_tracks . head . Map.elems
-    . Ui.state_blocks
+trackRulers :: Ui.State -> [Text]
+trackRulers = map Id.identName . Block.rulerIdsOf
+    . map Block.tracklikeId . Block.blockTracks . head . Map.elems
+    . Ui.stateBlocks
 
-extract_rulers :: Ui.State -> [(Text, [Mark.Label])]
-extract_rulers =
-    map (bimap Id.ident_name extract) . Map.toList . Ui.state_rulers
-    where extract = map (snd . snd) . UiTest.ruler_marks
+extractRulers :: Ui.State -> [(Text, [Mark.Label])]
+extractRulers =
+    map (bimap Id.identName extract) . Map.toList . Ui.stateRulers
+    where extract = map (snd . snd) . UiTest.rulerMarks
 
 mkruler :: [Mark.Label] -> Ruler.Ruler
-mkruler labels = UiTest.mkruler_marks
+mkruler labels = UiTest.mkrulerMarks
     [ (t, (0, label))
     | (t, label) <- zip (Lists.range_ 0 1) labels
     ]

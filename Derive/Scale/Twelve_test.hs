@@ -21,7 +21,7 @@ import           Util.Test
 
 test_note_to_nn :: Test
 test_note_to_nn = do
-    let f = DeriveTest.extract Score.initial_nn . derive_pitch "twelve" ""
+    let f = DeriveTest.extract Score.initialNn . derivePitch "twelve" ""
     equal (f "3b") ([Just NN.b3], [])
     equal (f "4c") ([Just NN.c4], [])
     equal (f "-2c") ([Nothing], [])
@@ -34,20 +34,20 @@ test_note_to_nn = do
 
 test_read_relative :: Test
 test_read_relative = do
-    let f = read_scale (ScaleTest.get_scale Twelve.scales "twelve-r")
-    right_equal (f "c-maj" "5s") "5-0"
-    right_equal (f "d-maj" "5s") "5-1"
-    right_equal (f "c#-maj" "5s") "5-0#"
-    right_equal (f "c#-maj" "4n") "4-6#"
+    let f = readScale (ScaleTest.getScale Twelve.scales "twelve-r")
+    rightEqual (f "c-maj" "5s") "5-0"
+    rightEqual (f "d-maj" "5s") "5-1"
+    rightEqual (f "c#-maj" "5s") "5-0#"
+    rightEqual (f "c#-maj" "4n") "4-6#"
 
-read_scale :: Scale.Scale -> Text -> Pitch.Note -> Either Text Text
-read_scale scale key note = bimap pretty pretty $
-    Scale.scale_read scale (ScaleTest.key_environ key) note
+readScale :: Scale.Scale -> Text -> Pitch.Note -> Either Text Text
+readScale scale key note = bimap pretty pretty $
+    Scale.scaleRead scale (ScaleTest.keyEnviron key) note
 
 test_note_to_call_relative :: Test
 test_note_to_call_relative = do
-    let f key = DeriveTest.extract Score.initial_nn
-            . derive_pitch "twelve-r" key
+    let f key = DeriveTest.extract Score.initialNn
+            . derivePitch "twelve-r" key
     equal (f "" "4s") ([Just NN.c4], [])
     equal (f "" "4g") ([Just NN.e4], [])
     equal (f "c-min" "4g") ([Just NN.ds4], [])
@@ -61,16 +61,16 @@ test_note_to_call_relative = do
 
 test_pitch_note_relative :: Test
 test_pitch_note_relative = do
-    let f key = DeriveTest.extract Score.initial_note
-            . derive_pitch "twelve-r" key
+    let f key = DeriveTest.extract Score.initialNote
+            . derivePitch "twelve-r" key
     equal (f "c-min" "4s") ([Just "4s"], [])
     -- Symbolic Pitch.Note is still relative.
     equal (f "b-min" "4s") ([Just "4s"], [])
 
 test_keyed_to_nn :: Test
 test_keyed_to_nn = do
-    let run = DeriveTest.extract Score.initial_nn
-            . derive_pitch "twelve-k" "d-min"
+    let run = DeriveTest.extract Score.initialNn
+            . derivePitch "twelve-k" "d-min"
     equal (run "4c") ([Just NN.c4], [])
     equal (run "4b") ([Just NN.as4], [])
     equal (run "4b`n`") ([Just NN.b4], [])
@@ -83,10 +83,10 @@ test_keyed_to_nn = do
 
 test_keyed_input_to_note :: Test
 test_keyed_input_to_note = do
-    let f key = either pretty Pitch.note_text <$>
-            ChromaticScales.input_to_note Twelve.keyed_scale_map
-                (ScaleTest.key_environ key)
-        ascii = CmdTest.ascii_kbd . (\(a, b, c) -> CmdTest.pitch a b c)
+    let f key = either pretty Pitch.noteText <$>
+            ChromaticScales.inputToNote Twelve.keyedScaleMap
+                (ScaleTest.keyEnviron key)
+        ascii = CmdTest.asciiKbd . (\(a, b, c) -> CmdTest.pitch a b c)
         invalid = "invalid input"
     equal (map (f "d-min" . ascii) [(4, pc, acc) | pc <- [0..6], acc <- [0, 1]])
         [ "4c", "4d`b`", "4d", "4e`b`", "4e", invalid, "4f", "4g`b`"
@@ -96,7 +96,7 @@ test_keyed_input_to_note = do
 
 -- * util
 
-derive_pitch :: Text -> Text -> Text -> Derive.Result
-derive_pitch scale key pitch =
-    DeriveTest.derive_tracks (if key == "" then "" else "key = " <> key)
+derivePitch :: Text -> Text -> Text -> Derive.Result
+derivePitch scale key pitch =
+    DeriveTest.deriveTracks (if key == "" then "" else "key = " <> key)
         [(">", [(0, 1, "")]), ("*" <> scale, [(0, 0, pitch)])]

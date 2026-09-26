@@ -26,9 +26,9 @@ convert med = ModT.Module
     { _instruments = IntMap.fromList $ zip [1..] $
         map instrument (MED.instrs med)
         -- TODO I guess MED instruments start at 1?
-    , _default_tempo = ModT.Tempo 33 6 -- TODO
+    , _defaultTempo = ModT.Tempo 33 6 -- TODO
     , _blocks = map block (MED.blocks med)
-    , _block_order = Map.fromList
+    , _blockOrder = Map.fromList
         [ (txt name, indices)
         | PlaySeq.MEDPlaySeq name indices <- MED.playseqs med
         ]
@@ -36,7 +36,7 @@ convert med = ModT.Module
 
 instrument :: Instrument.MEDInstrument -> ModT.Instrument
 instrument inst = ModT.Instrument
-    { _instrument_name = maybe "none" (ScoreT.Instrument . txt) $
+    { _instrumentName = maybe "none" (ScoreT.Instrument . txt) $
         Instrument.name inst
     , _volume = ModT.volume <$> Instrument.svol inst
     }
@@ -44,12 +44,12 @@ instrument inst = ModT.Instrument
 block :: Block.MEDBlock -> ModT.Block
 block b = ModT.Block
     { _tracks = map track $ Lists.rotate2 $ map snd $ Block.seqdata b
-    , _block_length = Block.lines b
+    , _blockLength = Block.lines b
     }
 
 track :: [Maybe (Block.Note, Block.Inst, [(Block.Cmd, Block.Val)])]
     -> ModT.Track
-track = ModT.make_track . zip [0..] . map (maybe empty note)
+track = ModT.makeTrack . zip [0..] . map (maybe empty note)
     where empty = ModT.Line Nothing 0 []
 
 note :: (Block.Note, Block.Inst, [(Block.Cmd, Block.Val)]) -> ModT.Line

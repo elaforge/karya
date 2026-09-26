@@ -30,36 +30,36 @@ import           Util.Test
 
 test_at :: Test
 test_at = do
-    let f x = fmap show_pitch . (`PSignal.at` x)
+    let f x = fmap showPitch . (`PSignal.at` x)
     equal (f 0 (PSignal.constant (twelve "4c"))) (Just ("60nn", "4c"))
-    equal (show_pitch $ Pitches.transpose_c 7 (twelve "4c"))
+    equal (showPitch $ Pitches.transposeC 7 (twelve "4c"))
         ("67nn", "4g")
-    equal (f 0 (PSignal.constant (Pitches.transpose_c 7 (twelve "4c"))))
+    equal (f 0 (PSignal.constant (Pitches.transposeC 7 (twelve "4c"))))
         (Just ("67nn", "4g"))
 
 test_interpolate :: Test
 test_interpolate = do
     let c4 = twelve "4c"
-        g4 = Pitches.transpose_c 7 c4
+        g4 = Pitches.transposeC 7 c4
 
-    equal (show_pitch g4) ("67nn", "4g")
-    equal (show_pitch $ DeriveT.interpolate
+    equal (showPitch g4) ("67nn", "4g")
+    equal (showPitch $ DeriveT.interpolate
             (Segment.Sample 0 g4) (Segment.Sample 10 g4) 5)
         ("67nn", "4g")
 
 test_transpose :: Test
 test_transpose = do
     let c3 = twelve "3c"
-        g3 = Pitches.transpose_c 7 c3
-    let e = Score.empty_event { Score.event_pitch = PSignal.constant g3 }
-    equal (show_pitch c3) ("48nn", "3c")
-    equal (show_pitch g3) ("55nn", "3g")
-    equal (show_pitch <$> Score.pitch_at 0 e) $ Just ("55nn", "3g")
-    equal (show_pitch <$> Score.initial_pitch e) $ Just ("55nn", "3g")
+        g3 = Pitches.transposeC 7 c3
+    let e = Score.emptyEvent { Score.eventPitch = PSignal.constant g3 }
+    equal (showPitch c3) ("48nn", "3c")
+    equal (showPitch g3) ("55nn", "3g")
+    equal (showPitch <$> Score.pitchAt 0 e) $ Just ("55nn", "3g")
+    equal (showPitch <$> Score.initialPitch e) $ Just ("55nn", "3g")
 
 test_apply_controls :: Test
 test_apply_controls = do
-    let f controls sig = to_pairs $ PSignal.apply_controls
+    let f controls sig = toPairs $ PSignal.applyControls
             (mkcontrols controls) (mksignal sig)
         err = Left "bad transpose"
     equal (f [] [(0, 1)]) [(0, Right 1)]
@@ -97,10 +97,10 @@ test_apply_controls_nontransposing = do
     -- There are controls that influence the tuning but are not transposing.
     -- This just means they don't cause the pitch signal to resample.
     let f controls sig = Lists.dropDups id $
-            map (second (controls_of . PSignal.pitch_config)) $
-            PSignal.to_pairs $
-            PSignal.apply_controls (mkcontrols controls) (mksignal sig)
-        controls_of (PSignal.PitchConfig _ cmap) = Map.toList cmap
+            map (second (controlsOf . PSignal.pitchConfig)) $
+            PSignal.toPairs $
+            PSignal.applyControls (mkcontrols controls) (mksignal sig)
+        controlsOf (PSignal.PitchConfig _ cmap) = Map.toList cmap
     equal (f [("a", [(0, 220)]), (trans1, [(1, 0)])] [(1, 1)])
         [(1, [("a", 220), (trans1, 0)])]
     equal (f [("a", [(0, 220)]), (trans1, [(1, 0), (2, 1)])] [(1, 1)])
@@ -112,69 +112,69 @@ test_apply_controls_nontransposing = do
 
 test_apply_environ :: Test
 test_apply_environ = do
-    let f env1 env2 = to_pairs $ PSignal.apply_environ (mkenv env1) $
+    let f env1 env2 = toPairs $ PSignal.applyEnviron (mkenv env1) $
             mksignal (mkenv env2)
-        to_pairs = map (second (PSignal.pitch_note . PSignal.coerce))
-            . PSignal.to_pairs
-        mksignal env = PSignal.from_pairs [(0, env_pitch env)]
-        mkenv val = Env.from_list [("tuning", Typecheck.to_val (val :: Text))]
+        toPairs = map (second (PSignal.pitchNote . PSignal.coerce))
+            . PSignal.toPairs
+        mksignal env = PSignal.fromPairs [(0, envPitch env)]
+        mkenv val = Env.fromList [("tuning", Typecheck.toVal (val :: Text))]
     -- apply_environ wins over the environ already in the pitch.
     equal (f "a" "b") [(0, Right "a")]
 
-env_pitch :: Env.Environ -> PSignal.Pitch
-env_pitch env =
-    PSignal.pitch default_scale pitch_nn pitch_note
+envPitch :: Env.Environ -> PSignal.Pitch
+envPitch env =
+    PSignal.pitch defaultScale pitchNn pitchNote
         (PSignal.PitchConfig env mempty)
     where
-    pitch_nn _ = Right 42
-    pitch_note (PSignal.PitchConfig env _) =
-        Right $ Pitch.Note $ fromMaybe "?" $ Env.maybe_val "tuning" env
+    pitchNn _ = Right 42
+    pitchNote (PSignal.PitchConfig env _) =
+        Right $ Pitch.Note $ fromMaybe "?" $ Env.maybeVal "tuning" env
 
 mkcontrols :: [(ScoreT.Control, [(Signal.X, Signal.Y)])]
     -> Map ScoreT.Control (ScoreT.Typed Signal.Control)
-mkcontrols = Map.fromList . map (second (ScoreT.untyped . Signal.from_pairs))
+mkcontrols = Map.fromList . map (second (ScoreT.untyped . Signal.fromPairs))
 
-twelve_signal :: [(RealTime, Pitch.Note)] -> PSignal.PSignal
-twelve_signal = PSignal.from_pairs . map (second twelve)
+twelveSignal :: [(RealTime, Pitch.Note)] -> PSignal.PSignal
+twelveSignal = PSignal.fromPairs . map (second twelve)
 
 mksignal :: [(RealTime, Pitch.NoteNumber)] -> PSignal.PSignal
-mksignal = PSignal.from_pairs . map (second mkpitch)
+mksignal = PSignal.fromPairs . map (second mkpitch)
 
-default_scale :: PSignal.Scale
-default_scale = PSignal.Scale "test" (Set.fromList [trans1, trans2])
+defaultScale :: PSignal.Scale
+defaultScale = PSignal.Scale "test" (Set.fromList [trans1, trans2])
 
 mkpitch :: Pitch.NoteNumber -> PSignal.Pitch
 mkpitch nn =
-    PSignal.pitch default_scale pitch_nn (const $ Right $ Pitch.Note $ showt nn)
+    PSignal.pitch defaultScale pitchNn (const $ Right $ Pitch.Note $ showt nn)
         mempty
     where
-    pitch_nn config
+    pitchNn config
         | transposed >= 4 = Left (PSignal.PitchError "bad transpose")
         | otherwise = Right transposed
         where
         transposed = nn + get trans1 + get trans2 / 2
         get c = Pitch.NoteNumber $ Map.findWithDefault 0 c $
-            PSignal.pitch_controls config
+            PSignal.pitchControls config
 
 trans1, trans2 :: ScoreT.Control
 trans1 = "trans1"
 trans2 = "trans2"
 
-to_pairs :: PSignal.PSignal -> [(RealTime, Either String Pitch.NoteNumber)]
-to_pairs =
+toPairs :: PSignal.PSignal -> [(RealTime, Either String Pitch.NoteNumber)]
+toPairs =
     -- Segment.add_zero_transition can cause zero-width segments.  PSignal
     -- can't get rid of them since pitches are not in Eq, but they should be
     -- harmless.
     Lists.dropDups id
-    . map (second (unerror . PSignal.pitch_nn . PSignal.coerce))
-        . PSignal.to_pairs
+    . map (second (unerror . PSignal.pitchNn . PSignal.coerce))
+        . PSignal.toPairs
     where unerror = either (\(PSignal.PitchError s) -> Left (untxt s)) Right
 
 twelve :: Pitch.Note -> PSignal.RawPitch a
-twelve = expect_right . DeriveTest.eval Ui.empty . Eval.eval_note Twelve.scale
+twelve = expectRight . DeriveTest.eval Ui.empty . Eval.evalNote Twelve.scale
 
-show_pitch :: PSignal.RawPitch a -> (Text, Text)
-show_pitch p =
-    ( either showt pretty (PSignal.pitch_nn (PSignal.coerce p))
-    , either showt Pitch.note_text (PSignal.pitch_note (PSignal.coerce p))
+showPitch :: PSignal.RawPitch a -> (Text, Text)
+showPitch p =
+    ( either showt pretty (PSignal.pitchNn (PSignal.coerce p))
+    , either showt Pitch.noteText (PSignal.pitchNote (PSignal.coerce p))
     )

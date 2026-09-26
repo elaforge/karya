@@ -12,7 +12,7 @@ import           Util.Test
 
 test_carry_zeroes :: Test
 test_carry_zeroes = do
-    let f = map extract . IntMap.elems . ModT.carry_zeroes
+    let f = map extract . IntMap.elems . ModT.carryZeroes
             . IntMap.fromList . zip [0..] . map make
         make (inst, cmds) = ModT.Line Nothing inst cmds
         extract (ModT.Line _ inst cmds) = (inst, cmds)

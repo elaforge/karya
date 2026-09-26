@@ -17,13 +17,13 @@ import           Util.Test
 
 test_resolve :: Test
 test_resolve = do
-    equal Gong.kajar_resolve_errors []
+    equal Gong.kajarResolveErrors []
 
 test_doubled :: Test
 test_doubled = do
     let run tracks = DeriveTest.extract extract $ derive "" tracks
-        extract e = (Score.event_start e, Score.initial_dynamic e,
-            DeriveTest.e_attributes e)
+        extract e = (Score.eventStart e, Score.initialDynamic e,
+            DeriveTest.eAttributes e)
     equal (run [(">k", [(1, 0, "oo-time=.5 | oo-dyn=.75 | oo")])])
         ([(1, 1, "+center+closed"), (1.5, 0.75, "+center+closed")], [])
     equal (run
@@ -35,10 +35,10 @@ test_doubled = do
 test_nruk :: Test
 test_nruk = do
     let run notes = DeriveTest.extract extract $ derive "" [(">k", notes)]
-        extract e = (Score.event_start e, DeriveTest.e_attributes e)
+        extract e = (Score.eventStart e, DeriveTest.eAttributes e)
         o = "+center+closed"
     equal (run [(4, 0, "o.. 2 2"), (6, 0, "+")])
         ([(4, o), (4.5, o), (5, o), (5.5, o), (6, "+open+rim")], [])
 
 derive :: Text -> [UiTest.TrackSpec] -> Derive.Result
-derive = KontaktTest.derive (DeriveTest.simple_allocs [("k", "kontakt/kajar")])
+derive = KontaktTest.derive (DeriveTest.simpleAllocs [("k", "kontakt/kajar")])

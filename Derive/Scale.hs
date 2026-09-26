@@ -31,16 +31,16 @@ import           Global
 -- | Lookup a scale or throw.
 get :: Derive.CallName -> [DeriveT.Val] -> Derive.Deriver Derive.Scale
 get name args = Derive.require ("Scale.get: unknown scale: " <> pretty name)
-    =<< lookup_scale name args
+    =<< lookupScale name args
 
-lookup_scale :: Derive.CallName -> [DeriveT.Val]
+lookupScale :: Derive.CallName -> [DeriveT.Val]
     -> Derive.Deriver (Maybe Derive.Scale)
-lookup_scale name args = do
-    scale_calls <- Derive.gets $
-        Derive.state_scale_calls . Derive.state_constant
-    case Map.lookup name scale_calls of
+lookupScale name args = do
+    scaleCalls <- Derive.gets $
+        Derive.stateScaleCalls . Derive.stateConstant
+    case Map.lookup name scaleCalls of
         Nothing -> pure Nothing
-        Just scall -> Just <$> Derive.scall_call scall args
+        Just scall -> Just <$> Derive.scallCall scall args
 
 -- | Scale calls always use Sig.Unprefixed.  This makes them inconsistent with
 -- other kinds of calls, but I think is the better default, since I try to make
@@ -48,15 +48,15 @@ lookup_scale name args = do
 -- Especially scale-inst relies on it.
 call :: Sig.Parser a -> (a -> Derive.Deriver Derive.Scale)
     -> Derive.WithArgDoc Derive.ScaleF
-call parser f = (go, Sig.parser_docs parser)
+call parser f = (go, Sig.parserDocs parser)
     where
     go args =
-        f =<< Sig.require_right =<< Sig.parse_vals parser ctx call_name args
+        f =<< Sig.requireRight =<< Sig.parseVals parser ctx callName args
     -- This will make Sig.Prefixed act like Sig.Unprefixed.
-    call_name = ""
+    callName = ""
     -- TODO Sig.parse insists on having a ctx, can I remove it?
     -- used for Typecheck.Derive -> Sig.quoted_to_deriver -> Eval.eval_quoted
-    ctx = Derive.dummy_context 0 1 "scale-call"
+    ctx = Derive.dummyContext 0 1 "scale-call"
 
 -- * old Definition
 
@@ -67,9 +67,9 @@ data Definition
         !(Env.Environ -> LookupScale -> Either DeriveT.PitchError Scale)
     | Simple !Scale
 
-scale_id_of :: Definition -> Pitch.ScaleId
-scale_id_of (Make scale_id _ _) = scale_id
-scale_id_of (Simple scale) = scale_id scale
+scaleIdOf :: Definition -> Pitch.ScaleId
+scaleIdOf (Make scaleId _ _) = scaleId
+scaleIdOf (Simple scale) = scaleId scale
 
 -- * util
 
@@ -85,68 +85,68 @@ type PitchNote = PSignal.PitchConfig -> Either PSignal.PitchError Pitch.Note
 layout :: [Pitch.Semi] -> Derive.Layout
 layout = Vector.fromList
 
-no_octaves :: Derive.Layout
-no_octaves = Vector.empty
+noOctaves :: Derive.Layout
+noOctaves = Vector.empty
 
-diatonic_layout :: Pitch.PitchClass -> Derive.Layout
-diatonic_layout per_oct = layout $ replicate per_oct 1
+diatonicLayout :: Pitch.PitchClass -> Derive.Layout
+diatonicLayout perOct = layout $ replicate perOct 1
 
 -- | Number of chromatic steps in an octave.  Nothing if this scale doesn't
 -- have octaves.
-semis_per_octave :: Derive.Layout -> Pitch.Semi
-semis_per_octave = Vector.sum
+semisPerOctave :: Derive.Layout -> Pitch.Semi
+semisPerOctave = Vector.sum
 
-semis_at_pc :: Derive.Layout -> Pitch.PitchClass -> Pitch.Semi
-semis_at_pc layout pc = case pc_per_octave layout of
+semisAtPc :: Derive.Layout -> Pitch.PitchClass -> Pitch.Semi
+semisAtPc layout pc = case pcPerOctave layout of
     Nothing -> pc
-    Just per_oct -> oct * Vector.sum layout + Vector.sum (Vector.take i layout)
-        where (oct, i) = pc `divMod` per_oct
+    Just perOct -> oct * Vector.sum layout + Vector.sum (Vector.take i layout)
+        where (oct, i) = pc `divMod` perOct
 
 -- | Number of diatonic steps in an octave.  Nothing if this scale doesn't have
 -- octaves.  This is the same as 'semis_per_octave' for scales without
 -- a diatonic\/chromatic distinction.
-pc_per_octave :: Derive.Layout -> Maybe Pitch.PitchClass
-pc_per_octave layout
+pcPerOctave :: Derive.Layout -> Maybe Pitch.PitchClass
+pcPerOctave layout
     | Vector.null layout = Nothing
     | otherwise = Just $ Vector.length layout
 
-diatonic_difference :: Derive.Layout -> Pitch.Pitch -> Pitch.Pitch
+diatonicDifference :: Derive.Layout -> Pitch.Pitch -> Pitch.Pitch
     -> Pitch.PitchClass
-diatonic_difference layout (Pitch.Pitch oct1 (Pitch.Degree pc1 _))
+diatonicDifference layout (Pitch.Pitch oct1 (Pitch.Degree pc1 _))
         (Pitch.Pitch oct2 (Pitch.Degree pc2 _)) =
-    oct_diff + (pc1 - pc2)
-    where oct_diff = maybe 0 (* (oct1-oct2)) (pc_per_octave layout)
+    octDiff + (pc1 - pc2)
+    where octDiff = maybe 0 (* (oct1-oct2)) (pcPerOctave layout)
 
-chromatic_difference :: Derive.Layout -> Pitch.Pitch -> Pitch.Pitch
+chromaticDifference :: Derive.Layout -> Pitch.Pitch -> Pitch.Pitch
     -> Pitch.Semi
-chromatic_difference layout (Pitch.Pitch oct1 (Pitch.Degree pc1 acc1))
+chromaticDifference layout (Pitch.Pitch oct1 (Pitch.Degree pc1 acc1))
         (Pitch.Pitch oct2 (Pitch.Degree pc2 acc2)) =
-    oct_diff + (semis_at_pc layout pc1 - semis_at_pc layout pc2) + (acc1 - acc2)
-    where oct_diff = semis_per_octave layout * (oct1 - oct2)
+    octDiff + (semisAtPc layout pc1 - semisAtPc layout pc2) + (acc1 - acc2)
+    where octDiff = semisPerOctave layout * (oct1 - oct2)
 
 transpose :: Transposition -> Scale -> Env.Environ -> Pitch.Octave
     -> Pitch.Step -> Pitch.Note -> Either DeriveT.PitchError Pitch.Note
 transpose transposition scale environ octaves steps =
-    scale_show scale environ
-    <=< scale_transpose scale transposition environ steps
-    . Pitch.add_octave octaves <=< scale_read scale environ
+    scaleShow scale environ
+    <=< scaleTranspose scale transposition environ steps
+    . Pitch.addOctave octaves <=< scaleRead scale environ
 
-transpose_pitch :: Transposition -> Scale -> Env.Environ -> Pitch.Octave
+transposePitch :: Transposition -> Scale -> Env.Environ -> Pitch.Octave
     -> Pitch.Step -> Pitch.Pitch -> Either DeriveT.PitchError Pitch.Pitch
-transpose_pitch transposition scale environ octaves steps =
-    scale_transpose scale transposition environ steps
-    . Pitch.add_octave octaves
+transposePitch transposition scale environ octaves steps =
+    scaleTranspose scale transposition environ steps
+    . Pitch.addOctave octaves
 
 -- * Range
 
 -- | This is an inclusive pitch range, intended for instrument ranges.
 data Range = Range
-    { range_bottom :: !Pitch.Pitch
-    , range_top :: !Pitch.Pitch
+    { rangeBottom :: !Pitch.Pitch
+    , rangeTop :: !Pitch.Pitch
     } deriving (Show, Eq)
 
-in_range :: Range -> Pitch.Pitch -> Bool
-in_range (Range bottom top) pitch = bottom <= pitch && pitch <= top
+inRange :: Range -> Pitch.Pitch -> Bool
+inRange (Range bottom top) pitch = bottom <= pitch && pitch <= top
 
 instance Pretty Range where
     pretty (Range bottom top) = pretty bottom <> "--" <> pretty top
@@ -157,45 +157,45 @@ instance Pretty Range where
 -- this may go on forever, so zip with 'note_numbers' if you want the usable
 -- range.  Also, not all scales actually have defined degrees.
 pitches :: Scale -> Env.Environ -> [Pitch.Pitch]
-pitches scale environ = go (scale_bottom scale)
+pitches scale environ = go (scaleBottom scale)
     where
     go pitch = pitch : either (const []) go (step pitch)
-    step = scale_transpose scale Chromatic environ 1
+    step = scaleTranspose scale Chromatic environ 1
 
 -- | Return the notes in the scale.  As with 'pitches', it may be unbounded.
 notes :: Scale -> Env.Environ -> [Pitch.Note]
 notes scale environ = go (pitches scale environ)
     where
-    go (p:ps) = case scale_show scale environ p of
+    go (p:ps) = case scaleShow scale environ p of
         Right n -> n : go ps
         Left _ -> []
     go [] = []
 
 -- | Return pitches of the scale's degrees.
-note_numbers :: Scale -> Env.Environ -> Derive.Deriver [Pitch.NoteNumber]
-note_numbers scale environ = go (notes scale environ)
+noteNumbers :: Scale -> Env.Environ -> Derive.Deriver [Pitch.NoteNumber]
+noteNumbers scale environ = go (notes scale environ)
     where
     go [] = pure []
     go (note : notes) = do
-        pitch <- Eval.eval_note scale note
-        case PSignal.pitch_nn pitch of
+        pitch <- Eval.evalNote scale note
+        case PSignal.pitchNn pitch of
             Right nn -> (nn:) <$> go notes
             Left (DeriveT.OutOfRangeError {}) -> pure []
             Left err -> Derive.throw $ "note_numbers: " <> pretty err
 
 -- | Make a patch scale from the NoteNumbers.
-patch_scale :: Pitch.ScaleId -> [Pitch.NoteNumber] -> Patch.Scale
-patch_scale scale_id nns = Patch.make_scale (pretty scale_id) $
-    map (first Midi.to_key) $ assign_keys 128 nns
+patchScale :: Pitch.ScaleId -> [Pitch.NoteNumber] -> Patch.Scale
+patchScale scaleId nns = Patch.makeScale (pretty scaleId) $
+    map (first Midi.toKey) $ assignKeys 128 nns
 
 -- | Try to assign MIDI keys that correspond to the NoteNumbers, but
 -- they won't line up if there are too many NoteNumbers.
-assign_keys :: Int -> [Pitch.NoteNumber] -> [(Int, Pitch.NoteNumber)]
-assign_keys top_key nns = go 0 (top_key - length nns) nns
+assignKeys :: Int -> [Pitch.NoteNumber] -> [(Int, Pitch.NoteNumber)]
+assignKeys topKey nns = go 0 (topKey - length nns) nns
     where
     go _ _ [] = []
     go key extra (nn:nns)
-        | key >= top_key = []
+        | key >= topKey = []
         | otherwise =
             (assigned, nn) : go (assigned+1) (extra - (assigned-key)) nns
         where assigned = key + max 0 (min (floor nn - key) extra)

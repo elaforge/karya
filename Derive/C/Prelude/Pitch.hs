@@ -44,133 +44,133 @@ import           Types
 library :: Library.Library
 library = mconcat
     [ Library.generators $
-        [ ("set", c_set)
-        , ("set-or-move", c_set_or_move)
-        , ("'", c_set_prev)
-        , ("*", c_multiply)
+        [ ("set", cSet)
+        , ("set-or-move", cSetOrMove)
+        , ("'", cSetPrev)
+        , ("*", cMultiply)
 
         -- interpolating
-        , ("n", c_neighbor)
-        , ("a", c_approach)
-        , ("u", c_up)
-        , ("d", c_down)
-        , ("p", c_porta)
-        ] ++ PitchUtil.interpolator_variations
-    , Library.transformers [("set", c_set_transformer)]
+        , ("n", cNeighbor)
+        , ("a", cApproach)
+        , ("u", cUp)
+        , ("d", cDown)
+        , ("p", cPorta)
+        ] ++ PitchUtil.interpolatorVariations
+    , Library.transformers [("set", cSetTransformer)]
     ]
 
 -- * pitch
 
-c_set :: Derive.Generator Derive.Pitch
-c_set = generator1 "set" mempty "Emit a pitch with no interpolation." $
+cSet :: Derive.Generator Derive.Pitch
+cSet = generator1 "set" mempty "Emit a pitch with no interpolation." $
     -- This could take a transpose too, but then set has to be in
     -- 'require_previous', it gets shadowed for "" because of scales that use
     -- numbers, and it's not clearly useful.
     Sig.call (required "pitch" "Set this pitch.") $ \pitch_ args -> do
-        let pitch = either PSignal.nn_pitch id pitch_
-        pos <- Args.real_start args
-        pure $ PSignal.from_sample pos pitch
+        let pitch = either PSignal.nnPitch id pitch_
+        pos <- Args.realStart args
+        pure $ PSignal.fromSample pos pitch
 
-c_set_or_move :: Derive.Generator Derive.Pitch
-c_set_or_move = generator1 "set-or-move" mempty
+cSetOrMove :: Derive.Generator Derive.Pitch
+cSetOrMove = generator1 "set-or-move" mempty
     "Emit a pitch with no interpolation if it coincides with a note attack,\
     \ and interpolate otherwise." $
     Sig.call ((,)
         <$> required "pitch" "Set this pitch."
         <*> defaulted "time" (Typecheck.real 0.15) "Time to move to the pitch."
     ) $ \(pitch_, Typecheck.DefaultReal time) args -> do
-        let pitch = either PSignal.nn_pitch id pitch_
-        (event_at (Args.start args) <$> Args.get_note_events) >>= \case
+        let pitch = either PSignal.nnPitch id pitch_
+        (eventAt (Args.start args) <$> Args.getNoteEvents) >>= \case
             False -> do
-                (start, end) <- Call.duration_from_start args time
-                let maybe_from = snd <$> Args.prev_pitch args
-                PitchUtil.make_segment_from ControlUtil.Linear start maybe_from
+                (start, end) <- Call.durationFromStart args time
+                let maybeFrom = snd <$> Args.prevPitch args
+                PitchUtil.makeSegmentFrom ControlUtil.Linear start maybeFrom
                     end (Left pitch)
             True -> do
-                pos <- Args.real_start args
-                pure $ PSignal.from_sample pos pitch
+                pos <- Args.realStart args
+                pure $ PSignal.fromSample pos pitch
 
-event_at :: TrackTime -> Events.Events -> Bool
-event_at pos events = Maybe.isJust (Events.at pos Types.Positive events)
+eventAt :: TrackTime -> Events.Events -> Bool
+eventAt pos events = Maybe.isJust (Events.at pos Types.Positive events)
     || Maybe.isJust (Events.at pos Types.Negative events)
 
-c_set_transformer :: Derive.Transformer Derive.Pitch
-c_set_transformer = Derive.transformer Module.prelude "set" mempty
+cSetTransformer :: Derive.Transformer Derive.Pitch
+cSetTransformer = Derive.transformer Module.prelude "set" mempty
     "Prepend a pitch to a signal. This is useful to create a discontinuity,\
     \ e.g. interpolate to a pitch and then jump to another one."
     $ Sig.callt (required "pitch" "Set this pitch.")
     $ \pitch_ args deriver -> do
-        let pitch = either PSignal.nn_pitch id pitch_
-        pos <- Args.real_start args
-        Post.signal (<> PSignal.from_sample pos pitch) deriver
+        let pitch = either PSignal.nnPitch id pitch_
+        pos <- Args.realStart args
+        Post.signal (<> PSignal.fromSample pos pitch) deriver
 
 -- | Re-set the previous val.  This can be used to extend a breakpoint.
-c_set_prev :: Derive.Generator Derive.Pitch
-c_set_prev = Derive.generator Module.prelude "set-prev" Tags.prev
+cSetPrev :: Derive.Generator Derive.Pitch
+cSetPrev = Derive.generator Module.prelude "set-prev" Tags.prev
     "Re-set the previous pitch.  This can be used to extend a breakpoint."
     $ Sig.call0 $ \args -> do
-        start <- Args.real_start args
-        pure $ case Args.prev_pitch args of
+        start <- Args.realStart args
+        pure $ case Args.prevPitch args of
             Just (x, y) | start > x ->
-                Stream.from_event $ PSignal.from_sample start y
+                Stream.fromEvent $ PSignal.fromSample start y
             _ -> Stream.empty
 
-c_multiply :: Derive.Generator Derive.Pitch
-c_multiply = generator1 "multiply" mempty
+cMultiply :: Derive.Generator Derive.Pitch
+cMultiply = generator1 "multiply" mempty
     "Emit the given pitch multiplied by a factor."
     $ Sig.call ((,)
     <$> required "pitch" "Source pitch."
     <*> defaulted "interval" (Left 0 :: Either Pitch.Hz Pitch.Hz)
-        (ScaleDegree.interval_arg_doc intervals)
+        (ScaleDegree.intervalArgDoc intervals)
     ) $ \(pitch, interval) args -> do
-        interval <- ScaleDegree.resolve_intervals intervals [interval]
-        scale <- Call.get_scale
-        let transposed = Pitches.modify_hz (Pitches.scale scale) (*interval)
+        interval <- ScaleDegree.resolveIntervals intervals [interval]
+        scale <- Call.getScale
+        let transposed = Pitches.modifyHz (Pitches.scale scale) (*interval)
                 pitch
-        start <- Args.real_start args
-        pure $ PSignal.from_sample start transposed
+        start <- Args.realStart args
+        pure $ PSignal.fromSample start transposed
     where
-    intervals = JustScales.default_named_intervals
+    intervals = JustScales.defaultNamedIntervals
 
 -- * interpolating
 
-c_neighbor :: Derive.Generator Derive.Pitch
-c_neighbor = generator1 "neighbor" mempty
+cNeighbor :: Derive.Generator Derive.Pitch
+cNeighbor = generator1 "neighbor" mempty
     "Emit a slide from a neighboring pitch to the given one."
     $ Sig.call ((,,,)
     <$> required "pitch" "Destination pitch."
     <*> defaulted "neighbor" (Pitch.Chromatic 1) "Neighobr interval."
     <*> defaulted "time" (Typecheck.real 0.1) "Time to get to destination."
-    <*> ControlUtil.curve_env
+    <*> ControlUtil.curveEnv
     ) $ \(pitch, neighbor, Typecheck.DefaultReal time, curve) args -> do
-        (start, end) <- Call.duration_from_start args time
+        (start, end) <- Call.durationFromStart args time
         let pitch1 = Pitches.transpose neighbor pitch
-        PitchUtil.make_segment curve start pitch1 end pitch
+        PitchUtil.makeSegment curve start pitch1 end pitch
 
-c_approach :: Derive.Generator Derive.Pitch
-c_approach = generator1 "approach" Tags.next
+cApproach :: Derive.Generator Derive.Pitch
+cApproach = generator1 "approach" Tags.next
     "Slide to the next pitch." $ Sig.call ((,)
     <$> defaulted "time" (Typecheck.real 0.2) "Time to get to destination."
-    <*> ControlUtil.curve_env
+    <*> ControlUtil.curveEnv
     ) $ \(Typecheck.DefaultReal time, curve) args -> do
-        (start, end) <- Call.duration_from_start args time
+        (start, end) <- Call.durationFromStart args time
         approach args curve start end
 
 approach :: Derive.PitchArgs -> ControlUtil.Curve -> RealTime -> RealTime
     -> Derive.Deriver PSignal.PSignal
 approach args curve start end = do
-    maybe_next <- Args.eval_next_pitch args
-    case (Args.prev_pitch args, maybe_next) of
+    maybeNext <- Args.evalNextPitch args
+    case (Args.prevPitch args, maybeNext) of
         (Just (_, prev), Just next) ->
-            PitchUtil.make_segment curve start prev end next
+            PitchUtil.makeSegment curve start prev end next
         _ -> pure mempty
 
-c_up :: Derive.Generator Derive.Pitch
-c_up = generator1 "up" Tags.prev
+cUp :: Derive.Generator Derive.Pitch
+cUp = generator1 "up" Tags.prev
     "Ascend at the given speed until the next event." $ slope "Ascend" 1
 
-c_down :: Derive.Generator Derive.Pitch
-c_down = generator1 "down" Tags.prev
+cDown :: Derive.Generator Derive.Pitch
+cDown = generator1 "down" Tags.prev
     "Descend at the given speed until the next event." $ slope "Descend" (-1)
 
 slope :: Doc.Doc -> Double -> Derive.WithArgDoc
@@ -178,36 +178,36 @@ slope :: Doc.Doc -> Double -> Derive.WithArgDoc
 slope word sign = Sig.call ((,,)
     <$> defaulted "slope" (Pitch.Chromatic 1)
         (word <> " this many steps per second.")
-    <*> PitchUtil.from_env <*> ControlUtil.curve_env
-    ) $ \(slope, from, curve) args -> case PitchUtil.prev_val from args of
+    <*> PitchUtil.fromEnv <*> ControlUtil.curveEnv
+    ) $ \(slope, from, curve) args -> case PitchUtil.prevVal from args of
         Nothing -> pure mempty
-        Just prev_pitch -> do
-            start <- Args.real_start args
+        Just prevPitch -> do
+            start <- Args.realStart args
             next <- Derive.real (Args.next args)
-            let dest = Pitches.transpose transpose prev_pitch
-                transpose = Pitch.modify_transpose
-                    (* (RealTime.to_seconds (next - start) * sign)) slope
-            PitchUtil.make_segment curve start prev_pitch next dest
+            let dest = Pitches.transpose transpose prevPitch
+                transpose = Pitch.modifyTranspose
+                    (* (RealTime.toSeconds (next - start) * sign)) slope
+            PitchUtil.makeSegment curve start prevPitch next dest
 
-c_porta :: Derive.Generator Derive.Pitch
-c_porta = generator1 "porta" mempty
+cPorta :: Derive.Generator Derive.Pitch
+cPorta = generator1 "porta" mempty
     "Interpolate between two pitches. This is similar to `i>>`,  but intended\
     \ to be higher level, in that instruments or scores can override it to\
     \ represent an idiomatic portamento."
     $ Sig.call ((,,,,)
-    <$> PitchUtil.pitch_arg
-    <*> defaulted "time" ControlUtil.default_interpolation_time
+    <$> PitchUtil.pitchArg
+    <*> defaulted "time" ControlUtil.defaultInterpolationTime
         "Time to reach destination."
-    <*> Sig.defaulted_env "place" Sig.Both (Typecheck.Normalized 1)
+    <*> Sig.defaultedEnv "place" Sig.Both (Typecheck.Normalized 1)
         "Placement, from before to after the call."
-    <*> PitchUtil.from_env <*> ControlUtil.curve_env
+    <*> PitchUtil.fromEnv <*> ControlUtil.curveEnv
     ) $ \(to, Typecheck.DefaultReal time, place, from, curve) args -> do
-        let maybe_from = from <|> (snd <$> Args.prev_pitch args)
+        let maybeFrom = from <|> (snd <$> Args.prevPitch args)
         time <- if Args.duration args == 0
             then pure time
-            else DeriveT.RealDuration <$> Args.real_duration args
-        (start, end) <- ControlUtil.place_range place (Args.start args) time
-        PitchUtil.make_segment_from curve start maybe_from end to
+            else DeriveT.RealDuration <$> Args.realDuration args
+        (start, end) <- ControlUtil.placeRange place (Args.start args) time
+        PitchUtil.makeSegmentFrom curve start maybeFrom end to
 
 -- * util
 

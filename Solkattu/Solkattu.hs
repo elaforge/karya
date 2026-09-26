@@ -349,9 +349,9 @@ instance Notation Pattern where
     extension _ = '-'
 
 instance Expr.ToExpr Pattern where
-    to_expr p = case p of
+    toExpr p = case p of
         PatternM matras -> Expr.generator $
-            Expr.call "p" [Expr.to_val matras]
+            Expr.call "p" [Expr.toVal matras]
 
 data Karvai = Karvai | NotKarvai deriving (Eq, Ord, Show)
 

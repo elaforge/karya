@@ -222,7 +222,7 @@ onAkshara :: S.State -> Bool
 onAkshara state = S.stateMatra state == 0
 
 angaSet :: Tala.Tala -> Set Tala.Akshara
-angaSet = Set.fromList . scanl (+) 0 . Tala.tala_angas
+angaSet = Set.fromList . scanl (+) 0 . Tala.talaAngas
 
 -- * ruler
 

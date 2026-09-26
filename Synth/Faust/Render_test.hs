@@ -42,12 +42,12 @@ import           Util.Test
 
 test_write_silent_chunk :: Test
 test_write_silent_chunk = do
-    dir <- Testing.tmp_dir "write"
+    dir <- Testing.tmpDir "write"
     patch <- getPatch "test"
     let write = Render.write config dir mempty patch
     -- not quite 1 chunk
-    io_equal (write [mkNote "test" 0.25 2 42]) (Right (3, 3))
-    io_equal (readSamples1 dir) $
+    ioEqual (write [mkNote "test" 0.25 2 42]) (Right (3, 3))
+    ioEqual (readSamples1 dir) $
         [0, 0] ++ replicate 16 0.42 ++ replicate (8-2) 0
 
     -- TODO disabled, see useLeadingSilence = False.
@@ -61,28 +61,28 @@ test_write_silent_chunk = do
 
 test_write_incremental :: Test
 test_write_incremental = do
-    dir <- Testing.tmp_dir "write"
+    dir <- Testing.tmpDir "write"
     patch <- getPatch "sine"
     let write = Render.write config dir mempty patch
     -- no notes produces no output
-    io_equal (write []) (Right (0, 0))
-    io_equal (Directory.listDirectory (dir </> Checkpoint.checkpointDir)) []
+    ioEqual (write []) (Right (0, 0))
+    ioEqual (Directory.listDirectory (dir </> Checkpoint.checkpointDir)) []
 
     let oldNotes = mkNotes "sine" 0.5 [NN.c4, NN.d4, NN.e4, NN.f4, NN.g4]
     let newNotes = mkNotes "sine" 0.5 [NN.c4, NN.d4, NN.e4, NN.f4, NN.c4]
 
     -- Should be be 2.5 checkpoints.
-    io_equal (write oldNotes) (Right (3, 3))
+    ioEqual (write oldNotes) (Right (3, 3))
     wavs <- listWavs dir
-    equal_on length wavs 3
-    io_equal (length <$> listWavs (dir </> Checkpoint.checkpointDir)) 3
+    equalOn length wavs 3
+    ioEqual (length <$> listWavs (dir </> Checkpoint.checkpointDir)) 3
     states <- filter (".state." `List.isInfixOf`) <$>
         Directory.listDirectory (dir </> Checkpoint.checkpointDir)
     -- All of them have states, since they are at the end of each chunk.
     -- The sizes of the states seem to be 16 most places, but 40 on hobbes,
     -- maybe because I'm not using the nix environment on hobbes.  In any case,
     -- the exact size doesn't matter.
-    io_equal (mapM (Directory.doesFileExist
+    ioEqual (mapM (Directory.doesFileExist
             . ((dir </> Checkpoint.checkpointDir) </>)) states)
         [True, True, True]
 
@@ -91,26 +91,26 @@ test_write_incremental = do
             . Checkpoint.noteHashes chunkSize . map Render.toSpan
     -- Test skipCheckpoints directly.
     (_, remainingHashes, state) <- skipCheckpoints newNotes
-    equal_on (fmap fst . Lists.head) remainingHashes (Just 2)
+    equalOn (fmap fst . Lists.head) remainingHashes (Just 2)
     equal ((/= Checkpoint.State mempty) <$> state) (Just True)
 
     -- change only last note: only 3rd sample should rerender, but contents
     -- should be the same.
-    io_equal (write newNotes) (Right (1, 3))
+    ioEqual (write newNotes) (Right (1, 3))
 
     (_, remainingHashes, _) <- skipCheckpoints newNotes
     equal remainingHashes []
 
     -- Only 1 was rerendered, so now there are 4.
     wavs <- listWavs (dir </> Checkpoint.checkpointDir)
-    equal_on length wavs 4
+    equalOn length wavs 4
 
     incremental <- readSamples dir
     nonIncremental <- renderSamples patch newNotes
     equal incremental nonIncremental
 
     -- Switched back to the old ones, nothing new should render.
-    io_equal (write oldNotes) (Right (0, 3))
+    ioEqual (write oldNotes) (Right (0, 3))
 
     (_, remainingHashes, state) <- skipCheckpoints oldNotes
     equal remainingHashes []
@@ -118,23 +118,23 @@ test_write_incremental = do
     -- Should have rendered 0 more files, since Render.renderPatch should exit
     -- immediately, due to start >= end.
     wavs <- listWavs (dir </> Checkpoint.checkpointDir)
-    equal_on length wavs 4
+    equalOn length wavs 4
 
 test_write_incremental_offset :: Test
 test_write_incremental_offset = do
     -- faust always starts rendering at 0, even if the first note doesn't.
     -- So this works trivially.  But later I'll want to skip empty time, so
     -- I want to keep the test.
-    dir <- Testing.tmp_dir "write"
+    dir <- Testing.tmpDir "write"
     patch <- getPatch "sine"
     let write = Render.write config dir mempty patch
     let notes = drop 1 $ mkNotes "sine" 0.5
             [NN.c4, NN.d4, NN.e4, NN.f4, NN.g4]
 
     -- Should be be 2.5 checkpoints.
-    io_equal (write notes) (Right (3, 3))
+    ioEqual (write notes) (Right (3, 3))
     wavs <- listWavs dir
-    equal_on length wavs 3
+    equalOn length wavs 3
 
     samples <- readSamples dir
     pprint samples
@@ -143,7 +143,7 @@ test_write_incremental_offset = do
 
 test_write_controls :: Test
 test_write_controls = do
-    dir <- Testing.tmp_dir "write"
+    dir <- Testing.tmpDir "write"
     patch <- getPatch "test"
     -- The "test" patch just writes (pitch / 100) * dyn * gate.
     -- So I can use it to see what the pitch control was.  Otherwise it's much
@@ -152,20 +152,20 @@ test_write_controls = do
     let cblocks n = replicate (fromIntegral (Render._controlSize config) * n)
             . (/100)
 
-    let withPitch = Note.withControl Control.pitch . Signal.from_pairs
+    let withPitch = Note.withControl Control.pitch . Signal.fromPairs
             . map (first chunkToTime)
     let note dur pitches = [withPitch pitches $ mkNote "test" 0 dur 0]
 
     -- Each block is 2 cblocks, and controls change 1 cblock early.
-    io_equal (write $ mkNotes "test" 1 [60, 62]) (Right (2, 2))
-    io_equal (readSamples1 dir) $ cblocks 1 60 ++ cblocks 3 62
+    ioEqual (write $ mkNotes "test" 1 [60, 62]) (Right (2, 2))
+    ioEqual (readSamples1 dir) $ cblocks 1 60 ++ cblocks 3 62
 
-    io_equal (write $ mkNotes "test" 1 [60, 64]) (Right (1, 2))
-    io_equal (readSamples1 dir) $ cblocks 1 60 ++ cblocks 1 62 ++ cblocks 2 64
+    ioEqual (write $ mkNotes "test" 1 [60, 64]) (Right (1, 2))
+    ioEqual (readSamples1 dir) $ cblocks 1 60 ++ cblocks 1 62 ++ cblocks 2 64
 
     -- Value interpolates.
-    io_equal (write $ note 3 [(0, 40), (1, 40), (2, 42)]) (Right (3, 3))
-    io_equal (readSamples1 dir) $ cblocks 2 40 ++ cblocks 1 41 ++ cblocks 3 42
+    ioEqual (write $ note 3 [(0, 40), (1, 40), (2, 42)]) (Right (3, 3))
+    ioEqual (readSamples1 dir) $ cblocks 2 40 ++ cblocks 1 41 ++ cblocks 3 42
 
     -- 0 1 2 3 4 5 6 7 |
     -- c       c       |
@@ -174,8 +174,8 @@ test_write_controls = do
 
 renderSamples :: InstrumentC.Patch -> [Note.Note] -> IO [Float]
 renderSamples patch notes = do
-    dir <- Testing.tmp_dir "renderSamples"
-    io_equal (Render.write config dir mempty patch notes) (Right (3, 3))
+    dir <- Testing.tmpDir "renderSamples"
+    ioEqual (Render.write config dir mempty patch notes) (Right (3, 3))
     readSamples dir
 
 readSamples :: FilePath -> IO [Float]
@@ -247,7 +247,7 @@ test_renderControls = do
                 renderControls impulseGate (map mknote notes) start
         mknote (s, e, elem, cs) = (Note.testNote (s / cr) (e / cr))
             { Note.element = elem
-            , Note.controls = Signal.from_pairs <$>
+            , Note.controls = Signal.fromPairs <$>
                 Map.fromList ((Control.dynamic, [(0, 1)]) : cs)
             }
             where cr = fromIntegral $ Render._controlRate Render.defaultConfig
@@ -323,7 +323,7 @@ test_controlBreakpoints :: Test
 test_controlBreakpoints = do
     let f = Render.controlBreakpoints 1 False "c" . map make
         make (s, e, cs) = (Note.testNote s e)
-            { Note.controls = Map.singleton "c" (Signal.from_pairs cs) }
+            { Note.controls = Map.singleton "c" (Signal.fromPairs cs) }
     -- No controls means don't set anything, which will keep the defaults.
     equal (f []) []
     equal (f [(0, 1, []), (1, 1, [])]) []

@@ -10,4 +10,4 @@ import qualified Derive.DeriveQuickCheck as DeriveQuickCheck
 -- TODO placeholder for now, just to force DeriveQuickCheck to compile.
 test_derive :: Test
 test_derive = do
-    equal (length (DeriveQuickCheck.simple_derive [])) 0
+    equal (length (DeriveQuickCheck.simpleDerive [])) 0

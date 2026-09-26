@@ -10,25 +10,25 @@
 -- | Basic testing utilities.
 module Util.Test.Testing (
     Test, Profile
-    , Config(..), modify_test_config, with_test_name
+    , Config(..), modifyTestConfig, withTestName
     -- * metadata
     , ModuleMeta(..), moduleMeta, Tag(..)
     -- * assertions
-    , check, check_val
-    , equal, equal_fmt, equal_on, right_equal, not_equal, equalf, strings_like
-    , left_like, match
+    , check, checkVal
+    , equal, equalFmt, equalOn, rightEqual, notEqual, equalf, stringsLike
+    , leftLike, match
     , Pattern
     -- ** exception assertions
     , throws
 
     -- ** io assertions
-    , io_equal, io_human, pause
+    , ioEqual, ioHuman, pause
 
     -- ** low level
     , success, failure
 
     -- * extracting
-    , expect_right
+    , expectRight
 
     -- * hedgehog
     , hedgehog
@@ -37,14 +37,14 @@ module Util.Test.Testing (
 
     -- * QuickCheck
     , quickcheck
-    , q_equal
+    , qEqual
 
     -- * pretty printing
-    , pretty_compare
+    , prettyCompare
     , prettyp, pprint
 
     -- * filesystem
-    , tmp_dir, in_tmp_dir, tmp_base_dir
+    , tmpDir, inTmpDir, tmpBaseDir
 
     -- * util
     , force
@@ -104,28 +104,28 @@ type Profile = IO ()
 {-# NOINLINE test_config #-}
 test_config :: IORef.IORef Config
 test_config = Unsafe.unsafePerformIO $ IORef.newIORef $ Config
-    { config_test_name = "no-test"
-    , config_human_agreeable = True
+    { configTestName = "no-test"
+    , configHumanAgreeable = True
     }
 
-modify_test_config :: (Config -> Config) -> IO ()
-modify_test_config = IORef.modifyIORef test_config
+modifyTestConfig :: (Config -> Config) -> IO ()
+modifyTestConfig = IORef.modifyIORef test_config
 
 -- | Set 'config_test_name'.  This is a grody hack, but I need it because GHC
 -- call stack is off by one, so you get the caller line number, but the
 -- callee's function name: https://ghc.haskell.org/trac/ghc/ticket/11686
-with_test_name :: Text -> IO a -> IO a
-with_test_name name action = do
-    modify_test_config (\config -> config { config_test_name = name })
+withTestName :: Text -> IO a -> IO a
+withTestName name action = do
+    modifyTestConfig (\config -> config { configTestName = name })
     action
 
 data Config = Config
     -- | Keep the test name so I can report it in 'success' in 'failure'.
-    { config_test_name :: !Text
+    { configTestName :: !Text
     -- | If True, 'io_human' will always return True.  That way I can at least
     -- get the coverage and check for crashes, even if I can't verify the
     -- results.
-    , config_human_agreeable :: !Bool
+    , configHumanAgreeable :: !Bool
     } deriving (Show)
 
 check :: HasCallStack => Text -> Bool -> Test
@@ -135,8 +135,8 @@ check msg True = success msg
 -- | Check against a function.  Use like:
 --
 -- > check_val (f x) $ \case -> ...
-check_val :: (Show a, HasCallStack) => a -> (a -> Bool) -> Test
-check_val val f
+checkVal :: (Show a, HasCallStack) => a -> (a -> Bool) -> Test
+checkVal val f
     | f val = success $ "ok: " <> pshowt val
     | otherwise = failure $ "failed: " <> pshowt val
 
@@ -173,60 +173,60 @@ equal_ :: (HasCallStack, Show a, Eq a) => a -> a -> IO Bool
 equal_ a b
     | a == b = success (cmp True) >> pure True
     | otherwise = failure (cmp False) >> pure False
-    where cmp = pretty_compare "==" "/=" True a b
+    where cmp = prettyCompare "==" "/=" True a b
 
-not_equal :: (HasCallStack, Show a, Eq a) => a -> a -> Test
-not_equal a b
+notEqual :: (HasCallStack, Show a, Eq a) => a -> a -> Test
+notEqual a b
     | a == b = failure $ cmp True
     | otherwise = success $ cmp False
-    where cmp = pretty_compare "==" "/=" False a b
+    where cmp = prettyCompare "==" "/=" False a b
 
 -- | Like equal, but show the inequality with a fmt function.
-equal_fmt :: (HasCallStack, Eq a, Show a) => (a -> Text) -> a -> a -> Test
-equal_fmt fmt a b = do
+equalFmt :: (HasCallStack, Eq a, Show a) => (a -> Text) -> a -> a -> Test
+equalFmt fmt a b = do
     ok <- equal_ a b
     let (pa, pb) = (fmt a, fmt b)
     unless (ok || Text.null pa && Text.null pb) $
-        Text.IO.putStrLn $ show_diff pa pb
+        Text.IO.putStrLn $ showDiff pa pb
     where
-    show_diff pretty_a pretty_b = fmt_lines "/="
-        (highlight_lines color diff_a $ Text.lines pretty_a)
-        (highlight_lines color diff_b $ Text.lines pretty_b)
+    showDiff prettyA prettyB = fmtLines "/="
+        (highlightLines color diffA $ Text.lines prettyA)
+        (highlightLines color diffB $ Text.lines prettyB)
         where
-        color = failure_color
-        (diff_a, diff_b) = Diffs.ranges pretty_a pretty_b
+        color = failureColor
+        (diffA, diffB) = Diffs.ranges prettyA prettyB
 
 -- | Assert these things are equal after applying a function.  Print without
 -- the function if they're not equal.  This is for cases when the extract
 -- function loses information it would be nice to see if the test fails.
-equal_on :: (HasCallStack, Eq b, Show a, Show b) => (a -> b) -> a -> b -> Test
-equal_on f a b = do
+equalOn :: (HasCallStack, Eq b, Show a, Show b) => (a -> b) -> a -> b -> Test
+equalOn f a b = do
     ok <- equal_ (f a) b
     unless ok $ Text.IO.putStrLn (pshowt a)
 
-right_equal :: (HasCallStack, Show err, Show a, Eq a) => Either err a -> a
+rightEqual :: (HasCallStack, Show err, Show a, Eq a) => Either err a -> a
     -> Test
-right_equal (Right a) b = equal a b
-right_equal (Left err) _ = failure $ "Left: " <> pshowt err
+rightEqual (Right a) b = equal a b
+rightEqual (Left err) _ = failure $ "Left: " <> pshowt err
 
 -- | Show the values nicely, whether they are equal or not.
-pretty_compare :: Show a =>
+prettyCompare :: Show a =>
     Text -- ^ equal operator
     -> Text -- ^ inequal operator
     -> Bool -- ^ If True then equal is expected so inequal will be highlighted
     -- red.  Otherwise, inequal is expected and highlighted green.
     -> a -> a -> Bool -- ^ True if as are equal
     -> Text
-pretty_compare equal inequal expect_equal a b is_equal
-    | is_equal && expect_equal = equal <> " " <> ellipse (showt a)
-    | otherwise = fmt_lines inequal
-        (highlight_lines color diff_a $ Text.lines pretty_a)
-        (highlight_lines color diff_b $ Text.lines pretty_b)
+prettyCompare equal inequal expectEqual a b isEqual
+    | isEqual && expectEqual = equal <> " " <> ellipse (showt a)
+    | otherwise = fmtLines inequal
+        (highlightLines color diffA $ Text.lines prettyA)
+        (highlightLines color diffB $ Text.lines prettyB)
     where
-    color = if expect_equal then failure_color else success_color
-    (diff_a, diff_b) = Diffs.ranges pretty_a pretty_b
-    pretty_a = pshowt a
-    pretty_b = pshowt b
+    color = if expectEqual then failureColor else successColor
+    (diffA, diffB) = Diffs.ranges prettyA prettyB
+    prettyA = pshowt a
+    prettyB = pshowt b
     -- Expected results are usually not interesting, so abbreviate if they're
     -- too long.
     ellipse s
@@ -235,9 +235,9 @@ pretty_compare equal inequal expect_equal a b is_equal
         where len = Text.length s
     maxlen = 400
 
-highlight_lines :: ColorCode -> IntMap.IntMap [Diffs.CharRange] -> [Text]
+highlightLines :: ColorCode -> IntMap.IntMap [Diffs.CharRange] -> [Text]
     -> [Text]
-highlight_lines (ColorCode color) =
+highlightLines (ColorCode color) =
     Diffs.highlightLines (Diffs.ColorCode color)
 
 -- * approximately equal
@@ -247,66 +247,66 @@ equalf :: (HasCallStack, Show a, ApproxEq.ApproxEq a) => Double -> a -> a
 equalf eta a b
     | ApproxEq.eq eta a b = success $ pretty True
     | otherwise = failure $ pretty False
-    where pretty = pretty_compare "~~" "/~" True a b
+    where pretty = prettyCompare "~~" "/~" True a b
 
 -- * other assertions
 
-class Show a => TextLike a where to_text :: a -> Text
-instance TextLike String where to_text = Text.pack
-instance TextLike Text where to_text = id
+class Show a => TextLike a where toText :: a -> Text
+instance TextLike String where toText = Text.pack
+instance TextLike Text where toText = id
 
 -- | Strings in the first list match patterns in the second list, using
 -- 'pattern_matches'.
-strings_like :: forall txt. (HasCallStack, TextLike txt) => [txt] -> [Pattern]
+stringsLike :: forall txt. (HasCallStack, TextLike txt) => [txt] -> [Pattern]
     -> Test
-strings_like gotten_ expected
-    | all is_both diffs = success $ fmt_lines "=~" gotten expected
-    | otherwise = failure $ fmt_lines "/~"
-        (map (fmt_line
+stringsLike gotten_ expected
+    | all isBoth diffs = success $ fmtLines "=~" gotten expected
+    | otherwise = failure $ fmtLines "/~"
+        (map (fmtLine
                 (Set.fromList [Diffs.numbered a | Diff.Second a <- diffs]))
             (zip [0..] gotten))
-        (map (fmt_line
+        (map (fmtLine
                 (Set.fromList [Diffs.numbered a | Diff.First a <- diffs]))
             (zip [0..] expected))
     where
-    fmt_line failures (n, line)
-        | Set.member n failures = highlight failure_color line
+    fmtLine failures (n, line)
+        | Set.member n failures = highlight failureColor line
         | otherwise = line
-    gotten = map to_text gotten_
-    diffs = Diffs.numberedDiff pattern_matches expected gotten
-    is_both (Diff.Both {}) = True
-    is_both _ = False
+    gotten = map toText gotten_
+    diffs = Diffs.numberedDiff patternMatches expected gotten
+    isBoth (Diff.Both {}) = True
+    isBoth _ = False
 
 -- | Format multiple lines with an operator between them, on a single line if
 -- they fit.
-fmt_lines :: Text -> [Text] -> [Text] -> Text
-fmt_lines operator [x] [y] | Text.length x + Text.length y <= 70 =
+fmtLines :: Text -> [Text] -> [Text] -> Text
+fmtLines operator [x] [y] | Text.length x + Text.length y <= 70 =
     x <> " " <> operator <> " " <> y
-fmt_lines operator [] [y] = "<empty> " <> operator <> " " <> y
-fmt_lines operator [x] [] = x <> " " <> operator <> " <empty>"
-fmt_lines operator xs ys = ("\n"<>) $ Text.stripEnd $
+fmtLines operator [] [y] = "<empty> " <> operator <> " " <> y
+fmtLines operator [x] [] = x <> " " <> operator <> " <empty>"
+fmtLines operator xs ys = ("\n"<>) $ Text.stripEnd $
     Text.unlines $ xs <> ["    " <> operator] <> ys
 
 -- | It's common for Left to be an error msg, or be something that can be
 -- converted to one.
-left_like :: (HasCallStack, Show a, TextLike txt) => Either txt a -> Pattern
+leftLike :: (HasCallStack, Show a, TextLike txt) => Either txt a -> Pattern
     -> Test
-left_like gotten expected = case gotten of
+leftLike gotten expected = case gotten of
     Left msg
-        | pattern_matches expected msg -> success $
-            "Left " <> to_text msg <> " =~ Left " <> to_text expected
+        | patternMatches expected msg -> success $
+            "Left " <> toText msg <> " =~ Left " <> toText expected
         | otherwise ->
-            failure $ "Left " <> to_text msg <> " !~ Left " <> to_text expected
+            failure $ "Left " <> toText msg <> " !~ Left " <> toText expected
     Right a ->
-        failure $ "Right (" <> showt a <> ") !~ Left " <> to_text expected
+        failure $ "Right (" <> showt a <> ") !~ Left " <> toText expected
 
 match :: (HasCallStack, TextLike txt) => txt -> Pattern -> Test
 match gotten pattern =
     (if matches then success else failure) $
-        fmt_lines (if matches then "=~" else "!~")
-            (Text.lines (to_text gotten)) (Text.lines pattern)
+        fmtLines (if matches then "=~" else "!~")
+            (Text.lines (toText gotten)) (Text.lines pattern)
     where
-    matches = pattern_matches pattern gotten
+    matches = patternMatches pattern gotten
 
 -- | Pattern as matched by 'pattern_matches'.
 type Pattern = Text
@@ -314,12 +314,12 @@ type Pattern = Text
 -- | This is a simplified pattern that only has the @*@ operator, which is
 -- equivalent to regex's @.*?@.  This reduces the amount of quoting you have
 -- to write.  You can escape @*@ with a backslash.
-pattern_matches :: TextLike txt => Pattern -> txt -> Bool
-pattern_matches pattern = not . null . Regex.groups (pattern_to_regex pattern)
-    . to_text
+patternMatches :: TextLike txt => Pattern -> txt -> Bool
+patternMatches pattern = not . null . Regex.groups (patternToRegex pattern)
+    . toText
 
-pattern_to_regex :: HasCallStack => Text -> Regex.Regex
-pattern_to_regex =
+patternToRegex :: HasCallStack => Text -> Regex.Regex
+patternToRegex =
     Regex.compileOptionsUnsafe [Regex.DotAll] . mkstar . Regex.escape
         . Text.unpack
     where
@@ -330,44 +330,44 @@ pattern_to_regex =
 
 -- | The given pure value should throw an exception that matches the predicate.
 throws :: (HasCallStack, Show a) => a -> Pattern -> Test
-throws val exc_pattern =
+throws val excPattern =
     (Exception.evaluate val >> failure ("didn't throw: " <> showt val))
     `Exception.catch` \(exc :: Exception.SomeException) ->
-        if pattern_matches exc_pattern (showt exc)
+        if patternMatches excPattern (showt exc)
             then success ("caught exc: " <> showt exc)
             else failure $ "exception <" <> showt exc <> "> didn't match "
-                <> exc_pattern
+                <> excPattern
 
-io_equal :: (HasCallStack, Eq a, Show a) => IO a -> a -> Test
-io_equal io_val expected = do
-    val <- io_val
+ioEqual :: (HasCallStack, Eq a, Show a) => IO a -> a -> Test
+ioEqual ioVal expected = do
+    val <- ioVal
     equal val expected
 
 -- | Only a human can check these things.
-io_human :: HasCallStack => String -> IO a -> IO a
-io_human expected_msg op = do
-    putStrLn $ "should see: " ++ expected_msg
-    human_get_char
+ioHuman :: HasCallStack => String -> IO a -> IO a
+ioHuman expectedMsg op = do
+    putStrLn $ "should see: " ++ expectedMsg
+    humanGetChar
     result <- op
     putStr "  ... ok (y/n/q)? "
-    c <- human_get_char
+    c <- humanGetChar
     putChar '\n'
     case c of
-        'y' -> success $ "saw " <> showt expected_msg
+        'y' -> success $ "saw " <> showt expectedMsg
         'q' -> error "quit test"
-        _ -> failure $ "didn't see " <> showt expected_msg
+        _ -> failure $ "didn't see " <> showt expectedMsg
     pure result
 
 pause :: String -> IO ()
 pause msg = do
     putStr $ "pausing, hit almost any key... "
         ++ if null msg then "" else " -- " ++ msg
-    human_get_char
+    humanGetChar
     putStr "\n"
 
-expect_right :: (HasCallStack, Show a) => Either a b -> b
-expect_right (Left v) = error (show v)
-expect_right (Right v) = v
+expectRight :: (HasCallStack, Show a) => Either a b -> b
+expectRight (Left v) = error (show v)
+expectRight (Right v) = v
 
 -- * hedgehog
 
@@ -376,7 +376,7 @@ hedgehog prop = do
     seed <- Internal.Seed.random
     report <- Internal.Runner.checkReport config size seed
         (Internal.Property.propertyTest prop) updateUI
-    (ok, msg) <- format_hedgehog_report report
+    (ok, msg) <- formatHedgehogReport report
     (if ok then success else failure) msg
     where
     -- TODO if it's interactive, give a progress report?
@@ -384,9 +384,9 @@ hedgehog prop = do
     config = Internal.Property.propertyConfig prop
     size = 0
 
-format_hedgehog_report :: Report.Report Report.Result -> IO (Bool, Text)
-format_hedgehog_report report = do
-    name <- Text.unpack . config_test_name <$> IORef.readIORef test_config
+formatHedgehogReport :: Report.Report Report.Result -> IO (Bool, Text)
+formatHedgehogReport report = do
+    name <- Text.unpack . configTestName <$> IORef.readIORef test_config
     str <- Report.renderResult Internal.Config.EnableColor
         (Just (Internal.Property.PropertyName name)) report
     pure $ (, Text.pack str) $ case Report.reportStatus report of
@@ -399,23 +399,23 @@ format_hedgehog_report report = do
 -- | Run a quickcheck property.
 quickcheck :: (HasCallStack, QuickCheck.Testable prop) => prop -> Test
 quickcheck prop = do
-    (ok, msg) <- format_quickcheck_result <$>
+    (ok, msg) <- formatQuickcheckResult <$>
         QuickCheck.quickCheckWithResult args prop
     (if ok then success else failure) msg
     where
     args = QuickCheck.stdArgs { QuickCheck.chatty = False }
 
-format_quickcheck_result :: QuickCheck.Result -> (Bool, Text)
-format_quickcheck_result result = fmap Text.strip $ case result of
+formatQuickcheckResult :: QuickCheck.Result -> (Bool, Text)
+formatQuickcheckResult result = fmap Text.strip $ case result of
     QuickCheck.Success { output } -> (True, Text.pack output)
     QuickCheck.GaveUp { output } -> (False, Text.pack output)
     QuickCheck.Failure { output } -> (False, Text.pack output)
     QuickCheck.NoExpectedFailure { output } -> (False, Text.pack output)
 
 -- | 'equal' for quickcheck.
-q_equal :: (Show a, Eq a) => a -> a -> QuickCheck.Property
-q_equal a b = QuickCheck.counterexample
-    (Text.unpack $ pretty_compare "==" "/=" True a b False)
+qEqual :: (Show a, Eq a) => a -> a -> QuickCheck.Property
+qEqual a b = QuickCheck.counterexample
+    (Text.unpack $ prettyCompare "==" "/=" True a b False)
     (a == b)
 
 -- * util
@@ -425,39 +425,39 @@ q_equal a b = QuickCheck.counterexample
 
 -- | Print a msg with a special tag indicating a passing test.
 success :: HasCallStack => Text -> Test
-success msg = print_test_line Stack.callStack success_color "++-> " msg
+success msg = printTestLine Stack.callStack successColor "++-> " msg
 
 -- | Print a msg with a special tag indicating a failing test.
 failure :: HasCallStack => Text -> Test
-failure msg = print_test_line Stack.callStack failure_color "__-> " msg
+failure msg = printTestLine Stack.callStack failureColor "__-> " msg
 
-print_test_line :: Stack.CallStack -> ColorCode -> Text -> Text -> IO ()
-print_test_line stack color prefix msg = do
+printTestLine :: Stack.CallStack -> ColorCode -> Text -> Text -> IO ()
+printTestLine stack color prefix msg = do
     -- Make sure the output doesn't get mixed with trace debug msgs.
     force msg
     isatty <- Terminal.queryTerminal IO.stdOutput
-    test_name <- config_test_name <$> IORef.readIORef test_config
+    test_name <- configTestName <$> IORef.readIORef test_config
     -- If there is highlighting in the msg, then it's probably a diff so
     -- most of it may be unhighlighted.  So highlight the prefix to make
     -- the line visible.
-    let full_prefix = (if is_highlighted msg then highlight color else id)
-            (prefix <> show_stack test_name stack)
-    let full_msg = full_prefix <> " " <> msg
+    let fullPrefix = (if isHighlighted msg then highlight color else id)
+            (prefix <> showStack test_name stack)
+    let fullMsg = fullPrefix <> " " <> msg
         highlighted
             -- I only want colors in tty output.
-            | not isatty = strip_colors full_msg
+            | not isatty = stripColors fullMsg
             -- Don't put on a color if it already has some.
-            | is_highlighted full_msg = full_msg
-            | otherwise = highlight color full_msg
+            | isHighlighted fullMsg = fullMsg
+            | otherwise = highlight color fullMsg
     Text.IO.putStrLn highlighted
     where
-    is_highlighted = (vt100_prefix `Text.isInfixOf`)
+    isHighlighted = (vt100Prefix `Text.isInfixOf`)
 
-show_stack :: Text -> Stack.CallStack -> Text
-show_stack test_name =
-    maybe "<empty-stack>" show_frame . Lists.last . Stack.getCallStack
+showStack :: Text -> Stack.CallStack -> Text
+showStack test_name =
+    maybe "<empty-stack>" showFrame . Lists.last . Stack.getCallStack
     where
-    show_frame (_, srcloc) =
+    showFrame (_, srcloc) =
         Text.pack (Stack.srcLocFile srcloc) <> ":"
         <> showt (Stack.srcLocStartLine srcloc)
         <> if Text.null test_name then "" else " [" <> test_name <> "]"
@@ -465,32 +465,32 @@ show_stack test_name =
 highlight :: ColorCode -> Text -> Text
 highlight (ColorCode code) text
     | Text.null text = text
-    | otherwise = code <> text <> vt100_normal
+    | otherwise = code <> text <> vt100Normal
 
 -- | Remove vt100 color codes.
-strip_colors :: Text -> Text
-strip_colors = mconcat . Lists.mapTail (Text.drop 1 . Text.dropWhile (/='m'))
-    . Text.splitOn vt100_prefix
+stripColors :: Text -> Text
+stripColors = mconcat . Lists.mapTail (Text.drop 1 . Text.dropWhile (/='m'))
+    . Text.splitOn vt100Prefix
 
 newtype ColorCode = ColorCode Text deriving (Show)
 
-vt100_prefix :: Text
-vt100_prefix = "\ESC["
+vt100Prefix :: Text
+vt100Prefix = "\ESC["
 
-vt100_normal :: Text
-vt100_normal = "\ESC[m\ESC[m"
+vt100Normal :: Text
+vt100Normal = "\ESC[m\ESC[m"
 
 -- | These codes should probably come from termcap, but I can't be bothered.
-failure_color :: ColorCode
-failure_color = ColorCode "\ESC[31m" -- red
+failureColor :: ColorCode
+failureColor = ColorCode "\ESC[31m" -- red
 
-success_color :: ColorCode
-success_color = ColorCode "\ESC[32m" -- green
+successColor :: ColorCode
+successColor = ColorCode "\ESC[32m" -- green
 
 -- | getChar with no buffering.
-human_get_char :: IO Char
-human_get_char = do
-    agreeable <- config_human_agreeable <$> IORef.readIORef test_config
+humanGetChar :: IO Char
+humanGetChar = do
+    agreeable <- configHumanAgreeable <$> IORef.readIORef test_config
     if agreeable
         then pure 'y'
         else do
@@ -519,29 +519,29 @@ pshowt = Text.strip . Text.pack . pshow
 -- | Strict pshow, so I don't get debug traces interleaved with printing.
 pshow :: Show a => a -> String
 pshow val = s `DeepSeq.deepseq` s
-    where s = Strings.rstrip $ PPrint.format_str (show val)
+    where s = Strings.rstrip $ PPrint.formatStr (show val)
 
 -- * filesystem
 
 -- | Get a tmp dir, which will be unique for each test run.
-tmp_dir :: String -> IO FilePath
-tmp_dir prefix = do
-    base_dir <- Directory.makeAbsolute tmp_base_dir
-    Directory.createDirectoryIfMissing True base_dir
-    dir <- Temp.mkdtemp $ base_dir </> prefix ++ "-"
+tmpDir :: String -> IO FilePath
+tmpDir prefix = do
+    baseDir <- Directory.makeAbsolute tmpBaseDir
+    Directory.createDirectoryIfMissing True baseDir
+    dir <- Temp.mkdtemp $ baseDir </> prefix ++ "-"
     putStrLn $ "** tmp dir: " ++ dir
     pure dir
 
 -- | Run the computation with cwd in a new tmp dir.
-in_tmp_dir :: String -> IO a -> IO a
-in_tmp_dir prefix action = do
-    dir <- tmp_dir prefix
+inTmpDir :: String -> IO a -> IO a
+inTmpDir prefix action = do
+    dir <- tmpDir prefix
     Directory.withCurrentDirectory dir action
 
 -- | All tmp files used by tests should go in this directory.
 -- TODO instead of being hardcoded this should be configured per-project.
-tmp_base_dir :: FilePath
-tmp_base_dir = "build/test/tmp"
+tmpBaseDir :: FilePath
+tmpBaseDir = "build/test/tmp"
 
 -- * util
 

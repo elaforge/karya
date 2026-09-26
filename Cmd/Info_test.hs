@@ -19,10 +19,10 @@ test_block_tracks :: Test
 test_block_tracks = do
     let f skel tracks = UiTest.eval Ui.empty $ do
             let ts = [(t, []) | t <- tracks]
-            UiTest.mkblocks_skel [((UiTest.default_block_name, ts), skel)]
-            Info.block_tracks UiTest.default_block_id
-    let track title num = Ui.TrackInfo title (UiTest.mk_tid num) num
-            (UiTest.btrack (UiTest.mk_tid num))
+            UiTest.mkblocksSkel [((UiTest.defaultBlockName, ts), skel)]
+            Info.blockTracks UiTest.defaultBlockId
+    let track title num = Ui.TrackInfo title (UiTest.mkTid num) num
+            (UiTest.btrack (UiTest.mkTid num))
     equal (f [(1, 2)] [">", "*"])
         [ Info.Track (track ">" 1) (Info.Note [track "*" 2] [])
         , Info.Track (track "*" 2) (Info.Pitch (Just (track ">" 1)))
@@ -34,11 +34,11 @@ test_block_tracks = do
 
 test_track_status :: Test
 test_track_status = do
-    let f tracks num = CmdTest.eval ustate CmdTest.default_cmd_state
-            (Info.get_track_status UiTest.default_block_id num)
+    let f tracks num = CmdTest.eval ustate CmdTest.defaultCmdState
+            (Info.getTrackStatus UiTest.defaultBlockId num)
             where
             ustate = (Ui.config#UiConfig.allocations #= allocs) $
-                snd $ UiTest.run_mkview [(t, []) | t <- tracks]
+                snd $ UiTest.runMkview [(t, []) | t <- tracks]
             allocs = Simple.allocations
                 [("i", ("s/1", Simple.Midi $ map ("wdev",) [0..3]))]
     equal (f [">", "*"] 0) Nothing

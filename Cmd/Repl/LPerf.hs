@@ -68,78 +68,78 @@ import           Types
 -- root block's derivation, assuming the local block is called from the root.
 data Source = Local | Root deriving (Show)
 
-get_root :: Cmd.M m => m Cmd.Performance
-get_root = Perf.get_root
+getRoot :: Cmd.M m => m Cmd.Performance
+getRoot = Perf.getRoot
 
 get :: Cmd.M m => BlockId -> m Cmd.Performance
 get = Perf.get
 
-get_current :: Cmd.M m => BlockId -> m Cmd.Performance
-get_current block_id = Cmd.require ("no performance for " <> pretty block_id)
-    =<< Map.lookup block_id <$>
-        Cmd.gets (Cmd.state_current_performance . Cmd.state_play)
+getCurrent :: Cmd.M m => BlockId -> m Cmd.Performance
+getCurrent blockId = Cmd.require ("no performance for " <> pretty blockId)
+    =<< Map.lookup blockId <$>
+        Cmd.gets (Cmd.stateCurrentPerformance . Cmd.statePlay)
 
-poll_threads :: Cmd.CmdT IO
+pollThreads :: Cmd.CmdT IO
     (Map BlockId (Maybe (Either Exception.SomeException ())))
-poll_threads = do
-    threads <- Cmd.gets (Cmd.state_performance_threads  . Cmd.state_play)
+pollThreads = do
+    threads <- Cmd.gets (Cmd.statePerformanceThreads  . Cmd.statePlay)
     liftIO $ traverse Async.poll $ fmap (\(Cmd.Thread t) -> t) threads
 
 -- * info
 
 environ :: Cmd.M m => m (Maybe Env.Environ)
-environ = Perf.lookup_environ =<< Selection.track
+environ = Perf.lookupEnviron =<< Selection.track
 
 -- | Controls in scope at the insert point.
 controls :: Cmd.M m => Source -> m ScoreT.ControlMap
 controls source = do
     dyn <- dynamic source
-    PlayUtil.eval_with_dynamic dyn Derive.get_control_map
+    PlayUtil.evalWithDynamic dyn Derive.getControlMap
 
 -- | The control vals at the insertion point, taking the control functions into
 -- account.
-control_vals :: Cmd.M m => Source -> m ScoreT.ControlValMap
-control_vals source = do
+controlVals :: Cmd.M m => Source -> m ScoreT.ControlValMap
+controlVals source = do
     dyn <- dynamic source
-    pos <- get_realtime source
+    pos <- getRealtime source
     -- Dynamic doesn't record 'Derive.state_event_serial', so the randomization
     -- will likely be different.
-    PlayUtil.eval_with_dynamic dyn (Derive.controls_at pos)
+    PlayUtil.evalWithDynamic dyn (Derive.controlsAt pos)
 
 -- | Like 'control_vals', but without control functions.
-raw_control_vals :: Cmd.M m => Source -> m ScoreT.TypedControlValMap
-raw_control_vals source = do
+rawControlVals :: Cmd.M m => Source -> m ScoreT.TypedControlValMap
+rawControlVals source = do
     dyn <- dynamic source
-    pos <- get_realtime source
-    cmap <- PlayUtil.eval_with_dynamic dyn Derive.get_control_map
+    pos <- getRealtime source
+    cmap <- PlayUtil.evalWithDynamic dyn Derive.getControlMap
     pure $ fmap (fmap (`Signal.at` pos)) cmap
 
 aliases :: Cmd.M m => m (Map ScoreT.Instrument ScoreT.Instrument)
-aliases = Derive.state_instrument_aliases <$> dynamic Root
+aliases = Derive.stateInstrumentAliases <$> dynamic Root
 
 warp :: Cmd.M m => Source -> m Warp.Warp
-warp source = Derive.state_warp <$> dynamic source
+warp source = Derive.stateWarp <$> dynamic source
 
 dynamic :: Cmd.M m => Source -> m Derive.Dynamic
 dynamic source = do
     track <- Selection.track
     Cmd.require ("no dynamic for track " <> pretty track) =<< case source of
-        Root -> Perf.lookup_root_dynamic track
-        Local -> Perf.lookup_dynamic (fst track) track
+        Root -> Perf.lookupRootDynamic track
+        Local -> Perf.lookupDynamic (fst track) track
 
-sel_to_real :: Cmd.M m => m [RealTime]
-sel_to_real = do
-    (block_id, _, track_id, pos) <- Selection.get_insert
-    tempo <- Cmd.perf_tempo <$> get block_id
-    pure $ tempo block_id track_id pos
+selToReal :: Cmd.M m => m [RealTime]
+selToReal = do
+    (blockId, _, trackId, pos) <- Selection.getInsert
+    tempo <- Cmd.perfTempo <$> get blockId
+    pure $ tempo blockId trackId pos
 
-get_realtime :: Cmd.M m => Source -> m RealTime
-get_realtime source = do
-    (block_id, _, track_id, pos) <- Selection.get_insert
+getRealtime :: Cmd.M m => Source -> m RealTime
+getRealtime source = do
+    (blockId, _, trackId, pos) <- Selection.getInsert
     perf <- case source of
-        Root -> get_root
-        Local -> get block_id
-    Perf.get_realtime perf block_id (Just track_id) pos
+        Root -> getRoot
+        Local -> get blockId
+    Perf.getRealtime perf blockId (Just trackId) pos
 
 -- * analysis
 
@@ -150,21 +150,21 @@ type ControlVals =
 -- show which controls the each instrument uses, which in turn can be used
 -- to set its 'Instrument.config_controls', to make sure it is always
 -- initialized consistently.
-inst_controls :: Cmd.M m => BlockId -> m (Map ScoreT.Instrument ControlVals)
-inst_controls block_id =
-    foldl' merge mempty . LEvent.events_of <$> block_midi_events block_id
+instControls :: Cmd.M m => BlockId -> m (Map ScoreT.Instrument ControlVals)
+instControls blockId =
+    foldl' merge mempty . LEvent.eventsOf <$> blockMidiEvents blockId
     where
     merge insts event =
-        Map.insertWith (Map.unionWith merge1) (event_inst event)
-            (control_vals (Types.event_controls event))
+        Map.insertWith (Map.unionWith merge1) (eventInst event)
+            (controlVals (Types.eventControls event))
             insts
-    control_vals = Map.mapMaybe $ \sig ->
+    controlVals = Map.mapMaybe $ \sig ->
         case (MSignal.head sig, MSignal.last sig) of
             (Just a, Just b) -> Just (a, b)
             _ -> Nothing
     merge1 (start1, end1) (start2, end2) =
         (Lists.minOn fst start1 start2, Lists.maxOn fst end1 end2)
-    event_inst = Types.patch_name . Types.event_patch
+    eventInst = Types.patchName . Types.eventPatch
 
 -- * derive
 
@@ -173,160 +173,160 @@ inst_controls block_id =
 -- | Clear out all caches and rederive from scratch.
 rederive :: Cmd.CmdT IO ()
 rederive = do
-    Cmd.invalidate_performances
-    Cmd.clear_im_cache =<< Cmd.get_focused_block
+    Cmd.invalidatePerformances
+    Cmd.clearImCache =<< Cmd.getFocusedBlock
 
-compare_cached_events :: Cmd.M m => BlockId
+compareCachedEvents :: Cmd.M m => BlockId
     -> m [Either Simple.ScoreEvent Simple.ScoreEvent]
-compare_cached_events block_id = do
-    uncached <- PlayUtil.uncached_derive block_id
-    cached <- PlayUtil.cached_derive block_id
-    pure $ diff (Stream.events_of (Derive.r_events cached))
-        (Stream.events_of (Derive.r_events uncached))
+compareCachedEvents blockId = do
+    uncached <- PlayUtil.uncachedDerive blockId
+    cached <- PlayUtil.cachedDerive blockId
+    pure $ diff (Stream.eventsOf (Derive.rEvents cached))
+        (Stream.eventsOf (Derive.rEvents uncached))
     where
     diff e1 e2 = Lists.diffEither (==)
-        (map Simple.score_event e1) (map Simple.score_event e2)
+        (map Simple.scoreEvent e1) (map Simple.scoreEvent e2)
 
 derive :: Cmd.M m => BlockId -> m Derive.Result
-derive = PlayUtil.cached_derive
+derive = PlayUtil.cachedDerive
 
-uncached_derive :: Cmd.M m => BlockId -> m Derive.Result
-uncached_derive = PlayUtil.uncached_derive
+uncachedDerive :: Cmd.M m => BlockId -> m Derive.Result
+uncachedDerive = PlayUtil.uncachedDerive
 
-inverse_tempo_func :: Cmd.M m => RealTime
+inverseTempoFunc :: Cmd.M m => RealTime
     -> m [(BlockId, [(TrackId, ScoreTime)])]
-inverse_tempo_func time = do
-    perf <- get =<< Cmd.get_focused_block
-    pure $ TrackWarp.inverse_tempo_func (Cmd.perf_warps perf)
+inverseTempoFunc time = do
+    perf <- get =<< Cmd.getFocusedBlock
+    pure $ TrackWarp.inverseTempoFunc (Cmd.perfWarps perf)
         Transport.StopAtEnd time
 
 -- * block
 
 -- | Get this block's performance from the cache.
-block_events :: Cmd.M m => BlockId -> m [LEvent.LEvent Score.Event]
-block_events = fmap normalize_events . block_events_unnormalized
+blockEvents :: Cmd.M m => BlockId -> m [LEvent.LEvent Score.Event]
+blockEvents = fmap normalizeEvents . blockEventsUnnormalized
 
 -- | 'normalize_events' is important for display, but I can't do it if I'm
 -- going to pass to 'convert', because convert should do the normalization
 -- itself.
-block_events_unnormalized :: Cmd.M m => BlockId -> m [LEvent.LEvent Score.Event]
-block_events_unnormalized block_id =
-    Stream.to_list . Derive.r_events <$> PlayUtil.cached_derive block_id
+blockEventsUnnormalized :: Cmd.M m => BlockId -> m [LEvent.LEvent Score.Event]
+blockEventsUnnormalized blockId =
+    Stream.toList . Derive.rEvents <$> PlayUtil.cachedDerive blockId
 
-block_uncached_events :: Cmd.M m => BlockId -> m [LEvent.LEvent Score.Event]
-block_uncached_events block_id = normalize_events . Stream.to_list
-    . Derive.r_events <$> uncached_derive block_id
+blockUncachedEvents :: Cmd.M m => BlockId -> m [LEvent.LEvent Score.Event]
+blockUncachedEvents blockId = normalizeEvents . Stream.toList
+    . Derive.rEvents <$> uncachedDerive blockId
 
 -- | Apply 'Score.normalize' to the events, so that they have their final
 -- control positions and pitches.  Normally 'convert' does this, but if you
 -- display it before convert it's nice to see the \"cooked\" versions.
-normalize_events :: [LEvent.LEvent Score.Event] -> [LEvent.LEvent Score.Event]
-normalize_events = map (fmap Score.normalize)
+normalizeEvents :: [LEvent.LEvent Score.Event] -> [LEvent.LEvent Score.Event]
+normalizeEvents = map (fmap Score.normalize)
 
 -- | Get 'block_events' from the cache and convert to MIDI performer events.
-block_midi_events :: Cmd.M m => BlockId -> m [LEvent.LEvent Types.Event]
-block_midi_events block_id =
-    midi_convert . LEvent.events_of =<< block_events_unnormalized block_id
+blockMidiEvents :: Cmd.M m => BlockId -> m [LEvent.LEvent Types.Event]
+blockMidiEvents blockId =
+    midiConvert . LEvent.eventsOf =<< blockEventsUnnormalized blockId
 
 -- | Derive all the way to MIDI.  This uses the cache.
-block_midi :: Cmd.M m => BlockId -> m Perform.MidiEvents
-block_midi block_id = do
+blockMidi :: Cmd.M m => BlockId -> m Perform.MidiEvents
+blockMidi blockId = do
     state <- Ui.get
-    perf <- Performance.performance state <$> PlayUtil.cached_derive block_id
-    PlayUtil.perform_raw $ Vector.toList $ Cmd.perf_events perf
+    perf <- Performance.performance state <$> PlayUtil.cachedDerive blockId
+    PlayUtil.performRaw $ Vector.toList $ Cmd.perfEvents perf
 
 -- * selection
 
 -- | Derive the current block from the cache and return events that fall within
 -- the current selection.
-sel_events :: Cmd.M m => m [Score.Event]
-sel_events = get_sel_events Local block_events
+selEvents :: Cmd.M m => m [Score.Event]
+selEvents = getSelEvents Local blockEvents
 
-sel_midi_events :: Cmd.M m => m [LEvent.LEvent Types.Event]
-sel_midi_events =
-    midi_convert =<< get_sel_events Local block_events_unnormalized
+selMidiEvents :: Cmd.M m => m [LEvent.LEvent Types.Event]
+selMidiEvents =
+    midiConvert =<< getSelEvents Local blockEventsUnnormalized
 
-sel_im_events :: Cmd.M m => m [LEvent.LEvent Shared.Note.Note]
-sel_im_events = do
-    block_id <- Cmd.get_focused_block
-    im_convert block_id =<< get_sel_events Local block_events_unnormalized
+selImEvents :: Cmd.M m => m [LEvent.LEvent Shared.Note.Note]
+selImEvents = do
+    blockId <- Cmd.getFocusedBlock
+    imConvert blockId =<< getSelEvents Local blockEventsUnnormalized
 
-sel_sc_events :: Cmd.M m => m [LEvent.LEvent Sc.Note.Note]
-sel_sc_events = sc_convert =<< get_sel_events Local block_events_unnormalized
+selScEvents :: Cmd.M m => m [LEvent.LEvent Sc.Note.Note]
+selScEvents = scConvert =<< getSelEvents Local blockEventsUnnormalized
 
 -- | Show the low level events as seen by the sampler backend.
-sel_sampler_events :: Source -> Cmd.CmdT IO Text
-sel_sampler_events source = do
-    (block_id, track_ids, start, end) <- get_sel_ranges source
-    im_dir <- Cmd.gets $ Shared.Config.imDir . Cmd.config_im . Cmd.state_config
-    score_path <- Cmd.gets Cmd.score_path
-    let notes_file = Shared.Config.notesFilename im_dir score_path block_id
+selSamplerEvents :: Source -> Cmd.CmdT IO Text
+selSamplerEvents source = do
+    (blockId, trackIds, start, end) <- getSelRanges source
+    imDir <- Cmd.gets $ Shared.Config.imDir . Cmd.configIm . Cmd.stateConfig
+    scorePath <- Cmd.gets Cmd.scorePath
+    let notesFile = Shared.Config.notesFilename imDir scorePath blockId
             Shared.Config.sampler
     let args =
             [ "dump"
             , "--range", show start <> "," <> show end
             , "--tracks", untxt $
-                Text.intercalate "," (map Id.ident_text track_ids)
-            , notes_file
+                Text.intercalate "," (map Id.identText trackIds)
+            , notesFile
             ]
-    out <- CmdUtil.read_process "build/opt/sampler-im" args
+    out <- CmdUtil.readProcess "build/opt/sampler-im" args
     pure $ Text.unwords ("%" : "build/opt/sampler-im" : map txt args) <> "\n"
         <> out
 
 -- | Like 'sel_events' but take the root derivation.
-root_sel_events :: Cmd.M m => m [Score.Event]
-root_sel_events = get_sel_events Root block_events
+rootSelEvents :: Cmd.M m => m [Score.Event]
+rootSelEvents = getSelEvents Root blockEvents
 
-root_sel_midi_events :: Cmd.M m => m [LEvent.LEvent Types.Event]
-root_sel_midi_events =
-    midi_convert =<< get_sel_events Root block_events_unnormalized
+rootSelMidiEvents :: Cmd.M m => m [LEvent.LEvent Types.Event]
+rootSelMidiEvents =
+    midiConvert =<< getSelEvents Root blockEventsUnnormalized
 
-root_sel_im_events :: Cmd.M m => m [LEvent.LEvent Shared.Note.Note]
-root_sel_im_events = do
-    block_id <- Ui.get_root_id
-    im_convert block_id =<< get_sel_events Root block_events_unnormalized
+rootSelImEvents :: Cmd.M m => m [LEvent.LEvent Shared.Note.Note]
+rootSelImEvents = do
+    blockId <- Ui.getRootId
+    imConvert blockId =<< getSelEvents Root blockEventsUnnormalized
 
 -- ** extract
 
 -- | Get logged events with the given tag and instruments.
-extract_insts :: Cmd.M m => BlockId -> Text -> [Text]
+extractInsts :: Cmd.M m => BlockId -> Text -> [Text]
     -> m [(Text, [Score.Event])]
-extract_insts block_id tag insts =
-    map (fmap (with_insts insts . strip_stack)) <$> extract_debug block_id tag
+extractInsts blockId tag insts =
+    map (fmap (withInsts insts . stripStack)) <$> extractDebug blockId tag
 
 -- | Extract events logged via the @debug@ call.
-extract_debug :: Cmd.M m => BlockId -> Text -> m [(Text, [Score.Event])]
+extractDebug :: Cmd.M m => BlockId -> Text -> m [(Text, [Score.Event])]
     -- ^ logged events by the stack where they were logged
-extract_debug block_id tag = do
-    logs <- LEvent.logs_of <$> block_events block_id
+extractDebug blockId tag = do
+    logs <- LEvent.logsOf <$> blockEvents blockId
     pure
         [ (stack log, events)
-        | (log, Just events) <- zip logs (map (Log.lookup_dyn tag) logs)
+        | (log, Just events) <- zip logs (map (Log.lookupDyn tag) logs)
         ]
     where
-    stack = maybe "" Stack.pretty_ui . Log.msg_stack
+    stack = maybe "" Stack.prettyUi . Log.msgStack
 
 control :: ScoreT.Control -> Score.Event -> Maybe (ScoreT.Typed Signal.Y)
-control c e = Score.control_at (Score.event_start e) c e
+control c e = Score.controlAt (Score.eventStart e) c e
 
-event_controls :: Score.Event -> ScoreT.ControlValMap
-event_controls e = Score.event_controls_at (Score.event_start e) e
+eventControls :: Score.Event -> ScoreT.ControlValMap
+eventControls e = Score.eventControlsAt (Score.eventStart e) e
 
-only_keys :: [Env.Key] -> [LEvent.LEvent Score.Event] -> [Score.Event]
-only_keys keys = map strip . LEvent.events_of
+onlyKeys :: [Env.Key] -> [LEvent.LEvent Score.Event] -> [Score.Event]
+onlyKeys keys = map strip . LEvent.eventsOf
     where
-    strip = Score.modify_environ $
-        Env.from_map . flip Map.restrictKeys (Set.fromList keys) . Env.to_map
+    strip = Score.modifyEnviron $
+        Env.fromMap . flip Map.restrictKeys (Set.fromList keys) . Env.toMap
 
-with_insts :: [Text] -> [Score.Event] -> [Score.Event]
-with_insts instruments = filter ((`elem` is) . Score.event_instrument)
+withInsts :: [Text] -> [Score.Event] -> [Score.Event]
+withInsts instruments = filter ((`elem` is) . Score.eventInstrument)
     where is = map Util.instrument instruments
 
-strip_stack :: [Score.Event] -> [Score.Event]
-strip_stack = map $ \event -> event { Score.event_stack = Stack.empty }
+stripStack :: [Score.Event] -> [Score.Event]
+stripStack = map $ \event -> event { Score.eventStack = Stack.empty }
 
-strip_env :: [Score.Event] -> [Score.Event]
-strip_env = map $ \event -> event { Score.event_environ = mempty }
+stripEnv :: [Score.Event] -> [Score.Event]
+stripEnv = map $ \event -> event { Score.eventEnviron = mempty }
 
 -- | Pretty-print events, presumably from 'sel_events'.  Extract the given
 -- fields, and format them in columns.
@@ -340,99 +340,99 @@ e extract = Text.unlines . Texts.columns 1
 
 -- | LPerf.en LPerf.sel_events
 en :: Functor f => f [Score.Event] -> f Text
-en = fmap (e [e_note])
+en = fmap (e [eNote])
 
 type Fmt = [Score.Event -> Text]
 
 -- Start, dur, text.
-e_sdt, e_sd, e_sp, e_s :: Fmt
-e_sdt = e_sd ++ [pretty . Score.event_text]
-e_sd = [pretty . Score.event_start, pretty . Score.event_duration]
-e_sp = e_s ++ e_pitch
-e_s = [pretty . Score.event_start]
+eSdt, eSd, eSp, eS :: Fmt
+eSdt = eSd ++ [pretty . Score.eventText]
+eSd = [pretty . Score.eventStart, pretty . Score.eventDuration]
+eSp = eS ++ ePitch
+eS = [pretty . Score.eventStart]
 
-e_note :: Fmt
-e_note = e_sd ++ e_pitch ++ e_attr
+eNote :: Fmt
+eNote = eSd ++ ePitch ++ eAttr
 
-e_pitch, e_attr, e_inst, e_env :: Fmt
-e_pitch = [maybe "?" PSignal.symbolic_pitch . Score.initial_pitch]
-e_attr = [pretty . Score.event_attributes]
-e_inst = [pretty . Score.event_instrument]
-e_env = [pretty . Score.event_environ]
+ePitch, eAttr, eInst, eEnv :: Fmt
+ePitch = [maybe "?" PSignal.symbolicPitch . Score.initialPitch]
+eAttr = [pretty . Score.eventAttributes]
+eInst = [pretty . Score.eventInstrument]
+eEnv = [pretty . Score.eventEnviron]
 
-e_env_like, e_env_k :: Text -> Fmt
-e_env_like key = [pretty . filter ((key `Text.isInfixOf`) . fst) . Env.to_list
-    . Score.event_environ]
-e_env_k key = [pretty . Env.lookup key . Score.event_environ]
+eEnvLike, eEnvK :: Text -> Fmt
+eEnvLike key = [pretty . filter ((key `Text.isInfixOf`) . fst) . Env.toList
+    . Score.eventEnviron]
+eEnvK key = [pretty . Env.lookup key . Score.eventEnviron]
 
 -- * play from
 
-events_from :: Cmd.M m => m (Vector.Vector Score.Event)
-events_from = do
-    (block_id, _, track_id, pos) <- Selection.get_insert
-    perf <- Cmd.get_performance block_id
-    start <- Perf.get_realtime perf block_id (Just track_id) pos
-    pure $ snd $ PlayUtil.events_from mempty start (Cmd.perf_events perf)
+eventsFrom :: Cmd.M m => m (Vector.Vector Score.Event)
+eventsFrom = do
+    (blockId, _, trackId, pos) <- Selection.getInsert
+    perf <- Cmd.getPerformance blockId
+    start <- Perf.getRealtime perf blockId (Just trackId) pos
+    pure $ snd $ PlayUtil.eventsFrom mempty start (Cmd.perfEvents perf)
 
-perform_from :: Cmd.M m => m (Perform.MidiEvents, [LEvent.LEvent Sc.Note.Note])
-perform_from = do
-    (block_id, _, track_id, pos) <- Selection.get_insert
-    perf <- Cmd.get_performance block_id
-    start <- Perf.get_realtime perf block_id (Just track_id) pos
-    PlayUtil.perform_from start (Cmd.perf_events perf)
+performFrom :: Cmd.M m => m (Perform.MidiEvents, [LEvent.LEvent Sc.Note.Note])
+performFrom = do
+    (blockId, _, trackId, pos) <- Selection.getInsert
+    perf <- Cmd.getPerformance blockId
+    start <- Perf.getRealtime perf blockId (Just trackId) pos
+    PlayUtil.performFrom start (Cmd.perfEvents perf)
 
 -- ** implementation
 
 -- | Like 'get_sel_events_logs', but filter out the LEvent.Logs.
-get_sel_events :: Cmd.M m => Source
+getSelEvents :: Cmd.M m => Source
     -> (BlockId -> m [LEvent.LEvent Score.Event]) -> m [Score.Event]
-get_sel_events source =
-    LEvent.write_logs <=< get_sel Score.event_start Score.event_stack source
+getSelEvents source =
+    LEvent.writeLogs <=< getSel Score.eventStart Score.eventStack source
 
 
 -- | Get events derived in the selected range.
-get_sel_events_logs :: Cmd.M m => Source
+getSelEventsLogs :: Cmd.M m => Source
     -> (BlockId -> m [LEvent.LEvent Score.Event]) -- ^ derive events in the
     -- given block, e.g. via 'block_events' or 'block_events_unnormalized'
     -> m [LEvent.LEvent Score.Event]
-get_sel_events_logs = get_sel Score.event_start Score.event_stack
+getSelEventsLogs = getSel Score.eventStart Score.eventStack
 
-get_sel :: Cmd.M m => (d -> RealTime) -> (d -> Stack.Stack)
+getSel :: Cmd.M m => (d -> RealTime) -> (d -> Stack.Stack)
     -> Source -> (BlockId -> m [LEvent.LEvent d]) -> m [LEvent.LEvent d]
-get_sel event_start event_stack source derive_events = do
-    (block_id, track_ids, start, end) <- get_sel_ranges source
-    events <- derive_events block_id
-    pure $ in_tracks event_stack track_ids $
-        in_range event_start start end events
+getSel eventStart eventStack source deriveEvents = do
+    (blockId, trackIds, start, end) <- getSelRanges source
+    events <- deriveEvents blockId
+    pure $ inTracks eventStack trackIds $
+        inRange eventStart start end events
 
-get_sel_ranges :: Cmd.M m => Source
+getSelRanges :: Cmd.M m => Source
     -> m (BlockId, [TrackId], RealTime, RealTime)
-get_sel_ranges source = do
-    (block_id, start, end) <- case source of
+getSelRanges source = do
+    (blockId, start, end) <- case source of
         Root -> Selection.realtime
-        Local -> Selection.local_realtime
-    track_ids <- Selection.track_ids
-    pure (block_id, track_ids, start, end)
+        Local -> Selection.localRealtime
+    trackIds <- Selection.trackIds
+    pure (blockId, trackIds, start, end)
 
-score_in_selection :: [TrackId] -> RealTime -> RealTime
+scoreInSelection :: [TrackId] -> RealTime -> RealTime
     -> [LEvent.LEvent Score.Event] -> [LEvent.LEvent Score.Event]
-score_in_selection track_ids start end =
-    in_tracks Score.event_stack track_ids
-    . in_range Score.event_start start end
+scoreInSelection trackIds start end =
+    inTracks Score.eventStack trackIds
+    . inRange Score.eventStart start end
 
-in_tracks :: (d -> Stack.Stack) -> [TrackId] -> [LEvent.LEvent d]
+inTracks :: (d -> Stack.Stack) -> [TrackId] -> [LEvent.LEvent d]
     -> [LEvent.LEvent d]
-in_tracks event_stack track_ids =
-    filter $ LEvent.log_or (has . tracks_of . event_stack)
+inTracks eventStack trackIds =
+    filter $ LEvent.logOr (has . tracksOf . eventStack)
     where
-    tracks_of = mapMaybe Stack.track_of . Stack.innermost
-    has tids = any (`elem` tids) track_ids
+    tracksOf = mapMaybe Stack.trackOf . Stack.innermost
+    has tids = any (`elem` tids) trackIds
 
-in_range :: (a -> RealTime) -> RealTime -> RealTime -> [LEvent.LEvent a]
+inRange :: (a -> RealTime) -> RealTime -> RealTime -> [LEvent.LEvent a]
     -> [LEvent.LEvent a]
-in_range start_of start end =
-    LEvent.take_while ((<end) . start_of)
-    . LEvent.drop_while (before start . start_of)
+inRange startOf start end =
+    LEvent.takeWhile ((<end) . startOf)
+    . LEvent.dropWhile (before start . startOf)
     where
     before start ts
         -- I can't put a selection before 0, so assume that means I want
@@ -441,149 +441,149 @@ in_range start_of start end =
         | otherwise = ts < start
 
 -- | Like 'in_range', but use the stack to check for ScoreTime range.
-in_score_range :: (a -> Stack.Stack) -> [BlockId] -> [TrackId]
+inScoreRange :: (a -> Stack.Stack) -> [BlockId] -> [TrackId]
     -> ScoreTime -> ScoreTime -> [LEvent.LEvent a] -> [LEvent.LEvent a]
-in_score_range stack_of block_ids track_ids start end = filter $ LEvent.log_or $
-    stack_in_score_range block_ids track_ids start end . stack_of
+inScoreRange stackOf blockIds trackIds start end = filter $ LEvent.logOr $
+    stackInScoreRange blockIds trackIds start end . stackOf
 
-stack_in_score_range :: [BlockId] -> [TrackId] -> ScoreTime -> ScoreTime
+stackInScoreRange :: [BlockId] -> [TrackId] -> ScoreTime -> ScoreTime
     -> Stack.Stack -> Bool
-stack_in_score_range block_ids track_ids start end = any match . Stack.to_ui
+stackInScoreRange blockIds trackIds start end = any match . Stack.toUi
     where
-    match (Just block_id, Just track_id, Just (s, e)) =
-        block_id `elem` block_ids && track_id `elem` track_ids
+    match (Just blockId, Just trackId, Just (s, e)) =
+        blockId `elem` blockIds && trackId `elem` trackIds
         && not (end <= s || start >= e)
     match _ = False
 
 -- * Midi.Types.Event
 
-midi_convert :: Cmd.M m => [Score.Event] -> m [LEvent.LEvent Types.Event]
-midi_convert events = do
-    lookup_inst <- Cmd.get_lookup_instrument
-    let lookup = PlayUtil.make_midi_lookup lookup_inst
-    pure $ Midi.Convert.convert Midi.Convert.default_srate lookup lookup_inst
+midiConvert :: Cmd.M m => [Score.Event] -> m [LEvent.LEvent Types.Event]
+midiConvert events = do
+    lookupInst <- Cmd.getLookupInstrument
+    let lookup = PlayUtil.makeMidiLookup lookupInst
+    pure $ Midi.Convert.convert Midi.Convert.defaultSrate lookup lookupInst
         events
 
-im_convert :: Cmd.M m => BlockId -> [Score.Event]
+imConvert :: Cmd.M m => BlockId -> [Score.Event]
     -> m [LEvent.LEvent Shared.Note.Note]
-im_convert block_id events = do
-    lookup_inst <- Cmd.get_lookup_instrument
-    pure $ Im.Convert.convert block_id lookup_inst events
+imConvert blockId events = do
+    lookupInst <- Cmd.getLookupInstrument
+    pure $ Im.Convert.convert blockId lookupInst events
 
-sc_convert :: Cmd.M m => [Score.Event] -> m [LEvent.LEvent Sc.Note.Note]
-sc_convert events = do
-    lookup_inst <- Cmd.get_lookup_instrument
-    pure $ Sc.Convert.convert Sc.Convert.default_srate lookup_inst events
+scConvert :: Cmd.M m => [Score.Event] -> m [LEvent.LEvent Sc.Note.Note]
+scConvert events = do
+    lookupInst <- Cmd.getLookupInstrument
+    pure $ Sc.Convert.convert Sc.Convert.defaultSrate lookupInst events
 
 -- | Filter on events with a certain instrument.
-midi_event_inst :: Types.Event -> Text
-midi_event_inst = ScoreT.instrument_name . Types.patch_name . Types.event_patch
+midiEventInst :: Types.Event -> Text
+midiEventInst = ScoreT.instrumentName . Types.patchName . Types.eventPatch
 
 -- * midi
 
-perform_events :: Cmd.M m => [LEvent.LEvent Score.Event] -> m Perform.MidiEvents
-perform_events = PlayUtil.perform_raw . LEvent.events_of
+performEvents :: Cmd.M m => [LEvent.LEvent Score.Event] -> m Perform.MidiEvents
+performEvents = PlayUtil.performRaw . LEvent.eventsOf
 
-perform_midi_events :: Ui.M m => [LEvent.LEvent Types.Event]
+performMidiEvents :: Ui.M m => [LEvent.LEvent Types.Event]
     -> m Perform.MidiEvents
-perform_midi_events events = do
-    allocs <- Ui.gets $ UiConfig.config_allocations . Ui.state_config
-    let midi_allocs = Perform.config <$> PlayUtil.midi_configs allocs
-    pure $ fst $ Perform.perform Perform.initial_state midi_allocs events
+performMidiEvents events = do
+    allocs <- Ui.gets $ UiConfig.configAllocations . Ui.stateConfig
+    let midiAllocs = Perform.config <$> PlayUtil.midiConfigs allocs
+    pure $ fst $ Perform.perform Perform.initialState midiAllocs events
 
 -- | This is the local block's performance, and the events are filtered to the
 -- selection range, and the filtering is done post-derivation, so they reflect
 -- what would actually be played.  I can't filter by selected track because
 -- MIDI events don't retain the stack.
-sel_midi :: Cmd.M m => m Perform.MidiEvents
-sel_midi = get_sel_midi Local
+selMidi :: Cmd.M m => m Perform.MidiEvents
+selMidi = getSelMidi Local
 
 -- | Analyze a section of MIDI for debugging.
-analyze_midi :: [LEvent.LEvent Midi.WriteMessage] -> Text
-analyze_midi =
-    Synth.pretty_state . Synth.run Synth.empty_state . LEvent.events_of
+analyzeMidi :: [LEvent.LEvent Midi.WriteMessage] -> Text
+analyzeMidi =
+    Synth.prettyState . Synth.run Synth.emptyState . LEvent.eventsOf
 
-root_sel_midi :: Cmd.M m => m Perform.MidiEvents
-root_sel_midi = get_sel_midi Root
+rootSelMidi :: Cmd.M m => m Perform.MidiEvents
+rootSelMidi = getSelMidi Root
 
-get_sel_midi :: Cmd.M m => Source -> m Perform.MidiEvents
-get_sel_midi source = do
-    (block_id, start, end) <- case source of
+getSelMidi :: Cmd.M m => Source -> m Perform.MidiEvents
+getSelMidi source = do
+    (blockId, start, end) <- case source of
         Root -> Selection.realtime
-        Local -> Selection.local_realtime
-    events <- block_midi block_id
-    pure $ in_range Midi.wmsg_ts start end events
+        Local -> Selection.localRealtime
+    events <- blockMidi blockId
+    pure $ inRange Midi.wmsgTs start end events
 
 -- | Get all logs whose 'Log.msg_text' matches a regex.
-logs_like :: Cmd.M m => BlockId -> String -> m [Log.Msg]
-logs_like block_id regex = do
-    logs <- LEvent.logs_of <$> block_midi block_id
+logsLike :: Cmd.M m => BlockId -> String -> m [Log.Msg]
+logsLike blockId regex = do
+    logs <- LEvent.logsOf <$> blockMidi blockId
     let reg = Regex.compileUnsafe regex
-    pure $ filter (Regex.matches reg . Log.msg_text) logs
+    pure $ filter (Regex.matches reg . Log.msgText) logs
 
 -- | Get logs that include a stack frame that matches the given block, tracks,
 -- and range.
-logs_matching :: Cmd.M m => BlockId -> BlockId -> [TrackId] -> TrackTime
+logsMatching :: Cmd.M m => BlockId -> BlockId -> [TrackId] -> TrackTime
     -> TrackTime -> m [Log.Msg]
-logs_matching perf_block block_id track_ids start end = do
-    logs <- LEvent.logs_of <$> block_midi perf_block
-    let pattern = (Just block_id, Just (Set.fromList track_ids),
+logsMatching perfBlock blockId trackIds start end = do
+    logs <- LEvent.logsOf <$> blockMidi perfBlock
+    let pattern = (Just blockId, Just (Set.fromList trackIds),
             Just (start, end))
-        match = maybe False (Stack.match pattern) . Log.msg_stack
+        match = maybe False (Stack.match pattern) . Log.msgStack
     pure $ filter match logs
 
-play_midi :: Cmd.M m => Perform.MidiEvents -> m ()
-play_midi msgs = Cmd.modify $ \st -> st { Cmd.state_repl_status = status }
+playMidi :: Cmd.M m => Perform.MidiEvents -> m ()
+playMidi msgs = Cmd.modify $ \st -> st { Cmd.stateReplStatus = status }
     where
-    to_zero msgs = PlayUtil.shift_midi 1 (PlayUtil.first_time msgs) msgs
+    toZero msgs = PlayUtil.shiftMidi 1 (PlayUtil.firstTime msgs) msgs
     status = Cmd.Play $ Cmd.PlayArgs
-        { play_sync = Nothing
-        , play_name = "repl"
-        , play_midi = to_zero msgs
-        , play_sc = Sc.Note.PlayNotes { shift = 0, stretch = 1, notes =  [] }
-        , play_inv_tempo = Nothing
-        , play_repeat_at = Nothing
-        , play_im_end = Nothing
-        , play_im_direct = Nothing
+        { playSync = Nothing
+        , playName = "repl"
+        , playMidi = toZero msgs
+        , playSc = Sc.Note.PlayNotes { shift = 0, stretch = 1, notes =  [] }
+        , playInvTempo = Nothing
+        , playRepeatAt = Nothing
+        , playImEnd = Nothing
+        , playImDirect = Nothing
         }
 
 -- ** extract
 
-with_chans :: [Midi.Channel] -> [Midi.WriteMessage] -> [Midi.WriteMessage]
-with_chans chans = filter $ (`elem` map Just chans) . Midi.message_channel
-    . Midi.wmsg_msg
+withChans :: [Midi.Channel] -> [Midi.WriteMessage] -> [Midi.WriteMessage]
+withChans chans = filter $ (`elem` map Just chans) . Midi.messageChannel
+    . Midi.wmsgMsg
 
 -- | Reduce MIDI to an easier to read form.
-simple_midi :: [Midi.WriteMessage] -> [(RealTime, Midi.Message)]
-simple_midi = map $ \wmsg -> (Midi.wmsg_ts wmsg, Midi.wmsg_msg wmsg)
+simpleMidi :: [Midi.WriteMessage] -> [(RealTime, Midi.Message)]
+simpleMidi = map $ \wmsg -> (Midi.wmsgTs wmsg, Midi.wmsgMsg wmsg)
 
 
 -- ** cache contents
 
-get_cache :: Cmd.M m => BlockId -> m (Map Derive.CacheKey Derive.Cached)
-get_cache block_id = do
-    Derive.Cache cache <- Cmd.perf_derive_cache <$>
-        Cmd.get_performance block_id
+getCache :: Cmd.M m => BlockId -> m (Map Derive.CacheKey Derive.Cached)
+getCache blockId = do
+    Derive.Cache cache <- Cmd.perfDeriveCache <$>
+        Cmd.getPerformance blockId
     pure cache
 
-get_cache_events :: (Cache.Cacheable d, Cmd.M m) => BlockId
+getCacheEvents :: (Cache.Cacheable d, Cmd.M m) => BlockId
     -> m (Map Derive.CacheKey [LEvent.LEvent d])
-get_cache_events block_id = do
-    cache <- get_cache block_id
-    pure $ fmap Stream.to_list $ Map.mapMaybe get cache
+getCacheEvents blockId = do
+    cache <- getCache blockId
+    pure $ fmap Stream.toList $ Map.mapMaybe get cache
     where
     get Derive.Invalid = Nothing
-    get (Derive.Cached c) = case Cache.from_cache_entry c of
+    get (Derive.Cached c) = case Cache.fromCacheEntry c of
         Nothing -> Nothing
         Just (Derive.CallType _ events) -> Just events
 
-show_cache :: Cmd.M m => BlockId -> m Text
-show_cache block_id = do
-    perf <- Cmd.get_performance block_id
-    pure $ Cache.pretty_cache (Cmd.perf_derive_cache perf)
+showCache :: Cmd.M m => BlockId -> m Text
+showCache blockId = do
+    perf <- Cmd.getPerformance blockId
+    pure $ Cache.prettyCache (Cmd.perfDeriveCache perf)
 
-entry_events :: Derive.CacheEntry -> Int
-entry_events entry = case entry of
+entryEvents :: Derive.CacheEntry -> Int
+entryEvents entry = case entry of
     Derive.CachedEvents (Derive.CallType _ events) -> Stream.length events
     Derive.CachedControl (Derive.CallType _ events) -> Stream.length events
     Derive.CachedPitch (Derive.CallType _ events) -> Stream.length events
@@ -594,24 +594,24 @@ entry_events entry = case entry of
 type Ratio = Ratio.Rational
 
 -- | A hook for 'Cmd.hooks_selection'.
-chord_hook :: Cmd.M m => [(ViewId, Maybe Cmd.TrackSelection)] -> m ()
-chord_hook = mapM_ (uncurry set_chord_status)
+chordHook :: Cmd.M m => [(ViewId, Maybe Cmd.TrackSelection)] -> m ()
+chordHook = mapM_ (uncurry setChordStatus)
 
 -- | Show chord ratios at current selection.
 chord :: Cmd.M m => m Text
 chord = do
-    (view_id, sel) <- Selection.get_view_sel
-    block_id <- Ui.block_id_of view_id
-    maybe_track_id <- Ui.event_track_at block_id (Selection.sel_point_track sel)
-    show_chord <$> chord_at block_id maybe_track_id (Selection.sel_point sel)
+    (viewId, sel) <- Selection.getViewSel
+    blockId <- Ui.blockIdOf viewId
+    maybeTrackId <- Ui.eventTrackAt blockId (Selection.selPointTrack sel)
+    showChord <$> chordAt blockId maybeTrackId (Selection.selPoint sel)
 
-show_chord :: [(Pitch.NoteNumber, Pitch.Note, Ratio)] -> Text
-show_chord = Text.intercalate ", " . map pretty
+showChord :: [(Pitch.NoteNumber, Pitch.Note, Ratio)] -> Text
+showChord = Text.intercalate ", " . map pretty
     where
-    pretty (_, note, ratio) = Pitch.note_text note <> ":" <> show_ratio ratio
+    pretty (_, note, ratio) = Pitch.noteText note <> ":" <> showRatio ratio
 
-show_ratio :: Ratio -> Text
-show_ratio = go 0
+showRatio :: Ratio -> Text
+showRatio = go 0
     where
     go oct ratio
         | ratio >= 2 = go (oct+1) (ratio/2)
@@ -621,62 +621,62 @@ show_ratio = go 0
     pretty ratio =
         showt (Ratio.numerator ratio) <> "/" <> showt (Ratio.denominator ratio)
 
-set_chord_status :: Cmd.M m => ViewId -> Maybe Cmd.TrackSelection -> m ()
-set_chord_status view_id maybe_sel = case maybe_sel of
+setChordStatus :: Cmd.M m => ViewId -> Maybe Cmd.TrackSelection -> m ()
+setChordStatus viewId maybeSel = case maybeSel of
     Nothing -> set Nothing
-    Just (sel, block_id, maybe_track_id) ->
-        set . Just . show_chord
-            =<< chord_at block_id maybe_track_id (Selection.sel_point sel)
-    where set = Cmd.set_view_status view_id Config.status_chord
+    Just (sel, blockId, maybeTrackId) ->
+        set . Just . showChord
+            =<< chordAt blockId maybeTrackId (Selection.selPoint sel)
+    where set = Cmd.setViewStatus viewId Config.statusChord
 
 -- | Show the ratios of the frequencies of the notes at the time of the current
 -- selection.  They are sorted by their track-order, and the track with the
 -- selection is considered unity.
-chord_at :: Cmd.M m => BlockId -> Maybe TrackId -> ScoreTime
+chordAt :: Cmd.M m => BlockId -> Maybe TrackId -> ScoreTime
     -> m [(Pitch.NoteNumber, Pitch.Note, Ratio)]
-chord_at block_id maybe_track_id pos = do
-    perf <- Perf.get_root
-    pos <- Perf.get_realtime perf block_id maybe_track_id pos
-    events <- PlayUtil.overlapping_events pos . Cmd.perf_events <$> get block_id
-    events <- sort_by_track block_id events
+chordAt blockId maybeTrackId pos = do
+    perf <- Perf.getRoot
+    pos <- Perf.getRealtime perf blockId maybeTrackId pos
+    events <- PlayUtil.overlappingEvents pos . Cmd.perfEvents <$> get blockId
+    events <- sortByTrack blockId events
     let selected = do
-            track_id <- maybe_track_id
-            List.find (on_track track_id) events
-    let nns = mapMaybe (Score.nn_at pos) events
-        notes = mapMaybe (Score.note_at pos) events
-    pure $ List.zip3 nns notes (nn_ratios (Score.nn_at pos =<< selected) nns)
+            trackId <- maybeTrackId
+            List.find (onTrack trackId) events
+    let nns = mapMaybe (Score.nnAt pos) events
+        notes = mapMaybe (Score.noteAt pos) events
+    pure $ List.zip3 nns notes (nnRatios (Score.nnAt pos =<< selected) nns)
     where
-    on_track track_id = (== Just track_id) . fmap snd . Stack.block_track_of
-        . Score.event_stack
+    onTrack trackId = (== Just trackId) . fmap snd . Stack.blockTrackOf
+        . Score.eventStack
 
 -- | Sort events by the tracknum of the tracks they fall on.  Filter out
 -- events that don't directly originate from a track on the given block.
 --
 -- TODO I should look for the block anywhere in the stack, and sort it by the
 -- corresponding track.
-sort_by_track :: Ui.M m => BlockId -> [Score.Event] -> m [Score.Event]
-sort_by_track block_id events = do
-    let by_track = Lists.keyOnJust
-            (fmap snd . Stack.block_track_of . Score.event_stack) events
-    tracknums <- mapM (Ui.tracknum_of block_id . fst) by_track
-    let by_tracknum = [(tracknum, event)
-            | (Just tracknum, event) <- zip tracknums (map snd by_track)]
-    pure $ map snd $ Lists.sortOn fst by_tracknum
+sortByTrack :: Ui.M m => BlockId -> [Score.Event] -> m [Score.Event]
+sortByTrack blockId events = do
+    let byTrack = Lists.keyOnJust
+            (fmap snd . Stack.blockTrackOf . Score.eventStack) events
+    tracknums <- mapM (Ui.tracknumOf blockId . fst) byTrack
+    let byTracknum = [(tracknum, event)
+            | (Just tracknum, event) <- zip tracknums (map snd byTrack)]
+    pure $ map snd $ Lists.sortOn fst byTracknum
 
-nn_ratios :: Maybe Pitch.NoteNumber -> [Pitch.NoteNumber] -> [Ratio]
-nn_ratios unity nns = case (unity, nns) of
+nnRatios :: Maybe Pitch.NoteNumber -> [Pitch.NoteNumber] -> [Ratio]
+nnRatios unity nns = case (unity, nns) of
     (Just unity, nns) -> ratios unity nns
     (Nothing, nn : nns) -> ratios nn nns
     (_, []) -> []
     where
     ratios unity = map (flip Ratio.approxRational 0.01 . (/ hz unity) . hz)
-    hz = Pitch.nn_to_hz
+    hz = Pitch.nnToHz
 
-overlapping_events :: Cmd.M m => Source -> m (RealTime, [Score.Event])
-overlapping_events source = do
-    (block_id, start, _) <- case source of
+overlappingEvents :: Cmd.M m => Source -> m (RealTime, [Score.Event])
+overlappingEvents source = do
+    (blockId, start, _) <- case source of
         Root -> Selection.realtime
-        Local -> Selection.local_realtime
-    events <- PlayUtil.overlapping_events start . Cmd.perf_events <$>
-        get block_id
+        Local -> Selection.localRealtime
+    events <- PlayUtil.overlappingEvents start . Cmd.perfEvents <$>
+        get blockId
     pure (start, events)

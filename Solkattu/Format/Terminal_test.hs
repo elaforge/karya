@@ -28,8 +28,8 @@ import           Util.Test
 
 
 -- Just print nested groups to check visually.
-show_nested_groups :: IO ()
-show_nested_groups = do
+showNestedGroups :: IO ()
+showNestedGroups = do
     let f = fmap (dropRulers . formatAbstraction mempty 80 tala4c . fst)
             . kRealize tala4
     let tas n = G.repeat n G.ta
@@ -48,7 +48,7 @@ test_format = do
     let f tala = eFormat . format 80 tala . map (S.FNote S.defaultTempo)
         n4 = [k, t, Realize.Space Solkattu.Rest, n]
         M.Strokes {..} = Realize.Note . Realize.stroke <$> M.strokes
-        rupaka = Talas.Carnatic Tala.rupaka_fast
+        rupaka = Talas.Carnatic Tala.rupakaFast
     -- Emphasize every 4.
     equal (f rupaka n4) "k t _ n"
     -- Alignment should be ignored.
@@ -56,7 +56,7 @@ test_format = do
     equal (f rupaka (n4 <> n4)) "k t _ n k t _ n"
     -- Emphasize according to the tala.
     let kook = [k, o, o, k]
-    equal (f (Talas.Carnatic Tala.kanda_chapu) (take (5*4) (cycle kook)))
+    equal (f (Talas.Carnatic Tala.kandaChapu) (take (5*4) (cycle kook)))
         "k o o k k o o k k o o k k o o k k o o k"
 
 test_format_abbreviations :: Test
@@ -68,31 +68,31 @@ test_format_abbreviations = do
     let r n = concat . replicate n
 
     -- Fits on one avartanam.
-    equal_on eFormat (f $ sd on <> r 2 on) "o n onon"
+    equalOn eFormat (f $ sd on <> r 2 on) "o n onon"
     -- Split avartanam.
-    equal_on eFormat (f $ r 2 on <> su (on<>on) <> on)
+    equalOn eFormat (f $ r 2 on <> su (on<>on) <> on)
         "o n o n\n\
         \onono n"
     -- Abbreviate instead of splitting.
-    equal_on eFormat (f $ sd on <> su ktpk <> on) "o n xqon"
+    equalOn eFormat (f $ sd on <> su ktpk <> on) "o n xqon"
     -- Don't abbreviate if I don't need it.
-    equal_on eFormat (f $ sd on <> ktpk) "o n ktpk"
-    equal_on eFormat (f $ r 2 ktpk) "ktpkktpk"
-    equal_on eFormat (f $ ktpk <> r 2 (su ktpk)) "ktpkxqxq"
+    equalOn eFormat (f $ sd on <> ktpk) "o n ktpk"
+    equalOn eFormat (f $ r 2 ktpk) "ktpkktpk"
+    equalOn eFormat (f $ ktpk <> r 2 (su ktpk)) "ktpkxqxq"
     -- Abbreviating ktpk would put it on a half-column.
-    equal_on eFormat
+    equalOn eFormat
         (f $ su (notes [n, k, t, p, k, o]) <> notes [n, o, o, n, n])
         "nktpkon\n\
         \o o n n"
     -- maxSpeed is 2
-    equal_on eFormat (f $ on <> su (su ktpk) <> notes [o]) "o n xqo"
+    equalOn eFormat (f $ on <> su (su ktpk) <> notes [o]) "o n xqo"
     let f16 = format 16 (Talas.Carnatic (Tala.beats 2))
     -- No abbreviation if strokeWidth > 1
-    equal_on eFormat (f16 $ on <> su ktpk) "o _ n _ k t p k"
+    equalOn eFormat (f16 $ on <> su ktpk) "o _ n _ k t p k"
     -- Only apply abbreviations if willBreakRuler.  Otherwise, something would
     -- fit with strokeWidth = 1, but abbreviation makes it half terminal width,
     -- so it expands, now ruler is broken where it otherwise wouldn't be.
-    equal_on eFormat (f16 $ su (r 4 ktpk)) (Text.replicate 4 "ktpk")
+    equalOn eFormat (f16 $ su (r 4 ktpk)) (Text.replicate 4 "ktpk")
 
 notes :: [a] -> [S.Flat g a]
 notes = map $ S.FNote S.defaultTempo
@@ -111,7 +111,7 @@ modifySpeed x = \case
 test_format_patterns :: Test
 test_format_patterns = do
     let realize pmap seq = realizeP (Just pmap) defaultSolluMap seq
-    let p = expect_right $ realize (M.families567 !! 1) G.p5
+    let p = expectRight $ realize (M.families567 !! 1) G.p5
     equal (eFormat $ formatAbstraction mempty 80 adiTala p)
         "k _ t _ k _ k t o _"
     equal (eFormat $ formatAbstraction mempty 15 adiTala p) "k t k kto"
@@ -207,14 +207,14 @@ test_format_eddupu = do
     let run = stripAnsi . formatInstrument . korvai tala4
     let tas n = G.repeat n G.ta
     let s = G.section
-    equal_fmt id (run [s $ tas 32, s $ tas 32])
+    equalFmt id (run [s $ tas 32, s $ tas 32])
         "    X:4     O       X       O       |\n\
         \0:  k k k k k k k k k k k k k k k k\n\
         \  > k k k k k k k k k k k k k k k k\n\
         \1:  k k k k k k k k k k k k k k k k\n\
         \  > k k k k k k k k k k k k k k k k"
     -- The ruler remains unchanged, even though there aren't enough sollus.
-    equal_fmt id (run [G.endOn 2 $ s $ tas 24, G.startOn 2 $ s $ tas 24])
+    equalFmt id (run [G.endOn 2 $ s $ tas 24, G.startOn 2 $ s $ tas 24])
         "    X:4     O       X       O       |\n\
         \0:  k k k k k k k k k k k k k k k k\n\
         \  > k k k k k k k k\n\
@@ -235,7 +235,7 @@ test_inferRuler = do
     let f = Format.inferRuler 0 tala4c 2
             . map fst . S.flattenedNotes
             . Format.normalizeSpeed 0 (Talas.aksharas tala4c)
-            . fst . expect_right
+            . fst . expectRight
             . kRealize tala4
     let tas nadai n = G.nadai nadai (G.repeat n G.ta)
     equal (f (tas 2 4)) [("X:2", 4), ("O", 4)]
@@ -257,11 +257,11 @@ test_format_ruler_rulerEach = do
         )
 
 equalT :: HasCallStack => Either Text Text -> Either Text Text -> Test
-equalT = equal_fmt (either id id)
+equalT = equalFmt (either id id)
 
 equalT1 :: (HasCallStack, Eq a, Show a) => Either Text (Text, a)
     -> Either Text (Text, a) -> Test
-equalT1 = equal_fmt (either id fst)
+equalT1 = equalFmt (either id fst)
 
 test_formatLines :: Test
 test_formatLines = do
@@ -291,17 +291,17 @@ test_formatLines = do
         ]
 
     -- Uneven ones break before the width.
-    equal (f 2 24 Tala.rupaka_fast (tas (4 * 3))) $
+    equal (f 2 24 Tala.rupakaFast (tas (4 * 3))) $
         Right [["k k k k k k k k k k k k"]]
-    equal (f 2 20 Tala.rupaka_fast (tas (4 * 3))) $
+    equal (f 2 20 Tala.rupakaFast (tas (4 * 3))) $
         Right [["k k k k k k k k", "k k k k"]]
-    equal (f 2 10 Tala.rupaka_fast (tas (4 * 3))) $
+    equal (f 2 10 Tala.rupakaFast (tas (4 * 3))) $
         Right [["k k k k", "k k k k", "k k k k"]]
-    equal (f 2 1 Tala.rupaka_fast (tas (4 * 3))) $
+    equal (f 2 1 Tala.rupakaFast (tas (4 * 3))) $
         Right [["k k k k", "k k k k", "k k k k"]]
 
-    equal (f 1 80 Tala.rupaka_fast (G.p5)) $ Right [["5p---"]]
-    equal (f 2 80 Tala.rupaka_fast (G.p5)) $ Right [["5p--------"]]
+    equal (f 1 80 Tala.rupakaFast (G.p5)) $ Right [["5p---"]]
+    equal (f 2 80 Tala.rupakaFast (G.p5)) $ Right [["5p--------"]]
 
 test_abstract :: Test
 test_abstract = do
@@ -361,8 +361,8 @@ test_formatNadaiChange = do
                 (stripAnsi . formatAbstraction mempty 50 (Talas.Carnatic tala)))
             . kRealize tala
     let sequence = G.su (G.__ <> G.repeat 5 G.p7) <> G.nadai 6 (G.r3 G.p7)
-    let (out, warnings) = expect_right $ f Tala.adi sequence
-    equal_fmt Text.unlines (Text.lines out)
+    let (out, warnings) = expectRight $ f Tala.adi sequence
+    equalFmt Text.unlines (Text.lines out)
         [ "0:4     1       2       3       |"
         , "_k_t_knok t knok_t_knok t knok_t"
         , "X:4 :6.   O     .     X     .     O     .     |"
@@ -376,7 +376,7 @@ test_formatNadaiChange = do
 test_formatSpeed :: Test
 test_formatSpeed = do
     let f width = fmap (capitalizeEmphasis . dropRulers
-                . format width (Talas.Carnatic Tala.rupaka_fast))
+                . format width (Talas.Carnatic Tala.rupakaFast))
             . realize defaultSolluMap
         thoms n = mconcat (replicate n G.thom)
     equal (f 80 mempty) (Right "")
@@ -473,7 +473,7 @@ realizeP :: Maybe (Realize.PatternMap M.Stroke)
 realizeP pmap smap = fmap Format.mapGroups
     . Realize.formatError . fst
     . Realize.realize_ pattern (Realize.realizeSollu smap)
-        (Tala.tala_aksharas Tala.adi)
+        (Tala.talaAksharas Tala.adi)
     . S.flatten . S.toList
     . fmap (fmap Realize.stroke)
     where
@@ -489,7 +489,7 @@ formatLines abstraction strokeWidth width tala notes =
     Terminal.formatLines abstraction strokeWidth width tala notes
 
 defaultSolluMap :: Realize.SolluMap Solkattu.Sollu M.Stroke
-defaultSolluMap = fst $ expect_right $ Realize.solluMap $ solkattuToRealize
+defaultSolluMap = fst $ expectRight $ Realize.solluMap $ solkattuToRealize
     [ (G.thom, o)
     ]
     where M.Strokes {..} = M.notes
@@ -501,4 +501,4 @@ defaultStrokeMap = mempty
 
 solkattuToRealize :: [(a, S.Sequence g (Solkattu.Note (Realize.Stroke stroke)))]
     -> [(a, [S.Note () (Realize.Note stroke)])]
-solkattuToRealize = expect_right . mapM (traverse Realize.solkattuToRealize)
+solkattuToRealize = expectRight . mapM (traverse Realize.solkattuToRealize)

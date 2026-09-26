@@ -35,57 +35,57 @@ import           Types
 
 -- * zoom
 
-cmd_zoom_around_insert :: Cmd.M m => (Double -> Double) -> m ()
-cmd_zoom_around_insert f = do
-    (view_id, (_, _, pos)) <- Selection.get_any_insert
-    cmd_zoom_around view_id pos f
+cmdZoomAroundInsert :: Cmd.M m => (Double -> Double) -> m ()
+cmdZoomAroundInsert f = do
+    (viewId, (_, _, pos)) <- Selection.getAnyInsert
+    cmdZoomAround viewId pos f
 
-cmd_zoom_around :: Cmd.M m => ViewId -> ScoreTime -> (Double -> Double) -> m ()
-cmd_zoom_around view_id pos f = do
+cmdZoomAround :: Cmd.M m => ViewId -> ScoreTime -> (Double -> Double) -> m ()
+cmdZoomAround viewId pos f = do
     -- Zoom by the given factor, but try to keep pos in the same place on the
     -- screen.
-    zoom <- Ui.get_zoom view_id
-    Views.set_zoom view_id (zoom_around zoom pos f)
+    zoom <- Ui.getZoom viewId
+    Views.setZoom viewId (zoomAround zoom pos f)
 
-zoom_around :: Zoom.Zoom -> ScoreTime -> (Double -> Double) -> Zoom.Zoom
-zoom_around (Zoom.Zoom offset factor) pos f = Zoom.Zoom
-    { offset = zoom_pos offset pos (ScoreTime.from_double factor)
-        (ScoreTime.from_double newf)
+zoomAround :: Zoom.Zoom -> ScoreTime -> (Double -> Double) -> Zoom.Zoom
+zoomAround (Zoom.Zoom offset factor) pos f = Zoom.Zoom
+    { offset = zoomPos offset pos (ScoreTime.fromDouble factor)
+        (ScoreTime.fromDouble newf)
     , factor = newf
     }
     where newf = f factor
 
-zoom_pos :: ScoreTime -> ScoreTime -> ScoreTime -> ScoreTime -> ScoreTime
-zoom_pos offset pos oldf newf = (offset - pos) * (oldf/newf) + pos
+zoomPos :: ScoreTime -> ScoreTime -> ScoreTime -> ScoreTime -> ScoreTime
+zoomPos offset pos oldf newf = (offset - pos) * (oldf/newf) + pos
 
-modify_factor :: Cmd.M m => ViewId -> (Double -> Double) -> m ()
-modify_factor view_id f = do
-    zoom <- Ui.get_zoom view_id
-    Views.set_zoom view_id $ zoom { Zoom.factor = f (Zoom.factor zoom) }
+modifyFactor :: Cmd.M m => ViewId -> (Double -> Double) -> m ()
+modifyFactor viewId f = do
+    zoom <- Ui.getZoom viewId
+    Views.setZoom viewId $ zoom { Zoom.factor = f (Zoom.factor zoom) }
 
 -- | Zoom to the ruler duration if the selection is a point, or zoom to the
 -- selection if it's not.
-zoom_to_ruler_or_selection :: Cmd.M m => m ()
-zoom_to_ruler_or_selection = do
-    (view_id, sel) <- Selection.get_view_sel
-    if Sel.is_point sel
-        then Views.zoom_to_ruler view_id
-        else uncurry (zoom_to view_id) (Sel.range sel)
+zoomToRulerOrSelection :: Cmd.M m => m ()
+zoomToRulerOrSelection = do
+    (viewId, sel) <- Selection.getViewSel
+    if Sel.isPoint sel
+        then Views.zoomToRuler viewId
+        else uncurry (zoomTo viewId) (Sel.range sel)
 
-zoom_to :: Cmd.M m => ViewId -> TrackTime -> TrackTime -> m ()
-zoom_to view_id start end =
-    Views.set_zoom view_id . Zoom.Zoom start
-        =<< Views.zoom_factor view_id (end - start)
+zoomTo :: Cmd.M m => ViewId -> TrackTime -> TrackTime -> m ()
+zoomTo viewId start end =
+    Views.setZoom viewId . Zoom.Zoom start
+        =<< Views.zoomFactor viewId (end - start)
 
 -- | Go through zoom factors for timesteps at the current point, and pick the
 -- next larger or smaller one.
-zoom_by_rank :: Cmd.M m => TimeStep.Direction -> m ()
-zoom_by_rank direction = do
-    (view_id, (block_id, tracknum, pos)) <- Selection.get_any_insert
-    factor <- Zoom.factor <$> Ui.get_zoom view_id
-    let dur_at = TimeStep.duration_at block_id tracknum pos . TimeStep.rank
-    mb_factor <- Control.loop1 ranks $ \loop -> \case
-        rank : ranks -> dur_at rank >>= \case
+zoomByRank :: Cmd.M m => TimeStep.Direction -> m ()
+zoomByRank direction = do
+    (viewId, (blockId, tracknum, pos)) <- Selection.getAnyInsert
+    factor <- Zoom.factor <$> Ui.getZoom viewId
+    let durAt = TimeStep.durationAt blockId tracknum pos . TimeStep.rank
+    mbFactor <- Control.loop1 ranks $ \loop -> \case
+        rank : ranks -> durAt rank >>= \case
             Just dur
                 | cmp f factor -> pure $ Just f
                 | otherwise -> loop ranks
@@ -93,10 +93,10 @@ zoom_by_rank direction = do
                 cmp = case direction of
                     TimeStep.Advance -> (>)
                     TimeStep.Rewind -> (<)
-                f = time_to_zoom dur
+                f = timeToZoom dur
             Nothing -> pure Nothing
         [] -> pure Nothing
-    whenJust mb_factor $ cmd_zoom_around view_id pos . const
+    whenJust mbFactor $ cmdZoomAround viewId pos . const
     where
     ranks = case direction of
         TimeStep.Advance -> rs
@@ -106,54 +106,54 @@ zoom_by_rank direction = do
 -- | Set zoom to where text at the given timestep should be visible.
 -- This means the timestep amount of score should get Config.event_text_height
 -- pixels.
-zoom_to_rank :: Cmd.M m => Meter.Rank -> m ()
-zoom_to_rank rank = do
-    (view_id, (block_id, tracknum, pos)) <- Selection.get_any_insert
-    whenJustM (TimeStep.duration_at block_id tracknum pos tstep) $ \dur ->
-        cmd_zoom_around view_id pos (const (time_to_zoom dur))
+zoomToRank :: Cmd.M m => Meter.Rank -> m ()
+zoomToRank rank = do
+    (viewId, (blockId, tracknum, pos)) <- Selection.getAnyInsert
+    whenJustM (TimeStep.durationAt blockId tracknum pos tstep) $ \dur ->
+        cmdZoomAround viewId pos (const (timeToZoom dur))
     where tstep = TimeStep.rank rank
 
-time_to_zoom :: TrackTime -> Double
-time_to_zoom step = text / ScoreTime.to_double step
-    where text = fromIntegral Config.event_text_height
+timeToZoom :: TrackTime -> Double
+timeToZoom step = text / ScoreTime.toDouble step
+    where text = fromIntegral Config.eventTextHeight
 
 -- * scroll
 
 -- | Scroll by the number of pages, where a page is a fraction of the score
 -- visible at the current zoom.
-scroll_pages :: Cmd.M m => TrackTime -> m ()
-scroll_pages pages = do
-    view_id <- Cmd.get_focused_view
-    view <- Ui.get_view view_id
-    let visible = Block.visible_time view
-        offset = Zoom.offset $ Block.view_zoom view
-    Views.set_time_offset view_id (offset + pages * visible)
+scrollPages :: Cmd.M m => TrackTime -> m ()
+scrollPages pages = do
+    viewId <- Cmd.getFocusedView
+    view <- Ui.getView viewId
+    let visible = Block.visibleTime view
+        offset = Zoom.offset $ Block.viewZoom view
+    Views.setTimeOffset viewId (offset + pages * visible)
 
-scroll_to_end :: Cmd.M m => m ()
-scroll_to_end = do
-    view_id <- Cmd.get_focused_view
-    Views.set_time_offset view_id =<< Views.block_end view_id
+scrollToEnd :: Cmd.M m => m ()
+scrollToEnd = do
+    viewId <- Cmd.getFocusedView
+    Views.setTimeOffset viewId =<< Views.blockEnd viewId
 
-scroll_to_home :: Cmd.M m => m ()
-scroll_to_home = flip Views.set_time_offset 0 =<< Cmd.get_focused_view
+scrollToHome :: Cmd.M m => m ()
+scrollToHome = flip Views.setTimeOffset 0 =<< Cmd.getFocusedView
 
 -- * resize
 
-resize_all :: Cmd.M m => m ()
-resize_all = mapM_ (Views.resize_to_fit False) =<< Ui.all_view_ids
+resizeAll :: Cmd.M m => m ()
+resizeAll = mapM_ (Views.resizeToFit False) =<< Ui.allViewIds
 
-set_suggested_track_widths :: Cmd.M m => ViewId -> m ()
-set_suggested_track_widths view_id = do
-    block_id <- Ui.block_id_of view_id
-    tracks <- Ui.block_tracknums block_id
+setSuggestedTrackWidths :: Cmd.M m => ViewId -> m ()
+setSuggestedTrackWidths viewId = do
+    blockId <- Ui.blockIdOf viewId
+    tracks <- Ui.blockTracknums blockId
     let changes = do
             (track, tracknum) <- tracks
-            let suggested = Block.track_suggested_width track
-            guard (suggested /= Block.track_width track)
+            let suggested = Block.trackSuggestedWidth track
+            guard (suggested /= Block.trackWidth track)
             pure (tracknum, suggested)
     unless (null changes) $ do
-        mapM_ (uncurry (Ui.set_track_width block_id)) changes
-        Views.resize_to_fit False view_id
+        mapM_ (uncurry (Ui.setTrackWidth blockId)) changes
+        Views.resizeToFit False viewId
 
 -- * window management
 
@@ -183,71 +183,71 @@ set_suggested_track_widths view_id = do
 -- filtering out the positions that would cause an overlap, and pick the spot
 -- closest to the rectangle's original position.  The whole process is started
 -- again with any rectangles that wind up totally outside the screen.
-fit_rects :: Rect.Rect -> [(ViewId, Rect.Rect)] -> [(ViewId, Rect.Rect)]
-fit_rects screen =
-    redo_outside . foldl' fit []
+fitRects :: Rect.Rect -> [(ViewId, Rect.Rect)] -> [(ViewId, Rect.Rect)]
+fitRects screen =
+    redoOutside . foldl' fit []
         . Lists.sortOn (\(_, r) -> (Rect.x r, Rect.y r))
     where
-    fit windows (view_id, rect) = case Lists.head (sort rect corners) of
-        Just (x, y) -> (view_id, Rect.place x y rect) : windows
+    fit windows (viewId, rect) = case Lists.head (sort rect corners) of
+        Just (x, y) -> (viewId, Rect.place x y rect) : windows
         -- Shouldn't happen since you can always place to the right or
         -- below the rightmost or bottom rectangle.
         -- Nothing -> error $ "no corners for " <> show rect
-        Nothing -> (view_id, rect) : windows
+        Nothing -> (viewId, rect) : windows
         where
         rects = map snd windows
         corners =
-            filter (not . would_overlap rects rect) (corners_of screen rects)
+            filter (not . wouldOverlap rects rect) (cornersOf screen rects)
 
-    sort rect = Lists.sortOn $ Rect.point_distance (Rect.upper_left rect)
+    sort rect = Lists.sortOn $ Rect.pointDistance (Rect.upperLeft rect)
     -- If there are rects outside the screen, fit them again into an empty
     -- screen.  I should run out eventually.
-    redo_outside rects = rects
+    redoOutside rects = rects
         -- - | null outside = inside
         -- - | otherwise = fit_rects screen outside ++ inside
         -- where
         -- (inside, outside) = List.partition
         --     (Rect.contains_point screen . Rect.upper_left . snd) rects
 
-corners_of :: Rect.Rect -> [Rect.Rect] -> [(Int, Int)]
-corners_of screen [] = [Rect.upper_left screen]
-corners_of _ rects =
-    filter (\p -> not $ point_above p || point_left p) not_touching
+cornersOf :: Rect.Rect -> [Rect.Rect] -> [(Int, Int)]
+cornersOf screen [] = [Rect.upperLeft screen]
+cornersOf _ rects =
+    filter (\p -> not $ pointAbove p || pointLeft p) notTouching
     where
-    not_touching = filter (not . touches) $
-        map Rect.lower_left rects ++ map Rect.upper_right rects
-    point_above (x, y) = any (\(x1, y1) -> x1 == x && y1 < y) not_touching
-    point_left (x, y) = any (\(x1, y1) -> x1 < x && y1 == y) not_touching
-    touches p = any (\r -> Rect.contains_point r p) rects
+    notTouching = filter (not . touches) $
+        map Rect.lowerLeft rects ++ map Rect.upperRight rects
+    pointAbove (x, y) = any (\(x1, y1) -> x1 == x && y1 < y) notTouching
+    pointLeft (x, y) = any (\(x1, y1) -> x1 < x && y1 == y) notTouching
+    touches p = any (\r -> Rect.containsPoint r p) rects
 
 -- If I move the rect to the point, will it overlap with anything in the
 -- list?
-would_overlap :: [Rect.Rect] -> Rect.Rect -> (Int, Int) -> Bool
-would_overlap rects rect (x, y) =
+wouldOverlap :: [Rect.Rect] -> Rect.Rect -> (Int, Int) -> Bool
+wouldOverlap rects rect (x, y) =
     any (Rect.overlaps (Rect.place x y rect)) rects
 
 -- | Arrange views horizontally on each screen.  They'll overlap if there isn't
 -- room for all of them.
-horizontal_tile :: Cmd.M m => m ()
-horizontal_tile = mapM_ (uncurry tile_screen) =<< windows_by_screen
+horizontalTile :: Cmd.M m => m ()
+horizontalTile = mapM_ (uncurry tileScreen) =<< windowsByScreen
     where
-    tile_screen screen view_rects =
-        zipWithM_ Ui.set_view_rect view_ids $
-            horizontal_tile_rects screen rects
-        where (view_ids, rects) = unzip (Lists.sortOn (Rect.x . snd) view_rects)
+    tileScreen screen viewRects =
+        zipWithM_ Ui.setViewRect viewIds $
+            horizontalTileRects screen rects
+        where (viewIds, rects) = unzip (Lists.sortOn (Rect.x . snd) viewRects)
 
-windows_by_screen :: Cmd.M m => m [(Rect.Rect, [(ViewId, Rect.Rect)])]
-windows_by_screen = do
-    view_rects <- Ui.gets $
-        map (second Block.view_rect) . Map.toList . Ui.state_views
-    screens <- Cmd.gets Cmd.state_screens
-    let (screen_views, orphaned) = group_with
-            (\s -> Rect.overlaps s . snd) screens view_rects
-    mapM_ (Ui.destroy_view . fst) orphaned
-    pure screen_views
+windowsByScreen :: Cmd.M m => m [(Rect.Rect, [(ViewId, Rect.Rect)])]
+windowsByScreen = do
+    viewRects <- Ui.gets $
+        map (second Block.viewRect) . Map.toList . Ui.stateViews
+    screens <- Cmd.gets Cmd.stateScreens
+    let (screenViews, orphaned) = groupWith
+            (\s -> Rect.overlaps s . snd) screens viewRects
+    mapM_ (Ui.destroyView . fst) orphaned
+    pure screenViews
 
-horizontal_tile_rects :: Rect.Rect -> [Rect.Rect] -> [Rect.Rect]
-horizontal_tile_rects screen rects = zipWith place rects xs
+horizontalTileRects :: Rect.Rect -> [Rect.Rect] -> [Rect.Rect]
+horizontalTileRects screen rects = zipWith place rects xs
     where
     place rect x = Rect.place x (Rect.y screen) rect
     xs = scanl (+) (Rect.x screen) (map (subtract overlap . Rect.w) rects)
@@ -258,82 +258,82 @@ horizontal_tile_rects screen rects = zipWith place rects xs
         -- 0 or 1 rects are not going to have any overlap.
         _ -> 0
 
-group_with :: (key -> val -> Bool) -> [key] -> [val] -> ([(key, [val])], [val])
-group_with cmp keys vals = Tuple.swap $ List.mapAccumL go vals keys
+groupWith :: (key -> val -> Bool) -> [key] -> [val] -> ([(key, [val])], [val])
+groupWith cmp keys vals = Tuple.swap $ List.mapAccumL go vals keys
     where
     go vals key = (out, (key, inside))
         where (inside, out) = List.partition (cmp key) vals
 
 -- ** focus
 
-cycle_focus :: Cmd.M m => Bool -> m ()
-cycle_focus forward = do
-    focused <- Cmd.get_focused_view
-    view_ids <- (if forward then id else reverse) <$> Ui.all_view_ids
-    case drop 1 $ dropWhile (/=focused) view_ids of
+cycleFocus :: Cmd.M m => Bool -> m ()
+cycleFocus forward = do
+    focused <- Cmd.getFocusedView
+    viewIds <- (if forward then id else reverse) <$> Ui.allViewIds
+    case drop 1 $ dropWhile (/=focused) viewIds of
         next : _ -> Cmd.focus next
-        [] -> whenJust (Lists.head view_ids) Cmd.focus
+        [] -> whenJust (Lists.head viewIds) Cmd.focus
 
 -- | Right and Left would clash with Either.
 data Direction = North | South | East | West deriving (Show)
 
-move_focus :: Cmd.M m => Direction -> m ()
-move_focus dir = do
+moveFocus :: Cmd.M m => Direction -> m ()
+moveFocus dir = do
     rects <- Ui.gets $
-        map (second Block.view_rect) . Map.toList . Ui.state_views
-    focused <- Block.view_rect <$> (Ui.get_view =<< Cmd.get_focused_view)
-    let get_rects cmp f = Lists.sortOn snd $ filter ((`cmp` f focused) . snd) $
+        map (second Block.viewRect) . Map.toList . Ui.stateViews
+    focused <- Block.viewRect <$> (Ui.getView =<< Cmd.getFocusedView)
+    let getRects cmp f = Lists.sortOn snd $ filter ((`cmp` f focused) . snd) $
             map (second f) rects
     let next = case dir of
-            East -> Lists.head $ get_rects (>) Rect.x
-            West -> Lists.last $ get_rects (<) Rect.x
-            South -> Lists.head $ get_rects (>) Rect.y
-            North -> Lists.last $ get_rects (<) Rect.y
+            East -> Lists.head $ getRects (>) Rect.x
+            West -> Lists.last $ getRects (<) Rect.x
+            South -> Lists.head $ getRects (>) Rect.y
+            North -> Lists.last $ getRects (<) Rect.y
     whenJust next $ Cmd.focus . fst
 
 -- * create views
 
 -- | For the current window, open enough views at the current zoom to see the
 -- score from the current time until the end of the block.
-views_covering :: Cmd.M m => ViewId -> m [ViewId]
-views_covering view_id = do
-    view <- Ui.get_view view_id
-    block_dur <- Ui.block_end $ Block.view_block view
-    forM (views_covering_starts block_dur view) $ \start -> do
-        view_id <- Create.view (Block.view_block view)
-        Views.modify_zoom view_id $ const $ Zoom.Zoom
-            { factor = Zoom.factor (Block.view_zoom view)
+viewsCovering :: Cmd.M m => ViewId -> m [ViewId]
+viewsCovering viewId = do
+    view <- Ui.getView viewId
+    blockDur <- Ui.blockEnd $ Block.viewBlock view
+    forM (viewsCoveringStarts blockDur view) $ \start -> do
+        viewId <- Create.view (Block.viewBlock view)
+        Views.modifyZoom viewId $ const $ Zoom.Zoom
+            { factor = Zoom.factor (Block.viewZoom view)
             , offset = start
             }
-        pure view_id
+        pure viewId
 
-views_covering_starts :: TrackTime -> Block.View -> [TrackTime]
-views_covering_starts block_dur view =
+viewsCoveringStarts :: TrackTime -> Block.View -> [TrackTime]
+viewsCoveringStarts blockDur view =
     -- drop 1 to exclude the given view.
-    drop 1 $ take needed $ Lists.range_ offset (block_dur / fromIntegral needed)
+    drop 1 $ take needed $ Lists.range_ offset (blockDur / fromIntegral needed)
     where
-    offset = Zoom.offset (Block.view_zoom view)
-    visible = Block.visible_time view - offset
-    needed = ceiling (block_dur / visible)
+    offset = Zoom.offset (Block.viewZoom view)
+    visible = Block.visibleTime view - offset
+    needed = ceiling (blockDur / visible)
 
 -- * saved views
 
 -- | Save the current views under the given name.
-save_views :: Cmd.M m => Text -> m ()
-save_views name = do
-    views <- Ui.gets Ui.state_views
-    focused <- Cmd.lookup_focused_view
-    Ui.modify_config $ UiConfig.saved_views %= Map.insert name (views, focused)
+saveViews :: Cmd.M m => Text -> m ()
+saveViews name = do
+    views <- Ui.gets Ui.stateViews
+    focused <- Cmd.lookupFocusedView
+    Ui.modifyConfig $ UiConfig.savedViews %= Map.insert name (views, focused)
 
 -- | Replace the current views with the saved ones.  The current one is first
 -- saved as \"prev\".
-restore_views :: Cmd.M m => Text -> m ()
-restore_views name = do
+restoreViews :: Cmd.M m => Text -> m ()
+restoreViews name = do
     (views, focused) <- Cmd.require ("no saved views named: " <> name)
-        =<< Ui.config#UiConfig.saved_views # Lens.map name <#> Ui.get
-    save_views "prev"
-    Ui.put_views views
+        =<< Ui.config#UiConfig.savedViews # Lens.map name <#> Ui.get
+    saveViews "prev"
+    Ui.putViews views
     whenJust focused Cmd.focus
 
-remove_views :: Ui.M m => Text -> m ()
-remove_views name = Ui.modify_config $ UiConfig.saved_views %= Map.delete name
+removeViews :: Ui.M m => Text -> m ()
+removeViews name = Ui.modifyConfig $ UiConfig.savedViews %= Map.delete name

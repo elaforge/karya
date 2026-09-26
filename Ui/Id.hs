@@ -6,24 +6,24 @@ module Ui.Id (
     Id, Namespace, id, namespace
 
     -- * access
-    , un_id, un_namespace, id_name, id_namespace, set_namespace
-    , set_name, modify_name
+    , unId, unNamespace, idName, idNamespace, setNamespace
+    , setName, modifyName
 
     -- * read / show
-    , read_id, show_id, read_short, show_short
+    , readId, showId, readShort, showShort
 
     -- * validate
-    , valid_symbol, symbol_description, is_id_char
+    , validSymbol, symbolDescription, isIdChar
 
     -- * Ident
     , Ident(..)
-    , show_ident, read_ident
-    , ident_text, text_ident
-    , ident_name, ident_namespace
+    , showIdent, readIdent
+    , identText, textIdent
+    , identName, identNamespace
     , modify
 
     -- * constants
-    , global, global_namespace
+    , global, globalNamespace
 
     -- * instances
     , BlockId(..), ViewId(..), TrackId(..), RulerId(..)
@@ -51,9 +51,9 @@ data Id = Id !Namespace !Text
     deriving (Eq, Ord, Show)
 
 instance Aeson.ToJSON Id where
-    toJSON = Aeson.String . ident_text
+    toJSON = Aeson.String . identText
 instance Aeson.FromJSON Id where
-    parseJSON (Aeson.String a) = pure $ read_id a
+    parseJSON (Aeson.String a) = pure $ readId a
     parseJSON _ = fail "expecting String"
 
 -- | The Namespace should pass 'valid_symbol', and is guaranteed to not contain
@@ -79,58 +79,58 @@ instance Serialize.Serialize Id where
     put (Id a b) = Serialize.put a >> Serialize.put b
 
 instance Seed.Seed Id where
-    to_seed n (Id ns name) = n Seed.& ns Seed.& name
+    toSeed n (Id ns name) = n Seed.& ns Seed.& name
 
-instance Pretty Namespace where pretty = un_namespace
-instance Pretty Id where pretty = show_id
+instance Pretty Namespace where pretty = unNamespace
+instance Pretty Id where pretty = showId
 
 instance DeepSeq.NFData Id where
     rnf (Id ns name) = ns `seq` name `seq` ()
 
 -- * access
 
-un_id :: Id -> (Namespace, Text)
-un_id (Id ns ident) = (ns, ident)
+unId :: Id -> (Namespace, Text)
+unId (Id ns ident) = (ns, ident)
 
-id_name :: Id -> Text
-id_name (Id _ name) = name
+idName :: Id -> Text
+idName (Id _ name) = name
 
-id_namespace :: Id -> Namespace
-id_namespace (Id ns _) = ns
+idNamespace :: Id -> Namespace
+idNamespace (Id ns _) = ns
 
-set_namespace :: Namespace -> Id -> Id
-set_namespace ns (Id _ name) = Id ns name
+setNamespace :: Namespace -> Id -> Id
+setNamespace ns (Id _ name) = Id ns name
 
-set_name :: Text -> Id -> Id
-set_name name (Id ns _) = id ns name
+setName :: Text -> Id -> Id
+setName name (Id ns _) = id ns name
 
-modify_name :: (Text -> Text) -> Id -> Id
-modify_name modify (Id ns name) = id ns (modify name)
+modifyName :: (Text -> Text) -> Id -> Id
+modifyName modify (Id ns name) = id ns (modify name)
 
-un_namespace :: Namespace -> Text
-un_namespace (Namespace s) = s
+unNamespace :: Namespace -> Text
+unNamespace (Namespace s) = s
 
 -- * read / show
 
-read_id :: Text -> Id
-read_id s = id (namespace pre) (Text.drop 1 post)
+readId :: Text -> Id
+readId s = id (namespace pre) (Text.drop 1 post)
     where (pre, post) = Text.breakOn "/" s
 
-show_id :: Id -> Text
-show_id (Id (Namespace ns) ident) = ns <> "/" <> ident
+showId :: Id -> Text
+showId (Id (Namespace ns) ident) = ns <> "/" <> ident
 
 -- | A smarter constructor that only applies the namespace if the string
 -- doesn't already have one.
-read_short :: Namespace -> Text -> Id
-read_short default_ns text = case Text.breakOn "/" text of
-    (ident, "") -> id default_ns ident
+readShort :: Namespace -> Text -> Id
+readShort defaultNs text = case Text.breakOn "/" text of
+    (ident, "") -> id defaultNs ident
     (ns, ident) -> id (namespace ns) (Text.drop 1 ident)
 
 -- | The inverse of 'read_short'.
-show_short :: Namespace -> Id -> Text
-show_short default_ns ident@(Id ns name)
-    | default_ns == ns = name
-    | otherwise = show_id ident
+showShort :: Namespace -> Id -> Text
+showShort defaultNs ident@(Id ns name)
+    | defaultNs == ns = name
+    | otherwise = showId ident
 
 -- * validate
 
@@ -152,36 +152,36 @@ show_short default_ns ident@(Id ns name)
     Ids (e.g. instrument or control names).  It's easier to remember a single
     rule for a valid name rather than each syntactic form have its own rules.
 -}
-valid_symbol :: Text -> Bool
-valid_symbol s = not (Text.null s) && ascii_lower_alpha (Text.head s)
-    && Text.all is_id_char s
+validSymbol :: Text -> Bool
+validSymbol s = not (Text.null s) && asciiLowerAlpha (Text.head s)
+    && Text.all isIdChar s
 
-valid_id :: Id -> Maybe Id
-valid_id (Id (Namespace ns) ident)
-    | valid_symbol ns && valid_symbol ident = Just $ Id (Namespace ns) ident
+validId :: Id -> Maybe Id
+validId (Id (Namespace ns) ident)
+    | validSymbol ns && validSymbol ident = Just $ Id (Namespace ns) ident
     | otherwise = Nothing
 
 -- | 'BlockId's are more lenient, only spaces and "" are forbidden.
-valid_block_id :: Id -> Maybe Id
-valid_block_id (Id (Namespace ns) ident)
-    | valid_symbol ns && not (Text.null ident)
+validBlockId :: Id -> Maybe Id
+validBlockId (Id (Namespace ns) ident)
+    | validSymbol ns && not (Text.null ident)
             && not (" " `Text.isInfixOf` ident) =
         Just $ Id (Namespace ns) ident
     | otherwise = Nothing
 
 -- | Describe a valid identifier for docs and error messages.
-symbol_description :: Text
-symbol_description = "[a-z][a-z0-9.-]*"
+symbolDescription :: Text
+symbolDescription = "[a-z][a-z0-9.-]*"
 
 -- | This defines the set of valid characters allowed in an ID.
-is_id_char :: Char -> Bool
-is_id_char c = ascii_lower_alpha c || ascii_digit c || c == '-' || c == '.'
+isIdChar :: Char -> Bool
+isIdChar c = asciiLowerAlpha c || asciiDigit c || c == '-' || c == '.'
 
-ascii_lower_alpha :: Char -> Bool
-ascii_lower_alpha c = 'a' <= c && c <= 'z'
+asciiLowerAlpha :: Char -> Bool
+asciiLowerAlpha c = 'a' <= c && c <= 'z'
 
-ascii_digit :: Char -> Bool
-ascii_digit c = '0' <= c && c <= '9'
+asciiDigit :: Char -> Bool
+asciiDigit c = '0' <= c && c <= '9'
 
 -- * Ident
 
@@ -189,57 +189,57 @@ ascii_digit c = '0' <= c && c <= '9'
 -- consistent display format lets me copy and paste them on the repl socket,
 -- which puts the constructors in scope.
 class Ident a where
-    unpack_id :: a -> Id
-    constructor_name :: Proxy a -> String
+    unpackId :: a -> Id
+    constructorName :: Proxy a -> String
     make :: Id -> Maybe a
-    make_unchecked :: Id -> a
+    makeUnchecked :: Id -> a
 
 instance Ident Id where
-    unpack_id = Prelude.id
-    constructor_name _ = "id"
+    unpackId = Prelude.id
+    constructorName _ = "id"
     make = Just
-    make_unchecked a = a
+    makeUnchecked a = a
 
-show_ident :: forall a. Ident a => a -> String
-show_ident ident = "(" ++ con ++ " " ++ show (show_id id) ++ ")"
+showIdent :: forall a. Ident a => a -> String
+showIdent ident = "(" ++ con ++ " " ++ show (showId id) ++ ")"
     where
-    id = unpack_id ident
-    con = constructor_name (Proxy :: Proxy a)
+    id = unpackId ident
+    con = constructorName (Proxy :: Proxy a)
 
-read_ident :: forall a. Ident a => ReadPrec.ReadPrec (Maybe a)
-read_ident = do
+readIdent :: forall a. Ident a => ReadPrec.ReadPrec (Maybe a)
+readIdent = do
     Read.Punc "(" <- Read.lexP
     Read.Ident sym <- Read.lexP
-    guard (sym == constructor_name (Proxy :: Proxy a))
+    guard (sym == constructorName (Proxy :: Proxy a))
     Read.String str <- Read.lexP
     Read.Punc ")" <- Read.lexP
-    pure $ make (read_id (txt str))
+    pure $ make (readId (txt str))
 
 -- | SomethingId -> "ns/name"
-ident_text :: Ident a => a -> Text
-ident_text = show_id . unpack_id
+identText :: Ident a => a -> Text
+identText = showId . unpackId
 
 -- | "ns/name" -> SomethingId
-text_ident :: Ident a => Text -> Maybe a
-text_ident = make . read_id
+textIdent :: Ident a => Text -> Maybe a
+textIdent = make . readId
 
 -- | SomethingId -> "name"
-ident_name :: Ident a => a -> Text
-ident_name = id_name . unpack_id
+identName :: Ident a => a -> Text
+identName = idName . unpackId
 
-ident_namespace :: Ident a => a -> Namespace
-ident_namespace = id_namespace . unpack_id
+identNamespace :: Ident a => a -> Namespace
+identNamespace = idNamespace . unpackId
 
 modify :: Ident a => (Id -> Id) -> a -> a
-modify f = make_unchecked . f . unpack_id
+modify f = makeUnchecked . f . unpackId
 
 -- * constants
 
 global :: Text -> Id
-global = id global_namespace
+global = id globalNamespace
 
-global_namespace :: Namespace
-global_namespace = namespace ""
+globalNamespace :: Namespace
+globalNamespace = namespace ""
 
 
 -- * instances
@@ -270,53 +270,53 @@ newtype TrackId = TrackId Id
 newtype RulerId = RulerId Id
     deriving (Eq, Ord, DeepSeq.NFData, Serialize.Serialize)
 
-instance Show BlockId where show = show_ident
-instance Show ViewId where show = show_ident
-instance Show TrackId where show = show_ident
-instance Show RulerId where show = show_ident
+instance Show BlockId where show = showIdent
+instance Show ViewId where show = showIdent
+instance Show TrackId where show = showIdent
+instance Show RulerId where show = showIdent
 
 instance Pretty BlockId where pretty = showt
 instance Pretty ViewId where pretty = showt
 instance Pretty TrackId where pretty = showt
 instance Pretty RulerId where pretty = showt
 
-instance Read BlockId where readPrec = require read_ident
-instance Read ViewId where readPrec = require read_ident
-instance Read TrackId where readPrec = require read_ident
-instance Read RulerId where readPrec = require read_ident
+instance Read BlockId where readPrec = require readIdent
+instance Read ViewId where readPrec = require readIdent
+instance Read TrackId where readPrec = require readIdent
+instance Read RulerId where readPrec = require readIdent
 
 require :: Read.ReadPrec (Maybe a) -> Read.ReadPrec a
 require = (maybe Read.pfail pure =<<)
 
 instance Ident BlockId where
-    unpack_id (BlockId a) = a
-    constructor_name _ = "bid"
-    make = fmap make_unchecked . valid_block_id
-    make_unchecked = BlockId
+    unpackId (BlockId a) = a
+    constructorName _ = "bid"
+    make = fmap makeUnchecked . validBlockId
+    makeUnchecked = BlockId
 instance Ident ViewId where
-    unpack_id (ViewId a) = a
-    constructor_name _ = "vid"
-    make = fmap ViewId . valid_id
-    make_unchecked = ViewId
+    unpackId (ViewId a) = a
+    constructorName _ = "vid"
+    make = fmap ViewId . validId
+    makeUnchecked = ViewId
 instance Ident TrackId where
-    unpack_id (TrackId a) = a
-    constructor_name _ = "tid"
-    make = fmap TrackId . valid_id
-    make_unchecked = TrackId
+    unpackId (TrackId a) = a
+    constructorName _ = "tid"
+    make = fmap TrackId . validId
+    makeUnchecked = TrackId
 instance Ident RulerId where
-    unpack_id (RulerId a) = a
-    constructor_name _ = "rid"
-    make = fmap RulerId . valid_id
-    make_unchecked = RulerId
+    unpackId (RulerId a) = a
+    constructorName _ = "rid"
+    make = fmap RulerId . validId
+    makeUnchecked = RulerId
 
-instance Aeson.ToJSON BlockId where toJSON = Aeson.toJSON . unpack_id
+instance Aeson.ToJSON BlockId where toJSON = Aeson.toJSON . unpackId
 instance Aeson.FromJSON BlockId where parseJSON = fmap BlockId . Aeson.parseJSON
 
-instance Aeson.ToJSON ViewId where toJSON = Aeson.toJSON . unpack_id
+instance Aeson.ToJSON ViewId where toJSON = Aeson.toJSON . unpackId
 instance Aeson.FromJSON ViewId where parseJSON = fmap ViewId . Aeson.parseJSON
 
-instance Aeson.ToJSON TrackId where toJSON = Aeson.toJSON . unpack_id
+instance Aeson.ToJSON TrackId where toJSON = Aeson.toJSON . unpackId
 instance Aeson.FromJSON TrackId where parseJSON = fmap TrackId . Aeson.parseJSON
 
-instance Aeson.ToJSON RulerId where toJSON = Aeson.toJSON . unpack_id
+instance Aeson.ToJSON RulerId where toJSON = Aeson.toJSON . unpackId
 instance Aeson.FromJSON RulerId where parseJSON = fmap RulerId . Aeson.parseJSON

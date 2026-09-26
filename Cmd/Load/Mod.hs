@@ -20,7 +20,7 @@ import qualified Cmd.Ruler.RulerUtil as RulerUtil
 import qualified Derive.ParseTitle as ParseTitle
 import qualified Derive.ScoreT as ScoreT
 import qualified Derive.ShowVal as ShowVal
-import           Derive.ShowVal (show_val)
+import           Derive.ShowVal (showVal)
 
 import qualified Perform.Pitch as Pitch
 import qualified Ui.Event as Event
@@ -49,38 +49,38 @@ data State = State
 -- make @score block using _block_order
 convert :: Id.Namespace -> ModT.Module -> Either Ui.Error Ui.State
 convert ns mod = Ui.exec Ui.empty $ do
-    Ui.set_namespace ns
-    bids <- forM blocks $ \(tracks, block_end, _skel) -> do
-        bid <- Create.block Ui.no_ruler
-        rid <- Ui.create_ruler (Id.unpack_id bid) $
-            Ruler.meter_ruler $ RulerUtil.meter_until Meters.m44 1 4 block_end
-        Create.set_block_ruler rid bid
+    Ui.setNamespace ns
+    bids <- forM blocks $ \(tracks, blockEnd, _skel) -> do
+        bid <- Create.block Ui.noRuler
+        rid <- Ui.createRuler (Id.unpackId bid) $
+            Ruler.meterRuler $ RulerUtil.meterUntil Meters.m44 1 4 blockEnd
+        Create.setBlockRuler rid bid
         forM_ tracks $ \track -> do
-            tid <- Create.track_events bid rid 999 40 track
-            Ui.set_render_style (Track.Line Nothing) tid
+            tid <- Create.trackEvents bid rid 999 40 track
+            Ui.setRenderStyle (Track.Line Nothing) tid
         -- Now skeleton is implicit by default.
         -- Ui.set_skeleton bid skel
         pure bid
-    mapM_ Ui.destroy_ruler =<< Create.orphan_rulers
+    mapM_ Ui.destroyRuler =<< Create.orphanRulers
 
-    let block_ends = [t | (_, t, _) <- blocks]
-    let block_map = IntMap.fromList $ zip [0..] (zip bids block_ends)
-    scores <- forM (Map.toList (ModT._block_order mod)) $
+    let blockEnds = [t | (_, t, _) <- blocks]
+    let blockMap = IntMap.fromList $ zip [0..] (zip bids blockEnds)
+    scores <- forM (Map.toList (ModT._blockOrder mod)) $
         \(name_, indices) -> do
             let name = if name_ == "" then "score" else name_
             -- TODO LRuler.extract_meters
-            let ruler_id = Ui.no_ruler
-            score <- Create.named_block (Id.id ns name) ruler_id
-            Create.track_events score ruler_id 1 40 $
-                score_track block_map indices
-            Create.unfitted_view score
+            let rulerId = Ui.noRuler
+            score <- Create.namedBlock (Id.id ns name) rulerId
+            Create.trackEvents score rulerId 1 40 $
+                scoreTrack blockMap indices
+            Create.unfittedView score
             pure score
-    whenJust (Lists.head scores) Ui.set_root_id
-    Ui.modify_config $ UiConfig.ky #= ky
+    whenJust (Lists.head scores) Ui.setRootId
+    Ui.modifyConfig $ UiConfig.ky #= ky
     where
-    blocks = map (convert_block state) (ModT._blocks mod)
+    blocks = map (convertBlock state) (ModT._blocks mod)
     state = State
-        { _tempo = ModT._default_tempo mod
+        { _tempo = ModT._defaultTempo mod
         , _instruments = ModT._instruments mod
         }
 
@@ -92,70 +92,70 @@ ky = Text.unlines
     ]
 
 -- | Make a score track with calls to the blocks.
-score_track :: IntMap (BlockId, TrackTime) -> [Int] -> Track.Track
-score_track blocks indices = Track.track ">" $ Events.from_list
+scoreTrack :: IntMap (BlockId, TrackTime) -> [Int] -> Track.Track
+scoreTrack blocks indices = Track.track ">" $ Events.fromList
     [ Event.event start (end - start) call
     | (start, end, call) <- zip3 starts (drop 1 starts) calls
     ]
     where
     starts = scanl (+) 0 durs
-    (calls, durs) = unzip $ map call_of indices
-    call_of idx = case IntMap.lookup idx blocks of
-        Just (bid, end) -> (Id.ident_name bid, end)
+    (calls, durs) = unzip $ map callOf indices
+    callOf idx = case IntMap.lookup idx blocks of
+        Just (bid, end) -> (Id.identName bid, end)
         Nothing -> ("block" <> showt idx, 1) -- order number with no block
 
 -- | Figure out block length from min (max lines) (first cut_block)
 -- map convert_track, merge Notes
-convert_block :: State -> ModT.Block
+convertBlock :: State -> ModT.Block
     -> ([Track.Track], TrackTime, Skeleton.Skeleton)
-convert_block state block =
+convertBlock state block =
     ( map (uncurry Track.track) (concat ctracks)
-    , line_start block_len
-    , make_skeleton ctracks
+    , lineStart blockLen
+    , makeSkeleton ctracks
     )
     where
-    ctracks = map (merge_notes . convert_track state block_len)
+    ctracks = map (mergeNotes . convertTrack state blockLen)
         (ModT._tracks block)
-    block_len = fromMaybe (ModT._block_length block) $
-        Lists.minimum $ mapMaybe track_len (ModT._tracks block)
-    track_len = Lists.head . mapMaybe cut_block . IntMap.toAscList
-    cut_block (linenum, line)
+    blockLen = fromMaybe (ModT._blockLength block) $
+        Lists.minimum $ mapMaybe trackLen (ModT._tracks block)
+    trackLen = Lists.head . mapMaybe cutBlock . IntMap.toAscList
+    cutBlock (linenum, line)
         | ModT.CutBlock `elem` ModT._commands line = Just (linenum+1)
         | otherwise = Nothing
 
-make_skeleton :: [[track]] -> Skeleton.Skeleton
-make_skeleton track_groups =
+makeSkeleton :: [[track]] -> Skeleton.Skeleton
+makeSkeleton trackGroups =
     Skeleton.make $ concat $ zipWith make tracknums (drop 1 tracknums)
     where
-    tracknums = scanl (+) 1 (map length track_groups)
+    tracknums = scanl (+) 1 (map length trackGroups)
     make start end = zip ts (drop 1 ts)
         where ts = Lists.range' start end 1
 
-merge_notes :: [Note] -> [(Text, Events.Events)]
-merge_notes notes =
-    map (second Events.from_list) $ mapMaybe clean_track $
-        note_track : pitch_track : control_tracks
+mergeNotes :: [Note] -> [(Text, Events.Events)]
+mergeNotes notes =
+    map (second Events.fromList) $ mapMaybe cleanTrack $
+        noteTrack : pitchTrack : controlTracks
     where
-    note_track = case instruments of
+    noteTrack = case instruments of
         [inst] ->
-            (ParseTitle.instrument_to_title inst, map (note_event False) notes)
-        _ -> (">", map (note_event True) notes)
-    pitch_track = ("*", concatMap note_pitches notes)
-    control_tracks =
+            (ParseTitle.instrumentToTitle inst, map (noteEvent False) notes)
+        _ -> (">", map (noteEvent True) notes)
+    pitchTrack = ("*", concatMap notePitches notes)
+    controlTracks =
         [ (c, concatMap (Map.findWithDefault [] c . _controls) notes)
         | c <- controls
         ]
     controls = Set.toList $ Set.delete "*" $ Set.unions $
         map (Map.keysSet . _controls) notes
-    instruments = Lists.unique $ map (ModT._instrument_name . _instrument) notes
+    instruments = Lists.unique $ map (ModT._instrumentName . _instrument) notes
 
-clean_track :: (Text, [Event.Event]) -> Maybe (Text, [Event.Event])
-clean_track (_, []) = Nothing
-clean_track (title, events)
-    | ParseTitle.is_note_track title || ParseTitle.is_pitch_track title =
+cleanTrack :: (Text, [Event.Event]) -> Maybe (Text, [Event.Event])
+cleanTrack (_, []) = Nothing
+cleanTrack (title, events)
+    | ParseTitle.isNoteTrack title || ParseTitle.isPitchTrack title =
         Just (title, events)
     -- Remove control tracks that are just 1.
-    | ParseTitle.is_control_track title && map Event.text clean == ["`0x`ff"] =
+    | ParseTitle.isControlTrack title && map Event.text clean == ["`0x`ff"] =
         Nothing
     | otherwise = Just (title, clean)
     where
@@ -163,19 +163,19 @@ clean_track (title, events)
     idempotent e1 e2 = "`0x`" `Text.isPrefixOf` a && a == b
         where (a, b) = (Event.text e1, Event.text e2)
 
-note_event :: Bool -> Note -> Event.Event
-note_event set_instrument n = Event.event (_start n) (_duration n) call
+noteEvent :: Bool -> Note -> Event.Event
+noteEvent setInstrument n = Event.event (_start n) (_duration n) call
     where
-    call = (if set_instrument then set_inst else "") <> _call n
-    set_inst = "i " <> show_val (ModT._instrument_name (_instrument n))
+    call = (if setInstrument then setInst else "") <> _call n
+    setInst = "i " <> showVal (ModT._instrumentName (_instrument n))
 
-note_pitches :: Note -> [Event.Event]
-note_pitches n = Event.event (_start n) 0 (nn_to_call (_pitch n))
+notePitches :: Note -> [Event.Event]
+notePitches n = Event.event (_start n) 0 (nnToCall (_pitch n))
     : Map.findWithDefault [] "*" (_controls n)
 
 -- | TODO surely this exists elsewhere?
-nn_to_call :: Pitch.NoteNumber -> Text
-nn_to_call nn = showt (oct-1) <> steps !! step
+nnToCall :: Pitch.NoteNumber -> Text
+nnToCall nn = showt (oct-1) <> steps !! step
     where
     (oct, step) = floor nn `divMod` 12
     steps = ["c", "c#", "d", "d#", "e", "f", "f#", "g", "g#", "a", "a#", "b"]
@@ -196,19 +196,19 @@ type LineNum = Int
 
 -- |
 -- - Lookup instrument.
-convert_track :: State -> LineNum -> IntMap ModT.Line -> [Note]
-convert_track state block_len =
-    go . takeWhile ((<block_len) . fst) . IntMap.toAscList
+convertTrack :: State -> LineNum -> IntMap ModT.Line -> [Note]
+convertTrack state blockLen =
+    go . takeWhile ((<blockLen) . fst) . IntMap.toAscList
     where
     go ((_, ModT.Line Nothing _ _) : lines) = go lines
     go ((linenum, ModT.Line (Just pitch) instnum cmds) : lines) =
-        convert_note block_len (_tempo state) instrument linenum pitch
+        convertNote blockLen (_tempo state) instrument linenum pitch
             cmds lines
         : go lines
         where
-        instrument = fromMaybe no_instrument $
+        instrument = fromMaybe noInstrument $
             IntMap.lookup instnum (_instruments state)
-        no_instrument = ModT.Instrument (ScoreT.Instrument (showt instnum))
+        noInstrument = ModT.Instrument (ScoreT.Instrument (showt instnum))
             Nothing
     go [] = []
 
@@ -219,59 +219,59 @@ convert_track state block_len =
 -- Convert 0d to linear, 01 02 to pitch 'u' or 'd', 03 to pitch linear.
 --
 -- - Interpret timing cmds like 1f.
-convert_note :: LineNum -> ModT.Tempo -> ModT.Instrument -> LineNum
+convertNote :: LineNum -> ModT.Tempo -> ModT.Instrument -> LineNum
     -> Pitch.NoteNumber -> [ModT.Command] -> [(LineNum, ModT.Line)] -> Note
-convert_note block_len tempo instrument linenum pitch cmds future_lines = Note
+convertNote blockLen tempo instrument linenum pitch cmds futureLines = Note
     { _start = start
     , _duration = end - start
     , _instrument = instrument
-    , _call = note_call (ModT._frames tempo) cmds
+    , _call = noteCall (ModT._frames tempo) cmds
     , _pitch = pitch
     , _controls = Map.fromListWith (Lists.mergeOn Event.start) $
-        convert_commands instrument start cmds $
-        takeWhile ((==Nothing) . cut_note) future_lines
+        convertCommands instrument start cmds $
+        takeWhile ((==Nothing) . cutNote) futureLines
     }
     where
-    start = line_start linenum
-    end = fromMaybe (line_start block_len) $ msum (map cut_note future_lines)
+    start = lineStart linenum
+    end = fromMaybe (lineStart blockLen) $ msum (map cutNote futureLines)
 
-note_call :: Int -> [ModT.Command] -> Text
-note_call frames cmds =
+noteCall :: Int -> [ModT.Command] -> Text
+noteCall frames cmds =
     Text.strip $ Text.intercalate " | " $ Maybe.catMaybes [d, r, Just ""]
     where
     d = if delay == 0 then Nothing else
-        Just $ "d " <> showt delay <> "/" <> showt (frames * lines_per_t) <> "t"
+        Just $ "d " <> showt delay <> "/" <> showt (frames * linesPerT) <> "t"
     r = Nothing -- TODO?
     (delay, _repeat) = fromMaybe (0, 0) $
         Lists.head [(delay, repeat) | ModT.DelayRepeat delay repeat <- cmds]
 
-convert_commands :: ModT.Instrument -> TrackTime -> [ModT.Command]
+convertCommands :: ModT.Instrument -> TrackTime -> [ModT.Command]
     -> [(LineNum, ModT.Line)] -> [(Control, [Event.Event])]
-convert_commands instrument start cmds lines = group_controls controls
+convertCommands instrument start cmds lines = groupControls controls
     where
-    inst_vol = fromMaybe 1 $ ModT._volume instrument
+    instVol = fromMaybe 1 $ ModT._volume instrument
     volume = if null [() | ModT.Volume _ <- cmds]
-        then [ModT.Volume inst_vol] else []
-    controls = map (start,) (commands_to_controls (volume ++ cmds))
-        ++ concatMap line_controls lines
-    line_controls (linenum, line) = map (line_start linenum,) $
-        commands_to_controls (ModT._commands line)
+        then [ModT.Volume instVol] else []
+    controls = map (start,) (commandsToControls (volume ++ cmds))
+        ++ concatMap lineControls lines
+    lineControls (linenum, line) = map (lineStart linenum,) $
+        commandsToControls (ModT._commands line)
 
-group_controls :: [(TrackTime, (CommandType, Control, Text))]
+groupControls :: [(TrackTime, (CommandType, Control, Text))]
     -> [(Control, [Event.Event])]
-group_controls controls =
-    map make_control $ Lists.keyedGroupSort (key . snd) controls
+groupControls controls =
+    map makeControl $ Lists.keyedGroupSort (key . snd) controls
     where
-    make_control (Left control, vals) =
+    makeControl (Left control, vals) =
         (control, [Event.event start 0 call | (start, (_, _, call)) <- vals])
-    make_control (Right (_k, control), vals) =
+    makeControl (Right (_k, control), vals) =
         ( control
-        , [Event.event t (last run + one_line - t) call | run@(t:_) <- runs]
+        , [Event.event t (last run + oneLine - t) call | run@(t:_) <- runs]
         )
         where
         (_, _, call) = snd $ head vals
-        runs = Lists.splitBetween (\t1 t2 -> t2 > t1 + one_line) (map fst vals)
-        one_line = 1 / fromIntegral lines_per_t
+        runs = Lists.splitBetween (\t1 t2 -> t2 > t1 + oneLine) (map fst vals)
+        oneLine = 1 / fromIntegral linesPerT
     -- All Singles are in one group so they each get a 0 dur event.
     key (Single, control, _) = Left control
     key (Grouped k, control, _call) = Right (k, control)
@@ -287,27 +287,27 @@ data CommandType = Single
     | Grouped !Text
     deriving (Eq, Ord, Show)
 
-commands_to_controls :: [ModT.Command] -> [(CommandType, Control, Text)]
-commands_to_controls = mapMaybe convert . (\xs -> map (xs,) xs)
+commandsToControls :: [ModT.Command] -> [(CommandType, Control, Text)]
+commandsToControls = mapMaybe convert . (\xs -> map (xs,) xs)
     where
     convert (cmds, c) = case c of
         -- The slope is not accurate, and I'd need a ScoreTime slope for 'u'
         -- and 'd' to make it accurate.  Too much bother.
         ModT.VolumeSlide val -> Just
-            ( Grouped (show_val val)
-            , c_dyn
+            ( Grouped (showVal val)
+            , cDyn
             , Text.unwords $ case [vol | ModT.Volume vol <- cmds] of
                 vol : _ ->
                     [ c <> "f"
-                    , ShowVal.show_hex_val vol
-                    , show_val (abs val)
+                    , ShowVal.showHexVal vol
+                    , showVal (abs val)
                     ]
-                [] -> [c, show_val (abs val)]
+                [] -> [c, showVal (abs val)]
             )
             where c = if val >= 0 then "u" else "d"
         ModT.Volume val
             | null [() | ModT.VolumeSlide _ <- cmds] ->
-                Just (Single, c_dyn, ShowVal.show_hex_val val)
+                Just (Single, cDyn, ShowVal.showHexVal val)
             | otherwise -> Nothing
         ModT.Command name val -> Just
             ( Single
@@ -316,20 +316,20 @@ commands_to_controls = mapMaybe convert . (\xs -> map (xs,) xs)
             )
         _ -> Nothing
 
-c_dyn, c_pitch :: Control
-c_dyn = "dyn"
-c_pitch = "*"
+cDyn, cPitch :: Control
+cDyn = "dyn"
+cPitch = "*"
 
-cut_note :: (LineNum, ModT.Line) -> Maybe TrackTime
-cut_note (linenum, line)
-    | Just _ <- ModT._pitch line = Just $ line_start linenum
-    | ModT.CutNote `elem` ModT._commands line = Just $ line_start linenum
-    | ModT.CutBlock `elem` ModT._commands line = Just $ line_start (linenum+1)
+cutNote :: (LineNum, ModT.Line) -> Maybe TrackTime
+cutNote (linenum, line)
+    | Just _ <- ModT._pitch line = Just $ lineStart linenum
+    | ModT.CutNote `elem` ModT._commands line = Just $ lineStart linenum
+    | ModT.CutBlock `elem` ModT._commands line = Just $ lineStart (linenum+1)
     | otherwise = Nothing
 
-line_start :: LineNum -> TrackTime
-line_start = (/ fromIntegral lines_per_t) . ScoreTime.from_double . fromIntegral
+lineStart :: LineNum -> TrackTime
+lineStart = (/ fromIntegral linesPerT) . ScoreTime.fromDouble . fromIntegral
 
 -- | Lines per 1 TrackTime.
-lines_per_t :: Int
-lines_per_t = 8
+linesPerT :: Int
+linesPerT = 8

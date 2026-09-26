@@ -18,14 +18,14 @@ import           Util.Test
 test_grace_attr :: Test
 test_grace_attr = do
     let run note = DeriveTest.extract extract $
-            DeriveTest.derive_tracks_setup setup_call "import europe"
+            DeriveTest.deriveTracksSetup setupCall "import europe"
                 [ ("> | legato-overlap = .5 | grace-dur = 1", [note])
                 , ("*", [(0, 0, "4c")])
                 ]
-        extract e = (DeriveTest.e_start_dur e, DeriveTest.e_pitch e,
-            DeriveTest.e_attributes e)
-        setup_call =
-            CallTest.with_note_generator "g" (GraceUtil.c_attr_grace graces)
+        extract e = (DeriveTest.eStartDur e, DeriveTest.ePitch e,
+            DeriveTest.eAttributes e)
+        setupCall =
+            CallTest.withNoteGenerator "g" (GraceUtil.cAttrGrace graces)
     -- Attrs when it can.
     equal (run (0, 1, "g (3bb)"))
         ([((-1, 2), "4c", "+up+whole")], [])
@@ -43,7 +43,7 @@ test_grace_attr = do
 
 test_fit_grace :: Test
 test_fit_grace = do
-    let f place notes = GraceUtil.fit_grace (Typecheck.Normalized place)
+    let f place notes = GraceUtil.fitGrace (Typecheck.Normalized place)
             (Just 0) 2 4 notes 1
     equal (f 0 4) [0.5, 1, 1.5, 2]
     equal (f 1 4) [2, 2.5, 3, 3.5]

@@ -48,27 +48,27 @@ test_invalidate_damaged = do
         empty = Derive.CachedEvents (Derive.CallType mempty Stream.empty)
         mkcache stack = Derive.Cache $
             Map.singleton (Derive.CacheKey stack) (Derive.Cached empty)
-    let extract (key, cached) = (Derive.key_stack key,) $ case cached of
+    let extract (key, cached) = (Derive.keyStack key,) $ case cached of
             Derive.Invalid -> False
             _ -> True
     let f damage stack = map extract $ Map.toList $ uncache $
-            Derive.invalidate_damaged damage (mkcache stack)
+            Derive.invalidateDamaged damage (mkcache stack)
 
-    let block_stack = Stack.from_outermost [block "top"]
-        track_stack = Stack.from_outermost [block "top", track "t"]
-    equal (f (mkdamage [] []) track_stack) [(track_stack, True)]
-    equal (f (mkdamage [] ["top"]) block_stack)
-        [(block_stack, False)]
-    equal (f (mkdamage [(UiTest.tid "t", Ranges.range 1 3)] []) track_stack)
-        [(track_stack, False)]
+    let blockStack = Stack.fromOutermost [block "top"]
+        trackStack = Stack.fromOutermost [block "top", track "t"]
+    equal (f (mkdamage [] []) trackStack) [(trackStack, True)]
+    equal (f (mkdamage [] ["top"]) blockStack)
+        [(blockStack, False)]
+    equal (f (mkdamage [(UiTest.tid "t", Ranges.range 1 3)] []) trackStack)
+        [(trackStack, False)]
     -- Block damage should also invalidate track caches on that block.
-    equal (f (mkdamage [] ["top"]) track_stack)
-        [(track_stack, False)]
+    equal (f (mkdamage [] ["top"]) trackStack)
+        [(trackStack, False)]
 
     -- Damage on a track should invalidate all cache keys that have that track
     -- and range.  Also tested by 'test_stack_damage'.
-    let mkstack track_name s e = Stack.from_outermost
-            [ block "b", track track_name, call "note-track", region s e
+    let mkstack trackName s e = Stack.fromOutermost
+            [ block "b", track trackName, call "note-track", region s e
             , call "c1"
             ]
     let damage14 = mkdamage [(UiTest.tid "t", Ranges.range 1 4)] []
@@ -91,13 +91,13 @@ test_no_damage = do
             , ("sub", [(">i", [(0, 1, ""), (1, 1, "subsub")])])
             , ("subsub", [(">i", [(0, 1, "")])])
             ]
-    let (_, cached, uncached) = compare_cached create (pure ())
-    equal (diff_events cached uncached) []
+    let (_, cached, uncached) = compareCached create (pure ())
+    equal (diffEvents cached uncached) []
 
     -- should not have rederived sub
-    strings_like (r_cache_logs cached) ["using cache"]
+    stringsLike (rCacheLogs cached) ["using cache"]
     -- make sure there's stuff in the cache now
-    not_equal (r_cache_stacks cached) []
+    notEqual (rCacheStacks cached) []
 
 test_cached_track :: Test
 test_cached_track = do
@@ -106,10 +106,10 @@ test_cached_track = do
             [ (">i1", [(0, 1, "")])
             , (">i2", [(1, 1, "")])
             ]
-    let (_, cached, uncached) = compare_cached create $
-            insert_event "top.t2" 4 1 ""
-    equal (diff_events cached uncached) []
-    strings_like (r_cache_logs cached)
+    let (_, cached, uncached) = compareCached create $
+            insertEvent "top.t2" 4 1 ""
+    equal (diffEvents cached uncached) []
+    stringsLike (rCacheLogs cached)
         [ "top \\* \\*: rederived"
         , "top top.t1 \\*: using cache"
         , "top top.t2 \\*: rederived"
@@ -124,14 +124,14 @@ test_add_remove = do
                 , (">i", [(0, 1, ""), (1, 1, "")])
                 ])
             ]
-    let (_, cached, uncached) = compare_cached create $
-            Ui.remove_events_range (UiTest.tid "top.t1")
+    let (_, cached, uncached) = compareCached create $
+            Ui.removeEventsRange (UiTest.tid "top.t1")
                 (Events.Point 1 Types.Positive)
-    equal (diff_events cached uncached) []
+    equal (diffEvents cached uncached) []
 
-    let (_, cached, uncached) = compare_cached create $
-            insert_event "top.t1" 4 1 ""
-    equal (diff_events cached uncached) []
+    let (_, cached, uncached) = compareCached create $
+            insertEvent "top.t1" 4 1 ""
+    equal (diffEvents cached uncached) []
 
 test_double_eval :: Test
 test_double_eval = do
@@ -139,28 +139,28 @@ test_double_eval = do
     -- won't collide.  This is what 'Derive.key_serial' is for.
     let create call = mkblocks
             [ ("top", [(">", [(0, 4, call <> " | sub")])])
-            , ("sub=ruler", UiTest.note_track [(0, 1, "4c"), (1, 1, "4d")])
+            , ("sub=ruler", UiTest.noteTrack [(0, 1, "4c"), (1, 1, "4d")])
             ]
-    let extract e = (DeriveTest.e_note e, Score.initial_dynamic e)
+    let extract e = (DeriveTest.eNote e, Score.initialDynamic e)
 
-    let (_, cached, uncached) = compare_cached (create "echo 2") $
-            insert_event "top.t1" 4 1 ""
-    equal (diff_events cached uncached) []
+    let (_, cached, uncached) = compareCached (create "echo 2") $
+            insertEvent "top.t1" 4 1 ""
+    equal (diffEvents cached uncached) []
     -- This is just 'diff_events', but shows the dyn.
     equal (DeriveTest.extract extract uncached)
         (DeriveTest.extract extract cached)
 
     -- It works even if both blocks are called at the same time.
-    let (_, cached, uncached) = compare_cached (create "echo 0") $
-            insert_event "top.t1" 4 1 ""
-    equal (diff_events cached uncached) []
+    let (_, cached, uncached) = compareCached (create "echo 0") $
+            insertEvent "top.t1" 4 1 ""
+    equal (diffEvents cached uncached) []
     equal (DeriveTest.extract extract uncached)
         (DeriveTest.extract extract cached)
 
     -- This was the original case.
-    let (_, cached, uncached) = compare_cached (create "tile") $
-            insert_event "top.t1" 4 1 ""
-    equal (diff_events cached uncached) []
+    let (_, cached, uncached) = compareCached (create "tile") $
+            insertEvent "top.t1" 4 1 ""
+    equal (diffEvents cached uncached) []
 
 test_block_damage :: Test
 test_block_damage = do
@@ -172,14 +172,14 @@ test_block_damage = do
             , ("sub", [(">", [(0, 1, "")])])
             ]
     -- A track disable should emit event damage for that block's range.
-    let (_, cached, uncached) = compare_cached create $
-            Ui.add_track_flag (UiTest.bid "sub") 1 Block.Disable
-    equal (diff_events cached uncached) []
+    let (_, cached, uncached) = compareCached create $
+            Ui.addTrackFlag (UiTest.bid "sub") 1 Block.Disable
+    equal (diffEvents cached uncached) []
 
     -- Plain old event modification works too.
-    let (_, cached, uncached) = compare_cached create $
-            insert_event "sub.t1" 0 0.5 ""
-    equal (diff_events cached uncached) []
+    let (_, cached, uncached) = compareCached create $
+            insertEvent "sub.t1" 0 0.5 ""
+    equal (diffEvents cached uncached) []
 
 test_subblock_damage :: Test
 test_subblock_damage = do
@@ -188,15 +188,15 @@ test_subblock_damage = do
             , ("alt", [(">i", [(0, 4, "sub")])])
             , ("sub=ruler", [(">", [(1, 1, "")])])
             ]
-    let (_, cached, uncached) = compare_cached create $
-            insert_event "sub.t1" 0 1 ""
-    equal (diff_events cached uncached) []
-    equal (DeriveTest.extract Score.event_start cached) ([0, 1], [])
+    let (_, cached, uncached) = compareCached create $
+            insertEvent "sub.t1" 0 1 ""
+    equal (diffEvents cached uncached) []
+    equal (DeriveTest.extract Score.eventStart cached) ([0, 1], [])
 
-    let (_, cached, uncached) = compare_cached_block (Just (UiTest.bid "alt"))
-            create $ insert_event "sub.t1" 0 1 ""
-    equal (diff_events cached uncached) []
-    equal (DeriveTest.extract Score.event_start cached) ([0, 2], [])
+    let (_, cached, uncached) = compareCachedBlock (Just (UiTest.bid "alt"))
+            create $ insertEvent "sub.t1" 0 1 ""
+    equal (diffEvents cached uncached) []
+    equal (DeriveTest.extract Score.eventStart cached) ([0, 2], [])
 
 test_config_damage :: Test
 test_config_damage = do
@@ -206,20 +206,20 @@ test_config_damage = do
             ]
     -- I can't change UiConfig.config_global_transform because that will
     -- invalidate the cache via changed stack.
-    let (_, cached, uncached) = compare_cached create $
-            modify_alloc_config UiTest.i1 $
+    let (_, cached, uncached) = compareCached create $
+            modifyAllocConfig UiTest.i1 $
                 Common.controls #= Map.fromList [(Controls.octave, 1)]
-    equal (diff_events cached uncached) []
-    equal (DeriveTest.extract DeriveTest.e_pitch cached) (["5c"], [])
+    equal (diffEvents cached uncached) []
+    equal (DeriveTest.extract DeriveTest.ePitch cached) (["5c"], [])
 
-modify_alloc_config :: Ui.M m => ScoreT.Instrument
+modifyAllocConfig :: Ui.M m => ScoreT.Instrument
     -> (Common.Config -> Common.Config) -> m ()
-modify_alloc_config inst modify =
-    Ui.modify_config $ UiConfig.allocations_map %= Map.alter mod inst
+modifyAllocConfig inst modify =
+    Ui.modifyConfig $ UiConfig.allocationsMap %= Map.alter mod inst
     where
     mod Nothing = error $ "modify_alloc_config: no inst " <> prettys inst
     mod (Just alloc) = Just $ alloc
-        { UiConfig.alloc_config = modify (UiConfig.alloc_config alloc) }
+        { UiConfig.allocConfig = modify (UiConfig.allocConfig alloc) }
 
 test_logs :: Test
 test_logs = do
@@ -230,10 +230,10 @@ test_logs = do
             , ("sub1", [(">", [(0, 1, "fail")])])
             , ("sub2", [(">", [(0, 1, "")])])
             ]
-    let (_, cached, uncached) = compare_cached create $
-            insert_event "sub2.t1" 1 1 ""
+    let (_, cached, uncached) = compareCached create $
+            insertEvent "sub2.t1" 1 1 ""
     -- Make sure errors are still present in the cached output.
-    strings_like (r_pretty_logs uncached)
+    stringsLike (rPrettyLogs uncached)
         [ "top \\* \\*: rederived"
         , "top top.t1 \\*: rederived"
         , "top top.t1 0-1: sub1 \\* \\*: rederived"
@@ -242,7 +242,7 @@ test_logs = do
         , "top top.t1 2-3: sub2 \\* \\*: rederived"
         , "top top.t1 2-3: sub2 sub2.t1 \\*: rederived"
         ]
-    strings_like (r_pretty_logs cached)
+    stringsLike (rPrettyLogs cached)
         [ "top \\* \\*: rederived"
         , "top top.t1 \\*: rederived"
         , "top top.t1 0-1: sub1 \\* \\*: using cache"
@@ -260,25 +260,25 @@ test_stats = do
             , ("sub1=ruler", [(">", [(0, 1, "")]), (">", [(0, 1, "")])])
             , ("sub2=ruler", [(">", [(0, 1, ""), (1, 1, "")])])
             ]
-    let e_stats = Derive.collect_cache_stats . Derive.state_collect
-            . Derive.r_state
+    let eStats = Derive.collectCacheStats . Derive.stateCollect
+            . Derive.rState
 
-    let (_, cached, uncached) = compare_cached create $
-            insert_event "sub2.t1" 1 1 ""
-    equal (e_stats uncached) mempty
-    equal (e_stats cached) $ mempty
-        { Derive.cstats_hits = [(Left (UiTest.bid "sub1"), (0, 2))] }
+    let (_, cached, uncached) = compareCached create $
+            insertEvent "sub2.t1" 1 1 ""
+    equal (eStats uncached) mempty
+    equal (eStats cached) $ mempty
+        { Derive.cstatsHits = [(Left (UiTest.bid "sub1"), (0, 2))] }
 
-    let (_, cached, _) = compare_cached create $ do
-            insert_event "sub1.t1" 1 1 ""
-            insert_event "sub2.t1" 1 1 ""
-    equal (e_stats cached) $ mempty
-        { Derive.cstats_hits = [(Right (UiTest.tid "sub1.t2"), (0, 4))] }
+    let (_, cached, _) = compareCached create $ do
+            insertEvent "sub1.t1" 1 1 ""
+            insertEvent "sub2.t1" 1 1 ""
+    equal (eStats cached) $ mempty
+        { Derive.cstatsHits = [(Right (UiTest.tid "sub1.t2"), (0, 4))] }
 
 test_extend_control_damage :: Test
 test_extend_control_damage = do
-    let f = Cache._extend_control_damage
-    equal (f 3 (Events.from_list [Event.event 0 0 "4c"])
+    let f = Cache._extendControlDamage
+    equal (f 3 (Events.fromList [Event.event 0 0 "4c"])
             (Ranges.ranges [(2, 5)]))
         (Ranges.ranges [(0, 3)])
 
@@ -293,9 +293,9 @@ test_arrival_notes = do
                 ])
             , ("sub=ruler", [(">", [(1, -1, "")])])
             ]
-    let (_, cached, uncached) = compare_cached create $
-            insert_event "top.t2" 2 0 "4d"
-    equal (diff_events cached uncached) []
+    let (_, cached, uncached) = compareCached create $
+            insertEvent "top.t2" 2 0 "4d"
+    equal (diffEvents cached uncached) []
 
 test_stack_damage :: Test
 test_stack_damage = do
@@ -308,9 +308,9 @@ test_stack_damage = do
                 ])
             , ("sub=ruler", [(">", [(0, 1, "")])])
             ]
-    let (_, cached, uncached) = compare_cached create $
-            insert_event "top.t1" 0 1 "t-dia = 1 | sub"
-    equal (diff_events cached uncached) []
+    let (_, cached, uncached) = compareCached create $
+            insertEvent "top.t1" 0 1 "t-dia = 1 | sub"
+    equal (diffEvents cached uncached) []
 
 test_failed_sub_track :: Test
 test_failed_sub_track = do
@@ -318,29 +318,29 @@ test_failed_sub_track = do
             [ ("top", [(">i", [(0, 1, ""), (1, 1, "sub")])])
             , ("sub=ruler", [(title, [(0, 1, "")])])
             ]
-        tid = (UiTest.mk_tid_block (UiTest.bid "sub") 1)
+        tid = (UiTest.mkTidBlock (UiTest.bid "sub") 1)
     -- From error to non-error.
-    let (orig, cached, uncached) = compare_cached (create "> |") $
-            Ui.set_track_title tid ">"
-    equal (diff_events cached uncached) []
+    let (orig, cached, uncached) = compareCached (create "> |") $
+            Ui.setTrackTitle tid ">"
+    equal (diffEvents cached uncached) []
     -- top has a dep on sub even though sub crashed.
-    equal (r_cache_deps orig) $ map (second (Just . map UiTest.bid))
+    equal (rCacheDeps orig) $ map (second (Just . map UiTest.bid))
         [ ("top * *", ["sub", "top"])
         , ("top top.t1 *", ["sub"])
         , ("top top.t1 1-2: sub * *", ["sub"])
         ]
 
     -- From non-error to error.
-    let (orig, cached, uncached) = compare_cached (create ">") $
-            Ui.set_track_title tid "> |"
-    equal (diff_events cached uncached) []
-    equal (r_cache_deps orig) $ map (second (Just . map UiTest.bid))
+    let (orig, cached, uncached) = compareCached (create ">") $
+            Ui.setTrackTitle tid "> |"
+    equal (diffEvents cached uncached) []
+    equal (rCacheDeps orig) $ map (second (Just . map UiTest.bid))
         [ ("top * *", ["sub", "top"])
         , ("top top.t1 *", ["sub"])
         , ("top top.t1 1-2: sub * *", ["sub"])
         , ("top top.t1 1-2: sub sub.t1 *", [])
         ]
-    strings_like (r_pretty_logs cached)
+    stringsLike (rPrettyLogs cached)
         [ "top * sub-block damage"
         , "top.t1 * sub-block damage"
         , "top top.t1 1-2: sub * track block damage"
@@ -357,11 +357,11 @@ test_has_score_damage = do
 
     -- Swap it out for an event of the same size, so the stack is the same,
     -- but it should rederive because of score damage.
-    let (_, cached, uncached) = compare_cached create $
-            insert_event "top.t1" 1 1 "sub2"
-    equal (diff_events cached uncached) []
-    strings_like (r_block_logs cached)
-        [ toplevel_rederived True
+    let (_, cached, uncached) = compareCached create $
+            insertEvent "top.t1" 1 1 "sub2"
+    equal (diffEvents cached uncached) []
+    stringsLike (rBlockLogs cached)
+        [ toplevelRederived True
         , "top.t1 0-1: * using cache"
         , "top.t1 1-2: * rederived * not in cache"
         , "top.t1 2-3: * using cache"
@@ -370,22 +370,22 @@ test_has_score_damage = do
 test_callee_damage :: Test
 test_callee_damage = do
     -- test callee damage: sub-block is damaged, it should be rederived
-    let parent_sub = mkblocks
+    let parentSub = mkblocks
             [ ("top", [(">i", [(0, 1, ""), (1, 2, "sub")])])
             , ("sub", [(">i", [(0, 1, ""), (1, 1, "subsub")])])
             , ("subsub", [(">i", [(0, 1, "")])])
             ]
-    let (_, cached, uncached) = compare_cached parent_sub $
-            insert_event "sub.t1" 0 0.5 ""
-    equal (diff_events cached uncached) []
-    strings_like (r_block_logs cached)
-        [ toplevel_rederived False
+    let (_, cached, uncached) = compareCached parentSub $
+            insertEvent "sub.t1" 0 0.5 ""
+    equal (diffEvents cached uncached) []
+    stringsLike (rBlockLogs cached)
+        [ toplevelRederived False
         , "top.t1 1-3: * rederived * because of track block"
         , "sub.t1 1-2: * using cache"
         ]
 
     -- The cached call to "sub" depends on "sub" and "subsub" transitively.
-    equal (r_cache_deps cached) $ map (second (Just . map UiTest.bid))
+    equal (rCacheDeps cached) $ map (second (Just . map UiTest.bid))
         [ ("top * *", ["sub", "subsub", "top"])
         , ("top top.t1 *", ["sub", "subsub"])
         , ("top top.t1 1-3: sub * *", ["sub", "subsub"])
@@ -397,11 +397,11 @@ test_callee_damage = do
     -- sub is 1-3, its first elt should be 1-2, except I replaced it with .5
 
     -- A change to subsub means the top's "sub" call rederives as well.
-    let (_, cached, uncached) = compare_cached parent_sub $
-            insert_event "subsub.t1" 0 0.5 ""
-    equal (diff_events cached uncached) []
-    strings_like (r_block_logs cached)
-        [ toplevel_rederived False
+    let (_, cached, uncached) = compareCached parentSub $
+            insertEvent "subsub.t1" 0 0.5 ""
+    equal (diffEvents cached uncached) []
+    stringsLike (rBlockLogs cached)
+        [ toplevelRederived False
         , "top.t1 1-3: * rederived * sub-block damage"
         , "sub.t1 1-2: * rederived * block damage"
         ]
@@ -416,39 +416,39 @@ test_collect = do
                 ])
             ]
     let create = blocks
-            <* Ui.set_render_style (Track.Line Nothing) (UiTest.tid "sub.t2")
-    let (_, cached, _) = compare_cached create $ insert_event "top.t1" 1 1 ""
-    let (root_key, maybe_collect) : _ = r_cache_collect cached
-        Just collect = maybe_collect
-    equal root_key "top * *"
+            <* Ui.setRenderStyle (Track.Line Nothing) (UiTest.tid "sub.t2")
+    let (_, cached, _) = compareCached create $ insertEvent "top.t1" 1 1 ""
+    let (rootKey, maybeCollect) : _ = rCacheCollect cached
+        Just collect = maybeCollect
+    equal rootKey "top * *"
 
-    let e_warp_maps = Lists.sortOn fst . map (bimap Stack.pretty_ui_ e_track)
-            . Map.toAscList . Derive.collect_warp_map
-        e_track (TrackWarp.Track start end _warp block_id track_id) =
-            (start, end, block_id, track_id)
+    let eWarpMaps = Lists.sortOn fst . map (bimap Stack.prettyUi_ eTrack)
+            . Map.toAscList . Derive.collectWarpMap
+        eTrack (TrackWarp.Track start end _warp blockId trackId) =
+            (start, end, blockId, trackId)
 
-    equal (e_warp_maps collect)
+    equal (eWarpMaps collect)
         [ ("top * *", (0, 2, UiTest.bid "top", Nothing))
         , ("top top.t1 0-1 / sub * *", (0, 1, UiTest.bid "sub", Nothing))
         ]
 
     -- TrackSignals are only collected for the topmost block.
-    equal (Derive.collect_track_signals collect) mempty
-    equal (Derive.collect_block_deps collect)
-        (mk_block_deps ["top", "sub"])
+    equal (Derive.collectTrackSignals collect) mempty
+    equal (Derive.collectBlockDeps collect)
+        (mkBlockDeps ["top", "sub"])
 
 test_block_deps :: Test
 test_block_deps = do
     let run root blocks =
-            extract $ Derive.collect_block_deps $ Derive.state_collect $
-            Derive.r_state $
-            DeriveTest.derive_block_setup mempty
-                (snd (UiTest.run_mkblocks blocks)) (UiTest.bid root)
+            extract $ Derive.collectBlockDeps $ Derive.stateCollect $
+            Derive.rState $
+            DeriveTest.deriveBlockSetup mempty
+                (snd (UiTest.runMkblocks blocks)) (UiTest.bid root)
         extract (Derive.BlockDeps deps) = deps
     let blocks =
             [ ("top", [(">", [(0, 1, "b1")])])
             , ("b1", [(">", [(0, 1, "b2")])])
-            , ("b2", UiTest.regular_notes 2)
+            , ("b2", UiTest.regularNotes 2)
             , ("b3", [(">", [(0, 1, "b2")])])
             ]
     equal (run "top" blocks)
@@ -458,33 +458,33 @@ test_block_deps = do
 
 test_collect_indirect_call :: Test
 test_collect_indirect_call = do
-    let run note = DeriveTest.derive_blocks
+    let run note = DeriveTest.deriveBlocks
             [ ("top -- ^t = \"(sub)", [(">", [(0, 1, note)])])
-            , ("sub=ruler", UiTest.note_track1 ["4c"])
+            , ("sub=ruler", UiTest.noteTrack1 ["4c"])
             ]
-    equal (DeriveTest.extract DeriveTest.e_note (run "sub"))
+    equal (DeriveTest.extract DeriveTest.eNote (run "sub"))
         ([(0, 1, "4c")], [])
-    equal (DeriveTest.extract DeriveTest.e_note (run "t"))
+    equal (DeriveTest.extract DeriveTest.eNote (run "t"))
         ([(0, 1, "4c")], [])
 
     let top = UiTest.bid "top"
         sub = UiTest.bid "sub"
-    let e_collection = map TrackWarp.tw_block . Derive.r_track_warps
-    equal (e_collection (run "sub")) [sub, top]
-    equal (e_collection (run "t")) [sub, top]
+    let eCollection = map TrackWarp.twBlock . Derive.rTrackWarps
+    equal (eCollection (run "sub")) [sub, top]
+    equal (eCollection (run "t")) [sub, top]
 
-    let e_block_deps =
-            map (fmap (fmap (e_block_dep . Derive.collect_block_deps)))
-            . r_cache_collect
-        e_block_dep (Derive.BlockDeps blocks) = Set.toList blocks
+    let eBlockDeps =
+            map (fmap (fmap (eBlockDep . Derive.collectBlockDeps)))
+            . rCacheCollect
+        eBlockDep (Derive.BlockDeps blocks) = Set.toList blocks
     let deps =
             [ ("top * *", Just [sub, top])
             , ("top top.t1 *", Just [sub])
             , ("top top.t1 0-1: sub * *", Just [sub])
             , ("top top.t1 0-1: sub sub.t1 *", Just [])
             ]
-    equal (e_block_deps (run "sub")) deps
-    equal (e_block_deps (run "t")) deps
+    equal (eBlockDeps (run "sub")) deps
+    equal (eBlockDeps (run "t")) deps
 
 test_sliced_score_damage :: Test
 test_sliced_score_damage = do
@@ -493,11 +493,11 @@ test_sliced_score_damage = do
     -- accurately reflecting the position of the call on the track for
     -- ScoreDamage to invalidate it.
     let create = do
-            UiTest.mkblocks_skel blocks
+            UiTest.mkblocksSkel blocks
             pure $ UiTest.bid "b9"
-    let (_prev, cached, uncached) = compare_cached create $
-            insert_event "b9.t3" 4 0 "7c"
-    equal (diff_events cached uncached) []
+    let (_prev, cached, uncached) = compareCached create $
+            insertEvent "b9.t3" 4 0 "7c"
+    equal (diffEvents cached uncached) []
     where
     blocks =
         [ (("b9", b9), [(1, 2), (2, 3)])
@@ -515,12 +515,12 @@ test_sliced_control_damage = do
     -- Ensure that control damage properly invalidates a call that has been
     -- sliced and shifted.
     let create = do
-            UiTest.mkblocks_skel blocks
+            UiTest.mkblocksSkel blocks
             pure (UiTest.bid "top")
-    let (_prev, cached, uncached) = compare_cached create $
-            insert_event "top.t1" 6 0 "0"
-    equal (diff_events cached uncached) []
-    strings_like (r_block_logs cached)
+    let (_prev, cached, uncached) = compareCached create $
+            insertEvent "top.t1" 6 0 "0"
+    equal (diffEvents cached uncached) []
+    stringsLike (rBlockLogs cached)
         ["top * block damage", "sub * control damage"]
     where
     blocks =
@@ -550,11 +550,11 @@ test_control_damage = do
             ]
 
     -- the modification is out of range, so the caches are reused
-    let (_, cached, uncached) = compare_cached create $
-            insert_event "top.t1" 2 0 "0"
-    equal (diff_events cached uncached) []
-    strings_like (r_cache_logs cached)
-        [ toplevel_rederived True
+    let (_, cached, uncached) = compareCached create $
+            insertEvent "top.t1" 2 0 "0"
+    equal (diffEvents cached uncached) []
+    stringsLike (rCacheLogs cached)
+        [ toplevelRederived True
         , "top.t1 \\*: rederived"
         , "top.t2 \\*: rederived"
         , "top.t2 0-1: * using cache"
@@ -562,11 +562,11 @@ test_control_damage = do
         ]
 
     -- only the  affected event is rederived
-    let (_, cached, uncached) = compare_cached create $
-            insert_event "top.t1" 1 0 ".5"
-    equal (diff_events cached uncached) []
-    strings_like (r_cache_logs cached)
-        [ toplevel_rederived True
+    let (_, cached, uncached) = compareCached create $
+            insertEvent "top.t1" 1 0 ".5"
+    equal (diffEvents cached uncached) []
+    stringsLike (rCacheLogs cached)
+        [ toplevelRederived True
         , "top.t1 \\*: rederived"
         , "top.t2 \\*: * control damage"
         , "top.t2 0-1: sub \\* \\*: using cache"
@@ -576,11 +576,11 @@ test_control_damage = do
 
     -- if the change damages a greater control area, it should affect the
     -- event
-    let (_, cached, uncached) = compare_cached create $
-            insert_event "top.t1" 0 0 ".5"
-    equal (diff_events cached uncached) []
-    strings_like (r_cache_logs cached)
-        [ toplevel_rederived True
+    let (_, cached, uncached) = compareCached create $
+            insertEvent "top.t1" 0 0 ".5"
+    equal (diffEvents cached uncached) []
+    stringsLike (rCacheLogs cached)
+        [ toplevelRederived True
         , "top.t1 \\*: rederived"
         , "top.t2 \\*: * control damage"
         , "top.t2 0-1: sub \\* \\*: * control damage"
@@ -599,14 +599,14 @@ test_control_damage2 = do
                 ])
             , ("sub=ruler", [(">", [(0, 1, "")])])
             ]
-    let (_, cached, uncached) = compare_cached create $
-            insert_event "top.t2" 0 0 "0.5"
-    equal (diff_events cached uncached) []
+    let (_, cached, uncached) = compareCached create $
+            insertEvent "top.t2" 0 0 "0.5"
+    equal (diffEvents cached uncached) []
 
 test_get_control_damage :: Test
 test_get_control_damage = do
     let f events cdmg sdmg = run events $
-            get_control_damage (0, 10) (mkcdamage cdmg) (mksdamage sdmg)
+            getControlDamage (0, 10) (mkcdamage cdmg) (mksdamage sdmg)
     -- There are no events to be damaged so the damage was likely removing
     -- them, in which case it should be propagated.
     equal (f [] [] [(0, 4)]) (Right (Just [(0, 4)]))
@@ -624,21 +624,21 @@ test_get_control_damage = do
     equal (f [(0, 0, "0"), (4, 0, "0")] [(2, 3)] [])
         (Right (Just [(2, 3)]))
     where
-    get_control_damage range cdmg sdmg = do
+    getControlDamage range cdmg sdmg = do
         Derive.modify $ \st -> st
-            { Derive.state_constant = (Derive.state_constant st)
-                { Derive.state_score_damage = sdmg }
-            , Derive.state_dynamic = (Derive.state_dynamic st)
-                { Derive.state_control_damage = cdmg }
+            { Derive.stateConstant = (Derive.stateConstant st)
+                { Derive.stateScoreDamage = sdmg }
+            , Derive.stateDynamic = (Derive.stateDynamic st)
+                { Derive.stateControlDamage = cdmg }
             }
-        Cache.get_control_damage UiTest.default_block_id (UiTest.mk_tid 1) range
-    extract = DeriveTest.extract_run $
+        Cache.getControlDamage UiTest.defaultBlockId (UiTest.mkTid 1) range
+    extract = DeriveTest.extractRun $
         \(Derive.ControlDamage r) -> Ranges.extract r
     run events d = extract $ DeriveTest.run
-        (snd (UiTest.run_mkblock [("cont", events)])) d
+        (snd (UiTest.runMkblock [("cont", events)])) d
     mkcdamage = Derive.ControlDamage . Ranges.ranges
     mksdamage ranges = Derive.ScoreDamage
-        (Map.singleton (UiTest.mk_tid 1) (Ranges.ranges ranges))
+        (Map.singleton (UiTest.mkTid 1) (Ranges.ranges ranges))
         mempty mempty
 
 test_inverted_control_damage :: Test
@@ -652,11 +652,11 @@ test_inverted_control_damage = do
             ]
 
     -- only the  affected event is rederived
-    let (_, cached, uncached) = compare_cached create $
-            insert_event "top.t2" 1 0 ".5"
-    equal (diff_events cached uncached) []
-    strings_like (r_block_logs cached)
-        [ toplevel_rederived True
+    let (_, cached, uncached) = compareCached create $
+            insertEvent "top.t2" 1 0 ".5"
+    equal (diffEvents cached uncached) []
+    stringsLike (rBlockLogs cached)
+        [ toplevelRederived True
         , "top.t1 0-1: * using cache"
         , "top top.t1 1-2: sub * control damage"
         ]
@@ -671,25 +671,25 @@ test_control_damage_subblock = do
                 , (">", [(0, 2, "b1"), (2, 2, "b1")])
                 ])
             , ("b1=ruler", [(">", [(0, 2, "b2"), (2, 2, "b3")])])
-            , ("b2=ruler", UiTest.note_track [(0, 1, "4a"), (1, 1, "4b")])
-            , ("b3=ruler", UiTest.note_track [(0, 1, "4c"), (1, 1, "4d")])
+            , ("b2=ruler", UiTest.noteTrack [(0, 1, "4a"), (1, 1, "4b")])
+            , ("b3=ruler", UiTest.noteTrack [(0, 1, "4c"), (1, 1, "4d")])
             ]
-    let (_, cached, uncached) = compare_cached create $
-            insert_event "top.t1" 0 0 "2"
-    equal (diff_events cached uncached) []
+    let (_, cached, uncached) = compareCached create $
+            insertEvent "top.t1" 0 0 "2"
+    equal (diffEvents cached uncached) []
     -- Everything has control damage.
-    strings_like (r_block_logs cached)
+    stringsLike (rBlockLogs cached)
         [ "top"
         , "0-2: b1 * control", "0-2: b2 * control", "2-4: b3 * control"
         , "2-4: b1 * control", "0-2: b2 * control", "2-4: b3 * control"
         ]
 
     -- Only the second b1 is rederived.
-    let (_, cached, uncached) = compare_cached create $
-            insert_event "top.t1" 3 0 "2"
-    equal (diff_events cached uncached) []
+    let (_, cached, uncached) = compareCached create $
+            insertEvent "top.t1" 3 0 "2"
+    equal (diffEvents cached uncached) []
 
-    strings_like (r_block_logs cached)
+    stringsLike (rBlockLogs cached)
         [ "top"
         , "0-2: b1 * using cache"
         , "2-4: b1 * control", "0-2: b2 * control", "2-4: b3 * control"
@@ -704,13 +704,13 @@ test_tempo_damage = do
                 ])
             , ("sub", [(">i", [(0, 1, "")])])
             ]
-    let (_, cached, uncached) = compare_cached create $
-            insert_event "top.t1" 2 0 "2"
-    equal (diff_events cached uncached) []
+    let (_, cached, uncached) = compareCached create $
+            insertEvent "top.t1" 2 0 "2"
+    equal (diffEvents cached uncached) []
     -- Damage extends to the previous event, so the first is cached, second and
     -- third are not.
-    strings_like (r_block_logs cached)
-        [ toplevel_rederived True
+    stringsLike (rBlockLogs cached)
+        [ toplevelRederived True
         , "top.t2 0-1: * using cache"
         , "top.t2 1-2: * control damage"
         , "top.t2 2-3: * control damage"
@@ -724,9 +724,9 @@ test_tempo_damage = do
                 ])
             , ("sub=ruler", [(">", [(0, 1, "")])])
             ]
-    let (_, cached, uncached) = compare_cached create $
-            insert_event "top.t1" 2 0 "i 2"
-    equal (diff_events cached uncached) []
+    let (_, cached, uncached) = compareCached create $
+            insertEvent "top.t1" 2 0 "i 2"
+    equal (diffEvents cached uncached) []
     -- prettyp (DeriveTest.extract DeriveTest.e_note cached)
 
 test_extend_tempo_damage :: Test
@@ -737,9 +737,9 @@ test_extend_tempo_damage = do
             , (">i", [(0, 1, ""), (1, 1, "")])
             , ("modulation", [(0, 1, "0")])
             ]
-    let (_, cached, uncached) = compare_cached create $
-            Ui.insert_event (top_tid 1) (Event.event 1 0 "2")
-    equal (diff_events cached uncached) []
+    let (_, cached, uncached) = compareCached create $
+            Ui.insertEvent (topTid 1) (Event.event 1 0 "2")
+    equal (diffEvents cached uncached) []
 
 test_block_title_damage :: Test
 test_block_title_damage = do
@@ -747,12 +747,12 @@ test_block_title_damage = do
     let create =
             mkblocks
                 [ ("top", [(">", [(0, 2, "sub")])])
-                , ("sub=ruler", UiTest.regular_notes 2)
+                , ("sub=ruler", UiTest.regularNotes 2)
                 ]
-            <* Ui.set_block_title (UiTest.bid "top") "tempo = 2"
-    let (_, cached, uncached) = compare_cached create $
-            Ui.set_block_title (UiTest.bid "top") "tempo = 1"
-    equal (diff_events cached uncached) []
+            <* Ui.setBlockTitle (UiTest.bid "top") "tempo = 2"
+    let (_, cached, uncached) = compareCached create $
+            Ui.setBlockTitle (UiTest.bid "top") "tempo = 1"
+    equal (diffEvents cached uncached) []
 
 test_track_cache :: Test
 test_track_cache = do
@@ -761,43 +761,43 @@ test_track_cache = do
             , (">", [(0, 2, "")])
             ]
     -- Ensure that a control track above a note track is cached.
-    let (_, cached, uncached) = compare_cached create $
-            Ui.insert_event (top_tid 2) $ Event.event 1 1 ""
-    equal (diff_events cached uncached) []
-    strings_like (r_cache_logs cached)
+    let (_, cached, uncached) = compareCached create $
+            Ui.insertEvent (topTid 2) $ Event.event 1 1 ""
+    equal (diffEvents cached uncached) []
+    stringsLike (rCacheLogs cached)
         [ "top \\* \\*: rederived"
         , "top top.t1 \\*: using cache"
         , "top top.t2 \\*: rederived"
         ]
 
     -- And invalidated on damage.
-    let (_, cached, uncached) = compare_cached create $
-            Ui.insert_event (top_tid 1) $ Event.event 0 0 ".75"
-    equal (diff_events cached uncached) []
-    strings_like (r_cache_logs cached)
+    let (_, cached, uncached) = compareCached create $
+            Ui.insertEvent (topTid 1) $ Event.event 0 0 ".75"
+    equal (diffEvents cached uncached) []
+    stringsLike (rCacheLogs cached)
         [ "top \\* \\*: rederived"
         , "top top.t1 \\*: rederived * cache invalidated"
         , "top top.t2 \\*: rederived"
         ]
 
-    let title = Ui.set_block_title (UiTest.bid "top")
+    let title = Ui.setBlockTitle (UiTest.bid "top")
 
     -- Also invalidated on block damage.
-    let (_, cached, _) = compare_cached (create <* title "foo = a") $
+    let (_, cached, _) = compareCached (create <* title "foo = a") $
             title "foo = b"
-    equal (DeriveTest.extract (DeriveTest.e_environ "foo") cached)
+    equal (DeriveTest.extract (DeriveTest.eEnviron "foo") cached)
         ([Just "b"], [])
-    strings_like (r_cache_logs cached)
+    stringsLike (rCacheLogs cached)
         [ "top \\* \\*: rederived"
         , "top top.t1 \\*: rederived"
         , "top top.t2 \\*: rederived"
         ]
 
     -- Make sure I don't get extra cache entries when the stack changes.
-    let (_, cached, _) = compare_cached create $ title "foo = a"
-    equal (DeriveTest.extract (DeriveTest.e_environ "foo") cached)
+    let (_, cached, _) = compareCached create $ title "foo = a"
+    equal (DeriveTest.extract (DeriveTest.eEnviron "foo") cached)
         ([Just "a"], [])
-    equal (r_cache_stacks cached)
+    equal (rCacheStacks cached)
         ["top * *", "top top.t1 *", "top top.t2 *"]
 
 test_track_cache2 :: Test
@@ -808,9 +808,9 @@ test_track_cache2 = do
             , (">", [(0, 1, "")])
             ]
     -- Two levels of track caching.
-    let (_, cached, uncached) = compare_cached create $
-            Ui.insert_event (top_tid 2) $ Event.event 0 0 "1"
-    equal (diff_events cached uncached) []
+    let (_, cached, uncached) = compareCached create $
+            Ui.insertEvent (topTid 2) $ Event.event 0 0 "1"
+    equal (diffEvents cached uncached) []
 
 
 -- * make
@@ -827,16 +827,16 @@ region = Stack.Region
 call :: Text -> Stack.Frame
 call = Stack.Call
 
-top_tid :: TrackNum -> TrackId
-top_tid = UiTest.mk_tid_name "top"
+topTid :: TrackNum -> TrackId
+topTid = UiTest.mkTidName "top"
 
 -- | The toplevel block is just about always damaged.
-toplevel_rederived :: Bool -> Text
-toplevel_rederived True = "top *: rederived * block damage"
-toplevel_rederived False = "top *: rederived * sub-block damage"
+toplevelRederived :: Bool -> Text
+toplevelRederived True = "top *: rederived * block damage"
+toplevelRederived False = "top *: rederived * sub-block damage"
 
-mk_block_deps :: [Text] -> Derive.BlockDeps
-mk_block_deps = Derive.BlockDeps . Set.fromList . map UiTest.bid
+mkBlockDeps :: [Text] -> Derive.BlockDeps
+mkBlockDeps = Derive.BlockDeps . Set.fromList . map UiTest.bid
 
 mkblocks :: Ui.M m => [UiTest.BlockSpec] -> m BlockId
 mkblocks blocks = head <$> UiTest.mkblocks blocks
@@ -844,64 +844,64 @@ mkblocks blocks = head <$> UiTest.mkblocks blocks
 mkblock :: Ui.M m => [UiTest.TrackSpec] -> m BlockId
 mkblock tracks = mkblocks [("top", tracks)]
 
-insert_event :: Ui.M m => Text -> ScoreTime -> ScoreTime -> Text -> m ()
-insert_event tid pos dur text =
-    Ui.insert_event (UiTest.tid tid) (Event.event pos dur text)
+insertEvent :: Ui.M m => Text -> ScoreTime -> ScoreTime -> Text -> m ()
+insertEvent tid pos dur text =
+    Ui.insertEvent (UiTest.tid tid) (Event.event pos dur text)
 
 -- * extract
 
 -- | Extract cache logs so I can tell who rederived and who used the cache.
 -- I use strings instead of parsing it into structured data because strings
 -- make more informative errors when they don't match.
-r_cache_logs :: Derive.Result -> [Text]
-r_cache_logs = map show_log . filter Cache.is_cache_log . r_logs
+rCacheLogs :: Derive.Result -> [Text]
+rCacheLogs = map showLog . filter Cache.isCacheLog . rLogs
 
 -- | Sometimes the cache msgs for the track cache are just clutter.
-r_block_logs :: Derive.Result -> [Text]
-r_block_logs =
-    map show_log . filter (not . track_stack)
-        . filter Cache.is_cache_log . r_logs
+rBlockLogs :: Derive.Result -> [Text]
+rBlockLogs =
+    map showLog . filter (not . trackStack)
+        . filter Cache.isCacheLog . rLogs
     where
-    track_stack msg = case Log.msg_stack msg of
+    trackStack msg = case Log.msgStack msg of
         Just stack -> case Stack.innermost stack of
             Stack.Track _ : _ -> True
             _ -> False
         _ -> False
 
-r_pretty_logs :: Derive.Result -> [Text]
-r_pretty_logs = map show_log . r_logs
+rPrettyLogs :: Derive.Result -> [Text]
+rPrettyLogs = map showLog . rLogs
 
 -- | The logs are sorted for tests, since log order isn't really defined.
-r_logs :: Derive.Result -> [Log.Msg]
-r_logs = Lists.sortOn show_log . Stream.logs_of . Derive.r_events
+rLogs :: Derive.Result -> [Log.Msg]
+rLogs = Lists.sortOn showLog . Stream.logsOf . Derive.rEvents
 
-show_log :: Log.Msg -> Text
-show_log msg =
-    DeriveTest.show_stack_ False (Log.msg_stack msg) <> ": " <> Log.msg_text msg
+showLog :: Log.Msg -> Text
+showLog msg =
+    DeriveTest.showStack_ False (Log.msgStack msg) <> ": " <> Log.msgText msg
 
 -- | Pull the collects out of the cache, pairing them up with the cache keys.
-r_cache_collect :: Derive.Result -> [(Text, Maybe Derive.Collect)]
-r_cache_collect result = Lists.sortOn fst
-    [ (DeriveTest.show_stack_ False (Just (Derive.key_stack key)),
+rCacheCollect :: Derive.Result -> [(Text, Maybe Derive.Collect)]
+rCacheCollect result = Lists.sortOn fst
+    [ (DeriveTest.showStack_ False (Just (Derive.keyStack key)),
         collect ctype)
     | (key, ctype) <- Map.toList cmap
     ]
     where
-    cmap = uncache (Derive.r_cache result)
+    cmap = uncache (Derive.rCache result)
     collect (Derive.Cached (Derive.CachedEvents (Derive.CallType collect _))) =
         Just collect
     collect _ = Nothing
 
-r_cache_deps :: Derive.Result -> [(Text, Maybe [BlockId])]
-r_cache_deps result =
-    [(stack, fmap deps collect) | (stack, collect) <- r_cache_collect result]
+rCacheDeps :: Derive.Result -> [(Text, Maybe [BlockId])]
+rCacheDeps result =
+    [(stack, fmap deps collect) | (stack, collect) <- rCacheCollect result]
     where
-    deps collect = case Derive.collect_block_deps collect of
+    deps collect = case Derive.collectBlockDeps collect of
         Derive.BlockDeps blocks -> Set.toAscList blocks
 
-r_cache_stacks :: Derive.Result -> [Text]
-r_cache_stacks = map (Stack.pretty_ui_ . Derive.key_stack) . Map.keys
-    . Map.filter valid . uncache . Derive.r_cache
+rCacheStacks :: Derive.Result -> [Text]
+rCacheStacks = map (Stack.prettyUi_ . Derive.keyStack) . Map.keys
+    . Map.filter valid . uncache . Derive.rCache
     where
     valid Derive.Invalid = False
     valid _ = True
@@ -922,69 +922,69 @@ run state m = case result of
 -- results are the same.  Returns (result before modification, cached,
 -- uncached).  The pre-modification result is occasionally useful to check
 -- logs.
-compare_cached :: Ui.StateId BlockId -> Ui.StateId a
+compareCached :: Ui.StateId BlockId -> Ui.StateId a
     -> (Derive.Result, Derive.Result, Derive.Result)
-compare_cached = compare_cached_block Nothing
+compareCached = compareCachedBlock Nothing
 
-compare_cached_block :: Maybe BlockId -> Ui.StateId BlockId
+compareCachedBlock :: Maybe BlockId -> Ui.StateId BlockId
     -> Ui.StateId a -> (Derive.Result, Derive.Result, Derive.Result)
-compare_cached_block maybe_root_id create modify = (result, cached, uncached)
+compareCachedBlock maybeRootId create modify = (result, cached, uncached)
     where
     state1 = UiTest.exec Ui.empty create
-    root_id = fromMaybe (get_root_id state1) maybe_root_id
-    result = derive_block_cache mempty mempty state1 root_id
-    cached = run_cached root_id result state1 modify
+    rootId = fromMaybe (getRootId state1) maybeRootId
+    result = deriveBlockCache mempty mempty state1 rootId
+    cached = runCached rootId result state1 modify
     -- 'run_cached' already did this once, but it doesn't return it.
     (_, state2, _) = run state1 modify
-    uncached = derive_block_cache mempty mempty state2 root_id
+    uncached = deriveBlockCache mempty mempty state2 rootId
 
 -- | Run a derive after some modifications with the cache from a previous
 -- derive.
-run_cached :: BlockId -> Derive.Result -> Ui.State -> Ui.StateId a
+runCached :: BlockId -> Derive.Result -> Ui.State -> Ui.StateId a
     -> Derive.Result
-run_cached root_id result state1 modify =
-    derive_block_cache (Derive.r_cache result) damage state2 root_id
+runCached rootId result state1 modify =
+    deriveBlockCache (Derive.rCache result) damage state2 rootId
     where
-    (_, state2, ui_damage) = run state1 modify
-    (updates, _) = Diff.diff ui_damage state1 state2
-    damage = Diff.derive_diff state1 state2 ui_damage updates
+    (_, state2, uiDamage) = run state1 modify
+    (updates, _) = Diff.diff uiDamage state1 state2
+    damage = Diff.deriveDiff state1 state2 uiDamage updates
 
-derive_block_cache :: Derive.Cache -> Derive.ScoreDamage -> Ui.State
+deriveBlockCache :: Derive.Cache -> Derive.ScoreDamage -> Ui.State
     -> BlockId -> Derive.Result
-derive_block_cache =
-    DeriveTest.derive_block_standard mempty DeriveTest.default_cmd_state
+deriveBlockCache =
+    DeriveTest.deriveBlockStandard mempty DeriveTest.defaultCmdState
 
-get_root_id :: Ui.State -> BlockId
-get_root_id state = UiTest.eval state Ui.get_root_id
+getRootId :: Ui.State -> BlockId
+getRootId state = UiTest.eval state Ui.getRootId
 
-score_damage :: Ui.StateId a -> Ui.StateId b -> Derive.ScoreDamage
-score_damage create modify = Diff.derive_diff state1 state2 ui_damage updates
+scoreDamage :: Ui.StateId a -> Ui.StateId b -> Derive.ScoreDamage
+scoreDamage create modify = Diff.deriveDiff state1 state2 uiDamage updates
     where
     (_, state1) = UiTest.run Ui.empty create
-    (_, state2, ui_damage) = run state1 modify
-    (updates, _) = Diff.diff ui_damage state1 state2
+    (_, state2, uiDamage) = run state1 modify
+    (updates, _) = Diff.diff uiDamage state1 state2
 
 -- | 'diff_events' returns this when there were no events to diff.
-expect_no_events :: [Either DiffEvent DiffEvent]
-expect_no_events = [Left (0, 0, "NO EVENTS TO DIFF", 0)]
+expectNoEvents :: [Either DiffEvent DiffEvent]
+expectNoEvents = [Left (0, 0, "NO EVENTS TO DIFF", 0)]
 
-diff_events :: Derive.Result -> Derive.Result -> [Either DiffEvent DiffEvent]
-diff_events r1 r2
+diffEvents :: Derive.Result -> Derive.Result -> [Either DiffEvent DiffEvent]
+diffEvents r1 r2
     -- Without this check it's easy for a test to pass if the derive just
     -- crashes and produces no events.
     -- This is a hack, but otherwise I have to remember to stick a "check not
     -- null" line on every test.  In practice, I don't expect any test to
     -- produce zero events.
-    | null x1 && null x2 = expect_no_events
+    | null x1 && null x2 = expectNoEvents
     | otherwise = Lists.diffEither (==) x1 x2
     where
     x1 = extract r1
     x2 = extract r2
-    extract = fst . DeriveTest.extract simple_event
+    extract = fst . DeriveTest.extract simpleEvent
 
 -- | (start, dur, pitch, initial_dyn)
 type DiffEvent = (RealTime, RealTime, Text, Double)
 
-simple_event :: Score.Event -> DiffEvent
-simple_event e = (Score.event_start e, Score.event_duration e,
-    DeriveTest.e_pitch e, Score.initial_dynamic e)
+simpleEvent :: Score.Event -> DiffEvent
+simpleEvent e = (Score.eventStart e, Score.eventDuration e,
+    DeriveTest.ePitch e, Score.initialDynamic e)

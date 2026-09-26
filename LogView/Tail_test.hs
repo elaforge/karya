@@ -22,7 +22,7 @@ import           Global
 
 reader :: IO ()
 reader = do
-    hdl <- Tail.open log_fn Nothing
+    hdl <- Tail.open logFn Nothing
     go hdl
     where
     go hdl = do
@@ -32,13 +32,13 @@ reader = do
 
 writer :: IO ()
 writer = forM_ (map showt [0..]) $ \n -> do
-    hdl <- Log.rotate_config 2 400 log_fn
+    hdl <- Log.rotateConfig 2 400 logFn
     write hdl n
     Thread.delay 2
     IO.hClose hdl
 
-log_fn :: FilePath
-log_fn = "build/test.log"
+logFn :: FilePath
+logFn = "build/test.log"
 
 write :: IO.Handle -> Text -> IO ()
 write hdl msg = do

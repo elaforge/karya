@@ -7,13 +7,13 @@
 module Cmd.Instrument.Mridangam (
     code
     , stops
-    , all_strokes
+    , allStrokes
     , ki, ta, nam, din, dim, chapu, muru, arai
     , kin, tan
     , tha, thom
     , palm, fingers, fingertips
     -- * used by pakhawaj
-    , make_both, make_code
+    , makeBoth, makeCode
 ) where
 import           Prelude hiding (min, tan)
 import qualified Data.Map as Map
@@ -41,18 +41,18 @@ import           Global
 
 code :: CUtil.Thru -> Pitch.NoteNumber
     -> Maybe (Derive.TransformerF Derive.Note) -> ImInst.Code
-code thru natural_nn transform =
-    make_code thru pitched_strokes natural_nn transform all_strokes both_calls
+code thru naturalNn transform =
+    makeCode thru pitchedStrokes naturalNn transform allStrokes bothCalls
 
 -- | (symbol, dispatchTo, bindToKey)
 type BothStroke = (Expr.Symbol, [Expr.Symbol], Maybe Char)
 
-to_sym :: Expr.ToExpr a => a -> Expr.Symbol
-to_sym = Expr.Symbol . Expr.show_val_expr . Expr.to_expr
+toSym :: Expr.ToExpr a => a -> Expr.Symbol
+toSym = Expr.Symbol . Expr.showValExpr . Expr.toExpr
 
 -- | Strokes which have a pitch, which should change with the sruti.
-pitched_strokes :: [Attrs.Attributes]
-pitched_strokes =
+pitchedStrokes :: [Attrs.Attributes]
+pitchedStrokes =
     [ nam, din
     , kin, tan, min
     , chapu
@@ -75,22 +75,22 @@ pitched_strokes =
     really in solkattu.
 -}
 
-all_strokes :: [Drums.Stroke]
-both_calls :: [BothStroke]
+allStrokes :: [Drums.Stroke]
+bothCalls :: [BothStroke]
 stops :: Drums.Stops
-(all_strokes, both_calls, stops) =
+(allStrokes, bothCalls, stops) =
     ( map make (map Left lhs ++ map Right rhs)
-    , concatMap (uncurry make_both) [(lh, rh) | lh <- lhs, rh <- rhs]
+    , concatMap (uncurry makeBoth) [(lh, rh) | lh <- lhs, rh <- rhs]
     , stops
     )
     where
-    make_both lh rh =
-        ( to_sym (Mridangam.Both lh rh)
-        , [to_sym lh, to_sym rh]
+    makeBoth lh rh =
+        ( toSym (Mridangam.Both lh rh)
+        , [toSym lh, toSym rh]
         , Map.lookup (Mridangam.Both lh rh) keys
         ) : case Mridangam.extraCalls lh rh of
             Nothing -> []
-            Just sym -> [(Expr.Symbol sym, [to_sym lh, to_sym rh], Nothing)]
+            Just sym -> [(Expr.Symbol sym, [toSym lh, toSym rh], Nothing)]
     keys = Map.fromList $ map (\(c, s) -> (s, c)) $ concat
         [ map (second Mridangam.Thoppi)
             -- This reflects my bias to palm tha, but maybe it should write
@@ -134,12 +134,12 @@ stops :: Drums.Stops
           ]
         ]
     make stroke = Drums.Stroke
-        { _name = either to_sym to_sym stroke
-        , _attributes = either thoppi_attrs valantalai_attrs stroke
+        { _name = either toSym toSym stroke
+        , _attributes = either thoppiAttrs valantalaiAttrs stroke
         , _char = Map.lookup
             (either Mridangam.Thoppi Mridangam.Valantalai stroke) keys
         , _dynamic = 1
-        , _group = either t_group v_group stroke
+        , _group = either tGroup vGroup stroke
         }
     rhs = [minBound ..] :: [Mridangam.Valantalai]
     lhs =
@@ -147,38 +147,38 @@ stops :: Drums.Stops
         , Thom Open, Thom Up
         , Gum
         ]
-    t_group = \case
-        Tha {} -> t_closed
-        Thom {} -> t_open
-        Gum -> t_open
-    v_group = \case
-        Ki -> v_closed
-        Ta -> v_closed
-        Tra -> v_closed
-        Mi -> v_closed
-        Min -> v_meetu
-        Nam -> v_meetu
-        Din -> v_meetu
-        AraiChapu -> v_open
-        MuruChapu -> v_open
-        Dim -> v_open
-        Kin -> v_meetu
-        Tan -> v_meetu
-        Dhe -> v_closed
-        Re -> v_closed
-    t_closed = "t-closed"
-    t_open = "t-open"
-    v_closed = "v-closed"
-    v_meetu = "v-meetu"
-    v_open = "v-open"
+    tGroup = \case
+        Tha {} -> tClosed
+        Thom {} -> tOpen
+        Gum -> tOpen
+    vGroup = \case
+        Ki -> vClosed
+        Ta -> vClosed
+        Tra -> vClosed
+        Mi -> vClosed
+        Min -> vMeetu
+        Nam -> vMeetu
+        Din -> vMeetu
+        AraiChapu -> vOpen
+        MuruChapu -> vOpen
+        Dim -> vOpen
+        Kin -> vMeetu
+        Tan -> vMeetu
+        Dhe -> vClosed
+        Re -> vClosed
+    tClosed = "t-closed"
+    tOpen = "t-open"
+    vClosed = "v-closed"
+    vMeetu = "v-meetu"
+    vOpen = "v-open"
     stops =
-        [ (t_closed, [t_open])
-        , (v_closed, [v_meetu, v_open])
-        , (v_meetu, [v_open])
+        [ (tClosed, [tOpen])
+        , (vClosed, [vMeetu, vOpen])
+        , (vMeetu, [vOpen])
         ]
 
-valantalai_attrs :: Mridangam.Valantalai-> Attrs.Attributes
-valantalai_attrs = \case
+valantalaiAttrs :: Mridangam.Valantalai-> Attrs.Attributes
+valantalaiAttrs = \case
     Ki -> ki
     Ta -> ta
     Tra -> tra
@@ -194,8 +194,8 @@ valantalai_attrs = \case
     Dhe -> dhe
     Re -> re
 
-thoppi_attrs :: Mridangam.Thoppi -> Attrs.Attributes
-thoppi_attrs = \case
+thoppiAttrs :: Mridangam.Thoppi -> Attrs.Attributes
+thoppiAttrs = \case
     Tha t -> tha <> case t of
         Palm -> mempty -- could be palm, but let's consider it the default
         Fingers -> fingers
@@ -237,40 +237,40 @@ fingertips = Attrs.attr "fingertips"
 -- * two-handed pitched drums
 
 -- | Make code for a pitched two-handed drum.  This isn't mridangam-specific.
-make_code :: CUtil.Thru -> [Attrs.Attributes] -> Pitch.NoteNumber
+makeCode :: CUtil.Thru -> [Attrs.Attributes] -> Pitch.NoteNumber
     -> Maybe (Derive.TransformerF Derive.Note) -> [Drums.Stroke]
     -> [BothStroke] -> ImInst.Code
-make_code thru pitched_strokes natural_nn transform strokes both = mconcat
-    [ ImInst.note_generators generators
-    , ImInst.val_calls vals
-    , ImInst.cmd (CUtil.insert_call thru char_to_call)
+makeCode thru pitchedStrokes naturalNn transform strokes both = mconcat
+    [ ImInst.noteGenerators generators
+    , ImInst.valCalls vals
+    , ImInst.cmd (CUtil.insertCall thru charToCall)
     ]
     where
-    add t = map (second (Make.modify_generator_ "" t))
+    add t = map (second (Make.modifyGenerator_ "" t))
     generators = maybe id add transform $ concat
-        [ CUtil.drum_calls (zip strokes (map config strokes))
-        , DUtil.multiple_calls [(call, subcalls) | (call, subcalls, _) <- both]
+        [ CUtil.drumCalls (zip strokes (map config strokes))
+        , DUtil.multipleCalls [(call, subcalls) | (call, subcalls, _) <- both]
         ]
-    config = CUtil.pitched_strokes pitched_strokes natural_nn
+    config = CUtil.pitchedStrokes pitchedStrokes naturalNn
         . Drums._attributes
     vals =
-        [ ("natural", Make.constant_val Module.instrument "natural"
-            doc (PSignal.nn_pitch natural_nn))
+        [ ("natural", Make.constantVal Module.instrument "natural"
+            doc (PSignal.nnPitch naturalNn))
         ]
         where doc = "Emit the drum's recorded pitch. Use like `#=(natural)`."
-    char_to_call = concat
+    charToCall = concat
         [ [(c, _name) | Drums.Stroke { _char = Just c, _name } <- strokes]
         , [(char, call) | (call, _, Just char) <- both]
         ]
 
 -- | Create calls for all simultaneous left and right hand combinations, and
 -- key bindings for a few common ones.
-make_both :: [Drums.Stroke] -> [Drums.Stroke]
+makeBoth :: [Drums.Stroke] -> [Drums.Stroke]
     -> [(Expr.Symbol, [Expr.Symbol])] -- ^ special names for pairs
     -> [(Expr.Symbol, Char)] -> [BothStroke]
-make_both left right special_names keys =
+makeBoth left right specialNames keys =
     [ (call, subcalls, lookup call keys)
-    | (call, subcalls) <- special_names ++ pairs
+    | (call, subcalls) <- specialNames ++ pairs
     ]
     where
     pairs =

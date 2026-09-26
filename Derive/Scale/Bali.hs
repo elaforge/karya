@@ -16,21 +16,21 @@ data Pitch = I | O | E | Es | U | A | As
 -- | Extend a scale downwards and upwards, assuming the extended octaves
 -- are exactly 2:1.  The input should have at least an octave's worth of
 -- pitches.
-extend_scale :: Pitch.PitchClass -> Pitch.Pitch -- ^ extend down to here
+extendScale :: Pitch.PitchClass -> Pitch.Pitch -- ^ extend down to here
     -> Pitch.Pitch -- ^ extend up to here
     -> Pitch.Pitch -- ^ from this original starting point
     -> [Pitch.NoteNumber] -> [Pitch.NoteNumber]
-extend_scale per_octave low high start nns =
-    reverse (take to_low down) ++ nns ++ take to_high up
+extendScale perOctave low high start nns =
+    reverse (take toLow down) ++ nns ++ take toHigh up
     where
-    to_low = Pitch.diff_pc per_octave start low
+    toLow = Pitch.diffPc perOctave start low
     -- 'high' is inclusive, so +1.
-    to_high = Pitch.diff_pc per_octave high start - length nns + 1
+    toHigh = Pitch.diffPc perOctave high start - length nns + 1
     down =
         [ nn - 12 * fromIntegral oct
-        | oct <- [1..], nn <- reverse (take per_octave nns)
+        | oct <- [1..], nn <- reverse (take perOctave nns)
         ]
     up =
         [ nn + 12 * fromIntegral oct
-        | oct <- [1..], nn <- Lists.takeEnd per_octave nns
+        | oct <- [1..], nn <- Lists.takeEnd perOctave nns
         ]

@@ -15,19 +15,19 @@ import           Util.Test
 
 test_edo :: Test
 test_edo = do
-    let run scale_id divisions intervals pitches = DeriveTest.extract extract $
-            DeriveTest.derive_tracks (make_title scale_id intervals divisions) $
-            UiTest.note_track1 pitches
-        make_title scale_id intervals divisions =
+    let run scaleId divisions intervals pitches = DeriveTest.extract extract $
+            DeriveTest.deriveTracks (makeTitle scaleId intervals divisions) $
+            UiTest.noteTrack1 pitches
+        makeTitle scaleId intervals divisions =
             Text.intercalate " | " $ filter (/="")
                 [ maybe "" ("edo-divisions = "<>) divisions
                 , maybe "" ("edo-intervals = "<>) intervals
-                , "scale=" <> scale_id
+                , "scale=" <> scaleId
                 ]
-        extract = Score.initial_nn
-    strings_like (snd $ run "edo" Nothing Nothing ["4a"])
+        extract = Score.initialNn
+    stringsLike (snd $ run "edo" Nothing Nothing ["4a"])
         ["\"edo-divisions\": not found"]
-    strings_like (snd $ run "edo" (Just "12") (Just "(list 1 1)") ["4a"])
+    stringsLike (snd $ run "edo" (Just "12") (Just "(list 1 1)") ["4a"])
         ["should equal divisions"]
 
     equal (run "edo" (Just "12") Nothing ["4a", "4b", "4c"])

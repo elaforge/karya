@@ -3,7 +3,7 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 {-# LANGUAGE StrictData #-}
-module Perform.Sc.Patch (Patch(..), c_pitch) where
+module Perform.Sc.Patch (Patch(..), cPitch) where
 import qualified GHC.Generics as Generics
 
 import qualified Util.Pretty as Pretty
@@ -23,5 +23,5 @@ data Patch = Patch
 
 instance Pretty.Pretty Patch where format = Pretty.formatG
 
-c_pitch :: ScoreT.Control
-c_pitch = "pitch"
+cPitch :: ScoreT.Control
+cPitch = "pitch"

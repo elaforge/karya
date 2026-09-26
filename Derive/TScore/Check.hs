@@ -6,14 +6,14 @@
 {-# LANGUAGE CPP #-}
 -- | Post-process 'T.Token's.  Check barlines, resolve ties, etc.
 module Derive.TScore.Check (
-    Config(..), default_config
+    Config(..), defaultConfig
     , Scope(..)
     , From(..)
     , AssertCoincident(..)
-    , parse_directive, parse_directives
-    , apply_block_from
+    , parseDirective, parseDirectives
+    , applyBlockFrom
     , check
-    , call_block_id
+    , callBlockId
     , Meter(..)
 #ifdef TESTING
     , module Derive.TScore.Check
@@ -56,112 +56,112 @@ import           Types
 
 
 data Config = Config
-    { config_meter :: Meter
-    , config_scale :: Scale
-    , config_duration :: DurationMode
-    , config_from :: Maybe From
+    { configMeter :: Meter
+    , configScale :: Scale
+    , configDuration :: DurationMode
+    , configFrom :: Maybe From
     -- | Use negative durations.  Notes arrive at beats instead of departing
     -- from them.
-    , config_negative :: Bool
-    , config_ky :: Text
+    , configNegative :: Bool
+    , configKy :: Text
     } deriving (Show)
 
 -- | The target of a 'T.CopyFrom'.
 data From = From
-    { from_block :: Maybe Id.BlockId
-    , from_tracknum :: TrackNum
-    , from_pos :: T.Pos
+    { fromBlock :: Maybe Id.BlockId
+    , fromTracknum :: TrackNum
+    , fromPos :: T.Pos
     } deriving (Show)
 
 instance Pretty From where
     pretty (From block tracknum _) =
-        maybe "" ((<>":") . Parse.show_block) block <> showt tracknum
+        maybe "" ((<>":") . Parse.showBlock) block <> showt tracknum
 
-default_config :: Config
-default_config = Config
-    { config_meter = meter_44
-    , config_scale = scale_sargam
-    , config_duration = Multiplicative
-    , config_from = Nothing
-    , config_negative = False
-    , config_ky = ""
+defaultConfig :: Config
+defaultConfig = Config
+    { configMeter = meter44
+    , configScale = scaleSargam
+    , configDuration = Multiplicative
+    , configFrom = Nothing
+    , configNegative = False
+    , configKy = ""
     }
 
-parse_directives :: Scope -> Config -> [T.Directive] -> Either T.Error Config
-parse_directives scope = foldM (flip (parse_directive scope))
+parseDirectives :: Scope -> Config -> [T.Directive] -> Either T.Error Config
+parseDirectives scope = foldM (flip (parseDirective scope))
 
 -- | Directives can appear in various places, which affects their scope.
 data Scope = Global | Block | Track
     deriving (Eq, Show)
 
-parse_directive :: Scope -> T.Directive -> Config -> Either T.Error Config
-parse_directive scope (T.Directive pos name maybe_val) config =
+parseDirective :: Scope -> T.Directive -> Config -> Either T.Error Config
+parseDirective scope (T.Directive pos name maybeVal) config =
     first (T.Error pos . ((name<>": ")<>)) $ case name of
-        "dur" -> set_config (\c a -> c { config_duration = a })
-            (`Map.lookup` duration_map) =<< with_arg
+        "dur" -> setConfig (\c a -> c { configDuration = a })
+            (`Map.lookup` durationMap) =<< withArg
         -- f for from.  This is abbreviated because it shows up per-track.
         "f" -> do
-            from <- parse_from scope pos =<< with_arg
-            pure $ config { config_from = Just from }
-        "meter" -> set_config (\c a -> c { config_meter = a }) parse_meter
-            =<< with_arg
-        "negative" -> without_arg >> pure (config { config_negative = True })
-        "scale" -> set_config (\c a -> c { config_scale = a })
-            (`Map.lookup` scale_map) =<< with_arg
+            from <- parseFrom scope pos =<< withArg
+            pure $ config { configFrom = Just from }
+        "meter" -> setConfig (\c a -> c { configMeter = a }) parseMeter
+            =<< withArg
+        "negative" -> withoutArg >> pure (config { configNegative = True })
+        "scale" -> setConfig (\c a -> c { configScale = a })
+            (`Map.lookup` scaleMap) =<< withArg
         "ky" -> do
-            require_toplevel
-            unless (config_ky config == "") $
+            requireToplevel
+            unless (configKy config == "") $
                 Left "should only be one %ky"
-            set_config (\c a -> c { config_ky = a }) Just =<< with_arg
+            setConfig (\c a -> c { configKy = a }) Just =<< withArg
         -- default_call affects parsing, so I don't handle it here, but
         -- I can make sure it doesn't have an argument.
-        _ | name == Parse.default_call -> without_arg >> Right config
+        _ | name == Parse.defaultCall -> withoutArg >> Right config
         _ -> Left $ "unknown directive: " <> name
     where
-    require_toplevel = case scope of
+    requireToplevel = case scope of
         Global -> pure ()
         _ -> Left "must be at global scope"
-    with_arg = tryJust "expected arg" maybe_val
-    without_arg = maybe (Right ()) (Left . ("unexpected arg: "<>)) maybe_val
-    set_config setter parse val = fmap (setter config) (lookup parse val)
+    withArg = tryJust "expected arg" maybeVal
+    withoutArg = maybe (Right ()) (Left . ("unexpected arg: "<>)) maybeVal
+    setConfig setter parse val = fmap (setter config) (lookup parse val)
     lookup parse val = tryJust ("unknown " <> name <> ": " <> val) (parse val)
 
-parse_from :: Scope -> T.Pos -> Text -> Either Text From
-parse_from scope pos arg = case scope of
+parseFrom :: Scope -> T.Pos -> Text -> Either Text From
+parseFrom scope pos arg = case scope of
     Global -> Left "can't use at global scope"
     Block -> do
-        block_id <- tryJust ("not a valid block_id: " <> arg) $
-            Id.make $ Id.read_short Parse.default_namespace arg
+        blockId <- tryJust ("not a valid block_id: " <> arg) $
+            Id.make $ Id.readShort Parse.defaultNamespace arg
         pure $ From
-            { from_block = Just block_id
-            , from_tracknum = 0
-            , from_pos = pos
+            { fromBlock = Just blockId
+            , fromTracknum = 0
+            , fromPos = pos
             }
     Track -> do
         tracknum <- tryJust ("not a tracknum: " <> arg) $ ParseText.int arg
         when (tracknum <= 0) $ Left "tracknums start at 1"
         pure $ From
-            { from_block = Nothing
-            , from_tracknum = tracknum
-            , from_pos = pos
+            { fromBlock = Nothing
+            , fromTracknum = tracknum
+            , fromPos = pos
             }
 
 -- | Convert a block-level From into a track-level From for each tracknum.
 -- Due to 'parse_from', the block From should have a 'from_block'.  It's ok
 -- to have both block and track From, in this case the track From gives the
 -- tracknum from a different block.
-apply_block_from :: Config -> TrackNum -> Config -> Config
-apply_block_from block_config tracknum track_config =
-    set $ case (config_from block_config, config_from track_config) of
-        (Nothing, mb_track) -> mb_track
-        (Just block, Nothing) -> Just $ block { from_tracknum = tracknum }
+applyBlockFrom :: Config -> TrackNum -> Config -> Config
+applyBlockFrom blockConfig tracknum trackConfig =
+    set $ case (configFrom blockConfig, configFrom trackConfig) of
+        (Nothing, mbTrack) -> mbTrack
+        (Just block, Nothing) -> Just $ block { fromTracknum = tracknum }
         -- If the block had a From, the track will have inherited it.
         (Just block, Just track) -> Just $ track
-            { from_block = from_block block
-            , from_tracknum = if from_tracknum track /= 0
-                then from_tracknum track else tracknum
+            { fromBlock = fromBlock block
+            , fromTracknum = if fromTracknum track /= 0
+                then fromTracknum track else tracknum
             }
-    where set from = track_config { config_from = from }
+    where set from = trackConfig { configFrom = from }
 
 -- * check
 
@@ -185,119 +185,119 @@ check :: GetCallDuration -> Config
             (T.Time, T.Note T.CallText (T.NPitch (Maybe T.PitchText)) T.Time)]
        , T.Time
        )
-check get_dur (Config meter scale dur_mode _ negative _ky) =
+check getDur (Config meter scale durMode _ negative _ky) =
     Tuple.swap
     . fmap (map EList.toEither)
-    . fmap (resolve_pitch scale)
-    . (if negative then time_to_negative else id)
-    . resolve_time
-    . check_barlines meter
-    . resolve_duration dur_mode
-    . resolve_call_duration get_dur
-    . carry_call_duration
-    . resolve_repeats
+    . fmap (resolvePitch scale)
+    . (if negative then timeToNegative else id)
+    . resolveTime
+    . checkBarlines meter
+    . resolveDuration durMode
+    . resolveCallDuration getDur
+    . carryCallDuration
+    . resolveRepeats
     . map EList.Elt
 
 -- * time
 
 -- | Carry CallDuration if the next note has no duration, but does have a call.
-carry_call_duration
+carryCallDuration
     :: Stream (T.Token T.CallText pitch T.NDuration T.Duration)
     -> Stream (T.Token T.CallText pitch T.NDuration T.Duration)
-carry_call_duration = flip State.evalState False . EList.mapM (T.map_note carry)
+carryCallDuration = flip State.evalState False . EList.mapM (T.mapNote carry)
     where
     carry note = do
-        dur <- case T.note_duration note of
+        dur <- case T.noteDuration note of
             T.CallDuration -> do
                 State.put True
                 pure T.CallDuration
             T.NDuration dur
-                | can_carry note dur -> ifM State.get
+                | canCarry note dur -> ifM State.get
                     (pure T.CallDuration)
                     (pure $ T.NDuration dur)
                 | otherwise -> State.put False >> pure (T.NDuration dur)
-        pure $ note { T.note_duration = dur }
-    can_carry note dur = T.note_call note /= ""
-        && all Maybe.isNothing [T.dur_int1 dur, T.dur_int2 dur]
+        pure $ note { T.noteDuration = dur }
+    canCarry note dur = T.noteCall note /= ""
+        && all Maybe.isNothing [T.durInt1 dur, T.durInt2 dur]
 
-resolve_call_duration :: GetCallDuration
+resolveCallDuration :: GetCallDuration
     -> Stream (T.Token T.CallText pitch T.NDuration rdur)
     -> Stream (T.Token T.CallText pitch (Either T.Time T.Duration) rdur)
-resolve_call_duration get_dur = EList.concatMapE $ \case
+resolveCallDuration getDur = EList.concatMapE $ \case
     T.TBarline pos a -> [EList.Elt $ T.TBarline pos a]
     T.TRest pos a -> [EList.Elt $ T.TRest pos a]
     T.TNote pos note ->
-        map (fmap set) (resolve pos (T.note_call note) (T.note_duration note))
-        where set dur = T.TNote pos $ note { T.note_duration = dur }
+        map (fmap set) (resolve pos (T.noteCall note) (T.noteDuration note))
+        where set dur = T.TNote pos $ note { T.noteDuration = dur }
     where
     resolve _ _ (T.NDuration dur) = [EList.Elt $ Right dur]
     resolve pos call T.CallDuration
         | Text.null call =
             [mkerror pos "can't get call duration of empty call"]
-        | otherwise = case get_dur call of
-            (Left err, logs) -> mkerror pos err : map to_error logs
-            (Right time, logs) -> EList.Elt (Left time) : map to_error logs
-        where to_error = mkerror pos . Log.format_msg
+        | otherwise = case getDur call of
+            (Left err, logs) -> mkerror pos err : map toError logs
+            (Right time, logs) -> EList.Elt (Left time) : map toError logs
+        where toError = mkerror pos . Log.formatMsg
 
-call_block_id :: Id.BlockId -> Text -> Maybe Id.BlockId
-call_block_id parent =
-    Eval.call_to_block_id Parse.default_namespace (Just parent) . Expr.Symbol
+callBlockId :: Id.BlockId -> Text -> Maybe Id.BlockId
+callBlockId parent =
+    Eval.callToBlockId Parse.defaultNamespace (Just parent) . Expr.Symbol
 
-resolve_repeats
+resolveRepeats
     :: Stream (T.Token T.CallText NPitch T.NDuration T.Duration)
     -> Stream (T.Token T.CallText NPitch T.NDuration T.Duration)
-resolve_repeats =
-    snd . EList.mapAccumLE resolve_dot Nothing
-        . map (fmap resolve_tie) . zip_next_note
+resolveRepeats =
+    snd . EList.mapAccumLE resolveDot Nothing
+        . map (fmap resolveTie) . zipNextNote
     where
-    resolve_tie (T.TNote pos note, Just next)
-        | strip next == Parse.tie_note = T.TNote pos $ set_tie True note
-    resolve_tie (T.TNote pos note, _)
+    resolveTie (T.TNote pos note, Just next)
+        | strip next == Parse.tieNote = T.TNote pos $ setTie True note
+    resolveTie (T.TNote pos note, _)
         -- Normalize Parse.tie_note to a Parse.dot_note, since the tie part has
         -- been handled in the previous equation.  It's important to do this
         -- here, so I only normalize "original" 'Parse.tie_note's, not tied
         -- notes created by the previous equation, which is what happens with
         -- two 'Parse.tie_note's in a row.
-        | strip note == Parse.tie_note = T.TNote pos Parse.dot_note
-    resolve_tie (token, _) = token
+        | strip note == Parse.tieNote = T.TNote pos Parse.dotNote
+    resolveTie (token, _) = token
     -- x ~ .    (tie, no, no)
     -- x . ~    (no, tie, no)
     -- x ~ ~    (tie, tie, no)
     -- x~ . .   (tie, no, no)
     -- So don't inherit the tie from the prev note, get it from the current
     -- note.
-    resolve_dot mb_prev token@(T.TNote pos note)
-        | strip note `elem` repeat_notes = case mb_prev of
+    resolveDot mbPrev token@(T.TNote pos note)
+        | strip note `elem` repeatNotes = case mbPrev of
             Just prev ->
-                ( mb_prev
-                , EList.Elt $ T.TNote pos (set_tie tied (set_dots 0 prev))
+                ( mbPrev
+                , EList.Elt $ T.TNote pos (setTie tied (setDots 0 prev))
                 )
-                where tied = strip note `elem` [tie_dot_note, Parse.tie_note]
+                where tied = strip note `elem` [tieDotNote, Parse.tieNote]
             Nothing ->
-                ( mb_prev
+                ( mbPrev
                 , mkerror pos "repeat with no previous note"
                 )
 
         | otherwise = (Just note, EList.Elt token)
-    resolve_dot mb_prev token = (mb_prev, EList.Elt token)
+    resolveDot mbPrev token = (mbPrev, EList.Elt token)
 
-    strip note = note { T.note_pos = T.Pos 0 }
-    repeat_notes = [Parse.dot_note, Parse.tie_note, tie_dot_note]
-    tie_dot_note = set_tie True Parse.dot_note
-    set_tie tie = modify_duration $ \dur -> dur { T.dur_tie = tie }
-    set_dots n = modify_duration $ \dur -> dur { T.dur_dots = n }
+    strip note = note { T.notePos = T.Pos 0 }
+    repeatNotes = [Parse.dotNote, Parse.tieNote, tieDotNote]
+    tieDotNote = setTie True Parse.dotNote
+    setTie tie = modifyDuration $ \dur -> dur { T.durTie = tie }
+    setDots n = modifyDuration $ \dur -> dur { T.durDots = n }
 
-zip_next_note :: Stream (T.Token call pitch ndur rdur)
+zipNextNote :: Stream (T.Token call pitch ndur rdur)
     -> Stream (T.Token call pitch ndur rdur, Maybe (T.Note call pitch ndur))
-zip_next_note = EList.map (second (msum . map note_of)) . EList.zipNexts
+zipNextNote = EList.map (second (msum . map noteOf)) . EList.zipNexts
     where
-    note_of (T.TNote _ n) = Just n
-    note_of _ = Nothing
+    noteOf (T.TNote _ n) = Just n
+    noteOf _ = Nothing
 
-modify_duration :: (T.Duration -> T.Duration) -> T.Note call pitch T.NDuration
+modifyDuration :: (T.Duration -> T.Duration) -> T.Note call pitch T.NDuration
     -> T.Note call pitch T.NDuration
-modify_duration modify note =
-    note { T.note_duration = set (T.note_duration note) }
+modifyDuration modify note =
+    note { T.noteDuration = set (T.noteDuration note) }
     where
     set (T.NDuration dur) = T.NDuration (modify dur)
     set T.CallDuration = T.CallDuration
@@ -311,221 +311,221 @@ data Meter = Meter
     -- > || ssss rrrr gggg mmmm | pppp dddd | nnnn sssss ||
     -- 4/4: [1, 0, 0, 0]
     -- > | ssss rrrr gggg mmmm |
-    { meter_pattern :: [T.Rank]
+    { meterPattern :: [T.Rank]
     -- | This is the duration one one element of 'meter_pattern'.
-    , meter_step :: T.Time
+    , meterStep :: T.Time
     -- | If true, beats fall at the end of measures.
     -- TODO has no effect yet, not even sure what it would be for
-    , meter_negative :: Bool
+    , meterNegative :: Bool
     -- | Meter as used by the UI.
     -- TODO redundant with meter_pattern, merge them?
-    , meter_ui :: (Meter.Config, Meter.MSection)
+    , meterUi :: (Meter.Config, Meter.MSection)
     } deriving (Eq, Show)
 
-meter_duration :: Meter -> T.Time
-meter_duration m = meter_step m * fromIntegral (length (meter_pattern m))
+meterDuration :: Meter -> T.Time
+meterDuration m = meterStep m * fromIntegral (length (meterPattern m))
 
-parse_meter :: Text -> Maybe Meter
-parse_meter name = case untxt name of
+parseMeter :: Text -> Maybe Meter
+parseMeter name = case untxt name of
     [n1, n2] | Just n1 <- Num.readDigit n1, Just n2 <- Num.readDigit n2 ->
-        simple_meter n1 n2
+        simpleMeter n1 n2
     'a':'d':'i' : n
-        | Just n <- ParseText.nat (txt n) -> meter_adi n
-        | null n -> meter_adi 4
-    "gong" -> Just meter_gong
+        | Just n <- ParseText.nat (txt n) -> meterAdi n
+        | null n -> meterAdi 4
+    "gong" -> Just meterGong
     _ -> Nothing
 
 -- If I do akshara as 1, then kanda is 1/5th notes.  I'd want to reduce the
 -- pulse to 1/5, or write .1--.5?
-meter_adi :: Int -> Maybe Meter
-meter_adi nadai
+meterAdi :: Int -> Maybe Meter
+meterAdi nadai
     | 2 <= nadai && nadai <= 9 = Just $ Meter
-        { meter_pattern = [2, 0, 0, 0, 1, 0, 1, 0]
-        , meter_step = 1
-        , meter_negative = False
-        , meter_ui =
+        { meterPattern = [2, 0, 0, 0, 1, 0, 1, 0]
+        , meterStep = 1
+        , meterNegative = False
+        , meterUi =
             ( Tala.config Tala.adi
-            , Meter.MSection 4 1 (Tala.tala_to_meter Tala.adi nadai)
+            , Meter.MSection 4 1 (Tala.talaToMeter Tala.adi nadai)
             )
         }
     | otherwise = Nothing
 
-meter_gong :: Meter
-meter_gong = Meter
-    { meter_pattern = [1, 0, 0, 0, 0, 0, 0, 0]
-    , meter_step = 1
-    , meter_negative = True
-    , meter_ui =
+meterGong :: Meter
+meterGong = Meter
+    { meterPattern = [1, 0, 0, 0, 0, 0, 0, 0]
+    , meterStep = 1
+    , meterNegative = True
+    , meterUi =
         ( Gong.config
-        , Meter.MSection 4 Gong.measure_dur
-            (Meter.regular_subdivision [2, 2, 2, 2, 2, 2])
+        , Meter.MSection 4 Gong.measureDur
+            (Meter.regularSubdivision [2, 2, 2, 2, 2, 2])
         )
     }
 
-meter_44 :: Meter
-Just meter_44 = simple_meter 4 4
+meter44 :: Meter
+Just meter44 = simpleMeter 4 4
 
-simple_meter :: Int -> Int -> Maybe Meter
-simple_meter n1 n2 = do
-    abs_meter <- Meters.simple n1 n2
+simpleMeter :: Int -> Int -> Maybe Meter
+simpleMeter n1 n2 = do
+    absMeter <- Meters.simple n1 n2
     pure $ Meter
-        { meter_pattern = 1 : replicate (n1-1) 0
-        , meter_step = 1 / fromIntegral n2
-        , meter_negative = False
-        , meter_ui =
-            ( Meter.default_config
+        { meterPattern = 1 : replicate (n1-1) 0
+        , meterStep = 1 / fromIntegral n2
+        , meterNegative = False
+        , meterUi =
+            ( Meter.defaultConfig
             , Meter.MSection
-                { section_measures = 4
-                , section_measure_duration = 1
-                , section_measure = abs_meter
+                { sectionMeasures = 4
+                , sectionMeasureDuration = 1
+                , sectionMeasure = absMeter
                 }
             )
         }
 
 -- ** resolve_time
 
-time_to_negative ::
+timeToNegative ::
     (T.Time, Stream (T.Time, T.Note call pitch T.Time))
     -> (T.Time, Stream (T.Time, T.Note call pitch T.Time))
-time_to_negative (end, stream) = (end, EList.map invert stream)
+timeToNegative (end, stream) = (end, EList.map invert stream)
     where
-    invert (start, note) = (start + dur, note { T.note_duration = -dur })
-        where dur = T.note_duration note
+    invert (start, note) = (start + dur, note { T.noteDuration = -dur })
+        where dur = T.noteDuration note
 
 -- | Remove TBarline and TRest, add start times, and resolve ties.
-resolve_time :: (Eq pitch, Pretty pitch)
+resolveTime :: (Eq pitch, Pretty pitch)
     => Stream (Token call pitch (T.Time, Bool))
     -> (T.Time, Stream (T.Time, T.Note call pitch T.Time))
-resolve_time tokens = go (EList.zipPaddedSnd starts tokens)
+resolveTime tokens = go (EList.zipPaddedSnd starts tokens)
     where
-    starts = scanl (\n -> (n+)) 0 (map duration_of (EList.elts tokens))
+    starts = scanl (\n -> (n+)) 0 (map durationOf (EList.elts tokens))
     go (EList.Elt (start, Nothing) : ts)
         | null ts = (start, [])
         | otherwise = go ts
     go (EList.Elt (start, Just t) : ts) = case t of
         T.TNote _ note
-            | is_tied t ->
-                case tied_notes note (Lists.mapMaybeSnd id (EList.elts pre)) of
+            | isTied t ->
+                case tiedNotes note (Lists.mapMaybeSnd id (EList.elts pre)) of
                     Left err -> (EList.Meta (Left err) :) <$> go post
                     Right end ->
-                        (EList.Elt (start, set_dur (end-start) note) :) <$>
+                        (EList.Elt (start, setDur (end-start) note) :) <$>
                             go post
             | otherwise ->
-                (EList.Elt (start, set_dur (fst (T.note_duration note)) note) :)
+                (EList.Elt (start, setDur (fst (T.noteDuration note)) note) :)
                     <$> go ts
         T.TBarline _ (T.Barline {}) -> go ts
         T.TBarline pos T.AssertCoincident ->
             (EList.Meta (Right (AssertCoincident start pos)) :) <$> go ts
         T.TRest {}
-            | is_tied t -> case tied_rests (mapMaybe snd (EList.elts pre)) of
+            | isTied t -> case tiedRests (mapMaybe snd (EList.elts pre)) of
                 Just err -> (EList.Meta (Left err) :) <$> go post
                 Nothing -> go post
             | otherwise -> go ts
         where
-        (pre, post) = Then.span any_tied (splitAt 1) ts
-        any_tied (EList.Meta _) = True
-        any_tied (EList.Elt (_, Just n)) = is_barline n || is_tied n
-        any_tied (EList.Elt (_, Nothing)) = False
+        (pre, post) = Then.span anyTied (splitAt 1) ts
+        anyTied (EList.Meta _) = True
+        anyTied (EList.Elt (_, Just n)) = isBarline n || isTied n
+        anyTied (EList.Elt (_, Nothing)) = False
     go (EList.Meta e : ts) = (EList.Meta e :) <$> go ts
     go [] = (0, [])
-    set_dur dur note = note { T.note_duration = dur }
-    is_barline (T.TBarline {}) = True
-    is_barline _ = False
+    setDur dur note = note { T.noteDuration = dur }
+    isBarline (T.TBarline {}) = True
+    isBarline _ = False
 
-tied_notes :: (Eq pitch, Pretty pitch)
+tiedNotes :: (Eq pitch, Pretty pitch)
     => T.Note call pitch dur -> [(T.Time, Token call pitch (T.Time, Bool))]
     -> Either T.Error T.Time
-tied_notes note tied = case others of
+tiedNotes note tied = case others of
     [] -> case Lists.last matches of
-        Nothing -> Left $ T.Error (T.note_pos note) "final note has a tie"
+        Nothing -> Left $ T.Error (T.notePos note) "final note has a tie"
         Just (s, n)
-            | snd $ T.note_duration n ->
-                Left $ T.Error (T.note_pos n) "final note has a tie"
-            | otherwise -> Right $ s + dur_of n
-    (_, bad) : _ -> Left $ T.Error (T.token_pos bad) $ case bad of
+            | snd $ T.noteDuration n ->
+                Left $ T.Error (T.notePos n) "final note has a tie"
+            | otherwise -> Right $ s + durOf n
+    (_, bad) : _ -> Left $ T.Error (T.tokenPos bad) $ case bad of
         T.TNote _ n -> "note tied to different pitch: "
-            <> pretty (T.note_pitch note) <> " ~ "
-            <> pretty (T.note_pitch n)
-        _ -> "note tied to " <> T.token_name bad
+            <> pretty (T.notePitch note) <> " ~ "
+            <> pretty (T.notePitch n)
+        _ -> "note tied to " <> T.tokenName bad
     where
     (matches, others) = first concat $ Lists.partitionOn match tied
-    dur_of = fst . T.note_duration
-    match (s, T.TNote _ n) | T.note_pitch note == T.note_pitch n = Just [(s, n)]
+    durOf = fst . T.noteDuration
+    match (s, T.TNote _ n) | T.notePitch note == T.notePitch n = Just [(s, n)]
     match (_, T.TBarline {}) = Just []
     match _ = Nothing
 
-tied_rests :: [Token call pitch (T.Time, Bool)] -> Maybe T.Error
-tied_rests = fmap format . List.find (not . matches)
+tiedRests :: [Token call pitch (T.Time, Bool)] -> Maybe T.Error
+tiedRests = fmap format . List.find (not . matches)
     where
     format token =
-        T.Error (T.token_pos token) $ "rest tied to " <> T.token_name token
+        T.Error (T.tokenPos token) $ "rest tied to " <> T.tokenName token
     matches (T.TRest {}) = True
     matches (T.TBarline {}) = True
     matches _ = False
 
-is_tied :: T.Token call pitch (a1, Bool) (a2, Bool) -> Bool
-is_tied (T.TNote _ note) = snd $ T.note_duration note
-is_tied (T.TRest _ (T.Rest (_, tied))) = tied
-is_tied _ = False
+isTied :: T.Token call pitch (a1, Bool) (a2, Bool) -> Bool
+isTied (T.TNote _ note) = snd $ T.noteDuration note
+isTied (T.TRest _ (T.Rest (_, tied))) = tied
+isTied _ = False
 
 -- ** check_barlines
 
-check_barlines :: Meter
+checkBarlines :: Meter
     -> Stream (Token call pitch (T.Time, tie))
     -> Stream (Token call pitch (T.Time, tie))
-check_barlines meter =
-    fst . flip State.runState 0 . EList.concatMapEM check_token
+checkBarlines meter =
+    fst . flip State.runState 0 . EList.concatMapEM checkToken
         . EList.zip [0..]
     where
-    check_token (i, token) = do
+    checkToken (i, token) = do
         now <- State.get
         State.put $! now + dur
         pure $ EList.Elt token : warning now
         where
-        dur = duration_of token
+        dur = durationOf token
         warning now = case token of
             T.TBarline pos bar -> maybe [] (:[]) (check pos now i bar)
             _ -> []
-    check pos now i (T.Barline rank) = case check_beat beat_rank beat rank of
+    check pos now i (T.Barline rank) = case checkBeat beatRank beat rank of
         Nothing -> Nothing
         Just err -> Just $ mkerror pos $ warn i $
             "beat " <> pretty beat <> ": " <> err
-        where beat = now `Num.fmod` cycle_dur
+        where beat = now `Num.fmod` cycleDur
     -- resolve_time will turn this into 'AssertCoincident'.
     check _ _ _ T.AssertCoincident = Nothing
-    cycle_dur = meter_duration meter
-    beat_rank = Map.fromList $ filter ((>0) . snd) $
-        zip (Lists.range_ 0 (meter_step meter))
+    cycleDur = meterDuration meter
+    beatRank = Map.fromList $ filter ((>0) . snd) $
+        zip (Lists.range_ 0 (meterStep meter))
             -- Two bars, to ensure 'check_beat' can always find the next beat.
-            (meter_pattern meter ++ meter_pattern meter)
+            (meterPattern meter ++ meterPattern meter)
     warn i msg = "barline check: token " <> showt i <> ": " <> msg
 
 -- | Nothing if the expected rank falls on the given beat, or an error msg.
-check_beat :: Map T.Time T.Rank -> T.Time -> T.Rank -> Maybe Text
-check_beat beat_rank beat rank = (prefix<>) <$> case at of
-    Nothing -> Just next_beat
+checkBeat :: Map T.Time T.Rank -> T.Time -> T.Rank -> Maybe Text
+checkBeat beatRank beat rank = (prefix<>) <$> case at of
+    Nothing -> Just nextBeat
     Just r
         | r == rank -> Nothing
         | otherwise -> Just $ "expected " <> pretty (T.Barline r)
-            <> ", " <> next_beat
+            <> ", " <> nextBeat
     where
     prefix = "saw " <> pretty (T.Barline rank) <> ", "
-    next_beat = case List.find ((==rank) . snd) (Map.toList post) of
+    nextBeat = case List.find ((==rank) . snd) (Map.toList post) of
         Nothing -> "no following beat with that rank"
         Just (t, _) -> "next beat of that rank is " <> pretty t
             <> " (short " <> pretty (t-beat) <> ")"
-    (_, at, post) = Map.splitLookup beat beat_rank
+    (_, at, post) = Map.splitLookup beat beatRank
 
-duration_of :: Token call pitch (T.Time, tie) -> T.Time
-duration_of = \case
+durationOf :: Token call pitch (T.Time, tie) -> T.Time
+durationOf = \case
     T.TBarline {} -> 0
-    T.TNote _ note -> fst (T.note_duration note)
+    T.TNote _ note -> fst (T.noteDuration note)
     T.TRest _ (T.Rest (dur, _)) -> dur
 
 -- ** resolve duration
 
-duration_map :: Map Text DurationMode
-duration_map = Map.fromList
+durationMap :: Map Text DurationMode
+durationMap = Map.fromList
     [ ("mul", Multiplicative)
     , ("add", Additive)
     ]
@@ -533,10 +533,10 @@ duration_map = Map.fromList
 data DurationMode = Multiplicative | Additive
     deriving (Eq, Show)
 
-resolve_duration :: DurationMode
+resolveDuration :: DurationMode
     -> Stream (T.Token call pitch (Either T.Time T.Duration) T.Duration)
     -> Stream (T.Token call pitch (T.Time, Bool) (T.Time, Bool))
-resolve_duration = \case
+resolveDuration = \case
     Multiplicative -> multiplicative
     Additive -> additive
 
@@ -547,17 +547,17 @@ multiplicative
     :: Stream (T.Token call pitch (Either T.Time T.Duration) T.Duration)
     -> Stream (Token call pitch (T.Time, Bool))
 multiplicative =
-    flip State.evalState (1, Nothing) . EList.mapEM (map_duration carry time_of)
+    flip State.evalState (1, Nothing) . EList.mapEM (mapDuration carry timeOf)
     where
-    time_of int1 mb_int2 dots = dur + dot_dur
+    timeOf int1 mbInt2 dots = dur + dotDur
         where
-        dur = T.Time $ case mb_int2 of
+        dur = T.Time $ case mbInt2 of
             Nothing -> 1 / fromIntegral int1
             Just int2 -> fromIntegral int1 / fromIntegral int2
-        dot_dur = Num.sum $ take dots $ drop 1 $ iterate (/2) dur
+        dotDur = Num.sum $ take dots $ drop 1 $ iterate (/2) dur
     carry Nothing Nothing = State.get
     carry Nothing (Just int2) = pure (int2, Nothing)
-    carry (Just int1) mb_int2 = pure (int1, mb_int2)
+    carry (Just int1) mbInt2 = pure (int1, mbInt2)
 
 -- | Each number is just the number of Time beats.  If there are two numbers,
 -- int1 corresponds to a higher level of division, which is meter specific.
@@ -565,129 +565,129 @@ multiplicative =
 additive :: Stream (T.Token call pitch (Either T.Time T.Duration) T.Duration)
     -> Stream (Token call pitch (T.Time, Bool))
 additive =
-    flip State.evalState (1, 4) . EList.mapEM (map_duration carry time_of)
+    flip State.evalState (1, 4) . EList.mapEM (mapDuration carry timeOf)
     where
-    time_of int1 int2 dots = dur + dot_dur
+    timeOf int1 int2 dots = dur + dotDur
         where
         dur = fromIntegral int1 / fromIntegral int2
-        dot_dur = Num.sum $ take dots $ drop 1 $ iterate (/2) dur
+        dotDur = Num.sum $ take dots $ drop 1 $ iterate (/2) dur
     carry int1 int2 = do
-        (p_int1, p_int2) <- State.get
-        pure (fromMaybe p_int1 int1, fromMaybe p_int2 int2)
+        (pInt1, pInt2) <- State.get
+        pure (fromMaybe pInt1 int1, fromMaybe pInt2 int2)
 
-map_duration :: State.MonadState (int1, int2) m
+mapDuration :: State.MonadState (int1, int2) m
     => (Maybe Int -> Maybe Int -> m (int1, int2))
     -> (int1 -> int2 -> Int -> time)
     -> T.Token call pitch (Either time T.Duration) T.Duration
     -> m (EList.Elt Meta (T.Token call pitch (time, Bool) (time, Bool)))
-map_duration carry time_of = \case
+mapDuration carry timeOf = \case
     T.TBarline pos a -> pure $ EList.Elt $ T.TBarline pos a
     T.TNote pos note -> do
-        result <- case T.note_duration note of
+        result <- case T.noteDuration note of
             Left time -> pure $ Right (time, False)
-            Right (T.Duration mb_int1 mb_int2 dots tie) -> do
-                (int1, int2) <- carry mb_int1 mb_int2
+            Right (T.Duration mbInt1 mbInt2 dots tie) -> do
+                (int1, int2) <- carry mbInt1 mbInt2
                 State.put (int1, int2)
-                pure $ Right (time_of int1 int2 dots, tie)
+                pure $ Right (timeOf int1 int2 dots, tie)
         pure $ case result of
             Left err -> mkerror pos err
             Right (time, tie) -> EList.Elt $ T.TNote pos $
-                note { T.note_duration = (time, tie) }
-    T.TRest pos (T.Rest (T.Duration mb_int1 mb_int2 dots tie)) -> do
-        (int1, int2) <- carry mb_int1 mb_int2
+                note { T.noteDuration = (time, tie) }
+    T.TRest pos (T.Rest (T.Duration mbInt1 mbInt2 dots tie)) -> do
+        (int1, int2) <- carry mbInt1 mbInt2
         State.put (int1, int2)
-        pure $ EList.Elt $ T.TRest pos $ T.Rest (time_of int1 int2 dots, tie)
+        pure $ EList.Elt $ T.TRest pos $ T.Rest (timeOf int1 int2 dots, tie)
 
 -- * pitch
 
 data Scale = Scale
-    { scale_name :: Text
-    , scale_parse :: Text -> Maybe Pitch.Degree
-    , scale_unparse :: Pitch.Degree -> Maybe Text
-    , scale_layout :: Theory.Layout
-    , scale_initial_octave :: Pitch.Octave
+    { scaleName :: Text
+    , scaleParse :: Text -> Maybe Pitch.Degree
+    , scaleUnparse :: Pitch.Degree -> Maybe Text
+    , scaleLayout :: Theory.Layout
+    , scaleInitialOctave :: Pitch.Octave
     }
 
 instance Show Scale where
-    show scale = "((" <> untxt (scale_name scale) <> "))"
+    show scale = "((" <> untxt (scaleName scale) <> "))"
 
-resolve_pitch :: Scale
+resolvePitch :: Scale
     -> Stream (time, T.Note call NPitch dur)
     -> Stream (time, T.Note call (T.NPitch (Maybe Text)) dur)
-resolve_pitch scale =
-    fst . flip State.runState (scale_initial_octave scale, Nothing)
+resolvePitch scale =
+    fst . flip State.runState (scaleInitialOctave scale, Nothing)
         . EList.mapEM token
     where
-    token (start, note) = fmap set <$> case T.note_pitch note of
+    token (start, note) = fmap set <$> case T.notePitch note of
         T.CopyFrom -> pure $ EList.Elt T.CopyFrom
-        T.NPitch pitch -> fmap T.NPitch <$> resolve (T.note_pos note) pitch
-        where set pitch = (start, note { T.note_pitch = pitch })
-    resolve pos pitch = case parse_pitch pos (scale_parse scale) pitch of
+        T.NPitch pitch -> fmap T.NPitch <$> resolve (T.notePos note) pitch
+        where set pitch = (start, note { T.notePitch = pitch })
+    resolve pos pitch = case parsePitch pos (scaleParse scale) pitch of
         EList.Meta m -> pure $ EList.Meta m
         EList.Elt Nothing -> pure $ EList.Elt Nothing
         EList.Elt (Just pitch) -> do
             prev <- State.get
             pitch@(Pitch.Pitch oct degree) <- pure $
-                infer_octave per_octave prev pitch
+                inferOctave perOctave prev pitch
             State.put (oct, Just degree)
-            pure $ Just <$> pitch_to_symbolic pos scale pitch
-    per_octave = Theory.layout_pc_per_octave (scale_layout scale)
+            pure $ Just <$> pitchToSymbolic pos scale pitch
+    perOctave = Theory.layoutPcPerOctave (scaleLayout scale)
 
-parse_pitch :: T.Pos -> (T.PitchText -> Maybe pitch) -> T.Pitch
+parsePitch :: T.Pos -> (T.PitchText -> Maybe pitch) -> T.Pitch
     -> EList.Elt Meta (Maybe (T.Octave, pitch))
-parse_pitch pos parse (T.Pitch oct call)
+parsePitch pos parse (T.Pitch oct call)
     -- If there's a previous pitch, the pitch track will carry it.
     | Text.null call = EList.Elt Nothing
     | otherwise = case parse call of
         Nothing -> mkerror pos $ "can't parse pitch: " <> call
         Just p -> EList.Elt (Just (oct, p))
 
-infer_octave :: Pitch.PitchClass -> (Pitch.Octave, Maybe Pitch.Degree)
+inferOctave :: Pitch.PitchClass -> (Pitch.Octave, Maybe Pitch.Degree)
     -> (T.Octave, Pitch.Degree) -> Pitch.Pitch
-infer_octave _ _ (T.Absolute oct, degree) =
+inferOctave _ _ (T.Absolute oct, degree) =
     Pitch.Pitch oct degree
-infer_octave _ (prev_oct, Nothing) (T.Relative rel_oct, degree) =
-    Pitch.Pitch (prev_oct + rel_oct) degree
-infer_octave per_oct (prev_oct, Just prev_degree) (T.Relative rel_oct, degree) =
-    case compare rel_oct 0 of
+inferOctave _ (prevOct, Nothing) (T.Relative relOct, degree) =
+    Pitch.Pitch (prevOct + relOct) degree
+inferOctave perOct (prevOct, Just prevDegree) (T.Relative relOct, degree) =
+    case compare relOct 0 of
         -- If distances are equal, favor downward motion.  But in a 7 note
         -- scale, they won't be equal.
-        EQ -> Lists.minOn (abs . Pitch.diff_pc per_oct prev) below above
-        GT -> Pitch.add_octave (rel_oct-1) above
-        LT -> Pitch.add_octave (rel_oct+1) below
+        EQ -> Lists.minOn (abs . Pitch.diffPc perOct prev) below above
+        GT -> Pitch.addOctave (relOct-1) above
+        LT -> Pitch.addOctave (relOct+1) below
     where
-    prev = Pitch.Pitch prev_oct prev_degree
+    prev = Pitch.Pitch prevOct prevDegree
     -- If I'm moving up, then I don't need to increment the octave to be above.
-    above = Pitch.Pitch (if degree > prev_degree then prev_oct else prev_oct+1)
+    above = Pitch.Pitch (if degree > prevDegree then prevOct else prevOct+1)
         degree
-    below = Pitch.Pitch (if degree < prev_degree then prev_oct else prev_oct-1)
+    below = Pitch.Pitch (if degree < prevDegree then prevOct else prevOct-1)
         degree
 
 -- | Convert 'Pitch'es back to symbolic form.
-pitch_to_symbolic :: T.Pos -> Scale -> Pitch.Pitch -> EList.Elt Meta T.PitchText
-pitch_to_symbolic pos scale pitch = case unparse pitch of
+pitchToSymbolic :: T.Pos -> Scale -> Pitch.Pitch -> EList.Elt Meta T.PitchText
+pitchToSymbolic pos scale pitch = case unparse pitch of
     Nothing -> mkerror pos $ "bad pitch: " <> pretty pitch
     Just sym -> EList.Elt sym
     where
     unparse (Pitch.Pitch oct degree) =
-        (showt oct <>) <$> scale_unparse scale degree
+        (showt oct <>) <$> scaleUnparse scale degree
 
 -- ** scale
 
-scale_map :: Map Text Scale
-scale_map = Map.fromList $ Lists.keyOn scale_name
-    [ scale_sargam
-    , scale_bali
-    , scale_twelve
+scaleMap :: Map Text Scale
+scaleMap = Map.fromList $ Lists.keyOn scaleName
+    [ scaleSargam
+    , scaleBali
+    , scaleTwelve
     ]
 
-diatonic_scale :: Text -> [Text] -> Scale
-diatonic_scale name degrees_ = Scale
-    { scale_name = name
-    , scale_parse = \s -> Pitch.Degree <$> Vector.elemIndex s degrees <*> pure 0
-    , scale_unparse = unparse
-    , scale_layout = Theory.diatonic_layout (Vector.length degrees)
-    , scale_initial_octave = 4
+diatonicScale :: Text -> [Text] -> Scale
+diatonicScale name degrees_ = Scale
+    { scaleName = name
+    , scaleParse = \s -> Pitch.Degree <$> Vector.elemIndex s degrees <*> pure 0
+    , scaleUnparse = unparse
+    , scaleLayout = Theory.diatonicLayout (Vector.length degrees)
+    , scaleInitialOctave = 4
     }
     where
     unparse (Pitch.Degree pc accs)
@@ -695,23 +695,23 @@ diatonic_scale name degrees_ = Scale
         | otherwise = Nothing
     degrees = Vector.fromList degrees_
 
-scale_sargam :: Scale
-scale_sargam = diatonic_scale "sargam" $ map Text.singleton "srgmpdn"
+scaleSargam :: Scale
+scaleSargam = diatonicScale "sargam" $ map Text.singleton "srgmpdn"
 
-scale_bali :: Scale
-scale_bali = diatonic_scale "bali" $ map Text.singleton "ioeua"
+scaleBali :: Scale
+scaleBali = diatonicScale "bali" $ map Text.singleton "ioeua"
 
-scale_twelve :: Scale
-scale_twelve = Scale
-    { scale_name = "twelve"
-    , scale_parse = P.parseMaybe p_degree
-    , scale_unparse = unparse
-    , scale_layout = Theory.piano_layout
-    , scale_initial_octave = 4
+scaleTwelve :: Scale
+scaleTwelve = Scale
+    { scaleName = "twelve"
+    , scaleParse = P.parseMaybe pDegree
+    , scaleUnparse = unparse
+    , scaleLayout = Theory.pianoLayout
+    , scaleInitialOctave = 4
     }
     where
-    p_degree :: Parser Pitch.Degree
-    p_degree = do
+    pDegree :: Parser Pitch.Degree
+    pDegree = do
         pc <- P.choice [P.string c *> pure i | (i, c) <- zip [0..] degrees]
         accs <- P.choice $ map (\(n, c) -> P.string c *> pure n) accidentals
         pure $ Pitch.Degree pc accs

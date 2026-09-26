@@ -10,7 +10,7 @@
 -}
 module Util.PPrint (
     pprint, pshow
-    , format, format_str
+    , format, formatStr
     -- * util
     , record, list
 ) where
@@ -43,7 +43,7 @@ pshow = format . show
 
 -- | Pretty up a string containing a parseable haskell value.
 format :: String -> String
-format = parse format_parsed
+format = parse formatParsed
 
 -- | Pretty up haskell value, unless it's a string, in which case return it
 -- directly.
@@ -51,15 +51,15 @@ format = parse format_parsed
 -- Previously I needed this in the REPL since it didn't have a way to say text
 -- should be unformatted.  I don't need it any more, but it doesn't seem to be
 -- hurting so I'll leave it here for now.
-format_str :: String -> String
-format_str = parse format_nonstr
+formatStr :: String -> String
+formatStr = parse formatNonstr
     where
-    format_nonstr m = Maybe.fromMaybe (format_parsed m) (is_str m)
-    is_str (HsModule _ _ _ _ [HsPatBind _ _ (HsUnGuardedRhs rhs) _]) =
+    formatNonstr m = Maybe.fromMaybe (formatParsed m) (isStr m)
+    isStr (HsModule _ _ _ _ [HsPatBind _ _ (HsUnGuardedRhs rhs) _]) =
         case rhs of
             HsLit (HsString s) -> Just s
             _ -> Nothing
-    is_str _ = Nothing
+    isStr _ = Nothing
 
 -- * util
 
@@ -69,9 +69,9 @@ format_str = parse format_nonstr
 record :: [(String, String)] -> String
 record = concatMap $ \(k, v) ->
     let s = Strings.strip v in Printf.printf "%s:%s\n" k
-            (if '\n' `elem` s then '\n' : indent_lines s else ' ' : s)
+            (if '\n' `elem` s then '\n' : indentLines s else ' ' : s)
 
-indent_lines = Strings.rstrip . unlines . map (indent++) . lines
+indentLines = Strings.rstrip . unlines . map (indent++) . lines
 indent = "  "
 
 list :: [String] -> String
@@ -88,11 +88,11 @@ parse format s = case Parser.parseModule ("value = " ++ s) of
     -- too.
     Parser.ParseFailed _ _  -> s ++ "\n"
 
-format_parsed :: HsModule -> String
-format_parsed = strip_boilerplate . pprint_mode
+formatParsed :: HsModule -> String
+formatParsed = stripBoilerplate . pprintMode
 
-strip_boilerplate :: String -> String
-strip_boilerplate = dedent . ("    "++) . strip_match "value="
+stripBoilerplate :: String -> String
+stripBoilerplate = dedent . ("    "++) . stripMatch "value="
     . dropWhile (/='\n') -- Strip module line and "value =".
     -- Prefix 4 spaces since this is how much will have been stripped from
     -- the first line, namely " = ", and make this line up vertically with the
@@ -100,8 +100,8 @@ strip_boilerplate = dedent . ("    "++) . strip_match "value="
     -- not 4 characters but it doesn't matter because there's no following
     -- line.
 
-strip_match :: String -> String -> String
-strip_match pattern str = go pattern str
+stripMatch :: String -> String -> String
+stripMatch pattern str = go pattern str
     where
     go "" s = strip s
     go _ "" = ""
@@ -110,10 +110,10 @@ strip_match pattern str = go pattern str
         _ -> str
     strip = dropWhile Char.isSpace
 
-pprint_mode :: Pretty.Pretty a => a -> String
-pprint_mode = Pretty.prettyPrintStyleMode pp_style Pretty.defaultMode
+pprintMode :: Pretty.Pretty a => a -> String
+pprintMode = Pretty.prettyPrintStyleMode ppStyle Pretty.defaultMode
     where
-    pp_style = PrettyPrint.style
+    ppStyle = PrettyPrint.style
         { PrettyPrint.ribbonsPerLine = 1, PrettyPrint.lineLength = maxWidth }
 
 dedent :: String -> String

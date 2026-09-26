@@ -239,7 +239,7 @@ styleHtml (Style fg bg bold underline) = foldr (.) id . concat $
     ]
 
 spanStyle :: Text -> Html.Html -> Html.Html
-spanStyle style = Html.tag_attrs "span" [("style", style)] . Just
+spanStyle style = Html.tagAttrs "span" [("style", style)] . Just
 
 colorHtml :: Color -> Text
 colorHtml = \case

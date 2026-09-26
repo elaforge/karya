@@ -15,9 +15,9 @@ import qualified Derive.Score as Score
 test_c_bols :: Test
 test_c_bols = do
     let run dur bols = DeriveTest.extract extract $
-            DeriveTest.derive_tracks_linear "import india.pakhawaj"
+            DeriveTest.deriveTracksLinear "import india.pakhawaj"
                 [(">", [(0, dur, "bols")]), (">", bols)]
-        extract e = (Score.event_start e, DeriveTest.e_attributes e)
+        extract e = (Score.eventStart e, DeriveTest.eAttributes e)
     equal (run 8 [(0, 0, "tet"), (1, 0, "te")]) ([(0, "+tet"), (1, "+te")], [])
     equal (run 8 [(0, 0, "tetekata")])
         ([(0, "+tet"), (1, "+te"), (2, "+ka"), (3, "+ta"), (4, "+ge"),
@@ -25,8 +25,8 @@ test_c_bols = do
 
 test_realize_bols :: Test
 test_realize_bols = do
-    let f = Pakhawaj.realize_bols 1.5
-    left_like (f [(0, "dha"), (1, "blah")]) "unknown bol"
+    let f = Pakhawaj.realizeBols 1.5
+    leftLike (f [(0, "dha"), (1, "blah")]) "unknown bol"
     equal (f [(0, "dha"), (1, "ta")]) $
         Right [(0, Together Ge Ta), (1, One Ta)]
     equal (f [(0, "kt"), (1, "tk")]) $
@@ -34,7 +34,7 @@ test_realize_bols = do
 
 test_infer_tette :: Test
 test_infer_tette = do
-    let f = Pakhawaj.infer_tette
+    let f = Pakhawaj.inferTette
     equal (f [One Tette]) [One Tet]
     equal (f (map One [Tette, Tette])) (map One [Tet, Te])
     equal (f (map One [Tette, Tette, Tette])) (map One [Tet, Te, Tet])
@@ -43,7 +43,7 @@ test_infer_tette = do
 
 test_match_syllables :: Test
 test_match_syllables = do
-    let f = fmap (map snd) . Pakhawaj.match_syllables . map ((,) ())
+    let f = fmap (map snd) . Pakhawaj.matchSyllables . map ((,) ())
             . Text.words
     equal (f "dha") (Right [Note $ Together Ge Ta])
     equal (f "te re ki ta ta")

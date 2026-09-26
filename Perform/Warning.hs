@@ -10,14 +10,14 @@ import Types
 
 
 data Warning = Warning
-    { warn_msg :: String
-    , warn_event :: Stack.Stack
+    { warnMsg :: String
+    , warnEvent :: Stack.Stack
     -- | Range that the warning covers.  It should be within the event's
     -- range.  It's in real time, so it needs to be converted back to
     -- score time, and it's (start, end) rather than (start, dur).
     -- TODO: convert these back to ScoreTime with the tempo map
     -- then I can put them in the stack
-    , warn_pos :: Maybe (RealTime, RealTime)
+    , warnPos :: Maybe (RealTime, RealTime)
     } deriving (Eq, Show)
 warning = Warning
 

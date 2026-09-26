@@ -13,9 +13,9 @@ import qualified Perform.Pitch as Pitch
 
 test_show_degree :: Test
 test_show_degree = do
-    let f fmt key = TheoryFormat.show_degree fmt (Just (Pitch.Key key))
-        rel = TheoryFormat.sargam $ ChromaticScales.relative_fmt
-            Twelve.default_theory_key Twelve.all_keys
+    let f fmt key = TheoryFormat.showDegree fmt (Just (Pitch.Key key))
+        rel = TheoryFormat.sargam $ ChromaticScales.relativeFmt
+            Twelve.defaultTheoryKey Twelve.allKeys
     equal (f rel "f#-min" (Pitch.Degree 3 1)) "s"
     equal (f rel "f#-min" (Pitch.Degree 4 0)) "rb"
     equal (f rel "f#-min" (Pitch.Degree 5 0)) "g"

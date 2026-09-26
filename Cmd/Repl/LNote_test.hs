@@ -11,12 +11,12 @@ import qualified Cmd.Repl.LNote as LNote
 
 test_sort_on_pitch :: Test
 test_sort_on_pitch = do
-    let run high_left tracks =
-            CmdTest.e_pitch_tracks <$>
-                CmdTest.run_tracks_with_performance tracks cmd
-            where cmd = CmdTest.select_all >> LNote.sort_on_pitch high_left
-    let mktracks = concatMap UiTest.note_track
-    let c_to_e = mktracks
+    let run highLeft tracks =
+            CmdTest.ePitchTracks <$>
+                CmdTest.runTracksWithPerformance tracks cmd
+            where cmd = CmdTest.selectAll >> LNote.sortOnPitch highLeft
+    let mktracks = concatMap UiTest.noteTrack
+    let cToE = mktracks
             [ [(0, 1, "4c")]
             , [(1, 1, "4d")]
             , [(0, 4, "4e")]
@@ -25,12 +25,12 @@ test_sort_on_pitch = do
     -- c-->
     --     d-->
     -- e-------------->
-    io_equal (run False c_to_e) $ Right
+    ioEqual (run False cToE) $ Right
         ([[(0, 1, "4c"), (1, 1, "4d")], [(0, 4, "4e")]], [])
-    io_equal (run True c_to_e) $ Right
+    ioEqual (run True cToE) $ Right
         ([[(0, 4, "4e")], [(0, 1, "4c"), (1, 1, "4d")]], [])
 
-    let e_to_c = mktracks
+    let eToC = mktracks
             [ [(0, 1, "4e")]
             , [(1, 1, "4d")]
             , [(0, 4, "4c")]
@@ -39,7 +39,7 @@ test_sort_on_pitch = do
     -- e-->
     --     d-->
     -- c-------------->
-    io_equal (run False e_to_c) $ Right
+    ioEqual (run False eToC) $ Right
         ([[(0, 4, "4c")], [(0, 1, "4e"), (1, 1, "4d")]], [])
 
     let tracks = mktracks
@@ -48,14 +48,14 @@ test_sort_on_pitch = do
             , [(0, 4, "4d")]
             , [(2, 2, "4c")]
             ]
-    io_equal (run False tracks) $ Right
+    ioEqual (run False tracks) $ Right
         ( [ [(2, 2, "4c")]
           , [(0, 4, "4d")]
           , [(0, 1, "4f"), (1, 1, "4e")]
           ]
         , []
         )
-    io_equal (run True tracks) $ Right
+    ioEqual (run True tracks) $ Right
         ( [ [(0, 1, "4f"), (1, 1, "4e")]
           , [(0, 4, "4d")]
           , [(2, 2, "4c")]

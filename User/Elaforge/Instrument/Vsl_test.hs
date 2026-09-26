@@ -24,10 +24,10 @@ import           Util.Test
 test_attr_priority :: Test
 test_attr_priority = do
     let Just violin = List.find
-            ((=="violin") . Patch.patch_name)
-            (map MidiInst.patch_patch Vsl.patches)
-        lookup attrs = fst <$> Common.lookup_attributes attrs
-            (Patch.patch_attribute_map violin)
+            ((=="violin") . Patch.patchName)
+            (map MidiInst.patchPatch Vsl.patches)
+        lookup attrs = fst <$> Common.lookupAttributes attrs
+            (Patch.patchAttributeMap violin)
     -- +pizz wins over +spiccato
     equal (lookup (VslInst.pizz <> VslInst.spiccato)) (lookup VslInst.pizz)
     -- +harsh wins over +stac
@@ -37,7 +37,7 @@ test_attr_priority = do
 
 test_strip_attrs :: Test
 test_strip_attrs = do
-    let f = map ShowVal.show_val . Vsl.strip_attrs . map Attrs.attrs
+    let f = map ShowVal.showVal . Vsl.stripAttrs . map Attrs.attrs
     -- Strip them.
     equal (f [["sus"], ["vib", "marcato"]]) ["+", "+marcato"]
     -- Can't strip if it would be non-unique.
@@ -48,12 +48,12 @@ test_strip_attrs = do
 test_natural_harmonic :: Test
 test_natural_harmonic = do
     let run attrs pitch = DeriveTest.extract extract $
-            DeriveTest.derive_tracks_setup with ""
+            DeriveTest.deriveTracksSetup with ""
                 [ (">v", [(0, 1, attrs)])
                 , ("*", [(0, 0, pitch)])
                 ]
-        extract = Midi.to_key . maybe 0 round . Score.initial_nn
-        with = DeriveTest.with_synths_simple [("v", "vsl/violin")] [Vsl.synth]
+        extract = Midi.toKey . maybe 0 round . Score.initialNn
+        with = DeriveTest.withSynthsSimple [("v", "vsl/violin")] [Vsl.synth]
     equal (run "+harm+nat" "4c")
         ([], ["c4(60) unplayable on [+g, +d, +a, +e]"])
     equal (run "+harm+nat" "3g") ([Key.c3], [])
@@ -72,15 +72,15 @@ test_natural_harmonic = do
 
 test_infer_seconds :: Test
 test_infer_seconds = do
-    let run call = DeriveTest.extract DeriveTest.e_attributes $
-            DeriveTest.derive_tracks_setup with "" [(">v", [(0, 2, call)])]
-        with = DeriveTest.with_synths_simple [("v", "vsl/violin")] [Vsl.synth]
+    let run call = DeriveTest.extract DeriveTest.eAttributes $
+            DeriveTest.deriveTracksSetup with "" [(">v", [(0, 2, call)])]
+        with = DeriveTest.withSynthsSimple [("v", "vsl/violin")] [Vsl.synth]
     equal (run "sec +cresc") (["+cresc+sec1-5"], [])
     equal (run "sec +cresc u") (["+cresc+sec3"], [])
     equal (run "sec +cresc d") (["+cresc+sec1-5"], [])
 
 test_parse_sec :: Test
 test_parse_sec = do
-    let f = VslInst.parse_sec
+    let f = VslInst.parseSec
     equal (f $ VslInst.cresc <> VslInst.sec 1.5) (Just (1.5, VslInst.cresc))
     equal (f VslInst.cresc) Nothing

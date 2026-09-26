@@ -21,40 +21,40 @@ module Derive.Typecheck (
     , DefaultDiatonic(..), diatonic
 
     -- * typecheck
-    , typecheck, typecheck_simple
+    , typecheck, typecheckSimple
     , Checked(..)
     , Result(..)
     , success, failure
     , Typecheck(..)
-    , from_val_eval
-    , from_val_simple
+    , fromValEval
+    , fromValSimple
 
     , TEnum
     , ToVal(..)
-    , to_type_symbol
-    , from_val_symbol
-    , num_to_type
+    , toTypeSymbol
+    , fromValSymbol
+    , numToType
     , TypecheckNum(..)
 
     -- * util
-    , to_transpose, transpose_control
+    , toTranspose, transposeControl
 
     -- * controls
-    , coerce_to_scalar
-    , lookup_function
-    , lookup_signal
-    , val_to_signal
-    , val_to_function, val_to_function_dyn
+    , coerceToScalar
+    , lookupFunction
+    , lookupSignal
+    , valToSignal
+    , valToFunction, valToFunctionDyn
 
     -- * pitch signals
-    , val_to_pitch_signal
-    , lookup_pitch_signal
-    , resolve_pitch_ref
+    , valToPitchSignal
+    , lookupPitchSignal
+    , resolvePitchRef
 
     -- * compatibility
-    , resolve_function
+    , resolveFunction
 #ifdef TESTING
-    , resolve_signal
+    , resolveSignal
 #endif
 ) where
 import qualified Data.List.NonEmpty as NonEmpty
@@ -97,7 +97,7 @@ newtype DefaultReal = DefaultReal { _real :: DeriveT.Duration }
 instance Internal.Time DefaultReal where
     real = Internal.real . _real
     score = Internal.score . _real
-    to_duration = _real
+    toDuration = _real
 
 -- | Same as 'DefaultReal' but untyped defaults to ScoreTime.
 -- This has a short accessor to make unwrapping more concise.
@@ -107,7 +107,7 @@ newtype DefaultScore = DefaultScore { _score :: DeriveT.Duration }
 instance Internal.Time DefaultScore where
     real = Internal.real . _score
     score = Internal.score . _score
-    to_duration = _score
+    toDuration = _score
 
 -- | Create DefaultReal and DefaultScores for use in "Derive.Sig" signatures
 -- for default values.  It would be nice to use literals and let type
@@ -130,7 +130,7 @@ newtype Positive a = Positive { positive :: a }
     deriving (Show, Eq, ShowVal.ShowVal, Num, Fractional)
 
 -- | Like Positive, but also includes 0.
-newtype NonNegative a = NonNegative { non_negative :: a }
+newtype NonNegative a = NonNegative { nonNegative :: a }
     deriving (Show, Eq, ShowVal.ShowVal, Num, Fractional)
 
 -- | 0 <= x <= 1
@@ -138,13 +138,13 @@ newtype Normalized = Normalized { normalized :: Double }
     deriving (Show, Eq, ShowVal.ShowVal, Pretty)
 
 -- | -1 <= x <= 1
-newtype NormalizedBipolar = NormalizedBipolar { normalized_bipolar :: Double }
+newtype NormalizedBipolar = NormalizedBipolar { normalizedBipolar :: Double }
     deriving (Show, Eq, ShowVal.ShowVal, Pretty)
 
 -- | Normally Transpose will default to Chromatic if the val is untyped,
 -- but some calls would prefer to default to Diatonic.
 newtype DefaultDiatonic =
-    DefaultDiatonic { default_diatonic :: Pitch.Transpose }
+    DefaultDiatonic { defaultDiatonic :: Pitch.Transpose }
     deriving (Show, Eq, ShowVal.ShowVal)
 
 diatonic :: Double -> DefaultDiatonic
@@ -155,21 +155,21 @@ diatonic = DefaultDiatonic . Pitch.Diatonic
 -- | Typecheck a single Val, and throw if it's the wrong type.
 typecheck :: forall a. Typecheck a => Text -> ScoreTime -> Val
     -> Derive.Deriver a
-typecheck msg pos val = from_val_eval pos val >>= \case
+typecheck msg pos val = fromValEval pos val >>= \case
     Just a -> pure a
     Nothing -> Derive.throw $
-        Texts.join2 ": " msg $ type_error_msg (Proxy @a) val
+        Texts.join2 ": " msg $ typeErrorMsg (Proxy @a) val
     -- TODO throw a TypeError directly?
 
 -- | Typecheck a simple value, with no evaluation.  This means you can't
 -- get a deriver or coerce signal to a number.
-typecheck_simple :: forall a. Typecheck a => Val -> Either Text a
-typecheck_simple val =
-    justErr (type_error_msg (Proxy @a) val) (from_val_simple val)
+typecheckSimple :: forall a. Typecheck a => Val -> Either Text a
+typecheckSimple val =
+    justErr (typeErrorMsg (Proxy @a) val) (fromValSimple val)
 
-type_error_msg :: Typecheck a => Proxy a -> Val -> Text
-type_error_msg expected val = "expected " <> pretty (to_type expected)
-    <> " but got " <> pretty (ValType.specific_type_of val)
+typeErrorMsg :: Typecheck a => Proxy a -> Val -> Text
+typeErrorMsg expected val = "expected " <> pretty (toType expected)
+    <> " but got " <> pretty (ValType.specificTypeOf val)
 
 -- * Typecheck class
 
@@ -213,64 +213,64 @@ type TEnum a = (ShowVal.ShowVal a, Bounded a, Enum a)
 -- | This is the class of values which can be converted to a 'Val'.  'ToVal' is
 -- the inverse transformation.
 class Typecheck a where
-    from_val :: Val -> Checked a
-    default from_val :: TEnum a => Val -> Checked a
-    from_val = from_val_symbol enum_map
+    fromVal :: Val -> Checked a
+    default fromVal :: TEnum a => Val -> Checked a
+    fromVal = fromValSymbol enumMap
 
-    to_type :: Proxy a -> ValType.Type
-    default to_type :: TEnum a => Proxy a -> ValType.Type
-    to_type Proxy = to_type_symbol [minBound :: a ..]
+    toType :: Proxy a -> ValType.Type
+    default toType :: TEnum a => Proxy a -> ValType.Type
+    toType Proxy = toTypeSymbol [minBound :: a ..]
 
-    from_subtrack :: SubT.Track -> Maybe a
-    from_subtrack = const Nothing
+    fromSubtrack :: SubT.Track -> Maybe a
+    fromSubtrack = const Nothing
 
 -- | 'from_val', but evaluate if it's an Eval.
-from_val_eval :: Typecheck a => ScoreTime -> Val -> Derive.Deriver (Maybe a)
-from_val_eval pos val = case from_val val of
+fromValEval :: Typecheck a => ScoreTime -> Val -> Derive.Deriver (Maybe a)
+fromValEval pos val = case fromVal val of
     Val (Success a) -> pure $ Just a
     Val Failure -> pure Nothing
     -- This is a deriver, which needs a Derive.Context.
     Val (Derive _) -> pure Nothing
-    Eval deriver -> deriver =<< Derive.score_to_real pos
+    Eval deriver -> deriver =<< Derive.scoreToReal pos
 
-from_val_simple :: Typecheck a => Val -> Maybe a
-from_val_simple val = case from_val val of
+fromValSimple :: Typecheck a => Val -> Maybe a
+fromValSimple val = case fromVal val of
     Val (Success a) -> Just a
     _ -> Nothing
 
 -- | Return a simple Eval check which doesn't depend on RealTime.
 eval :: Typecheck a => (a -> Derive.Deriver b) -> Val -> Checked b
-eval parse val = Eval $ \_ -> case from_val_simple val of
+eval parse val = Eval $ \_ -> case fromValSimple val of
     Nothing -> pure Nothing
     Just x -> Just <$> parse x
 
 -- | This is the inverse of Typecheck's 'from_val'.
 class ToVal a where
-    to_val :: a -> Val
+    toVal :: a -> Val
     -- This has overly constrictive constraints because generally only TEnum
     -- types correspond to a Str via show_val.
-    default to_val :: TEnum a => a -> Val
-    to_val = VStr . Expr.Str . ShowVal.show_val
+    default toVal :: TEnum a => a -> Val
+    toVal = VStr . Expr.Str . ShowVal.showVal
 
-to_type_symbol :: ShowVal.ShowVal a => [a] -> ValType.Type
-to_type_symbol = ValType.TStr . Just . map ShowVal.show_val
+toTypeSymbol :: ShowVal.ShowVal a => [a] -> ValType.Type
+toTypeSymbol = ValType.TStr . Just . map ShowVal.showVal
 
-from_val_symbol :: Map Text a -> Val -> Checked a
-from_val_symbol syms = \case
+fromValSymbol :: Map Text a -> Val -> Checked a
+fromValSymbol syms = \case
     VStr (Expr.Str str) -> Val $ maybe Failure Success $ Map.lookup str syms
     _ -> failure
     -- Debug claims that syms is captured and evaluated only once even without
     -- the explicit lambda, but let's do it anyway, I think it has implications
     -- for inlining.
 
-enum_map :: forall a. TEnum a => Map Text a
-enum_map = Map.fromList $ Lists.keyOn ShowVal.show_val [minBound ..]
+enumMap :: forall a. TEnum a => Map Text a
+enumMap = Map.fromList $ Lists.keyOn ShowVal.showVal [minBound ..]
 
-num_to_type :: TypecheckNum a => Proxy a -> ValType.Type
-num_to_type proxy = ValType.TSignal (num_type proxy) ValType.TAny
+numToType :: TypecheckNum a => Proxy a -> ValType.Type
+numToType proxy = ValType.TSignal (numType proxy) ValType.TAny
 
 class Typecheck a => TypecheckNum a where
-    num_type :: Proxy a -> ValType.NumType
+    numType :: Proxy a -> ValType.NumType
 
 instance Typecheck Bool
 instance ToVal Bool
@@ -284,28 +284,28 @@ instance ToVal ScoreT.Type
 
 -- * Typecheck instances
 
-instance ToVal Val where to_val = id
+instance ToVal Val where toVal = id
 instance Typecheck Val where
-    from_val = success
-    to_type _ = ValType.TVal
+    fromVal = success
+    toType _ = ValType.TVal
 
 -- | Putting Maybe in Typecheck means I can have optional arguments with no
 -- defaults.  Further docs in 'Derive.Sig.defaulted'.
 instance Typecheck a => Typecheck (Maybe a) where
-    from_val VNotGiven = success Nothing
-    from_val a = Just <$> from_val a
-    to_type _ = ValType.TMaybe $ to_type (Proxy :: Proxy a)
+    fromVal VNotGiven = success Nothing
+    fromVal a = Just <$> fromVal a
+    toType _ = ValType.TMaybe $ toType (Proxy :: Proxy a)
     -- Propagate from_subtrack through a Maybe, so they can be optional.
-    from_subtrack = fmap Just . from_subtrack
+    fromSubtrack = fmap Just . fromSubtrack
 instance ToVal a => ToVal (Maybe a) where
-    to_val = maybe VNotGiven to_val
+    toVal = maybe VNotGiven toVal
 
 -- | A non-list is coerced into a singleton list.
 instance Typecheck a => Typecheck [a] where
-    from_val (VList xs) = check xs
+    fromVal (VList xs) = check xs
         where
         check [] = success []
-        check (x:xs) = case from_val x of
+        check (x:xs) = case fromVal x of
             Val Failure -> Val Failure
             Val (Success a) -> (a:) <$> check xs
             Val (Derive deriver) -> case check xs of
@@ -318,28 +318,28 @@ instance Typecheck a => Typecheck [a] where
                 Val (Success as) -> (:as) <$> Eval a
                 Eval as -> Eval $ \p -> cons <$> a p <*> as p
         cons a as = (:) <$> a <*> as
-    from_val v = (:[]) <$> from_val v
-    to_type _ = ValType.TList $ to_type (Proxy :: Proxy a)
-instance ToVal a => ToVal [a] where to_val = VList . map to_val
+    fromVal v = (:[]) <$> fromVal v
+    toType _ = ValType.TList $ toType (Proxy :: Proxy a)
+instance ToVal a => ToVal [a] where toVal = VList . map toVal
 
 instance (Typecheck a, Ord a) => Typecheck (Set a) where
-    from_val = fmap Set.fromList . from_val
-    to_type _ = ValType.TList $ to_type (Proxy :: Proxy a)
+    fromVal = fmap Set.fromList . fromVal
+    toType _ = ValType.TList $ toType (Proxy :: Proxy a)
 instance ToVal a => ToVal (Set a) where
-    to_val = VList . map to_val . Set.toList
+    toVal = VList . map toVal . Set.toList
 
 instance Typecheck a => Typecheck (NonEmpty a) where
-    from_val val = check NonEmpty.nonEmpty (from_val val)
-    to_type _ = ValType.TList $ to_type (Proxy :: Proxy a)
+    fromVal val = check NonEmpty.nonEmpty (fromVal val)
+    toType _ = ValType.TList $ toType (Proxy :: Proxy a)
 
 instance (Typecheck a, Typecheck b) => Typecheck (Either a b) where
-    from_val a = case from_val a of
-        Val Failure -> Right <$> from_val a
+    fromVal a = case fromVal a of
+        Val Failure -> Right <$> fromVal a
         a -> Left <$> a
-    to_type _ = ValType.TEither (to_type (Proxy :: Proxy a))
-        (to_type (Proxy :: Proxy b))
+    toType _ = ValType.TEither (toType (Proxy :: Proxy a))
+        (toType (Proxy :: Proxy b))
 instance (ToVal a, ToVal b) => ToVal (Either a b) where
-    to_val = either to_val to_val
+    toVal = either toVal toVal
 
 
 -- ** numeric types
@@ -347,16 +347,16 @@ instance (ToVal a, ToVal b) => ToVal (Either a b) where
 
 -- | Signal.Control has ToVal but not Typecheck, because calls should be
 -- using Function.
-instance ToVal ScoreT.TypedSignal where to_val = VSignal
-instance ToVal PSignal.PSignal where to_val = VPSignal
+instance ToVal ScoreT.TypedSignal where toVal = VSignal
+instance ToVal PSignal.PSignal where toVal = VPSignal
 
 instance Typecheck ScoreT.TypedSignal where
-    from_val = coerce_to_signal
-    to_type _ = ValType.TSignal ValType.TUntyped ValType.TAny
+    fromVal = coerceToSignal
+    toType _ = ValType.TSignal ValType.TUntyped ValType.TAny
 
 instance Typecheck Signal.Control where
-    from_val = fmap ScoreT.val_of . from_val
-    to_type _ = ValType.TSignal ValType.TUntyped ValType.TAny
+    fromVal = fmap ScoreT.valOf . fromVal
+    toType _ = ValType.TSignal ValType.TUntyped ValType.TAny
 
 -- *** eval only
 
@@ -365,27 +365,27 @@ instance Typecheck Signal.Control where
 -- msgs.
 
 instance Typecheck ScoreT.TypedFunction where
-    from_val = coerce_to_function Just
-    to_type _ = ValType.TOther "typed signal"
+    fromVal = coerceToFunction Just
+    toType _ = ValType.TOther "typed signal"
 
 instance Typecheck ScoreT.Function where
-    from_val = fmap ScoreT.val_of . from_val
-    to_type _ = ValType.TOther "untyped signal"
+    fromVal = fmap ScoreT.valOf . fromVal
+    toType _ = ValType.TOther "untyped signal"
 
 instance Typecheck (RealTime -> RealTime) where
-    from_val = coerce_to_function $ \(ScoreT.Typed typ f) -> case typ of
+    fromVal = coerceToFunction $ \(ScoreT.Typed typ f) -> case typ of
         ScoreT.Real -> Just (RealTime.seconds . f)
         ScoreT.Untyped -> Just (RealTime.seconds . f)
         _ -> Nothing
-    to_type _ = ValType.TOther "realtime signal"
+    toType _ = ValType.TOther "realtime signal"
 
 instance Typecheck PSignal.PSignal where
-    from_val = coerce_to_pitch_signal
-    to_type _ = ValType.TPSignal
+    fromVal = coerceToPitchSignal
+    toType _ = ValType.TPSignal
 
 instance Typecheck DeriveT.PitchFunction where
-    from_val = fmap PSignal.at . coerce_to_pitch_signal
-    to_type _ = ValType.TPSignal
+    fromVal = fmap PSignal.at . coerceToPitchSignal
+    toType _ = ValType.TPSignal
 
 -- Returning Duration is convenient for Derive.real or Derive.score, e.g.
 -- Gender.ngoret.
@@ -397,29 +397,29 @@ data RealTimeFunctionT = RealTimeFunctionT !ScoreT.TimeT !ScoreT.Function
 data ScoreTimeFunctionT = ScoreTimeFunctionT !ScoreT.TimeT !ScoreT.Function
 
 instance Typecheck RealTimeFunctionT where
-    from_val = coerce_to_typed_function RealTimeFunctionT
-        (ScoreT.time_t ScoreT.TReal)
-    to_type _ = ValType.TOther "time signal (default real)"
+    fromVal = coerceToTypedFunction RealTimeFunctionT
+        (ScoreT.timeT ScoreT.TReal)
+    toType _ = ValType.TOther "time signal (default real)"
 instance Typecheck ScoreTimeFunctionT where
-    from_val = coerce_to_typed_function ScoreTimeFunctionT
-        (ScoreT.time_t ScoreT.TScore)
-    to_type _ = ValType.TOther "time signal (default score)"
+    fromVal = coerceToTypedFunction ScoreTimeFunctionT
+        (ScoreT.timeT ScoreT.TScore)
+    toType _ = ValType.TOther "time signal (default score)"
 
 instance Typecheck RealTimeFunction where
-    from_val = coerce_to_typed_function (\dur f -> RealTimeFunction $ dur . f)
-        (time_constructor ScoreT.TReal)
-    to_type _ = ValType.TOther "time signal (default real)"
+    fromVal = coerceToTypedFunction (\dur f -> RealTimeFunction $ dur . f)
+        (timeConstructor ScoreT.TReal)
+    toType _ = ValType.TOther "time signal (default real)"
 
 instance Typecheck ScoreTimeFunction where
-    from_val = coerce_to_typed_function (\dur f -> ScoreTimeFunction $ dur . f)
-        (time_constructor ScoreT.TScore)
-    to_type _ = ValType.TOther "time signal (default score)"
+    fromVal = coerceToTypedFunction (\dur f -> ScoreTimeFunction $ dur . f)
+        (timeConstructor ScoreT.TScore)
+    toType _ = ValType.TOther "time signal (default score)"
 
-time_constructor :: ScoreT.TimeT -> ScoreT.Type
+timeConstructor :: ScoreT.TimeT -> ScoreT.Type
     -> Maybe (Signal.Y -> DeriveT.Duration)
-time_constructor deflt typ = case ScoreT.time_t deflt typ of
+timeConstructor deflt typ = case ScoreT.timeT deflt typ of
     Just ScoreT.TReal -> Just $ DeriveT.RealDuration . RealTime.seconds
-    Just ScoreT.TScore -> Just $ DeriveT.ScoreDuration . ScoreTime.from_double
+    Just ScoreT.TScore -> Just $ DeriveT.ScoreDuration . ScoreTime.fromDouble
     Nothing -> Nothing
 
 -- Originally I used DataKinds e.g.
@@ -429,67 +429,67 @@ time_constructor deflt typ = case ScoreT.time_t deflt typ of
 data DiatonicTransposeFunctionT =
     DiatonicTransposeFunctionT !ScoreT.TransposeT !ScoreT.Function
 instance Typecheck DiatonicTransposeFunctionT where
-    from_val = coerce_to_typed_function DiatonicTransposeFunctionT
-        (ScoreT.transpose_t ScoreT.TDiatonic)
-    to_type _ = ValType.TOther "transpose signal (default diatonic)"
+    fromVal = coerceToTypedFunction DiatonicTransposeFunctionT
+        (ScoreT.transposeT ScoreT.TDiatonic)
+    toType _ = ValType.TOther "transpose signal (default diatonic)"
 
 data ChromaticTransposeFunctionT =
     ChromaticTransposeFunctionT !ScoreT.TransposeT !ScoreT.Function
 instance Typecheck ChromaticTransposeFunctionT where
-    from_val = coerce_to_typed_function ChromaticTransposeFunctionT
-        (ScoreT.transpose_t ScoreT.TChromatic)
-    to_type _ = ValType.TOther "transpose signal (default chromatic)"
+    fromVal = coerceToTypedFunction ChromaticTransposeFunctionT
+        (ScoreT.transposeT ScoreT.TChromatic)
+    toType _ = ValType.TOther "transpose signal (default chromatic)"
 
 data NnTransposeFunctionT =
     NnTransposeFunctionT !ScoreT.TransposeT !ScoreT.Function
 instance Typecheck NnTransposeFunctionT where
-    from_val = coerce_to_typed_function NnTransposeFunctionT
-        (ScoreT.transpose_t ScoreT.TNn)
-    to_type _ = ValType.TOther "transpose signal (default nn)"
+    fromVal = coerceToTypedFunction NnTransposeFunctionT
+        (ScoreT.transposeT ScoreT.TNn)
+    toType _ = ValType.TOther "transpose signal (default nn)"
 
 
 -- *** scalar
 
 instance Typecheck (ScoreT.Typed Signal.Y) where
-    from_val = coerce_to_scalar Just
-    to_type = num_to_type
+    fromVal = coerceToScalar Just
+    toType = numToType
 instance ToVal (ScoreT.Typed Signal.Y) where
-    to_val = VSignal . fmap Signal.constant
+    toVal = VSignal . fmap Signal.constant
 instance TypecheckNum (ScoreT.Typed Signal.Y) where
-    num_type _ = ValType.TUntyped
+    numType _ = ValType.TUntyped
 
 instance Typecheck Double where
-    from_val = coerce_to_scalar (Just . ScoreT.val_of)
-    to_type = num_to_type
-instance ToVal Double where to_val = DeriveT.num
-instance TypecheckNum Double where num_type _ = ValType.TUntyped
+    fromVal = coerceToScalar (Just . ScoreT.valOf)
+    toType = numToType
+instance ToVal Double where toVal = DeriveT.num
+instance TypecheckNum Double where numType _ = ValType.TUntyped
 
 instance Typecheck (Ratio.Ratio Int) where
-    from_val = coerce_to_scalar $
-        Just . realToFrac . flip Ratio.approxRational 0.001 . ScoreT.val_of
-    to_type = num_to_type
+    fromVal = coerceToScalar $
+        Just . realToFrac . flip Ratio.approxRational 0.001 . ScoreT.valOf
+    toType = numToType
 instance ToVal (Ratio.Ratio Int) where
-    to_val = DeriveT.num . realToFrac
-instance TypecheckNum (Ratio.Ratio Int) where num_type _ = ValType.TUntyped
+    toVal = DeriveT.num . realToFrac
+instance TypecheckNum (Ratio.Ratio Int) where numType _ = ValType.TUntyped
 
 instance Typecheck Int where
-    from_val = from_integral_val
-    to_type = num_to_type
+    fromVal = fromIntegralVal
+    toType = numToType
 
 instance Typecheck Integer where
-    from_val = from_integral_val
-    to_type = num_to_type
+    fromVal = fromIntegralVal
+    toType = numToType
 
-from_integral_val :: Integral a => Val -> Checked a
-from_integral_val = coerce_to_scalar (check . ScoreT.val_of)
+fromIntegralVal :: Integral a => Val -> Checked a
+fromIntegralVal = coerceToScalar (check . ScoreT.valOf)
     where
     check a = if frac == 0 then Just int else Nothing
         where (int, frac) = properFraction a
 
-instance ToVal Int where to_val = DeriveT.num . fromIntegral
-instance ToVal Integer where to_val = DeriveT.num . fromIntegral
-instance TypecheckNum Int where num_type _ = ValType.TInt
-instance TypecheckNum Integer where num_type _ = ValType.TInt
+instance ToVal Int where toVal = DeriveT.num . fromIntegral
+instance ToVal Integer where toVal = DeriveT.num . fromIntegral
+instance TypecheckNum Int where numType _ = ValType.TInt
+instance TypecheckNum Integer where numType _ = ValType.TInt
 
 -- | VSignals can also be coerced into chromatic transposition, so you can
 -- write a plain number if you don't care about diatonic.
@@ -503,254 +503,254 @@ instance TypecheckNum Integer where num_type _ = ValType.TInt
 -- specify a default by taking a 'DefaultScore' or 'DefaultReal', or require
 -- the caller to distinguish with 'DeriveT.Duration'.
 instance Typecheck Pitch.Transpose where
-    from_val = coerce_to_scalar $ \(ScoreT.Typed typ val) -> case typ of
+    fromVal = coerceToScalar $ \(ScoreT.Typed typ val) -> case typ of
         ScoreT.Untyped -> Just (Pitch.Chromatic val)
         ScoreT.Chromatic -> Just (Pitch.Chromatic val)
         ScoreT.Diatonic -> Just (Pitch.Diatonic val)
         ScoreT.Nn -> Just (Pitch.Nn val)
         _ -> Nothing
-    to_type = num_to_type
-instance TypecheckNum Pitch.Transpose where num_type _ = ValType.TTranspose
+    toType = numToType
+instance TypecheckNum Pitch.Transpose where numType _ = ValType.TTranspose
 
 instance ToVal Pitch.Transpose where
-    to_val = \case
+    toVal = \case
         Pitch.Chromatic a -> DeriveT.constant ScoreT.Chromatic a
         Pitch.Diatonic a -> DeriveT.constant ScoreT.Diatonic a
         Pitch.Nn a -> DeriveT.constant ScoreT.Nn a
 
 -- | But some calls want to default to diatonic, not chromatic.
 instance Typecheck DefaultDiatonic where
-    from_val = coerce_to_scalar $ \(ScoreT.Typed typ val) ->
+    fromVal = coerceToScalar $ \(ScoreT.Typed typ val) ->
         DefaultDiatonic <$> case typ of
             ScoreT.Untyped -> Just (Pitch.Diatonic val)
             ScoreT.Chromatic -> Just (Pitch.Chromatic val)
             ScoreT.Diatonic -> Just (Pitch.Diatonic val)
             ScoreT.Nn -> Just (Pitch.Nn val)
             _ -> Nothing
-    to_type = num_to_type
-instance ToVal DefaultDiatonic where to_val (DefaultDiatonic a) = to_val a
+    toType = numToType
+instance ToVal DefaultDiatonic where toVal (DefaultDiatonic a) = toVal a
 instance TypecheckNum DefaultDiatonic where
-    num_type _ = ValType.TDefaultDiatonic
+    numType _ = ValType.TDefaultDiatonic
 
 instance Typecheck Pitch.NoteNumber where
-    from_val = coerce_to_scalar $ \(ScoreT.Typed typ val) ->
+    fromVal = coerceToScalar $ \(ScoreT.Typed typ val) ->
         Pitch.nn <$> case typ of
             ScoreT.Untyped -> Just val
             ScoreT.Nn -> Just val
             _ -> Nothing
-    to_type = num_to_type
+    toType = numToType
 instance ToVal Pitch.NoteNumber where
-    to_val = DeriveT.constant ScoreT.Nn . Pitch.nn_to_double
-instance TypecheckNum Pitch.NoteNumber where num_type _ = ValType.TNoteNumber
+    toVal = DeriveT.constant ScoreT.Nn . Pitch.nnToDouble
+instance TypecheckNum Pitch.NoteNumber where numType _ = ValType.TNoteNumber
 
 instance Typecheck ScoreTime where
-    from_val = coerce_to_scalar $ \(ScoreT.Typed typ val) ->
-        ScoreTime.from_double <$> case typ of
+    fromVal = coerceToScalar $ \(ScoreT.Typed typ val) ->
+        ScoreTime.fromDouble <$> case typ of
             ScoreT.Untyped -> Just val
             ScoreT.Score -> Just val
             _ -> Nothing
-    to_type = num_to_type
+    toType = numToType
 instance ToVal ScoreTime where
-    to_val = DeriveT.constant ScoreT.Score . ScoreTime.to_double
-instance TypecheckNum ScoreTime where num_type _ = ValType.TScoreTime
+    toVal = DeriveT.constant ScoreT.Score . ScoreTime.toDouble
+instance TypecheckNum ScoreTime where numType _ = ValType.TScoreTime
 
 instance Typecheck RealTime where
-    from_val = coerce_to_scalar $ \(ScoreT.Typed typ val) ->
+    fromVal = coerceToScalar $ \(ScoreT.Typed typ val) ->
         RealTime.seconds <$> case typ of
             ScoreT.Untyped -> Just val
             ScoreT.Real -> Just val
             _ -> Nothing
-    to_type = num_to_type
+    toType = numToType
 instance ToVal RealTime where
-    to_val = DeriveT.constant ScoreT.Real . RealTime.to_seconds
-instance TypecheckNum RealTime where num_type _ = ValType.TRealTime
+    toVal = DeriveT.constant ScoreT.Real . RealTime.toSeconds
+instance TypecheckNum RealTime where numType _ = ValType.TRealTime
 
 instance Typecheck DeriveT.Duration where
-    from_val = coerce_to_scalar $ \(ScoreT.Typed typ val) -> case typ of
+    fromVal = coerceToScalar $ \(ScoreT.Typed typ val) -> case typ of
         -- Untyped is abiguous, and there doesn't seem to be a natural
         -- default.
-        ScoreT.Score -> Just $ DeriveT.ScoreDuration (ScoreTime.from_double val)
+        ScoreT.Score -> Just $ DeriveT.ScoreDuration (ScoreTime.fromDouble val)
         ScoreT.Real -> Just $ DeriveT.RealDuration (RealTime.seconds val)
         _ -> Nothing
-    to_type = num_to_type
+    toType = numToType
 
 instance ToVal DeriveT.Duration where
-    to_val (DeriveT.ScoreDuration a) = to_val a
-    to_val (DeriveT.RealDuration a) = to_val a
-instance TypecheckNum DeriveT.Duration where num_type _ = ValType.TTime
+    toVal (DeriveT.ScoreDuration a) = toVal a
+    toVal (DeriveT.RealDuration a) = toVal a
+instance TypecheckNum DeriveT.Duration where numType _ = ValType.TTime
 
 instance Typecheck DefaultReal where
-    from_val = coerce_to_scalar $ \(ScoreT.Typed typ val) ->
+    fromVal = coerceToScalar $ \(ScoreT.Typed typ val) ->
         DefaultReal <$> case typ of
             ScoreT.Untyped ->
                 Just $ DeriveT.RealDuration (RealTime.seconds val)
             ScoreT.Score ->
-                Just $ DeriveT.ScoreDuration (ScoreTime.from_double val)
+                Just $ DeriveT.ScoreDuration (ScoreTime.fromDouble val)
             ScoreT.Real -> Just $ DeriveT.RealDuration (RealTime.seconds val)
             _ -> Nothing
-    to_type = num_to_type
-instance ToVal DefaultReal where to_val (DefaultReal a) = to_val a
-instance TypecheckNum DefaultReal where num_type _ = ValType.TDefaultReal
+    toType = numToType
+instance ToVal DefaultReal where toVal (DefaultReal a) = toVal a
+instance TypecheckNum DefaultReal where numType _ = ValType.TDefaultReal
 
 instance Typecheck DefaultScore where
-    from_val = coerce_to_scalar $ \(ScoreT.Typed typ val) ->
+    fromVal = coerceToScalar $ \(ScoreT.Typed typ val) ->
         DefaultScore <$> case typ of
             ScoreT.Untyped ->
-                Just $ DeriveT.ScoreDuration (ScoreTime.from_double val)
+                Just $ DeriveT.ScoreDuration (ScoreTime.fromDouble val)
             ScoreT.Score ->
-                Just $ DeriveT.ScoreDuration (ScoreTime.from_double val)
+                Just $ DeriveT.ScoreDuration (ScoreTime.fromDouble val)
             ScoreT.Real -> Just $ DeriveT.RealDuration (RealTime.seconds val)
             _ -> Nothing
-    to_type = num_to_type
+    toType = numToType
 
-instance ToVal DefaultScore where to_val (DefaultScore a) = to_val a
-instance TypecheckNum DefaultScore where num_type _ = ValType.TDefaultScore
+instance ToVal DefaultScore where toVal (DefaultScore a) = toVal a
+instance TypecheckNum DefaultScore where numType _ = ValType.TDefaultScore
 
 instance TypecheckNum a => Typecheck (Positive a) where
-    from_val v@(VSignal (ScoreT.Typed _ sig))
-        | Just n <- Signal.constant_val sig, n > 0 = Positive <$> from_val v
+    fromVal v@(VSignal (ScoreT.Typed _ sig))
+        | Just n <- Signal.constantVal sig, n > 0 = Positive <$> fromVal v
         | otherwise = failure
-    from_val _ = failure
-    to_type _ = ValType.TSignal (num_type (Proxy @a)) ValType.TPositive
+    fromVal _ = failure
+    toType _ = ValType.TSignal (numType (Proxy @a)) ValType.TPositive
 instance ToVal a => ToVal (Positive a) where
-    to_val (Positive val) = to_val val
+    toVal (Positive val) = toVal val
 
 instance TypecheckNum a => Typecheck (NonNegative a) where
-    from_val v@(VSignal (ScoreT.Typed _ sig))
-        | Just n <- Signal.constant_val sig, n >= 0 = NonNegative <$> from_val v
+    fromVal v@(VSignal (ScoreT.Typed _ sig))
+        | Just n <- Signal.constantVal sig, n >= 0 = NonNegative <$> fromVal v
         | otherwise = failure
-    from_val _ = failure
-    to_type _ = ValType.TSignal (num_type (Proxy @a)) ValType.TNonNegative
+    fromVal _ = failure
+    toType _ = ValType.TSignal (numType (Proxy @a)) ValType.TNonNegative
 instance ToVal a => ToVal (NonNegative a) where
-    to_val (NonNegative val) = to_val val
+    toVal (NonNegative val) = toVal val
 
 instance Typecheck Normalized where
-    from_val = coerce_to_scalar (check . ScoreT.val_of)
+    fromVal = coerceToScalar (check . ScoreT.valOf)
         where
         check a
             | 0 <= a && a <= 1 = Just (Normalized a)
             | otherwise = Nothing
-    to_type _ = ValType.TSignal ValType.TUntyped ValType.TNormalized
-instance ToVal Normalized where to_val = DeriveT.num . normalized
+    toType _ = ValType.TSignal ValType.TUntyped ValType.TNormalized
+instance ToVal Normalized where toVal = DeriveT.num . normalized
 
 instance Typecheck NormalizedBipolar where
-    from_val = coerce_to_scalar (check . ScoreT.val_of)
+    fromVal = coerceToScalar (check . ScoreT.valOf)
         where
         check a
             | -1 <= a && a <= 1 = Just (NormalizedBipolar a)
             | otherwise = Nothing
-    to_type _ = ValType.TSignal ValType.TUntyped ValType.TNormalizedBipolar
+    toType _ = ValType.TSignal ValType.TUntyped ValType.TNormalizedBipolar
 instance ToVal NormalizedBipolar where
-    to_val = DeriveT.num . normalized_bipolar
+    toVal = DeriveT.num . normalizedBipolar
 
 -- ** text\/symbol
 
 instance Typecheck Expr.Symbol where
-    from_val (VStr (Expr.Str sym)) = success $ Expr.Symbol sym
-    from_val _ = failure
-    to_type _ = ValType.TStr Nothing
-instance ToVal Expr.Symbol where to_val = VStr . Expr.Str . Expr.unsym
+    fromVal (VStr (Expr.Str sym)) = success $ Expr.Symbol sym
+    fromVal _ = failure
+    toType _ = ValType.TStr Nothing
+instance ToVal Expr.Symbol where toVal = VStr . Expr.Str . Expr.unsym
 
 instance Typecheck Expr.Str where
-    from_val (VStr a) = success a
-    from_val _ = failure
-    to_type _ = ValType.TStr Nothing
-instance ToVal Expr.Str where to_val = VStr
+    fromVal (VStr a) = success a
+    fromVal _ = failure
+    toType _ = ValType.TStr Nothing
+instance ToVal Expr.Str where toVal = VStr
 
 instance Typecheck Text where
-    from_val (VStr (Expr.Str s)) = success s
-    from_val _ = failure
-    to_type _ = ValType.TStr Nothing
-instance ToVal Text where to_val = VStr . Expr.Str
+    fromVal (VStr (Expr.Str s)) = success s
+    fromVal _ = failure
+    toType _ = ValType.TStr Nothing
+instance ToVal Text where toVal = VStr . Expr.Str
 
 instance Typecheck ScoreT.Control where
-    from_val (VStr (Expr.Str s)) =
-        Val $ either (const Failure) Success (ScoreT.checked_control s)
-    from_val _ = failure
-    to_type _ = ValType.TControl
+    fromVal (VStr (Expr.Str s)) =
+        Val $ either (const Failure) Success (ScoreT.checkedControl s)
+    fromVal _ = failure
+    toType _ = ValType.TControl
 instance ToVal ScoreT.Control where
-    to_val c = VStr (Expr.Str (ScoreT.control_name c))
+    toVal c = VStr (Expr.Str (ScoreT.controlName c))
 
 instance Typecheck ScoreT.PControl where
-    from_val (VStr (Expr.Str s)) =
-        Val $ either (const Failure) Success (ScoreT.checked_pcontrol s)
-    from_val _ = failure
-    to_type _ = ValType.TPControl
+    fromVal (VStr (Expr.Str s)) =
+        Val $ either (const Failure) Success (ScoreT.checkedPcontrol s)
+    fromVal _ = failure
+    toType _ = ValType.TPControl
 instance ToVal ScoreT.PControl where
-    to_val c = VStr (Expr.Str (ScoreT.pcontrol_name c))
+    toVal c = VStr (Expr.Str (ScoreT.pcontrolName c))
 
 -- ** other types
 
 instance Typecheck Attrs.Attributes where
-    from_val (VAttributes a) = success a
-    from_val _ = failure
-    to_type _ = ValType.TAttributes
-instance ToVal Attrs.Attributes where to_val = VAttributes
+    fromVal (VAttributes a) = success a
+    fromVal _ = failure
+    toType _ = ValType.TAttributes
+instance ToVal Attrs.Attributes where toVal = VAttributes
 
 -- Intentionally no Typecheck ControlRef, use Function instances.
-instance ToVal DeriveT.ControlRef where to_val = VControlRef
+instance ToVal DeriveT.ControlRef where toVal = VControlRef
 
 -- Intentionally no Typecheck PControlRef, use PSignal instances.
-instance ToVal DeriveT.PControlRef where to_val = VPControlRef
+instance ToVal DeriveT.PControlRef where toVal = VPControlRef
 
 instance Typecheck PSignal.Pitch where
-    from_val = coerce_to_pitch
-    to_type _ = ValType.TPitch
-instance ToVal PSignal.Pitch where to_val = VPSignal . PSignal.constant
+    fromVal = coerceToPitch
+    toType _ = ValType.TPitch
+instance ToVal PSignal.Pitch where toVal = VPSignal . PSignal.constant
 
 instance Typecheck Pitch.Pitch where
-    from_val (VNotePitch a) = success a
-    from_val _ = failure
-    to_type _ = ValType.TNotePitch
-instance ToVal Pitch.Pitch where to_val = VNotePitch
+    fromVal (VNotePitch a) = success a
+    fromVal _ = failure
+    toType _ = ValType.TNotePitch
+instance ToVal Pitch.Pitch where toVal = VNotePitch
 
 instance Typecheck ScoreT.Instrument where
-    from_val (VStr (Expr.Str a)) = success (ScoreT.Instrument a)
-    from_val _ = failure
-    to_type _ = ValType.TStr Nothing
+    fromVal (VStr (Expr.Str a)) = success (ScoreT.Instrument a)
+    fromVal _ = failure
+    toType _ = ValType.TStr Nothing
 instance ToVal ScoreT.Instrument where
-    to_val (ScoreT.Instrument a) = VStr (Expr.Str a)
+    toVal (ScoreT.Instrument a) = VStr (Expr.Str a)
 
 instance Typecheck DeriveT.CFunction where
-    from_val (VCFunction a) = success a
-    from_val _ = failure
-    to_type _ = ValType.TCFunction
-instance ToVal DeriveT.CFunction where to_val = VCFunction
+    fromVal (VCFunction a) = success a
+    fromVal _ = failure
+    toType _ = ValType.TCFunction
+instance ToVal DeriveT.CFunction where toVal = VCFunction
 
 instance Typecheck DeriveT.PFunction where
-    from_val (VPFunction a) = success a
-    from_val _ = failure
-    to_type _ = ValType.TPFunction
-instance ToVal DeriveT.PFunction where to_val = VPFunction
+    fromVal (VPFunction a) = success a
+    fromVal _ = failure
+    toType _ = ValType.TPFunction
+instance ToVal DeriveT.PFunction where toVal = VPFunction
 
 -- | Anything except a pitch can be coerced to a quoted, using ShowVal.  This
 -- means you can write a lot of things without quotes.
 --
 -- Pitches have to be quoted because they explicitly have an invalid ShowVal.
 instance Typecheck DeriveT.Quoted where
-    from_val val = case val of
+    fromVal val = case val of
         VQuoted a -> success a
         VPSignal {} -> failure
-        VStr (Expr.Str sym) -> to_quoted sym
-        _ -> to_quoted $ ShowVal.show_val val
+        VStr (Expr.Str sym) -> toQuoted sym
+        _ -> toQuoted $ ShowVal.showVal val
         where
-        to_quoted sym = success $
+        toQuoted sym = success $
             DeriveT.Quoted $ Expr.Call (Expr.Symbol sym) [] :| []
-    to_type _ = ValType.TQuoted
-instance ToVal DeriveT.Quoted where to_val = VQuoted
+    toType _ = ValType.TQuoted
+instance ToVal DeriveT.Quoted where toVal = VQuoted
 
 data NotGiven = NotGiven deriving (Show, Eq)
 
 instance ShowVal.ShowVal NotGiven where
-    show_val NotGiven = "_"
+    showVal NotGiven = "_"
 
 instance Typecheck NotGiven where
-    from_val VNotGiven = success NotGiven
-    from_val _ = failure
-    to_type _ = ValType.TNotGiven
+    fromVal VNotGiven = success NotGiven
+    fromVal _ = failure
+    toType _ = ValType.TNotGiven
 
 instance ToVal NotGiven where
-    to_val NotGiven = VNotGiven
+    toVal NotGiven = VNotGiven
 
 -- * util
 
@@ -764,60 +764,60 @@ instance ToVal NotGiven where
 -- transpose types.  Surely there's a better way?  Maybe put the two kinds into
 -- a typeclass?
 
-to_transpose :: ScoreT.TransposeT -> Double -> Pitch.Transpose
-to_transpose typ val = case typ of
+toTranspose :: ScoreT.TransposeT -> Double -> Pitch.Transpose
+toTranspose typ val = case typ of
     ScoreT.TDiatonic -> Pitch.Diatonic val
     ScoreT.TChromatic -> Pitch.Chromatic val
     ScoreT.TNn -> Pitch.Nn val
 
-transpose_control :: ScoreT.TransposeT -> ScoreT.Control
-transpose_control = \case
+transposeControl :: ScoreT.TransposeT -> ScoreT.Control
+transposeControl = \case
     ScoreT.TDiatonic -> Controls.diatonic
     ScoreT.TChromatic -> Controls.chromatic
     ScoreT.TNn -> Controls.nn
 
 -- ** controls
 
-coerce_to_typed_function :: (typ -> ScoreT.Function -> b)
+coerceToTypedFunction :: (typ -> ScoreT.Function -> b)
     -> (ScoreT.Type -> Maybe typ) -> Val -> Checked b
-coerce_to_typed_function make check = coerce_to_function $
+coerceToTypedFunction make check = coerceToFunction $
     \(ScoreT.Typed typ f) -> flip make f <$> check typ
 
 -- | Coerce any numeric value to a ScoreT.Typed Signal.Y, and check it against
 -- the given function.
-coerce_to_scalar :: (ScoreT.Typed Signal.Y -> Maybe a) -> Val -> Checked a
-coerce_to_scalar check val
+coerceToScalar :: (ScoreT.Typed Signal.Y -> Maybe a) -> Val -> Checked a
+coerceToScalar check val
     -- It's important that constant VSignals remain Val, which means they don't
     -- need Eval, which means they don't need a time.  This is because
     -- non-signal constants in the environ like srate use from_val_simple,
     -- which ignores Eval.  TODO if I want all numeric values to be variable,
     -- then I should merge control_at with Derive.get_val, so it takes a time.
-    | Just num <- DeriveT.constant_val val =
+    | Just num <- DeriveT.constantVal val =
         Val $ maybe Failure Success $ check num
-    | otherwise = case val_to_function val of
+    | otherwise = case valToFunction val of
         Just (Right tf) -> Eval $ \t -> pure $ check (($ t) <$> tf)
         Just (Left df) -> Eval $ \t -> check . (($ t) <$>) <$> df
         Nothing -> failure
 
 -- | Coerce any numeric value to a function, and check it against the given
 -- function.
-coerce_to_function :: (ScoreT.TypedFunction -> Maybe a) -> Val -> Checked a
-coerce_to_function check val = case val_to_function val of
+coerceToFunction :: (ScoreT.TypedFunction -> Maybe a) -> Val -> Checked a
+coerceToFunction check val = case valToFunction val of
     Just (Right f) -> Val $ maybe Failure Success $ check f
     -- Eval's t time is thrown away, because I'm creating a function and thus
     -- don't need to know at which time to evaluate it.
     Just (Left df) -> Eval $ \_t -> check <$> df
     Nothing -> failure
 
-val_to_function :: Val
+valToFunction :: Val
     -> Maybe (Either (Derive.Deriver ScoreT.TypedFunction) ScoreT.TypedFunction)
-val_to_function = \case
+valToFunction = \case
     VSignal sig -> Just $ Right $ Signal.at <$> sig
-    VControlRef ref -> Just $ Left $ resolve_function ref
+    VControlRef ref -> Just $ Left $ resolveFunction ref
     VCFunction cf -> Just $ Left $ do
-        cf_dyn <- Internal.get_control_function_dynamic
-        pure $ DeriveT.call_cfunction cf_dyn cf
-    VPFunction f -> Just $ Right $ DeriveT.pf_function f
+        cfDyn <- Internal.getControlFunctionDynamic
+        pure $ DeriveT.callCfunction cfDyn cf
+    VPFunction f -> Just $ Right $ DeriveT.pfFunction f
     _ -> Nothing
 
 -- | Unfortunately Internal.get_control_function_dynamic is non-trivial,
@@ -827,30 +827,30 @@ val_to_function = \case
 -- I could cache it, but is that not what this is?
 -- If it's cheap to call Internal.get_control_function_dynamic and only
 -- expensive to force it, then I should always pass it, and rely on laziness.
-val_to_function_dyn :: DeriveT.Dynamic -> Val
+valToFunctionDyn :: DeriveT.Dynamic -> Val
     -> Maybe (Either (Derive.Deriver ScoreT.TypedFunction) ScoreT.TypedFunction)
-val_to_function_dyn cf_dyn = \case
+valToFunctionDyn cfDyn = \case
     VSignal sig -> Just $ Right $ Signal.at <$> sig
     -- TODO propagate cf_dyn through
-    VControlRef ref -> Just $ Left $ resolve_function ref
-    VCFunction cf -> Just $ Right $ DeriveT.call_cfunction cf_dyn cf
+    VControlRef ref -> Just $ Left $ resolveFunction ref
+    VCFunction cf -> Just $ Right $ DeriveT.callCfunction cfDyn cf
     _ -> Nothing
 
-resolve_function :: DeriveT.ControlRef -> Derive.Deriver ScoreT.TypedFunction
-resolve_function ref =
-    Derive.require ("control not found: " <> ShowVal.show_val ref)
-        =<< lookup_function ref
+resolveFunction :: DeriveT.ControlRef -> Derive.Deriver ScoreT.TypedFunction
+resolveFunction ref =
+    Derive.require ("control not found: " <> ShowVal.showVal ref)
+        =<< lookupFunction ref
 
 -- | Resolve a ref to a function, applying a CFunction if there is one.
-lookup_function :: DeriveT.ControlRef
+lookupFunction :: DeriveT.ControlRef
     -> Derive.Deriver (Maybe ScoreT.TypedFunction)
-lookup_function (DeriveT.Ref control deflt) = do
-    maybe (pure deflt_f) get . DeriveT.lookup (ScoreT.control_name control)
-        =<< Internal.get_environ
+lookupFunction (DeriveT.Ref control deflt) = do
+    maybe (pure defltF) get . DeriveT.lookup (ScoreT.controlName control)
+        =<< Internal.getEnviron
     where
-    deflt_f = fmap Signal.at <$> deflt
+    defltF = fmap Signal.at <$> deflt
     get :: Val -> Derive.Deriver (Maybe ScoreT.TypedFunction)
-    get val = case val_to_function val of
+    get val = case valToFunction val of
         Nothing -> pure Nothing
         Just (Right tf) -> pure $ Just tf
         Just (Left dtf) -> Just <$> dtf
@@ -859,37 +859,37 @@ lookup_function (DeriveT.Ref control deflt) = do
 
 -- | Resolve ref to a ScoreT.TypedSignal.  This does not take ControlFunctions
 -- into account, but is necessary when you need the actual signal.
-resolve_signal :: DeriveT.ControlRef
+resolveSignal :: DeriveT.ControlRef
     -> Derive.Deriver (Maybe ScoreT.TypedSignal)
-resolve_signal (DeriveT.Ref control deflt) =
-    (<|> deflt) <$> lookup_signal control
+resolveSignal (DeriveT.Ref control deflt) =
+    (<|> deflt) <$> lookupSignal control
 
-coerce_to_signal :: Val -> Checked ScoreT.TypedSignal
-coerce_to_signal val = case val_to_signal val of
+coerceToSignal :: Val -> Checked ScoreT.TypedSignal
+coerceToSignal val = case valToSignal val of
     Nothing -> failure
     Just (Left dsig) -> Eval $ \_ -> Just <$> dsig
     Just (Right sig) -> success sig
 
 -- | As with 'lookup_pitch_function', this should be in Deriver.Lib.
-lookup_signal :: ScoreT.Control -> Derive.Deriver (Maybe ScoreT.TypedSignal)
-lookup_signal control =
-    traverse get . DeriveT.lookup (ScoreT.control_name control)
-        =<< Internal.get_environ
+lookupSignal :: ScoreT.Control -> Derive.Deriver (Maybe ScoreT.TypedSignal)
+lookupSignal control =
+    traverse get . DeriveT.lookup (ScoreT.controlName control)
+        =<< Internal.getEnviron
     where
-    get val = case val_to_signal val of
+    get val = case valToSignal val of
         Nothing -> Derive.throw $ "can't be coerced to signal: "
-            <> ShowVal.show_val val
+            <> ShowVal.showVal val
         Just (Left df) -> df
         Just (Right f) -> pure f
 
-val_to_signal :: Val
+valToSignal :: Val
     -> Maybe (Either (Derive.Deriver ScoreT.TypedSignal) ScoreT.TypedSignal)
-val_to_signal = \case
+valToSignal = \case
     VSignal a -> Just $ Right a
     VControlRef ref -> Just $ Left $
-        Derive.require ("control not found: " <> ShowVal.show_val ref)
-            =<< resolve_signal ref
-    VCFunction cf -> Just $ Right $ DeriveT.cf_signal cf
+        Derive.require ("control not found: " <> ShowVal.showVal ref)
+            =<< resolveSignal ref
+    VCFunction cf -> Just $ Right $ DeriveT.cfSignal cf
     _ -> Nothing
 
 
@@ -901,12 +901,12 @@ val_to_signal = \case
 -- back into the environment, while functions are opaque.
 
 -- | This is the pitch version of 'coerce_to_scalar'.
-coerce_to_pitch :: Val -> Checked PSignal.Pitch
-coerce_to_pitch = \case
-    VPSignal sig | Just p <- PSignal.constant_val sig -> success p
-    val | Just (ScoreT.Typed ScoreT.Nn nn) <- DeriveT.constant_val val ->
-        success $ PSignal.nn_pitch (Pitch.nn nn)
-    val -> case val_to_pitch_signal val of
+coerceToPitch :: Val -> Checked PSignal.Pitch
+coerceToPitch = \case
+    VPSignal sig | Just p <- PSignal.constantVal sig -> success p
+    val | Just (ScoreT.Typed ScoreT.Nn nn) <- DeriveT.constantVal val ->
+        success $ PSignal.nnPitch (Pitch.nn nn)
+    val -> case valToPitchSignal val of
         Nothing -> failure
         Just (Left dsig) -> Eval $ \pos ->
             fmap Just . require pos . (`PSignal.at` pos) =<< dsig
@@ -914,56 +914,56 @@ coerce_to_pitch = \case
             Just <$> require pos (PSignal.at sig pos)
         where
         require pos = Derive.require $
-            "no pitch at " <> pretty pos <> " for " <> ShowVal.show_val val
+            "no pitch at " <> pretty pos <> " for " <> ShowVal.showVal val
 
-coerce_to_pitch_signal :: Val -> Checked PSignal.PSignal
-coerce_to_pitch_signal val = case val_to_pitch_signal val of
+coerceToPitchSignal :: Val -> Checked PSignal.PSignal
+coerceToPitchSignal val = case valToPitchSignal val of
     Nothing -> failure
     Just (Left dsig) -> Eval $ \_ -> Just <$> dsig
     Just (Right sig) -> success sig
 
 -- | This is the pitch version of 'resolve_control_ref', except simpler
 -- because there's no pitch equivalent of CFunction.
-resolve_pitch_ref :: DeriveT.PControlRef -> Derive.Deriver PSignal.PSignal
-resolve_pitch_ref (DeriveT.Ref control deflt) =
+resolvePitchRef :: DeriveT.PControlRef -> Derive.Deriver PSignal.PSignal
+resolvePitchRef (DeriveT.Ref control deflt) =
     Derive.require
-        ("named pitch not found and no default: " <> ShowVal.show_val control)
-            =<< (<|> deflt) <$> lookup_pitch_signal control
+        ("named pitch not found and no default: " <> ShowVal.showVal control)
+            =<< (<|> deflt) <$> lookupPitchSignal control
 
 -- | This should be in Deriver.Lib, but has to be here so the instance
 -- Typecheck PitchFunction can be declared here and avoid circular import.
-lookup_pitch_signal :: ScoreT.PControl -> Derive.Deriver (Maybe PSignal.PSignal)
-lookup_pitch_signal pcontrol
-    | pcontrol == ScoreT.default_pitch =
-        Just <$> Internal.get_dynamic Derive.state_pitch
+lookupPitchSignal :: ScoreT.PControl -> Derive.Deriver (Maybe PSignal.PSignal)
+lookupPitchSignal pcontrol
+    | pcontrol == ScoreT.defaultPitch =
+        Just <$> Internal.getDynamic Derive.statePitch
     | otherwise =
-        traverse get . DeriveT.lookup (ScoreT.pcontrol_name pcontrol)
-            =<< Internal.get_environ
+        traverse get . DeriveT.lookup (ScoreT.pcontrolName pcontrol)
+            =<< Internal.getEnviron
     where
     -- This is recursive, because if a PControl resolves to a VPControlRef
     -- it will trigger another lookup.  If the refs point to each other then
     -- we will loop, so don't do that!  This also re-implements Env.checked_val
     -- to avoid circular import.
-    get val = case val_to_pitch_signal val of
+    get val = case valToPitchSignal val of
         Nothing -> Derive.throw $
-            pretty pcontrol <> ": " <> pretty (ValType.specific_type_of val)
+            pretty pcontrol <> ": " <> pretty (ValType.specificTypeOf val)
                 <> " can't be coerced to pitch signal"
         Just (Left df) -> df
         Just (Right f) -> pure f
 
-val_to_pitch_signal :: Val
+valToPitchSignal :: Val
     -> Maybe (Either (Derive.Deriver PSignal.PSignal) PSignal.PSignal)
-val_to_pitch_signal = \case
-    VPControlRef ref -> Just $ Left $ resolve_pitch_ref ref
+valToPitchSignal = \case
+    VPControlRef ref -> Just $ Left $ resolvePitchRef ref
     VPSignal sig -> Just $ Right sig
-    val -> case DeriveT.constant_val val of
+    val -> case DeriveT.constantVal val of
         Just (ScoreT.Typed ScoreT.Nn nn) ->
-            Just $ Right $ PSignal.constant $ PSignal.nn_pitch (Pitch.nn nn)
+            Just $ Right $ PSignal.constant $ PSignal.nnPitch (Pitch.nn nn)
         _ -> Nothing
 
 -- * sub tracks
 
 instance Typecheck SubT.Track where
-    from_val _ = failure
-    to_type _ = ValType.TDeriver "note"
-    from_subtrack = Just
+    fromVal _ = failure
+    toType _ = ValType.TDeriver "note"
+    fromSubtrack = Just

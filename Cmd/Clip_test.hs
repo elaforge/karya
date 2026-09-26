@@ -19,18 +19,18 @@ import           Util.Test
 
 track1 = ("t1", [(0, 2, "e11"), (4, 2, "e12"), (8, 2, "e13")])
 track2 = ("t2", [(1, 2, "e21"), (5, 2, "e22")])
-clip_tracks = [("t1", [(0, 2, "c1"), (4, 2, "c2")])]
+clipTracks = [("t1", [(0, 2, "c1"), (4, 2, "c2")])]
 
 -- * copy
 
 test_cmd_copy_selection :: Test
 test_cmd_copy_selection = do
     let state = UiTest.exec Ui.empty $
-            UiTest.mkviews [(UiTest.default_block_name, [track1, track2])]
+            UiTest.mkviews [(UiTest.defaultBlockName, [track1, track2])]
         run strack spos ctrack cpos =
-            e_tracks clip_id $ CmdTest.run_ui state $ do
-                CmdTest.set_sel strack spos ctrack cpos
-                Clip.cmd_copy_selection
+            eTracks clipId $ CmdTest.runUi state $ do
+                CmdTest.setSel strack spos ctrack cpos
+                Clip.cmdCopySelection
 
     equal (run 1 4 1 8) $ Right [("t1", [(0, 2, "e12")])]
 
@@ -48,31 +48,31 @@ test_cmd_copy_selection = do
 
 -- * paste
 
-e_tracks :: BlockId -> CmdTest.Result val -> Either Text [UiTest.TrackSpec]
-e_tracks block_id = CmdTest.trace_logs . CmdTest.extract_state
-    (\state _ -> UiTest.extract_tracks_of block_id state)
+eTracks :: BlockId -> CmdTest.Result val -> Either Text [UiTest.TrackSpec]
+eTracks blockId = CmdTest.traceLogs . CmdTest.extractState
+    (\state _ -> UiTest.extractTracksOf blockId state)
 
-run_sel :: Ui.State -> Cmd.CmdId a -> TrackNum -> ScoreTime -> TrackNum
+runSel :: Ui.State -> Cmd.CmdId a -> TrackNum -> ScoreTime -> TrackNum
     -> ScoreTime -> Either Text [UiTest.TrackSpec]
-run_sel state cmd strack spos ctrack cpos = e_tracks UiTest.default_block_id $
-    CmdTest.run_ui state $ do
-        CmdTest.set_sel strack spos ctrack cpos
+runSel state cmd strack spos ctrack cpos = eTracks UiTest.defaultBlockId $
+    CmdTest.runUi state $ do
+        CmdTest.setSel strack spos ctrack cpos
         cmd
 
 test_paste_past_block_end :: Test
 test_paste_past_block_end = do
     -- Events pasted past the end of the block are clipped off.
-    let state = mkstate [("t1", [])] clip_tracks
-        run = run_sel state Clip.cmd_paste_overwrite
+    let state = mkstate [("t1", [])] clipTracks
+        run = runSel state Clip.cmdPasteOverwrite
     equal (run 1 0 1 0) $ Right [("t1", [(0, 2, "c1"), (4, 2, "c2")])]
-    let end = UiTest.default_block_end
+    let end = UiTest.defaultBlockEnd
     equal (run 1 (end-1) 1 (end-1)) $ Right [("t1", [(end-1, 1, "c1")])]
     equal (run 1 end 1 end) $ Right [("t1", [])]
 
 test_cmd_paste_overwrite :: Test
 test_cmd_paste_overwrite = do
-    let run state = run_sel state Clip.cmd_paste_overwrite
-    let f = run (mkstate [track1, track2] clip_tracks)
+    let run state = runSel state Clip.cmdPasteOverwrite
+    let f = run (mkstate [track1, track2] clipTracks)
 
     -- From sel onwards replaced by clipboard.
     equal (f 1 1 1 1) $ Right
@@ -104,10 +104,10 @@ test_cmd_paste_overwrite = do
 
 test_cmd_paste_merge :: Test
 test_cmd_paste_merge = do
-    let state = mkstate [track1, track2] clip_tracks
-        run = run_sel state
+    let state = mkstate [track1, track2] clipTracks
+        run = runSel state
 
-    equal (run Clip.cmd_paste_merge 1 1 1 1) $ Right
+    equal (run Clip.cmdPasteMerge 1 1 1 1) $ Right
         [ ("t1", [(0, 1, "e11"), (1, 2, "c1"), (4, 1, "e12"), (5, 2, "c2"),
             (8, 2, "e13")])
         , track2
@@ -116,11 +116,11 @@ test_cmd_paste_merge = do
     -- cmd_paste_overwrite.
 
     -- They all overlap so nothing happens.
-    equal (run Clip.cmd_paste_soft_merge 1 1 1 1) $ Right
+    equal (run Clip.cmdPasteSoftMerge 1 1 1 1) $ Right
         [track1, track2]
 
     -- This time they make it in.
-    equal (run Clip.cmd_paste_soft_merge 1 2 1 2) $ Right
+    equal (run Clip.cmdPasteSoftMerge 1 2 1 2) $ Right
         [ ("t1", [(0, 2, "e11"), (2, 2, "c1"), (4, 2, "e12"), (6, 2, "c2"),
             (8, 2, "e13")])
         , track2
@@ -128,8 +128,8 @@ test_cmd_paste_merge = do
 
 test_cmd_paste_insert :: Test
 test_cmd_paste_insert = do
-    let state = mkstate [track1, track2] clip_tracks
-        run = run_sel state Clip.cmd_paste_insert
+    let state = mkstate [track1, track2] clipTracks
+        run = runSel state Clip.cmdPasteInsert
     -- Point selection pushes by inserted length.
     equal (run 1 1 1 1) $ Right
         [ ("t1", [(0, 1, "e11"), (1, 2, "c1"), (5, 2, "c2"),
@@ -142,9 +142,9 @@ test_cmd_paste_insert = do
         , track2
         ]
     -- Events pushed off the end of the block are clipped.
-    let end = UiTest.default_block_end
+    let end = UiTest.defaultBlockEnd
         state = mkstate [("t1", [(end-2, 2, "t")])] [("c1", [(0, 2, "c")])]
-        run = run_sel state Clip.cmd_paste_insert
+        run = runSel state Clip.cmdPasteInsert
     -- Inserted event shortened because of selection, original event shortened
     -- because of block end.
     equal (run 1 (end-2) 1 (end-1)) $ Right
@@ -154,8 +154,8 @@ test_cmd_paste_insert = do
 
 test_cmd_paste_stretch :: Test
 test_cmd_paste_stretch = do
-    let run clip_tracks = run_sel (mkstate [("t1", []), ("t2", [])] clip_tracks)
-            Clip.cmd_paste_stretch
+    let run clipTracks = runSel (mkstate [("t1", []), ("t2", [])] clipTracks)
+            Clip.cmdPasteStretch
 
     equal (run [("t1", [(0, 2, "c1"), (2, 2, "c2")])] 1 1 1 2) $ Right
         [("t1", [(1, 0.5, "c1"), (1.5, 0.5, "c2")]), ("t2", [])]
@@ -171,13 +171,13 @@ test_cmd_paste_stretch = do
 
 -- * util
 
-clip_id :: BlockId
-clip_id = Id.BlockId $ Id.id Clip.clip_namespace Config.clip_block_name
+clipId :: BlockId
+clipId = Id.BlockId $ Id.id Clip.clipNamespace Config.clipBlockName
 
 mkstate :: [UiTest.TrackSpec] -> [UiTest.TrackSpec] -> Ui.State
-mkstate block_tracks clip_tracks = UiTest.exec Ui.empty $ do
-    UiTest.mkviews [(UiTest.default_block_name, block_tracks)]
-    Clip.state_to_namespace
+mkstate blockTracks clipTracks = UiTest.exec Ui.empty $ do
+    UiTest.mkviews [(UiTest.defaultBlockName, blockTracks)]
+    Clip.stateToNamespace
         (UiTest.exec Ui.empty
-            (UiTest.mkblocks [(Config.clip_block_name, clip_tracks)]))
-        Clip.clip_namespace
+            (UiTest.mkblocks [(Config.clipBlockName, clipTracks)]))
+        Clip.clipNamespace

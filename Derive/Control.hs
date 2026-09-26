@@ -19,12 +19,12 @@
 -}
 module Derive.Control (
     Config(..)
-    , d_control_track
-    , track_info
+    , dControlTrack
+    , trackInfo
     -- * TrackSignal
-    , stash_signal, render_of
+    , stashSignal, renderOf
 #ifdef TESTING
-    , derive_control
+    , deriveControl
 #endif
 ) where
 import qualified Data.Char as Char
@@ -64,74 +64,74 @@ import           Types
 data Config = Config
     -- | True if this is the single topmost track and is a tempo track.
     -- Ultimately it'is used by "Derive.Tempo".
-    { config_toplevel_tempo :: !Bool
-    , config_use_cache :: !Bool
+    { configToplevelTempo :: !Bool
+    , configUseCache :: !Bool
     } deriving (Show)
 
 -- | Top level deriver for control tracks.
-{-# SCC d_control_track #-}
-d_control_track :: Config -> TrackTree.Track -> Derive.NoteDeriver
+{-# SCC dControlTrack #-}
+dControlTrack :: Config -> TrackTree.Track -> Derive.NoteDeriver
     -> Derive.NoteDeriver
-d_control_track config track deriver
+dControlTrack config track deriver
     | Text.all Char.isSpace title = deriver
     | otherwise = do
         (ctype, expr) <- either (\err -> Derive.throw $ "track title: " <> err)
-            pure (ParseTitle.parse_control_title title)
-        eval_track config track expr ctype deriver
+            pure (ParseTitle.parseControlTitle title)
+        evalTrack config track expr ctype deriver
     where
-    title = TrackTree.track_title track
+    title = TrackTree.trackTitle track
 
 -- * eval_track
 
-eval_track :: Config -> TrackTree.Track -> [DeriveT.Call]
+evalTrack :: Config -> TrackTree.Track -> [DeriveT.Call]
     -> ParseTitle.ControlType -> Derive.NoteDeriver -> Derive.NoteDeriver
-eval_track config track expr ctype deriver = case ctype of
-    ParseTitle.Tempo maybe_sym -> do
-        is_ly <- Derive.is_lilypond_mode
-        let sig_deriver
-                | is_ly = pure (Signal.constant 1, [])
-                | otherwise = with_control_env
+evalTrack config track expr ctype deriver = case ctype of
+    ParseTitle.Tempo maybeSym -> do
+        isLy <- Derive.isLilypondMode
+        let sigDeriver
+                | isLy = pure (Signal.constant 1, [])
+                | otherwise = withControlEnv
                     Controls.tempo (Derive.Merger "compose" (const id) 0)
-                    (in_normal_mode $ derive_control True track transform)
-        tempo_call config maybe_sym track sig_deriver deriver
-    ParseTitle.Control (Right typed_control) maybe_merge -> do
-        let control = ScoreT.val_of typed_control
-        merger <- get_merger control maybe_merge
-        (signal, logs) <- with_control_env control merger
-            (derive_control False track transform)
-        control_call track typed_control merger (signal, logs) deriver
-    ParseTitle.Control (Left tcall) maybe_merge -> do
-        (typed_control, sig) <- track_call tcall track
-        merger <- get_merger (ScoreT.val_of typed_control) maybe_merge
-        control_call track typed_control merger (sig, []) deriver
-    ParseTitle.Pitch scale_id pcontrol_tcall -> case pcontrol_tcall of
-        Right pcontrol -> pitch_call config track pcontrol scale_id
+                    (inNormalMode $ deriveControl True track transform)
+        tempoCall config maybeSym track sigDeriver deriver
+    ParseTitle.Control (Right typedControl) maybeMerge -> do
+        let control = ScoreT.valOf typedControl
+        merger <- getMerger control maybeMerge
+        (signal, logs) <- withControlEnv control merger
+            (deriveControl False track transform)
+        controlCall track typedControl merger (signal, logs) deriver
+    ParseTitle.Control (Left tcall) maybeMerge -> do
+        (typedControl, sig) <- trackCall tcall track
+        merger <- getMerger (ScoreT.valOf typedControl) maybeMerge
+        controlCall track typedControl merger (sig, []) deriver
+    ParseTitle.Pitch scaleId pcontrolTcall -> case pcontrolTcall of
+        Right pcontrol -> pitchCall config track pcontrol scaleId
             transform deriver
         -- TODO have to refactor pitch_call
         Left _tcall -> Derive.throw "unimplemented"
     where
     transform :: Derive.CallableExpr d => Derive.Deriver (Stream.Stream d)
         -> Derive.Deriver (Stream.Stream d)
-    transform = Eval.eval_transformers ctx expr
-    ctx = Derive.dummy_context 0 (TrackTree.track_end track) $ case ctype of
+    transform = Eval.evalTransformers ctx expr
+    ctx = Derive.dummyContext 0 (TrackTree.trackEnd track) $ case ctype of
         ParseTitle.Tempo {} -> "tempo track"
         ParseTitle.Control {} -> "control track"
         ParseTitle.Pitch {} -> "pitch track"
 
-track_call :: Derive.CallableExpr d => Expr.Symbol -> TrackTree.Track
+trackCall :: Derive.CallableExpr d => Expr.Symbol -> TrackTree.Track
     -> Derive.Deriver (ScoreT.Typed ScoreT.Control, d)
-track_call sym track = do
-    call <- Eval.get_track_call sym
-    Derive.call_func call track
+trackCall sym track = do
+    call <- Eval.getTrackCall sym
+    Derive.callFunc call track
 
 -- | Switch 'Derive.RealDurationQuery' to 'Derive.Normal'.  A RealDurationQuery
 -- needs to evaluate until the tempo track of the callee block.  But if I leave
 -- it in RealDurationQuery mode, the calls on the tempo signal think I am
 -- asking about their durations.
-in_normal_mode :: Derive.Deriver a -> Derive.Deriver a
-in_normal_mode deriver = Derive.get_mode >>= \mode -> case mode of
+inNormalMode :: Derive.Deriver a -> Derive.Deriver a
+inNormalMode deriver = Derive.getMode >>= \mode -> case mode of
     Derive.RealDurationQuery -> Internal.local
-        (\st -> st { Derive.state_mode = Derive.Normal }) deriver
+        (\st -> st { Derive.stateMode = Derive.Normal }) deriver
     _ -> deriver
 
 -- | Get the combining operator for this track.
@@ -139,119 +139,119 @@ in_normal_mode deriver = Derive.get_mode >>= \mode -> case mode of
 -- 'Controls.null' is used by control calls, and uses 'Derive.Set' by default.
 -- Since the control call emits signal which then goes in a control track,
 -- a merge operator would wind up being applied twice.
-get_merger :: ScoreT.Control -> Maybe Expr.Symbol
+getMerger :: ScoreT.Control -> Maybe Expr.Symbol
     -> Derive.Deriver Derive.Merger
-get_merger control merge = case merge of
+getMerger control merge = case merge of
     Nothing
         | control == Controls.null -> pure Derive.Set
-        | otherwise -> Derive.get_default_merger control
-    Just sym -> Derive.get_control_merge sym
+        | otherwise -> Derive.getDefaultMerger control
+    Just sym -> Derive.getControlMerge sym
 
 -- | A tempo track is derived like other signals, but in absolute time.
 -- Otherwise it would wind up being composed with the environmental warp twice.
-{-# SCC tempo_call #-}
-tempo_call :: Config -> Maybe Expr.Symbol -> TrackTree.Track
+{-# SCC tempoCall #-}
+tempoCall :: Config -> Maybe Expr.Symbol -> TrackTree.Track
     -> Derive.Deriver (TrackResults Signal.Control)
     -> Derive.NoteDeriver -> Derive.NoteDeriver
-tempo_call config sym track sig_deriver deriver = do
-    (signal, logs) <- Internal.in_real_time $ do
-        (signal, logs) <- Derive.with_val EnvKey.control_gt_0 True sig_deriver
+tempoCall config sym track sigDeriver deriver = do
+    (signal, logs) <- Internal.inRealTime $ do
+        (signal, logs) <- Derive.withVal EnvKey.controlGt0 True sigDeriver
         -- Do this in real time, so 'stash_if_wanted' knows it can directly
         -- reuse the signal.
-        stash_if_wanted track signal
+        stashIfWanted track signal
         pure (signal, logs)
 
     -- The range is used by the tempo calls to normalize the block to 0--1.
     -- This should only happen for the tempo track at the top of the block.
-    range <- maybe (pure Nothing) (fmap Just . Internal.block_logical_range) $
-        TrackTree.track_block_id track
+    range <- maybe (pure Nothing) (fmap Just . Internal.blockLogicalRange) $
+        TrackTree.trackBlockId track
     -- 'with_damage' must be applied *inside* 'Tempo.with_tempo'.  If it were
     -- outside, it would get the wrong RealTimes when it tried to create the
     -- ControlDamage.
-    merge_logs logs $ dispatch_tempo config sym range
-        maybe_track_id (Signal.coerce signal) (with_damage deriver)
+    mergeLogs logs $ dispatchTempo config sym range
+        maybeTrackId (Signal.coerce signal) (withDamage deriver)
     where
-    maybe_block_track_id = TrackTree.block_track_id track
-    maybe_track_id = snd <$> maybe_block_track_id
-    with_damage = maybe id get_damage maybe_block_track_id
-    get_damage (block_id, track_id) deriver = do
-        damage <- Cache.get_tempo_damage block_id track_id
-            (TrackTree.track_end track)
-            (TrackTree.track_events track)
-        Internal.with_control_damage damage deriver
+    maybeBlockTrackId = TrackTree.blockTrackId track
+    maybeTrackId = snd <$> maybeBlockTrackId
+    withDamage = maybe id getDamage maybeBlockTrackId
+    getDamage (blockId, trackId) deriver = do
+        damage <- Cache.getTempoDamage blockId trackId
+            (TrackTree.trackEnd track)
+            (TrackTree.trackEvents track)
+        Internal.withControlDamage damage deriver
 
-dispatch_tempo :: Monoid a => Config -> Maybe Expr.Symbol
+dispatchTempo :: Monoid a => Config -> Maybe Expr.Symbol
     -> Maybe (ScoreTime, ScoreTime) -> Maybe TrackId -> Signal.Tempo
     -> Derive.Deriver a -> Derive.Deriver a
-dispatch_tempo config sym block_range maybe_track_id signal deriver =
+dispatchTempo config sym blockRange maybeTrackId signal deriver =
     case sym of
-        Nothing -> Tempo.with_tempo toplevel block_range maybe_track_id signal
+        Nothing -> Tempo.withTempo toplevel blockRange maybeTrackId signal
             deriver
         Just sym
-            | sym == "hybrid" -> Tempo.with_hybrid toplevel block_range
-                maybe_track_id signal deriver
-            | sym == "abs" -> Tempo.with_absolute toplevel block_range
-                maybe_track_id signal deriver
+            | sym == "hybrid" -> Tempo.withHybrid toplevel blockRange
+                maybeTrackId signal deriver
+            | sym == "abs" -> Tempo.withAbsolute toplevel blockRange
+                maybeTrackId signal deriver
             | otherwise -> Derive.throw $
-                "unknown tempo modifier: " <> ShowVal.show_val sym
-    where toplevel = config_toplevel_tempo config
+                "unknown tempo modifier: " <> ShowVal.showVal sym
+    where toplevel = configToplevelTempo config
 
-{-# SCC control_call #-}
-control_call :: TrackTree.Track -> ScoreT.Typed ScoreT.Control -> Derive.Merger
+{-# SCC controlCall #-}
+controlCall :: TrackTree.Track -> ScoreT.Typed ScoreT.Control -> Derive.Merger
     -> TrackResults Signal.Control -> Derive.NoteDeriver -> Derive.NoteDeriver
-control_call track control merger (signal, logs) deriver = do
-    stash_if_wanted track signal
+controlCall track control merger (signal, logs) deriver = do
+    stashIfWanted track signal
     -- Apply and strip any control modifications made during the above derive.
-    end <- Derive.real $ TrackTree.track_end track
-    Derive.eval_control_mods end $ merge_logs logs $ with_damage $
-        with_merger control merger signal deriver
+    end <- Derive.real $ TrackTree.trackEnd track
+    Derive.evalControlMods end $ mergeLogs logs $ withDamage $
+        withMerger control merger signal deriver
     -- I think this forces sequentialness because 'deriver' runs in the state
     -- from the end of 'sig_deriver'.  To make these parallelize, I need to
     -- run sig_deriver as a sub-derive, then mappend the Collect.
     where
-    with_damage = with_control_damage
-        (TrackTree.block_track_id track) (TrackTree.track_range track)
+    withDamage = withControlDamage
+        (TrackTree.blockTrackId track) (TrackTree.trackRange track)
 
-with_merger :: ScoreT.Typed ScoreT.Control -> Derive.Merger -> Signal.Control
+withMerger :: ScoreT.Typed ScoreT.Control -> Derive.Merger -> Signal.Control
     -> Derive.Deriver a -> Derive.Deriver a
-with_merger (ScoreT.Typed typ control) merger signal =
-    Derive.with_merged_control merger control (ScoreT.Typed typ signal)
+withMerger (ScoreT.Typed typ control) merger signal =
+    Derive.withMergedControl merger control (ScoreT.Typed typ signal)
 
-merge_logs :: [Log.Msg] -> Derive.NoteDeriver -> Derive.NoteDeriver
-merge_logs = fmap . Stream.merge_logs
+mergeLogs :: [Log.Msg] -> Derive.NoteDeriver -> Derive.NoteDeriver
+mergeLogs = fmap . Stream.mergeLogs
 
-pitch_call :: Config -> TrackTree.Track -> ScoreT.PControl
+pitchCall :: Config -> TrackTree.Track -> ScoreT.PControl
     -> Pitch.ScaleId -> (Derive.PitchDeriver -> Derive.PitchDeriver)
     -> Derive.NoteDeriver -> Derive.NoteDeriver
-pitch_call config track pcontrol scale_id transform deriver =
-    with_scale scale_id $ do
-        (signal, logs) <- with_pitch_env pcontrol $
-            derive_pitch (config_use_cache config) track transform
+pitchCall config track pcontrol scaleId transform deriver =
+    withScale scaleId $ do
+        (signal, logs) <- withPitchEnv pcontrol $
+            derivePitch (configUseCache config) track transform
         -- Ignore errors, they should be logged on conversion.
-        (nn_sig, _) <- psignal_to_nn signal
-        stash_if_wanted track (Signal.coerce nn_sig)
+        (nnSig, _) <- psignalToNn signal
+        stashIfWanted track (Signal.coerce nnSig)
         -- Apply and strip any control modifications made during the above
         -- derive.
-        end <- Derive.real $ TrackTree.track_end track
-        Derive.eval_control_mods end $ merge_logs logs $ with_damage $
-            Derive.with_named_pitch pcontrol signal deriver
+        end <- Derive.real $ TrackTree.trackEnd track
+        Derive.evalControlMods end $ mergeLogs logs $ withDamage $
+            Derive.withNamedPitch pcontrol signal deriver
     where
-    with_damage = with_control_damage (TrackTree.block_track_id track)
-        (TrackTree.track_range track)
+    withDamage = withControlDamage (TrackTree.blockTrackId track)
+        (TrackTree.trackRange track)
 
-with_scale :: Pitch.ScaleId -> Derive.Deriver a -> Derive.Deriver a
-with_scale scale_id@(Pitch.ScaleId name) deriver
-    | scale_id == Pitch.empty_scale = deriver
-    | otherwise = Derive.with_val EnvKey.scale name deriver
+withScale :: Pitch.ScaleId -> Derive.Deriver a -> Derive.Deriver a
+withScale scaleId@(Pitch.ScaleId name) deriver
+    | scaleId == Pitch.emptyScale = deriver
+    | otherwise = Derive.withVal EnvKey.scale name deriver
 
-with_control_damage :: Maybe (BlockId, TrackId) -> (TrackTime, TrackTime)
+withControlDamage :: Maybe (BlockId, TrackId) -> (TrackTime, TrackTime)
     -> Derive.Deriver d -> Derive.Deriver d
-with_control_damage maybe_block_track_id track_range =
-    maybe id get_damage maybe_block_track_id
+withControlDamage maybeBlockTrackId trackRange =
+    maybe id getDamage maybeBlockTrackId
     where
-    get_damage (block_id, track_id) deriver = do
-        damage <- Cache.get_control_damage block_id track_id track_range
-        Internal.with_control_damage damage deriver
+    getDamage (blockId, trackId) deriver = do
+        damage <- Cache.getControlDamage blockId trackId trackRange
+        Internal.withControlDamage damage deriver
 
 -- | Split the signal chunks and log msgs of the 'LEvent.LEvents' stream.
 -- Return signal chunks merged into a signal, the logs cast to Score.Event
@@ -259,27 +259,27 @@ with_control_damage maybe_block_track_id track_range =
 type TrackResults sig = (sig, [Log.Msg])
 
 -- | Derive the signal of a control track.
-derive_control :: Bool -> TrackTree.Track
+deriveControl :: Bool -> TrackTree.Track
     -> (Derive.ControlDeriver -> Derive.ControlDeriver)
     -> Derive.Deriver (TrackResults Signal.Control)
-derive_control is_tempo track transform = do
-    let track_type
-            | is_tempo = ParseTitle.TempoTrack
+deriveControl isTempo track transform = do
+    let trackType
+            | isTempo = ParseTitle.TempoTrack
             | otherwise = ParseTitle.ControlTrack
-    (signal, logs) <- derive_track (track_info track track_type)
+    (signal, logs) <- deriveTrack (trackInfo track trackType)
         (Cache.track track mempty . transform)
-    signal <- trim_signal Signal.drop_after Signal.clip_after track signal
+    signal <- trimSignal Signal.dropAfter Signal.clipAfter track signal
     pure (signal, logs)
 
-{-# SCC derive_pitch #-}
-derive_pitch :: Bool -> TrackTree.Track
+{-# SCC derivePitch #-}
+derivePitch :: Bool -> TrackTree.Track
     -> (Derive.PitchDeriver -> Derive.PitchDeriver)
     -> Derive.Deriver (TrackResults PSignal.PSignal)
-derive_pitch use_cache track transform = do
-    let cache_track = if use_cache then Cache.track track mempty else id
-    (psignal, logs) <- derive_track (track_info track ParseTitle.PitchTrack)
-        (cache_track . transform)
-    signal <- trim_signal PSignal.drop_after PSignal.clip_after track psignal
+derivePitch useCache track transform = do
+    let cacheTrack = if useCache then Cache.track track mempty else id
+    (psignal, logs) <- deriveTrack (trackInfo track ParseTitle.PitchTrack)
+        (cacheTrack . transform)
+    signal <- trimSignal PSignal.dropAfter PSignal.clipAfter track psignal
     pure (signal, logs)
 
 {- | The controls under a note track are intended to apply only to the note
@@ -294,58 +294,58 @@ derive_pitch use_cache track transform = do
     controls.  This also applies to non-zero slices which are nonetheless made
     zero by stretching to 0.
 -}
-trim_signal :: (RealTime -> sig -> sig) -> (RealTime -> sig -> sig)
+trimSignal :: (RealTime -> sig -> sig) -> (RealTime -> sig -> sig)
     -> TrackTree.Track -> sig -> Derive.Deriver sig
-trim_signal drop_after clip_after track signal =
-    case TrackTree.track_sliced track of
+trimSignal dropAfter clipAfter track signal =
+    case TrackTree.trackSliced track of
         TrackTree.NotSliced -> pure signal
         TrackTree.Inversion ->
             Derive.throw "unexpected Inversion of a control track"
         TrackTree.Sliced orientation -> do
-            start <- Derive.real $ TrackTree.track_start track
-            end <- Derive.real $ TrackTree.track_end track
+            start <- Derive.real $ TrackTree.trackStart track
+            end <- Derive.real $ TrackTree.trackEnd track
             -- I need to keep a signal exactly at end for certain blocks.
             let trim
-                    | start == end || orientation == Types.Negative = drop_after
-                    | otherwise = clip_after
+                    | start == end || orientation == Types.Negative = dropAfter
+                    | otherwise = clipAfter
             pure $ trim end signal
     -- TODO(polymorphic-signals)
 
-{-# SCC derive_track #-}
-derive_track :: (Monoid d, Derive.CallableExpr d) => EvalTrack.TrackInfo d
+{-# SCC deriveTrack #-}
+deriveTrack :: (Monoid d, Derive.CallableExpr d) => EvalTrack.TrackInfo d
     -> (Derive.Deriver (Stream.Stream d) -> Derive.Deriver (Stream.Stream d))
     -> Derive.Deriver (TrackResults d)
-derive_track tinfo transform = do
+deriveTrack tinfo transform = do
     stream <- transform $ do
         state <- Derive.get
         let (streams, threaded, collect) =
-                EvalTrack.derive_control_track state tinfo
-        Internal.merge_collect collect
-        Internal.set_threaded threaded
-        pure $ compact $ concatMap Stream.to_list streams
-    let (signal_chunks, logs) = Stream.partition stream
+                EvalTrack.deriveControlTrack state tinfo
+        Internal.mergeCollect collect
+        Internal.setThreaded threaded
+        pure $ compact $ concatMap Stream.toList streams
+    let (signalChunks, logs) = Stream.partition stream
     -- I just merged the signals in 'compact', so this should just convert [x]
     -- to x.
-    pure (mconcat signal_chunks, logs)
+    pure (mconcat signalChunks, logs)
     where
     -- Merge the signal here so it goes in the cache as one signal event.
     -- I can use concat instead of merge_asc_events because the signals
     -- will be merged with Signal.merge and the logs extracted.
-    compact events = Stream.from_event_logs (mconcat sigs) logs
+    compact events = Stream.fromEventLogs (mconcat sigs) logs
         where (sigs, logs) = LEvent.partition events
 
 -- | Make a TrackInfo for control tracks.
-track_info :: Monoid d => TrackTree.Track -> ParseTitle.Type
+trackInfo :: Monoid d => TrackTree.Track -> ParseTitle.Type
     -> EvalTrack.TrackInfo d
-track_info track track_type = EvalTrack.TrackInfo
-    { tinfo_track = track
-    , tinfo_sub_tracks = []
-    , tinfo_type = track_type
-    , tinfo_get_last_val = last_signal_val
+trackInfo track trackType = EvalTrack.TrackInfo
+    { tinfoTrack = track
+    , tinfoSubTracks = []
+    , tinfoType = trackType
+    , tinfoGetLastVal = lastSignalVal
     }
 
-last_signal_val :: Monoid d => EvalTrack.GetLastVal d
-last_signal_val xs
+lastSignalVal :: Monoid d => EvalTrack.GetLastVal d
+lastSignalVal xs
     | null xs = Nothing
     | otherwise = Just (mconcat xs)
 
@@ -353,32 +353,32 @@ last_signal_val xs
 
 -- | If this track is to be rendered by the UI, stash the given signal in
 -- either 'Derive.collect_track_signals' or 'Derive.collect_signal_fragments'.
-{-# SCC stash_if_wanted #-}
-stash_if_wanted :: TrackTree.Track -> Signal.Control -> Derive.Deriver ()
-stash_if_wanted track sig = whenM is_normal_mode $
-    whenJustM (render_of track) $ \(block_id, track_id, _) ->
-        case TrackTree.track_sliced track of
-            TrackTree.NotSliced -> stash_signal block_id track_id sig
-            _ -> stash_signal_fragment block_id track_id
+{-# SCC stashIfWanted #-}
+stashIfWanted :: TrackTree.Track -> Signal.Control -> Derive.Deriver ()
+stashIfWanted track sig = whenM isNormalMode $
+    whenJustM (renderOf track) $ \(blockId, trackId, _) ->
+        case TrackTree.trackSliced track of
+            TrackTree.NotSliced -> stashSignal blockId trackId sig
+            _ -> stashSignalFragment blockId trackId
                 -- The start of the range may not be unique in the case of
                 -- orphans, I think because they aren't shifted to 0.  But
                 -- the end should be unique.
-                (snd $ TrackTree.track_range track) sig
+                (snd $ TrackTree.trackRange track) sig
 
-is_normal_mode :: Derive.Deriver Bool
-is_normal_mode = Derive.get_mode >>= \mode -> pure $ case mode of
+isNormalMode :: Derive.Deriver Bool
+isNormalMode = Derive.getMode >>= \mode -> pure $ case mode of
     Derive.Normal -> True
     _ -> False
 
-stash_signal_fragment :: BlockId -> TrackId -> TrackTime -> Signal.Control
+stashSignalFragment :: BlockId -> TrackId -> TrackTime -> Signal.Control
     -> Derive.Deriver ()
-stash_signal_fragment block_id track_id slice_end sig =
+stashSignalFragment blockId trackId sliceEnd sig =
     -- TODO I think this is faster than Internal.merge_collect, but I haven't
     -- profiled so I don't know
-    Internal.modify_collect $ \collect -> collect
-        { Derive.collect_signal_fragments =
-            Map.alter insert (block_id, track_id) $
-                Derive.collect_signal_fragments collect
+    Internal.modifyCollect $ \collect -> collect
+        { Derive.collectSignalFragments =
+            Map.alter insert (blockId, trackId) $
+                Derive.collectSignalFragments collect
         }
     where
     -- If a control is constant over multiple inverted notes, I'll get a bunch
@@ -387,46 +387,46 @@ stash_signal_fragment block_id track_id slice_end sig =
     -- first place.
     insert (Just old) = Just $ case Map.lookupMax old of
         Just (_, prev) | sig == prev -> old
-        _ -> Map.insert slice_end sig old
-    insert _ = Just $ Map.singleton slice_end sig
+        _ -> Map.insert sliceEnd sig old
+    insert _ = Just $ Map.singleton sliceEnd sig
 
-stash_signal :: BlockId -> TrackId -> Signal.Control -> Derive.Deriver ()
-stash_signal block_id track_id sig = do
-    warp <- Internal.get_warp
-    put_track_signal block_id track_id $ EvalTrack.unwarp warp sig
+stashSignal :: BlockId -> TrackId -> Signal.Control -> Derive.Deriver ()
+stashSignal blockId trackId sig = do
+    warp <- Internal.getWarp
+    putTrackSignal blockId trackId $ EvalTrack.unwarp warp sig
 
-put_track_signal :: BlockId -> TrackId -> Track.TrackSignal -> Derive.Deriver ()
-put_track_signal block_id track_id tsig = Internal.merge_collect $ mempty
-    { Derive.collect_track_signals = Map.singleton (block_id, track_id) tsig }
+putTrackSignal :: BlockId -> TrackId -> Track.TrackSignal -> Derive.Deriver ()
+putTrackSignal blockId trackId tsig = Internal.mergeCollect $ mempty
+    { Derive.collectTrackSignals = Map.singleton (blockId, trackId) tsig }
 
 -- | Get render information if this track wants a TrackSignal.
-render_of :: TrackTree.Track
+renderOf :: TrackTree.Track
     -> Derive.Deriver (Maybe (BlockId, TrackId, Maybe Track.RenderSource))
-render_of track = case TrackTree.block_track_id track of
+renderOf track = case TrackTree.blockTrackId track of
     Nothing -> pure Nothing
-    Just (block_id, track_id) -> ifM not_root (pure Nothing) $ do
-        (btrack, track) <- get_block_track block_id track_id
-        let flags = Block.track_flags btrack
-        pure $ if Block.track_wants_signal flags track
-            then Just (block_id, track_id,
-                extract (Track.render_style (Track.track_render track)))
+    Just (blockId, trackId) -> ifM notRoot (pure Nothing) $ do
+        (btrack, track) <- getBlockTrack blockId trackId
+        let flags = Block.trackFlags btrack
+        pure $ if Block.trackWantsSignal flags track
+            then Just (blockId, trackId,
+                extract (Track.renderStyle (Track.trackRender track)))
             else Nothing
     where
-    not_root = not <$> Internal.is_root_block
+    notRoot = not <$> Internal.isRootBlock
     extract (Track.Line (Just source)) = Just source
     extract (Track.Filled (Just source)) = Just source
     extract _ = Nothing
 
-get_block_track :: BlockId -> TrackId
+getBlockTrack :: BlockId -> TrackId
     -> Derive.Deriver (Block.Track, Track.Track)
-get_block_track block_id track_id = do
-    track <- Derive.get_track track_id
-    block <- Derive.get_block block_id
+getBlockTrack blockId trackId = do
+    track <- Derive.getTrack trackId
+    block <- Derive.getBlock blockId
     btrack <- Derive.require
-        ("get_block_track: " <> showt block_id <> " doesn't have "
-            <> showt track_id) $
-        List.find ((== Just track_id) . Block.track_id)
-            (Block.block_tracks block)
+        ("get_block_track: " <> showt blockId <> " doesn't have "
+            <> showt trackId) $
+        List.find ((== Just trackId) . Block.trackId)
+            (Block.blockTracks block)
     pure (btrack, track)
 
 
@@ -434,18 +434,18 @@ get_block_track block_id track_id = do
 
 -- | Reduce a 'PSignal.PSignal' to raw note numbers, taking the current
 -- transposition environment into account.
-psignal_to_nn :: PSignal.PSignal
+psignalToNn :: PSignal.PSignal
     -> Derive.Deriver (Signal.NoteNumber, [(RealTime, PSignal.ErrorText)])
-psignal_to_nn sig = do
-    controls <- Derive.get_control_map
-    pure $ PSignal.to_nn $ PSignal.apply_controls controls sig
+psignalToNn sig = do
+    controls <- Derive.getControlMap
+    pure $ PSignal.toNn $ PSignal.applyControls controls sig
 
-with_control_env :: ScoreT.Control -> Derive.Merger -> Derive.Deriver a
+withControlEnv :: ScoreT.Control -> Derive.Merger -> Derive.Deriver a
     -> Derive.Deriver a
-with_control_env control merger = Derive.with_vals
-    [ (EnvKey.control, ScoreT.control_name control)
-    , (EnvKey.merge, ShowVal.show_val merger)
+withControlEnv control merger = Derive.withVals
+    [ (EnvKey.control, ScoreT.controlName control)
+    , (EnvKey.merge, ShowVal.showVal merger)
     ]
 
-with_pitch_env :: ScoreT.PControl -> Derive.Deriver a -> Derive.Deriver a
-with_pitch_env = Derive.with_val EnvKey.control . ScoreT.pcontrol_name
+withPitchEnv :: ScoreT.PControl -> Derive.Deriver a -> Derive.Deriver a
+withPitchEnv = Derive.withVal EnvKey.control . ScoreT.pcontrolName

@@ -18,8 +18,8 @@ data Mmc = Stop | Play | FastForward | Rewind | Pause
     deriving (Eq, Show)
 
 -- TODO how many subframes per frame?
-goto_seconds :: Midi.FrameRate -> Double -> Mmc
-goto_seconds rate secs = Goto (Midi.seconds_to_smpte rate secs) 0
+gotoSeconds :: Midi.FrameRate -> Double -> Mmc
+gotoSeconds rate secs = Goto (Midi.secondsToSmpte rate secs) 0
 
 -- | This is just an arbitrary number that evidentally selects which device
 -- should pay attention to the msg.  0x7f sometimes means all devices.
@@ -28,12 +28,12 @@ type SubFrames = Word8
 
 -- | Encode an Mmc msg into a SystemExclusive.
 encode :: DeviceId -> Mmc -> Midi.Message
-encode device_id msg =
+encode deviceId msg =
     Midi.CommonMessage $ Midi.SystemExclusive 0x7f $
-        B.pack [device_id, 0x06] <> encode_msg msg
+        B.pack [deviceId, 0x06] <> encodeMsg msg
 
-encode_msg :: Mmc -> B.ByteString
-encode_msg mmc = B.pack $ case mmc of
+encodeMsg :: Mmc -> B.ByteString
+encodeMsg mmc = B.pack $ case mmc of
     Stop -> [0x1]
     Play -> [0x2]
     FastForward -> [0x4]

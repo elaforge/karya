@@ -35,8 +35,8 @@ type Error = Text
 -- * config
 
 -- | Lilypond code inserted inside the toplevel paper block.
-paper_config :: [Text]
-paper_config =
+paperConfig :: [Text]
+paperConfig =
     -- Print page numbers centered at the bottom of the page, instead of
     -- in the upper right and upper left corners.
     [ "print-page-number = ##t"
@@ -57,8 +57,8 @@ paper_config =
 type Title = Text
 
 -- | Format a list Movements into a complete lilypond file.
-ly_file :: Types.Config -> Title -> [Movement] -> Lazy.Text
-ly_file config title movements = run_output $ do
+lyFile :: Types.Config -> Title -> [Movement] -> Lazy.Text
+lyFile config title movements = runOutput $ do
     outputs
         -- I only need 2.18.2 due to using \tuplet.  If it's a problem, I can
         -- easily switch back to 2.14.2 by switching back to \times.
@@ -71,150 +71,150 @@ ly_file config title movements = run_output $ do
         , ""
         , "\\paper {"
         ]
-    outputs paper_config
+    outputs paperConfig
     outputs ["}", ""]
-    mapM_ write_movement movements
+    mapM_ writeMovement movements
     where
-    write_movement (title, staff_groups) = do
+    writeMovement (title, staffGroups) = do
         output "\\bookpart {\n"
         unless (Text.null title) $
             output $ "\\header { piece =" <+> str title <+> "}\n"
         output "\\score {\n"
         output "<<\n"
-        mapM_ write_staves $ sort_staves (Types.config_staves config)
-            staff_groups
+        mapM_ writeStaves $ sortStaves (Types.configStaves config)
+            staffGroups
         output ">>\n}\n"
         output "}\n\n"
-    write_staves (StaffGroup _ staves, config)
-        | not (Types.staff_display config) = pure ()
-        | Types.staff_add_bass_staff config =
-            write_staff_group "StaffGroup" config $ \config -> do
+    writeStaves (StaffGroup _ staves, config)
+        | not (Types.staffDisplay config) = pure ()
+        | Types.staffAddBassStaff config =
+            writeStaffGroup "StaffGroup" config $ \config -> do
                 case staves of
                     staff : staves -> do
-                        normal_staff config (Just "up") staff
-                        mapM_ (normal_staff config Nothing) staves
+                        normalStaff config (Just "up") staff
+                        mapM_ (normalStaff config Nothing) staves
                     [] -> pure ()
-                whenJust (Lists.head staves) $ write_empty_staff config
+                whenJust (Lists.head staves) $ writeEmptyStaff config
         | otherwise = case staves of
-            [staff] -> normal_staff config Nothing staff
-            [up, down] -> write_staff_group "PianoStaff" config $ \config -> do
-                normal_staff config (Just "up") up
-                normal_staff config (Just "down") down
-            _ -> write_staff_group "PianoStaff" config $ \config ->
-                mapM_ (normal_staff config Nothing) staves
-    write_staff_group name config contents = do
+            [staff] -> normalStaff config Nothing staff
+            [up, down] -> writeStaffGroup "PianoStaff" config $ \config -> do
+                normalStaff config (Just "up") up
+                normalStaff config (Just "down") down
+            _ -> writeStaffGroup "PianoStaff" config $ \config ->
+                mapM_ (normalStaff config Nothing) staves
+    writeStaffGroup name config contents = do
         outputs
             [ "\\new " <> name <> " <<"
-            , ly_set (name <> ".instrumentName") (Types.staff_long config)
-            , ly_set (name <> ".shortInstrumentName") (Types.staff_short config)
+            , lySet (name <> ".instrumentName") (Types.staffLong config)
+            , lySet (name <> ".shortInstrumentName") (Types.staffShort config)
             ]
-        contents $ config { Types.staff_long = "", Types.staff_short = "" }
+        contents $ config { Types.staffLong = "", Types.staffShort = "" }
         output ">>\n\n"
-    normal_staff config maybe_name lys =
-        write_staff config maybe_name Nothing (mapM_ write_voice_ly lys)
+    normalStaff config maybeName lys =
+        writeStaff config maybeName Nothing (mapM_ writeVoiceLy lys)
 
 -- | Convert ly code to all hidden rests, and emit an empty staff with a bass
 -- clef.  This is so xstaff commands can later cause it to appear, only when
 -- needed.
-write_empty_staff :: Types.StaffConfig -> [Either Process.Voices Process.Ly]
+writeEmptyStaff :: Types.StaffConfig -> [Either Process.Voices Process.Ly]
     -> Output ()
-write_empty_staff config_ lys =
-    write_staff config (Just "down") (Just "\\with { \\RemoveAllEmptyStaves }")$
-        mapM_ write_ly $
-            Process.LyCode "\\clef bass" : Process.convert_to_rests lys
+writeEmptyStaff config_ lys =
+    writeStaff config (Just "down") (Just "\\with { \\RemoveAllEmptyStaves }")$
+        mapM_ writeLy $
+            Process.LyCode "\\clef bass" : Process.convertToRests lys
     where
-    config = config_ { Types.staff_code = Types.staff_code config_ }
+    config = config_ { Types.staffCode = Types.staffCode config_ }
 
 str :: Text -> Text
-str = Types.to_lily
+str = Types.toLily
 
 (<+>) :: Text -> Text -> Text
 x <+> y = x <> " " <> y
 infixr 6 <+> -- same as <>
 
-ly_set :: Text -> Text -> Text
-ly_set name val = "\\set" <+> name <+> "=" <+> str val
+lySet :: Text -> Text -> Text
+lySet name val = "\\set" <+> name <+> "=" <+> str val
 
-write_staff :: Types.StaffConfig -> Maybe Text -> Maybe Text -> Output ()
+writeStaff :: Types.StaffConfig -> Maybe Text -> Maybe Text -> Output ()
     -> Output ()
-write_staff config maybe_name context write_contents = do
-    output $ "\\new Staff " <> maybe "" (("= "<>) . str) maybe_name
+writeStaff config maybeName context writeContents = do
+    output $ "\\new Staff " <> maybe "" (("= "<>) . str) maybeName
         <> maybe "" (" "<>) context <+> "{\n"
-    unless (Text.null (Types.staff_long config)) $
-        outputs [ly_set "Staff.instrumentName" (Types.staff_long config)]
-    unless (Text.null (Types.staff_short config)) $
-        outputs [ly_set "Staff.shortInstrumentName" (Types.staff_short config)]
-    outputs Types.global_staff_code
-    outputs (Types.staff_code config)
+    unless (Text.null (Types.staffLong config)) $
+        outputs [lySet "Staff.instrumentName" (Types.staffLong config)]
+    unless (Text.null (Types.staffShort config)) $
+        outputs [lySet "Staff.shortInstrumentName" (Types.staffShort config)]
+    outputs Types.globalStaffCode
+    outputs (Types.staffCode config)
     output "{\n"
-    set_bar 1
-    write_contents
+    setBar 1
+    writeContents
     output "\n} }\n\n"
 
-write_voice_ly :: Either Process.Voices Process.Ly -> Output ()
-write_voice_ly (Left (Process.Voices voices)) = do
+writeVoiceLy :: Either Process.Voices Process.Ly -> Output ()
+writeVoiceLy (Left (Process.Voices voices)) = do
     output "<<\n  "
-    start <- State.gets output_bar
-    bars <- mapM (\v -> set_bar start >> write_voice v) voices
+    start <- State.gets outputBar
+    bars <- mapM (\v -> setBar start >> writeVoice v) voices
     output ">> \\oneVoice\n  "
-    unless (all_equal bars) $
+    unless (allEqual bars) $
         -- Lilypond will also complain.
         output $ "% WARNING: voices have different numbers of bars: "
             <> showt bars
-    set_bar (fromMaybe start (Lists.head bars))
+    setBar (fromMaybe start (Lists.head bars))
     where
-    all_equal [] = True
-    all_equal (x:xs) = all (==x) xs
-write_voice_ly (Right ly) = write_ly ly
+    allEqual [] = True
+    allEqual (x:xs) = all (==x) xs
+writeVoiceLy (Right ly) = writeLy ly
 
-write_ly :: Process.Ly -> Output ()
-write_ly ly@(Process.LyBarline {}) = do
-    bar <- State.gets output_bar
-    stack <- State.gets output_last_stack
-    output $ " " <> Types.to_lily ly <> " % " <> show_stack stack <> showt bar
+writeLy :: Process.Ly -> Output ()
+writeLy ly@(Process.LyBarline {}) = do
+    bar <- State.gets outputBar
+    stack <- State.gets outputLastStack
+    output $ " " <> Types.toLily ly <> " % " <> showStack stack <> showt bar
         <> "\n"
-    set_bar (bar+1)
-write_ly ly = do
-    output $ " " <> Types.to_lily ly
+    setBar (bar+1)
+writeLy ly = do
+    output $ " " <> Types.toLily ly
     case ly of
         Process.LyNote note -> State.modify $ \state -> state
-            { output_last_stack = Process.note_stack note }
+            { outputLastStack = Process.noteStack note }
         _ -> pure ()
 
-show_stack :: Maybe Stack.UiFrame -> Text
-show_stack (Just stack) =  Stack.unparse_ui_frame stack <> "; "
-show_stack Nothing = ""
+showStack :: Maybe Stack.UiFrame -> Text
+showStack (Just stack) =  Stack.unparseUiFrame stack <> "; "
+showStack Nothing = ""
 
-write_voice :: (Process.Voice, [Process.Ly]) -> Output Int
-write_voice (voice, lys) = do
+writeVoice :: (Process.Voice, [Process.Ly]) -> Output Int
+writeVoice (voice, lys) = do
     output $ (if voice == Process.VoiceOne then "" else "\\new Voice ")
-        <> "{ " <> Types.to_lily voice <> "\n  "
-    mapM_ write_ly lys
+        <> "{ " <> Types.toLily voice <> "\n  "
+    mapM_ writeLy lys
     output "} "
-    State.gets output_bar
+    State.gets outputBar
 
-sort_staves :: [(ScoreT.Instrument, Types.StaffConfig)] -> [StaffGroup]
+sortStaves :: [(ScoreT.Instrument, Types.StaffConfig)] -> [StaffGroup]
     -> [(StaffGroup, Types.StaffConfig)]
-sort_staves inst_configs = map lookup_name . Lists.sortOn inst_key
+sortStaves instConfigs = map lookupName . Lists.sortOn instKey
     where
-    lookup_name staff = case lookup (inst_of staff) inst_configs of
-        Nothing -> (staff, Types.default_staff_config (inst_of staff))
+    lookupName staff = case lookup (instOf staff) instConfigs of
+        Nothing -> (staff, Types.defaultStaffConfig (instOf staff))
         Just config -> (staff, config)
-    inst_key staff =
-        maybe (1, 0) (0,) $ List.elemIndex (inst_of staff)
-            (map fst inst_configs)
-    inst_of (StaffGroup inst _) = inst
+    instKey staff =
+        maybe (1, 0) (0,) $ List.elemIndex (instOf staff)
+            (map fst instConfigs)
+    instOf (StaffGroup inst _) = inst
 
 type Output a = State.State OutputState a
 
-run_output :: Output a -> Lazy.Text
-run_output m = Builder.toLazyText (output_text state)
+runOutput :: Output a -> Lazy.Text
+runOutput m = Builder.toLazyText (outputText state)
     where state = State.execState m (OutputState mempty 1 Nothing)
 
 data OutputState = OutputState
-    { output_text :: Builder.Builder
-    , output_bar :: Int
-    , output_last_stack :: Maybe Stack.UiFrame
+    { outputText :: Builder.Builder
+    , outputBar :: Int
+    , outputLastStack :: Maybe Stack.UiFrame
     } deriving (Show)
 
 outputs :: [Text] -> Output ()
@@ -222,10 +222,10 @@ outputs = output . Text.unlines
 
 output :: Text -> Output ()
 output text = State.modify $ \state -> state
-    { output_text = output_text state <> Builder.fromText text }
+    { outputText = outputText state <> Builder.fromText text }
 
-set_bar :: Int -> Output ()
-set_bar n = State.modify $ \state -> state { output_bar = n }
+setBar :: Int -> Output ()
+setBar n = State.modify $ \state -> state { outputBar = n }
 
 
 -- * convert events
@@ -243,56 +243,56 @@ instance Pretty StaffGroup where
         , ("staves", Pretty.format staves)
         ]
 
-explicit_movements :: Types.Config -> [(Title, [Types.Event])]
+explicitMovements :: Types.Config -> [(Title, [Types.Event])]
     -> Either Log.Msg [Movement]
-explicit_movements config sections = forM sections $ \(title, events) -> do
+explicitMovements config sections = forM sections $ \(title, events) -> do
     let (global, normal) = List.partition
-            ((==Constants.ly_global) . Types.event_instrument) events
+            ((==Constants.lyGlobal) . Types.eventInstrument) events
     -- TODO filter out the v_movements since I won't be using them?
-    staves <- convert_staff_groups config 0 global normal
+    staves <- convertStaffGroups config 0 global normal
     pure (title, staves)
 
-extract_movements :: Types.Config -> [Types.Event] -> Either Log.Msg [Movement]
-extract_movements config events = do
+extractMovements :: Types.Config -> [Types.Event] -> Either Log.Msg [Movement]
+extractMovements config events = do
     let (global, normal) = List.partition
-            ((==Constants.ly_global) . Types.event_instrument) events
+            ((==Constants.lyGlobal) . Types.eventInstrument) events
     (movements, global) <- either warn pure $
-        partition_key Constants.v_movement global
-    forM (split_movements movements normal) $ \(start, title, events) -> do
-        staves <- convert_staff_groups config start global events
+        partitionKey Constants.vMovement global
+    forM (splitMovements movements normal) $ \(start, title, events) -> do
+        staves <- convertStaffGroups config start global events
         pure (title, staves)
 
 -- | Group a stream of events into individual staves based on instrument, and
 -- for keyboard instruments, left or right hand.  Then convert each staff of
 -- Events to Notes, divided up into measures.
-convert_staff_groups :: Types.Config -> Types.Time -> [Types.Event]
+convertStaffGroups :: Types.Config -> Types.Time -> [Types.Event]
     -> [Types.Event] -> Either Log.Msg [StaffGroup]
-convert_staff_groups config start global events = do
-    let staff_groups = split_events events
-    let staff_end = fromMaybe 0 $ Lists.maximum (map Types.event_end events)
-    (meters, global) <- either warn pure $ parse_meters start staff_end global
+convertStaffGroups config start global events = do
+    let staffGroups = splitEvents events
+    let staffEnd = fromMaybe 0 $ Lists.maximum (map Types.eventEnd events)
+    (meters, global) <- either warn pure $ parseMeters start staffEnd global
     -- It would be nicer to partition_on Process.free_code so I don't have to
     -- re-parse it in each Process.process, but then process would have to
     -- take an Either FreeCode Event or something.
-    let (global_code, remain) = List.partition
-            (not . null . Constants.environ_free_code . Types.event_environ)
+    let (globalCode, remain) = List.partition
+            (not . null . Constants.environFreeCode . Types.eventEnviron)
             global
     unless (null remain) $
         warn $ "leftover ly-global events: " <> pretty global
-    forM staff_groups $ \(inst, staves) ->
-        staff_group config start meters inst $
-            map (distribute_global global_code inst) staves
+    forM staffGroups $ \(inst, staves) ->
+        staffGroup config start meters inst $
+            map (distributeGlobal globalCode inst) staves
 
 -- | Split events by instrument, and if they have 'EnvKey.hand', further split
 -- into right and left hand.
-split_events :: [Types.Event] -> [(ScoreT.Instrument, [[Types.Event]])]
-split_events events =
-    [ (inst, Lists.groupSort (lookup_hand . Types.event_environ) events)
-    | (inst, events) <- by_inst
+splitEvents :: [Types.Event] -> [(ScoreT.Instrument, [[Types.Event]])]
+splitEvents events =
+    [ (inst, Lists.groupSort (lookupHand . Types.eventEnviron) events)
+    | (inst, events) <- byInst
     ]
     where
-    by_inst = Lists.keyedGroupSort Types.event_instrument events
-    lookup_hand environ = case Env.get_val EnvKey.hand environ of
+    byInst = Lists.keyedGroupSort Types.eventInstrument events
+    lookupHand environ = case Env.getVal EnvKey.hand environ of
         Right (val :: Text)
             | val == "r" || val == "right" -> 0
             | val == "l" || val == "left" -> 1
@@ -302,21 +302,21 @@ split_events events =
 -- | Right hand goes at the top, left hand goes at the bottom.  Any other hands
 -- go below that.  Events that are don't have a hand are assumed to be in the
 -- right hand.
-staff_group :: Types.Config -> Types.Time -> [Meter.Meter] -> ScoreT.Instrument
+staffGroup :: Types.Config -> Types.Time -> [Meter.Meter] -> ScoreT.Instrument
     -> [[Types.Event]] -> Either Log.Msg StaffGroup
-staff_group config start meters inst staves = do
-    staff_measures <- forM (zip [1..] staves) $ \(i, es) ->
+staffGroup config start meters inst staves = do
+    staffMeasures <- forM (zip [1..] staves) $ \(i, es) ->
         annotate i $ Process.process config start meters es
-    pure $ StaffGroup inst staff_measures
+    pure $ StaffGroup inst staffMeasures
     where
-    annotate i = first (Log.add_prefix (pretty inst <> ":" <> showt i))
+    annotate i = first (Log.addPrefix (pretty inst <> ":" <> showt i))
 
 -- | Global FreeCode events get distributed to all staves.
-distribute_global :: [Types.Event] -> ScoreT.Instrument -> [Types.Event]
+distributeGlobal :: [Types.Event] -> ScoreT.Instrument -> [Types.Event]
     -> [Types.Event]
-distribute_global codes inst =
-    Lists.mergeOn Types.event_start
-        (map (\e -> e { Types.event_instrument = inst }) codes)
+distributeGlobal codes inst =
+    Lists.mergeOn Types.eventStart
+        (map (\e -> e { Types.eventInstrument = inst }) codes)
 
 -- ** movements
 
@@ -324,55 +324,55 @@ distribute_global codes inst =
 -- are not shifted in time, so each movement has to start at the proper offset.
 -- The reason is that certain calls, like tuplet, bake in lilypond code, and it
 -- will be wrong if the events change position.
-split_movements :: [(Types.Time, Title)] -> [Types.Event]
+splitMovements :: [(Types.Time, Title)] -> [Types.Event]
     -> [(Types.Time, Title, [Types.Event])]
-split_movements movements =
-    filter (not . null . events_of)
+splitMovements movements =
+    filter (not . null . eventsOf)
     . split (Lists.zipNext ((0, "") : movements))
     where
     split (((start, title), Just (next, _)) : movements) events =
         (start, title, pre) : split movements post
-        where (pre, post) = break ((>=next) . Types.event_start) events
+        where (pre, post) = break ((>=next) . Types.eventStart) events
     split (((start, title), Nothing) : _) events = [(start, title, events)]
     split [] events = [(0, "", events)]
-    events_of (_, _, x) = x
+    eventsOf (_, _, x) = x
 
 -- ** meter
 
 -- | Extract Meters from the Events, and emit one per measure.
-parse_meters :: Types.Time -> Types.Time -> [Types.Event]
+parseMeters :: Types.Time -> Types.Time -> [Types.Event]
     -> Either Error ([Meter.Meter], [Types.Event])
-parse_meters start staff_end events = do
-    (meters, remain) <- partition_key Constants.v_meter events
-    meters <- mapM (\(pos, meter) -> (pos,) <$> Meter.parse_meter meter) meters
-    pure (generate start Meter.default_meter meters, remain)
+parseMeters start staffEnd events = do
+    (meters, remain) <- partitionKey Constants.vMeter events
+    meters <- mapM (\(pos, meter) -> (pos,) <$> Meter.parseMeter meter) meters
+    pure (generate start Meter.defaultMeter meters, remain)
     where
-    generate prev prev_meter ((pos, meter) : meters) | pos < staff_end =
-        replicate measures prev_meter ++ generate next meter meters
+    generate prev prevMeter ((pos, meter) : meters) | pos < staffEnd =
+        replicate measures prevMeter ++ generate next meter meters
         where
-        measures = measures_in (pos-prev) prev_meter
-        next = prev + fromIntegral measures * Meter.measure_time prev_meter
-    generate prev meter _ = replicate (measures_in (staff_end-prev) meter) meter
+        measures = measuresIn (pos-prev) prevMeter
+        next = prev + fromIntegral measures * Meter.measureTime prevMeter
+    generate prev meter _ = replicate (measuresIn (staffEnd-prev) meter) meter
     -- If you try to change the meter in the middle of a meter, it rounds up to
     -- the next barline.  If you put multiple meter changes before the barline,
     -- only the first one is accepted.  TODO arguably it should be the last.
     -- TODO or an error.
-    measures_in dur meter = max 0 $ ceiling $
-        fromIntegral dur / fromIntegral (Meter.measure_time meter)
+    measuresIn dur meter = max 0 $ ceiling $
+        fromIntegral dur / fromIntegral (Meter.measureTime meter)
 
 -- * util
 
 warn :: HasCallStack => Text -> Either Log.Msg a
 warn = Left . Log.msg Log.Warn Nothing
 
-partition_key :: EnvKey.Key -> [Types.Event]
+partitionKey :: EnvKey.Key -> [Types.Event]
     -> Either Error ([(Types.Time, Text)], [Types.Event])
-partition_key key = go
+partitionKey key = go
     where
     go [] = pure ([], [])
-    go (e : es) = case Env.checked_val2 key (Types.event_environ e) of
+    go (e : es) = case Env.checkedVal2 key (Types.eventEnviron e) of
         Nothing -> second (e:) <$> go es
-        Just (Left err) -> Left $ pretty Constants.ly_global <> " event at "
+        Just (Left err) -> Left $ pretty Constants.lyGlobal <> " event at "
             <> pretty pos <> err
         Just (Right val) -> first ((pos, val) :) <$> go es
-        where pos = Types.event_start e
+        where pos = Types.eventStart e

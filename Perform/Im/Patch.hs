@@ -6,8 +6,8 @@
 -- | Describe an Im 'Patch', from the sequencer's point of view.
 module Perform.Im.Patch (
     Patch(..), patch
-    , controls, attribute_map, elements
-    , AttributeMap, make_attribute_map
+    , controls, attributeMap, elements
+    , AttributeMap, makeAttributeMap
 ) where
 import qualified Util.Lens as Lens
 import qualified Util.Pretty as Pretty
@@ -22,27 +22,27 @@ import           Global
 data Patch = Patch
     -- | Map supported controls to documentation.
     -- TODO maybe I need a separate one for pitch controls.
-    { patch_controls :: Map Control.Control Text
-    , patch_attribute_map :: AttributeMap
-    , patch_elements :: Set Note.Element
+    { patchControls :: Map Control.Control Text
+    , patchAttributeMap :: AttributeMap
+    , patchElements :: Set Note.Element
     } deriving (Show)
 
 patch :: Patch
 patch = Patch
-    { patch_controls = mempty
-    , patch_attribute_map = Common.AttributeMap []
-    , patch_elements = mempty
+    { patchControls = mempty
+    , patchAttributeMap = Common.AttributeMap []
+    , patchElements = mempty
     }
 
-controls = Lens.lens patch_controls (\r a -> r { patch_controls = a })
-attribute_map = Lens.lens patch_attribute_map
-    (\r a -> r { patch_attribute_map = a })
-elements = Lens.lens patch_elements (\r a -> r { patch_elements = a })
+controls = Lens.lens patchControls (\r a -> r { patchControls = a })
+attributeMap = Lens.lens patchAttributeMap
+    (\r a -> r { patchAttributeMap = a })
+elements = Lens.lens patchElements (\r a -> r { patchElements = a })
 
 instance Pretty Patch where
-    format (Patch controls attr_map elements) = Pretty.record "Patch"
+    format (Patch controls attrMap elements) = Pretty.record "Patch"
         [ ("controls", Pretty.format controls)
-        , ("attribute_map", Pretty.format attr_map)
+        , ("attribute_map", Pretty.format attrMap)
         , ("elements", Pretty.format elements)
         ]
 
@@ -50,5 +50,5 @@ instance Pretty Patch where
 -- supported Attributes along with their priority.
 type AttributeMap = Common.AttributeMap ()
 
-make_attribute_map :: [Attrs.Attributes] -> AttributeMap
-make_attribute_map = Common.attribute_map . map (\a -> (a, ()))
+makeAttributeMap :: [Attrs.Attributes] -> AttributeMap
+makeAttributeMap = Common.attributeMap . map (\a -> (a, ()))

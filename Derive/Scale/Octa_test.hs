@@ -17,9 +17,9 @@ import Global
 
 test_input_to_nn :: Test
 test_input_to_nn = do
-    let octa21 = ScaleTest.get_scale Octa.scales "octa21"
+    let octa21 = ScaleTest.getScale Octa.scales "octa21"
     let f input = second (first prettys) $ DeriveTest.eval Ui.empty $
-            Scale.scale_input_to_nn octa21 0 input
-    let ascii oct = CmdTest.ascii_kbd . CmdTest.oct_pc oct
+            Scale.scaleInputToNn octa21 0 input
+    let ascii oct = CmdTest.asciiKbd . CmdTest.octPc oct
     equal [f (ascii 4 n) | n <- [0..8]] $ map (Right . Right)
         [NN.c4, NN.d4, NN.ds4, NN.f4, NN.fs4, NN.gs4, NN.a4, NN.b4, NN.c5]

@@ -32,26 +32,26 @@ import           Global
 main :: IO ()
 main = do
     args <- Environment.getArgs
-    app_dir <- Path.get_app_dir
+    appDir <- Path.getAppDir
     case args of
-        ["keymap"] -> Text.IO.putStr keymap_doc
+        ["keymap"] -> Text.IO.putStr keymapDoc
         ["calls"] -> do
-            hstate <- Html.get_html_state "../haddock" app_dir
-            Text.IO.putStr $ Html.un_html $ CallDoc.doc_html hstate $
+            hstate <- Html.getHtmlState "../haddock" appDir
+            Text.IO.putStr $ Html.unHtml $ CallDoc.docHtml hstate $
                 CallDoc.builtins C.All.builtins
         ["scales"] -> do
-            hstate <- Html.get_html_state "../haddock" app_dir
-            Text.IO.putStr $ Html.un_html $ CallDoc.scales_html hstate $
-                CallDoc.scale_docs Scale.All.docs
+            hstate <- Html.getHtmlState "../haddock" appDir
+            Text.IO.putStr $ Html.unHtml $ CallDoc.scalesHtml hstate $
+                CallDoc.scaleDocs Scale.All.docs
         _ -> error "usage: extract_doc [ keymap | calls | scales ]"
 
 -- * extract keymap
 
-keymap_doc :: Text
-keymap_doc = Text.unlines
+keymapDoc :: Text
+keymapDoc = Text.unlines
     [ "<html> <head> <title> keymaps </title> </head> <body>"
-    , html_fmt "global" $ extract GlobalKeymap.all_keymap
-    , html_fmt "note track" $ extract NoteTrackKeymap.keymap
+    , htmlFmt "global" $ extract GlobalKeymap.allKeymap
+    , htmlFmt "note track" $ extract NoteTrackKeymap.keymap
     , "</body> </html>"
     ]
 
@@ -64,63 +64,63 @@ extract = sort . strip . group . Map.toList
 sort :: Binds -> Binds
 sort = Lists.sortOn (map key . snd)
     where
-    key (Cmd.KeySpec mods bindable) = (bindable_key bindable, mods)
-    bindable_key k@(Cmd.Key _ (Key.Char c)) =
-        (Map.findWithDefault (Map.size key_order + 1) c key_order, k)
-    bindable_key k = (Map.size key_order + 2, k)
-    key_order = Map.fromList $ zip KeyLayouts.qwerty_unshifted [0,2..]
-        ++ zip KeyLayouts.qwerty_shifted [1,3..]
+    key (Cmd.KeySpec mods bindable) = (bindableKey bindable, mods)
+    bindableKey k@(Cmd.Key _ (Key.Char c)) =
+        (Map.findWithDefault (Map.size keyOrder + 1) c keyOrder, k)
+    bindableKey k = (Map.size keyOrder + 2, k)
+    keyOrder = Map.fromList $ zip KeyLayouts.qwertyUnshifted [0,2..]
+        ++ zip KeyLayouts.qwertyShifted [1,3..]
 
 group :: [(Cmd.KeySpec, Cmd.NamedCmd m)] -> [(Text, [Cmd.KeySpec])]
-group = map (second (map fst)) . Lists.keyedGroupSort (Cmd.cmd_name . snd)
+group = map (second (map fst)) . Lists.keyedGroupSort (Cmd.cmdName . snd)
 
 strip :: Binds -> Binds
-strip = map (second strip_keyspecs)
+strip = map (second stripKeyspecs)
 
 -- | A repeatable key implies the non-repeating key.  Also, a drag implies
 -- a click.
-strip_keyspecs :: [Cmd.KeySpec] -> [Cmd.KeySpec]
-strip_keyspecs = map stripm . strip_drag . strip_repeatable
+stripKeyspecs :: [Cmd.KeySpec] -> [Cmd.KeySpec]
+stripKeyspecs = map stripm . stripDrag . stripRepeatable
     where
-    strip_drag mods
-        | any is_drag mods = filter is_drag mods
+    stripDrag mods
+        | any isDrag mods = filter isDrag mods
         | otherwise = mods
-    is_drag (Cmd.KeySpec _ (Cmd.Drag {})) = True
-    is_drag _ = False
-    strip_repeatable mods
-        | any is_repeatable mods = filter is_repeatable mods
+    isDrag (Cmd.KeySpec _ (Cmd.Drag {})) = True
+    isDrag _ = False
+    stripRepeatable mods
+        | any isRepeatable mods = filter isRepeatable mods
         | otherwise = mods
-    is_repeatable (Cmd.KeySpec _ (Cmd.Key is_repeat _)) = is_repeat
-    is_repeatable _ = False
+    isRepeatable (Cmd.KeySpec _ (Cmd.Key isRepeat _)) = isRepeat
+    isRepeatable _ = False
     stripm (Cmd.KeySpec mods bindable) =
-        Cmd.KeySpec (Set.fromList (strip_mods bindable (Set.toList mods)))
+        Cmd.KeySpec (Set.fromList (stripMods bindable (Set.toList mods)))
             bindable
 
 -- | Strip out redundant modifiers.  E.g. Click and Drag bindings by necessity
 -- imply that the mouse button is down, but I don't need to print that out.
-strip_mods :: Cmd.Bindable -> [Cmd.Modifier] -> [Cmd.Modifier]
-strip_mods bindable mods = case bindable of
+stripMods :: Cmd.Bindable -> [Cmd.Modifier] -> [Cmd.Modifier]
+stripMods bindable mods = case bindable of
     Cmd.Click {} -> stripped
     Cmd.Drag {} -> stripped
     _ -> mods
     where
-    stripped = filter (not . is_mouse) mods
-    is_mouse (Cmd.MouseMod {}) = True
-    is_mouse _ = False
+    stripped = filter (not . isMouse) mods
+    isMouse (Cmd.MouseMod {}) = True
+    isMouse _ = False
 
 -- * txt fmt
 
-txt_fmt :: Binds -> Text
-txt_fmt = Text.unlines . map (uncurry show_binding)
+txtFmt :: Binds -> Text
+txtFmt = Text.unlines . map (uncurry showBinding)
 
-show_binding :: Text -> [Cmd.KeySpec] -> Text
-show_binding name keyspecs = Texts.join2 " - " mods name
+showBinding :: Text -> [Cmd.KeySpec] -> Text
+showBinding name keyspecs = Texts.join2 " - " mods name
     where mods = "[" <> Text.intercalate ", " (map pretty keyspecs) <> "]"
 
 -- * html fmt
 
-html_fmt :: Text -> Binds -> Text
-html_fmt title binds = columns title 3 (map (uncurry html_binding) binds)
+htmlFmt :: Text -> Binds -> Text
+htmlFmt title binds = columns title 3 (map (uncurry htmlBinding) binds)
 
 columns :: Text -> Int -> [Text] -> Text
 columns title n contents = Text.unlines $
@@ -131,9 +131,9 @@ columns title n contents = Text.unlines $
     ++ ["</tr>", "</table>"]
     where
     size = fromIntegral (length contents) / fromIntegral n
-    tables = map fmt_table (chunk (ceiling size) contents)
-    fmt_table rows = Text.unlines $ ["<table>"] ++ fmt_rows rows ++ ["</table>"]
-    fmt_rows rows =
+    tables = map fmtTable (chunk (ceiling size) contents)
+    fmtTable rows = Text.unlines $ ["<table>"] ++ fmtRows rows ++ ["</table>"]
+    fmtRows rows =
         [ txt $ Printf.printf "<tr bgcolor=%s> %s </tr>" (color :: String)
             (untxt row)
         | (color, row) <- zip (cycle ["white", "#dddddd"]) rows
@@ -144,13 +144,13 @@ chunk _ [] = []
 chunk n xs = c : chunk n rest
     where (c, rest) = splitAt n xs
 
-html_binding :: Text -> [Cmd.KeySpec] -> Text
-html_binding name keyspecs =
+htmlBinding :: Text -> [Cmd.KeySpec] -> Text
+htmlBinding name keyspecs =
     "<td>" <> mods <> "</td> <td> <em>" <> name <> "</em> </td>"
-    where mods = Text.intercalate ", " (map html_keyspec keyspecs)
+    where mods = Text.intercalate ", " (map htmlKeyspec keyspecs)
 
-html_keyspec :: Cmd.KeySpec -> Text
-html_keyspec (Cmd.KeySpec mods bindable) =
-    Texts.join2 " " (show_mods mods)
-        ("<b>" <> Cmd.show_bindable False bindable <> "</b>")
-    where show_mods = Text.intercalate " + " . map Cmd.show_mod . Set.toList
+htmlKeyspec :: Cmd.KeySpec -> Text
+htmlKeyspec (Cmd.KeySpec mods bindable) =
+    Texts.join2 " " (showMods mods)
+        ("<b>" <> Cmd.showBindable False bindable <> "</b>")
+    where showMods = Text.intercalate " + " . map Cmd.showMod . Set.toList

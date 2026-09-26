@@ -16,13 +16,13 @@
     orphans.
 -}
 module Derive.Call.BlockUtil (
-    note_deriver, control_deriver
-    , capture_null_control
-    , derive_tracks
-    , has_top_tempo_track
+    noteDeriver, controlDeriver
+    , captureNullControl
+    , deriveTracks
+    , hasTopTempoTrack
 
 #ifdef TESTING
-    , derive_tree
+    , deriveTree
 #endif
 ) where
 import qualified Data.Text as Text
@@ -63,20 +63,20 @@ import           Global
 import           Types
 
 
-note_deriver :: BlockId -> Derive.NoteDeriver
-note_deriver block_id = do
-    (tree, block_range) <- Derive.eval_ui $
-        (,) <$> TrackTree.block_events_tree block_id
-            <*> Ui.block_logical_range block_id
-    with_per_block_state (snd block_range) $ derive_tree block_range tree
+noteDeriver :: BlockId -> Derive.NoteDeriver
+noteDeriver blockId = do
+    (tree, blockRange) <- Derive.evalUi $
+        (,) <$> TrackTree.blockEventsTree blockId
+            <*> Ui.blockLogicalRange blockId
+    withPerBlockState (snd blockRange) $ deriveTree blockRange tree
 
 -- | Reset Dynamic state for a new block.
-with_per_block_state :: TrackTime -> Derive.Deriver a -> Derive.Deriver a
-with_per_block_state end = clear . Derive.with_val EnvKey.block_end end
+withPerBlockState :: TrackTime -> Derive.Deriver a -> Derive.Deriver a
+withPerBlockState end = clear . Derive.withVal EnvKey.blockEnd end
     where
     clear = Internal.local $ \state -> state
-        { Derive.state_note_track = Nothing
-        , Derive.state_pitch_map = Nothing -- set by 'with_pitch_map' below
+        { Derive.stateNoteTrack = Nothing
+        , Derive.statePitchMap = Nothing -- set by 'with_pitch_map' below
         }
 
 -- * control deriver
@@ -87,124 +87,124 @@ with_per_block_state end = clear . Derive.with_val EnvKey.block_end end
 -- met, a fake note track will be appended to make this a valid note block,
 -- with a single note event whose only job is to collect the the default
 -- control.
-control_deriver :: BlockId -> Ui.StateId Derive.ControlDeriver
-control_deriver block_id = do
-    tree <- TrackTree.block_events_tree block_id
-    block_range <- Ui.block_logical_range block_id
-    case check_control_tree (snd block_range) tree of
+controlDeriver :: BlockId -> Ui.StateId Derive.ControlDeriver
+controlDeriver blockId = do
+    tree <- TrackTree.blockEventsTree blockId
+    blockRange <- Ui.blockLogicalRange blockId
+    case checkControlTree (snd blockRange) tree of
         Left err -> Ui.throw $ "control block skeleton malformed: " <> err
-        Right tree -> pure $ with_per_block_state (snd block_range) $
-            derive_control_tree block_range tree
+        Right tree -> pure $ withPerBlockState (snd blockRange) $
+            deriveControlTree blockRange tree
 
 -- | Name of the call for the control deriver hack.
-capture_null_control :: Expr.Symbol
-capture_null_control = "capture-null-control"
+captureNullControl :: Expr.Symbol
+captureNullControl = "capture-null-control"
 
 -- | Ensure the tree meets the requirements documented by 'control_deriver'
 -- and append the fake note track if it does.
-check_control_tree :: ScoreTime -> TrackTree.EventsTree
+checkControlTree :: ScoreTime -> TrackTree.EventsTree
     -> Either Text TrackTree.EventsTree
-check_control_tree block_end forest = case forest of
+checkControlTree blockEnd forest = case forest of
     [] -> Left "empty block"
     [Tree.Node track []]
-        | TrackTree.track_title track == "%" ->
-            Right [Tree.Node track [Tree.Node capture_track []]]
+        | TrackTree.trackTitle track == "%" ->
+            Right [Tree.Node track [Tree.Node captureTrack []]]
         | otherwise -> Left $ "skeleton must end in % track, ends with "
-            <> showt (TrackTree.track_title track)
+            <> showt (TrackTree.trackTitle track)
     [Tree.Node track subs] -> do
-        subs <- check_control_tree block_end subs
+        subs <- checkControlTree blockEnd subs
         pure [Tree.Node track subs]
     tracks -> Left $ "skeleton must have only a single branch, "
         <> "but there are multiple children: "
-        <> showt (map (TrackTree.track_title . Tree.rootLabel) tracks)
+        <> showt (map (TrackTree.trackTitle . Tree.rootLabel) tracks)
     where
     events = Events.singleton $
-        Event.event 0 block_end (Expr.unsym capture_null_control)
-    capture_track = TrackTree.make_track ">" events block_end
+        Event.event 0 blockEnd (Expr.unsym captureNullControl)
+    captureTrack = TrackTree.makeTrack ">" events blockEnd
 
-derive_control_tree :: (ScoreTime, ScoreTime) -> TrackTree.EventsTree
+deriveControlTree :: (ScoreTime, ScoreTime) -> TrackTree.EventsTree
     -> Derive.ControlDeriver
-derive_control_tree block_range tree = do
+deriveControlTree blockRange tree = do
     -- There are an awful lot of things that can go wrong.  I guess that's why
     -- this is a hack.
-    events <- derive_tree block_range tree
+    events <- deriveTree blockRange tree
     case Stream.partition events of
-        ([event], logs) -> case Score.event_control Controls.null event of
+        ([event], logs) -> case Score.eventControl Controls.null event of
             Nothing -> Derive.throw "control call didn't emit Controls.null"
-            Just signal -> pure $ Stream.from_sorted_list $
+            Just signal -> pure $ Stream.fromSortedList $
                 -- The calling control itself will be providing the type since
                 -- types are at the level of the signal as a whole.
-                LEvent.Event (ScoreT.val_of signal) : map LEvent.Log logs
+                LEvent.Event (ScoreT.valOf signal) : map LEvent.Log logs
         (events, logs) -> do
             msg <- complain events
-            pure $ Stream.from_logs $ msg : logs
+            pure $ Stream.fromLogs $ msg : logs
     where
     -- Or I could throw, but this way any other logs the block emitted will
     -- also be visible, and they might have something interesting.
-    complain events = Derive.initialize_log_msg $ Log.msg Log.Warn Nothing $
+    complain events = Derive.initializeLogMsg $ Log.msg Log.Warn Nothing $
         "control call should have emitted a single call to "
-        <> ShowVal.show_val capture_null_control
+        <> ShowVal.showVal captureNullControl
         <> " which produces a single event, but got events: " <> showt events
 
 -- ** implementation
 
-derive_tree :: (ScoreTime, ScoreTime) -> TrackTree.EventsTree
+deriveTree :: (ScoreTime, ScoreTime) -> TrackTree.EventsTree
     -> Derive.NoteDeriver
-derive_tree block_range tree
-    | Just node <- has_top_tempo_track tree = derive_track True node
+deriveTree blockRange tree
+    | Just node <- hasTopTempoTrack tree = deriveTrack True node
     | otherwise = do
         -- Every block must have a tempo track as the topmost track.  This is
         -- because Tempo.with_tempo sets up some stuff that every block needs,
         -- and because I need a TrackWarp for the tracks below.
-        tempo <- get_tempo
-        Tempo.with_tempo True (Just block_range) Nothing (Signal.constant tempo)
-            (derive_tracks tree)
+        tempo <- getTempo
+        Tempo.withTempo True (Just blockRange) Nothing (Signal.constant tempo)
+            (deriveTracks tree)
     where
-    get_tempo = Derive.lookup_val EnvKey.tempo >>= \case
-        Nothing -> Derive.get_ui_config $
-            UiConfig.default_tempo . UiConfig.config_default
+    getTempo = Derive.lookupVal EnvKey.tempo >>= \case
+        Nothing -> Derive.getUiConfig $
+            UiConfig.defaultTempo . UiConfig.configDefault
         Just tempo -> pure tempo
 
 -- | Derive an EventsTree.
-derive_tracks :: TrackTree.EventsTree -> Derive.NoteDeriver
-derive_tracks = mconcatMap (derive_track False)
+deriveTracks :: TrackTree.EventsTree -> Derive.NoteDeriver
+deriveTracks = mconcatMap (deriveTrack False)
 
 -- | Derive a single track node and any tracks below it.
-derive_track :: Bool -- ^ True if this is the single topmost track and is
+deriveTrack :: Bool -- ^ True if this is the single topmost track and is
     -- a tempo track.  Ultimately this flag gets threaded all the way down to
     -- "Derive.Tempo".
     -> TrackTree.EventsNode -> Derive.NoteDeriver
-derive_track toplevel node@(Tree.Node track subs)
-    | Parse.comment `Text.isPrefixOf` TrackTree.track_title track = mempty
-    | ParseTitle.is_note_track (TrackTree.track_title track) =
-        with_stack $ Cache.track track (TrackTree.track_children node) $ do
-            events <- with_voice track $ with_pitch_map track subs $
-                maybe id with_note_track (TrackTree.track_id track) $
-                Note.d_note_track derive_tracks node
-            when (TrackTree.track_sliced track == TrackTree.NotSliced)
+deriveTrack toplevel node@(Tree.Node track subs)
+    | Parse.comment `Text.isPrefixOf` TrackTree.trackTitle track = mempty
+    | ParseTitle.isNoteTrack (TrackTree.trackTitle track) =
+        withStack $ Cache.track track (TrackTree.trackChildren node) $ do
+            events <- withVoice track $ withPitchMap track subs $
+                maybe id withNoteTrack (TrackTree.trackId track) $
+                Note.dNoteTrack deriveTracks node
+            when (TrackTree.trackSliced track == TrackTree.NotSliced)
                 defragment
-            mapM_ (Note.stash_signal_if_wanted events)
-                (note_signal_tracks track subs)
+            mapM_ (Note.stashSignalIfWanted events)
+                (noteSignalTracks track subs)
             pure events
-    | otherwise = with_stack $
-        Control.d_control_track (Control.Config toplevel True) track
-            (derive_tracks subs)
+    | otherwise = withStack $
+        Control.dControlTrack (Control.Config toplevel True) track
+            (deriveTracks subs)
     where
-    with_voice = maybe id (Derive.with_val EnvKey.track_voice)
-        . TrackTree.track_voice
+    withVoice = maybe id (Derive.withVal EnvKey.trackVoice)
+        . TrackTree.trackVoice
     defragment = do
-        warp <- Internal.get_warp
-        Internal.modify_collect $ EvalTrack.defragment_track_signals warp
-    with_stack = maybe id Internal.with_stack_track (TrackTree.track_id track)
+        warp <- Internal.getWarp
+        Internal.modifyCollect $ EvalTrack.defragmentTrackSignals warp
+    withStack = maybe id Internal.withStackTrack (TrackTree.trackId track)
 
-with_note_track :: TrackId -> Derive.Deriver a -> Derive.Deriver a
-with_note_track track_id deriver = do
-    maybe_block_id <- msum . map Stack.block_of . Stack.innermost <$>
-        Internal.get_stack
-    maybe id with maybe_block_id deriver
+withNoteTrack :: TrackId -> Derive.Deriver a -> Derive.Deriver a
+withNoteTrack trackId deriver = do
+    maybeBlockId <- msum . map Stack.blockOf . Stack.innermost <$>
+        Internal.getStack
+    maybe id with maybeBlockId deriver
     where
-    with block_id = Internal.local $ \state -> state
-        { Derive.state_note_track = Just (block_id, track_id) }
+    with blockId = Internal.local $ \state -> state
+        { Derive.stateNoteTrack = Just (blockId, trackId) }
 
 -- | Extract tracks that might want to stash a signal.
 --
@@ -214,77 +214,77 @@ with_note_track track_id deriver = do
 -- non-orphan sections.  At the moment it seems simpler to collect all the
 -- events of the whole set of tracks and consider them the output of all of
 -- them.
-note_signal_tracks :: TrackTree.Track -> TrackTree.EventsTree
+noteSignalTracks :: TrackTree.Track -> TrackTree.EventsTree
     -> [TrackTree.Track]
-note_signal_tracks track subs = case TrackTree.track_sliced track of
-    TrackTree.NotSliced -> track : filter is_note (concatMap Tree.flatten subs)
+noteSignalTracks track subs = case TrackTree.trackSliced track of
+    TrackTree.NotSliced -> track : filter isNote (concatMap Tree.flatten subs)
     _ -> []
-    where is_note = ParseTitle.is_note_track . TrackTree.track_title
+    where isNote = ParseTitle.isNoteTrack . TrackTree.trackTitle
 
 -- | The tempo track, if the top level track is a tempo track.
-has_top_tempo_track :: [Tree.Tree TrackTree.Track]
+hasTopTempoTrack :: [Tree.Tree TrackTree.Track]
     -> Maybe (Tree.Tree TrackTree.Track)
-has_top_tempo_track tree = case tree of
-    [node@(Tree.Node track _)] | is_tempo track -> Just node
+hasTopTempoTrack tree = case tree of
+    [node@(Tree.Node track _)] | isTempo track -> Just node
     _ -> Nothing
     where
-    is_tempo = ParseTitle.is_tempo_track . TrackTree.track_title
+    isTempo = ParseTitle.isTempoTrack . TrackTree.trackTitle
 
 -- * track pitch map
 
 -- | Given an event track, look for a pitch track below it, and derive it
 -- standalone.  If there is none, then take 'Derive.state_pitch'.  Put this
 -- into 'Derive.state_pitch_map'.
-with_pitch_map :: TrackTree.Track -> TrackTree.EventsTree -> Derive.Deriver a
+withPitchMap :: TrackTree.Track -> TrackTree.EventsTree -> Derive.Deriver a
     -> Derive.Deriver a
-with_pitch_map track subs deriver = case TrackTree.track_sliced track of
+withPitchMap track subs deriver = case TrackTree.trackSliced track of
     TrackTree.NotSliced -> do
-        pmap <- get_pitch_map subs
-        Internal.local (\state -> state { Derive.state_pitch_map = Just pmap })
+        pmap <- getPitchMap subs
+        Internal.local (\state -> state { Derive.statePitchMap = Just pmap })
             deriver
     _ -> deriver
 
-get_pitch_map :: TrackTree.EventsTree
+getPitchMap :: TrackTree.EventsTree
     -> Derive.Deriver (Maybe PSignal.PSignal, [Log.Msg])
-get_pitch_map subs = case pitch_map_track subs of
-    Just pitch_track -> do
+getPitchMap subs = case pitchMapTrack subs of
+    Just pitchTrack -> do
         state <- Derive.get
-        pure $ derive_pitch_map state pitch_track
+        pure $ derivePitchMap state pitchTrack
     Nothing -> do
-        sig <- Internal.get_dynamic Derive.state_pitch
+        sig <- Internal.getDynamic Derive.statePitch
         pure (Just sig, [])
 
 -- | Derive the given pitch track lazily.
 --
 -- It uses a hack similar to control blocks, e.g. 'derive_control_tree'.
-derive_pitch_map :: Derive.State -> TrackTree.Track
+derivePitchMap :: Derive.State -> TrackTree.Track
     -> (Maybe PSignal.PSignal, [Log.Msg])
-derive_pitch_map state pitch_track = case result of
+derivePitchMap state pitchTrack = case result of
     Right sig -> (Just sig, logs)
-    Left err -> (Nothing, Derive.error_to_warn err : logs)
+    Left err -> (Nothing, Derive.errorToWarn err : logs)
     where
-    (result, _, logs) = Derive.run stripped (derive pitch_track)
+    (result, _, logs) = Derive.run stripped (derive pitchTrack)
     stripped = state
-        { Derive.state_dynamic = (Derive.state_dynamic state)
+        { Derive.stateDynamic = (Derive.stateDynamic state)
             -- As documented by 'Derive.state_pitch_map'.
-            { Derive.state_pitch_map = Nothing }
+            { Derive.statePitchMap = Nothing }
         }
-    derive pitch_track = do
-        (events, logs) <- Stream.partition <$> Internal.in_real_time
-            (Control.d_control_track config pitch_track capture)
+    derive pitchTrack = do
+        (events, logs) <- Stream.partition <$> Internal.inRealTime
+            (Control.dControlTrack config pitchTrack capture)
         mapM_ Log.write logs
         Derive.require "get_pitch_map: no event" $
-            Score.event_pitch <$> Lists.head events
+            Score.eventPitch <$> Lists.head events
     config = Control.Config
-        { config_toplevel_tempo = False
-        , config_use_cache = False
+        { configToplevelTempo = False
+        , configUseCache = False
         }
     capture :: Derive.NoteDeriver
     capture = do
-        pitch <- Internal.get_dynamic Derive.state_pitch
-        pure $ Stream.from_event $
-            Score.empty_event { Score.event_pitch = pitch }
+        pitch <- Internal.getDynamic Derive.statePitch
+        pure $ Stream.fromEvent $
+            Score.emptyEvent { Score.eventPitch = pitch }
 
-pitch_map_track :: TrackTree.EventsTree -> Maybe TrackTree.Track
-pitch_map_track = fmap Tree.rootLabel . Trees.find is_pitch
-    where is_pitch = ParseTitle.is_pitch_track . TrackTree.track_title
+pitchMapTrack :: TrackTree.EventsTree -> Maybe TrackTree.Track
+pitchMapTrack = fmap Tree.rootLabel . Trees.find isPitch
+    where isPitch = ParseTitle.isPitchTrack . TrackTree.trackTitle

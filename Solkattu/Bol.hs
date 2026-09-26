@@ -77,9 +77,9 @@ instance Solkattu.Notation Bol where
 instance Pretty Bol where pretty = Solkattu.notationText
 
 instance Expr.ToExpr Bol where
-    to_expr = Expr.generator0 . Expr.Symbol . pretty
+    toExpr = Expr.generator0 . Expr.Symbol . pretty
 instance Expr.ToExpr (Realize.Stroke Bol) where
-    to_expr = Realize.toExpr
+    toExpr = Realize.toExpr
 
 instance Solkattu.Abbreviations Bol where abbreviations = const Nothing
 

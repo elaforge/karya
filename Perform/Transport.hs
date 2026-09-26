@@ -10,12 +10,12 @@ module Perform.Transport (
     -- * info
     Status(..), Info(..)
     -- * play control
-    , PlayControl(..), play_control
-    , stop_player, poll_stop_player
+    , PlayControl(..), playControl
+    , stopPlayer, pollStopPlayer
     -- * play monitor control
-    , ActivePlayers, active_players
-    , player_started, player_stopped
-    , poll_player_stopped, wait_player_stopped
+    , ActivePlayers, activePlayers
+    , playerStarted, playerStopped
+    , pollPlayerStopped, waitPlayerStopped
     -- * play timing
     , TempoFunction, ClosestWarpFunction, InverseTempoFunction, Stop(..)
 ) where
@@ -44,18 +44,18 @@ instance Pretty Status where pretty = showt
 -- is started, it's incorporated into the play 'Perform.Midi.Play.State'.
 data Info = Info
     -- | Send status messages back to the responder loop.
-    { info_send_status :: Status -> IO ()
-    , info_midi_writer :: Interface.Message -> IO ()
+    { infoSendStatus :: Status -> IO ()
+    , infoMidiWriter :: Interface.Message -> IO ()
     -- | Action that will abort any pending midi msgs written with the midi
     -- writer.
-    , info_midi_abort :: IO ()
+    , infoMidiAbort :: IO ()
     -- | Get current RealTime according to timing system.
-    , info_get_current_time :: IO RealTime
+    , infoGetCurrentTime :: IO RealTime
     -- | A mutable map of the currently active views, so the responder can
     -- tell the play monitor thread which views are currently opened.  It needs
     -- this so if you open a new view while it's playing, it can put the play
     -- selection on that view.
-    , info_state :: MVar.MVar Ui.State
+    , infoState :: MVar.MVar Ui.State
     }
 
 -- * play control
@@ -64,43 +64,43 @@ data Info = Info
 newtype PlayControl = PlayControl Thread.Flag
     deriving (Eq, Show)
 
-play_control :: IO PlayControl
-play_control = PlayControl <$> Thread.flag
+playControl :: IO PlayControl
+playControl = PlayControl <$> Thread.flag
 
 -- | Signal to the player that you'd like it to start stopping doing whatever
 -- it is that it's doing and just like stop now ok?  Is that ok?
-stop_player :: PlayControl -> IO ()
-stop_player (PlayControl flag) = Thread.set flag
+stopPlayer :: PlayControl -> IO ()
+stopPlayer (PlayControl flag) = Thread.set flag
 
-poll_stop_player :: Thread.Seconds -> PlayControl -> IO Bool
-poll_stop_player timeout (PlayControl flag) = Thread.poll timeout flag
+pollStopPlayer :: Thread.Seconds -> PlayControl -> IO Bool
+pollStopPlayer timeout (PlayControl flag) = Thread.poll timeout flag
 
 -- * play monitor control
 
 -- | Number of active players, this goes to zero when they are all complete.
 newtype ActivePlayers = ActivePlayers (TVar.TVar Int)
 
-active_players :: IO ActivePlayers
-active_players = ActivePlayers <$> TVar.newTVarIO 0
+activePlayers :: IO ActivePlayers
+activePlayers = ActivePlayers <$> TVar.newTVarIO 0
 
-player_started :: ActivePlayers -> IO ()
-player_started (ActivePlayers running) =
+playerStarted :: ActivePlayers -> IO ()
+playerStarted (ActivePlayers running) =
     STM.atomically $ TVar.modifyTVar' running (+1)
 
 -- | Signal that a player has stopped.
-player_stopped :: ActivePlayers -> IO ()
-player_stopped (ActivePlayers running) =
+playerStopped :: ActivePlayers -> IO ()
+playerStopped (ActivePlayers running) =
     STM.atomically $ TVar.modifyTVar' running (subtract 1)
 
 -- | True if all the players have stopped.
-poll_player_stopped :: Thread.Seconds -> ActivePlayers -> IO Bool
-poll_player_stopped timeout ctl@(ActivePlayers running)
+pollPlayerStopped :: Thread.Seconds -> ActivePlayers -> IO Bool
+pollPlayerStopped timeout ctl@(ActivePlayers running)
     | timeout <= 0 = (<=0) <$> TVar.readTVarIO running
     | otherwise = maybe False (const True) <$>
-        Thread.timeout timeout (wait_player_stopped ctl)
+        Thread.timeout timeout (waitPlayerStopped ctl)
 
-wait_player_stopped :: ActivePlayers -> IO ()
-wait_player_stopped (ActivePlayers running) = STM.atomically $ do
+waitPlayerStopped :: ActivePlayers -> IO ()
+waitPlayerStopped (ActivePlayers running) = STM.atomically $ do
     val <- STM.readTVar running
     if val <= 0 then pure () else STM.retry
 

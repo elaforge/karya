@@ -5,7 +5,7 @@
 {- | Derive events on a note track.  This is the Derive equivalent of
     "Cmd.NoteTrack", but has a different name to avoid clashes.
 -}
-module Derive.Note (d_note_track, stash_signal_if_wanted, track_info) where
+module Derive.Note (dNoteTrack, stashSignalIfWanted, trackInfo) where
 import qualified Data.Char as Char
 import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Text as Text
@@ -34,77 +34,77 @@ import           Types
 -- * note track
 
 -- | Top level deriver for note tracks.
-{-# SCC d_note_track #-}
-d_note_track :: ([TrackTree.EventsNode] -> Derive.NoteDeriver)
+{-# SCC dNoteTrack #-}
+dNoteTrack :: ([TrackTree.EventsNode] -> Derive.NoteDeriver)
     -- ^ This is used to derive orphans, as documented by
     -- 'EvalTrack.derive_note_track'.
     -> TrackTree.EventsNode -> Derive.NoteDeriver
-d_note_track derive_tracks (Tree.Node track subs) =
-    title $ derive_notes derive_tracks (track_info track subs)
+dNoteTrack deriveTracks (Tree.Node track subs) =
+    title $ deriveNotes deriveTracks (trackInfo track subs)
     where
-    title = with_title subs (TrackTree.track_end track)
-        (TrackTree.track_title track)
+    title = withTitle subs (TrackTree.trackEnd track)
+        (TrackTree.trackTitle track)
 
 -- | Note tracks can also have track signals, extracted from the events they
 -- produce.
-stash_signal_if_wanted :: Stream.Stream Score.Event -> TrackTree.Track
+stashSignalIfWanted :: Stream.Stream Score.Event -> TrackTree.Track
     -> Derive.Deriver ()
-stash_signal_if_wanted events track =
-    whenJustM (Control.render_of track) $ \(block_id, track_id, maybe_source) ->
-        whenJust maybe_source $ \source ->
-            stash_signal block_id track_id source events
+stashSignalIfWanted events track =
+    whenJustM (Control.renderOf track) $ \(blockId, trackId, maybeSource) ->
+        whenJust maybeSource $ \source ->
+            stashSignal blockId trackId source events
 
-stash_signal :: BlockId -> TrackId -> Track.RenderSource
+stashSignal :: BlockId -> TrackId -> Track.RenderSource
     -> Stream.Stream Score.Event -> Derive.Deriver ()
-stash_signal block_id track_id source events =
-    Control.stash_signal block_id track_id $
-        extract_track_signal source (Stream.events_of events)
+stashSignal blockId trackId source events =
+    Control.stashSignal blockId trackId $
+        extractTrackSignal source (Stream.eventsOf events)
 
 -- | Extract the signals that 'Track.RenderSource' wants, trim them, and concat
 -- into a single unwarped signal that can be stashed away for later display.
-extract_track_signal :: Track.RenderSource -> [Score.Event] -> Signal.Control
-extract_track_signal source events = mconcat $ case source of
-    Track.Control control -> mapMaybe (extract_control control) events
-    Track.Pitch control -> mapMaybe (extract_pitch control) events
+extractTrackSignal :: Track.RenderSource -> [Score.Event] -> Signal.Control
+extractTrackSignal source events = mconcat $ case source of
+    Track.Control control -> mapMaybe (extractControl control) events
+    Track.Pitch control -> mapMaybe (extractPitch control) events
     where
     -- Since these signals will be concatenated into one signal, I don't
     -- want one event's control at 0 to wipe out the previous events.
-    extract_control control event =
-        Signal.clip_before (Score.event_min event) . ScoreT.val_of <$>
-            Score.event_control control event
-    extract_pitch pcontrol event =
-        convert event <$> Score.event_named_pitch pcontrol event
-    convert event psig = Signal.coerce $ fst $ PSignal.to_nn $
-        PSignal.clip_before (Score.event_min event) $
-        PSignal.apply_controls (Score.event_controls event) psig
+    extractControl control event =
+        Signal.clipBefore (Score.eventMin event) . ScoreT.valOf <$>
+            Score.eventControl control event
+    extractPitch pcontrol event =
+        convert event <$> Score.eventNamedPitch pcontrol event
+    convert event psig = Signal.coerce $ fst $ PSignal.toNn $
+        PSignal.clipBefore (Score.eventMin event) $
+        PSignal.applyControls (Score.eventControls event) psig
 
-with_title :: TrackTree.EventsTree -> ScoreTime -> Text -> Derive.NoteDeriver
+withTitle :: TrackTree.EventsTree -> ScoreTime -> Text -> Derive.NoteDeriver
     -> Derive.NoteDeriver
-with_title subs end title deriver
+withTitle subs end title deriver
     | Text.all Char.isSpace title = deriver
     | otherwise = do
-        track_expr <- Derive.require_right ("track title: "<>) $
-            ParseTitle.parse_note title
-        Eval.eval_transformers ctx (NonEmpty.toList track_expr) deriver
+        trackExpr <- Derive.requireRight ("track title: "<>) $
+            ParseTitle.parseNote title
+        Eval.evalTransformers ctx (NonEmpty.toList trackExpr) deriver
     where
-    ctx = (Derive.dummy_context 0 end "note track")
-        { Derive.ctx_sub_tracks = subs }
+    ctx = (Derive.dummyContext 0 end "note track")
+        { Derive.ctxSubTracks = subs }
 
-derive_notes :: ([TrackTree.EventsNode] -> Derive.NoteDeriver)
+deriveNotes :: ([TrackTree.EventsNode] -> Derive.NoteDeriver)
     -> EvalTrack.TrackInfo Score.Event -> Derive.NoteDeriver
-derive_notes derive_tracks tinfo = do
+deriveNotes deriveTracks tinfo = do
     state <- Derive.get
     let (streams, threaded, collect) =
-            EvalTrack.derive_note_track derive_tracks state tinfo
-    Internal.merge_collect collect
-    Internal.set_threaded threaded
-    pure $ Stream.merge_asc_lists streams
+            EvalTrack.deriveNoteTrack deriveTracks state tinfo
+    Internal.mergeCollect collect
+    Internal.setThreaded threaded
+    pure $ Stream.mergeAscLists streams
 
-track_info :: TrackTree.Track -> [TrackTree.EventsNode]
+trackInfo :: TrackTree.Track -> [TrackTree.EventsNode]
     -> EvalTrack.TrackInfo Score.Event
-track_info track subs = EvalTrack.TrackInfo
-    { tinfo_track = track
-    , tinfo_sub_tracks = subs
-    , tinfo_type = ParseTitle.NoteTrack
-    , tinfo_get_last_val = Lists.last
+trackInfo track subs = EvalTrack.TrackInfo
+    { tinfoTrack = track
+    , tinfoSubTracks = subs
+    , tinfoType = ParseTitle.NoteTrack
+    , tinfoGetLastVal = Lists.last
     }

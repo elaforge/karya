@@ -17,7 +17,7 @@ import Types
 test_events_around :: Test
 test_events_around = do
     let f evts start end = CmdTest.extract (extract . head) $
-            run_sel Selection.events_around evts start end
+            runSel Selection.eventsAround evts start end
         extract (_, (pre, within, post)) =
             (map Event.start pre, map Event.start within, map Event.start post)
     equal (f [(0, 2), (2, 2)] 1 1) $ Right (Just ([], [0], [2]), [])
@@ -37,12 +37,12 @@ test_events_around = do
     -- Otherwise, use selection orientation.
     equal (f [(0, 2), (6, -2)] 4 4) $ Right (Just ([], [0], [6]), [])
 
-run_sel :: Cmd.CmdId a -> [(ScoreTime, ScoreTime)] -> ScoreTime -> ScoreTime
+runSel :: Cmd.CmdId a -> [(ScoreTime, ScoreTime)] -> ScoreTime -> ScoreTime
     -> CmdTest.Result a
-run_sel cmd events start end =
-    CmdTest.run_tracks_ruler [(">", start_dur_events events)] $ do
-        CmdTest.set_sel 1 start 1 end
+runSel cmd events start end =
+    CmdTest.runTracksRuler [(">", startDurEvents events)] $ do
+        CmdTest.setSel 1 start 1 end
         cmd
 
-start_dur_events :: [(ScoreTime, ScoreTime)] -> [UiTest.EventSpec]
-start_dur_events specs = [(p, d, pretty p) | (p, d) <- specs]
+startDurEvents :: [(ScoreTime, ScoreTime)] -> [UiTest.EventSpec]
+startDurEvents specs = [(p, d, pretty p) | (p, d) <- specs]

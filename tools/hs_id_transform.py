@@ -84,8 +84,11 @@ def transform(name, qualified):
     'qualified' is True if the name is preceded by a module qualifier, as the
     'x' in 'M.x'.  The 'M' itself is a separate unqualified identifier.
     """
-    # return replace_word(name, 'return', 'pure') if not qualified else name
+    # if not qualified:
+    #     return replace_word(name, 'expect_right', 'expectRight')
+    # if qualified:
     return to_camel(name)
+    return name
 
 
 def replace_word(name, word, replacement):
@@ -94,11 +97,7 @@ def replace_word(name, word, replacement):
 
 def to_camel(name):
     """some_name -> someName, leaving leading and trailing _ alone."""
-    if name[:1].isupper(): # Don't mess with module and constructor names.
-        return name
-    if name in not_to_camel:
-        return name
-    if name.startswith('test_'):
+    if not_to_camel(name):
         return name
     stripped = name.strip('_')
     if not stripped:
@@ -111,7 +110,23 @@ def to_camel(name):
         + trail
     )
 
-not_to_camel = set([
+def not_to_camel(name):
+    return (
+        name[:1].isupper()
+        or name in camel_omit
+        or name.startswith('test_')
+        or name.startswith("c'git")
+        or name.startswith("c'GIT")
+        or name.startswith("mk'git")
+        or name.endswith("_1") # c_1, cs_1, d_1, ...
+        # Midi.Key2 also has c_2, cs_2, ..., which collide with c2, cs2, ...
+        or NOTE_NAME.match(name)
+        or name.startswith("c'Pa") # portaudio bindings
+    )
+
+NOTE_NAME = re.compile(r"[a-g]s?_\d$")
+
+camel_omit = set([
     # Process uses snake for some reason.
     'std_in', 'std_out', 'std_err',
 ])

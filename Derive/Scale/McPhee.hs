@@ -25,13 +25,13 @@ data Laras = Laras
     , origin :: Text
     -- | 'hz' start on this note, relative to selisir.
     , base :: Bali.Pitch
-    , base_octave :: Pitch.Octave
+    , baseOctave :: Pitch.Octave
     , hz :: [Hz]
     } deriving (Eq, Show)
 
 extract :: Pitch.Pitch -> Pitch.Pitch -> Laras
     -> (Text, ([Pitch.NoteNumber], Doc.Doc))
-extract low high laras = (dashes sname, (hz_to_nn low high laras, doc))
+extract low high laras = (dashes sname, (hzToNn low high laras, doc))
     where
     doc
         | name laras == "6-edo" = "Theoretical 6-EDO tuning."
@@ -42,11 +42,11 @@ extract low high laras = (dashes sname, (hz_to_nn low high laras, doc))
         | otherwise = name laras
     dashes = Text.map (\c -> if c == ' ' then '-' else c)
 
-hz_to_nn :: Pitch.Pitch -> Pitch.Pitch -> Laras -> [Pitch.NoteNumber]
-hz_to_nn low high laras =
-    Bali.extend_scale (length (hz laras)) low high
-        (Pitch.pitch (base_octave laras) (base laras))
-        (map Pitch.hz_to_nn (hz laras))
+hzToNn :: Pitch.Pitch -> Pitch.Pitch -> Laras -> [Pitch.NoteNumber]
+hzToNn low high laras =
+    Bali.extendScale (length (hz laras)) low high
+        (Pitch.pitch (baseOctave laras) (base laras))
+        (map Pitch.hzToNn (hz laras))
 
 laras :: Laras
 laras = Laras "" "" "" Bali.I 4 []
@@ -59,8 +59,8 @@ laras = Laras "" "" "" Bali.I 4 []
 -- >         0   1   2   3   4   5   6
 -- > tembung I   O   E   Es  U   A   Aa
 -- > selisir U   A   As  I   O   E   Es
-saih_pitu :: [Laras]
-saih_pitu =
+saihPitu :: [Laras]
+saihPitu =
     [ s "luang" "seseh"             [276, 305, 345, 372, 410, 466, 505]
     , s "gambang" "krobokan"        [275, 305, 326, 360, 405, 440, 465]
     , s "pegulingan" "klungkung"    [325, 360, 402, 437, 490, 564, 614]

@@ -18,14 +18,14 @@ import           Global
 import           Util.Test
 
 
-profile_load = do
+profileLoad = do
     -- Check memory usage for just the state data.
-    start_mem <- Memory.rssVsize
+    startMem <- Memory.rssVsize
     state <- load "save/bloom"
-    let (state2, table) = Transform.intern_text state
-    putStrLn $ "loaded blocks: " ++ show (Map.size (Ui.state_blocks state))
-    print_memory_diff start_mem =<< Memory.rssVsize
-    let (saved, hits) = Transform.intern_stats table
+    let (state2, table) = Transform.internText state
+    putStrLn $ "loaded blocks: " ++ show (Map.size (Ui.stateBlocks state))
+    printMemoryDiff startMem =<< Memory.rssVsize
+    let (saved, hits) = Transform.internStats table
     putStrLn $ "hits: " ++ show hits ++ " saved: " ++ show saved
 
 -- Check memory usage loading a state with all the Responder machinery
@@ -36,12 +36,12 @@ profile_load = do
 load :: FilePath -> IO Ui.State
 load fname = do
     result <- Thread.printTimer ("unserialize " <> showt fname)
-        (const "") (Save.read_state_ fname)
-    pure $ expect_right result
+        (const "") (Save.readState_ fname)
+    pure $ expectRight result
 
-print_memory_diff :: (Memory.Size, Memory.Size) -> (Memory.Size, Memory.Size)
+printMemoryDiff :: (Memory.Size, Memory.Size) -> (Memory.Size, Memory.Size)
     -> IO ()
-print_memory_diff (rss1, vsz1) (rss2, vsz2) = do
+printMemoryDiff (rss1, vsz1) (rss2, vsz2) = do
     putStrLn $ "RSS: " ++ show rss1 ++ " -> " ++ show rss2 ++ " = "
         ++ show (rss2 - rss1)
     putStrLn $ "VSZ: " ++ show vsz1 ++ " -> " ++ show vsz2 ++ " = "

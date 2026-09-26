@@ -25,40 +25,40 @@ import           Util.Test
 
 test_cmd_clear_and_advance :: Test
 test_cmd_clear_and_advance = do
-    let run start end = extract . run_sel_events cmd start end
+    let run start end = extract . runSelEvents cmd start end
         cmd = do
-            Edit.cmd_clear_and_advance
+            Edit.cmdClearAndAdvance
             sel <- Selection.get
-            pure (Sel.start_pos sel, Sel.cur_pos sel)
-        extract r = (e_start_dur_text1 r, expect_right $ CmdTest.result_val r)
+            pure (Sel.startPos sel, Sel.curPos sel)
+        extract r = (eStartDurText1 r, expectRight $ CmdTest.resultVal r)
     equal (run 0 0 [(0, 1)]) (Right ([], []), Just (1, 1))
     equal (run 0 0 [(0, 0), (1, 0)]) (Right ([(1, 0, "b")], []), Just (1, 1))
     equal (run 0 1 [(0, 0), (1, 0)]) (Right ([(1, 0, "b")], []), Just (0, 1))
 
 test_extend_previous :: Test
 test_extend_previous = do
-    let run pos = extract . run_sel_events cmd pos pos
+    let run pos = extract . runSelEvents cmd pos pos
         cmd = do
-            Cmd.modify_edit_state $ \st ->
-                st { Cmd.state_note_duration = TimeStep.event_edge }
-            Edit.cmd_clear_and_advance
-        extract r = e_start_dur_text1 r
-    right_equal (run 0 [(0, 1), (1, 1)]) ([(1, 1, "b")], [])
-    right_equal (run 1 [(0, 1), (1, 1)]) ([(0, 32, "a")], [])
+            Cmd.modifyEditState $ \st ->
+                st { Cmd.stateNoteDuration = TimeStep.eventEdge }
+            Edit.cmdClearAndAdvance
+        extract r = eStartDurText1 r
+    rightEqual (run 0 [(0, 1), (1, 1)]) ([(1, 1, "b")], [])
+    rightEqual (run 1 [(0, 1), (1, 1)]) ([(0, 32, "a")], [])
     -- Don't extend if there wasn't an event to delete!
-    right_equal (run 1 [(0, 1)]) ([(0, 1, "a")], [])
+    rightEqual (run 1 [(0, 1)]) ([(0, 1, "a")], [])
     -- Don't extend if it doesn't touch.
-    right_equal (run 1 [(0, 0), (1, 1)]) ([(0, 0, "a")], [])
-    right_equal (run 1 [(0, 0.5), (1, 1)]) ([(0, 0.5, "a")], [])
+    rightEqual (run 1 [(0, 0), (1, 1)]) ([(0, 0, "a")], [])
+    rightEqual (run 1 [(0, 0.5), (1, 1)]) ([(0, 0.5, "a")], [])
     -- Negative goes the other way.
-    right_equal (run (-2) [(1, -1), (2, -1)]) ([(1, -1, "a")], [])
-    right_equal (run (-1) [(1, -1), (2, -1)]) ([(2, -2, "b")], [])
-    right_equal (run (-1) [(1, -1), (2, -0.5)]) ([(2, -0.5, "b")], [])
+    rightEqual (run (-2) [(1, -1), (2, -1)]) ([(1, -1, "a")], [])
+    rightEqual (run (-1) [(1, -1), (2, -1)]) ([(2, -2, "b")], [])
+    rightEqual (run (-1) [(1, -1), (2, -0.5)]) ([(2, -0.5, "b")], [])
 
 test_split_events :: Test
 test_split_events = do
-    let run sel = e_start_dur1
-            . run_sel_events Edit.cmd_split_events sel sel
+    let run sel = eStartDur1
+            . runSelEvents Edit.cmdSplitEvents sel sel
     equal (run 0 [(0, 4)]) $ Right ([(0, 4)], [])
     equal (run 2 [(0, 4)]) $ Right ([(0, 2), (2, 2)], [])
     equal (run 3 [(2, 2)]) $ Right ([(2, 1), (3, 1)], [])
@@ -71,8 +71,8 @@ test_split_events = do
 test_set_duration :: Test
 test_set_duration = do
     -- I don't know why this function is so hard to get right, but it is.
-    let run start end = e_start_dur1
-            . run_sel_events Edit.cmd_set_duration start end
+    let run start end = eStartDur1
+            . runSelEvents Edit.cmdSetDuration start end
     -- |--->   |---> => take pre
     let events = [(0, 2), (4, 2)]
     equal [run p p events | p <- Lists.range 0 6 1] $ map (Right . (,[]))
@@ -85,9 +85,9 @@ test_set_duration = do
         , [(0, 2), (4, 2)]
         ]
     -- No effect on zero-dur events.
-    equal_sd (run 0.5 3 [(0, 0), (1, 0)]) $ Right ([(0, 0), (1, 0)], [])
+    equalSd (run 0.5 3 [(0, 0), (1, 0)]) $ Right ([(0, 0), (1, 0)], [])
     -- Non-point selection affects all selected events.
-    equal_sd (run 0 3 [(0, 0.5), (1, 0.5)]) $ Right ([(0, 1), (1, 2)], [])
+    equalSd (run 0 3 [(0, 0.5), (1, 0.5)]) $ Right ([(0, 1), (1, 2)], [])
 
     -- <---|   <---| => take post
     let events = [(2, -2), (6, -2)]
@@ -101,11 +101,11 @@ test_set_duration = do
         , [(2, -2), (6, -2)]
         ]
     -- No effect on zero-dur events.
-    equal_sd (run 0.5 3 [(0, -0), (1, -0)]) $ Right ([(0, -0), (1, -0)], [])
+    equalSd (run 0.5 3 [(0, -0), (1, -0)]) $ Right ([(0, -0), (1, -0)], [])
 
     -- Non-point selection affects all selected events.
-    equal_sd (run 0 4 [(0, 1), (2, 1)]) $ Right ([(0, 2), (2, 2)], [])
-    equal_sd (run 0 4 [(2, -1), (4, -1)]) $ Right ([(2, -2), (4, -2)], [])
+    equalSd (run 0 4 [(0, 1), (2, 1)]) $ Right ([(0, 2), (2, 2)], [])
+    equalSd (run 0 4 [(2, -1), (4, -1)]) $ Right ([(2, -2), (4, -2)], [])
 
     -- 0 1 2 3 4 5 6
     -- |--->   <---| => take overlapping, or favor prev because selection is
@@ -136,53 +136,53 @@ test_set_duration = do
 
 test_move_events :: Test
 test_move_events = do
-    let run cmd start end = e_start_dur_text1
-            . run_sel_clip_ruler cmd start end . start_dur_events
-    let fwd = Edit.cmd_move_event_forward
-        bwd = Edit.cmd_move_event_backward
+    let run cmd start end = eStartDurText1
+            . runSelClipRuler cmd start end . startDurEvents
+    let fwd = Edit.cmdMoveEventForward
+        bwd = Edit.cmdMoveEventBackward
     -- Clipped to the end of the ruler.
-    equal_e (run fwd 1 1 [(0, 2)]) $ Right ([(1, 1, "a")], [])
-    equal_e (run fwd 1 1 [(0, 0), (2, 0)]) $
+    equalE (run fwd 1 1 [(0, 2)]) $ Right ([(1, 1, "a")], [])
+    equalE (run fwd 1 1 [(0, 0), (2, 0)]) $
         Right ([(1, 0, "a"), (2, 0, "b")], [])
-    equal_e (run bwd 1 1 [(2, -1)]) $ Right ([(1, -1, "a")], [])
-    equal_e (run bwd 1 1 [(0, 0), (2, 0)]) $
+    equalE (run bwd 1 1 [(2, -1)]) $ Right ([(1, -1, "a")], [])
+    equalE (run bwd 1 1 [(0, 0), (2, 0)]) $
         Right ([(0, 0, "a"), (1, 0, "b")], [])
     -- Move multiple.
-    equal_e (run fwd 0 2 [(0, 1), (1, 1), (4, 1)]) $
+    equalE (run fwd 0 2 [(0, 1), (1, 1), (4, 1)]) $
         Right ([(1, 1, "a"), (2, 1, "b"), (4, 1, "c")], [])
-    equal_e (run fwd 2 0 [(0, 1), (1, 1), (4, 1)]) $
+    equalE (run fwd 2 0 [(0, 1), (1, 1), (4, 1)]) $
         Right ([(1, 1, "a"), (2, 1, "b"), (4, 1, "c")], [])
-    equal_e (run bwd 0 3 [(1, 1), (2, 1), (4, 1)]) $
+    equalE (run bwd 0 3 [(1, 1), (2, 1), (4, 1)]) $
         Right ([(0, 1, "a"), (1, 1, "b"), (4, 1, "c")], [])
-    equal_e (run bwd 3 0 [(1, 1), (2, 1), (4, 1)]) $
+    equalE (run bwd 3 0 [(1, 1), (2, 1), (4, 1)]) $
         Right ([(0, 1, "a"), (1, 1, "b"), (4, 1, "c")], [])
 
 test_move_events_multiple_tracks_back :: Test
 test_move_events_multiple_tracks_back = do
-    let run start end tracks = e_start_dur_text $
-            CmdTest.run_tracks (map (">",) tracks) $ do
-                CmdTest.set_sel 1 start 2 end
-                Edit.cmd_move_event_backward
-    right_equal (run 1 1
+    let run start end tracks = eStartDurText $
+            CmdTest.runTracks (map (">",) tracks) $ do
+                CmdTest.setSel 1 start 2 end
+                Edit.cmdMoveEventBackward
+    rightEqual (run 1 1
             [[(2, 0, "a"), (3, 0, "b")], [(3, 0, "x"), (4, 0, "y")]])
         ([[(1, 0, "a"), (3, 0, "b")], [(3, 0, "x"), (4, 0, "y")]], [])
     -- Covered "x" moves, but not "y".
-    right_equal (run 1 1
+    rightEqual (run 1 1
             [[(2, 0, "a"), (4, 0, "b")], [(2, 0, "x"), (4, 0, "y")]])
         ([[(1, 0, "a"), (4, 0, "b")], [(1, 0, "x"), (4, 0, "y")]], [])
-    right_equal (run 1 1
+    rightEqual (run 1 1
             [[(2, 2, "a"), (4, 0, "b")], [(3, 0, "x"), (4, 0, "y")]])
         ([[(1, 2, "a"), (4, 0, "b")], [(2, 0, "x"), (4, 0, "y")]], [])
     -- Events that would be overlapped are deleted.
-    right_equal (run 1 1 [[(2, 2, "a")], [(1, 0, "x"), (2, 0, "y")]])
+    rightEqual (run 1 1 [[(2, 2, "a")], [(1, 0, "x"), (2, 0, "y")]])
         ([[(1, 2, "a")], [(1, 0, "y")]], [])
 
     -- Move multiple events if selected.
-    right_equal (run 1 3 [[(2, 0, "a"), (3, 0, "b"), (4, 0, "c")]])
+    rightEqual (run 1 3 [[(2, 0, "a"), (3, 0, "b"), (4, 0, "c")]])
         ([[(1, 0, "a"), (3, 0, "b"), (4, 0, "c")]], [])
-    right_equal (run 1 4 [[(2, 0, "a"), (3, 0, "b"), (4, 0, "c")]])
+    rightEqual (run 1 4 [[(2, 0, "a"), (3, 0, "b"), (4, 0, "c")]])
         ([[(1, 0, "a"), (2, 0, "b"), (4, 0, "c")]], [])
-    right_equal (run 1 4
+    rightEqual (run 1 4
             [ [(2, 0, "a"), (3, 0, "b"), (4, 0, "c")]
             , [(3, 0, "x"), (4, 0, "y")]
             ])
@@ -194,35 +194,35 @@ test_move_events_multiple_tracks_back = do
 
 test_move_events_multiple_tracks_forward :: Test
 test_move_events_multiple_tracks_forward = do
-    let run start end tracks = e_start_dur_text $
-            CmdTest.run_tracks (map (">",) tracks) $ do
-                CmdTest.set_sel 1 start 2 end
-                Edit.cmd_move_event_forward
-    right_equal (run 2 2
+    let run start end tracks = eStartDurText $
+            CmdTest.runTracks (map (">",) tracks) $ do
+                CmdTest.setSel 1 start 2 end
+                Edit.cmdMoveEventForward
+    rightEqual (run 2 2
             [[(0, 0, "a"), (1, 0, "b")], [(0, 0, "x"), (1, 0, "y")]])
         ([[(0, 0, "a"), (2, 0, "b")], [(0, 0, "x"), (2, 0, "y")]], [])
     -- Covered "x" moves, but not "y".
     -- TODO this is weird because x jumps over y, should it delete it?
-    right_equal (run 2 2 [[(0, 2, "a")], [(1, 0, "x"), (2, 0, "y")]])
+    rightEqual (run 2 2 [[(0, 2, "a")], [(1, 0, "x"), (2, 0, "y")]])
         ([[(2, 2, "a")], [(2, 0, "y"), (3, 0, "x")]], [])
-    right_equal (run 2 2 [[(0, 2, "a")], [(1, 0, "x"), (4, 0, "y")]])
+    rightEqual (run 2 2 [[(0, 2, "a")], [(1, 0, "x"), (4, 0, "y")]])
         ([[(2, 2, "a")], [(3, 0, "x"), (4, 0, "y")]], [])
 
 test_set_start :: Test
 test_set_start = do
-    let run sel = e_start_dur_text1 . run_sel_events Edit.cmd_set_start sel sel
-    equal_e (run 1 [(0, 2), (2, 2)]) $ Right ([(0, 1, "a"), (1, 3, "b")], [])
-    equal_e (run 1 [(0, 0), (2, 0)]) $ Right ([(0, 0, "a"), (1, 0, "b")], [])
-    equal_e (run 1 [(2, -2), (4, -2)]) $
+    let run sel = eStartDurText1 . runSelEvents Edit.cmdSetStart sel sel
+    equalE (run 1 [(0, 2), (2, 2)]) $ Right ([(0, 1, "a"), (1, 3, "b")], [])
+    equalE (run 1 [(0, 0), (2, 0)]) $ Right ([(0, 0, "a"), (1, 0, "b")], [])
+    equalE (run 1 [(2, -2), (4, -2)]) $
         Right ([(2, -2, "a"), (4, -2, "b")], [])
-    equal_e (run 3 [(2, -2), (4, -2)]) $
+    equalE (run 3 [(2, -2), (4, -2)]) $
         Right ([(3, -3, "a"), (4, -1, "b")], [])
 
 test_insert_time :: Test
 test_insert_time = do
-    let run start end = e_start_dur_text1
-            . run_sel_clip_ruler Edit.cmd_insert_time start end
-            . start_dur_events
+    let run start end = eStartDurText1
+            . runSelClipRuler Edit.cmdInsertTime start end
+            . startDurEvents
     equal (run 0 0 [(0, 2), (3, 0)]) $ Right ([(1, 2, "a")], [])
     -- (1, 2) is shortened.
     equal (run 0 0 [(1, 2), (3, 0)]) $ Right ([(2, 1, "a")], [])
@@ -244,8 +244,8 @@ test_insert_time = do
 
 test_delete_time :: Test
 test_delete_time = do
-    let run start end = e_start_dur1
-            . run_sel_events Edit.cmd_delete_time start end
+    let run start end = eStartDur1
+            . runSelEvents Edit.cmdDeleteTime start end
     -- positive
     equal (map (\e -> run 0 e [(2, 2)]) (Lists.range 0 3 1)) $
         map (Right . (,[]))
@@ -283,12 +283,12 @@ test_delete_time = do
 
 test_toggle_zero_timestep :: Test
 test_toggle_zero_timestep = do
-    let run start end = e_start_dur1
-            . run_sel_events Edit.cmd_toggle_zero_timestep start end
+    let run start end = eStartDur1
+            . runSelEvents Edit.cmdToggleZeroTimestep start end
     equal (run 1 1 [(0, 2)]) $ Right ([(0, 0)], [])
     equal (run 1 1 [(2, -2)]) $ Right ([(2, -0)], [])
     -- Make sure it's actually -0.
-    equal (ScoreTime.is_negative $ snd $ head $ fst $ expect_right $
+    equal (ScoreTime.isNegative $ snd $ head $ fst $ expectRight $
             run 1 1 [(2, -2)])
         True
     equal (run 0 4 [(0, 0), (2, 0), (4, 0)]) $
@@ -299,28 +299,28 @@ test_toggle_zero_timestep = do
 
 test_join_events :: Test
 test_join_events = do
-    let run start end = e_start_dur_text1
-            . run_sel_events Edit.cmd_join_events start end
+    let run start end = eStartDurText1
+            . runSelEvents Edit.cmdJoinEvents start end
     -- positive
-    equal_e (run 1 1 [(0, 2), (2, 2)]) $ Right ([(0, 4, "a")], [])
-    equal_e (run 2 8 [(0, 2), (2, 2), (6, 2)]) $
+    equalE (run 1 1 [(0, 2), (2, 2)]) $ Right ([(0, 4, "a")], [])
+    equalE (run 2 8 [(0, 2), (2, 2), (6, 2)]) $
         Right ([(0, 2, "a"), (2, 6, "b")], [])
-    equal_e (run 1 1 [(0, 0), (2, 0)]) $ Right ([(0, 0, "a")], [])
+    equalE (run 1 1 [(0, 0), (2, 0)]) $ Right ([(0, 0, "a")], [])
 
     -- negative
-    equal_e (run 1 1 [(0, -0), (2, -0)]) $ Right ([(2, -0, "b")], [])
-    equal_e (run 1 1 [(2, -2), (4, -2)]) $
+    equalE (run 1 1 [(0, -0), (2, -0)]) $ Right ([(2, -0, "b")], [])
+    equalE (run 1 1 [(2, -2), (4, -2)]) $
         Right ([(2, -2, "a"), (4, -2, "b")], [])
-    equal_e (run 3 3 [(2, -2), (4, -2)]) $ Right ([(4, -4, "b")], [])
+    equalE (run 3 3 [(2, -2), (4, -2)]) $ Right ([(4, -4, "b")], [])
     -- Don't try for mixed polarities.
-    equal_e (run 1 1 [(0, 2), (4, -2)]) $
+    equalE (run 1 1 [(0, 2), (4, -2)]) $
         Right ([(0, 2, "a"), (4, -2, "b")], [])
 
     -- A point selection on multiple tracks only deletes until the nearest.
-    let run2 sel t1 t2 = CmdTest.e_tracks $
-            CmdTest.run_tracks [(">", t1), ("*", t2)] $ do
-                CmdTest.set_sel 1 sel 2 sel
-                Edit.cmd_join_events
+    let run2 sel t1 t2 = CmdTest.eTracks $
+            CmdTest.runTracks [(">", t1), ("*", t2)] $ do
+                CmdTest.setSel 1 sel 2 sel
+                Edit.cmdJoinEvents
     -- Join both.
     equal (run2 0.5
             [(0, 1, "x"), (1, 1, "y"), (2, 1, "z")]
@@ -356,9 +356,9 @@ test_join_events = do
 
 test_cmd_invert_orientation :: Test
 test_cmd_invert_orientation = do
-    let run tracks = CmdTest.e_tracks $ CmdTest.run_tracks tracks $ do
-            CmdTest.set_sel 1 1 2 1
-            Edit.cmd_invert_orientation
+    let run tracks = CmdTest.eTracks $ CmdTest.runTracks tracks $ do
+            CmdTest.setSel 1 1 2 1
+            Edit.cmdInvertOrientation
     -- invert_notes
     equal (run [(">", [(0, 2, "1")])]) (Right ([(">", [(2, -2, "1")])], []))
     equal (run [(">", [(2, -2, "1")])]) (Right ([(">", [(0, 2, "1")])], []))
@@ -380,7 +380,7 @@ test_cmd_invert_orientation = do
     equal (run [("c", [(1, 0, "1")])]) (Right ([("c", [(1, -0, "1")])], []))
     case run [("c", [(1, 0, "1")])] of
         Right ([("c", [(1, dur, "1")])], _) ->
-            equal (ScoreTime.is_negative dur) True
+            equal (ScoreTime.isNegative dur) True
         x -> failure $ "no match: " <> pretty x
     -- 0 dur events trade places.
     equal (run [("c", [(1, -0, "a"), (1, 0, "b")])]) $
@@ -389,48 +389,48 @@ test_cmd_invert_orientation = do
 
 -- * util
 
-equal_e :: HasCallStack => Either Text ([UiTest.EventSpec], [Text])
+equalE :: HasCallStack => Either Text ([UiTest.EventSpec], [Text])
     -> Either Text ([UiTest.EventSpec], [Text])
     -> Test
-equal_e = Testing.equal_fmt (UiTest.right_fst UiTest.fmt_events)
+equalE = Testing.equalFmt (UiTest.rightFst UiTest.fmtEvents)
 
-equal_sd :: HasCallStack => Either Text ([(ScoreTime, ScoreTime)], [Text])
+equalSd :: HasCallStack => Either Text ([(ScoreTime, ScoreTime)], [Text])
     -> Either Text ([(ScoreTime, ScoreTime)], [Text])
     -> Test
-equal_sd = Testing.equal_fmt (UiTest.right_fst UiTest.fmt_start_duration)
+equalSd = Testing.equalFmt (UiTest.rightFst UiTest.fmtStartDuration)
 
 -- | Run with events and a selection.
-run_sel_events :: Cmd.CmdId a -> TrackTime -> TrackTime
+runSelEvents :: Cmd.CmdId a -> TrackTime -> TrackTime
     -> [(TrackTime, TrackTime)] -> CmdTest.Result a
-run_sel_events cmd start end events =
-    run_sel cmd start end (start_dur_events events)
+runSelEvents cmd start end events =
+    runSel cmd start end (startDurEvents events)
 
-run_sel :: Cmd.CmdId a -> ScoreTime -> ScoreTime
+runSel :: Cmd.CmdId a -> ScoreTime -> ScoreTime
     -> [UiTest.TrackSpec] -> CmdTest.Result a
-run_sel cmd start end tracks = CmdTest.run_tracks tracks $ do
-    CmdTest.set_sel 1 start 1 end
+runSel cmd start end tracks = CmdTest.runTracks tracks $ do
+    CmdTest.setSel 1 start 1 end
     cmd
 
-run_sel_clip_ruler :: Cmd.CmdId a -> ScoreTime -> ScoreTime
+runSelClipRuler :: Cmd.CmdId a -> ScoreTime -> ScoreTime
     -> [UiTest.TrackSpec] -> CmdTest.Result a
-run_sel_clip_ruler cmd start end tracks = CmdTest.run_tracks_ruler tracks $ do
-    CmdTest.set_sel 1 start 1 end
+runSelClipRuler cmd start end tracks = CmdTest.runTracksRuler tracks $ do
+    CmdTest.setSel 1 start 1 end
     cmd
 
-start_dur_events :: [(TrackTime, TrackTime)] -> [UiTest.TrackSpec]
-start_dur_events events =
+startDurEvents :: [(TrackTime, TrackTime)] -> [UiTest.TrackSpec]
+startDurEvents events =
     [ (">", [(start, dur, Text.singleton c)
     | ((start, dur), c) <- zip events ['a'..'z']])
     ]
 
-e_start_dur1 :: CmdTest.Result a
+eStartDur1 :: CmdTest.Result a
     -> Either Text ([(ScoreTime, ScoreTime)], [Text])
-e_start_dur1 = fmap (first (map (\(s, d, _) -> (s, d)))) . e_start_dur_text1
+eStartDur1 = fmap (first (map (\(s, d, _) -> (s, d)))) . eStartDurText1
 
-e_start_dur_text1 :: CmdTest.Result a
+eStartDurText1 :: CmdTest.Result a
     -> Either Text ([UiTest.EventSpec], [Text])
-e_start_dur_text1 = fmap (first head) . e_start_dur_text
+eStartDurText1 = fmap (first head) . eStartDurText
 
-e_start_dur_text :: CmdTest.Result a
+eStartDurText :: CmdTest.Result a
     -> Either Text ([[UiTest.EventSpec]], [Text])
-e_start_dur_text = fmap (first (map snd)) . CmdTest.e_tracks
+eStartDurText = fmap (first (map snd)) . CmdTest.eTracks

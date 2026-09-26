@@ -6,14 +6,14 @@
 {-# LANGUAGE StrictData #-}
 -- | Support for rhythmic spelling in different meters.
 module Perform.Lilypond.Meter (
-    Meter, meter_nums, meter_denom
-    , time_num
-    , default_meter
-    , measure_time
-    , unparse_meter, parse_meter
-    , is_binary
+    Meter, meterNums, meterDenom
+    , timeNum
+    , defaultMeter
+    , measureTime
+    , unparseMeter, parseMeter
+    , isBinary
     -- * tie breaking
-    , allowed_duration
+    , allowedDuration
 #ifdef TESTING
     , module Perform.Lilypond.Meter
 #endif
@@ -40,75 +40,75 @@ import           Global
 
 data Meter = Meter
     -- | NonEmpty list of numerators.  E.g. [2, 3] indicates 2+3.
-    { meter_nums :: [Int]
-    , meter_denom :: Duration
-    , meter_ranks :: Ranks
+    { meterNums :: [Int]
+    , meterDenom :: Duration
+    , meterRanks :: Ranks
     } deriving (Eq, Show)
 
 -- | Meter rank, indexed by 128th note.
 type Ranks = Vector.Vector Rank
 type Rank = Int
 
-time_num :: Meter -> Int
-time_num = Num.sum . meter_nums
+timeNum :: Meter -> Int
+timeNum = Num.sum . meterNums
 
-rank_at :: Meter -> Time -> Int
-rank_at meter t = v ! (time_index t `mod` Vector.length v)
-    where v = meter_ranks meter
+rankAt :: Meter -> Time -> Int
+rankAt meter t = v ! (timeIndex t `mod` Vector.length v)
+    where v = meterRanks meter
 
-time_index :: Time -> Int
-time_index = fromIntegral
+timeIndex :: Time -> Int
+timeIndex = fromIntegral
 
-index_time :: Int -> Time
-index_time = fromIntegral
+indexTime :: Int -> Time
+indexTime = fromIntegral
 
-instance Pretty Meter where pretty = unparse_meter
+instance Pretty Meter where pretty = unparseMeter
 
 instance Types.ToLily Meter where
-    to_lily (Meter nums denom _) =
-        showt (Num.sum nums) <> "/" <> Types.to_lily denom
+    toLily (Meter nums denom _) =
+        showt (Num.sum nums) <> "/" <> Types.toLily denom
 
-is_binary :: Meter -> Bool
-is_binary meter = case meter_nums meter of
+isBinary :: Meter -> Bool
+isBinary meter = case meterNums meter of
     [num] -> (==0) $ snd $ properFraction $ logBase 2 (fromIntegral num)
     _ -> False
 
 -- | Duration of a measure, in Time.
-measure_time :: Meter -> Time
-measure_time meter =
-    fromIntegral (time_num meter) * Types.dur_to_time (meter_denom meter)
+measureTime :: Meter -> Time
+measureTime meter =
+    fromIntegral (timeNum meter) * Types.durToTime (meterDenom meter)
 
-unparse_meter :: Meter -> Text
-unparse_meter meter = Text.intercalate "+" (map showt (meter_nums meter))
-    <> "/" <> Types.to_lily (meter_denom meter)
+unparseMeter :: Meter -> Text
+unparseMeter meter = Text.intercalate "+" (map showt (meterNums meter))
+    <> "/" <> Types.toLily (meterDenom meter)
 
-default_meter :: Meter
-Right default_meter = parse_meter "4/4"
+defaultMeter :: Meter
+Right defaultMeter = parseMeter "4/4"
 
-parse_meter :: Text -> Either Text Meter
-parse_meter text = do
-    (nums, denom) <- first ("parsing meter: "<>) $ Parse.parse p_meter text
+parseMeter :: Text -> Either Text Meter
+parseMeter text = do
+    (nums, denom) <- first ("parsing meter: "<>) $ Parse.parse pMeter text
     denom <- tryJust ("denominator not a valid duration: " <> showt denom) $
-        Types.int_dur denom
-    make_meter nums denom (abstract_meter nums denom)
+        Types.intDur denom
+    makeMeter nums denom (abstractMeter nums denom)
 
-abstract_meter :: [Int] -> Duration -> [AbstractMeter]
-abstract_meter nums denom = case Map.lookup (nums, denom) default_meters of
+abstractMeter :: [Int] -> Duration -> [AbstractMeter]
+abstractMeter nums denom = case Map.lookup (nums, denom) defaultMeters of
     Just m -> [m]
-    Nothing -> case default_divisions nums denom of
+    Nothing -> case defaultDivisions nums denom of
         [num] -> [D (replicate num T)]
         nums -> [D [D (replicate n T) | n <- nums]]
     where
     -- Certain simple duple meters get a simpler division.  This has the effect
     -- of allowing notes to cross beat divisions, e.g. 4 2 4 in 4/4.
-    default_meters = Map.fromList
+    defaultMeters = Map.fromList
         [ (([1], D4), T)
         , (([2], D4), T)
         , (([4], D4), T)
         ]
 
-default_divisions :: [Int] -> Duration -> [Int]
-default_divisions [num] denom = Map.findWithDefault [num] (num, denom) defaults
+defaultDivisions :: [Int] -> Duration -> [Int]
+defaultDivisions [num] denom = Map.findWithDefault [num] (num, denom) defaults
     where
     defaults = Map.fromList
         [ ((5, D8), [3, 2])
@@ -117,25 +117,25 @@ default_divisions [num] denom = Map.findWithDefault [num] (num, denom) defaults
         , ((9, D8), [3, 3, 3])
         , ((12, D8), [3, 3, 3, 3])
         ]
-default_divisions nums _ = nums
+defaultDivisions nums _ = nums
 
-p_meter :: Parse.Parser ([Int], Int)
-p_meter = (,) <$> P.sepBy1 Parse.p_positive (P.char '+')
-    <*> (P.char '/' *> Parse.p_positive)
+pMeter :: Parse.Parser ([Int], Int)
+pMeter = (,) <$> P.sepBy1 Parse.pPositive (P.char '+')
+    <*> (P.char '/' *> Parse.pPositive)
 
-make_meter :: [Int] -> Duration -> [AbstractMeter] -> Either Text Meter
-make_meter nums denom meters = Meter nums denom <$> vector
+makeMeter :: [Int] -> Duration -> [AbstractMeter] -> Either Text Meter
+makeMeter nums denom meters = Meter nums denom <$> vector
     where
     vector
         | frac /= 0 = Left $ "can't fit " <> showt ranks <> " into "
             <> showt expected <> " by doubling"
-        | otherwise = Right $ to_vector $ subdivides (replicate exp 2) meters
+        | otherwise = Right $ toVector $ subdivides (replicate exp 2) meters
     (exp, frac) = properFraction $
         logBase 2 (fromIntegral expected / fromIntegral ranks)
-    expected = Num.sum nums * time_index (Types.dur_to_time denom)
-    ranks = Num.sum $ map abstract_length meters
-    to_vector = Vector.fromList . map (fromEnum . fst)
-        . Meter.Make.to_rank_durations . map (1,)
+    expected = Num.sum nums * timeIndex (Types.durToTime denom)
+    ranks = Num.sum $ map abstractLength meters
+    toVector = Vector.fromList . map (fromEnum . fst)
+        . Meter.Make.toRankDurations . map (1,)
 
 subdivides :: [Int] -> [AbstractMeter] -> [AbstractMeter]
 subdivides divs meter = foldr subdivide meter (reverse divs)
@@ -143,9 +143,9 @@ subdivides divs meter = foldr subdivide meter (reverse divs)
 subdivide :: Int -> [AbstractMeter] -> [AbstractMeter]
 subdivide n = map (Meter.subdivide n)
 
-abstract_length :: AbstractMeter -> Int
-abstract_length (D ds) = Num.sum $ map abstract_length ds
-abstract_length T = 1
+abstractLength :: AbstractMeter -> Int
+abstractLength (D ds) = Num.sum $ map abstractLength ds
+abstractLength T = 1
 
 -- * allowed time
 
@@ -178,41 +178,41 @@ abstract_length T = 1
 
     See NOTE [tie-breaking heuristic]
 -}
-allowed_duration :: Bool -> Meter -> Time -> Time -> NoteDuration
-allowed_duration use_dot meter start_ dur =
-    best_duration . min (start + dur) $ allowed_time meter start
+allowedDuration :: Bool -> Meter -> Time -> Time -> NoteDuration
+allowedDuration useDot meter start_ dur =
+    bestDuration . min (start + dur) $ allowedTime meter start
     where
-    best_duration end
-        | Just ndur <- List.find ((== start+dur) . to_time) candidates = ndur
+    bestDuration end
+        | Just ndur <- List.find ((== start+dur) . toTime) candidates = ndur
         | otherwise = fromMaybe (Types.NoteDuration Types.D128 False) $
-            Lists.minimumOn (rank_at meter . to_time) candidates
+            Lists.minimumOn (rankAt meter . toTime) candidates
         where
-        candidates = takeWhile ((<=end) . to_time) $
-            if use_dot then dotted_durs else durs
+        candidates = takeWhile ((<=end) . toTime) $
+            if useDot then dottedDurs else durs
     durs = reverse $ map (flip NoteDuration False) [D1 .. D128]
-    dotted_durs = reverse
+    dottedDurs = reverse
         [NoteDuration d dot | d <- [D1 .. D64], dot <- [True, False]]
-    start = start_ `mod` measure_time meter
-    to_time dur = start + Types.note_dur_to_time dur
+    start = start_ `mod` measureTime meter
+    toTime dur = start + Types.noteDurToTime dur
 
 -- | See 'allowed_duration'.
-allowed_time :: Meter -> Time -> Time
-allowed_time meter start = fromMaybe (measure_time meter) $ if is_binary meter
+allowedTime :: Meter -> Time -> Time
+allowedTime meter start = fromMaybe (measureTime meter) $ if isBinary meter
     -- TODO is_binary in this part of the meter
-    then at_rank (start_rank - 2)
-    else case at_rank (start_rank - 1) of
+    then atRank (startRank - 2)
+    else case atRank (startRank - 1) of
         Nothing -> Nothing
-        Just end -> min (start + (end - start) * 2) <$> at_rank (start_rank - 2)
+        Just end -> min (start + (end - start) * 2) <$> atRank (startRank - 2)
     where
-    at_rank n = find_rank start n meter
-    start_rank = rank_at meter start
+    atRank n = findRank start n meter
+    startRank = rankAt meter start
 
 -- | Find the time of the rank <= the given one.  Rank 0 can never be spanned,
 -- so always stop at a rank 0.
-find_rank :: Time -> Rank -> Meter -> Maybe Time
-find_rank start rank = fmap ((+ (start + 1)) . index_time)
+findRank :: Time -> Rank -> Meter -> Maybe Time
+findRank start rank = fmap ((+ (start + 1)) . indexTime)
     . Vector.findIndex (<= max 0 rank)
-    . Vector.drop (time_index start + 1) . meter_ranks
+    . Vector.drop (timeIndex start + 1) . meterRanks
 
 {-
     NOTE [tie-breaking heuristic]

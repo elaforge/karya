@@ -35,8 +35,8 @@ import qualified LogView.Tail as Tail
 import           Global
 
 
-repl_doc :: Text
-repl_doc =
+replDoc :: Text
+replDoc =
     "Type a command to send it to the sequencer.  Everything in\n\
     \Cmd.Repl.Environ, Cmd.Repl.Global, and Local.Repl is in scope.\n\
     \^D to quit.\n\
@@ -56,49 +56,49 @@ repl_doc =
     \log/.\n\
     \\n\
     \Colon commands:\n"
-    <> colon_doc
+    <> colonDoc
 
 type Input a = Haskeline.InputT IO a
 
-initial_settings :: Haskeline.Settings IO
-initial_settings = Haskeline.defaultSettings
-    { Haskeline.historyFile = Just history_suffix
+initialSettings :: Haskeline.Settings IO
+initialSettings = Haskeline.defaultSettings
+    { Haskeline.historyFile = Just historySuffix
     , Haskeline.autoAddHistory = True
     }
 
-history_suffix :: FilePath
-history_suffix = ".repl"
+historySuffix :: FilePath
+historySuffix = ".repl"
 
 complete :: Network.Addr -> (String, String)
     -> IO (String, [Haskeline.Completion])
 complete addr =
     Haskeline.completeQuotedWord (Just '\\') "\"" Haskeline.listFiles
-        (complete_identefier addr)
+        (completeIdentefier addr)
     -- Like ghci, complete filenames within quotes.  It's useful for save and
     -- load.
 
-complete_identefier :: Network.Addr -> Haskeline.CompletionFunc IO
-complete_identefier addr =
-    Haskeline.completeWord Nothing word_break_chars complete
+completeIdentefier :: Network.Addr -> Haskeline.CompletionFunc IO
+completeIdentefier addr =
+    Haskeline.completeWord Nothing wordBreakChars complete
     where
     complete prefix = do
-        words <- ReplProtocol.query_completion addr (txt prefix)
+        words <- ReplProtocol.queryCompletion addr (txt prefix)
         pure $ map (Haskeline.simpleCompletion . untxt) words
-    word_break_chars = " \t\n(),;[]`{}!#$%&*+/<=>?@\\^|-~"
+    wordBreakChars = " \t\n(),;[]`{}!#$%&*+/<=>?@\\^|-~"
 
 main :: IO ()
 main = ReplProtocol.initialize $ do
     args <- System.Environment.getArgs
     addr <- case args of
-        [] -> pure $ Network.Unix Config.repl_socket_name
+        [] -> pure $ Network.Unix Config.replSocketName
         [fn] -> pure $ Network.Unix fn
         _ -> errorIO "usage: repl [ unix-socket ]"
     -- I don't want to see "thread started" logs.
-    Log.configure $ \state -> state { Log.state_priority = Log.Notice }
-    repl_thread <- Concurrent.myThreadId
-    Thread.start $ watch_for_quit repl_thread
+    Log.configure $ \state -> state { Log.statePriority = Log.Notice }
+    replThread <- Concurrent.myThreadId
+    Thread.start $ watchForQuit replThread
     liftIO $ putStrLn "^D to quit"
-    repl addr $ Haskeline.setComplete (complete addr) initial_settings
+    repl addr $ Haskeline.setComplete (complete addr) initialSettings
 
 -- | Watch the seq.log for state changes, and interrupt the repl to pick up the
 -- new state.  Otherwise, it will only notice the change on the next time the
@@ -107,26 +107,26 @@ main = ReplProtocol.initialize $ do
 --
 -- This will abort any half-written entry, or any editor in progress, which
 -- might be a problem.
-watch_for_quit :: Concurrent.ThreadId -> IO ()
-watch_for_quit repl_thread = do
-    fname <- Tail.log_filename
+watchForQuit :: Concurrent.ThreadId -> IO ()
+watchForQuit replThread = do
+    fname <- Tail.logFilename
     loop =<< Tail.open fname (Just 0)
     where
     loop hdl = do
         (msg, hdl) <- Tail.tail hdl
-        when (Log.msg_text msg `elem` [Tail.starting_msg, Tail.quitting_msg]) $
-            Concurrent.throwTo repl_thread Haskeline.Interrupt
+        when (Log.msgText msg `elem` [Tail.startingMsg, Tail.quittingMsg]) $
+            Concurrent.throwTo replThread Haskeline.Interrupt
         loop hdl
 
 repl :: Network.Addr -> Haskeline.Settings IO -> IO ()
 repl addr settings = Exception.mask $ \restore ->
-    Control.loop1 settings $ \loop old_settings -> do
-        maybe_save_fname <- ReplProtocol.query_save_file addr
-        let (connection_error, settings) = case maybe_save_fname of
-                Nothing -> (True, old_settings)
-                Just fname -> (,) False $ old_settings
+    Control.loop1 settings $ \loop oldSettings -> do
+        maybeSaveFname <- ReplProtocol.querySaveFile addr
+        let (connectionError, settings) = case maybeSaveFname of
+                Nothing -> (True, oldSettings)
+                Just fname -> (,) False $ oldSettings
                     { Haskeline.historyFile =
-                        Just $ fromMaybe "" fname <> history_suffix
+                        Just $ fromMaybe "" fname <> historySuffix
                     }
         -- I would rather replace the prompt in-place, but an interrupt will
         -- always output a newline.  I can't tell where this happens in the
@@ -134,12 +134,12 @@ repl addr settings = Exception.mask $ \restore ->
         -- think there's no way to disable it.
         status <- Haskeline.handleInterrupt catch $ restore $
             Haskeline.runInputT settings $ Haskeline.withInterrupt $
-            read_eval_print addr connection_error
+            readEvalPrint addr connectionError
                 (Haskeline.historyFile settings)
         continue <- case status of
             Continue -> pure True
             Command cmd -> do
-                status <- liftIO $ send_command addr cmd
+                status <- liftIO $ sendCommand addr cmd
                 case status of
                     Continue -> pure True
                     Command cmd -> do
@@ -150,26 +150,26 @@ repl addr settings = Exception.mask $ \restore ->
             Quit -> pure False
         when continue $ loop settings
     where
-    read_eval_print addr connection_error history =
+    readEvalPrint addr connectionError history =
         maybe (pure Quit) (liftIO . eval addr history . Text.strip)
-            =<< get_input connection_error history
+            =<< getInput connectionError history
     catch = pure Continue
 
 eval :: Network.Addr -> Maybe FilePath -> Text -> IO Status
-eval addr maybe_history expr = case Text.stripPrefix ":" (Text.toLower expr) of
-    Just "h" -> case maybe_history of
+eval addr maybeHistory expr = case Text.stripPrefix ":" (Text.toLower expr) of
+    Just "h" -> case maybeHistory of
         Nothing -> putStrLn "no history to edit" >> pure Continue
-        Just history -> maybe (pure Continue) (send_command addr)
-            =<< edit_line history
-    Just "r" -> send_command addr ":reload" -- reload handled in ReplGhc
-    Just "?" -> Text.IO.putStr repl_doc >> pure Continue
+        Just history -> maybe (pure Continue) (sendCommand addr)
+            =<< editLine history
+    Just "r" -> sendCommand addr ":reload" -- reload handled in ReplGhc
+    Just "?" -> Text.IO.putStr replDoc >> pure Continue
     Just _ -> do
         putStrLn $ "unknown colon command " <> show expr <> ", :? for help"
         pure Continue
-    _ -> send_command addr expr
+    _ -> sendCommand addr expr
 
-colon_doc :: Text
-colon_doc =
+colonDoc :: Text
+colonDoc =
     ":? - Help.\n\
     \:h - Open an editor on the history.  You can find a line, edit it, and\n\
     \     use ZZ to write it back.\n\
@@ -178,45 +178,45 @@ colon_doc =
     \    reload too much.  Maybe it crashes if it has to reload something\n\
     \    with a C dependency.\n"
 
-send_command :: Network.Addr -> Text -> IO Status
-send_command addr expr
+sendCommand :: Network.Addr -> Text -> IO Status
+sendCommand addr expr
     | Text.null expr = pure Continue
     | otherwise = do
-        result <- ReplProtocol.query_cmd addr (Text.strip expr)
-        result <- print_logs result
-        handle_result addr result
+        result <- ReplProtocol.queryCmd addr (Text.strip expr)
+        result <- printLogs result
+        handleResult addr result
 
-handle_result :: Network.Addr -> ReplProtocol.Result -> IO Status
-handle_result addr = \case
+handleResult :: Network.Addr -> ReplProtocol.Result -> IO Status
+handleResult addr = \case
     ReplProtocol.Raw text -> do
         unless (Text.null (Text.strip text)) $
             Text.IO.putStrLn (Text.stripEnd text)
         pure Continue
     ReplProtocol.Format text -> do
         unless (Text.null (Text.strip text)) $
-            putStr $ PPrint.format_str $ untxt text
+            putStr $ PPrint.formatStr $ untxt text
         pure Continue
     ReplProtocol.Edit editors -> do
         ReplProtocol.notify addr ReplProtocol.NEditorOpened
-        edit_multiple editors
+        editMultiple editors
         ReplProtocol.notify addr ReplProtocol.NEditorClosed
         pure Continue
 
-print_logs :: ReplProtocol.CmdResult -> IO ReplProtocol.Result
-print_logs (ReplProtocol.CmdResult val logs_) = do
+printLogs :: ReplProtocol.CmdResult -> IO ReplProtocol.Result
+printLogs (ReplProtocol.CmdResult val logs_) = do
     -- Filter Debug logs, otherwise I get spammed with cache msgs.
-    let logs = filter ((>Log.Debug) . Log.msg_priority) $
-            ReplProtocol.abbreviate_package_loads logs_
+    let logs = filter ((>Log.Debug) . Log.msgPriority) $
+            ReplProtocol.abbreviatePackageLoads logs_
     unless (null logs) $ do
         putStrLn "Logs:"
         mapM_ Pretty.pprint logs
         putChar '\n'
     pure val
 
-get_input :: Bool -> Maybe FilePath -> Input (Maybe Text)
-get_input connection_error history =
+getInput :: Bool -> Maybe FilePath -> Input (Maybe Text)
+getInput connectionError history =
     fmap (Text.strip . txt) <$>
-        Haskeline.getInputLine (prompt connection_error history)
+        Haskeline.getInputLine (prompt connectionError history)
 
 data Status = Continue
     -- | Skip the next prompt and send this as a QCommand.
@@ -226,24 +226,24 @@ data Status = Continue
 
 -- | Colorize the prompt to make it stand out.
 prompt :: Bool -> Maybe FilePath -> String
-prompt connection_error maybe_save =
-    mconcat [save,  color_bg,  stx,  "入",  plain_bg,  stx,  " "]
+prompt connectionError maybeSave =
+    mconcat [save,  colorBg,  stx,  "入",  plainBg,  stx,  " "]
     where
-    color_bg = if connection_error then red_bg else cyan_bg
+    colorBg = if connectionError then redBg else cyanBg
     save = maybe "" (fst . Lists.dropSuffix ".repl" . FilePath.takeFileName)
-        maybe_save
+        maybeSave
     -- The trailing \STX tells haskeline this is a control sequence, from
     -- http://trac.haskell.org/haskeline/wiki/ControlSequencesInPrompt
     stx = "\STX"
 
-cyan_bg :: String
-cyan_bg = "\ESC[46m"
+cyanBg :: String
+cyanBg = "\ESC[46m"
 
-red_bg :: String
-red_bg = "\ESC[41m"
+redBg :: String
+redBg = "\ESC[41m"
 
-plain_bg :: String
-plain_bg = "\ESC[39;49m"
+plainBg :: String
+plainBg = "\ESC[39;49m"
 
 
 -- * editor
@@ -256,11 +256,11 @@ plain_bg = "\ESC[39;49m"
 --
 -- TODO currently only vim is supported, but I assume other editors could also
 -- be press-ganged into similar service.
-edit_multiple :: NonEmpty ReplProtocol.Editor -> IO ()
-edit_multiple edits_ = with_files (map ReplProtocol._file edits) $ \fnames ->
-    with_temp "repl-cmds-" ".vim" (make_cmds fnames) $ \cmd_fname -> do
-        ok <- wait_for_command "vim"
-            [ "-s", cmd_fname
+editMultiple :: NonEmpty ReplProtocol.Editor -> IO ()
+editMultiple edits_ = withFiles (map ReplProtocol._file edits) $ \fnames ->
+    withTemp "repl-cmds-" ".vim" (makeCmds fnames) $ \cmdFname -> do
+        ok <- waitForCommand "vim"
+            [ "-s", cmdFname
             , "-c", "source vim-functions.vim"
             -- Put the swp file in the log/ directory.  Otherwise it's in a tmp
             -- dir and dies when it does.  This is just paranoia, if vim happens
@@ -268,55 +268,55 @@ edit_multiple edits_ = with_files (map ReplProtocol._file edits) $ \fnames ->
             -- then it can be recovered.
             , "-c", ":set directory=log"
             ]
-        when ok $ forM_ (zip fnames (map ReplProtocol._on_save edits)) $ \case
-            (fname, Just on_save) -> send_file fname on_save
+        when ok $ forM_ (zip fnames (map ReplProtocol._onSave edits)) $ \case
+            (fname, Just onSave) -> sendFile fname onSave
             _ -> pure ()
         pure ()
     where
     edits = NonEmpty.toList edits_
-    make_cmds fnames = Text.unlines $
-        concatMap edit_cmds (zip fnames edits) ++ [":buffer 1"]
-    edit_cmds (fname, ReplProtocol.Editor _ linenum on_save on_send) = concat
+    makeCmds fnames = Text.unlines $
+        concatMap editCmds (zip fnames edits) ++ [":buffer 1"]
+    editCmds (fname, ReplProtocol.Editor _ linenum onSave onSend) = concat
         [ [ ":edit " <> txt fname]
         , [":" <> showt linenum]
         , [ ":nmap <buffer> gz :call Send('" <> c <> "')<cr>"
-          | Just c <- [on_save]
+          | Just c <- [onSave]
           ]
         , [ ":nmap <buffer> gs :call Send('" <> c <> "')<cr>"
-          | Just c <- [on_send]
+          | Just c <- [onSend]
           ]
         ]
 
-with_files :: [ReplProtocol.File] -> ([FilePath] -> IO a) -> IO a
-with_files files action = go [] files
+withFiles :: [ReplProtocol.File] -> ([FilePath] -> IO a) -> IO a
+withFiles files action = go [] files
     where
     go accum [] = action (reverse accum)
     go accum (ReplProtocol.FileName fname : files) = go (fname:accum) files
     go accum (ReplProtocol.Text ftype content : files) = do
-        let ext = ReplProtocol.file_type_extension ftype
-        with_temp "repl-" ext content $ \fname -> go (fname:accum) files
+        let ext = ReplProtocol.fileTypeExtension ftype
+        withTemp "repl-" ext content $ \fname -> go (fname:accum) files
 
-send_binary :: FilePath
-send_binary = "build/opt/send"
+sendBinary :: FilePath
+sendBinary = "build/opt/send"
 
-send_file :: FilePath -> Text -> IO ()
-send_file fname cmd = do
+sendFile :: FilePath -> Text -> IO ()
+sendFile fname cmd = do
     -- The 'send' cmd substitutes stdin for %s.
     content <- if "%s" `Text.isInfixOf` cmd
         -- vim will add a final newline.
         then Text.stripEnd <$> Text.IO.readFile fname
         else pure ""
     -- Sometimes I forget to build it and it's annoying to crash the REPL.
-    unlessM (Directory.doesFileExist send_binary) $
-        Process.callProcess "bin/mk" [send_binary]
-    stdout <- Process.readProcess send_binary [untxt cmd]
+    unlessM (Directory.doesFileExist sendBinary) $
+        Process.callProcess "bin/mk" [sendBinary]
+    stdout <- Process.readProcess sendBinary [untxt cmd]
         (untxt content)
     unless (null stdout) $
         putStrLn $ "send: " <> stdout
 
 -- | Run the action with a temp file, and delete it afterwards.
-with_temp :: FilePath -> String -> Text -> (FilePath -> IO a) -> IO a
-with_temp prefix suffix contents action = do
+withTemp :: FilePath -> String -> Text -> (FilePath -> IO a) -> IO a
+withTemp prefix suffix contents action = do
     -- .ky prefix so the vim autocmds will fire.
     (path, hdl) <- Posix.Temp.mkstemps prefix suffix
     Text.IO.hPutStr hdl contents
@@ -325,14 +325,14 @@ with_temp prefix suffix contents action = do
         `Exception.finally` Exceptions.ignoreEnoent (Directory.removeFile path)
 
 -- | Open the given file, and return the selected line.
-edit_line :: FilePath -> IO (Maybe Text)
-edit_line fname = with_temp "repl-edit-history-" "" "" $ \tmp -> do
+editLine :: FilePath -> IO (Maybe Text)
+editLine fname = withTemp "repl-edit-history-" "" "" $ \tmp -> do
     let cmdline =
             [ "-c", "nmap ZZ :set write \\| .w! " <> tmp <> " \\| q!<cr>"
             , "-c", "set nowrite"
             , fname
             ]
-    ifM (wait_for_command "vim" cmdline)
+    ifM (waitForCommand "vim" cmdline)
         (Just . Text.strip <$> Text.IO.readFile tmp)
         (pure Nothing)
 
@@ -342,17 +342,17 @@ edit_line fname = with_temp "repl-edit-history-" "" "" $ \tmp -> do
 --
 -- TODO: I would much rather have this trigger the editor to save and quit but
 -- for that I'd need a two way shutdown protocol.
-wait_for_command :: FilePath -> [String] -> IO Bool
-wait_for_command cmd args = do
-    tty_state <- Text.strip <$> capture "stty" ["-g"]
+waitForCommand :: FilePath -> [String] -> IO Bool
+waitForCommand cmd args = do
+    ttyState <- Text.strip <$> capture "stty" ["-g"]
     (_, _, _, pid) <- Process.createProcess $
-        (Process.proc cmd args) { Process.delegate_ctlc = True }
+        (Process.proc cmd args) { Process.delegateCtlc = True }
     Exception.try (Process.waitForProcess pid) >>= \case
         Left Haskeline.Interrupt -> do
             Process.terminateProcess pid
             -- Without this the terminal wedges, probably due to both vim
             -- and haskeline wanting to mess with terminal state.
-            Process.callProcess "stty" [untxt tty_state]
+            Process.callProcess "stty" [untxt ttyState]
             _ <- Process.waitForProcess pid
             putStrLn "Interrupted by karya quitting, editor killed and tty\
                 \ state restored."

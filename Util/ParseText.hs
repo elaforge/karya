@@ -29,17 +29,17 @@ type Parser a = A.Parser a
 -- | Parse all the text, and annotate the error with the char number.  For
 -- single-line input.
 parse1 :: Parser a -> Text -> Either Text a
-parse1 p text = first fmt $ parse_all p text
+parse1 p text = first fmt $ parseAll p text
     where
-    fmt (rest, msg) = "parse error: " <> error_context col text <> ": " <> msg
-        where col = infer_column text rest
+    fmt (rest, msg) = "parse error: " <> errorContext col text <> ": " <> msg
+        where col = inferColumn text rest
 
 -- | Parse all of the text, and annotate the error with line number and column.
 parse :: Parser a -> Text -> Either Error a
-parse p text = case parse_all p text of
+parse p text = case parseAll p text of
     Right val -> Right val
     Left (rest, msg) -> Left $ Error loc msg
-        where loc = infer_location text rest
+        where loc = inferLocation text rest
 
 data Error = Error
     -- | Line with the error, and 1-based row and column.
@@ -59,23 +59,23 @@ offset (row, col) err =
 message :: Text -> Error
 message = Error Nothing
 
-show_error :: Error -> Text
-show_error (Error Nothing msg) = msg
-show_error (Error (Just (line, (row, column))) msg) = mconcat
+showError :: Error -> Text
+showError (Error Nothing msg) = msg
+showError (Error (Just (line, (row, column))) msg) = mconcat
     [ showt row, ":", showt column, ": ", msg, " in line "
-    , error_context (Just column) line
+    , errorContext (Just column) line
     ]
 
-error_context :: Maybe Int -> Text -> Text
-error_context Nothing expr = "\"" <> expr <> "\""
-error_context (Just i) expr = "\"" <> pre <> char <> post <> "\""
+errorContext :: Maybe Int -> Text -> Text
+errorContext Nothing expr = "\"" <> expr <> "\""
+errorContext (Just i) expr = "\"" <> pre <> char <> post <> "\""
     where
     (pre, post) = (Text.take i expr, Text.drop i expr)
     -- This just has to look distinctively not like ascii and stick out a bit.
     char = "⎣"
 
-parse_all :: A.Parser a -> Text -> Either (Text, Text) a
-parse_all p text = go (A.parse p text)
+parseAll :: A.Parser a -> Text -> Either (Text, Text) a
+parseAll p text = go (A.parse p text)
     where
     -- The msg can be really unclear, like "string", so put quotes on to
     -- at least tell it's trying to be an error.
@@ -88,9 +88,9 @@ parse_all p text = go (A.parse p text)
         | Text.null rest = Right val
         | otherwise = Left (rest, "expected eof")
 
-infer_location :: Text -> Text -> Maybe (Text, (Int, Int))
+inferLocation :: Text -> Text -> Maybe (Text, (Int, Int))
     -- ^ (line, row from 1, column from 1)
-infer_location text rest = infer =<< infer_column text rest
+inferLocation text rest = infer =<< inferColumn text rest
     where
     infer i = extract i <$> List.find (\(_, end, _) -> end > i)
         (zip3 sums (drop 1 sums) (zip [1..] lines))
@@ -98,27 +98,27 @@ infer_location text rest = infer =<< infer_column text rest
     sums = scanl (+) 0 (map ((+1) . Text.length) lines)
     lines = Text.lines text
 
-infer_column :: Text -> Text -> Maybe Int
-infer_column text rest
+inferColumn :: Text -> Text -> Maybe Int
+inferColumn text rest
     | rest `Text.isSuffixOf` text = Just $ Text.length text - Text.length rest
     | otherwise = Nothing
 
 -- * casual parsing
 
-maybe_parse :: Parser a -> Text -> Maybe a
-maybe_parse parser text = either (const Nothing) Just (parse_all parser text)
+maybeParse :: Parser a -> Text -> Maybe a
+maybeParse parser text = either (const Nothing) Just (parseAll parser text)
 
-maybe_parse_string :: Parser a -> String -> Maybe a
-maybe_parse_string parser = maybe_parse parser . txt
+maybeParseString :: Parser a -> String -> Maybe a
+maybeParseString parser = maybeParse parser . txt
 
 float :: Text -> Maybe Double
-float = maybe_parse p_float
+float = maybeParse pFloat
 
 int :: Text -> Maybe Int
-int = maybe_parse p_int
+int = maybeParse pInt
 
 nat :: Text -> Maybe Int
-nat = maybe_parse p_nat
+nat = maybeParse pNat
 
 -- * combinators
 
@@ -134,17 +134,17 @@ optional p = A.option Nothing (Just <$> p)
 lexeme :: Parser a -> Parser a
 lexeme p = p <* A.skipSpace
 
-p_float :: Parser Double
-p_float = do
+pFloat :: Parser Double
+pFloat = do
     sign <- A.option 1 (A.char '-' >> pure (-1))
-    val <- p_unsigned_float
+    val <- pUnsignedFloat
     pure (val * sign)
     <?> "float"
 
-p_unsigned_float :: Parser Double
-p_unsigned_float = do
-    i <- A.takeWhile is_digit
-    f <- A.option "" (A.char '.' >> A.takeWhile1 is_digit)
+pUnsignedFloat :: Parser Double
+pUnsignedFloat = do
+    i <- A.takeWhile isDigit
+    f <- A.option "" (A.char '.' >> A.takeWhile1 isDigit)
     if Text.null i && Text.null f then mzero else do
     case (dec i, dec f) of
         (Just i', Just f') -> pure $ fromIntegral i'
@@ -159,22 +159,22 @@ p_unsigned_float = do
             Right (d, rest) | Text.null rest -> Just d
             _ -> Nothing
 
-p_int :: Parser Int
-p_int = do
+pInt :: Parser Int
+pInt = do
     sign <- A.option '+' (A.satisfy (\c -> c == '+' || c == '-'))
-    val <- p_nat
+    val <- pNat
     pure $ (if sign == '-' then -1 else 1) * val
 
-p_nat :: Parser Int
-p_nat = do
-    i <- A.takeWhile1 is_digit
+pNat :: Parser Int
+pNat = do
+    i <- A.takeWhile1 isDigit
     case Text.Read.decimal i of
         Right (d, _) -> pure d
         Left _ -> mzero
 
-is_digit :: Char -> Bool
-is_digit c = c >= '0' && c <= '9'
+isDigit :: Char -> Bool
+isDigit c = c >= '0' && c <= '9'
 
 -- | A word of non-space chars.
-p_word :: Parser Text
-p_word = A.takeWhile1 (/= ' ')
+pWord :: Parser Text
+pWord = A.takeWhile1 (/= ' ')

@@ -22,12 +22,12 @@ import           Util.Test
 test_kendang :: Test
 test_kendang = do
     let run extract inst notes = DeriveTest.extract extract $
-            derive [(">" <> inst <> inst_title, mknotes notes)]
-        e_instrument e = (DeriveTest.e_instrument e, DeriveTest.e_attributes e)
+            derive [(">" <> inst <> instTitle, mknotes notes)]
+        eInstrument e = (DeriveTest.eInstrument e, DeriveTest.eAttributes e)
         mknotes ns = [(t, 0, n) | (t, n) <- zip (Lists.range_ 0 1) ns]
-    equal (run e_instrument "kw" ["PL", "P", "o"])
+    equal (run eInstrument "kw" ["PL", "P", "o"])
         ([("kw", "+plak"), ("kw", "+pak"), ("kw", "+tut")], [])
-    equal (run e_instrument "k"
+    equal (run eInstrument "k"
             ["PL", "k", "P", "t", "T", "u", "U"])
         ( [ ("kl", "+plak"), ("kw", "+pak"), ("kl", "+pak"),
             ("kw", "+pang"), ("kl", "+pang"), ("kw", "+tut"), ("kl", "+tut")
@@ -36,32 +36,32 @@ test_kendang = do
         )
 
     -- Soft attributes.
-    let e_dyn e = (DeriveTest.e_attributes e, Score.initial_dynamic e)
-    equal (run e_dyn "kw" [".", "..", "-", "+"])
+    let eDyn e = (DeriveTest.eAttributes e, Score.initialDynamic e)
+    equal (run eDyn "kw" [".", "..", "-", "+"])
         ([("+ka+soft", 0.4), ("+ka", 1), ("+de+soft", 0.4), ("+de", 1)], [])
 
     -- Both strokes.
-    let run_both stroke = run e_instrument "k" [stroke]
-    equal (run_both "PLPL") ([("kw", "+plak"), ("kl", "+plak")], [])
-    equal (run_both "+Ø") ([("kw", "+de"), ("kl", "+left+tut")], [])
-    equal (run_both "+ø") ([("kw", "+de"), ("kl", "+left+soft+tut")], [])
+    let runBoth stroke = run eInstrument "k" [stroke]
+    equal (runBoth "PLPL") ([("kw", "+plak"), ("kl", "+plak")], [])
+    equal (runBoth "+Ø") ([("kw", "+de"), ("kl", "+left+tut")], [])
+    equal (runBoth "+ø") ([("kw", "+de"), ("kl", "+left+soft+tut")], [])
 
 test_pasang_calls :: Test
 test_pasang_calls = do
     -- every pasang call dispatch to a valid tunggal call
-    let tunggal = [K.to_call note | (_, note, _) <- K.tunggal_table]
-    forM_ K.pasang_calls $ \(_, _, pstroke) ->
-        forM_ (K.notes_of pstroke) $ \note -> do
-            let sym = K.to_call note
+    let tunggal = [K.toCall note | (_, note, _) <- K.tunggalTable]
+    forM_ K.pasangCalls $ \(_, _, pstroke) ->
+        forM_ (K.notesOf pstroke) $ \note -> do
+            let sym = K.toCall note
             equal (Just sym) (List.find (==sym) tunggal)
 
 test_resolve :: Test
 test_resolve = do
-    equal KendangBali.resolve_errors []
+    equal KendangBali.resolveErrors []
 
 derive :: [UiTest.TrackSpec] -> Derive.Result
 derive = KontaktTest.derive allocs ""
     where allocs = KendangBali.allocations "k" "test"
 
-inst_title :: Text
-inst_title = " | wadon = kw | lanang = kl"
+instTitle :: Text
+instTitle = " | wadon = kw | lanang = kl"

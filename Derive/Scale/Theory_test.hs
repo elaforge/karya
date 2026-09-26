@@ -18,11 +18,11 @@ import Global
 test_diatonic_to_chromatic_church :: Test
 test_diatonic_to_chromatic_church = do
     -- Expected intervals.
-    let intervals n offset start_on = map fromIntegral $
-            take n $ map (subtract offset) $ drop start_on $ scanl (+) 0 semis
-            where semis = drop 5 $ cycle major_intervals
-        major_intervals = [2, 2, 1, 2, 2, 2, 1]
-    let f = Theory.diatonic_to_chromatic
+    let intervals n offset startOn = map fromIntegral $
+            take n $ map (subtract offset) $ drop startOn $ scanl (+) 0 semis
+            where semis = drop 5 $ cycle majorIntervals
+        majorIntervals = [2, 2, 1, 2, 2, 2, 1]
+    let f = Theory.diatonicToChromatic
 
     let cmaj = key "c-maj"
     equal (map (f cmaj (n "a")) [0..7]) (intervals 8 0 0)
@@ -49,23 +49,23 @@ test_diatonic_to_chromatic_church = do
 
 test_diatonic_to_chromatic_other :: Test
 test_diatonic_to_chromatic_other = do
-    let f = Theory.diatonic_to_chromatic
+    let f = Theory.diatonicToChromatic
     -- octatonic and whole tone
     equal (map (f (key "a-octa21") (n "a")) [0..3]) [0, 2, 3, 5]
-    let octa_notes = ["a", "b", "c", "d", "d#", "f", "f#", "g#"]
-    equal [f (key "a-octa21") (n note) 1 | note <- octa_notes]
+    let octaNotes = ["a", "b", "c", "d", "d#", "f", "f#", "g#"]
+    equal [f (key "a-octa21") (n note) 1 | note <- octaNotes]
         [2, 1, 2, 1, 2, 1, 2, 1]
     equal (map (f (key "a-octa12") (n "a")) [0..3]) [0, 1, 3, 4]
-    let whole_notes = ["a", "b", "c#", "d#", "f", "g"]
-    equal [f (key "a-whole") (n note) 1 | note <- whole_notes]
+    let wholeNotes = ["a", "b", "c#", "d#", "f", "g"]
+    equal [f (key "a-whole") (n note) 1 | note <- wholeNotes]
         [2, 2, 2, 2, 2, 2]
     equal (map (f (key "a-whole") (n "a")) [0..3]) [0, 2, 4, 6]
     equal (map (f (key "a-whole") (n "a#")) [0..3]) [0, 2, 4, 6]
 
 test_transpose_diatonic :: Test
 test_transpose_diatonic = do
-    let f key steps pitch = show_pitch $
-            Theory.transpose_diatonic key steps pitch
+    let f key steps pitch = showPitch $
+            Theory.transposeDiatonic key steps pitch
         fs key_ base steps = [f (key key_) step (p base) | step <- [0..steps]]
     equal (fs "a-min" "1a" 7)
         ["1a", "1b", "2c", "2d", "2e", "2f", "2g", "2a"]
@@ -86,8 +86,8 @@ test_transpose_diatonic = do
 
 test_pitch_to_semis :: Test
 test_pitch_to_semis = do
-    let semis = Theory.pitch_to_semis Twelve.layout
-        pitch k = Theory.semis_to_pitch (key k)
+    let semis = Theory.pitchToSemis Twelve.layout
+        pitch k = Theory.semisToPitch (key k)
         mkp oct pc accs = Pitch.Pitch oct (Pitch.Degree pc accs)
 
     -- If the pc is too high, it wraps the octave.
@@ -100,24 +100,24 @@ test_pitch_to_semis = do
     equal (map (semis . p) ["1c", "1d", "2c"]) [12, 14, 24]
 
     let notes = map p ["1a", "1a#", "1ax", "1ab", "1abb"]
-    equal (map (show_pitch . pitch "c-maj" . semis) notes)
+    equal (map (showPitch . pitch "c-maj" . semis) notes)
         ["1a", "1a#", "1b", "1g#", "1g"]
 
-    equal (map (show_pitch . pitch "a-maj") [12..24])
+    equal (map (showPitch . pitch "a-maj") [12..24])
         ["1c", "1c#", "1d", "1d#", "1e", "1f", "1f#", "1g", "1g#", "1a",
             "1a#", "1b", "2c"]
-    equal (map (show_pitch . pitch "cb-maj") [11..23])
+    equal (map (showPitch . pitch "cb-maj") [11..23])
         ["1cb", "1c", "1db", "1d", "1eb", "1fb", "1f", "1gb", "1g", "1ab",
             "1a", "1bb", "2cb"]
     -- hijaz has both a flat and a sharp in D
-    equal (map (show_pitch . pitch "d-hijaz") [14..19])
+    equal (map (showPitch . pitch "d-hijaz") [14..19])
         ["1d", "1eb", "1e", "1f", "1f#", "1g"]
 
 test_calculate_signature :: Test
 test_calculate_signature = do
     let f note ints = Vector.toList $
-            Theory.calculate_signature note
-                (Theory.layout_intervals Twelve.layout)
+            Theory.calculateSignature note
+                (Theory.layoutIntervals Twelve.layout)
                 (Vector.fromList ints)
     equal (f (n "a") [2, 1, 2, 2, 1, 2, 2]) -- minor
         [0, 0, 0, 0, 0, 0, 0]
@@ -136,21 +136,21 @@ test_calculate_signature = do
 
 test_enharmonics_of :: Test
 test_enharmonics_of = do
-    let f = map show_pitch . Theory.enharmonics_of Twelve.layout . p
+    let f = map showPitch . Theory.enharmonicsOf Twelve.layout . p
     equal (f "1e") ["1fb", "1dx"]
     equal (f "1f") ["1gbb", "1e#"]
     equal (f "1b#") ["2c", "2dbb"]
     equal (f "1dbb") ["0b#", "1c"]
     equal (f "1g#") ["1ab"]
-    let cycle_en = map show_pitch . take 4
-            . iterate (head . Theory.enharmonics_of Twelve.layout) . p
-    equal (cycle_en "1b") ["1b", "2cb", "1ax", "1b"]
-    equal (cycle_en "1c") ["1c", "1dbb", "0b#", "1c"]
-    equal (cycle_en "1g#") ["1g#", "1ab", "1g#", "1ab"]
+    let cycleEn = map showPitch . take 4
+            . iterate (head . Theory.enharmonicsOf Twelve.layout) . p
+    equal (cycleEn "1b") ["1b", "2cb", "1ax", "1b"]
+    equal (cycleEn "1c") ["1c", "1dbb", "0b#", "1c"]
+    equal (cycleEn "1g#") ["1g#", "1ab", "1g#", "1ab"]
 
 test_step_of :: Test
 test_step_of = do
-    let f k note = Theory.step_of (key k) (n note)
+    let f k note = Theory.stepOf (key k) (n note)
     -- Diatonic scales care about the letter.
     equal (map (f "a-min") ["a", "b", "c", "d", "d#", "eb", "e"])
         [0, 1, 2, 3, 3, 4, 4]
@@ -165,20 +165,20 @@ test_step_of = do
 
 key :: Text -> Theory.Key
 key name = either (const $ error $ "can't parse key: " ++ show name) id $
-    ChromaticScales.read_key Twelve.absolute_scale_map (Just (Pitch.Key name))
+    ChromaticScales.readKey Twelve.absoluteScaleMap (Just (Pitch.Key name))
 
 p :: Text -> Pitch.Pitch
 p s = either (const $ error $ "can't parse pitch: " ++ show s)
-    TheoryFormat.relative_to_absolute $
-        TheoryFormat.read_relative_pitch TheoryFormat.absolute_c (Pitch.Note s)
+    TheoryFormat.relativeToAbsolute $
+        TheoryFormat.readRelativePitch TheoryFormat.absoluteC (Pitch.Note s)
 
 n :: Text -> Pitch.Degree
-n s = Pitch.pitch_degree $
+n s = Pitch.pitchDegree $
     either (const $ error $ "can't parse degree: " ++ show s)
-        TheoryFormat.relative_to_absolute $
-            TheoryFormat.read_relative_pitch TheoryFormat.absolute_c $
+        TheoryFormat.relativeToAbsolute $
+            TheoryFormat.readRelativePitch TheoryFormat.absoluteC $
             Pitch.Note ("0" <> s)
 
-show_pitch :: Pitch.Pitch -> Text
-show_pitch p = maybe (error $ "can't show pitch: " ++ show p) Pitch.note_text $
-    Twelve.show_pitch p
+showPitch :: Pitch.Pitch -> Text
+showPitch p = maybe (error $ "can't show pitch: " ++ show p) Pitch.noteText $
+    Twelve.showPitch p

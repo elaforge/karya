@@ -20,9 +20,9 @@ test_process :: Test
 test_process = do
     let Just (Right patch) = Map.lookup "test-delay" EffectC.patches
     let f = process patch
-    io_equal (f [] [[1..8]]) [1..8]
+    ioEqual (f [] [[1..8]]) [1..8]
     -- Round up to block size.
-    io_equal (f [[1]] [[1..8]]) ([0, 0] ++ [1..8] ++ replicate (8-2) 0)
+    ioEqual (f [[1]] [[1..8]]) ([0, 0] ++ [1..8] ++ replicate (8-2) 0)
 
 process :: EffectC.Patch -> [[Audio.Sample]] -> [[Audio.Sample]]
     -> IO [Audio.Sample]

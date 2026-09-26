@@ -47,7 +47,7 @@ instance Pretty Stroke where pretty = Solkattu.notationText
 
 -- | TODO should I make these consistent with 'Strokes'?
 instance Expr.ToExpr Stroke where
-    to_expr = \case
+    toExpr = \case
         Plak -> "PL"
         Pak -> "P"
         Pang -> "T"
@@ -60,8 +60,8 @@ instance Expr.ToExpr Stroke where
 
 -- TODO unify with User.Elaforge.Instrument.Kontakt.KendangBali.Stroke
 instance Expr.ToExpr (Realize.Stroke Stroke) where
-    to_expr (Realize.Stroke emphasis stroke) = case emphasis of
-        Realize.Normal -> Expr.to_expr stroke
+    toExpr (Realize.Stroke emphasis stroke) = case emphasis of
+        Realize.Normal -> Expr.toExpr stroke
         Realize.Light -> case stroke of
             Pak -> "^"
             TutL -> "ø"

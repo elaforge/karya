@@ -35,7 +35,7 @@ test_splitM_ = do
     equal (f 1 (su taka <> di)) $ Right (["s+1(ta ka)"], ["di"])
     equal (f 1 (su (ta <> di <> ki <> ta) <> di)) $
         Right (["s+1(ta di)"], ["s+1(ki ta)", "di"])
-    left_like (f 1 (sd ta <> ka)) "can't split"
+    leftLike (f 1 (sd ta <> ka)) "can't split"
     -- split rests
     equal (f 1 (sd __ <> ka)) $ Right (["__"], ["__", "ka"])
     equal (f 3 (sd (sd __) <> ka)) $ Right (["s-1(__)", "__"], ["__", "ka"])

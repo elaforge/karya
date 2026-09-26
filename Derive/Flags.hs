@@ -31,8 +31,8 @@ has = flip Set.isSubsetOf
 -- | This note needs to wait until postproc to figure out its duration.  This
 -- is used to implement final notes, where a zero duration note at the end
 -- of a block can replace the first note of the next block.
-infer_duration :: Flags
-infer_duration = flag "infer-duration"
+inferDuration :: Flags
+inferDuration = flag "infer-duration"
 
 -- | This indicates that a note can be cancelled by a coincident note.  Among
 -- other things, it supports 'infer_duration': a note with inferred duration
@@ -49,5 +49,5 @@ strong = flag "strong"
 -- duration and lilypond code are score directives, not notes at all.  This
 -- is important because postprocessing dealing with notes might want to ignore
 -- them.
-ly_code :: Flags
-ly_code = flag "ly-code"
+lyCode :: Flags
+lyCode = flag "ly-code"

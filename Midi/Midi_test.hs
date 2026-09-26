@@ -14,19 +14,19 @@ import Global
 
 test_generate_mtc :: Test
 test_generate_mtc = do
-    let f rate = Midi.generate_mtc rate . Midi.seconds_to_frame rate
-        one_sec fps = floor $ fps * 4
-    let msgs = take (one_sec 30 + 1) (f Midi.Frame30 2)
-    check ("sorted: " <> pretty msgs) $ is_sorted (map fst msgs)
+    let f rate = Midi.generateMtc rate . Midi.secondsToFrame rate
+        oneSec fps = floor $ fps * 4
+    let msgs = take (oneSec 30 + 1) (f Midi.Frame30 2)
+    check ("sorted: " <> pretty msgs) $ isSorted (map fst msgs)
     equal (fst (last msgs)) 3
     -- pprint msgs
 
-is_sorted :: (Ord a) => [a] -> Bool
-is_sorted xs = all (uncurry (<=)) (zip xs (drop 1 xs))
+isSorted :: (Ord a) => [a] -> Bool
+isSorted xs = all (uncurry (<=)) (zip xs (drop 1 xs))
 
 test_seconds_to_smpte :: Test
 test_seconds_to_smpte = do
-    let f rate = e_smpte . Midi.seconds_to_smpte rate
+    let f rate = eSmpte . Midi.secondsToSmpte rate
         rate = Midi.Frame29_97df
     equal (f rate 0) (0, 0, 0, 0)
     equal (f rate 1) (0, 0, 0, 29)
@@ -38,8 +38,8 @@ test_seconds_to_smpte = do
     equal (f rate 600) (0, 10, 0, 0)
 
     -- Convert back to seconds to make sure it stays more or less accurate.
-    let trip = to_sec . f rate
-        to_sec (h, m, s, f) =
+    let trip = toSec . f rate
+        toSec (h, m, s, f) =
             (fi h * 60*60*30 + fi m * 60*30 + fi s * 30 + fi f) / 30
         fi = fromIntegral
         hr = 60 * 60
@@ -49,20 +49,20 @@ test_seconds_to_smpte = do
 
 test_frame_to_smpte :: Test
 test_frame_to_smpte = do
-    let f rate = e_smpte . Midi.frame_to_smpte rate
+    let f rate = eSmpte . Midi.frameToSmpte rate
     equal (f Midi.Frame29_97df 107892) (1, 0, 0, 0)
     equal (f Midi.Frame30 (30 * 60 * 60)) (1, 0, 0, 0)
 
-e_smpte :: Midi.Smpte -> (Word8, Word8, Word8, Word8)
-e_smpte (Midi.Smpte h m s f) = (h, m, s, f)
+eSmpte :: Midi.Smpte -> (Word8, Word8, Word8, Word8)
+eSmpte (Midi.Smpte h m s f) = (h, m, s, f)
 
 test_realtime_tuning :: Test
 test_realtime_tuning = do
-    let f = ByteString.unpack . Encode.encode . Midi.realtime_tuning
+    let f = ByteString.unpack . Encode.encode . Midi.realtimeTuning
     equal (f [(1, 1.5), (2, 2)])
-        [ Encode.sox_byte, 0x7f, 0x7f, 8, 2, 0
+        [ Encode.soxByte, 0x7f, 0x7f, 8, 2, 0
         , 0x02 -- 2 keys
         , 0x01, 0x01, 0x40, 0x00
         , 0x02, 0x02, 0x00, 0x00
-        , Encode.eox_byte
+        , Encode.eoxByte
         ]

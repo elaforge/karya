@@ -4,20 +4,20 @@
 
 module Derive.Env (
     Key, Environ, null, lookup, insert
-    , from_list, to_list
-    , to_map, from_map
+    , fromList, toList
+    , toMap, fromMap
     , delete
-    , is_set
+    , isSet
     , map
-    , from_controls
+    , fromControls
     -- * put
-    , put_val
-    , modify_signal
-    , insert_val
+    , putVal
+    , modifySignal
+    , insertVal
     , LookupError(..)
-    , get_val
-    , maybe_val
-    , checked_val, checked_val2
+    , getVal
+    , maybeVal
+    , checkedVal, checkedVal2
 ) where
 import qualified Prelude
 import           Prelude hiding (map, null, lookup)
@@ -37,29 +37,29 @@ import           Global
 
 -- * basic functions
 
-from_list :: [(Key, DeriveT.Val)] -> Environ
-from_list = Environ . Map.fromList
+fromList :: [(Key, DeriveT.Val)] -> Environ
+fromList = Environ . Map.fromList
 
-to_list :: Environ -> [(Key, DeriveT.Val)]
-to_list (Environ env) = Map.toList env
+toList :: Environ -> [(Key, DeriveT.Val)]
+toList (Environ env) = Map.toList env
 
-to_map :: Environ -> Map Key DeriveT.Val
-to_map (Environ env) = env
+toMap :: Environ -> Map Key DeriveT.Val
+toMap (Environ env) = env
 
-from_map :: Map Key DeriveT.Val -> Environ
-from_map = Environ
+fromMap :: Map Key DeriveT.Val -> Environ
+fromMap = Environ
 
 delete :: Key -> Environ -> Environ
 delete key (Environ env) = Environ $ Map.delete key env
 
-is_set :: Key -> Environ -> Bool
-is_set key (Environ env) = Map.member key env
+isSet :: Key -> Environ -> Bool
+isSet key (Environ env) = Map.member key env
 
 map :: (DeriveT.Val -> DeriveT.Val) -> Environ -> Environ
 map f (Environ env) = Environ $ f <$> env
 
-from_controls :: ScoreT.ControlMap -> Environ
-from_controls = from_map . Map.fromAscList . Prelude.map convert . Map.toAscList
+fromControls :: ScoreT.ControlMap -> Environ
+fromControls = fromMap . Map.fromAscList . Prelude.map convert . Map.toAscList
     where
     convert (ScoreT.Control control, sig) = (control, DeriveT.VSignal sig)
 
@@ -73,65 +73,65 @@ type Error = Text
 -- inconsistent with types will just lead to confusion.
 --
 -- 'DeriveT.VNotGiven' is another special case, it deletes the given key.
-put_val :: Typecheck.ToVal a => Key -> a -> Environ -> Either Error Environ
-put_val key val environ = case lookup key environ of
-    Nothing -> case Map.lookup key hardcoded_types of
-        Just expected | not $ DeriveT.types_equal expected rhs ->
-            Left $ type_error key rhs (ValType.general_type_of expected)
+putVal :: Typecheck.ToVal a => Key -> a -> Environ -> Either Error Environ
+putVal key val environ = case lookup key environ of
+    Nothing -> case Map.lookup key hardcodedTypes of
+        Just expected | not $ DeriveT.typesEqual expected rhs ->
+            Left $ typeError key rhs (ValType.generalTypeOf expected)
         _ -> Right $ case rhs of
             DeriveT.VNotGiven -> environ
             _ -> insert key rhs environ
     Just lhs -> assign (lhs, rhs)
     where
-    rhs = Typecheck.to_val val
+    rhs = Typecheck.toVal val
     assign = \case
         (_, DeriveT.VNotGiven) -> Right $ delete key environ
         (DeriveT.VCFunction cf, rhs)
-            | Just cf <- merge_cf cf rhs -> Right $ add cf
+            | Just cf <- mergeCf cf rhs -> Right $ add cf
         (lhs, DeriveT.VCFunction cf)
-            | Just cf <- merge_cf cf lhs -> Right $ add cf
+            | Just cf <- mergeCf cf lhs -> Right $ add cf
         (lhs, rhs)
-            | DeriveT.types_equal lhs rhs -> Right $ add rhs
+            | DeriveT.typesEqual lhs rhs -> Right $ add rhs
             | otherwise ->
-                Left $ type_error key rhs (ValType.general_type_of lhs)
-    merge_cf cf = \case
+                Left $ typeError key rhs (ValType.generalTypeOf lhs)
+    mergeCf cf = \case
         DeriveT.VSignal sig ->
-            Just $ DeriveT.VCFunction $ cf { DeriveT.cf_signal = sig }
+            Just $ DeriveT.VCFunction $ cf { DeriveT.cfSignal = sig }
         -- Anything else gets type checked and replaced.
         _ -> Nothing
     add rhs = insert key rhs environ
 
-modify_signal :: (Maybe ScoreT.TypedSignal -> ScoreT.TypedSignal) -> Key
+modifySignal :: (Maybe ScoreT.TypedSignal -> ScoreT.TypedSignal) -> Key
     -> Environ -> Either Error DeriveT.Val
-modify_signal modify key environ = case lookup key environ of
-    Nothing -> Right $ Typecheck.to_val $ modify Nothing
-    Just val -> modify_signal_val (modify . Just) val
+modifySignal modify key environ = case lookup key environ of
+    Nothing -> Right $ Typecheck.toVal $ modify Nothing
+    Just val -> modifySignalVal (modify . Just) val
 
-modify_signal_val :: (ScoreT.TypedSignal -> ScoreT.TypedSignal) -> DeriveT.Val
+modifySignalVal :: (ScoreT.TypedSignal -> ScoreT.TypedSignal) -> DeriveT.Val
     -> Either Error DeriveT.Val
-modify_signal_val modify = \case
+modifySignalVal modify = \case
     DeriveT.VSignal sig -> Right $ DeriveT.VSignal $ modify sig
     DeriveT.VCFunction cf -> Right $ DeriveT.VCFunction $
-        cf { DeriveT.cf_signal = modify (DeriveT.cf_signal cf) }
-    val -> Left $ "can't modify " <> pretty (ValType.general_type_of val)
+        cf { DeriveT.cfSignal = modify (DeriveT.cfSignal cf) }
+    val -> Left $ "can't modify " <> pretty (ValType.generalTypeOf val)
         <> " as a signal"
 
-type_error :: Key -> DeriveT.Val -> ValType.Type -> Error
-type_error key val expected = mconcat
-    [ "can't set ", pretty key, " to ", ShowVal.show_val val, ", expected "
-    , pretty expected, " but got ", pretty (ValType.general_type_of val)
+typeError :: Key -> DeriveT.Val -> ValType.Type -> Error
+typeError key val expected = mconcat
+    [ "can't set ", pretty key, " to ", ShowVal.showVal val, ", expected "
+    , pretty expected, " but got ", pretty (ValType.generalTypeOf val)
     ]
 
 -- | Insert a val without typechecking.
-insert_val :: Typecheck.ToVal a => Key -> a -> Environ -> Environ
-insert_val key = insert key . Typecheck.to_val
+insertVal :: Typecheck.ToVal a => Key -> a -> Environ -> Environ
+insertVal key = insert key . Typecheck.toVal
 
 -- | If a standard val gets set to the wrong type, it will cause confusing
 -- errors later on.
-hardcoded_types :: Map Key DeriveT.Val
-hardcoded_types = Map.fromList
+hardcodedTypes :: Map Key DeriveT.Val
+hardcodedTypes = Map.fromList
     [ (EnvKey.attributes,  DeriveT.VAttributes mempty)
-    , (EnvKey.block_end,   DeriveT.constant ScoreT.Score 0)
+    , (EnvKey.blockEnd,   DeriveT.constant ScoreT.Score 0)
     , (EnvKey.control,     str)
     , (EnvKey.instrument,  str)
     , (EnvKey.key,         str)
@@ -139,7 +139,7 @@ hardcoded_types = Map.fromList
     , (EnvKey.scale,       str)
     , (EnvKey.seed,        num)
     , (EnvKey.srate,       num)
-    , (EnvKey.suppress_until, DeriveT.constant ScoreT.Real 0)
+    , (EnvKey.suppressUntil, DeriveT.constant ScoreT.Real 0)
     , (EnvKey.tuning,      str)
     , (EnvKey.voice,       num)
     ]
@@ -149,34 +149,34 @@ hardcoded_types = Map.fromList
 
 data LookupError = NotFound | WrongType !ValType.Type deriving (Show)
 
-get_val :: Typecheck.Typecheck a => Key -> Environ -> Either LookupError a
-get_val key environ = case lookup key environ of
+getVal :: Typecheck.Typecheck a => Key -> Environ -> Either LookupError a
+getVal key environ = case lookup key environ of
     Nothing -> Left NotFound
-    Just val -> case Typecheck.from_val_simple val of
-        Nothing -> Left (WrongType (ValType.general_type_of val))
+    Just val -> case Typecheck.fromValSimple val of
+        Nothing -> Left (WrongType (ValType.generalTypeOf val))
         Just a -> Right a
 
 -- | Like 'get_val', except that type errors and not found both turn into
 -- Nothing.
-maybe_val :: Typecheck.Typecheck a => Key -> Environ -> Maybe a
-maybe_val key = Typecheck.from_val_simple <=< lookup key
+maybeVal :: Typecheck.Typecheck a => Key -> Environ -> Maybe a
+maybeVal key = Typecheck.fromValSimple <=< lookup key
 
 -- | Like 'get_val' but format a WrongType nicely.
-checked_val :: forall a. Typecheck.Typecheck a => Key -> Environ
+checkedVal :: forall a. Typecheck.Typecheck a => Key -> Environ
     -> Either Text (Maybe a)
-checked_val key environ = case get_val key environ of
+checkedVal key environ = case getVal key environ of
     Left NotFound -> pure Nothing
     Left (WrongType typ) ->
-        Left $ pretty key <> ": expected " <> pretty return_type
+        Left $ pretty key <> ": expected " <> pretty returnType
             <> " but env val is " <> pretty typ
     Right a -> pure (Just a)
-    where return_type = Typecheck.to_type (Proxy :: Proxy a)
+    where returnType = Typecheck.toType (Proxy :: Proxy a)
 
 -- | Like 'checked_val', but juggle the return type around so NotFound is just
 -- Nothing, which is more convenient in some cases.
-checked_val2 :: Typecheck.Typecheck a => Key -> Environ
+checkedVal2 :: Typecheck.Typecheck a => Key -> Environ
     -> Maybe (Either Text a)
-checked_val2 key environ = case checked_val key environ of
+checkedVal2 key environ = case checkedVal key environ of
     Right Nothing -> Nothing
     Right (Just val) -> Just (Right val)
     Left err -> Just (Left err)

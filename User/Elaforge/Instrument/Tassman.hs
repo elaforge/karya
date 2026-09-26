@@ -11,4 +11,4 @@ synth :: MidiInst.Synth
 synth = MidiInst.synth "tassman" "Applied Accoustics Tassman" patches
 
 patches :: [MidiInst.Patch]
-patches = [MidiInst.default_patch (-24, 24) []]
+patches = [MidiInst.defaultPatch (-24, 24) []]

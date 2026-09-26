@@ -20,12 +20,12 @@ import Global
 
 test_input_to_note :: Test
 test_input_to_note = do
-    let f smap key = either pretty Pitch.note_text
-            . ChromaticScales.input_to_note smap (ScaleTest.key_environ key)
+    let f smap key = either pretty Pitch.noteText
+            . ChromaticScales.inputToNote smap (ScaleTest.keyEnviron key)
             . ascii
-        abs = Twelve.absolute_scale_map
-        rel = Twelve.relative_scale_map
-        ascii = CmdTest.ascii_kbd . (\(a, b, c) -> CmdTest.pitch a b c)
+        abs = Twelve.absoluteScaleMap
+        rel = Twelve.relativeScaleMap
+        ascii = CmdTest.asciiKbd . (\(a, b, c) -> CmdTest.pitch a b c)
         invalid = "invalid input"
     equal (map (f abs "c-maj") [(4, pc, acc) | pc <- [0..7], acc <- [0, 1]])
         ["4c", "4c#", "4d", "4d#", "4e", invalid, "4f", "4f#", "4g", "4g#"
@@ -43,13 +43,13 @@ test_input_to_note = do
 test_transpose :: Test
 test_transpose = do
     let f smap key_ trans steps =
-            ChromaticScales.show_pitch smap key
+            ChromaticScales.showPitch smap key
                 <=< ChromaticScales.transpose smap trans
-                    (ScaleTest.key_environ key_) steps
-                <=< ChromaticScales.read_pitch smap key
+                    (ScaleTest.keyEnviron key_) steps
+                <=< ChromaticScales.readPitch smap key
             where key = Just (Pitch.Key key_)
-        rel = Twelve.relative_scale_map
-        abs = Twelve.absolute_scale_map
+        rel = Twelve.relativeScaleMap
+        abs = Twelve.absoluteScaleMap
     equal [f abs "f#-min" Scale.Diatonic n "4f#" | n <- [0..4]] $
         map Right ["4f#", "4g#", "4a", "4b", "5c#"]
     equal [f rel "f#-min" Scale.Diatonic n "4s" | n <- [0..4]] $
@@ -58,8 +58,8 @@ test_transpose = do
 
 test_transpose_controls :: Test
 test_transpose_controls = do
-    let f p = DeriveTest.extract Score.initial_nn $
-            DeriveTest.derive_tracks "" $ UiTest.note_track [(0, 1, p)]
+    let f p = DeriveTest.extract Score.initialNn $
+            DeriveTest.deriveTracks "" $ UiTest.noteTrack [(0, 1, p)]
     equal (f "t-chrom=1 | -- 4c") ([Just NN.cs4], [])
     equal (f "t-dia=1 | -- 4c") ([Just NN.d4], [])
     equal (f "t-oct=1 | -- 4c") ([Just NN.c5], [])

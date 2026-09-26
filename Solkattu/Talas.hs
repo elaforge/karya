@@ -23,17 +23,17 @@ instance Pretty Tala where
 
 aksharas :: Tala -> Tala.Akshara
 aksharas = \case
-    Carnatic tala -> Tala.tala_aksharas tala
+    Carnatic tala -> Tala.talaAksharas tala
     Hindustani tala -> talAksharas tala
 
 angas :: Tala -> [Tala.Akshara]
 angas = \case
-    Carnatic tala -> Tala.tala_angas tala
+    Carnatic tala -> Tala.talaAngas tala
     Hindustani tala -> map snd (talVibhags tala)
 
 name :: Tala -> Text
 name = \case
-    Carnatic tala -> Tala.tala_name tala
+    Carnatic tala -> Tala.talaName tala
     Hindustani tala -> talName tala
 
 angaSet :: Tala -> Set Tala.Akshara
@@ -41,7 +41,7 @@ angaSet = Set.fromList .  scanl (+) 0 . angas
 
 labels :: Tala -> [Text]
 labels = \case
-    Carnatic tala -> Tala.tala_labels tala
+    Carnatic tala -> Tala.talaLabels tala
     Hindustani tala -> talLabels tala
 
 -- * Tal
@@ -65,7 +65,7 @@ talLabels = taliLabels . talVibhags
 taliLabels :: [(Tali, Tala.Akshara)] -> [Text]
 taliLabels = map fmt . zip [1 ..] . concatMap expand
     where
-    fmt (n, mb_tali) = showt n <> case mb_tali of
+    fmt (n, mbTali) = showt n <> case mbTali of
         Nothing -> ""
         Just Tali -> "x"
         Just Kali -> "o"

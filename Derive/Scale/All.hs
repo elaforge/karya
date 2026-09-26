@@ -6,7 +6,7 @@
 
     This is to scales as Derive.Call.All is to calls.
 -}
-module Derive.Scale.All (lookup_scale, docs, scales, shadowed) where
+module Derive.Scale.All (lookupScale, docs, scales, shadowed) where
 import qualified Data.Map as Map
 
 import qualified Util.Lists as Lists
@@ -34,20 +34,20 @@ import qualified Perform.Pitch as Pitch
 import           Global
 
 
-lookup_scale :: Scale.LookupScale
-lookup_scale = Scale.LookupScale lookup
+lookupScale :: Scale.LookupScale
+lookupScale = Scale.LookupScale lookup
     where
-    lookup env scale_id = make env <$> Map.lookup scale_id scales
+    lookup env scaleId = make env <$> Map.lookup scaleId scales
     make _ (Scale.Simple scale) = Right scale
-    make env (Scale.Make _ _ make) = make env lookup_scale
+    make env (Scale.Make _ _ make) = make env lookupScale
 
 -- | (scale_id, pattern, doc)
 docs :: [(Pitch.ScaleId, Text, Derive.DocumentedCall)]
 docs = map extract (Map.elems scales)
     where
-    extract (Scale.Simple scale) = (Scale.scale_id scale,
-        Scale.scale_pattern scale, Scale.scale_call_doc scale)
-    extract (Scale.Make scale_id (pattern, doc) _) = (scale_id, pattern, doc)
+    extract (Scale.Simple scale) = (Scale.scaleId scale,
+        Scale.scalePattern scale, Scale.scaleCallDoc scale)
+    extract (Scale.Make scaleId (pattern, doc) _) = (scaleId, pattern, doc)
 
 -- | This is the hardcoded scale map.  It is merged with the static config
 -- scale map at startup.
@@ -58,7 +58,7 @@ shadowed :: [Pitch.ScaleId]
     , Edo.scales
     , Hex.scales
     , Interpolate.scales
-    , Java.old_scales
+    , Java.oldScales
     , Just.scales
     , Harmonic.scales
     , Legong.scales
@@ -71,4 +71,4 @@ shadowed :: [Pitch.ScaleId]
     , WendyCarlos.scales
     ]
     where
-    mk = second (map fst) . Maps.unique . Lists.keyOn Scale.scale_id_of
+    mk = second (map fst) . Maps.unique . Lists.keyOn Scale.scaleIdOf

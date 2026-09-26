@@ -14,18 +14,18 @@ import           Util.Test
 
 type Y = Double
 
-from_pairs :: [(X, Y)] -> V.Unboxed
-from_pairs = V.from_pairs
+fromPairs :: [(X, Y)] -> V.Unboxed
+fromPairs = V.fromPairs
 
-to_pairs :: V.Unboxed -> [(X, Y)]
-to_pairs = V.to_pairs
+toPairs :: V.Unboxed -> [(X, Y)]
+toPairs = V.toPairs
 
 unsample :: V.Sample y -> (X, y)
 unsample s = (V.sx s, V.sy s)
 
 test_at :: Test
 test_at = do
-    let range low high sig = [V.at p (from_pairs sig)
+    let range low high sig = [V.at p (fromPairs sig)
             | p <- Lists.range low (high-1) 1] :: [Maybe Y]
     equal (range 0 4 []) (replicate 4 Nothing)
     equal (range 0 5 (zip (Lists.range_ 0 1) [0, 0.25, 0.5, 0.75, 1]))
@@ -37,13 +37,13 @@ test_at = do
 
 test_at_eta :: Test
 test_at_eta = do
-    let f x sig = V.at x (from_pairs sig)
+    let f x sig = V.at x (fromPairs sig)
     equal (f 6.666666666666664 [(6.666666666666666, 1)]) (Just 1)
     equal (f 6.6666666665 [(6.666666666666666, 1)]) Nothing
 
 test_ascending :: Test
 test_ascending = do
-    let f p = map unsample $ V.ascending p (from_pairs [(1, 1), (2, 2), (3, 3)])
+    let f p = map unsample $ V.ascending p (fromPairs [(1, 1), (2, 2), (3, 3)])
     equal (f 2) [(2, 2), (3, 3)]
     equal (f 3) [(3, 3)]
     equal (f 4) []
@@ -51,19 +51,19 @@ test_ascending = do
 test_descending :: Test
 test_descending = do
     let f p = map unsample $
-            V.descending p (from_pairs [(1, 1), (2, 2), (3, 3)])
+            V.descending p (fromPairs [(1, 1), (2, 2), (3, 3)])
     equal (f 3) [(2, 2), (1, 1)]
     equal (f 2) [(1, 1)]
     equal (f 1) []
 
 test_within :: Test
 test_within = do
-    let f s e = to_pairs . V.within s e . from_pairs
+    let f s e = toPairs . V.within s e . fromPairs
     equal (f 3 3 [(0, 0)]) [(0, 0)]
     equal (f 3 3 [(0, 0), (3, 3), (4, 4)]) [(3, 3)]
 
-above_searches :: [([X], [Int])]
-above_searches =
+aboveSearches :: [([X], [Int])]
+aboveSearches =
     [ ([],  [0, 0, 0, 0])
     , ([1], [0, 1, 1, 1])
     , ([2], [0, 0, 1, 1])
@@ -71,8 +71,8 @@ above_searches =
     , ([1, 1, 2], [0, 2, 3, 3])
     ]
 
-below_searches :: [([X], [Int])]
-below_searches =
+belowSearches :: [([X], [Int])]
+belowSearches =
     [ ([],  [0, 0, 0, 0])
     , ([1], [0, 0, 1, 1])
     , ([2], [0, 0, 0, 1])
@@ -80,41 +80,41 @@ below_searches =
     , ([1, 1, 2], [0, 0, 2, 3])
     ]
 
-search_on_indices :: (X -> V.Unboxed -> Int) -> [([X], [Int])]
+searchOnIndices :: (X -> V.Unboxed -> Int) -> [([X], [Int])]
     -> [([Int], [Int])]
-search_on_indices search searches = do
+searchOnIndices search searches = do
     (xs, indices) <- searches
-    let search1 x = search x (from_pairs (map (, 0) xs))
+    let search1 x = search x (fromPairs (map (, 0) xs))
     pure (map search1 [0, 1, 2, 3], indices)
 
 test_bsearch_above :: Test
 test_bsearch_above = mapM_ (uncurry equal) $
-    search_on_indices V.bsearch_above above_searches
+    searchOnIndices V.bsearchAbove aboveSearches
 
 test_linear_search_above :: Test
 test_linear_search_above = mapM_ (uncurry equal) $
-    search_on_indices V.linear_search_above above_searches
+    searchOnIndices V.linearSearchAbove aboveSearches
 
 test_bsearch_below :: Test
 test_bsearch_below = mapM_ (uncurry equal) $
-    search_on_indices V.bsearch_below below_searches
+    searchOnIndices V.bsearchBelow belowSearches
 
 test_linear_search_below :: Test
 test_linear_search_below = mapM_ (uncurry equal) $
-    search_on_indices V.linear_search_below below_searches
+    searchOnIndices V.linearSearchBelow belowSearches
 
 -- * transformation
 
 test_shift :: Test
 test_shift = do
-    let vec = from_pairs [(0, 1), (1, 0)]
-    let shift x = to_pairs $ V.shift x vec
+    let vec = fromPairs [(0, 1), (1, 0)]
+    let shift x = toPairs $ V.shift x vec
     equal (shift 0) [(0, 1), (1, 0)]
     equal (shift 1) [(1, 1), (2, 0)]
 
 test_drop_after :: Test
 test_drop_after = do
-    let f x = to_pairs . V.drop_at_after x . from_pairs
+    let f x = toPairs . V.dropAtAfter x . fromPairs
     let vec = [(0, 0), (1, 1), (2, 0)]
     equal (f 1 vec) [(0, 0)]
     equal (f 2 vec) [(0, 0), (1, 1)]
@@ -123,7 +123,7 @@ test_drop_after = do
 
 test_drop_before :: Test
 test_drop_before = do
-    let f x = to_pairs . V.drop_before x . from_pairs
+    let f x = toPairs . V.dropBefore x . fromPairs
     let vec = [(2, 0), (4, 1)]
     equal (f 0 vec) [(2, 0), (4, 1)]
     equal (f 2 vec) [(2, 0), (4, 1)]
@@ -135,7 +135,7 @@ test_drop_before = do
 
 test_drop_before_strict :: Test
 test_drop_before_strict = do
-    let f x = to_pairs $ V.drop_before_strict x (from_pairs [(2, 0), (4, 1)])
+    let f x = toPairs $ V.dropBeforeStrict x (fromPairs [(2, 0), (4, 1)])
     equal (f 0) [(2, 0), (4, 1)]
     equal (f 2) [(2, 0), (4, 1)]
     equal (f 3) [(4, 1)]

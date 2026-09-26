@@ -26,12 +26,12 @@ import           Global
 type Error = Text
 
 load :: FilePath -> IO (Either Error ModT.Module)
-load fname = (to_module <=< parse) <$> Text.IO.readFile fname
+load fname = (toModule <=< parse) <$> Text.IO.readFile fname
 
-to_module :: Val -> Either Error ModT.Module
-to_module val = do
-    mod <- to_map val
-    meta <- to_map . VList =<< get "metadata" mod
+toModule :: Val -> Either Error ModT.Module
+toModule val = do
+    mod <- toMap val
+    meta <- toMap . VList =<< get "metadata" mod
     bpm <- num =<< one =<< get "bpm" meta
     spd <- num =<< one =<< get "spd" meta
 
@@ -47,32 +47,32 @@ to_module val = do
     patterns <- get "patterns" mod
     blocks <- forM patterns $ \pattern -> do
         tracks <- list pattern
-        (lens, tracks) <- unzip <$> mapM (get_track <=< list) tracks
+        (lens, tracks) <- unzip <$> mapM (getTrack <=< list) tracks
         pure $ ModT.Block (maximum (0:lens)) tracks
     pure $ ModT.Module
         { _instruments = IntMap.fromList insts
-        , _default_tempo = ModT.Tempo bpm spd
-        , _block_order = Map.singleton "score" order
+        , _defaultTempo = ModT.Tempo bpm spd
+        , _blockOrder = Map.singleton "score" order
         , _blocks = blocks
         }
 
     where
     mkinst n = ModT.Instrument (ScoreT.Instrument (Text.strip n)) Nothing
 
-get_track :: [Val] -> Either Error (Int, ModT.Track)
-get_track (VSymbol "track" : VNum rows : notes) = do
-    lines <- mapM (to_line <=< list) notes
-    pure (rows, ModT.make_track lines)
-get_track vals = Left $ "expected track, got " <> pretty (map val_type vals)
+getTrack :: [Val] -> Either Error (Int, ModT.Track)
+getTrack (VSymbol "track" : VNum rows : notes) = do
+    lines <- mapM (toLine <=< list) notes
+    pure (rows, ModT.makeTrack lines)
+getTrack vals = Left $ "expected track, got " <> pretty (map valType vals)
 
 -- (row pitch inst vol (fx1 fx1param) (fx2 fx2param))
-to_line :: [Val] -> Either Error (Int, ModT.Line)
-to_line [idx, pitch, inst, vol, fx1, fx2] = do
+toLine :: [Val] -> Either Error (Int, ModT.Line)
+toLine [idx, pitch, inst, vol, fx1, fx2] = do
     idx <- num idx
     pitch <- num pitch
     inst <- num inst
     vol <- num vol
-    fxs <- mapMaybeM to_cmd [fx1, fx2]
+    fxs <- mapMaybeM toCmd [fx1, fx2]
     pure $ (idx,) $ ModT.Line
         { _pitch = if 0 < pitch && pitch < 128
             -- c4 in schism tracker shows up as 49, instead of 60.
@@ -86,16 +86,16 @@ to_line [idx, pitch, inst, vol, fx1, fx2] = do
             , [ModT.CutNote | pitch == 130]
             ]
         }
-to_line val = Left $ "expected note, got " <> pretty (map val_type val)
+toLine val = Left $ "expected note, got " <> pretty (map valType val)
 
-to_cmd :: Val -> Either Error (Maybe ModT.Command)
-to_cmd (VList [VString fx, VNum arg])
+toCmd :: Val -> Either Error (Maybe ModT.Command)
+toCmd (VList [VString fx, VNum arg])
     | fx == "" = Right Nothing
-    | otherwise = Right $ Just (fx_to_cmd fx arg)
-to_cmd val = Left $ "expected fx, got " <> val_type val
+    | otherwise = Right $ Just (fxToCmd fx arg)
+toCmd val = Left $ "expected fx, got " <> valType val
 
-fx_to_cmd :: Text -> Int -> ModT.Command
-fx_to_cmd fx arg = case fx of
+fxToCmd :: Text -> Int -> ModT.Command
+fxToCmd fx arg = case fx of
     "volslide" -> case split4 arg of
         (0xf, n) -> ModT.VolumeSlide $ - fromIntegral n / 10
         (n, 0xf) -> ModT.VolumeSlide $ fromIntegral n / 10
@@ -110,12 +110,12 @@ fx_to_cmd fx arg = case fx of
 split4 :: Int -> (Int, Int)
 split4 word = (Bits.shiftR word 4 .&. 0xf, word .&. 0xf)
 
-to_map :: Val -> Either Error (Map Text [Val])
-to_map xs = do
+toMap :: Val -> Either Error (Map Text [Val])
+toMap xs = do
     xs <- list xs
     fmap Map.fromList $ forM xs $ \case
         VList (VSymbol sym : rest) -> Right (sym, rest)
-        val -> Left $ "key, got " <> val_type val
+        val -> Left $ "key, got " <> valType val
 
 get :: Text -> Map Text a -> Either Error a
 get k = maybe (Left $ "no key: " <> k) Right . Map.lookup k
@@ -136,7 +136,7 @@ num = expect "num" $ \case
 
 expect :: Text -> (Val -> Maybe a) -> Val -> Either Error a
 expect name get val =
-    maybe (Left $ "expected " <> name <> ", got " <> val_type val) Right $
+    maybe (Left $ "expected " <> name <> ", got " <> valType val) Right $
         get val
 
 -- * parse
@@ -144,8 +144,8 @@ expect name get val =
 data Val = VList [Val] | VSymbol !Text | VString !Text | VNum !Int
     deriving (Eq, Show)
 
-val_type :: Val -> Text
-val_type = \case
+valType :: Val -> Text
+valType = \case
     VList {} -> "list"
     VSymbol {} -> "symbol"
     VString {} -> "string"
@@ -154,23 +154,23 @@ val_type = \case
 type Parser a = Parse.Parser a
 
 parse :: Text -> Either Error Val
-parse = Parse.parse p_val
+parse = Parse.parse pVal
 
-p_val :: Parser Val
-p_val = lexeme $ p_list <|> p_num <|> p_string <|> p_symbol
+pVal :: Parser Val
+pVal = lexeme $ pList <|> pNum <|> pString <|> pSymbol
 
-p_list :: Parser Val
-p_list = fmap VList $
-    lexeme (P.char '(') *> P.many p_val <* lexeme (P.char ')')
+pList :: Parser Val
+pList = fmap VList $
+    lexeme (P.char '(') *> P.many pVal <* lexeme (P.char ')')
 
-p_symbol :: Parser Val
-p_symbol = VSymbol <$> P.takeWhile1P Nothing (\c -> 'a' <= c && c <= 'z')
+pSymbol :: Parser Val
+pSymbol = VSymbol <$> P.takeWhile1P Nothing (\c -> 'a' <= c && c <= 'z')
 
-p_num :: Parser Val
-p_num = VNum <$> Parse.p_int
+pNum :: Parser Val
+pNum = VNum <$> Parse.pInt
 
-p_string :: Parser Val
-p_string = fmap VString $
+pString :: Parser Val
+pString = fmap VString $
     P.char '"' *> P.takeWhileP Nothing (\c -> c /= '"') <* P.char '"'
 
 lexeme :: Parser a -> Parser a

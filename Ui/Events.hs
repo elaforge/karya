@@ -11,19 +11,19 @@
 module Ui.Events (
     -- * range
     Range(..)
-    , selection_range, event_range
-    , range_times, range_start, range_end, range_duration
+    , selectionRange, eventRange
+    , rangeTimes, rangeStart, rangeEnd, rangeDuration
 
     -- * events
     , Events
-    , empty, null, length, time_begin, time_end
+    , empty, null, length, timeBegin, timeEnd
 
     -- ** list conversion
-    , singleton, from_list
+    , singleton, fromList
     , ascending, descending
 
     -- ** transformation
-    , map_events, move, clip, clip_list
+    , mapEvents, move, clip, clipList
 
     -- ** insert / remove
     , insert, remove
@@ -34,13 +34,13 @@ module Ui.Events (
 
     -- ** split
     -- *** events
-    , split_range, split, split_exclude
-    , in_range
+    , splitRange, split, splitExclude
+    , inRange
     , around
     -- *** List [Event]
-    , split_lists
-    , at_after, after, before, at_before
-    , split_at_before
+    , splitLists
+    , atAfter, after, before, atBefore
+    , splitAtBefore
 
 #ifdef TESTING
     , module Ui.Events
@@ -84,8 +84,8 @@ instance Pretty Range where
         Point p orient ->
             "@" <> pretty p <> (if orient == Types.Positive then "+" else "-")
 
-selection_range :: Sel.Selection -> Range
-selection_range sel
+selectionRange :: Sel.Selection -> Range
+selectionRange sel
     | start == end = Point start $ case Sel.orientation sel of
         Sel.Positive -> Types.Positive
         Sel.Negative -> Types.Negative
@@ -94,25 +94,25 @@ selection_range sel
     | otherwise = Range start end
     where (start, end) = Sel.range sel
 
-event_range :: Event.Event -> Range
-event_range event
+eventRange :: Event.Event -> Range
+eventRange event
     | Event.duration event == 0 =
         Point (Event.start event) (Event.orientation event)
     | otherwise = uncurry Range (Event.range event)
 
-range_times :: Range -> (TrackTime, TrackTime)
-range_times (Range s e) = (s, e)
-range_times (Point s _) = (s, s)
+rangeTimes :: Range -> (TrackTime, TrackTime)
+rangeTimes (Range s e) = (s, e)
+rangeTimes (Point s _) = (s, s)
 
-range_start :: Range -> TrackTime
-range_start = fst . range_times
+rangeStart :: Range -> TrackTime
+rangeStart = fst . rangeTimes
 
-range_end :: Range -> TrackTime
-range_end = snd . range_times
+rangeEnd :: Range -> TrackTime
+rangeEnd = snd . rangeTimes
 
-range_duration :: Range -> TrackTime
-range_duration range = end - start
-    where (start, end) = range_times range
+rangeDuration :: Range -> TrackTime
+rangeDuration range = end - start
+    where (start, end) = rangeTimes range
 
 -- * events
 
@@ -128,32 +128,32 @@ null (Events m) = Map.null m
 length :: Events -> Int
 length = Map.size . get
 
-time_begin :: Events -> ScoreTime
-time_begin = maybe 0 Event.min . head
+timeBegin :: Events -> ScoreTime
+timeBegin = maybe 0 Event.min . head
 
-time_end :: Events -> ScoreTime
-time_end = maybe 0 Event.max . last
+timeEnd :: Events -> ScoreTime
+timeEnd = maybe 0 Event.max . last
 
 -- ** list conversion
 
 singleton :: Event.Event -> Events
-singleton event = Events $ Map.singleton (event_key event) event
+singleton event = Events $ Map.singleton (eventKey event) event
 
-from_list :: [Event.Event] -> Events
-from_list evts = insert evts empty
+fromList :: [Event.Event] -> Events
+fromList evts = insert evts empty
 
 -- | Get all events in ascending order.
 ascending :: Events -> [Event.Event]
-ascending = to_asc_list
+ascending = toAscList
 
 descending :: Events -> [Event.Event]
-descending = to_desc_list . get
+descending = toDescList . get
 
 -- ** transformation
 
 -- | Map a function across the events in Events.
-map_events :: (Event.Event -> Event.Event) -> Events -> Events
-map_events f = from_list . map f . ascending
+mapEvents :: (Event.Event -> Event.Event) -> Events -> Events
+mapEvents f = fromList . map f . ascending
 
 -- | Move events by a constant amount.  It's more efficient than 'map_events'
 -- because it doesn't have to sort and clip the events.
@@ -167,17 +167,17 @@ move delta (Events events) =
 -- | Clip off the events after the given end time.  Also shorten the last
 -- event so it doesn't cross the end, if necessary.
 clip :: Bool -> ScoreTime -> Events -> Events
-clip allow_zero end = from_asc_list . clip_list allow_zero end . to_asc_list
+clip allowZero end = fromAscList . clipList allowZero end . toAscList
 
 -- | Like 'clip', but works on a list.
-clip_list :: Bool -> ScoreTime -> [Event.Event] -> [Event.Event]
-clip_list _ _ [] = []
-clip_list allow_zero end (event : events)
-    | allow_zero && Event.start event > end = []
-    | Event.is_negative event && Event.start event > end = []
-    | Event.is_positive event && Event.start event >= end && not allow_zero = []
-    | Event.end event > end = [Event.set_end end event]
-    | otherwise = event : clip_list allow_zero end events
+clipList :: Bool -> ScoreTime -> [Event.Event] -> [Event.Event]
+clipList _ _ [] = []
+clipList allowZero end (event : events)
+    | allowZero && Event.start event > end = []
+    | Event.isNegative event && Event.start event > end = []
+    | Event.isPositive event && Event.start event >= end && not allowZero = []
+    | Event.end event > end = [Event.setEnd end event]
+    | otherwise = event : clipList allowZero end events
 
 -- ** insert / remove
 
@@ -189,21 +189,21 @@ clip_list allow_zero end (event : events)
 -- debugging, since it enforces that events don't overlap.
 insert :: [Event.Event] -> Events -> Events
 insert [] events = events
-insert unsorted_events (Events events) =
+insert unsortedEvents (Events events) =
     Events $ Map.unions [pre, get overlapping, post]
     where
-    new_events = Lists.sortOn fst $ Lists.keyOn event_key $
-        map Event.round unsorted_events
-    start = Event.min $ snd $ Prelude.head new_events
-    end = Event.max $ snd $ Prelude.last new_events
-    (pre, within, post) = _split_overlapping start end events
-    overlapping = merge_and_clip (Map.toAscList within) new_events
+    newEvents = Lists.sortOn fst $ Lists.keyOn eventKey $
+        map Event.round unsortedEvents
+    start = Event.min $ snd $ Prelude.head newEvents
+    end = Event.max $ snd $ Prelude.last newEvents
+    (pre, within, post) = _splitOverlapping start end events
+    overlapping = mergeAndClip (Map.toAscList within) newEvents
 
 -- | Remove events in the range.
 remove :: Range -> Events -> Events
 remove (Point t orient) events = emap (Map.delete (Key t orient)) events
 remove range events = emap (`Map.difference` within) events
-    where (_, Events within, _) = split_range range events
+    where (_, Events within, _) = splitRange range events
 
 -- ** lookup
 
@@ -232,11 +232,11 @@ last (Events events) = snd <$> Map.lookupMax events
 
 -- *** events
 
-split_range :: Range -> Events -> (Events, Events, Events)
-split_range (Point t orient) (Events events) =
+splitRange :: Range -> Events -> (Events, Events, Events)
+splitRange (Point t orient) (Events events) =
     (Events pre, maybe mempty singleton at, Events post)
     where (pre, at, post) = Map.splitLookup (Key t orient) events
-split_range (Range start end) (Events events) =
+splitRange (Range start end) (Events events) =
     (Events pre, Events within, Events post)
     where
     (pre, within, post) =
@@ -250,15 +250,15 @@ split pos (Events events) = (Events pre, Events post)
 
 -- | Like 'split', but a positive event that matches exactly is excluded from
 -- the result.
-split_exclude :: ScoreTime -> Events -> (Events, Events)
-split_exclude pos (Events events) =
+splitExclude :: ScoreTime -> Events -> (Events, Events)
+splitExclude pos (Events events) =
     (Events (Map.delete (Key pos Types.Negative) pre), Events post)
     where (pre, post) = Map.split (Key pos Types.Positive) events
 
 -- | Like 'split_range', but only return the middle part.
-in_range :: Range -> Events -> Events
-in_range range events = within
-    where (_, within, _) = split_range range events
+inRange :: Range -> Events -> Events
+inRange range events = within
+    where (_, within, _) = splitRange range events
 
 -- | Get events in the given range, plus surrounding.  If there is no event at
 -- @start@, the previous event will be included.  The event after @end@ is
@@ -267,7 +267,7 @@ around :: ScoreTime -> ScoreTime -> Events -> Events
 around start end events = Events $ above $ below within
     where
     (Events pre, Events within, Events post) =
-        split_range (Range start end) events
+        splitRange (Range start end) events
     below m
         | Just (Key lowest _, _) <- Map.lookupMin within, lowest == start = m
         | otherwise = maybe m (\(k, e) -> Map.insert k e m) (Map.lookupMax pre)
@@ -275,38 +275,38 @@ around start end events = Events $ above $ below within
 
 -- *** List [Event]
 
-split_lists :: ScoreTime -> Events -> ([Event.Event], [Event.Event])
-split_lists pos = bimap descending ascending . split pos
+splitLists :: ScoreTime -> Events -> ([Event.Event], [Event.Event])
+splitLists pos = bimap descending ascending . split pos
 
 -- | Events with start >= @pos@.
-at_after :: ScoreTime -> Events -> [Event.Event]
-at_after pos = snd . split_lists pos
+atAfter :: ScoreTime -> Events -> [Event.Event]
+atAfter pos = snd . splitLists pos
 
 -- | Events with start > @pos@.
 after :: ScoreTime -> Events -> [Event.Event]
-after pos events = case at_after pos events of
+after pos events = case atAfter pos events of
     next : rest | Event.start next == pos -> rest
     events -> events
 
 -- | Events with start < @pos@.
 before :: ScoreTime -> Events -> [Event.Event]
-before pos = fst . split_lists pos
+before pos = fst . splitLists pos
 
 -- | Events with start <= @pos@.
-at_before :: ScoreTime -> Events -> [Event.Event]
-at_before pos events
+atBefore :: ScoreTime -> Events -> [Event.Event]
+atBefore pos events
     | next : _ <- post, Event.start next == pos = next : pre
     | otherwise = pre
-    where (pre, post) = split_lists pos events
+    where (pre, post) = splitLists pos events
 
 -- | This is like 'split', but if there isn't an event exactly at the pos then
 -- put the previous one in the post list.
-split_at_before :: ScoreTime -> Events -> ([Event.Event], [Event.Event])
-split_at_before pos events
+splitAtBefore :: ScoreTime -> Events -> ([Event.Event], [Event.Event])
+splitAtBefore pos events
     | next : _ <- post, Event.start next == pos = (pre, post)
     | before : prepre <- pre = (prepre, before : post)
     | otherwise = (pre, post)
-    where (pre, post) = split_lists pos events
+    where (pre, post) = splitLists pos events
 
 -- * implementation
 
@@ -335,18 +335,18 @@ instance Pretty Key where
         Types.Negative -> "-"
         Types.Positive -> "+"
 
-event_key :: Event.Event -> Key
-event_key event = Key (Event.start event) (Event.orientation event)
+eventKey :: Event.Event -> Key
+eventKey event = Key (Event.start event) (Event.orientation event)
 
 -- | This assumes the input is already sorted!
-from_asc_list :: [Event.Event] -> Events
-from_asc_list = Events . Map.fromAscList . Lists.keyOn event_key
+fromAscList :: [Event.Event] -> Events
+fromAscList = Events . Map.fromAscList . Lists.keyOn eventKey
 
-to_asc_list :: Events -> [Event.Event]
-to_asc_list = map snd . Map.toAscList . get
+toAscList :: Events -> [Event.Event]
+toAscList = map snd . Map.toAscList . get
 
-to_desc_list :: EventMap -> [Event.Event]
-to_desc_list = map snd . Map.toDescList
+toDescList :: EventMap -> [Event.Event]
+toDescList = map snd . Map.toDescList
 
 instance Pretty Events where
     format = Pretty.format . map event . ascending
@@ -366,12 +366,12 @@ emap :: (EventMap -> EventMap) -> Events -> Events
 emap f (Events evts) = Events (f evts)
 
 -- | Put events that overlap the range into within.
-_split_overlapping :: ScoreTime -> ScoreTime -> EventMap
+_splitOverlapping :: ScoreTime -> ScoreTime -> EventMap
     -> (EventMap, EventMap, EventMap)
-_split_overlapping start end events = (pre2, within3, post2)
+_splitOverlapping start end events = (pre2, within3, post2)
     where
     (Events pre, Events within, Events post) =
-        split_range (Range start end) (Events events)
+        splitRange (Range start end) (Events events)
     (pre2, within2) = case Map.lookupMax pre of
         Just (k, e) | Event.overlaps start e ->
             (Map.delete k pre, Map.insert k e within)
@@ -390,7 +390,7 @@ merge (Events evts1) (Events evts2)
     | Map.null evts1 = Events evts2
     | Map.null evts2 = Events evts1
     | otherwise =
-        merge_and_clip (Map.toAscList evts2) (Map.toAscList evts1)
+        mergeAndClip (Map.toAscList evts2) (Map.toAscList evts1)
     -- Previously I would extract the overlapping sections and clip only those,
     -- but I moved that to 'insert'.  Perhaps it's a bit more elegant here, but
     -- I think I'm never really merging large Events, just inserting small
@@ -398,8 +398,8 @@ merge (Events evts1) (Events evts2)
     -- big.  Also, putting it in 'insert' avoids having to clip_events an extra
     -- time to create the new Events.
 
-merge_and_clip :: [(Key, Event.Event)] -> [(Key, Event.Event)] -> Events
-merge_and_clip old new = from_asc_list $ clip_events $ map snd $
+mergeAndClip :: [(Key, Event.Event)] -> [(Key, Event.Event)] -> Events
+mergeAndClip old new = fromAscList $ clipEvents $ map snd $
     Lists.mergeOn fst (map (first (,False)) old) (map (first (,True)) new)
     -- Lists.mergeOn should put elements from the first argument first, but
     -- it doesn't guarantee it, so let's be explicit.
@@ -420,18 +420,18 @@ merge_and_clip old new = from_asc_list $ clip_events $ map snd $
     postcondition is that they are still sorted and no [pos .. pos+dur) ranges
     will overlap.
 -}
-clip_events :: [Event.Event] -> [Event.Event]
-clip_events =
+clipEvents :: [Event.Event] -> [Event.Event]
+clipEvents =
     map clip . Lists.zipNeighbors
         . Lists.dropInitialDups (\e -> (Event.start e, Event.orientation e))
     where
-    clip (maybe_prev, cur, maybe_next)
-        | Event.is_negative cur = case maybe_prev of
+    clip (maybePrev, cur, maybeNext)
+        | Event.isNegative cur = case maybePrev of
             Nothing -> cur
             Just prev
                 -- prev |--->
                 -- cur    <---|
-                | Event.is_positive prev -> if Event.end cur < Event.end prev
+                | Event.isPositive prev -> if Event.end cur < Event.end prev
                     then Event.end_ #= midpoint prev cur $ cur
                     else cur
                 -- prev <---|
@@ -439,12 +439,12 @@ clip_events =
                 | Event.start prev > Event.end cur ->
                     Event.end_ #= Event.start prev $ cur
                 | otherwise -> cur
-        | otherwise = case maybe_next of
+        | otherwise = case maybeNext of
             Nothing -> cur
             Just next
                 -- cur  |--->
                 -- next    <---|
-                | Event.is_negative next -> if Event.end next < Event.end cur
+                | Event.isNegative next -> if Event.end next < Event.end cur
                     then Event.end_ #= midpoint cur next $ cur
                     else cur
                 -- cur  |--->
@@ -460,17 +460,17 @@ clip_events =
 -- * serialize
 
 instance Serialize.Serialize Events where
-    put (Events a) = Serialize.put_version 4 >> Serialize.put a
+    put (Events a) = Serialize.putVersion 4 >> Serialize.put a
     get = do
-        v <- Serialize.get_version
+        v <- Serialize.getVersion
         case v of
             3 -> do
                 events :: Map ScoreTime Event.Event <- Serialize.get
-                pure $ from_asc_list $ Map.elems events
+                pure $ fromAscList $ Map.elems events
             4 -> do
                 events :: Map Key Event.Event <- Serialize.get
                 pure $ Events events
-            _ -> Serialize.bad_version "Events" v
+            _ -> Serialize.badVersion "Events" v
 
 -- Key has no version because there are a lot of them and they're all the same
 -- and Events has a version.

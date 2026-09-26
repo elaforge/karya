@@ -25,59 +25,59 @@ type Record = [(Text, RVal)]
 list :: [DeriveT.Val] -> RVal
 list = Val . DeriveT.VList
 
-p_rval :: Parser RVal
-p_rval = Record <$> p_record
-    <|> Val . DeriveT.VList <$> p_list
-    <|> Val <$> p_val
+pRval :: Parser RVal
+pRval = Record <$> pRecord
+    <|> Val . DeriveT.VList <$> pList
+    <|> Val <$> pVal
 
-p_val :: Parser DeriveT.Val
-p_val = Util.Parse.attoparse "val" (Parse.p_val Parse.UnquotedStrict)
+pVal :: Parser DeriveT.Val
+pVal = Util.Parse.attoparse "val" (Parse.pVal Parse.UnquotedStrict)
 
 type Indent = Int
 
-un_rval :: RVal -> [Text]
-un_rval = \case
-    Record rec -> un_record rec
+unRval :: RVal -> [Text]
+unRval = \case
+    Record rec -> unRecord rec
     Val (DeriveT.VList vals) ->
-        ["[" <> Text.intercalate ", " (map ShowVal.show_val vals) <> "]"]
-    Val a -> [ShowVal.show_val a]
+        ["[" <> Text.intercalate ", " (map ShowVal.showVal vals) <> "]"]
+    Val a -> [ShowVal.showVal a]
 
-un_record :: Record -> [Text]
-un_record = \case
+unRecord :: Record -> [Text]
+unRecord = \case
     [] -> ["{}"]
     [(k, Val v)] ->
-        [mconcat $ ["{", k, ": "] ++ un_rval (Val v) ++ ["}"]]
+        [mconcat $ ["{", k, ": "] ++ unRval (Val v) ++ ["}"]]
     (k, v) : fields ->
-        un_field "{" (k, v) ++ concatMap (un_field ",") fields ++ ["}"]
+        unField "{" (k, v) ++ concatMap (unField ",") fields ++ ["}"]
     where
     -- Some shenanigans to unwrap single val or single element records.
     -- It's probably inconsistent and broken, but only needs to work
     -- in one specific case.
-    un_field delim (k, v) = case v of
-        Val v -> [mconcat $ key ++ [" "] ++ un_rval (Val v)]
-        Record [(k2, v2)] -> [mconcat $ key ++ [" "] ++ un_record [(k2, v2)]]
-        Record fields -> mconcat key : map (indent <>) (un_record fields)
+    unField delim (k, v) = case v of
+        Val v -> [mconcat $ key ++ [" "] ++ unRval (Val v)]
+        Record [(k2, v2)] -> [mconcat $ key ++ [" "] ++ unRecord [(k2, v2)]]
+        Record fields -> mconcat key : map (indent <>) (unRecord fields)
         where key = [delim, " ", k, ":"]
     indent = "    "
 
 -- TODO use above if ShowVal is inconsistent?
-un_single_quote_string :: Text -> Text
-un_single_quote_string t = "'" <> Text.replace "'" "''" t <> "'"
+unSingleQuoteString :: Text -> Text
+unSingleQuoteString t = "'" <> Text.replace "'" "''" t <> "'"
 
-p_record :: Parser Record
-p_record =
-    between '{' '}' $ P.sepBy (lexeme p_entry) (lexeme (P.char ','))
+pRecord :: Parser Record
+pRecord =
+    between '{' '}' $ P.sepBy (lexeme pEntry) (lexeme (P.char ','))
     where
-    p_entry = (,) <$> (lexeme p_word <* lexeme (P.char ':')) <*> p_rval
+    pEntry = (,) <$> (lexeme pWord <* lexeme (P.char ':')) <*> pRval
 
-p_word :: Parser Text
-p_word = P.takeWhile1 $ \c -> any ($c)
+pWord :: Parser Text
+pWord = P.takeWhile1 $ \c -> any ($c)
     [ Char.isAsciiLower, Char.isAsciiUpper, Char.isDigit
     , (`elem` ("-_" :: [Char]))
     ]
 
-p_list :: Parser [DeriveT.Val]
-p_list = between '[' ']' $ P.sepBy (lexeme p_val) (lexeme (P.char ','))
+pList :: Parser [DeriveT.Val]
+pList = between '[' ']' $ P.sepBy (lexeme pVal) (lexeme (P.char ','))
 
 -- * util
 

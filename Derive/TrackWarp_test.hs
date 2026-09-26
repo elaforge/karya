@@ -20,34 +20,34 @@ import Types
 
 test_collect_track_warps :: Test
 test_collect_track_warps = do
-    let f tracks = extract . TrackWarp.collect_track_warps tracks
+    let f tracks = extract . TrackWarp.collectTrackWarps tracks
         extract = sort . map extract1
             where
             extract1 (TrackWarp.TrackWarp s e block tracks warp) =
                 ( (s, e)
                 , block
                 , Foldable.toList tracks
-                , Warp._stretch <$> Warp.is_linear warp
+                , Warp._stretch <$> Warp.isLinear warp
                 )
             sort = Lists.sortOn (\(range, block, _, _) -> (block, range))
     let bid = UiTest.bid
-        tids name = map (UiTest.mk_tid_name name)
+        tids name = map (UiTest.mkTidName name)
         tempo n = ("tempo", [(0, 0, showt n)])
 
     let (tracks, wmap, logs) =
-            run_warps [("b1", UiTest.note_track [(0, 1, "4c")])]
+            runWarps [("b1", UiTest.noteTrack [(0, 1, "4c")])]
     equal logs []
     equal (f tracks wmap) [((0, 1), bid "b1", tids "b1" [1, 2], Just 1)]
 
-    let (tracks, wmap, logs) = run_warps
-            [("b1", tempo 2 : UiTest.note_track [(0, 1, "4c"), (1, 1, "4d")])]
+    let (tracks, wmap, logs) = runWarps
+            [("b1", tempo 2 : UiTest.noteTrack [(0, 1, "4c"), (1, 1, "4d")])]
     equal logs []
     equal (f tracks wmap) [((0, 1), bid "b1", tids "b1" [1, 2, 3], Just 0.5)]
 
     -- Sub-block.
-    let (tracks, wmap, logs) = run_warps
+    let (tracks, wmap, logs) = runWarps
             [ ("top", [(">", [(0, 2, "sub"), (2, 2, "sub")])])
-            , ("sub=ruler", UiTest.note_track [(0, 1, "4c"), (1, 1, "4d")])
+            , ("sub=ruler", UiTest.noteTrack [(0, 1, "4c"), (1, 1, "4d")])
             ]
     equal logs []
     equal (f tracks wmap)
@@ -57,10 +57,10 @@ test_collect_track_warps = do
         ]
 
     -- Sub-block with different tempos.
-    let (tracks, wmap, logs) = run_warps
+    let (tracks, wmap, logs) = runWarps
             [ ("top", [tempo 2, (">", [(0, 2, "sub"), (2, 2, "sub")])])
             , ("sub=ruler",
-                tempo 0.5 : UiTest.note_track [(0, 1, "4c"), (1, 1, "4d")])
+                tempo 0.5 : UiTest.noteTrack [(0, 1, "4c"), (1, 1, "4d")])
             ]
     equal logs []
     equal (f tracks wmap)
@@ -70,9 +70,9 @@ test_collect_track_warps = do
         ]
 
     -- Two toplevel tempos.
-    let (tracks, wmap, logs) = run_warps $ (:[]) $ (,) "b1" $
-            tempo 1 : UiTest.note_track [(0, 1, "4c"), (1, 1, "4d")]
-            ++ tempo 2 : UiTest.note_track [(0, 1, "4e"), (1, 1, "4f")]
+    let (tracks, wmap, logs) = runWarps $ (:[]) $ (,) "b1" $
+            tempo 1 : UiTest.noteTrack [(0, 1, "4c"), (1, 1, "4d")]
+            ++ tempo 2 : UiTest.noteTrack [(0, 1, "4e"), (1, 1, "4f")]
     equal logs []
     equal (f tracks wmap)
         [ ((0, 1), bid "b1", tids "b1" [4, 5, 6], Just 0.5)
@@ -80,13 +80,13 @@ test_collect_track_warps = do
         ]
 
 
-run_warps :: [UiTest.BlockSpec]
+runWarps :: [UiTest.BlockSpec]
     -> ([(BlockId, [Tree.Tree TrackId])], TrackWarp.WarpMap, [Text])
-run_warps = extract . DeriveTest.derive_blocks
+runWarps = extract . DeriveTest.deriveBlocks
     where
-    extract r = (tracks_of r, wmap, logs_of r)
+    extract r = (tracksOf r, wmap, logsOf r)
         where
-        logs_of = snd . DeriveTest.extract id
-        wmap = Derive.collect_warp_map $ Derive.state_collect $ Derive.r_state r
-    tracks_of r = UiTest.eval state TrackWarp.get_track_trees
-        where state = Derive.state_ui $ Derive.state_constant $ Derive.r_state r
+        logsOf = snd . DeriveTest.extract id
+        wmap = Derive.collectWarpMap $ Derive.stateCollect $ Derive.rState r
+    tracksOf r = UiTest.eval state TrackWarp.getTrackTrees
+        where state = Derive.stateUi $ Derive.stateConstant $ Derive.rState r

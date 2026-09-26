@@ -3,18 +3,18 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 module Ui.Meter.Mark (
     Marklist, MarklistVector
-    , marklist, marklist_from_vector
+    , marklist, marklistFromVector
     , empty
-    , to_list
+    , toList
     , ascending, descending
     , end, start
-    , insert_mark
+    , insertMark
     , Mark(..)
     , Label
 
     -- * for RulerC's eyes only
     , MarklistPtr(..)
-    , marklist_vec, marklist_fptr
+    , marklistVec, marklistFptr
 ) where
 import qualified Control.Concurrent.MVar as MVar
 import qualified Control.DeepSeq as DeepSeq
@@ -33,24 +33,24 @@ import           Types
 
 
 data Marklist = Marklist
-    { marklist_vec :: !MarklistVector
+    { marklistVec :: !MarklistVector
     -- | This is a cache for the C-marshalled version of the marklist.
     -- It will be allocated if the Marklist is passed to C, and is managed with
     -- its own reference count.
     --
     -- I think this should be safe as long as 'marklist' is the only
     -- constructor.
-    , marklist_fptr :: !MarklistPtr
+    , marklistFptr :: !MarklistPtr
     }
 
 type MarklistVector = TimeVector.Boxed Mark
 
 instance Eq Marklist where
-    m1 == m2 = marklist_vec m1 == marklist_vec m2
+    m1 == m2 = marklistVec m1 == marklistVec m2
 instance Show Marklist where
     show m = "Ruler.marklist " ++ show (ascending 0 m)
 instance Pretty Marklist where
-    pretty m = "((" <> showt (TimeVector.length (marklist_vec m)) <> " marks))"
+    pretty m = "((" <> showt (TimeVector.length (marklistVec m)) <> " marks))"
 
 -- | This should be opaque, but it needs to be exported for RulerC.  Don't look
 -- inside if you're not RulerC, OK?
@@ -75,47 +75,47 @@ newtype MarklistPtr = MarklistPtr
 type PosMark = (ScoreTime, Mark)
 
 marklist :: [PosMark] -> Marklist
-marklist = marklist_from_vector . TimeVector.from_pairs
-    . map (first RealTime.from_score)
+marklist = marklistFromVector . TimeVector.fromPairs
+    . map (first RealTime.fromScore)
 
-{-# NOINLINE marklist_from_vector #-} -- due to evil unsafePerformIO
-marklist_from_vector :: MarklistVector -> Marklist
-marklist_from_vector vec = Marklist
-    { marklist_vec = vec
-    , marklist_fptr = MarklistPtr $ Unsafe.unsafePerformIO $
+{-# NOINLINE marklistFromVector #-} -- due to evil unsafePerformIO
+marklistFromVector :: MarklistVector -> Marklist
+marklistFromVector vec = Marklist
+    { marklistVec = vec
+    , marklistFptr = MarklistPtr $ Unsafe.unsafePerformIO $
         MVar.newMVar (Left vec)
     }
 
 empty :: Marklist
 empty = marklist mempty
 
-to_list :: Marklist -> [PosMark]
-to_list = map unsample . TimeVector.toList . marklist_vec
+toList :: Marklist -> [PosMark]
+toList = map unsample . TimeVector.toList . marklistVec
 
 -- | Marks starting at the first mark >= the given pos, to the end.
 ascending :: ScoreTime -> Marklist -> [PosMark]
 ascending pos mlist = map unsample $
-    TimeVector.ascending (RealTime.from_score pos) (marklist_vec mlist)
+    TimeVector.ascending (RealTime.fromScore pos) (marklistVec mlist)
 
 -- | Marks starting at the first mark below the given pos, to the beginning.
 descending :: ScoreTime -> Marklist -> [PosMark]
 descending pos mlist = map unsample $
-    TimeVector.descending (RealTime.from_score pos) (marklist_vec mlist)
+    TimeVector.descending (RealTime.fromScore pos) (marklistVec mlist)
 
 unsample :: TimeVector.Sample Mark -> PosMark
-unsample s = (RealTime.to_score (TimeVector.sx s), TimeVector.sy s)
+unsample s = (RealTime.toScore (TimeVector.sx s), TimeVector.sy s)
 
 -- | Get the position of the last mark.
 end :: Marklist -> ScoreTime
-end = maybe 0 (RealTime.to_score . TimeVector.sx)
-    . TimeVector.last . marklist_vec
+end = maybe 0 (RealTime.toScore . TimeVector.sx)
+    . TimeVector.last . marklistVec
 
 start :: Marklist -> ScoreTime
-start = maybe 0 (RealTime.to_score . TimeVector.sx)
-    . TimeVector.head . marklist_vec
+start = maybe 0 (RealTime.toScore . TimeVector.sx)
+    . TimeVector.head . marklistVec
 
-insert_mark :: ScoreTime -> Mark -> Marklist -> Marklist
-insert_mark pos mark = marklist . List.insertBy cmp (pos, mark) . ascending 0
+insertMark :: ScoreTime -> Mark -> Marklist -> Marklist
+insertMark pos mark = marklist . List.insertBy cmp (pos, mark) . ascending 0
     where cmp a b = compare (fst a) (fst b)
 
 -- * mark
@@ -124,25 +124,25 @@ data Mark = Mark
     -- | An arbitrary low integer.  This is the only part of the mark that
     -- matters to the code, the rest is purely visual.  By convention, the
     -- most prominent divisions start at rank 0 and go up from there.
-    { mark_rank :: !Meter.Rank
+    { markRank :: !Meter.Rank
     -- | Width in pixels.
-    , mark_width :: !Int
-    , mark_color :: !Color.Color
+    , markWidth :: !Int
+    , markColor :: !Color.Color
     -- | A bit of text displayed with the mark.  This can use backtick symbols.
-    , mark_name :: !Label
+    , markName :: !Label
     -- | The text is only displayed when the zoom factor exceeds this value.
-    , mark_name_zoom_level :: !Double
+    , markNameZoomLevel :: !Double
     -- | The mark itself is only displayed when the zoom factor exeeds this
     -- value.
-    , mark_zoom_level :: !Double
+    , markZoomLevel :: !Double
     } deriving (Eq, Show)
 
 type Label = Text
 
 instance DeepSeq.NFData Mark where
-    rnf (Mark rank width color name name_zoom zoom) = rank `seq` width
-        `seq` color `seq` name `seq` name_zoom `seq` zoom `seq` ()
+    rnf (Mark rank width color name nameZoom zoom) = rank `seq` width
+        `seq` color `seq` name `seq` nameZoom `seq` zoom `seq` ()
 
 instance Pretty Mark where
-    pretty m = "(mark " <> showt (mark_rank m) <> name <> ")"
-        where name = if Text.null (mark_name m) then "" else " " <> mark_name m
+    pretty m = "(mark " <> showt (markRank m) <> name <> ")"
+        where name = if Text.null (markName m) then "" else " " <> markName m

@@ -5,18 +5,18 @@
 {-# LANGUAGE CPP #-}
 module LogView.Process (
     -- * state
-    State(..), initial_state, add_msg, state_msgs
-    , compile_filter
+    State(..), initialState, addMsg, stateMsgs
+    , compileFilter
     -- * process_msg
-    , process_msg
-    , CatchPattern, global_status_pattern
-    , render_status
+    , processMsg
+    , CatchPattern, globalStatusPattern
+    , renderStatus
     , StyledText(..)
 
-    , match_pattern
+    , matchPattern
 #ifdef TESTING
-    , flatten_ranges, run_formatter, regex_style, style_plain
-    , msg_text_regexes
+    , flattenRanges, runFormatter, regexStyle, stylePlain
+    , msgTextRegexes
 #endif
 ) where
 import qualified Control.Monad.Trans.State as State
@@ -46,35 +46,35 @@ import           Global
 -- * state
 
 data State = State
-    { state_filter :: Filter
+    { stateFilter :: Filter
     -- | Msgs matching this regex have their matching groups put in the
     -- status line.
-    , state_catch_patterns :: [CatchPattern]
-    , state_status :: Status
+    , stateCatchPatterns :: [CatchPattern]
+    , stateStatus :: Status
     -- | A cache of the most recent msgs.  When the filter is changed they can
     -- be displayed.  This way memory use is bounded but you can display recent
     -- msgs you missed because of the filter.
-    , state_cached_msgs :: Sequence.Seq Log.Msg
+    , stateCachedMsgs :: Sequence.Seq Log.Msg
     -- | Last displayed msg, along with the number of times it has been seen.
     -- Used to suppress duplicate msgs.
-    , state_last_displayed :: Maybe (Log.Msg, Int)
+    , stateLastDisplayed :: Maybe (Log.Msg, Int)
     } deriving (Show)
 
-initial_state :: Text -> State
-initial_state filt = State
-    { state_filter = compile_filter filt
-    , state_catch_patterns = []
-    , state_status = Map.empty
-    , state_cached_msgs = Sequence.empty
-    , state_last_displayed = Nothing
+initialState :: Text -> State
+initialState filt = State
+    { stateFilter = compileFilter filt
+    , stateCatchPatterns = []
+    , stateStatus = Map.empty
+    , stateCachedMsgs = Sequence.empty
+    , stateLastDisplayed = Nothing
     }
 
-add_msg :: Int -> Log.Msg -> State -> State
-add_msg history msg state = state { state_cached_msgs = seq }
-    where seq = Sequence.take history (msg Sequence.<| state_cached_msgs state)
+addMsg :: Int -> Log.Msg -> State -> State
+addMsg history msg state = state { stateCachedMsgs = seq }
+    where seq = Sequence.take history (msg Sequence.<| stateCachedMsgs state)
 
-state_msgs :: State -> [Log.Msg]
-state_msgs = Foldable.toList . state_cached_msgs
+stateMsgs :: State -> [Log.Msg]
+stateMsgs = Foldable.toList . stateCachedMsgs
 
 -- ** catch
 
@@ -89,27 +89,27 @@ type CatchPattern = (Text, Regex.Regex)
 
 type Status = Map Text Text
 
-render_status :: Status -> StyledText
-render_status status = run_formatter $
-    sequence_ $ List.intersperse (with_style style_divider " || ")
-        (map format_status (Map.assocs status))
+renderStatus :: Status -> StyledText
+renderStatus status = runFormatter $
+    sequence_ $ List.intersperse (withStyle styleDivider " || ")
+        (map formatStatus (Map.assocs status))
 
-format_status :: (Text, Text) -> Formatter
-format_status (k, v) = do
-    with_style style_emphasis k
-    with_style style_plain ": "
-    regex_style style_plain clickable_braces v
+formatStatus :: (Text, Text) -> Formatter
+formatStatus (k, v) = do
+    withStyle styleEmphasis k
+    withStyle stylePlain ": "
+    regexStyle stylePlain clickableBraces v
 
-clickable_braces :: [(Regex.Regex, Style)]
-clickable_braces =
-    [ (Regex.compileUnsafe "\\{.*?\\}", style_clickable)
+clickableBraces :: [(Regex.Regex, Style)]
+clickableBraces =
+    [ (Regex.compileUnsafe "\\{.*?\\}", styleClickable)
     ]
 
 data StyledText = StyledText
     -- | UTF8-encoded text.
-    { style_text :: B.ByteString
+    { styleText :: B.ByteString
     -- | 'Style' characters, same length as style_text.
-    , style_style :: B.ByteString
+    , styleStyle :: B.ByteString
     } deriving (Eq, Show)
 
 type ProcessM = State.StateT State Identity.Identity
@@ -117,44 +117,44 @@ type ProcessM = State.StateT State Identity.Identity
 -- | Process an incoming log msg.  If the msg isn't filtered out, returned
 -- a colorized version.  Also possibly modify the app state for things like
 -- catch and timing.
-process_msg :: State -> Log.Msg -> (Maybe StyledText, State)
-process_msg state msg = run $ do -- suppress_last msg $ do
-    filt <- State.gets state_filter
-    process_catch
-    let styled = format_msg msg
+processMsg :: State -> Log.Msg -> (Maybe StyledText, State)
+processMsg state msg = run $ do -- suppress_last msg $ do
+    filt <- State.gets stateFilter
+    processCatch
+    let styled = formatMsg msg
     -- I match the filter on the styled output so that the filter is on
     -- the msg as actually displayed.
-    pure $ if eval_filter filt msg $
-            Text.Encoding.decodeUtf8 (style_text styled)
+    pure $ if evalFilter filt msg $
+            Text.Encoding.decodeUtf8 (styleText styled)
         then Just styled else Nothing
     where
     run = flip State.runState state
-    process_catch = State.modify $ \st -> st
-        { state_status = catch (state_status st) (state_catch_patterns st) }
+    processCatch = State.modify $ \st -> st
+        { stateStatus = catch (stateStatus st) (stateCatchPatterns st) }
     catch status patterns = foldl'
         (\status catch -> catch msg status) status (catches patterns)
 
 catches :: [CatchPattern] -> [Catch]
 catches patterns =
-    [ catch_regexes patterns
-    , catch_start
+    [ catchRegexes patterns
+    , catchStart
     ]
 
 -- | Return Nothing if the given msg is the same as the last one.
-suppress_last :: Log.Msg -> ProcessM (Maybe a) -> ProcessM (Maybe a)
-suppress_last msg process = do
-    last_displayed <- State.gets state_last_displayed
-    case last_displayed of
-        Just (last_msg, times) | matches last_msg msg -> do
+suppressLast :: Log.Msg -> ProcessM (Maybe a) -> ProcessM (Maybe a)
+suppressLast msg process = do
+    lastDisplayed <- State.gets stateLastDisplayed
+    case lastDisplayed of
+        Just (lastMsg, times) | matches lastMsg msg -> do
             State.modify $ \st ->
-                st { state_last_displayed = Just (msg, times+1) }
+                st { stateLastDisplayed = Just (msg, times+1) }
             pure Nothing
         _ -> do
             result <- process
             whenJust result $ \_ -> State.modify $ \st ->
-                st { state_last_displayed = Just (msg, 0) }
+                st { stateLastDisplayed = Just (msg, 0) }
             pure result
-    where matches m1 m2 = Log.msg_text m1 == Log.msg_text m2
+    where matches m1 m2 = Log.msgText m1 == Log.msgText m2
 
 -- | This searches the log msg text for a regex and puts it in the status bar
 -- with the given key string.
@@ -164,29 +164,29 @@ suppress_last msg process = do
 -- will replace the key.  >2 groups is an error.
 --
 -- If the value is \"\", then the key is removed.
-catch_regexes :: [CatchPattern] -> Catch
-catch_regexes patterns msg = Map.filter (not . Text.null) . Map.union status
+catchRegexes :: [CatchPattern] -> Catch
+catchRegexes patterns msg = Map.filter (not . Text.null) . Map.union status
     where
     status = Map.unions $
-        map (($ Log.msg_text msg) . match_pattern) patterns
+        map (($ Log.msgText msg) . matchPattern) patterns
 
 -- | The app sends this on startup, so I can clear out any status from the
 -- last session.
-catch_start :: Catch
-catch_start msg status
-    | Log.msg_text msg == "app starting" = Map.empty
+catchStart :: Catch
+catchStart msg status
+    | Log.msgText msg == "app starting" = Map.empty
     | otherwise = status
 
 -- | This catches msgs emitted by 'Cmd.Cmd.set_global_status'.
-global_status_pattern :: CatchPattern
-global_status_pattern =
+globalStatusPattern :: CatchPattern
+globalStatusPattern =
     ("_", Regex.compileUnsafe "^global status: (.*?) -- (.*)")
 
-match_pattern :: CatchPattern -> Text -> Map Text Text
-match_pattern (title, reg) = Map.fromList . map extract . Regex.groups reg
+matchPattern :: CatchPattern -> Text -> Map Text Text
+matchPattern (title, reg) = Map.fromList . map extract . Regex.groups reg
     where
     extract (_, [match]) = (title, match)
-    extract (_, [match_title, match]) = (match_title, match)
+    extract (_, [matchTitle, match]) = (matchTitle, match)
     extract _ = error $ show reg ++ " has >2 groups"
 
 
@@ -200,38 +200,38 @@ instance Show Filter where
 -- | Compile a simple filter language.  A log msg matches if all of the words
 -- in the filter occur within its 'Log.msg_text', and none of the words
 -- prefixed by @-@ occur.
-compile_filter :: Text -> Filter
-compile_filter s = Filter s pred
+compileFilter :: Text -> Filter
+compileFilter s = Filter s pred
     where
-    (not_has_, has) = List.partition ("-" `Text.isPrefixOf`) (Text.words s)
-    not_has = map (Text.drop 1) not_has_
+    (notHas_, has) = List.partition ("-" `Text.isPrefixOf`) (Text.words s)
+    notHas = map (Text.drop 1) notHas_
     pred _msg text = all (`Text.isInfixOf` text) has
-        && not (any (`Text.isInfixOf` text) not_has)
+        && not (any (`Text.isInfixOf` text) notHas)
 
-eval_filter :: Filter -> Log.Msg -> Text -> Bool
-eval_filter (Filter _ pred) msg text = pred msg text
+evalFilter :: Filter -> Log.Msg -> Text -> Bool
+evalFilter (Filter _ pred) msg text = pred msg text
 
 
 -- * format_msg
 
 -- | Format and colorize a single Log.Msg.
-format_msg :: Log.Msg -> StyledText
-format_msg msg = run_formatter $ do
+formatMsg :: Log.Msg -> StyledText
+formatMsg msg = runFormatter $ do
     let width = fromEnum (maxBound :: Log.Priority)
-    with_style style_fixed $ Text.justifyLeft width ' ' $
-        prio_stars (Log.msg_priority msg)
-    let style = if Log.msg_priority msg < Log.Warn
-            then style_plain else style_warn
-    case Log.msg_caller msg of
+    withStyle styleFixed $ Text.justifyLeft width ' ' $
+        prioStars (Log.msgPriority msg)
+    let style = if Log.msgPriority msg < Log.Warn
+            then stylePlain else styleWarn
+    case Log.msgCaller msg of
         CallStack.NoCaller -> pure ()
         caller@(CallStack.Caller {}) ->
-            with_style style_filename $ CallStack.showCaller caller <> " "
-    whenJust (Log.msg_stack msg) $ \stack -> emit_stack stack >> with_plain " "
-    regex_style style msg_text_regexes (Log.msg_text msg)
-    with_plain "\n"
+            withStyle styleFilename $ CallStack.showCaller caller <> " "
+    whenJust (Log.msgStack msg) $ \stack -> emitStack stack >> withPlain " "
+    regexStyle style msgTextRegexes (Log.msgText msg)
+    withPlain "\n"
     where
-    prio_stars Log.Timer = "-"
-    prio_stars prio = Text.replicate (fromEnum prio) "*"
+    prioStars Log.Timer = "-"
+    prioStars prio = Text.replicate (fromEnum prio) "*"
 
 -- | Pair together text along with the magic Style characters.  The Styles
 -- should be the same length as the string.
@@ -245,81 +245,81 @@ instance Monoid Builder where
     mempty = Builder mempty mempty
     mappend = (<>)
 
-run_formatter :: Formatter -> StyledText
-run_formatter = build . Writer.execWriter
+runFormatter :: Formatter -> StyledText
+runFormatter = build . Writer.execWriter
     where
     build (Builder text styles) = StyledText (b text) (b styles)
     b = Lazy.toStrict . Builder.toLazyByteString
 
-emit_stack :: Stack.Stack -> Formatter
-emit_stack stack = do
+emitStack :: Stack.Stack -> Formatter
+emitStack stack = do
     if stack == Stack.empty then pure ()
         -- This likely means the global transform failed.
-        else if null ui_stack then with_plain $
+        else if null uiStack then withPlain $
             "[" <> Text.intercalate " / " (map pretty (Stack.outermost stack))
             <> "]"
-        else with_style style_clickable $
-            Text.intercalate " / " (map Stack.log_ui_frame ui_stack)
-    whenJust (last_call stack) $ \call ->
-        with_plain $ " " <> call <> ":"
+        else withStyle styleClickable $
+            Text.intercalate " / " (map Stack.logUiFrame uiStack)
+    whenJust (lastCall stack) $ \call ->
+        withPlain $ " " <> call <> ":"
     where
-    ui_stack = Stack.to_ui stack
-    last_call = Lists.head . mapMaybe Stack.call_of . Stack.innermost
+    uiStack = Stack.toUi stack
+    lastCall = Lists.head . mapMaybe Stack.callOf . Stack.innermost
 
-msg_text_regexes :: [(Regex.Regex, Style)]
-msg_text_regexes =
-    (Regex.compileUnsafe "\\([bvt]id \".*?\"\\)", style_emphasis)
-    : clickable_braces
+msgTextRegexes :: [(Regex.Regex, Style)]
+msgTextRegexes =
+    (Regex.compileUnsafe "\\([bvt]id \".*?\"\\)", styleEmphasis)
+    : clickableBraces
 
-regex_style :: Style -> [(Regex.Regex, Style)] -> Text -> Formatter
-regex_style default_style regex_styles text =
-    sequence_ emits >> with_style default_style rest
+regexStyle :: Style -> [(Regex.Regex, Style)] -> Text -> Formatter
+regexStyle defaultStyle regexStyles text =
+    sequence_ emits >> withStyle defaultStyle rest
     where
     (rest, emits) = List.mapAccumL emit text ranges
-    emit text (i, style) = (post, with_style style pre)
+    emit text (i, style) = (post, withStyle style pre)
         where (pre, post) = Text.splitAt i text
-    ranges = flatten_ranges default_style
+    ranges = flattenRanges defaultStyle
         [ (range, style)
-        | (reg, style) <- regex_styles
+        | (reg, style) <- regexStyles
         , (range, _) <- Regex.groupRanges reg text
         ]
 
-flatten_ranges :: a -> [((Int, Int), a)] -> [(Int, a)]
-flatten_ranges deflt = filter ((>0) . fst) . snd . go 0 . Lists.sortOn fst
+flattenRanges :: a -> [((Int, Int), a)] -> [(Int, a)]
+flattenRanges deflt = filter ((>0) . fst) . snd . go 0 . Lists.sortOn fst
     where
     go n [] = (n, [])
-    go n (((s, e), style) : ranges) = (,) (max last_n e) $
+    go n (((s, e), style) : ranges) = (,) (max lastN e) $
         (s - n, deflt)
         : (min e next - s, style)
-        : rest ++ if last_n < e then [(e - last_n, style)] else []
+        : rest ++ if lastN < e then [(e - lastN, style)] else []
         where
         next = maybe e (fst . fst) (Lists.head ranges)
-        (last_n, rest) = go e ranges
+        (lastN, rest) = go e ranges
 
-with_plain :: Text -> Formatter
-with_plain = with_style style_plain
+withPlain :: Text -> Formatter
+withPlain = withStyle stylePlain
 
-with_style :: Style -> Text -> Formatter
-with_style _ text | Text.null text = pure ()
-with_style style text = Writer.tell $
+withStyle :: Style -> Text -> Formatter
+withStyle _ text | Text.null text = pure ()
+withStyle style text = Writer.tell $
     Builder (Builder.byteString utf8)
         (Builder.byteString (B.replicate (B.length utf8) style))
     where utf8 = Text.Encoding.encodeUtf8 text
 
 type Style = Word.Word8
 
-style_plain, style_warn, style_clickable, style_emphasis, style_divider,
-    style_filename :: Style
-style_plain = word 'A'
-style_warn = word 'B'
-style_clickable = word 'C'
-style_emphasis = word 'D'
-style_divider = word 'E'
+stylePlain, styleWarn, styleClickable, styleEmphasis, styleDivider,
+    styleFilename :: Style
+stylePlain = word 'A'
+styleWarn = word 'B'
+styleClickable = word 'C'
+styleEmphasis = word 'D'
+styleDivider = word 'E'
 -- I lost calling function name when I switched from hspp to implicit call
 -- stacks.
 -- style_func_name = word 'F'
-style_filename = word 'F'
-style_fixed = word 'H'
+styleFilename = word 'F'
+styleFixed = word 'H'
 
 word :: Char -> Word.Word8
 word = toEnum . fromEnum

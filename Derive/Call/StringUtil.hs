@@ -25,51 +25,51 @@ import           Global
 
 -- | TODO if Sig.Parser supported Deriver eval, I could make these return
 -- String, and not need to call 'indexed_strings'.
-open_strings_env :: Sig.Parser [PSignal.Pitch]
-open_strings_env = Sig.check non_empty $
-    Sig.environ_key EnvKey.open_strings ([] :: [PSignal.Pitch])
+openStringsEnv :: Sig.Parser [PSignal.Pitch]
+openStringsEnv = Sig.check nonEmpty $
+    Sig.environKey EnvKey.openStrings ([] :: [PSignal.Pitch])
         "Pitches of open strings."
     where
-    non_empty [] = Just "open-strings required"
-    non_empty _ = Nothing
+    nonEmpty [] = Just "open-strings required"
+    nonEmpty _ = Nothing
 
-string_env :: Sig.Parser (Maybe PSignal.Pitch)
-string_env =
-    Sig.environ_key EnvKey.string (Nothing :: Maybe PSignal.Pitch)
+stringEnv :: Sig.Parser (Maybe PSignal.Pitch)
+stringEnv =
+    Sig.environKey EnvKey.string (Nothing :: Maybe PSignal.Pitch)
         "Play on this string."
 
-with_string :: String -> Derive.Deriver a -> Derive.Deriver a
-with_string = Derive.with_val EnvKey.string . str_val
+withString :: String -> Derive.Deriver a -> Derive.Deriver a
+withString = Derive.withVal EnvKey.string . strVal
 
-insert_string :: String -> Env.Environ -> Env.Environ
-insert_string = Env.insert_val EnvKey.string . str_val
+insertString :: String -> Env.Environ -> Env.Environ
+insertString = Env.insertVal EnvKey.string . strVal
 
 data String = String
-    { str_pitch :: !PSignal.Pitch
-    , str_nn :: !Pitch.NoteNumber
+    { strPitch :: !PSignal.Pitch
+    , strNn :: !Pitch.NoteNumber
     -- | Assign this value to EnvKey.string for this string.
-    , str_val :: !DeriveT.Val
+    , strVal :: !DeriveT.Val
     } deriving (Show)
 
 instance Pretty String where
-    pretty str = pretty (str_val str) <> "(" <> pretty (str_pitch str) <> ")"
+    pretty str = pretty (strVal str) <> "(" <> pretty (strPitch str) <> ")"
 
-indexed_strings :: [PSignal.Pitch] -> Derive.Deriver [String]
-indexed_strings pitches =
-    sequence $ zipWith string_val pitches (map Typecheck.to_val [0 :: Int  ..])
+indexedStrings :: [PSignal.Pitch] -> Derive.Deriver [String]
+indexedStrings pitches =
+    sequence $ zipWith stringVal pitches (map Typecheck.toVal [0 :: Int  ..])
 
 string :: PSignal.Pitch -> Derive.Deriver String
-string pitch = string_val pitch (Typecheck.to_val pitch)
+string pitch = stringVal pitch (Typecheck.toVal pitch)
 
-string_val :: PSignal.Pitch -> DeriveT.Val -> Derive.Deriver String
-string_val pitch val = do
+stringVal :: PSignal.Pitch -> DeriveT.Val -> Derive.Deriver String
+stringVal pitch val = do
     -- Coerce is ok because I don't want open strings in the environ to
     -- transpose.
-    nn <- Pitches.pitch_nn (PSignal.coerce pitch)
+    nn <- Pitches.pitchNn (PSignal.coerce pitch)
     pure $ String
-        { str_pitch = pitch
-        , str_nn = nn
-        , str_val = val
+        { strPitch = pitch
+        , strNn = nn
+        , strVal = val
         }
 
 type Harmonic = Int
@@ -77,30 +77,30 @@ type Harmonic = Int
 -- | If string is given, try to find this pitch in the harmonics of that
 -- string.  Otherwise, find the string from open_strings which has this as
 -- its lowest harmonic.
-find_harmonic :: Bool -> Harmonic -> [String] -> Maybe String
+findHarmonic :: Bool -> Harmonic -> [String] -> Maybe String
     -> Pitch.NoteNumber -> Either Text (String, Harmonic)
     -- ^ Either Error (selected string, harmonic)
-find_harmonic h1_ok highest_harmonic open_strings maybe_string nn =
-    maybe (Left err) Right $ case maybe_string of
+findHarmonic h1Ok highestHarmonic openStrings maybeString nn =
+    maybe (Left err) Right $ case maybeString of
         Just string ->
-            (string,) <$> harmonic_of h1_ok highest_harmonic (str_nn string) nn
+            (string,) <$> harmonicOf h1Ok highestHarmonic (strNn string) nn
         Nothing
-            | null open_strings -> Nothing
+            | null openStrings -> Nothing
             | otherwise -> fmap Tuple.swap $ Lists.minimumOn fst $
-                Lists.keyOnJust harm_of open_strings
+                Lists.keyOnJust harmOf openStrings
                 where
-                harm_of string =
-                    harmonic_of h1_ok highest_harmonic (str_nn string) nn
+                harmOf string =
+                    harmonicOf h1Ok highestHarmonic (strNn string) nn
     where
     err = "can't find " <> pretty nn <> " as a natural harmonic of "
-        <> maybe ("open strings: " <> pretty open_strings) pretty maybe_string
+        <> maybe ("open strings: " <> pretty openStrings) pretty maybeString
 
-harmonic_of :: Bool -> Harmonic -> Pitch.NoteNumber -> Pitch.NoteNumber
+harmonicOf :: Bool -> Harmonic -> Pitch.NoteNumber -> Pitch.NoteNumber
     -> Maybe Harmonic
-harmonic_of h1_ok limit base pitch =
+harmonicOf h1Ok limit base pitch =
     (start+) <$> List.findIndex (close pitch) harmonics
     where
-    start = if h1_ok then 1 else 2
+    start = if h1Ok then 1 else 2
     harmonics = take limit $
-        map ((Pitch.nn_to_hz base *) . fromIntegral) [start..]
-    close nn hz = Pitch.nns_close 50 nn (Pitch.hz_to_nn hz)
+        map ((Pitch.nnToHz base *) . fromIntegral) [start..]
+    close nn hz = Pitch.nnsClose 50 nn (Pitch.hzToNn hz)

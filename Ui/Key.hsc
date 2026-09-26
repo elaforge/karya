@@ -4,8 +4,8 @@
 
 module Ui.Key (
     Key(..), Modifier(..)
-    , to_label, to_mac_label, show_mac_mod
-    , decode_key, decode_modifiers
+    , toLabel, toMacLabel, showMacMod
+    , decodeKey, decodeModifiers
 ) where
 import Prelude hiding (Char, Left, Right)
 import Data.Bits ((.&.))
@@ -45,8 +45,8 @@ instance Pretty Key where
 
 instance Pretty Modifier where pretty = showt
 
-to_label :: Key -> Text
-to_label = \case
+toLabel :: Key -> Text
+toLabel = \case
     Char ' ' -> "space"
     Char char -> Text.singleton char
     ControlL -> "ctl"
@@ -63,23 +63,23 @@ to_label = \case
     Right -> "→"
     key -> Text.toLower (showt key)
 
-to_mac_label :: Key -> Text
-to_mac_label = \case
+toMacLabel :: Key -> Text
+toMacLabel = \case
     AltL -> "optl"
     AltR -> "optr"
     MetaL -> "cmdl"
     MetaR -> "cmdr"
     Backspace -> "del"
-    key -> to_label key
+    key -> toLabel key
 
-show_mac_mod :: Modifier -> Text
-show_mac_mod = \case
+showMacMod :: Modifier -> Text
+showMacMod = \case
     Alt -> "opt"
     Meta -> "cmd"
     mod -> txt $ map Char.toLower $ show mod
 
-decode_key :: CInt -> Key
-decode_key code
+decodeKey :: CInt -> Key
+decodeKey code
     | code /= (#const FL_KP_Enter)
         && (#const FL_KP) < code && code <= (#const FL_KP_Last)
             = Keypad (toEnum (fromIntegral (code - (#const FL_KP))))
@@ -116,8 +116,8 @@ decode_key code
         (#const FL_KP_Enter) -> KPEnter
         _ -> Unknown (fromIntegral code)
 
-decode_modifiers :: CInt -> [Modifier]
-decode_modifiers code = foldr f [] pairs
+decodeModifiers :: CInt -> [Modifier]
+decodeModifiers code = foldr f [] pairs
     where
     f (bit, mod) mods
         | bit .&. code /= 0 = mod : mods
@@ -134,14 +134,14 @@ decode_modifiers code = foldr f [] pairs
 
 unshift :: Char.Char -> Char.Char
 unshift = case System.Info.os of
-    "darwin" -> \c -> Map.findWithDefault c c unshifted_osx_usa
+    "darwin" -> \c -> Map.findWithDefault c c unshiftedOsxUsa
     _ -> id
 
 -- | Map a shifted symbol back to its unshifted variant for a US key layout.
 -- This is because fltk has a bug on OS X that makes shifted symbols emit the
 -- key text, rather than the keycap.
-unshifted_osx_usa :: Map.Map Char.Char Char.Char
-unshifted_osx_usa = Map.fromList
+unshiftedOsxUsa :: Map.Map Char.Char Char.Char
+unshiftedOsxUsa = Map.fromList
     [ ('~', '`'), ('_', '-'), ('+', '=')
     , ('{', '['), ('}', ']'), ('|', '\\')
     , (':', ';'), ('"', '\'')

@@ -31,72 +31,72 @@ module_ = "china" <> "zheng"
 library :: Library.Library
 library = mconcat
     [ Library.generators $
-        [ ("gliss-a", Derive.set_module module_ String.c_gliss_absolute)
-        , ("gliss", Derive.set_module module_ String.c_gliss)
-        ] ++ trill_variations c_note_trill
+        [ ("gliss-a", Derive.setModule module_ String.cGlissAbsolute)
+        , ("gliss", Derive.setModule module_ String.cGliss)
+        ] ++ trillVariations cNoteTrill
     , Library.transformers
-        [ ("bent-string", Derive.set_module module_ String.c_bent_string)
+        [ ("bent-string", Derive.setModule module_ String.cBentString)
         ]
-    , Library.generators $ trill_variations c_pitch_trill
+    , Library.generators $ trillVariations cPitchTrill
     ]
 
-trill_variations :: (Maybe Trill.Direction -> call) -> [(Expr.Symbol, call)]
-trill_variations make =
-    [ (Expr.Symbol $ "tr" <> Trill.direction_affix end, make end)
+trillVariations :: (Maybe Trill.Direction -> call) -> [(Expr.Symbol, call)]
+trillVariations make =
+    [ (Expr.Symbol $ "tr" <> Trill.directionAffix end, make end)
     | end <- dirs
     ]
     where dirs = [Nothing, Just Trill.High, Just Trill.Low]
 
 -- * trill
 
-c_note_trill :: Maybe Trill.Direction -> Derive.Generator Derive.Note
-c_note_trill start_dir = Derive.generator module_ "tr" Tags.ly
+cNoteTrill :: Maybe Trill.Direction -> Derive.Generator Derive.Note
+cNoteTrill startDir = Derive.generator module_ "tr" Tags.ly
     "A trill with smooth transitions."
-    $ Sig.call ((,,) <$> neighbor_arg <*> speed_arg <*> Trill.hold_env
+    $ Sig.call ((,,) <$> neighborArg <*> speedArg <*> Trill.holdEnv
     ) $ \(neighbor, speed, hold) -> Sub.inverting $ \args ->
-    Ly.note_code (Ly.append Constants.First, "\\trill") args $ do
-        pitch <- Call.get_pitch =<< Args.real_start args
-        sig <- trill_signal start_dir pitch neighbor speed hold args
-        Derive.with_pitch sig $ Call.placed_note args
+    Ly.noteCode (Ly.append Constants.First, "\\trill") args $ do
+        pitch <- Call.getPitch =<< Args.realStart args
+        sig <- trillSignal startDir pitch neighbor speed hold args
+        Derive.withPitch sig $ Call.placedNote args
 
-c_pitch_trill :: Maybe Trill.Direction -> Derive.Generator Derive.Pitch
-c_pitch_trill start_dir = Derive.generator1 module_ "tr" mempty
+cPitchTrill :: Maybe Trill.Direction -> Derive.Generator Derive.Pitch
+cPitchTrill startDir = Derive.generator1 module_ "tr" mempty
     "A trill with smooth transitions."
     $ Sig.call ((,,,)
     <$> Sig.required "pitch" "Base pitch."
-    <*> neighbor_arg <*> speed_arg <*> Trill.hold_env
+    <*> neighborArg <*> speedArg <*> Trill.holdEnv
     ) $ \(pitch, neighbor, speed, hold) args ->
-        trill_signal start_dir pitch neighbor speed hold args
+        trillSignal startDir pitch neighbor speed hold args
 
-trill_signal :: Maybe Trill.Direction -> PSignal.Pitch
+trillSignal :: Maybe Trill.Direction -> PSignal.Pitch
     -> Typecheck.NnTransposeFunctionT -> Typecheck.RealTimeFunctionT
     -> DeriveT.Duration -> Derive.PassedArgs a
     -> Derive.Deriver PSignal.PSignal
-trill_signal start_dir pitch (Typecheck.NnTransposeFunctionT ttype neighbor)
+trillSignal startDir pitch (Typecheck.NnTransposeFunctionT ttype neighbor)
         speed hold args = do
-    transpose <- Trill.get_trill_control_smooth config curve
-        (Args.range_or_next args) neighbor
-    start <- Args.real_start args
-    pure $ PSignal.apply_control (Typecheck.transpose_control ttype)
-        (ScoreT.untyped transpose) (PSignal.from_sample start pitch)
+    transpose <- Trill.getTrillControlSmooth config curve
+        (Args.rangeOrNext args) neighbor
+    start <- Args.realStart args
+    pure $ PSignal.applyControl (Typecheck.transposeControl ttype)
+        (ScoreT.untyped transpose) (PSignal.fromSample start pitch)
     where
     config = Trill.Config
         { _speed = speed
-        , _start_dir = start_dir
-        , _end_dir = Nothing
+        , _startDir = startDir
+        , _endDir = Nothing
         , _hold = hold
         , _adjust = Trill.Stretch
         , _bias = 0
-        , _include_end = True
+        , _includeEnd = True
         }
     curve = ControlUtil.Linear
     -- A sigmoid curve looks nice, but as far as I can tell, it sounds the same
     -- as linear, and linear should be cheaper.
     -- curve = ControlUtil.Function $ ControlUtil.sigmoid 0.5 0.5
 
-neighbor_arg :: Sig.Parser Typecheck.NnTransposeFunctionT
-neighbor_arg = Sig.defaulted "neighbor" (1 :: Int)
+neighborArg :: Sig.Parser Typecheck.NnTransposeFunctionT
+neighborArg = Sig.defaulted "neighbor" (1 :: Int)
     "Alternate with a pitch at this interval."
 
-speed_arg :: Sig.Parser Typecheck.RealTimeFunctionT
-speed_arg = Sig.defaulted "speed" (20 :: Int) "Alternate pitches at this speed."
+speedArg :: Sig.Parser Typecheck.RealTimeFunctionT
+speedArg = Sig.defaulted "speed" (20 :: Int) "Alternate pitches at this speed."

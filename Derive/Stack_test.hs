@@ -18,7 +18,7 @@ region = Stack.Region
 
 test_block_track_of :: Test
 test_block_track_of = do
-    let f = Stack.block_track_of . Stack.from_outermost
+    let f = Stack.blockTrackOf . Stack.fromOutermost
     equal (f [block "b"]) Nothing
     equal (f [track "t1", block "b1"]) Nothing
     equal (f [block "b", track "t1", track "t2"])
@@ -30,7 +30,7 @@ test_block_track_of = do
 
 test_to_ui :: Test
 test_to_ui = do
-    let mk = Stack.to_ui . Stack.from_outermost
+    let mk = Stack.toUi . Stack.fromOutermost
     equal (mk [block "b1", block "b2"])
         [(bid "b1", Nothing, Nothing), (bid "b2", Nothing, Nothing)]
     equal (mk [block "b1", track "t1"])
@@ -47,9 +47,9 @@ test_to_ui = do
 test_json :: Test
 test_json = do
     let convert :: Stack.Frame -> Either String Stack.Frame
-        convert = to_either . Aeson.fromJSON . Aeson.toJSON
-        to_either (Aeson.Success a) = Right a
-        to_either (Aeson.Error a) = Left a
+        convert = toEither . Aeson.fromJSON . Aeson.toJSON
+        toEither (Aeson.Success a) = Right a
+        toEither (Aeson.Error a) = Left a
         roundtrip a = (Right a, convert a)
     uncurry equal (roundtrip (block "a"))
     uncurry equal (roundtrip (track "a"))

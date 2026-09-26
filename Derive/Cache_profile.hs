@@ -29,62 +29,62 @@ import Types
 
 -- TODO this has an endless loop somewhere, since it seems to take forever
 
-profile_normal = do
-    let ui_state = UiTest.exec Ui.empty
-            (Derive_profile.make_nested_controls 10 3 128)
-        modify block pos = modify_note ("b1.0." <> showt block <> ".t0")
+profileNormal = do
+    let uiState = UiTest.exec Ui.empty
+            (Derive_profile.makeNestedControls 10 3 128)
+        modify block pos = modifyNote ("b1.0." <> showt block <> ".t0")
             ("b1.0." <> showt block <> ".t1") pos
-    rederive ui_state [modify 0 2, modify 1 0, modify 4 4]
+    rederive uiState [modify 0 2, modify 1 0, modify 4 4]
 
-profile_small = do
-    let ui_state = UiTest.exec Ui.empty
-            (Derive_profile.make_nested_controls 4 3 128)
+profileSmall = do
+    let uiState = UiTest.exec Ui.empty
+            (Derive_profile.makeNestedControls 4 3 128)
     -- pprint (Map.keys (Ui.state_tracks ui_state))
-    rederive ui_state [modify_pitch "b1.0.0.t1" 2]
+    rederive uiState [modifyPitch "b1.0.0.t1" 2]
 
-modify_note :: Ui.M m => Text -> Text -> ScoreTime -> m ()
-modify_note note_tid pitch_tid pos = do
-    Ui.insert_event (UiTest.tid note_tid) (Event.event pos 1 "")
-    Ui.insert_event (UiTest.tid pitch_tid) (Event.event pos 0 "1c")
+modifyNote :: Ui.M m => Text -> Text -> ScoreTime -> m ()
+modifyNote noteTid pitchTid pos = do
+    Ui.insertEvent (UiTest.tid noteTid) (Event.event pos 1 "")
+    Ui.insertEvent (UiTest.tid pitchTid) (Event.event pos 0 "1c")
 
-modify_pitch :: Ui.M m => Text -> ScoreTime -> m ()
-modify_pitch pitch_tid pos =
-    Ui.insert_event (UiTest.tid pitch_tid) (Event.event pos 0 "1c")
+modifyPitch :: Ui.M m => Text -> ScoreTime -> m ()
+modifyPitch pitchTid pos =
+    Ui.insertEvent (UiTest.tid pitchTid) (Event.event pos 0 "1c")
 
 -- | Run the state transform a few times and rederive each time.
 rederive :: Ui.State -> [Ui.StateId ()] -> IO ()
-rederive initial_state modifications = do
-    go initial_state mempty (pure () : modifications)
+rederive initialState modifications = do
+    go initialState mempty (pure () : modifications)
     where
     go _ _ [] = pure ()
     go state1 cache (modify:rest) = do
-        let (_, state2, ui_damage) = Cache_test.run state1 modify
-        cached <- time_section "cached" $
-            eval_derivation cache state1 state2 ui_damage
-        uncached <- time_section "uncached" $ do
-            let result = DeriveTest.derive_block_standard mempty
-                    DeriveTest.default_cmd_state mempty mempty state2
+        let (_, state2, uiDamage) = Cache_test.run state1 modify
+        cached <- timeSection "cached" $
+            evalDerivation cache state1 state2 uiDamage
+        uncached <- timeSection "uncached" $ do
+            let result = DeriveTest.deriveBlockStandard mempty
+                    DeriveTest.defaultCmdState mempty mempty state2
                     (UiTest.bid "b1")
-            Thread.force $ Derive.r_events result
+            Thread.force $ Derive.rEvents result
             pure result
-        equal (Cache_test.diff_events cached uncached) []
-        go state2 (Derive.r_cache cached) rest
+        equal (Cache_test.diffEvents cached uncached) []
+        go state2 (Derive.rCache cached) rest
 
-time_section :: String -> IO a -> IO a
-time_section title op = do
+timeSection :: String -> IO a -> IO a
+timeSection title op = do
     putStr $ "--> " ++ title ++ ": "
     IO.hFlush IO.stdout
     (val, metric) <- Thread.timeAction op
     Printf.printf "%.2f\n" (realToFrac (Thread.metricCpu metric) :: Double)
     pure val
 
-eval_derivation :: Derive.Cache -> Ui.State -> Ui.State -> Update.UiDamage
+evalDerivation :: Derive.Cache -> Ui.State -> Ui.State -> Update.UiDamage
     -> IO Derive.Result
-eval_derivation cache state1 state2 ui_damage = do
-    Thread.force $ Derive.r_events result
+evalDerivation cache state1 state2 uiDamage = do
+    Thread.force $ Derive.rEvents result
     pure result
     where
-    (ui_updates, _) = Diff.diff ui_damage state1 state2
-    damage = Diff.derive_diff state1 state2 ui_damage ui_updates
-    result = DeriveTest.derive_block_standard mempty
-        DeriveTest.default_cmd_state cache damage state2 (UiTest.bid "b1")
+    (uiUpdates, _) = Diff.diff uiDamage state1 state2
+    damage = Diff.deriveDiff state1 state2 uiDamage uiUpdates
+    result = DeriveTest.deriveBlockStandard mempty
+        DeriveTest.defaultCmdState cache damage state2 (UiTest.bid "b1")

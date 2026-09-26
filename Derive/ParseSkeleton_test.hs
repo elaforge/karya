@@ -13,32 +13,32 @@ import           Util.Test
 
 test_parse :: Test
 test_parse = do
-    let f = ParseSkeleton.default_parser . mktracks
-    equal_fmt sfmt (f ["", ""]) (mkskel [(0, 1)])
+    let f = ParseSkeleton.defaultParser . mktracks
+    equalFmt sfmt (f ["", ""]) (mkskel [(0, 1)])
     -- They're both controls, with no instrument track.
-    equal_fmt sfmt (f ["", ""]) (mkskel [(0, 1)])
-    equal_fmt sfmt (f [">i1"]) (mkskel [])
-    equal_fmt sfmt (f [">i1", "c1", "c2"]) (mkskel [(0, 1), (1, 2)])
+    equalFmt sfmt (f ["", ""]) (mkskel [(0, 1)])
+    equalFmt sfmt (f [">i1"]) (mkskel [])
+    equalFmt sfmt (f [">i1", "c1", "c2"]) (mkskel [(0, 1), (1, 2)])
 
-    equal_fmt sfmt (f ["c1", ">i1", "c2"]) (mkskel [(0, 1), (1, 2)])
-    equal_fmt sfmt (f ["c0", ">i1", "c1", ">i2", "tempo", ">i3"])
+    equalFmt sfmt (f ["c1", ">i1", "c2"]) (mkskel [(0, 1), (1, 2)])
+    equalFmt sfmt (f ["c0", ">i1", "c1", ">i2", "tempo", ">i3"])
         (mkskel [(0, 1), (1, 2), (0, 3), (4, 5)])
-    equal_fmt sfmt (f [">i1", "c1", ">i2", "c2"])
+    equalFmt sfmt (f [">i1", "c1", ">i2", "c2"])
         (mkskel [(0, 1), (2, 3)])
 
-    equal_fmt sfmt (f [">i1", "c1", ">i2", ">i3"])
+    equalFmt sfmt (f [">i1", "c1", ">i2", ">i3"])
         (mkskel [(0, 1)])
-    equal_fmt sfmt (f [">i1", "c1 -->", ">i2", ">i3"])
+    equalFmt sfmt (f [">i1", "c1 -->", ">i2", ">i3"])
         (mkskel [(1, 2), (1, 3)])
 
 test_parse_note_bottom :: Test
 test_parse_note_bottom = do
     let mktracks = map (uncurry ParseSkeleton.Track) . zip [0..]
-    let f = ParseSkeleton.note_bottom_parser . mktracks
+    let f = ParseSkeleton.noteBottomParser . mktracks
     -- note-bottom parser
-    equal_fmt sfmt (f ["tempo", "*p", "c1", ">i1", "c2", ">i2"])
+    equalFmt sfmt (f ["tempo", "*p", "c1", ">i1", "c2", ">i2"])
         (mkskel [(0, 1), (1, 2), (2, 3), (0, 4), (4, 5)])
-    equal_fmt sfmt (f ["c1", ">i1", "c2"])
+    equalFmt sfmt (f ["c1", ">i1", "c2"])
         (mkskel [(0, 1), (0, 2)])
 
 mktracks :: [Text] -> [ParseSkeleton.Track]

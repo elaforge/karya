@@ -9,8 +9,8 @@
     cmds to enter notes and to "Cmd.MidiThru" which re-emits them as MIDI.
 -}
 module Cmd.NoteEntry (
-    cmds_with_input
-    , floating_input_insert
+    cmdsWithInput
+    , floatingInputInsert
 #ifdef TESTING
     , module Cmd.NoteEntry
 #endif
@@ -56,50 +56,50 @@ import           Global
     additional Cmd feature to re-emit a new Msg.  In addition, it would
     preclude the ability to shadow it and catch MIDI msgs for other purposes.
 -}
-cmds_with_input :: Cmd.M m => Bool -> Maybe Patch.Config
+cmdsWithInput :: Cmd.M m => Bool -> Maybe Patch.Config
     -> [Msg.Msg -> m Cmd.Status] -> (Msg.Msg -> m Cmd.Status)
-cmds_with_input kbd_entry maybe_config cmds msg =
-    msg_to_inputs kbd_entry maybe_config msg >>= \case
-        Nothing -> Cmd.sequence_cmds cmds msg
-        Just inputs -> foldr Cmd.merge_status Cmd.Done <$> mapM send inputs
+cmdsWithInput kbdEntry maybeConfig cmds msg =
+    msgToInputs kbdEntry maybeConfig msg >>= \case
+        Nothing -> Cmd.sequenceCmds cmds msg
+        Just inputs -> foldr Cmd.mergeStatus Cmd.Done <$> mapM send inputs
     where
     send input = do
         case input of
-            InputNote.NoteOn note_id _ _ ->
-                Cmd.modify_wdev_state $ \wdev -> wdev
-                    { Cmd.wdev_last_note_id = Just note_id }
+            InputNote.NoteOn noteId _ _ ->
+                Cmd.modifyWdevState $ \wdev -> wdev
+                    { Cmd.wdevLastNoteId = Just noteId }
             _ -> pure ()
-        Cmd.sequence_cmds cmds (Msg.InputNote input)
+        Cmd.sequenceCmds cmds (Msg.InputNote input)
 
 -- | Like 'cmds_with_input', but figure out kbd_entry and patch on my own.
-run_cmds_with_input :: Cmd.M m => [Msg.Msg -> m Cmd.Status]
+runCmdsWithInput :: Cmd.M m => [Msg.Msg -> m Cmd.Status]
     -> (Msg.Msg -> m Cmd.Status)
-run_cmds_with_input cmds msg = do
-    kbd_entry <- Cmd.gets $ Cmd.state_kbd_entry . Cmd.state_edit
-    maybe_config <- justm EditUtil.lookup_instrument $ \inst ->
-        justm (Cmd.lookup_instrument inst) $
-        pure . fmap snd . Cmd.midi_patch
-    cmds_with_input kbd_entry maybe_config cmds msg
+runCmdsWithInput cmds msg = do
+    kbdEntry <- Cmd.gets $ Cmd.stateKbdEntry . Cmd.stateEdit
+    maybeConfig <- justm EditUtil.lookupInstrument $ \inst ->
+        justm (Cmd.lookupInstrument inst) $
+        pure . fmap snd . Cmd.midiPatch
+    cmdsWithInput kbdEntry maybeConfig cmds msg
 
 -- | Convert a Msg to 'Msg.InputNote's, if applicable.  Returns Nothing if
 -- the Msg is not convertible to InputNotes (and therefore other cmds should
 -- get it), and Just [] if it is but didn't emit any InputNotes (and therefore
 -- this other cmds shouldn't get it).
-msg_to_inputs :: Cmd.M m => Bool -> Maybe Patch.Config -> Msg.Msg
+msgToInputs :: Cmd.M m => Bool -> Maybe Patch.Config -> Msg.Msg
     -> m (Maybe [InputNote.Input])
-msg_to_inputs kbd_entry maybe_config msg = do
-    has_mods <- are_modifiers_down
-    new_msgs <- if kbd_entry && not has_mods
+msgToInputs kbdEntry maybeConfig msg = do
+    hasMods <- areModifiersDown
+    newMsgs <- if kbdEntry && not hasMods
         then do
-            octave <- Cmd.gets (Cmd.state_kbd_entry_octave . Cmd.state_edit)
-            let is_pressure = maybe False
-                    (`Patch.has_flag` Patch.Pressure) maybe_config
-            pure $ kbd_input is_pressure octave msg
+            octave <- Cmd.gets (Cmd.stateKbdEntryOctave . Cmd.stateEdit)
+            let isPressure = maybe False
+                    (`Patch.hasFlag` Patch.Pressure) maybeConfig
+            pure $ kbdInput isPressure octave msg
         else pure Nothing
-    maybe (midi_input msg) (pure . Just) new_msgs
+    maybe (midiInput msg) (pure . Just) newMsgs
 
-are_modifiers_down :: Cmd.M m => m Bool
-are_modifiers_down = fmap (not . Set.null) Cmd.mods_down
+areModifiersDown :: Cmd.M m => m Bool
+areModifiersDown = fmap (not . Set.null) Cmd.modsDown
 
 -- ** kbd
 
@@ -107,60 +107,60 @@ are_modifiers_down = fmap (not . Set.null) Cmd.mods_down
 --
 -- @Nothing@ means there's no input, @Just []@ means there was input, but
 -- nothing to do.
-kbd_input :: Bool -- ^ Whether this is a Pressure instrument or not.
+kbdInput :: Bool -- ^ Whether this is a Pressure instrument or not.
     -- Pressure instruments respond to breath, and a kbd entry note on will
     -- emit an extra breath control.  This is convenient in practice because
     -- kbd entry is for quick and easy input and breath control gets in the way
     -- of that.
     -> Pitch.Octave -> Msg.Msg -> Maybe [InputNote.Input]
-kbd_input is_pressure octave (Msg.key -> Just (down, key)) = case down of
+kbdInput isPressure octave (Msg.key -> Just (down, key)) = case down of
     UiMsg.KeyRepeat
         -- Just [] makes the repeats get eaten here, but make sure to only
         -- suppress them if this key would have generated a note.
-        | Maybe.isJust mb_inputs -> Just []
+        | Maybe.isJust mbInputs -> Just []
         | otherwise -> Nothing
-    _ -> mb_inputs
+    _ -> mbInputs
     where
-    mb_inputs = key_to_input is_pressure octave (down == UiMsg.KeyDown) key
-kbd_input _ _ _ = Nothing
+    mbInputs = keyToInput isPressure octave (down == UiMsg.KeyDown) key
+kbdInput _ _ _ = Nothing
 
-key_to_input :: Bool -> Pitch.Octave -> Bool -> Key.Key
+keyToInput :: Bool -> Pitch.Octave -> Bool -> Key.Key
     -> Maybe [InputNote.Input]
-key_to_input is_pressure octave is_down (Key.Char c) = do
-    pitch <- Map.lookup c PhysicalKey.pitch_map
-    pure $ inputs_of (Pitch.add_octave octave pitch)
+keyToInput isPressure octave isDown (Key.Char c) = do
+    pitch <- Map.lookup c PhysicalKey.pitchMap
+    pure $ inputsOf (Pitch.addOctave octave pitch)
     where
-    inputs_of pitch = case InputNote.from_ascii is_down pitch of
-        input@(InputNote.NoteOn note_id _ _) | is_pressure ->
+    inputsOf pitch = case InputNote.fromAscii isDown pitch of
+        input@(InputNote.NoteOn noteId _ _) | isPressure ->
             -- Breath goes second, otherwise thru won't think it belongs to
             -- this note.
-            [input, breath note_id InputNote.keyboard_velocity]
+            [input, breath noteId InputNote.keyboardVelocity]
         input -> [input]
-    breath note_id val = InputNote.Control note_id Controls.breath val
-key_to_input _ _ _ _ = Nothing
+    breath noteId val = InputNote.Control noteId Controls.breath val
+keyToInput _ _ _ _ = Nothing
 
 -- ** midi
 
 -- | Convert a 'Msg.Midi' msg.
-midi_input :: Cmd.M m => Msg.Msg -> m (Maybe [InputNote.Input])
-midi_input (Msg.Midi (Midi.ReadMessage rdev _ midi_msg)) = do
-    rstate <- Cmd.gets Cmd.state_rdev_state
-    case InputNote.from_midi rstate rdev midi_msg of
+midiInput :: Cmd.M m => Msg.Msg -> m (Maybe [InputNote.Input])
+midiInput (Msg.Midi (Midi.ReadMessage rdev _ midiMsg)) = do
+    rstate <- Cmd.gets Cmd.stateRdevState
+    case InputNote.fromMidi rstate rdev midiMsg of
         Just (input, rstate2) -> do
-            Cmd.modify $ \st -> st { Cmd.state_rdev_state = rstate2 }
+            Cmd.modify $ \st -> st { Cmd.stateRdevState = rstate2 }
             pure $ Just [input]
         Nothing -> pure (Just [])
-midi_input _ = pure Nothing
+midiInput _ = pure Nothing
 
 -- * floating_input_insert
 
-floating_input_insert :: Cmd.M m => Msg.Msg -> m Cmd.Status
-floating_input_insert = \case
+floatingInputInsert :: Cmd.M m => Msg.Msg -> m Cmd.Status
+floatingInputInsert = \case
     Msg.InputNote (InputNote.NoteOn _ input _) ->
-        Cmd.gets (Cmd.state_floating_input . Cmd.state_edit) >>= \case
+        Cmd.gets (Cmd.stateFloatingInput . Cmd.stateEdit) >>= \case
             True -> do
-                note <- EditUtil.input_to_note input
+                note <- EditUtil.inputToNote input
                 pure $ Cmd.FloatingInput $ Cmd.FloatingInsert $
-                    " (" <> Pitch.note_text note <> ")"
+                    " (" <> Pitch.noteText note <> ")"
             False -> pure Cmd.Continue
     _ -> pure Cmd.Continue

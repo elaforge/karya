@@ -93,7 +93,7 @@ renderSequence outWav dur fnameDyns = renderDirect outWav Nothing samples
     samples = zip (Lists.range_ 0 dur) (map makeSample fnameDyns)
     makeSample (fname, dyn) = (Sample.make fname)
         { Sample.envelope =
-            Signal.from_pairs [(0, dyn), (dur - decay, dyn), (dur, 0)]
+            Signal.fromPairs [(0, dyn), (dur - decay, dyn), (dur, 0)]
         }
     decay = 0.15
 
@@ -121,7 +121,7 @@ renderDirect filename dur samples = do
         maybe id Audio.takeS dur $ Audio.mix audios
     where
     render (offset, sample) =
-        (Audio.takeS (RealTime.to_seconds offset) Audio.silence <>) <$>
+        (Audio.takeS (RealTime.toSeconds offset) Audio.silence <>) <$>
             RenderSample.render config 0 sample
     config = Resample.Config
         { _quality = Resample.SincFastest

@@ -8,46 +8,46 @@ module Midi.Midi (
     , WriteMessage(..), ReadMessage(..)
 
     -- * devices
-    , ReadDevice, WriteDevice, read_device, write_device
-    , read_device_text, write_device_text
-    , peek_wdev, peek_rdev, with_wdev, with_rdev
-    , add_timestamp, modify_timestamp
+    , ReadDevice, WriteDevice, readDevice, writeDevice
+    , readDeviceText, writeDeviceText
+    , peekWdev, peekRdev, withWdev, withRdev
+    , addTimestamp, modifyTimestamp
 
     -- * constructors
-    , program_change, reset_channel
-    , realtime_sysex
+    , programChange, resetChannel
+    , realtimeSysex
     -- ** rpn / nrpn
-    , pitch_bend_range, nrpn_tuning
-    , MpeZone(..), mpe_2_to_16
+    , pitchBendRange, nrpnTuning
+    , MpeZone(..), mpe2To16
     , rpn, nrpn
 
     -- * modify
-    , set_channel
+    , setChannel
 
     -- * predicates
-    , valid_msg, valid_chan_msg, is_cc, is_sysex, is_note, is_note_on, is_state
-    , is_pitched
-    , channel_message, message_channel
+    , validMsg, validChanMsg, isCc, isSysex, isNote, isNoteOn, isState
+    , isPitched
+    , channelMessage, messageChannel
 
     -- * types
     , Message(..), Channel, Velocity, Control, Program, ControlValue
     , PitchBendValue, Manufacturer
-    , Key(..), from_key, to_key, to_closest_key
+    , Key(..), fromKey, toKey, toClosestKey
     , ChannelMessage(..), CommonMessage(..), RealtimeMessage(..)
     -- * MTC
     , Mtc(..), FrameRate(..), SmpteFragment(..), Smpte(..)
-    , seconds_to_frame, frame_to_seconds, frame_to_smpte, seconds_to_smpte
-    , generate_mtc
-    , mtc_sync, mtc_fragments
+    , secondsToFrame, frameToSeconds, frameToSmpte, secondsToSmpte
+    , generateMtc
+    , mtcSync, mtcFragments
     -- * tuning
     , NoteNumber
-    , realtime_tuning
+    , realtimeTuning
 
     -- * util
     , join14, split14, join4, split4
     -- ** manufacturer
-    , manufacturer_name
-    , yamaha_code, korg_code
+    , manufacturerName
+    , yamahaCode, korgCode
 ) where
 import qualified Control.DeepSeq as DeepSeq
 import           Control.DeepSeq (rnf)
@@ -80,14 +80,14 @@ type WriteMessages = [WriteMessage]
 type ReadMessages = [ReadMessage]
 
 data WriteMessage = WriteMessage
-    { wmsg_dev :: !WriteDevice
-    , wmsg_ts :: !RealTime
-    , wmsg_msg :: !Message
+    { wmsgDev :: !WriteDevice
+    , wmsgTs :: !RealTime
+    , wmsgMsg :: !Message
     } deriving (Eq, Ord, Read, Show)
 data ReadMessage = ReadMessage
-    { rmsg_dev :: !ReadDevice
-    , rmsg_ts :: !RealTime
-    , rmsg_msg :: !Message
+    { rmsgDev :: !ReadDevice
+    , rmsgTs :: !RealTime
+    , rmsgMsg :: !Message
     } deriving (Eq, Ord, Read, Show)
 
 -- Midi msgs are already strict so deepseq is unnecessary, but an NFData
@@ -115,52 +115,52 @@ newtype ReadDevice = ReadDevice ByteString.ByteString
 newtype WriteDevice = WriteDevice ByteString.ByteString
     deriving (Eq, Ord, Show, Read, Serialize.Serialize)
 
-read_device :: Text -> ReadDevice
-read_device = ReadDevice . Encoding.encodeUtf8
+readDevice :: Text -> ReadDevice
+readDevice = ReadDevice . Encoding.encodeUtf8
 
-write_device :: Text -> WriteDevice
-write_device = WriteDevice . Encoding.encodeUtf8
+writeDevice :: Text -> WriteDevice
+writeDevice = WriteDevice . Encoding.encodeUtf8
 
-read_device_text :: ReadDevice -> Text
-read_device_text (ReadDevice bs) = FFI.decodeUtf8 bs
+readDeviceText :: ReadDevice -> Text
+readDeviceText (ReadDevice bs) = FFI.decodeUtf8 bs
 
-write_device_text :: WriteDevice -> Text
-write_device_text (WriteDevice bs) = FFI.decodeUtf8 bs
+writeDeviceText :: WriteDevice -> Text
+writeDeviceText (WriteDevice bs) = FFI.decodeUtf8 bs
 
-peek_wdev :: Foreign.C.CString -> IO WriteDevice
-peek_wdev = fmap WriteDevice . ByteString.packCString
+peekWdev :: Foreign.C.CString -> IO WriteDevice
+peekWdev = fmap WriteDevice . ByteString.packCString
 
-peek_rdev :: Foreign.C.CString -> IO ReadDevice
-peek_rdev = fmap ReadDevice . ByteString.packCString
+peekRdev :: Foreign.C.CString -> IO ReadDevice
+peekRdev = fmap ReadDevice . ByteString.packCString
 
-with_wdev :: WriteDevice -> (Foreign.C.CString -> IO a) -> IO a
-with_wdev (WriteDevice dev) = ByteString.useAsCString dev
+withWdev :: WriteDevice -> (Foreign.C.CString -> IO a) -> IO a
+withWdev (WriteDevice dev) = ByteString.useAsCString dev
 
-with_rdev :: ReadDevice -> (Foreign.C.CString -> IO a) -> IO a
-with_rdev (ReadDevice dev) = ByteString.useAsCString dev
+withRdev :: ReadDevice -> (Foreign.C.CString -> IO a) -> IO a
+withRdev (ReadDevice dev) = ByteString.useAsCString dev
 
-instance Pretty ReadDevice where pretty = read_device_text
-instance Pretty WriteDevice where pretty = write_device_text
+instance Pretty ReadDevice where pretty = readDeviceText
+instance Pretty WriteDevice where pretty = writeDeviceText
 
-add_timestamp :: RealTime -> WriteMessage -> WriteMessage
-add_timestamp ts wmsg = wmsg { wmsg_ts = wmsg_ts wmsg + ts }
+addTimestamp :: RealTime -> WriteMessage -> WriteMessage
+addTimestamp ts wmsg = wmsg { wmsgTs = wmsgTs wmsg + ts }
 
-modify_timestamp :: (RealTime -> RealTime) -> WriteMessage -> WriteMessage
-modify_timestamp f wmsg = wmsg { wmsg_ts = f (wmsg_ts wmsg) }
+modifyTimestamp :: (RealTime -> RealTime) -> WriteMessage -> WriteMessage
+modifyTimestamp f wmsg = wmsg { wmsgTs = f (wmsgTs wmsg) }
 
 
 -- * constructors
 
 -- | Emit a program change with bank in [msb, lsb, pchange] order.
-program_change :: Int -> Program -> [ChannelMessage]
-program_change bank program =
-    [ ControlChange CC.bank msb, ControlChange CC.bank_lsb lsb
+programChange :: Int -> Program -> [ChannelMessage]
+programChange bank program =
+    [ ControlChange CC.bank msb, ControlChange CC.bankLsb lsb
     , ProgramChange program
     ]
     where (lsb, msb) = split14 bank
 
-reset_channel :: Channel -> [Message]
-reset_channel chan =
+resetChannel :: Channel -> [Message]
+resetChannel chan =
     -- There is also AllNotesOff, but AllSoundOff seems more widely supported.
     [ ChannelMessage chan AllSoundOff
     , ChannelMessage chan ResetAllControls
@@ -168,14 +168,14 @@ reset_channel chan =
 
 -- | This is a special kind of sysex which is meant to be interpreted in real
 -- time.
-realtime_sysex :: ByteString.ByteString -> Message
-realtime_sysex = CommonMessage . SystemExclusive 0x7f
+realtimeSysex :: ByteString.ByteString -> Message
+realtimeSysex = CommonMessage . SystemExclusive 0x7f
 
 -- ** rpn / nrpn
 
 -- | Emit a pitch bend range RPN message for the given range.
-pitch_bend_range :: Double -> [ChannelMessage]
-pitch_bend_range range = rpn (0, 0) (semitones, cents) ++ cancel_rpn
+pitchBendRange :: Double -> [ChannelMessage]
+pitchBendRange range = rpn (0, 0) (semitones, cents) ++ cancelRpn
     where
     (semitones, frac) = properFraction range
     cents = round (frac * 100)
@@ -184,8 +184,8 @@ data MpeZone = Lower | Upper deriving (Eq, Show)
 
 -- | MPE config where channel 0 is the useless master and 1-15 are used for
 -- notes.  This is the one the MPE doc recommends MPE synths start up in.
-mpe_2_to_16 :: [Message]
-mpe_2_to_16 = mpe_configure Lower (Just 15)
+mpe2To16 :: [Message]
+mpe2To16 = mpeConfigure Lower (Just 15)
 
 -- | MPE basically means "midi channels actually work."  Except we lose a
 -- channel to be the master channel, where a channel message still affects all
@@ -199,8 +199,8 @@ mpe_2_to_16 = mpe_configure Lower (Just 15)
 --
 -- The other MPE innovation is that it might support cc 74, to do something
 -- expressive.
-mpe_configure :: MpeZone -> Maybe Channel -> [Message]
-mpe_configure zone channels =
+mpeConfigure :: MpeZone -> Maybe Channel -> [Message]
+mpeConfigure zone channels =
     map (ChannelMessage chan) (rpn (0, 6) (fromMaybe 0 channels, 0))
     where
     chan = case zone of
@@ -218,12 +218,12 @@ mpe_configure zone channels =
 
     The KSP for this is User/Elaforge/Instrument/Kontakt/ksp/nrpn_tuning.ksp.
 -}
-nrpn_tuning :: [(Key, NoteNumber)] -> [ChannelMessage]
-nrpn_tuning = concatMap retune_key
+nrpnTuning :: [(Key, NoteNumber)] -> [ChannelMessage]
+nrpnTuning = concatMap retuneKey
     where
-    retune_key (key, nn) = concat
-        [ emit 50 (from_key key)
-        , emit 51 to_key
+    retuneKey (key, nn) = concat
+        [ emit 50 (fromKey key)
+        , emit 51 toKey
         , nrpn (0, 52) (msb, lsb)
         ]
         where
@@ -232,45 +232,45 @@ nrpn_tuning = concatMap retune_key
         -- 2^14 = 16384, so I can fit 10000.  I think KSP only does integer
         -- math, so I can't properly rescale 2^14 to its millicents.
         centicent = 100 * 100
-        (to_key, frac) = properFraction nn
+        (toKey, frac) = properFraction nn
 
 rpn :: (ControlValue, ControlValue) -> (ControlValue, ControlValue)
     -> [ChannelMessage]
-rpn (key_msb, key_lsb) (value_msb, value_lsb) =
-    [ ControlChange CC.rpn_msb key_msb
-    , ControlChange CC.rpn_lsb key_lsb
-    , ControlChange CC.data_entry value_msb
-    , ControlChange CC.data_entry_lsb value_lsb
+rpn (keyMsb, keyLsb) (valueMsb, valueLsb) =
+    [ ControlChange CC.rpnMsb keyMsb
+    , ControlChange CC.rpnLsb keyLsb
+    , ControlChange CC.dataEntry valueMsb
+    , ControlChange CC.dataEntryLsb valueLsb
     ]
 
-cancel_rpn :: [ChannelMessage]
-cancel_rpn = [ControlChange CC.rpn_msb 127, ControlChange CC.rpn_lsb 127]
+cancelRpn :: [ChannelMessage]
+cancelRpn = [ControlChange CC.rpnMsb 127, ControlChange CC.rpnLsb 127]
 
 nrpn :: (ControlValue, ControlValue) -> (ControlValue, ControlValue)
     -> [ChannelMessage]
-nrpn (key_msb, key_lsb) (value_msb, value_lsb) =
-    [ ControlChange CC.nrpn_msb key_msb
-    , ControlChange CC.nrpn_lsb key_lsb
-    , ControlChange CC.data_entry value_msb
-    , ControlChange CC.data_entry_lsb value_lsb
+nrpn (keyMsb, keyLsb) (valueMsb, valueLsb) =
+    [ ControlChange CC.nrpnMsb keyMsb
+    , ControlChange CC.nrpnLsb keyLsb
+    , ControlChange CC.dataEntry valueMsb
+    , ControlChange CC.dataEntryLsb valueLsb
     ]
 
 -- * modify
 
-set_channel :: Channel -> Message -> Message
-set_channel chan (ChannelMessage _ msg) = ChannelMessage chan msg
-set_channel _ msg = msg
+setChannel :: Channel -> Message -> Message
+setChannel chan (ChannelMessage _ msg) = ChannelMessage chan msg
+setChannel _ msg = msg
 
 -- * predicates
 
 -- | Check to make sure midi msg vals are all in range.
-valid_msg :: Message -> Bool
-valid_msg (ChannelMessage chan msg) =
-    0 <= chan && chan < 16 && valid_chan_msg msg
-valid_msg _ = True
+validMsg :: Message -> Bool
+validMsg (ChannelMessage chan msg) =
+    0 <= chan && chan < 16 && validChanMsg msg
+validMsg _ = True
 
-valid_chan_msg :: ChannelMessage -> Bool
-valid_chan_msg msg = case msg of
+validChanMsg :: ChannelMessage -> Bool
+validChanMsg msg = case msg of
     ControlChange cc val -> val7 cc && val7 val
     NoteOn (Key key) vel -> val7 key && val7 vel
     NoteOff (Key key) vel -> val7 key && val7 vel
@@ -278,47 +278,47 @@ valid_chan_msg msg = case msg of
     _ -> True
     where val7 v = 0 <= v && v < 128
 
-is_cc :: Message -> Bool
-is_cc (ChannelMessage _ (ControlChange _ _)) = True
-is_cc _ = False
+isCc :: Message -> Bool
+isCc (ChannelMessage _ (ControlChange _ _)) = True
+isCc _ = False
 
-is_sysex :: Message -> Bool
-is_sysex (CommonMessage (SystemExclusive _ _)) = True
-is_sysex _ = False
+isSysex :: Message -> Bool
+isSysex (CommonMessage (SystemExclusive _ _)) = True
+isSysex _ = False
 
-is_note :: Message -> Bool
-is_note (ChannelMessage _ (NoteOn _ _)) = True
-is_note (ChannelMessage _ (NoteOff _ _)) = True
-is_note _ = False
+isNote :: Message -> Bool
+isNote (ChannelMessage _ (NoteOn _ _)) = True
+isNote (ChannelMessage _ (NoteOff _ _)) = True
+isNote _ = False
 
-is_note_on :: Message -> Bool
-is_note_on (ChannelMessage _ (NoteOn _ _)) = True
-is_note_on _ = False
+isNoteOn :: Message -> Bool
+isNoteOn (ChannelMessage _ (NoteOn _ _)) = True
+isNoteOn _ = False
 
 -- | Is this a message that will change the channel state?  These are the
 -- messages that will affect subsequent NoteOns.
-is_state :: Message -> Bool
-is_state (ChannelMessage _ msg) = case msg of
+isState :: Message -> Bool
+isState (ChannelMessage _ msg) = case msg of
     NoteOn {} -> False
     NoteOff {} -> False
     _ -> True
-is_state _ = False
+isState _ = False
 
 -- | True for messages with a pitch: NoteOn, NoteOff and PitchBend.
-is_pitched :: Message -> Bool
-is_pitched msg = is_note msg || case msg of
+isPitched :: Message -> Bool
+isPitched msg = isNote msg || case msg of
     ChannelMessage _ (PitchBend _) -> True
     _ -> False
 
 -- * projections
 
-channel_message :: Message -> Maybe ChannelMessage
-channel_message (ChannelMessage _ m) = Just m
-channel_message _ = Nothing
+channelMessage :: Message -> Maybe ChannelMessage
+channelMessage (ChannelMessage _ m) = Just m
+channelMessage _ = Nothing
 
-message_channel :: Message -> Maybe Channel
-message_channel (ChannelMessage chan _) = Just chan
-message_channel _ = Nothing
+messageChannel :: Message -> Maybe Channel
+messageChannel (ChannelMessage chan _) = Just chan
+messageChannel _ = Nothing
 
 -- * types
 
@@ -331,7 +331,7 @@ data Message
 
 instance Pretty Message where
     pretty (CommonMessage (SystemExclusive manuf bytes)) =
-        "sysex " <> manufacturer_name manuf
+        "sysex " <> manufacturerName manuf
             <> " <" <> showt (ByteString.length bytes) <> " bytes>"
     pretty (ChannelMessage chan msg) =
         "chan:" <> showt chan <> " " <> pretty msg
@@ -360,8 +360,8 @@ newtype Key = Key Int
 
 instance Serialize.Serialize Key where
     -- The old encoding used Word8, so keep that for compatibility.
-    put key = Serialize.put (from_key key :: Word8)
-    get = (to_key :: Word8 -> Key) <$> Serialize.get
+    put key = Serialize.put (fromKey key :: Word8)
+    get = (toKey :: Word8 -> Key) <$> Serialize.get
 
 instance Pretty Key where
     pretty (Key key) = note <> showt (oct - 1) <> "(" <> showt key <> ")"
@@ -377,16 +377,16 @@ instance Pretty Key where
             11 -> "b"
             _ -> ""
 
-from_key :: Num a => Key -> a
-from_key (Key k) = fromIntegral k
+fromKey :: Num a => Key -> a
+fromKey (Key k) = fromIntegral k
 
-to_key :: Integral a => a -> Key
-to_key = Key . fromIntegral . min 127 . max 0
+toKey :: Integral a => a -> Key
+toKey = Key . fromIntegral . min 127 . max 0
 
-to_closest_key :: RealFrac a => a -> (Key, a)
-to_closest_key nn
-    | frac >= 0.5 = (to_key (d+1), frac - 1)
-    | otherwise = (to_key d, frac)
+toClosestKey :: RealFrac a => a -> (Key, a)
+toClosestKey nn
+    | frac >= 0.5 = (toKey (d+1), frac - 1)
+    | otherwise = (toKey d, frac)
     where (d, frac) = properFraction nn
 
 data ChannelMessage
@@ -444,59 +444,59 @@ data SmpteFragment = FrameLsb | FrameMsb | SecondLsb | SecondMsb
     | MinuteLsb | MinuteMsb | HourLsb | RateHourMsb
     deriving (Enum, Eq, Ord, Show, Read)
 
-rate_fps :: FrameRate -> Double
-rate_fps Frame24 = 24
-rate_fps Frame25 = 25
-rate_fps Frame29_97df = 29.97
-rate_fps Frame30 = 30
+rateFps :: FrameRate -> Double
+rateFps Frame24 = 24
+rateFps Frame25 = 25
+rateFps Frame29_97df = 29.97
+rateFps Frame30 = 30
 
 data Smpte = Smpte
-    { smpte_hours :: !Word8
-    , smpte_minutes :: !Word8
-    , smpte_seconds :: !Word8
-    , smpte_frames :: !Word8
+    { smpteHours :: !Word8
+    , smpteMinutes :: !Word8
+    , smpteSeconds :: !Word8
+    , smpteFrames :: !Word8
     } deriving (Eq, Show)
 
 type Seconds = Double
 type Frames = Int
 
-seconds_to_frame :: FrameRate -> Seconds -> Frames
-seconds_to_frame rate = floor . (* rate_fps rate)
+secondsToFrame :: FrameRate -> Seconds -> Frames
+secondsToFrame rate = floor . (* rateFps rate)
 
-frame_to_seconds :: FrameRate -> Frames -> Seconds
-frame_to_seconds rate = (/ rate_fps rate) . fromIntegral
+frameToSeconds :: FrameRate -> Frames -> Seconds
+frameToSeconds rate = (/ rateFps rate) . fromIntegral
 
-frame_to_smpte :: FrameRate -> Frames -> Smpte
-frame_to_smpte rate frame = Smpte (w7 hours) (w7 mins) (w7 secs) (w7 t3)
+frameToSmpte :: FrameRate -> Frames -> Smpte
+frameToSmpte rate frame = Smpte (w7 hours) (w7 mins) (w7 secs) (w7 t3)
     where
     fps = case rate of
         Frame29_97df -> 30
-        _ -> floor (rate_fps rate)
-    (hours, t1) = undrop_frames rate frame `divMod` (60 * 60 * fps)
+        _ -> floor (rateFps rate)
+    (hours, t1) = undropFrames rate frame `divMod` (60 * 60 * fps)
     (mins, t2) = t1 `divMod` (60 * fps)
     (secs, t3) = t2 `divMod` fps
     w7 :: Int -> Word7
     w7 = fromIntegral . Num.clamp 0 0x7f
 
-seconds_to_smpte :: FrameRate -> Seconds -> Smpte
-seconds_to_smpte rate = frame_to_smpte rate . seconds_to_frame rate
+secondsToSmpte :: FrameRate -> Seconds -> Smpte
+secondsToSmpte rate = frameToSmpte rate . secondsToFrame rate
 
 -- | Add dropped frames back in.  When converted back into SMPTE the effect is
 -- that the dropped frames are skipped.
-undrop_frames :: FrameRate -> Frames -> Frames
-undrop_frames Frame29_97df frames =
+undropFrames :: FrameRate -> Frames -> Frames
+undropFrames Frame29_97df frames =
     frames + 2 * (frames `div` (30 * 60)) - 2 * (frames `div` (10 * 30 * 60))
-undrop_frames _ frames = frames
+undropFrames _ frames = frames
 
 -- | Send full MTC sync code.  This is supposed to happen every time there is
 -- a time dicontinuity.
-mtc_sync :: FrameRate -> Smpte -> Message
-mtc_sync rate (Smpte hours mins secs frames) =
-    realtime_sysex $ ByteString.pack
-        [chan, 01, 01, rate_code .|. hours, mins, secs, frames]
+mtcSync :: FrameRate -> Smpte -> Message
+mtcSync rate (Smpte hours mins secs frames) =
+    realtimeSysex $ ByteString.pack
+        [chan, 01, 01, rateCode .|. hours, mins, secs, frames]
     where
     chan = 0x7f -- send to all devices
-    rate_code = Bits.shiftL (fromIntegral (fromEnum rate)) 5
+    rateCode = Bits.shiftL (fromIntegral (fromEnum rate)) 5
     -- TODO is chan the same as MMC DeviceId?
 
 -- | Generate MTC starting at the given time and going on until the well of
@@ -507,30 +507,30 @@ mtc_sync rate (Smpte hours mins secs frames) =
 --
 -- One MtcQuarterFrame is transmitted per quarter frame.  Since it takes 8
 -- to make a complete SMPTE frame, you wind up getting every other frame.
-generate_mtc :: FrameRate -> Frames -> [(Double, Message)]
-generate_mtc rate frame = zip times (concatMap msgs (Lists.range_ frame 2))
+generateMtc :: FrameRate -> Frames -> [(Double, Message)]
+generateMtc rate frame = zip times (concatMap msgs (Lists.range_ frame 2))
     where
     -- Round up to the previous whole frame, then step forward frames and time
     -- together.  frame_to_smpte will take care of drop frame.
     msgs frame = map (RealtimeMessage . MtcQuarterFrame) $
-        mtc_fragments rate (frame_to_smpte rate frame)
+        mtcFragments rate (frameToSmpte rate frame)
     times = Lists.range_ start fragment
-    start = fromIntegral frame / rate_fps rate
-    fragment = 1 / rate_fps rate / 4
+    start = fromIntegral frame / rateFps rate
+    fragment = 1 / rateFps rate / 4
 
-mtc_fragments :: FrameRate -> Smpte -> [Mtc]
-mtc_fragments rate (Smpte hours minutes seconds frames) = map (uncurry Mtc)
-    [ (FrameLsb, frame_lsb), (FrameMsb, frame_msb)
-    , (SecondLsb, sec_lsb), (SecondMsb, sec_msb)
-    , (MinuteLsb, min_lsb), (MinuteMsb, min_msb)
-    , (HourLsb, hour_lsb), (RateHourMsb, rate_code .|. hour_msb)
+mtcFragments :: FrameRate -> Smpte -> [Mtc]
+mtcFragments rate (Smpte hours minutes seconds frames) = map (uncurry Mtc)
+    [ (FrameLsb, frameLsb), (FrameMsb, frameMsb)
+    , (SecondLsb, secLsb), (SecondMsb, secMsb)
+    , (MinuteLsb, minLsb), (MinuteMsb, minMsb)
+    , (HourLsb, hourLsb), (RateHourMsb, rateCode .|. hourMsb)
     ]
     where
-    (frame_msb, frame_lsb) = split4 frames
-    (sec_msb, sec_lsb) = split4 seconds
-    (min_msb, min_lsb) = split4 minutes
-    (hour_msb, hour_lsb) = split4 hours
-    rate_code = Bits.shiftL (fromIntegral (fromEnum rate)) 1
+    (frameMsb, frameLsb) = split4 frames
+    (secMsb, secLsb) = split4 seconds
+    (minMsb, minLsb) = split4 minutes
+    (hourMsb, hourLsb) = split4 hours
+    rateCode = Bits.shiftL (fromIntegral (fromEnum rate)) 1
 
 -- * tuning
 
@@ -539,16 +539,16 @@ type NoteNumber = Double
 -- | Create a realtime tuning msg.  Few synthesizers support this.
 --
 -- Based on <http://www.midi.org/techspecs/midituning.php>
-realtime_tuning :: [(Key, NoteNumber)] -> Message
-realtime_tuning nns = realtime_sysex $ ByteString.pack $
-    [generic_device, 8, 2, 0, fromIntegral (length nns)]
-        ++ concatMap (uncurry retune_key) nns
+realtimeTuning :: [(Key, NoteNumber)] -> Message
+realtimeTuning nns = realtimeSysex $ ByteString.pack $
+    [genericDevice, 8, 2, 0, fromIntegral (length nns)]
+        ++ concatMap (uncurry retuneKey) nns
     where
-    retune_key :: Key -> NoteNumber -> [Word7]
-    retune_key key nn = [from_key key, nn_key, msb, lsb]
+    retuneKey :: Key -> NoteNumber -> [Word7]
+    retuneKey key nn = [fromKey key, nnKey, msb, lsb]
         where
         (lsb, msb) = split14 $ round $ frac * 2^14
-        (nn_key, frac) = properFraction nn
+        (nnKey, frac) = properFraction nn
 
 -- * util
 
@@ -572,18 +572,18 @@ join4 d1 d2 = (Bits.shiftL d1 4 .&. 0xf0) .|. (d2 .&. 0x0f)
 -- * constants
 
 -- | Softsynths don't care about device ID, so use this.
-generic_device :: Word7
-generic_device = 0x7f
+genericDevice :: Word7
+genericDevice = 0x7f
 
-manufacturer_name :: Manufacturer -> Text
-manufacturer_name code = Maybe.fromMaybe (showt code) $
-    Map.lookup code manufacturer_codes
+manufacturerName :: Manufacturer -> Text
+manufacturerName code = Maybe.fromMaybe (showt code) $
+    Map.lookup code manufacturerCodes
 
-korg_code, yamaha_code :: Manufacturer
-korg_code = 0x42
-yamaha_code = 0x43
+korgCode, yamahaCode :: Manufacturer
+korgCode = 0x42
+yamahaCode = 0x43
 
 -- | TODO get a more complete list
-manufacturer_codes :: Map Manufacturer Text
-manufacturer_codes = Map.fromList
-    [(korg_code, "korg"), (yamaha_code, "yamaha")]
+manufacturerCodes :: Map Manufacturer Text
+manufacturerCodes = Map.fromList
+    [(korgCode, "korg"), (yamahaCode, "yamaha")]

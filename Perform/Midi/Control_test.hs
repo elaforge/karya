@@ -9,7 +9,7 @@ import qualified Perform.Midi.Control as Control
 
 test_pitch_to_midi :: Test
 test_pitch_to_midi = do
-    let f = Control.pitch_to_midi (-1, 1)
+    let f = Control.pitchToMidi (-1, 1)
     equal (f 10) (Just (10, 0))
     -- Don't emit a pitch bend if it's close enough.
     equal (f 10.001) (Just (10, 0))
@@ -18,4 +18,4 @@ test_pitch_to_midi = do
     equal (f 9.99) (Just (9, 0.99))
     equal (f 10.5) (Just (10, 0.5))
     -- Shouldn't get NaN if pitch bend range is 0.
-    equal (Control.pitch_to_midi (0, 0) 10.5) (Just (10, 0))
+    equal (Control.pitchToMidi (0, 0) 10.5) (Just (10, 0))

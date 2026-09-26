@@ -43,7 +43,7 @@ type NAudio = Audio.NAudioIO Config.SamplingRate
 type Channels = 2
 
 toFrames :: RealTime.RealTime -> Audio.Frames
-toFrames = Audio.secondsToFrames Config.samplingRate . RealTime.to_seconds
+toFrames = Audio.secondsToFrames Config.samplingRate . RealTime.toSeconds
 
 toSeconds :: Audio.Frames -> RealTime.RealTime
 toSeconds = RealTime.seconds . Audio.framesToSeconds Config.samplingRate

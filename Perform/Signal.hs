@@ -13,49 +13,49 @@
 module Perform.Signal (
     -- * types
     Signal, Sample(..)
-    , X, Y, x_to_y, y_to_x, y_to_score, y_to_nn, nn_to_y
+    , X, Y, xToY, yToX, yToScore, yToNn, nnToY
     , Tempo, Warp, Control, NoteNumber, Display
 
     -- * construct / destruct
-    , from_sample, from_pairs, from_segments
-    , to_samples, to_pairs, to_pairs_desc
-    , to_segments, to_vector
-    , constant, constant_val, constant_val_from
-    , zero_or_below
+    , fromSample, fromPairs, fromSegments
+    , toSamples, toPairs, toPairsDesc
+    , toSegments, toVector
+    , constant, constantVal, constantValFrom
+    , zeroOrBelow
     , beginning
     , prepend
     , unfoldr
     , coerce
-    , to_piecewise_constant
-    , with_ptr
+    , toPiecewiseConstant
+    , withPtr
 
     -- * query
     , null
-    , at, at_maybe, segment_at
+    , at, atMaybe, segmentAt
     , head, last
     , minimum, maximum
     , find
 
     -- * transform
-    , drop_after, drop_before
-    , clip_after, clip_before, clip_before_segments, clip_before_pairs
-    , clip_after_keep_last
+    , dropAfter, dropBefore
+    , clipAfter, clipBefore, clipBeforeSegments, clipBeforePairs
+    , clipAfterKeepLast
     , shift
 
-    , invert, sig_add, sig_subtract, sig_multiply, sig_scale
-    , scale, scale_invert
+    , invert, sigAdd, sigSubtract, sigMultiply, sigScale
+    , scale, scaleInvert
 
     -- ** hacks
-    , drop_discontinuity_at
+    , dropDiscontinuityAt
 
     -- ** scalar transformation
-    , scalar_max
-    , scalar_add, scalar_subtract, scalar_multiply, scalar_divide
-    , scalar_scale
-    , map_x, map_y, map_y_linear, map_err
+    , scalarMax
+    , scalarAdd, scalarSubtract, scalarMultiply, scalarDivide
+    , scalarScale
+    , mapX, mapY, mapYLinear, mapErr
 
     -- * special functions
-    , integrate_inverse, integrate, tempo_srate
+    , integrateInverse, integrate, tempoSrate
 ) where
 import           Prelude hiding (head, last, maximum, minimum, null, drop)
 import qualified Control.DeepSeq as DeepSeq
@@ -89,7 +89,7 @@ newtype Signal kind = Signal Segment.NumSignal
     deriving (Show, Eq, DeepSeq.NFData, Serialize.Serialize)
 
 instance Pretty (Signal kind) where
-    format sig = case constant_val sig of
+    format sig = case constantVal sig of
         Just y -> "Signal.constant" Pretty.<+> Pretty.format y
         Nothing -> Pretty.format (_signal sig)
 
@@ -110,7 +110,7 @@ instance Semigroup (Signal kind) where
 instance Monoid (Signal kind) where
     mempty = Signal Segment.empty
     mappend = (<>)
-    mconcat = Signal . Segment.concat (Just (==)) Segment.num_interpolate
+    mconcat = Signal . Segment.concat (Just (==)) Segment.numInterpolate
         . map _signal . filter (not . null)
 
 -- | This is the type of performer-interpreted controls that go into the
@@ -137,56 +137,56 @@ data NoteNumberSig
 type Display = Signal DisplaySig
 data DisplaySig
 
-x_to_y :: X -> Y
-x_to_y = RealTime.to_seconds
+xToY :: X -> Y
+xToY = RealTime.toSeconds
 
-y_to_x :: Y -> X
-y_to_x = RealTime.seconds
+yToX :: Y -> X
+yToX = RealTime.seconds
 
 -- | Some control signals may be interpreted as score time.
-y_to_score :: Y -> ScoreTime
-y_to_score = ScoreTime.from_double
+yToScore :: Y -> ScoreTime
+yToScore = ScoreTime.fromDouble
 
-y_to_nn :: Y -> Pitch.NoteNumber
-y_to_nn = Pitch.NoteNumber
+yToNn :: Y -> Pitch.NoteNumber
+yToNn = Pitch.NoteNumber
 
-nn_to_y :: Pitch.NoteNumber -> Y
-nn_to_y (Pitch.NoteNumber nn) = nn
+nnToY :: Pitch.NoteNumber -> Y
+nnToY (Pitch.NoteNumber nn) = nn
 
 -- * construct / destruct
 
-from_sample :: X -> Y -> Signal kind
-from_sample x y = from_pairs [(x, y)]
+fromSample :: X -> Y -> Signal kind
+fromSample x y = fromPairs [(x, y)]
 
-from_pairs :: [(X, Y)] -> Signal kind
-from_pairs = Signal . Segment.from_pairs
+fromPairs :: [(X, Y)] -> Signal kind
+fromPairs = Signal . Segment.fromPairs
 
-from_segments :: [Segment.Segment Y] -> Signal kind
-from_segments = Signal . Segment.from_segments
+fromSegments :: [Segment.Segment Y] -> Signal kind
+fromSegments = Signal . Segment.fromSegments
 
-to_samples :: Signal kind -> [Sample Y]
-to_samples = Segment.to_samples . _signal
+toSamples :: Signal kind -> [Sample Y]
+toSamples = Segment.toSamples . _signal
 
-to_pairs :: Signal kind -> [(X, Y)]
-to_pairs = Lists.dropDups id . Segment.to_pairs . _signal
+toPairs :: Signal kind -> [(X, Y)]
+toPairs = Lists.dropDups id . Segment.toPairs . _signal
     -- Since Segment functions don't have Eq y, they can emit duplicate
     -- samples.  They should be harmless but they clutter tests.
 
-to_pairs_desc :: Signal kind -> [(X, Y)]
-to_pairs_desc = Lists.dropDups id . Segment.to_pairs_desc . _signal
+toPairsDesc :: Signal kind -> [(X, Y)]
+toPairsDesc = Lists.dropDups id . Segment.toPairsDesc . _signal
 
-to_segments :: Signal kind -> [Segment.Segment Y]
-to_segments = Segment.to_segments . _signal
+toSegments :: Signal kind -> [Segment.Segment Y]
+toSegments = Segment.toSegments . _signal
 
-to_vector :: Signal kind -> Vector.Vector (Sample Y)
-to_vector = Segment.to_vector . _signal
+toVector :: Signal kind -> Vector.Vector (Sample Y)
+toVector = Segment.toVector . _signal
 
 constant :: Y -> Signal kind
 constant = Signal . Segment.constant
 
 -- | Just if the signal is constant.
-constant_val :: Signal kind -> Maybe Y
-constant_val (Signal sig) = case Segment.constant_val sig of
+constantVal :: Signal kind -> Maybe Y
+constantVal (Signal sig) = case Segment.constantVal sig of
     Just y -> Just y
     Nothing
         -- Segment.NumSignal is 0 where not given, so mempty should be the same
@@ -195,24 +195,24 @@ constant_val (Signal sig) = case Segment.constant_val sig of
         | Segment.null sig -> Just 0
         | otherwise -> Nothing
 
-constant_val_from :: X -> Signal kind -> Maybe Y
-constant_val_from x = Segment.constant_val_from x . _signal
+constantValFrom :: X -> Signal kind -> Maybe Y
+constantValFrom x = Segment.constantValFrom x . _signal
 
 -- | True if the signal becomes <=0 at any point.  This assumes the signal
 -- starts at X==0, which is true of signals from control tracks only.
-zero_or_below :: Signal kind -> Bool
-zero_or_below signal = case head signal of
+zeroOrBelow :: Signal kind -> Bool
+zeroOrBelow signal = case head signal of
     Nothing -> True
     Just (x, _)
         | x > 0 -> True
-        | otherwise -> not $ Segment.all_y (>0) (_signal signal)
+        | otherwise -> not $ Segment.allY (>0) (_signal signal)
 
 beginning :: RealTime
 beginning = Segment.beginning
 
 prepend :: Signal kind -> Signal kind -> Signal kind
 prepend sig1 sig2 = Signal $
-    Segment.prepend (Just (==)) Segment.num_interpolate
+    Segment.prepend (Just (==)) Segment.numInterpolate
         (_signal sig1) (_signal sig2)
 
 unfoldr :: (state -> Maybe ((X, Y), state)) -> state -> Signal kind
@@ -222,12 +222,12 @@ unfoldr gen state = Signal $ Segment.unfoldr gen state
 coerce :: Signal kind1 -> Signal kind2
 coerce (Signal vec) = Signal vec
 
-to_piecewise_constant :: X -> Signal kind -> TimeVector.Unboxed
-to_piecewise_constant srate = Segment.to_piecewise_constant srate . _signal
+toPiecewiseConstant :: X -> Signal kind -> TimeVector.Unboxed
+toPiecewiseConstant srate = Segment.toPiecewiseConstant srate . _signal
 
 -- | 'Segment.with_ptr'.
-with_ptr :: Display -> (X -> Foreign.Ptr (Sample Y) -> Int -> IO a) -> IO a
-with_ptr sig = Segment.with_ptr (_signal sig)
+withPtr :: Display -> (X -> Foreign.Ptr (Sample Y) -> Int -> IO a) -> IO a
+withPtr sig = Segment.withPtr (_signal sig)
 
 -- * query
 
@@ -235,13 +235,13 @@ null :: Signal kind -> Bool
 null = Segment.null . _signal
 
 at :: Signal kind -> X -> Y
-at sig = fromMaybe 0 . at_maybe sig
+at sig = fromMaybe 0 . atMaybe sig
 
-at_maybe :: Signal kind -> X -> Maybe Y
-at_maybe = Segment.at Segment.num_interpolate . _signal
+atMaybe :: Signal kind -> X -> Maybe Y
+atMaybe = Segment.at Segment.numInterpolate . _signal
 
-segment_at :: Signal kind -> X -> Maybe (Segment.Segment Y)
-segment_at = Segment.segment_at . _signal
+segmentAt :: Signal kind -> X -> Maybe (Segment.Segment Y)
+segmentAt = Segment.segmentAt . _signal
 
 head, last :: Signal kind -> Maybe (X, Y)
 head = Segment.head . _signal
@@ -249,33 +249,33 @@ last = Segment.last . _signal
 
 -- * transform
 
-drop_after, drop_before :: X -> Signal kind -> Signal kind
-drop_after x = modify $ Segment.drop_after x
-drop_before x = modify $ Segment.drop_before x
+dropAfter, dropBefore :: X -> Signal kind -> Signal kind
+dropAfter x = modify $ Segment.dropAfter x
+dropBefore x = modify $ Segment.dropBefore x
 
-clip_after, clip_before :: X -> Signal kind -> Signal kind
-clip_after x = modify $ Segment.num_clip_after False x
-clip_before x = modify $ Segment.clip_before Segment.num_interpolate x
+clipAfter, clipBefore :: X -> Signal kind -> Signal kind
+clipAfter x = modify $ Segment.numClipAfter False x
+clipBefore x = modify $ Segment.clipBefore Segment.numInterpolate x
 
 -- TODO if Segment.clip_before_samples is the same as Segment.clip_before,
 -- then this is the same as 'clip_before'.
-clip_before_segments :: X -> Signal kind -> [Segment.Segment Y]
-clip_before_segments x = Segment.samples_to_segments
-    . Segment.clip_before_samples Segment.num_interpolate x
+clipBeforeSegments :: X -> Signal kind -> [Segment.Segment Y]
+clipBeforeSegments x = Segment.samplesToSegments
+    . Segment.clipBeforeSamples Segment.numInterpolate x
     . _signal
 
-clip_before_pairs :: X -> Signal kind -> [(X, Y)]
-clip_before_pairs x =
-    map TimeVector.to_pair
-    . Segment.clip_before_samples Segment.num_interpolate x
+clipBeforePairs :: X -> Signal kind -> [(X, Y)]
+clipBeforePairs x =
+    map TimeVector.toPair
+    . Segment.clipBeforeSamples Segment.numInterpolate x
     . _signal
 
 -- | Like 'clip_after', but always put a sample at the end time, even if it's
 -- flat.  This is not necessary if you keep this as a Signal since (<>) will
 -- extend the final sample, but might be if you go to breakpoints via
 -- 'to_pairs'.
-clip_after_keep_last :: X -> Signal kind -> Signal kind
-clip_after_keep_last x = modify $ Segment.num_clip_after True x
+clipAfterKeepLast :: X -> Signal kind -> Signal kind
+clipAfterKeepLast x = modify $ Segment.numClipAfter True x
 
 shift :: X -> Signal kind -> Signal kind
 shift x = modify (Segment.shift x)
@@ -283,83 +283,83 @@ shift x = modify (Segment.shift x)
 invert :: Signal kind -> Signal kind
 invert = modify Segment.invert
 
-sig_add, sig_multiply :: Control -> Control -> Control
-sig_add = linear_operator (Just 0) (+)
-sig_multiply = linear_operator (Just 1) (*)
+sigAdd, sigMultiply :: Control -> Control -> Control
+sigAdd = linearOperator (Just 0) (+)
+sigMultiply = linearOperator (Just 1) (*)
 
-sig_subtract :: Control -> Control -> Control
-sig_subtract sig1 sig2
-    | Just v <- constant_val sig2, v == 0 = sig1
-    | otherwise = linear_operator Nothing (-) sig1 sig2
+sigSubtract :: Control -> Control -> Control
+sigSubtract sig1 sig2
+    | Just v <- constantVal sig2, v == 0 = sig1
+    | otherwise = linearOperator Nothing (-) sig1 sig2
 
 -- TODO I think this is linear?  Because Num.scale is just add and multiply?
-sig_scale :: Control -> Control -> Control
-sig_scale = linear_operator (Just 1) scale
+sigScale :: Control -> Control -> Control
+sigScale = linearOperator (Just 1) scale
 
 scale :: Y -> Y -> Y
 scale x v
     | v >= 0 = Num.scale x 1 v
     | otherwise = Num.scale 0 x (v + 1)
 
-scale_invert :: Y -> Y -> Y
-scale_invert old new
+scaleInvert :: Y -> Y -> Y
+scaleInvert old new
     | new >= old = Num.normalize old 1 new
     | otherwise = Num.normalize 0 old new - 1
 
-linear_operator :: Maybe Y -- ^ If an identity value is given, I can avoid
+linearOperator :: Maybe Y -- ^ If an identity value is given, I can avoid
     -- copying the whole signal if the other one is a constant identity.
     -> (Y -> Y -> Y) -> Signal kind -> Signal kind -> Signal kind
-linear_operator (Just identity) _ sig1 sig2
-    | Just v <- constant_val sig1, v == identity = sig2
-    | Just v <- constant_val sig2, v == identity = sig1
-linear_operator _ op sig1 sig2 =
-    Signal $ Segment.linear_operator op (_signal sig1) (_signal sig2)
+linearOperator (Just identity) _ sig1 sig2
+    | Just v <- constantVal sig1, v == identity = sig2
+    | Just v <- constantVal sig2, v == identity = sig1
+linearOperator _ op sig1 sig2 =
+    Signal $ Segment.linearOperator op (_signal sig1) (_signal sig2)
 
 -- ** hacks
 
-drop_discontinuity_at :: X -> Control -> Control
-drop_discontinuity_at x = modify $ Segment.drop_discontinuity_at x
+dropDiscontinuityAt :: X -> Control -> Control
+dropDiscontinuityAt x = modify $ Segment.dropDiscontinuityAt x
 
 -- ** scalar transformation
 
-scalar_add, scalar_subtract, scalar_multiply, scalar_divide ::
+scalarAdd, scalarSubtract, scalarMultiply, scalarDivide ::
     Y -> Signal kind -> Signal kind
-scalar_add n = map_y_linear (+n)
-scalar_subtract n = map_y_linear (subtract n)
-scalar_multiply n = map_y_linear (*n)
-scalar_divide n = map_y_linear (/n)
+scalarAdd n = mapYLinear (+n)
+scalarSubtract n = mapYLinear (subtract n)
+scalarMultiply n = mapYLinear (*n)
+scalarDivide n = mapYLinear (/n)
 
-scalar_scale :: Y -> Signal kind -> Signal kind
-scalar_scale n = map_y_linear (scale n)
+scalarScale :: Y -> Signal kind -> Signal kind
+scalarScale n = mapYLinear (scale n)
 
 -- | Clip signal to never go below the given value.
 --
 -- This is way more complicated than the piecewise constant version.
-scalar_max :: Y -> Signal kind -> Signal kind
-scalar_max val sig
+scalarMax :: Y -> Signal kind -> Signal kind
+scalarMax val sig
     | minimum sig >= val = sig
-    | otherwise = modify (Segment.transform_samples go) sig
+    | otherwise = modify (Segment.transformSamples go) sig
     where
     go [] = []
     go [Sample x y] = [Sample x (max val y)]
     go (s1@(Sample x1 y1) : s2s@(Sample x2 y2 : sn))
         | y1 < val && y2 < val = Sample x1 val : below (s1 : s2s)
         | y1 >= val && y2 >= val = s1 : go s2s
-        | otherwise = case TimeVector.x_at x1 y1 x2 y2 val of
+        | otherwise = case TimeVector.xAt x1 y1 x2 y2 val of
             Nothing
                 | y1 < val -> Sample x1 val : go (Sample x2 val : sn)
                 | otherwise -> s1 : go s2s
-            Just x_val
-                | y1 < val -> Sample x1 val : go (Sample x_val val : s2s)
-                | otherwise -> s1 : Sample x_val val : below s2s
+            Just xVal
+                | y1 < val -> Sample x1 val : go (Sample xVal val : s2s)
+                | otherwise -> s1 : Sample xVal val : below s2s
     -- The first sample is below val, discard until it comes back up again.
     below (Sample x1 y1 : s2s@(Sample x2 y2 : _))
         | y2 < val = below s2s
         | y2 == val = go s2s
-        | otherwise = case TimeVector.x_at x1 y1 x2 y2 val of
+        | otherwise = case TimeVector.xAt x1 y1 x2 y2 val of
             -- y1 and y2 are both below, should have been caught above.
             Nothing -> below s2s
-            Just x_val -> go (Sample x_val val : s2s)
+            Just xVal -> go (Sample xVal val : s2s)
     below [_] = []
     below [] = []
 
@@ -372,29 +372,29 @@ find f = Segment.find f . _signal
 
 -- | Map Xs.  The slopes will definitely change unless the function is adding
 -- a constant, but presumably that's what you want.
-{-# SCC map_x #-}
-map_x :: (X -> X) -> Signal kind -> Signal kind
-map_x = modify . Segment.map_x
+{-# SCC mapX #-}
+mapX :: (X -> X) -> Signal kind -> Signal kind
+mapX = modify . Segment.mapX
 
 -- | Map Ys.  This resamples the signal, so it's valid for a nonlinear
 -- function.
-{-# SCC map_y #-}
-map_y :: X -> (Y -> Y) -> Signal kind -> Signal kind
-map_y srate = modify . Segment.map_y srate
+{-# SCC mapY #-}
+mapY :: X -> (Y -> Y) -> Signal kind -> Signal kind
+mapY srate = modify . Segment.mapY srate
 
 -- | If the function is linear, there's no need to resample.
-{-# SCC map_y_linear #-}
-map_y_linear :: (Y -> Y) -> Signal kind -> Signal kind
-map_y_linear = modify . Segment.map_y_linear
+{-# SCC mapYLinear #-}
+mapYLinear :: (Y -> Y) -> Signal kind -> Signal kind
+mapYLinear = modify . Segment.mapYLinear
 
-map_err :: (Sample Y -> Either err (Sample Y)) -> Signal kind
+mapErr :: (Sample Y -> Either err (Sample Y)) -> Signal kind
     -> (Signal kind, [err])
-map_err f = first Signal . Segment.map_err f . _signal
+mapErr f = first Signal . Segment.mapErr f . _signal
 
 -- * special functions
 
-integrate_inverse :: Tempo -> Warp
-integrate_inverse = integrate . map_y tempo_srate (1/)
+integrateInverse :: Tempo -> Warp
+integrateInverse = integrate . mapY tempoSrate (1/)
 
 -- | Integrate the signal.
 --
@@ -407,17 +407,17 @@ integrate_inverse = integrate . map_y tempo_srate (1/)
 -- resampled.  Maybe it would be more efficient to remove srate from
 -- Segment.integrate.
 integrate :: Tempo -> Warp
-integrate = Signal . Segment.integrate tempo_srate . _signal
+integrate = Signal . Segment.integrate tempoSrate . _signal
 
-tempo_srate :: X
-tempo_srate = RealTime.seconds 10
+tempoSrate :: X
+tempoSrate = RealTime.seconds 10
 
 -- | Total duration of horizontal segments in the warp signal.  These are
 -- the places where 'Warp.compose_hybrid' will emit a 1\/1 line.
-_flat_duration :: Warp -> ScoreTime
-_flat_duration =
-    RealTime.to_score . fst . Vector.foldl' go (0, Segment.Sample 0 0)
-        . Segment.to_vector . _signal
+_flatDuration :: Warp -> ScoreTime
+_flatDuration =
+    RealTime.toScore . fst . Vector.foldl' go (0, Segment.Sample 0 0)
+        . Segment.toVector . _signal
     where
     go (!acc, Segment.Sample x0 y0) sample@(Segment.Sample x y)
         | y == y0 = (acc + (x - x0), sample)

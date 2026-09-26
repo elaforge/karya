@@ -28,33 +28,33 @@ import           Util.Test
 
 
 -- | Don't leak more than this much on each run.
-max_memory_growth :: Memory.Size
-max_memory_growth = Memory.fromM 1
+maxMemoryGrowth :: Memory.Size
+maxMemoryGrowth = Memory.fromM 1
 
 -- | No cmd should take more than this many seconds.
-max_cmd_latency :: Double
-max_cmd_latency = 0.05
+maxCmdLatency :: Double
+maxCmdLatency = 0.05
 
 test_generated_score = do
     let times = 5
-    let states = ResponderTest.mkstates_blocks (score 64 256)
+    let states = ResponderTest.mkstatesBlocks (score 64 256)
     let pitches = ["5c", "5d", "5e", "5f"]
-        mods = [UiTest.insert_event_in "sub3" 2 (1, 1, p) | p <- cycle pitches]
-    check_results times states mods
+        mods = [UiTest.insertEventIn "sub3" 2 (1, 1, p) | p <- cycle pitches]
+    checkResults times states mods
 
-_test_putu_kreasi = do
+_testPutuKreasi = do
     let fname = "save/bali/putu-kreasi-galungan"
     let times = 4
     let pitches = ["5i", "5o", "5e", "5u"]
         mods =
-            [ UiTest.insert_event_in "untitled/b3" 12 (1.25, 0.25, p)
+            [ UiTest.insertEventIn "untitled/b3" 12 (1.25, 0.25, p)
             | p <- cycle pitches
             ]
-    states <- load_file fname
-    check_results times states mods
+    states <- loadFile fname
+    checkResults times states mods
 
-check_results :: Int -> ResponderTest.States -> [Cmd.CmdT IO ()] -> IO ()
-check_results times states mods = do
+checkResults :: Int -> ResponderTest.States -> [Cmd.CmdT IO ()] -> IO ()
+checkResults times states mods = do
     (latency, mems) <- unzip <$> thread states (take times mods)
     let diffs = zipWith (-) (drop 1 mems) mems
     Text.IO.putStrLn $ "diffs: " <> pretty diffs
@@ -62,28 +62,28 @@ check_results times states mods = do
     -- stabilize after that.  TODO maybe track that one down too some day.
     diffs <- pure $ drop 1 diffs
     -- If it's too lazy, memory will leak.
-    equal (filter (>= max_memory_growth) diffs) []
+    equal (filter (>= maxMemoryGrowth) diffs) []
     check ("< 1mb: " <> pretty diffs) $ all ((<1) . Memory.toM) diffs
 
     -- If it's too strict, the UI will get laggy.
     putStrLn "cmd latency:"
-    let show_latency (msg, secs) = msg <> ": " <> pretty secs
-    mapM_ Text.IO.putStrLn (map show_latency (concat latency))
+    let showLatency (msg, secs) = msg <> ": " <> pretty secs
+    mapM_ Text.IO.putStrLn (map showLatency (concat latency))
     equal
-        [ show_latency (msg, secs)
+        [ showLatency (msg, secs)
         -- drop 1 because the latency on the first cmd is much higher.  I don't
         -- know why, maybe it needs to evaluate more thunks, but it doesn't
         -- represent sustained use.
         | (msg, secs) <- concat (map (drop 1) latency)
-        , secs >= max_cmd_latency
+        , secs >= maxCmdLatency
         ]
         []
     pure ()
 
-load_file :: FilePath -> IO ResponderTest.States
-load_file fname = do
-    cmd_config <- DeriveSaved.load_cmd_config
-    only_derive_root <$> DeriveSaved.load_score_states cmd_config fname
+loadFile :: FilePath -> IO ResponderTest.States
+loadFile fname = do
+    cmdConfig <- DeriveSaved.loadCmdConfig
+    onlyDeriveRoot <$> DeriveSaved.loadScoreStates cmdConfig fname
 
 -- | (msg, latency)
 type Latency = (Text, ResponderTest.Seconds)
@@ -91,53 +91,53 @@ type Latency = (Text, ResponderTest.Seconds)
 thread :: ResponderTest.States -> [Cmd.CmdT IO ()]
     -> IO [([Latency], Memory.Size)]
 thread states (mod:mods) = do
-    states <- pure $ strip_states states
-    (latency, result) <- strip_results <$>
-        ResponderTest.respond_all [] timeout states mod
-    force_performances result
+    states <- pure $ stripStates states
+    (latency, result) <- stripResults <$>
+        ResponderTest.respondAll [] timeout states mod
+    forcePerformances result
     mem <- Memory.rtsAllocated
-    ((latency, mem):) <$> thread (ResponderTest.result_states result) mods
+    ((latency, mem):) <$> thread (ResponderTest.resultStates result) mods
     where
     timeout = 64
 thread _ [] = pure []
 
 -- | Get rid of intermediate Results, otherwise I get the memory leak right
 -- here!
-strip_results :: [ResponderTest.Result]
+stripResults :: [ResponderTest.Result]
     -> ([Latency], ResponderTest.Result)
-strip_results results = latency `DeepSeq.deepseq` (latency, last results)
+stripResults results = latency `DeepSeq.deepseq` (latency, last results)
     where
     latency = map strip results
-    strip r = (pretty (ResponderTest.result_msg r), ResponderTest.result_time r)
+    strip r = (pretty (ResponderTest.resultMsg r), ResponderTest.resultTime r)
 
 -- The commented out strips out various bits of state to try to find a leak.
 -- I'll leave it in here in case I need to do it again some day.
 
-strip_states :: ResponderTest.States -> ResponderTest.States
-strip_states = id -- second strip_cmd
+stripStates :: ResponderTest.States -> ResponderTest.States
+stripStates = id -- second strip_cmd
     where
-    _strip_cmd state = state
-        { Cmd.state_play = play
+    _stripCmd state = state
+        { Cmd.statePlay = play
             -- { Cmd.state_performance = mempty
             -- , Cmd.state_current_performance = mempty
             -- , Cmd.state_performance_threads = mempty
             -- }
 
-            { Cmd.state_performance = Map.map strip (Cmd.state_performance play)
-            , Cmd.state_current_performance =
-                Map.map strip (Cmd.state_current_performance play)
+            { Cmd.statePerformance = Map.map strip (Cmd.statePerformance play)
+            , Cmd.stateCurrentPerformance =
+                Map.map strip (Cmd.stateCurrentPerformance play)
             }
         }
-        where play = Cmd.state_play state
-    strip = strip_performance
+        where play = Cmd.statePlay state
+    strip = stripPerformance
 
-strip_performance :: Cmd.Performance -> Cmd.Performance
-strip_performance perf = cache `seq` perf
-    { Cmd.perf_derive_cache = cache
-    , Cmd.perf_events = mempty -- strip_event <$> Cmd.perf_events perf
+stripPerformance :: Cmd.Performance -> Cmd.Performance
+stripPerformance perf = cache `seq` perf
+    { Cmd.perfDeriveCache = cache
+    , Cmd.perfEvents = mempty -- strip_event <$> Cmd.perf_events perf
     -- , Cmd.perf_logs = []
     -- , Cmd.perf_logs_written = True
-    , Cmd.perf_track_dynamic = mempty
+    , Cmd.perfTrackDynamic = mempty
     -- , Cmd.perf_integrated = mempty
     -- -- , Cmd.perf_damage = mempty
     -- , Cmd.perf_warps = []
@@ -145,31 +145,31 @@ strip_performance perf = cache `seq` perf
     }
     where
     -- cache = invalidate_cache (Cmd.perf_derive_cache perf)
-    cache = strip_cache (Cmd.perf_derive_cache perf)
+    cache = stripCache (Cmd.perfDeriveCache perf)
 
-invalidate_cache :: Derive.Cache -> Derive.Cache
-invalidate_cache (Derive.Cache cache) = Derive.Cache (Map.map strip cache)
+invalidateCache :: Derive.Cache -> Derive.Cache
+invalidateCache (Derive.Cache cache) = Derive.Cache (Map.map strip cache)
     where strip _ = Derive.Invalid
 
-strip_cache :: Derive.Cache -> Derive.Cache
-strip_cache (Derive.Cache cache) = Derive.Cache (Map.map strip cache)
+stripCache :: Derive.Cache -> Derive.Cache
+stripCache (Derive.Cache cache) = Derive.Cache (Map.map strip cache)
     where
     strip Derive.Invalid = Derive.Invalid
     strip (Derive.Cached entry) = Derive.Cached $ case entry of
         Derive.CachedEvents (Derive.CallType collect es) ->
             Derive.CachedEvents $
-                Derive.CallType (strip_collect collect) (strip_event <$> es)
+                Derive.CallType (stripCollect collect) (stripEvent <$> es)
         _ -> entry
 
-strip_collect :: Derive.Collect -> Derive.Collect
-strip_collect c = c
+stripCollect :: Derive.Collect -> Derive.Collect
+stripCollect c = c
     -- { Derive.collect_warp_map = mempty
     -- , Derive.collect_track_signals = mempty
     -- , Derive.collect_signal_fragments = mempty
-    { Derive.collect_track_dynamic =
-        Map.map strip_dynamic (Derive.collect_track_dynamic c)
-    , Derive.collect_track_dynamic_inverted =
-        Map.map strip_dynamic (Derive.collect_track_dynamic_inverted c)
+    { Derive.collectTrackDynamic =
+        Map.map stripDynamic (Derive.collectTrackDynamic c)
+    , Derive.collectTrackDynamicInverted =
+        Map.map stripDynamic (Derive.collectTrackDynamicInverted c)
     -- , Derive.collect_block_deps :: !BlockDeps
     -- , Derive.collect_cache :: !Cache
     -- , Derive.collect_integrated :: ![Integrated]
@@ -178,14 +178,14 @@ strip_collect c = c
     -- , Derive.collect_real_duration :: !(CallDuration RealTime)
     }
 
-strip_event :: Score.Event -> Score.Event
-strip_event event = event
+stripEvent :: Score.Event -> Score.Event
+stripEvent event = event
     -- { Score.event_untransformed_pitch = pitch
     -- }
     -- where pitch = PSignal.constant (PSignal.nn_pitch 40)
 
-strip_dynamic :: Derive.Dynamic -> Derive.Dynamic
-strip_dynamic dyn = dyn
+stripDynamic :: Derive.Dynamic -> Derive.Dynamic
+stripDynamic dyn = dyn
     -- { Derive.state_controls = mempty -- !ScoreT.ControlMap
     -- , Derive.state_control_merge_defaults = mempty
     --     -- Map ScoreT.Control (Merger Signal.Control)
@@ -199,33 +199,33 @@ strip_dynamic dyn = dyn
     -- , Derive.state_control_damage :: !ControlDamage
     -- , Derive.state_under_invert = id -- !(NoteDeriver -> NoteDeriver)
     -- , Derive.state_inversion :: !Inversion
-    { Derive.state_pitch_map = Nothing
+    { Derive.statePitchMap = Nothing
     -- , Derive.state_note_track = Nothing
     -- , Derive.state_stack :: !Stack.Stack
     -- , Derive.state_mode :: !Mode
     }
 
-only_derive_root :: ResponderTest.States -> ResponderTest.States
-only_derive_root = first $ Ui.views #= mempty
+onlyDeriveRoot :: ResponderTest.States -> ResponderTest.States
+onlyDeriveRoot = first $ Ui.views #= mempty
 
-force_performances :: ResponderTest.Result -> IO ()
-force_performances result = do
-    let perfs = Cmd.state_performance $ Cmd.state_play $
-            ResponderTest.result_cmd_state result
-    forM_ (Map.toList perfs) $ \(block_id, perf) ->
-        Text.IO.putStrLn $ showt block_id <> " -> " <> show_performance perf
+forcePerformances :: ResponderTest.Result -> IO ()
+forcePerformances result = do
+    let perfs = Cmd.statePerformance $ Cmd.statePlay $
+            ResponderTest.resultCmdState result
+    forM_ (Map.toList perfs) $ \(blockId, perf) ->
+        Text.IO.putStrLn $ showt blockId <> " -> " <> showPerformance perf
 
-show_performance :: Msg.Performance -> Text
-show_performance perf
-    | otherwise = showt (Vector.length (Cmd.perf_events perf)) <> " events"
+showPerformance :: Msg.Performance -> Text
+showPerformance perf
+    | otherwise = showt (Vector.length (Cmd.perfEvents perf)) <> " events"
         <> if null logs then "" else ": " <> pretty (take 4 logs)
-    where logs = filter ((>=Log.Warn) . Log.msg_priority) $ Cmd.perf_logs perf
+    where logs = filter ((>=Log.Warn) . Log.msgPriority) $ Cmd.perfLogs perf
 
 score :: Int -> Int -> [UiTest.BlockSpec]
-score sub_blocks sub_notes =
+score subBlocks subNotes =
     ("top", [(">", (zip3 (iterate (+dur) 0) (repeat dur) subs))])
         : map (, sub) subs
     where
-    dur = fromIntegral sub_notes
-    subs = map (("sub"<>) . showt) [1..sub_blocks]
-    sub = UiTest.regular_notes sub_notes
+    dur = fromIntegral subNotes
+    subs = map (("sub"<>) . showt) [1..subBlocks]
+    sub = UiTest.regularNotes subNotes

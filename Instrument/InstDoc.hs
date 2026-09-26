@@ -3,7 +3,7 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 -- | Format documentation for instruments.
-module Instrument.InstDoc (info_of) where
+module Instrument.InstDoc (infoOf) where
 import qualified Data.Char as Char
 import qualified Data.Map as Map
 import qualified Data.Set as Set
@@ -32,86 +32,86 @@ import qualified Perform.Sc.Patch as Sc.Patch
 import           Global
 
 
-info_of :: InstT.Qualified -> Text -> Cmd.Inst -> [Tag.Tag] -> Text
-info_of qualified synth_doc (Inst.Inst backend common) tags = mconcat
+infoOf :: InstT.Qualified -> Text -> Cmd.Inst -> [Tag.Tag] -> Text
+infoOf qualified synthDoc (Inst.Inst backend common) tags = mconcat
     [ Text.intercalate " -- " $ filter (not . Text.null)
-        [ synth_name
-        , if Text.null inst_name then "*" else inst_name
-        , synth_doc
-        , Inst.backend_name backend
+        [ synthName
+        , if Text.null instName then "*" else instName
+        , synthDoc
+        , Inst.backendName backend
         ]
     , "\n\n"
     , body
     ]
     where
-    InstT.Qualified synth_name inst_name = qualified
-    body = format_fields $ common_fields tags common ++ backend_fields
-    backend_fields = case backend of
+    InstT.Qualified synthName instName = qualified
+    body = formatFields $ commonFields tags common ++ backendFields
+    backendFields = case backend of
         Inst.Dummy msg -> [("dummy msg", msg)]
-        Inst.Midi inst -> midi_fields inst_name inst
-        Inst.Im patch -> im_patch_fields patch
-        Inst.Sc patch -> sc_patch_fields patch
+        Inst.Midi inst -> midiFields instName inst
+        Inst.Im patch -> imPatchFields patch
+        Inst.Sc patch -> scPatchFields patch
 
-format_fields :: [(Text, Text)] -> Text
-format_fields = Text.unlines . filter (not . Text.null) . map field
+formatFields :: [(Text, Text)] -> Text
+formatFields = Text.unlines . filter (not . Text.null) . map field
 
 field :: (Text, Text) -> Text
-field (title, raw_text)
+field (title, rawText)
     | Text.null text = ""
     | Text.length text < 40 && not ("\n" `Text.isInfixOf` text) =
         title <> ": " <> text <> "\n"
     | otherwise = "\t" <> title <> ":\n" <> text <> "\n"
-    where text = Text.strip raw_text
+    where text = Text.strip rawText
 
-common_fields :: [Tag.Tag] -> Common.Common Cmd.InstrumentCode -> [(Text, Text)]
-common_fields tags common =
+commonFields :: [Tag.Tag] -> Common.Common Cmd.InstrumentCode -> [(Text, Text)]
+commonFields tags common =
     [ ("Environ", if env == mempty then "" else pretty env)
     , ("Flags", Text.intercalate ", " $ map showt $ Set.toList flags)
-    , ("Call map", if Map.null call_map then "" else pretty call_map)
+    , ("Call map", if Map.null callMap then "" else pretty callMap)
     -- code
-    , ("Cmds", show_cmds code)
-    , ("Note generators", show_calls CallDoc.GeneratorCall gen)
-    , ("Note transformers", show_calls CallDoc.TransformerCall trans)
-    , ("Track calls", show_calls CallDoc.TrackCall track)
-    , ("Val calls", show_calls CallDoc.ValCall val)
+    , ("Cmds", showCmds code)
+    , ("Note generators", showCalls CallDoc.GeneratorCall gen)
+    , ("Note transformers", showCalls CallDoc.TransformerCall trans)
+    , ("Track calls", showCalls CallDoc.TrackCall track)
+    , ("Val calls", showCalls CallDoc.ValCall val)
     -- info
     , ("Doc", doc)
-    , ("Tags", show_tags tags)
+    , ("Tags", showTags tags)
     -- TODO lost the patch_file field
     ]
     where
-    Derive.Scopes gen trans track val = Cmd.inst_calls code
-    show_calls ctype = show_call_bindings . CallDoc.entries ctype
-        . CallDoc.call_map_to_entries . CallDoc.call_map_doc
+    Derive.Scopes gen trans track val = Cmd.instCalls code
+    showCalls ctype = showCallBindings . CallDoc.entries ctype
+        . CallDoc.callMapToEntries . CallDoc.callMapDoc
     Common.Common
-        { common_code = code
-        , common_environ = env
-        , common_doc = Doc.Doc doc
-        , common_flags = flags
-        , common_call_map = call_map
+        { commonCode = code
+        , commonEnviron = env
+        , commonDoc = Doc.Doc doc
+        , commonFlags = flags
+        , commonCallMap = callMap
         } = common
 
-show_cmds :: Cmd.InstrumentCode -> Text
-show_cmds code = Text.unlines $ concat
-    [ map show_handler (Cmd.inst_cmds code)
-    , maybe [] (const ["[custom thru]"]) $ Cmd.inst_thru code
+showCmds :: Cmd.InstrumentCode -> Text
+showCmds code = Text.unlines $ concat
+    [ map showHandler (Cmd.instCmds code)
+    , maybe [] (const ["[custom thru]"]) $ Cmd.instThru code
     ]
 
-show_handler :: Cmd.Handler m -> Text
-show_handler = \case
-    Cmd.Handler (Just note_entry) cmd ->
-        Cmd.cmd_name cmd <> ": " <> case note_entry of
+showHandler :: Cmd.Handler m -> Text
+showHandler = \case
+    Cmd.Handler (Just noteEntry) cmd ->
+        Cmd.cmdName cmd <> ": " <> case noteEntry of
             Cmd.WithoutOctave m -> list $ Map.elems m
             Cmd.WithOctave m -> list $ concatMap Map.elems $ Map.elems m
         where
         list xs = "["
             <> Text.unwords (Lists.unique (filter (not . Text.null) xs))
             <> "]"
-    Cmd.Handler Nothing cmd -> Cmd.cmd_name cmd
-    Cmd.Keymap keymap -> pretty $ map Cmd.cmd_name $ Map.elems keymap
+    Cmd.Handler Nothing cmd -> Cmd.cmdName cmd
+    Cmd.Keymap keymap -> pretty $ map Cmd.cmdName $ Map.elems keymap
 
-show_tags :: [(Text, Text)] -> Text
-show_tags tags =
+showTags :: [(Text, Text)] -> Text
+showTags tags =
     Text.unwords [quote k <> "=" <> quote v | (k, v) <- Lists.sortOn fst tags]
 
 quote :: Text -> Text
@@ -119,62 +119,62 @@ quote s
     | Text.any Char.isSpace s = "\"" <> s <> "\""
     | otherwise = s
 
-show_call_bindings :: [CallDoc.CallBindings] -> Text
-show_call_bindings = Lazy.toStrict . Format.render "\t" 10000
-    . Format.paragraphs . map (CallDoc.call_bindings_text False)
+showCallBindings :: [CallDoc.CallBindings] -> Text
+showCallBindings = Lazy.toStrict . Format.render "\t" 10000
+    . Format.paragraphs . map (CallDoc.callBindingsText False)
     -- Let fltk do the wrapping.  Of course it doesn't know how the indentation
     -- works, so wrapped lines don't get indented, but it doesn't look that
     -- bad.
 
 -- ** midi
 
-midi_fields :: InstT.Name -> Midi.Patch.Patch -> [(Text, Text)]
-midi_fields name patch =
+midiFields :: InstT.Name -> Midi.Patch.Patch -> [(Text, Text)]
+midiFields name patch =
     -- important properties
     [ ("Flags", Text.intercalate ", " $ map showt $ Set.toList $
         fromMaybe mempty flags)
-    , ("Controls", show_control_map control_map)
-    , ("Control defaults", pretty control_defaults)
+    , ("Controls", showControlMap controlMap)
+    , ("Control defaults", pretty controlDefaults)
     -- implementation details
-    , ("Attribute map", show_attribute_map attr_map)
-    , ("Mode map", show_mode_map mode_map)
-    , ("Pitchbend range", pretty pb_range)
+    , ("Attribute map", showAttributeMap attrMap)
+    , ("Mode map", showModeMap modeMap)
+    , ("Pitchbend range", pretty pbRange)
     , ("Decay", if decay == Nothing then "" else pretty decay)
     , ("Scale", maybe "" pretty scale)
-    , ("Initialization", show_initialize initialize)
-    , ("Original name", if name == orig_name then "" else showt orig_name)
+    , ("Initialization", showInitialize initialize)
+    , ("Original name", if name == origName then "" else showt origName)
     ]
     where
     Midi.Patch.Patch
-        { patch_name = orig_name
-        , patch_control_map = control_map
-        , patch_initialize = initialize
-        , patch_attribute_map = attr_map
-        , patch_mode_map = mode_map
-        , patch_defaults = settings
+        { patchName = origName
+        , patchControlMap = controlMap
+        , patchInitialize = initialize
+        , patchAttributeMap = attrMap
+        , patchModeMap = modeMap
+        , patchDefaults = settings
         } = patch
-    Midi.Patch.Settings flags scale decay pb_range control_defaults = settings
+    Midi.Patch.Settings flags scale decay pbRange controlDefaults = settings
 
-show_attribute_map :: Midi.Patch.AttributeMap -> Text
-show_attribute_map (Common.AttributeMap table) =
+showAttributeMap :: Midi.Patch.AttributeMap -> Text
+showAttributeMap (Common.AttributeMap table) =
     -- TODO browser uses a variable width font, so this doesn't actually line
     -- up.  I would have to either use fixed width, or have explicit columns
     -- via html.
     Text.unlines $ Texts.columns 2 $
-        map fmt (Lists.sortOn (low_key . snd) table)
+        map fmt (Lists.sortOn (lowKey . snd) table)
     where
     -- If this instrument uses a keymap, it's easier to read the attribute map
     -- if I put it in keymap order.
-    low_key (_, Just (Midi.Patch.UnpitchedKeymap k)) = Just k
-    low_key (_, Just (Midi.Patch.PitchedKeymap k _ _)) = Just k
-    low_key (_, Nothing) = Nothing
-    fmt (attrs, (keyswitches, mb_keymap)) =
+    lowKey (_, Just (Midi.Patch.UnpitchedKeymap k)) = Just k
+    lowKey (_, Just (Midi.Patch.PitchedKeymap k _ _)) = Just k
+    lowKey (_, Nothing) = Nothing
+    fmt (attrs, (keyswitches, mbKeymap)) =
         [ pretty attrs
-        , pretty keyswitches <> maybe "" ((" "<>) . pretty) mb_keymap
+        , pretty keyswitches <> maybe "" ((" "<>) . pretty) mbKeymap
         ]
 
-show_mode_map :: Midi.Patch.ModeMap -> Text
-show_mode_map (Midi.Patch.ModeMap table) = Text.unlines
+showModeMap :: Midi.Patch.ModeMap -> Text
+showModeMap (Midi.Patch.ModeMap table) = Text.unlines
     [ key <> ": " <> Text.intercalate ", "
         [ pretty val <> "=" <> pretty ks
         | (val, ks) <- Map.toList modes
@@ -182,24 +182,24 @@ show_mode_map (Midi.Patch.ModeMap table) = Text.unlines
     | (key, (deflt, modes)) <- Map.toAscList table
     ]
 
-show_control_map :: Midi.Control.ControlMap -> Text
-show_control_map cmap = Text.intercalate ", "
-    [ ScoreT.control_name cont <> " (" <> showt num <> ")"
+showControlMap :: Midi.Control.ControlMap -> Text
+showControlMap cmap = Text.intercalate ", "
+    [ ScoreT.controlName cont <> " (" <> showt num <> ")"
     | (cont, num) <- Map.toList cmap
     ]
 
-show_initialize :: Midi.Patch.InitializePatch -> Text
-show_initialize = \case
+showInitialize :: Midi.Patch.InitializePatch -> Text
+showInitialize = \case
     Midi.Patch.NoInitialization -> ""
     Midi.Patch.InitializeMessage msg -> "Message: " <> msg
     Midi.Patch.InitializeMidi msgs -> Text.unlines (map pretty msgs)
 
 -- ** im
 
-im_patch_fields :: Im.Patch.Patch -> [(Text, Text)]
-im_patch_fields (Im.Patch.Patch controls attr_map elements) =
+imPatchFields :: Im.Patch.Patch -> [(Text, Text)]
+imPatchFields (Im.Patch.Patch controls attrMap elements) =
     [ ("Attributes", Text.intercalate ", " $ map pretty $
-        Common.mapped_attributes attr_map)
+        Common.mappedAttributes attrMap)
     , ("Controls", Text.unlines $ Texts.columns 2
         [[pretty control, doc] | (control, doc) <- Map.toAscList controls])
     , ("Elements", Text.unwords (Set.toList elements))
@@ -207,8 +207,8 @@ im_patch_fields (Im.Patch.Patch controls attr_map elements) =
 
 -- ** sc
 
-sc_patch_fields :: Sc.Patch.Patch -> [(Text, Text)]
-sc_patch_fields (Sc.Patch.Patch _name _filename controls) =
+scPatchFields :: Sc.Patch.Patch -> [(Text, Text)]
+scPatchFields (Sc.Patch.Patch _name _filename controls) =
     [ ("Controls", Text.unlines
         [ pretty control <> "\t" <> showt id
         | (control, id) <- Map.toAscList controls

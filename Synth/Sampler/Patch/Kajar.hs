@@ -26,7 +26,7 @@ import           Global
 patches :: [Patch.Patch]
 patches = [Drum.patch dir patchName strokeMap convertMap (const config)]
     where
-    config = CUtil.call_config { CUtil._tuning_control = Just "kajar-tune" }
+    config = CUtil.callConfig { CUtil._tuningControl = Just "kajar-tune" }
     dir = untxt patchName
 
 patchName :: Text
@@ -48,8 +48,8 @@ strokeMap = Drum.replaceSoft 0.75 $ Drum.strokeMapTable stops
                         CenterClosed closed)
     , ('x', "o", Stroke (Attrs.center <> Attrs.closed)  CenterClosed closed)
     , ('c', "oo", Call $
-        DUtil.doubled_call "o" "oo" DUtil.After (RealTime.seconds 0.09) 0.75)
-    , ('f', "o..", Call c_nruk)
+        DUtil.doubledCall "o" "oo" DUtil.After (RealTime.seconds 0.09) 0.75)
+    , ('f', "o..", Call cNruk)
 
     -- This is not commonly used.
     , ('v', "c", Stroke (Attrs.center <> Attrs.open)    CenterOpen open)
@@ -57,7 +57,7 @@ strokeMap = Drum.replaceSoft 0.75 $ Drum.strokeMapTable stops
     , ('m', "m", Stroke Attrs.damp                      Damp closed)
 
     , (' ', "k", Call $
-        Gong.make_cycle "kajar" (Just (Left "o")) (Just (Left Meter.Q)))
+        Gong.makeCycle "kajar" (Just (Left "o")) (Just (Left Meter.Q)))
     ]
     where
     stops = [(closed, [open])]
@@ -77,11 +77,11 @@ convertMap = Drum.ConvertMap
 
 -- copied from User.Elaforge.Instrument.Kontakt.Gong
 
-c_nruk :: Derive.Generator Derive.Note
-c_nruk = Gong.nruk_generator Module.instrument "nruk" "Nruktuk on `o`." $
+cNruk :: Derive.Generator Derive.Note
+cNruk = Gong.nrukGenerator Module.instrument "nruk" "Nruktuk on `o`." $
     Sub.inverting $ \args -> do
-        gen <- Eval.get_generator "o"
-        Eval.apply_generator (Derive.passed_ctx args) gen []
+        gen <- Eval.getGenerator "o"
+        Eval.applyGenerator (Derive.passedCtx args) gen []
 
 -- * articulationSamples
 

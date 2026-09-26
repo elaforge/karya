@@ -30,21 +30,21 @@ import           Types
 
 library :: Library.Library
 library = Library.transformers
-    [ ("slur-n", c_slur_n)
-    , ("slur-dur", c_slur_dur)
+    [ ("slur-n", cSlurN)
+    , ("slur-dur", cSlurDur)
     ]
 
-c_slur_n :: Derive.Transformer Derive.Note
-c_slur_n = Derive.transformer Module.prelude "slur-n" Tags.postproc
+cSlurN :: Derive.Transformer Derive.Note
+cSlurN = Derive.transformer Module.prelude "slur-n" Tags.postproc
     "Merge groups of notes into one note, where the pitch is taken from each\
     \ merged note. The groups are of a fixed size."
     $ Sig.callt (Sig.required "group" "How many notes in a group.")
-    $ \group _args deriver -> slur_n group <$> deriver
+    $ \group _args deriver -> slurN group <$> deriver
 
-slur_n :: Int -> Stream.Stream Score.Event -> Stream.Stream Score.Event
-slur_n group = Stream.from_sorted_list . go . Stream.to_list
+slurN :: Int -> Stream.Stream Score.Event -> Stream.Stream Score.Event
+slurN group = Stream.fromSortedList . go . Stream.toList
     where
-    go events = case first LEvent.partition $ split_events group events of
+    go events = case first LEvent.partition $ splitEvents group events of
         (([], logs), _) -> map LEvent.Log logs
         ((e : es, logs), post) -> map LEvent.Log logs
             ++ LEvent.Event (slur e es) : go post
@@ -55,38 +55,38 @@ slur_n group = Stream.from_sorted_list . go . Stream.to_list
 -- back if it's useful.
 slur :: Score.Event -> [Score.Event] -> Score.Event
 slur event events = event
-    { Score.event_duration = dur
-    , Score.event_pitch = merge_pitch (Score.event_pitch event)
-        [(Score.event_start e, Score.event_pitch e) | e <- events]
-    , Score.event_environ = Env.from_controls (merge_controls event events)
-        <> Score.event_environ event
+    { Score.eventDuration = dur
+    , Score.eventPitch = mergePitch (Score.eventPitch event)
+        [(Score.eventStart e, Score.eventPitch e) | e <- events]
+    , Score.eventEnviron = Env.fromControls (mergeControls event events)
+        <> Score.eventEnviron event
     }
     where
-    dur = Score.event_end (fromMaybe event (Lists.last events))
-        - Score.event_start event
+    dur = Score.eventEnd (fromMaybe event (Lists.last events))
+        - Score.eventStart event
 
-merge_pitch :: PSignal.PSignal -> [(RealTime, PSignal.PSignal)]
+mergePitch :: PSignal.PSignal -> [(RealTime, PSignal.PSignal)]
     -> PSignal.PSignal
-merge_pitch sig sigs =
-    mconcat $ sig : [PSignal.clip_before start sig | (start, sig) <- sigs]
+mergePitch sig sigs =
+    mconcat $ sig : [PSignal.clipBefore start sig | (start, sig) <- sigs]
 
-merge_controls :: Score.Event -> [Score.Event] -> ScoreT.ControlMap
-merge_controls event events = Maps.mconcat $ clip event : map clip events
+mergeControls :: Score.Event -> [Score.Event] -> ScoreT.ControlMap
+mergeControls event events = Maps.mconcat $ clip event : map clip events
     where
-    clip event = fmap (Signal.clip_before (Score.event_start event)) <$>
-        Score.event_controls event
+    clip event = fmap (Signal.clipBefore (Score.eventStart event)) <$>
+        Score.eventControls event
 
 -- | 'splitAt' for LEvents.
-split_events :: Int -> [LEvent.LEvent a]
+splitEvents :: Int -> [LEvent.LEvent a]
     -> ([LEvent.LEvent a], [LEvent.LEvent a])
-split_events _ [] = ([], [])
-split_events n (e:es)
+splitEvents _ [] = ([], [])
+splitEvents n (e:es)
     | n <= 0 = ([], e : es)
     | otherwise = (e : pre, post)
-    where (pre, post) = split_events (if LEvent.is_event e then n - 1 else n) es
+    where (pre, post) = splitEvents (if LEvent.isEvent e then n - 1 else n) es
 
-c_slur_dur :: Derive.Transformer Derive.Note
-c_slur_dur = Derive.transformer Module.prelude "slur-dur" Tags.postproc
+cSlurDur :: Derive.Transformer Derive.Note
+cSlurDur = Derive.transformer Module.prelude "slur-dur" Tags.postproc
     "Merge groups of notes into one note, where the pitch is taken from each\
     \ merged note. The groups are by duration."
     $ Sig.callt ((,)
@@ -94,22 +94,22 @@ c_slur_dur = Derive.transformer Module.prelude "slur-dur" Tags.postproc
     <*> (Typecheck._score <$> Sig.defaulted "offset" (Typecheck.score 0)
         "Groups start at this time.")
     ) $ \(dur, offset) args deriver -> do
-        start <- Args.real_start args
-        dur <- Call.real_duration start dur
-        offset <- Call.real_duration start offset
-        slur_dur dur offset <$> deriver
+        start <- Args.realStart args
+        dur <- Call.realDuration start dur
+        offset <- Call.realDuration start offset
+        slurDur dur offset <$> deriver
 
-slur_dur :: RealTime -> RealTime -> Stream.Stream Score.Event
+slurDur :: RealTime -> RealTime -> Stream.Stream Score.Event
     -> Stream.Stream Score.Event
-slur_dur dur offset stream =
-    Stream.merge_logs logs $ Stream.from_sorted_events $
-        map apply (group_dur dur offset events)
+slurDur dur offset stream =
+    Stream.mergeLogs logs $ Stream.fromSortedEvents $
+        map apply (groupDur dur offset events)
     where
     apply (e :| es) = slur e es
     (events, logs) = Stream.partition stream
 
-group_dur :: RealTime -> RealTime -> [Score.Event] -> [NonEmpty Score.Event]
-group_dur dur offset = Lists.groupStable group_of
+groupDur :: RealTime -> RealTime -> [Score.Event] -> [NonEmpty Score.Event]
+groupDur dur offset = Lists.groupStable groupOf
     where
-    group_of = floor . RealTime.to_seconds . (/dur) . subtract offset
-        . Score.event_start
+    groupOf = floor . RealTime.toSeconds . (/dur) . subtract offset
+        . Score.eventStart

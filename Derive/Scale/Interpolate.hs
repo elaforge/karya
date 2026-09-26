@@ -26,109 +26,109 @@ import           Global
 
 
 scales :: [Scale.Definition]
-scales = scale_make $ \env (Scale.LookupScale lookup) -> do
-    (from_id, to_id) <- environ_from_to env
-    let find msg scale_id = fromMaybe (Left $ DeriveT.PitchError msg) $
-            lookup env2 scale_id
+scales = scaleMake $ \env (Scale.LookupScale lookup) -> do
+    (fromId, toId) <- environFromTo env
+    let find msg scaleId = fromMaybe (Left $ DeriveT.PitchError msg) $
+            lookup env2 scaleId
         -- This should avoid an infinite loop if from_id is itself
         -- interpolate.
-        env2 = Env.delete scale_from $ Env.delete scale_to env
-    from <- find ("from scale " <> pretty from_id) from_id
-    to <- find ("to scale " <> pretty to_id) to_id
+        env2 = Env.delete scaleFrom $ Env.delete scaleTo env
+    from <- find ("from scale " <> pretty fromId) fromId
+    to <- find ("to scale " <> pretty toId) toId
     pure $ make from to
     where
-    scale_make = (:[]) . Scale.Make scale_id ("same as from scale", doc)
+    scaleMake = (:[]) . Scale.Make scaleId ("same as from scale", doc)
 
 make :: Scale.Scale -> Scale.Scale -> Scale.Scale
 make from to = Scale.Scale
-    { scale_id = scale_id
-    , scale_pattern = "same as `from` scale"
-    , scale_symbols = []
-    , scale_transposers =
-        Scale.scale_transposers from <> Scale.scale_transposers to
-    , scale_read = Scale.scale_read from
-    , scale_show = Scale.scale_show from
-    , scale_bottom = Scale.scale_bottom from
-    , scale_layout = Scale.scale_layout from
-    , scale_transpose = Scale.scale_transpose from
-    , scale_enharmonics = Scale.scale_enharmonics from
-    , scale_note_to_call = to_call
-    , scale_input_to_note = to_note
-    , scale_input_to_nn = Scales.computed_input_to_nn to_note to_call
-    , scale_call_doc = doc
+    { scaleId = scaleId
+    , scalePattern = "same as `from` scale"
+    , scaleSymbols = []
+    , scaleTransposers =
+        Scale.scaleTransposers from <> Scale.scaleTransposers to
+    , scaleRead = Scale.scaleRead from
+    , scaleShow = Scale.scaleShow from
+    , scaleBottom = Scale.scaleBottom from
+    , scaleLayout = Scale.scaleLayout from
+    , scaleTranspose = Scale.scaleTranspose from
+    , scaleEnharmonics = Scale.scaleEnharmonics from
+    , scaleNoteToCall = toCall
+    , scaleInputToNote = toNote
+    , scaleInputToNn = Scales.computedInputToNn toNote toCall
+    , scaleCallDoc = doc
     }
     where
-    to_call = note_to_call from to
-    to_note = Scale.scale_input_to_note from
+    toCall = noteToCall from to
+    toNote = Scale.scaleInputToNote from
 
 doc :: Derive.DocumentedCall
-doc = Derive.extract_doc $ interpolated_degree dummy dummy
+doc = Derive.extractDoc $ interpolatedDegree dummy dummy
     where
-    dummy = Derive.val_call Module.scale "dummy" mempty "" $
+    dummy = Derive.valCall Module.scale "dummy" mempty "" $
         Sig.call0 $ \_args -> pure (0 :: Double)
 
-scale_id :: Pitch.ScaleId
-scale_id = "interpolate"
+scaleId :: Pitch.ScaleId
+scaleId = "interpolate"
 
-scale_at :: ScoreT.Control
-scale_at = "scale-at"
+scaleAt :: ScoreT.Control
+scaleAt = "scale-at"
 
-note_to_call :: Scale.Scale -> Scale.Scale -> Pitch.Note -> Maybe Derive.ValCall
-note_to_call from to note =
-    interpolated_degree <$> Scale.scale_note_to_call from note
-        <*> Scale.scale_note_to_call to note
+noteToCall :: Scale.Scale -> Scale.Scale -> Pitch.Note -> Maybe Derive.ValCall
+noteToCall from to note =
+    interpolatedDegree <$> Scale.scaleNoteToCall from note
+        <*> Scale.scaleNoteToCall to note
 
-interpolated_degree :: Derive.ValCall -> Derive.ValCall -> Derive.ValCall
-interpolated_degree from to = Derive.val_call Module.scale "pitch" mempty
+interpolatedDegree :: Derive.ValCall -> Derive.ValCall -> Derive.ValCall
+interpolatedDegree from to = Derive.valCall Module.scale "pitch" mempty
     ("Emit a pitch between two scales. The scales are in the "
-    <> doc scale_from <> " and " <> doc scale_to
-    <> " environ values, and keys are from " <> doc key_from <> " and "
-    <> doc key_to <> ". If " <> doc scale_to <> " isn't set, it defaults to "
-    <> doc scale_from <> ". The " <> doc scale_at
+    <> doc scaleFrom <> " and " <> doc scaleTo
+    <> " environ values, and keys are from " <> doc keyFrom <> " and "
+    <> doc keyTo <> ". If " <> doc scaleTo <> " isn't set, it defaults to "
+    <> doc scaleFrom <> ". The " <> doc scaleAt
     <> " control ranges from 0 to 1\
     \ and controls the interpolation between the scales. For this to work, the\
     \ scales must have the same degree names, since there's no way to manually\
     \ specify a correspondence between scale degrees."
-    ) $ Sig.call (Sig.many_vals "arg" "passed to `from` and `to` scales") $
+    ) $ Sig.call (Sig.manyVals "arg" "passed to `from` and `to` scales") $
     \_vals args -> do
-        start <- Args.real_start args
-        n <- fromMaybe 0 <$> Derive.untyped_control_at scale_at start
-        let apply key = rename_environ key EnvKey.key
-                . Eval.apply_pitch (Args.start args)
-        if n <= 0 then apply key_from from
-            else if n >= 1 then apply key_to to
+        start <- Args.realStart args
+        n <- fromMaybe 0 <$> Derive.untypedControlAt scaleAt start
+        let apply key = renameEnviron key EnvKey.key
+                . Eval.applyPitch (Args.start args)
+        if n <= 0 then apply keyFrom from
+            else if n >= 1 then apply keyTo to
             else do
-                p1 <- apply key_from from
-                p2 <- apply key_to to
+                p1 <- apply keyFrom from
+                p2 <- apply keyTo to
                 pure $ Pitches.interpolated p1 p2 n
     where
     doc :: ShowVal.ShowVal a => a -> Doc.Doc
     doc = ShowVal.doc
 
-rename_environ :: Env.Key -> Env.Key -> Derive.Deriver a -> Derive.Deriver a
-rename_environ from to deriver = do
-    maybe_val :: Maybe DeriveT.Val <- Derive.lookup_val from
-    maybe id (Derive.with_val to) maybe_val deriver
+renameEnviron :: Env.Key -> Env.Key -> Derive.Deriver a -> Derive.Deriver a
+renameEnviron from to deriver = do
+    maybeVal :: Maybe DeriveT.Val <- Derive.lookupVal from
+    maybe id (Derive.withVal to) maybeVal deriver
 
 
 -- * util
 
-environ_from_to :: Env.Environ
+environFromTo :: Env.Environ
     -> Either DeriveT.PitchError (Pitch.ScaleId, Pitch.ScaleId)
-environ_from_to env = do
-    from <- Scales.read_environ (Just . Expr.str_to_scale_id) Nothing
-        scale_from env
-    to <- Scales.read_environ (Just . Expr.str_to_scale_id) (Just from)
-        scale_to env
+environFromTo env = do
+    from <- Scales.readEnviron (Just . Expr.strToScaleId) Nothing
+        scaleFrom env
+    to <- Scales.readEnviron (Just . Expr.strToScaleId) (Just from)
+        scaleTo env
     pure (from, to)
 
-key_from, key_to :: Env.Key
-key_from = "key-from"
-key_to = "key-to"
+keyFrom, keyTo :: Env.Key
+keyFrom = "key-from"
+keyTo = "key-to"
 
-scale_from, scale_to :: Env.Key
-scale_from = "scale-from"
-scale_to = "scale-to"
+scaleFrom, scaleTo :: Env.Key
+scaleFrom = "scale-from"
+scaleTo = "scale-to"
 
 {- Notes from the implementation: NOTE [make-scale]
 

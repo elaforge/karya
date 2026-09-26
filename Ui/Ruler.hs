@@ -5,14 +5,14 @@
 module Ui.Ruler (
     -- * Ruler
     Ruler(..), Marklists, Name
-    , meter_ruler, meter_name
+    , meterRuler, meterName
     , empty
-    , get_meter, lookup_meter, set_meter, modify_meter
-    , lookup_marklist, get_marklist, set_marklist, remove_marklist
-    , modify_marklist, modify_marklists
-    , time_end
+    , getMeter, lookupMeter, setMeter, modifyMeter
+    , lookupMarklist, getMarklist, setMarklist, removeMarklist
+    , modifyMarklist, modifyMarklists
+    , timeEnd
     -- ** bounds
-    , bounds_name, set_bounds, get_bounds, bounds_of
+    , boundsName, setBounds, getBounds, boundsOf
 ) where
 import qualified Control.DeepSeq as DeepSeq
 import qualified Data.Map as Map
@@ -33,14 +33,14 @@ import           Types
 
 -- | A Ruler contains all the data to display a ruler.
 data Ruler = Ruler
-    { ruler_marklists :: !Marklists
-    , ruler_bg :: !Color.Color
+    { rulerMarklists :: !Marklists
+    , rulerBg :: !Color.Color
     -- | Show the names if this is on an event track.  Ruler tracks always show
     -- the names.
-    , ruler_show_names :: !Bool
+    , rulerShowNames :: !Bool
     -- | Align bottoms of marks to beats, instead of the top.  Looks good used
     -- with negative duration events (arrival beats).
-    , ruler_align_to_bottom :: !Bool
+    , rulerAlignToBottom :: !Bool
     } deriving (Eq, Show)
 
 -- | Each ruler can have multiple named marklists.  This means a ruler can
@@ -54,11 +54,11 @@ type Marklists = Map Name (Maybe Meter.Meter, Marklist)
 type Name = Text
 
 instance Pretty Ruler where
-    format (Ruler mlists bg show_names align_to_bottom) = Pretty.record "Ruler"
+    format (Ruler mlists bg showNames alignToBottom) = Pretty.record "Ruler"
         [ ("marklists", Pretty.format mlists)
         , ("bg", Pretty.format bg)
-        , ("show_names", Pretty.format show_names)
-        , ("align_to_bottom", Pretty.format align_to_bottom)
+        , ("show_names", Pretty.format showNames)
+        , ("align_to_bottom", Pretty.format alignToBottom)
         ]
 
 instance DeepSeq.NFData Ruler where rnf (Ruler mlists _ _ _) = mlists `seq` ()
@@ -68,61 +68,61 @@ instance DeepSeq.NFData Ruler where rnf (Ruler mlists _ _ _) = mlists `seq` ()
 
 empty :: Ruler
 empty = Ruler
-    { ruler_marklists = mempty
-    , ruler_bg = Config.ruler_bg
-    , ruler_show_names = False
-    , ruler_align_to_bottom = False
+    { rulerMarklists = mempty
+    , rulerBg = Config.rulerBg
+    , rulerShowNames = False
+    , rulerAlignToBottom = False
     }
 
 -- | Create a ruler with just a 'meter' marklist.
-meter_ruler :: Meter.Meter -> Ruler
-meter_ruler meter = set_meter meter empty
+meterRuler :: Meter.Meter -> Ruler
+meterRuler meter = setMeter meter empty
 
 -- | The meter marklist by convention has marks corresponding to the meter of
 -- the piece.  Other commands may use this to find out where beats are.
-meter_name :: Name
-meter_name = "meter"
+meterName :: Name
+meterName = "meter"
 
-get_meter :: Ruler -> Meter.Meter
-get_meter = fromMaybe Meter.empty_meter . lookup_meter
+getMeter :: Ruler -> Meter.Meter
+getMeter = fromMaybe Meter.emptyMeter . lookupMeter
 
-lookup_meter :: Ruler -> Maybe Meter.Meter
-lookup_meter = maybe Nothing fst . Map.lookup meter_name . ruler_marklists
+lookupMeter :: Ruler -> Maybe Meter.Meter
+lookupMeter = maybe Nothing fst . Map.lookup meterName . rulerMarklists
 
-set_meter :: Meter.Meter -> Ruler -> Ruler
-set_meter meter = modify_marklists $
-    Map.insert meter_name (Just meter, Make.make_marklist meter)
+setMeter :: Meter.Meter -> Ruler -> Ruler
+setMeter meter = modifyMarklists $
+    Map.insert meterName (Just meter, Make.makeMarklist meter)
 
-modify_meter :: (Meter.Meter -> Meter.Meter) -> Ruler -> Ruler
-modify_meter modify ruler = set_meter (modify (get_meter ruler)) ruler
+modifyMeter :: (Meter.Meter -> Meter.Meter) -> Ruler -> Ruler
+modifyMeter modify ruler = setMeter (modify (getMeter ruler)) ruler
 
-get_marklist :: Name -> Ruler -> Marklist
-get_marklist name = fromMaybe Mark.empty . lookup_marklist name
+getMarklist :: Name -> Ruler -> Marklist
+getMarklist name = fromMaybe Mark.empty . lookupMarklist name
 
-lookup_marklist :: Name -> Ruler -> Maybe Marklist
-lookup_marklist name = fmap snd . Map.lookup name . ruler_marklists
+lookupMarklist :: Name -> Ruler -> Maybe Marklist
+lookupMarklist name = fmap snd . Map.lookup name . rulerMarklists
 
-set_marklist :: Name -> Marklist -> Ruler -> Ruler
-set_marklist name mlist = modify_marklists (Map.insert name (Nothing, mlist))
+setMarklist :: Name -> Marklist -> Ruler -> Ruler
+setMarklist name mlist = modifyMarklists (Map.insert name (Nothing, mlist))
 
-remove_marklist :: Name -> Ruler -> Ruler
-remove_marklist = modify_marklists . Map.delete
+removeMarklist :: Name -> Ruler -> Ruler
+removeMarklist = modifyMarklists . Map.delete
 
 -- | If the marklist isn't set, modify will be given an empty one.
-modify_marklist :: Name -> (Marklist -> Marklist) -> Ruler -> Ruler
-modify_marklist name modify ruler =
-    set_marklist name (modify (get_marklist name ruler)) ruler
+modifyMarklist :: Name -> (Marklist -> Marklist) -> Ruler -> Ruler
+modifyMarklist name modify ruler =
+    setMarklist name (modify (getMarklist name ruler)) ruler
 
-modify_marklists
+modifyMarklists
     :: (Map Name (Maybe Meter.Meter, Marklist)
         -> Map Name (Maybe Meter.Meter, Marklist))
     -> Ruler -> Ruler
-modify_marklists modify ruler =
-    ruler { ruler_marklists = modify (ruler_marklists ruler) }
+modifyMarklists modify ruler =
+    ruler { rulerMarklists = modify (rulerMarklists ruler) }
 
 -- | Get the position of the last mark of the ruler.
-time_end :: Ruler -> ScoreTime
-time_end = maximum . (0 :) . map (Mark.end . snd) . Map.elems . ruler_marklists
+timeEnd :: Ruler -> ScoreTime
+timeEnd = maximum . (0 :) . map (Mark.end . snd) . Map.elems . rulerMarklists
 
 -- ** bounds
 
@@ -130,29 +130,29 @@ time_end = maximum . (0 :) . map (Mark.end . snd) . Map.elems . ruler_marklists
 -- mark, it denotes the logical block end.  Two morks mean the first one is the
 -- logical block start.  The mark text doesn't matter, but @s@ and @e@ are
 -- customary.
-bounds_name :: Name
-bounds_name = "bounds"
+boundsName :: Name
+boundsName = "bounds"
 
-set_bounds :: Maybe ScoreTime -> Maybe ScoreTime -> Ruler -> Ruler
-set_bounds start end =
-    set_marklist bounds_name $ Mark.marklist $ case (start, end) of
+setBounds :: Maybe ScoreTime -> Maybe ScoreTime -> Ruler -> Ruler
+setBounds start end =
+    setMarklist boundsName $ Mark.marklist $ case (start, end) of
         -- Ensure that start <= end.
-        (Just s, Just e) -> [(min s e, start_mark), (max s e, end_mark)]
-        (Just s, Nothing) -> [(s, start_mark)]
-        (Nothing, Just e) -> [(e, end_mark)]
+        (Just s, Just e) -> [(min s e, startMark), (max s e, endMark)]
+        (Just s, Nothing) -> [(s, startMark)]
+        (Nothing, Just e) -> [(e, endMark)]
         (Nothing, Nothing) -> []
 
-start_mark, end_mark :: Mark.Mark
-start_mark = Mark.Mark minBound 2 (Color.rgb 0 0.75 0) "s" 0 0
-end_mark = Mark.Mark minBound 2 (Color.rgb 0 0.75 0) "e" 0 0
+startMark, endMark :: Mark.Mark
+startMark = Mark.Mark minBound 2 (Color.rgb 0 0.75 0) "s" 0 0
+endMark = Mark.Mark minBound 2 (Color.rgb 0 0.75 0) "e" 0 0
 
-get_bounds :: Ruler -> (Maybe ScoreTime, Maybe ScoreTime)
-get_bounds ruler = case lookup_marklist bounds_name ruler of
+getBounds :: Ruler -> (Maybe ScoreTime, Maybe ScoreTime)
+getBounds ruler = case lookupMarklist boundsName ruler of
     Nothing -> (Nothing, Nothing)
-    Just mlist -> case Mark.to_list mlist of
+    Just mlist -> case Mark.toList mlist of
         [] -> (Nothing, Nothing)
         [(p, m)]
-            | Mark.mark_name m == Mark.mark_name end_mark -> (Nothing, Just p)
+            | Mark.markName m == Mark.markName endMark -> (Nothing, Just p)
             | otherwise -> (Just p, Nothing)
         _ -> (Just (Mark.start mlist), Just (Mark.end mlist))
 
@@ -160,11 +160,11 @@ get_bounds ruler = case lookup_marklist bounds_name ruler of
 -- 'bounds_name' if there are any, otherwise it uses the 'meter'.  Otherwise,
 -- the start time can default to 0, but the end time defaults to Nothing so the
 -- caller can use the end of the last event.
-bounds_of :: Ruler -> (ScoreTime, Maybe ScoreTime)
-bounds_of ruler = case get_bounds ruler of
-    (Nothing, Nothing) -> (0, meter_end)
-    (start, end) -> (fromMaybe 0 start, end <|> meter_end)
+boundsOf :: Ruler -> (ScoreTime, Maybe ScoreTime)
+boundsOf ruler = case getBounds ruler of
+    (Nothing, Nothing) -> (0, meterEnd)
+    (start, end) -> (fromMaybe 0 start, end <|> meterEnd)
     where
-    meter_end = Meter.meter_end <$> lookup_meter ruler
+    meterEnd = Meter.meterEnd <$> lookupMeter ruler
         -- Fall back on marklist end, old scores won't have a Meter.Meter.
-        <|> Mark.end <$> lookup_marklist meter_name ruler
+        <|> Mark.end <$> lookupMarklist meterName ruler

@@ -16,23 +16,23 @@ import qualified Derive.Sig as Sig
 
 
 library :: Library.Library
-library = Library.poly_transformers
-    [ ("import", c_import)
-    , ("imports", c_import_symbol)
-    , ("scale", c_scale)
+library = Library.polyTransformers
+    [ ("import", cImport)
+    , ("imports", cImportSymbol)
+    , ("scale", cScale)
     ]
 
-c_import :: Derive.CallableExpr d => Derive.Transformer d
-c_import = Derive.transformer Module.prelude "import" mempty
+cImport :: Derive.CallableExpr d => Derive.Transformer d
+cImport = Derive.transformer Module.prelude "import" mempty
     "Import the given modules into scope. Calls of all types (note, control,\
     \ pitch, val) are imported. If names clash, the ones from later modules\
     \ win."
     $ Sig.callt (Sig.many1 "module" "Import these modules.") $ \modules _ d ->
-        foldr (Derive.with_imported False) d $
+        foldr (Derive.withImported False) d $
             map Module.Module (NonEmpty.toList modules)
 
-c_import_symbol :: Derive.CallableExpr d => Derive.Transformer d
-c_import_symbol = Derive.transformer Module.prelude "import-symbol" mempty
+cImportSymbol :: Derive.CallableExpr d => Derive.Transformer d
+cImportSymbol = Derive.transformer Module.prelude "import-symbol" mempty
     "Import a single symbol, or list of symbols. This imports from all\
     \ namespaces simultaneously: note, control, pitch, and val.\
     \ TODO fix it if it's a problem."
@@ -40,17 +40,17 @@ c_import_symbol = Derive.transformer Module.prelude "import-symbol" mempty
     <$> Sig.required "module" "Import this module."
     <*> Sig.many1 "symbol" "Import these symbols."
     ) $ \(module_, syms) _args ->
-        Derive.with_imported_symbols (Module.Module module_)
+        Derive.withImportedSymbols (Module.Module module_)
             (Set.fromList (NonEmpty.toList syms))
 
-c_scale :: Derive.CallableExpr d => Derive.Transformer d
-c_scale = Derive.transformer Module.prelude "scale" mempty
+cScale :: Derive.CallableExpr d => Derive.Transformer d
+cScale = Derive.transformer Module.prelude "scale" mempty
     "Bring a scale into scope."
     $ Sig.callt ((,)
-    <$> Sig.required_env "scale" Sig.Unprefixed "Look up scale by name."
+    <$> Sig.requiredEnv "scale" Sig.Unprefixed "Look up scale by name."
     <*> Sig.many "args" "Scale arguments."
-    ) $ \(name, scale_args) _args deriver -> do
-        scale <- Scale.get (Derive.CallName name) scale_args
+    ) $ \(name, scaleArgs) _args deriver -> do
+        scale <- Scale.get (Derive.CallName name) scaleArgs
         -- Set env var so subsequent calls default it.
-        Derive.with_val_raw EnvKey.scale name $
-            Derive.with_scale scale deriver
+        Derive.withValRaw EnvKey.scale name $
+            Derive.withScale scale deriver

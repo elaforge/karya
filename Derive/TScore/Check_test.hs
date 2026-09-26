@@ -23,9 +23,9 @@ import           Global
 
 test_check :: Test
 test_check = do
-    let f = map extract . check Check.default_config . parse
+    let f = map extract . check Check.defaultConfig . parse
         extract = fmap $ second
-            (\n -> (T.note_call n, T.note_pitch n, T.note_duration n))
+            (\n -> (T.noteCall n, T.notePitch n, T.noteDuration n))
     equal (f "_ 4s") [Right (1, ("", Just "4s", 1))]
     equal (f "na/ _ din/")
         [ Right (0, ("na", Nothing, 1))
@@ -34,8 +34,8 @@ test_check = do
 
 test_resolve_pitch :: Test
 test_resolve_pitch = do
-    let f = map extract . check Check.default_config . parse
-        extract = fmap $ fromMaybe "" . T.note_pitch . snd
+    let f = map extract . check Check.defaultConfig . parse
+        extract = fmap $ fromMaybe "" . T.notePitch . snd
     equal (f "4s r g") [Right "4s", Right "4r", Right "4g"]
     equal (f "4n s") [Right "4n", Right "5s"]
     equal (f "4s n") [Right "4s", Right "3n"]
@@ -66,28 +66,28 @@ test_resolve_pitch = do
     equal (f "5s 4 r") [Right "5s", Right "", Right "5r"]
 
 -- TODO implement this
-_test_carry_sub_block :: Test
-_test_carry_sub_block = do
-    let f = parsed_score
+_testCarrySubBlock :: Test
+_testCarrySubBlock = do
+    let f = parsedScore
     -- duration and pitch get carried into sub-blocks
-    right_equal (f "b = [1s2 [r]/]")
-        [ ("b", UiTest.note_track [(0, 0.5, "1s"), (0.5, 0.5, "-t1c1 --")])
-        , ("b-t1c1", UiTest.note_track [(0, 0.5, "1r")])
+    rightEqual (f "b = [1s2 [r]/]")
+        [ ("b", UiTest.noteTrack [(0, 0.5, "1s"), (0.5, 0.5, "-t1c1 --")])
+        , ("b-t1c1", UiTest.noteTrack [(0, 0.5, "1r")])
         ]
-    right_equal (f "b = [1s2 alt[r][g]/]")
-        [ ("b", UiTest.note_track
+    rightEqual (f "b = [1s2 alt[r][g]/]")
+        [ ("b", UiTest.noteTrack
             [(0, 0.5, "1s"), (0.5, 0.5, "alt -t1c1a -t1c1b")])
-        , ("b-t1c1a", UiTest.note_track [(0, 0.5, "1r")])
-        , ("b-t1c1b", UiTest.note_track [(0, 0.5, "1g")])
+        , ("b-t1c1a", UiTest.noteTrack [(0, 0.5, "1r")])
+        , ("b-t1c1b", UiTest.noteTrack [(0, 0.5, "1g")])
         ]
 
 test_resolve_repeats :: Test
 test_resolve_repeats = do
-    let f = map (bimap pretty extract) . check Check.default_config . parse
-        extract = strip_note . snd
-    let sa = Right . mk_pnote "4s"
-    equal (f "4r4 . .") $ replicate 3 (Right $ mk_pnote "4r" (1/4))
-    equal (f "3s1 | .") $ replicate 2 (Right $ mk_pnote "3s" 1)
+    let f = map (bimap pretty extract) . check Check.defaultConfig . parse
+        extract = stripNote . snd
+    let sa = Right . mkPnote "4s"
+    equal (f "4r4 . .") $ replicate 3 (Right $ mkPnote "4r" (1/4))
+    equal (f "3s1 | .") $ replicate 2 (Right $ mkPnote "3s" 1)
     equal (f "4s4 ~") [sa (2/4)]
     equal (f "4s4 ~ .") [sa (2/4), sa (1/4)]
     equal (f "4s4 . ~") [sa (1/4), sa (2/4)]
@@ -99,31 +99,31 @@ test_resolve_repeats = do
 test_resolve_pitch_twelve :: Test
 test_resolve_pitch_twelve = do
     let f = map extract . check config . parse
-        config = Check.default_config
-            { Check.config_scale = Check.scale_twelve }
-        extract = fmap $ fromMaybe "" . T.note_pitch . snd
+        config = Check.defaultConfig
+            { Check.configScale = Check.scaleTwelve }
+        extract = fmap $ fromMaybe "" . T.notePitch . snd
     equal (f "4c e") [Right "4c", Right "4e"]
     equal (f "4g c") [Right "4g", Right "5c"]
     equal (f "4f c") [Right "4f", Right "4c"]
 
-mk_pnote :: pitch -> dur -> T.Note Text (Maybe pitch) dur
-mk_pnote pitch = mk_note "" (Just pitch)
+mkPnote :: pitch -> dur -> T.Note Text (Maybe pitch) dur
+mkPnote pitch = mkNote "" (Just pitch)
 
-mk_note :: call -> pitch -> dur -> T.Note call pitch dur
-mk_note call pitch dur = T.Note
-    { note_call = call
-    , note_pitch = pitch
-    , note_zero_duration = False
-    , note_duration = dur
-    , note_pos = T.Pos 0
+mkNote :: call -> pitch -> dur -> T.Note call pitch dur
+mkNote call pitch dur = T.Note
+    { noteCall = call
+    , notePitch = pitch
+    , noteZeroDuration = False
+    , noteDuration = dur
+    , notePos = T.Pos 0
     }
 
 test_resolve_time :: Test
 test_resolve_time = do
-    let f = second extract . Check.resolve_time . Check.multiplicative
-            . parse_cdur
-        extract = map (bimap error_msg (second T.note_duration))
-            . just_errors . map EList.toEither
+    let f = second extract . Check.resolveTime . Check.multiplicative
+            . parseCdur
+        extract = map (bimap errorMsg (second T.noteDuration))
+            . justErrors . map EList.toEither
     equal (f "a b c") (3, [Right (0, 1), Right (1, 1), Right (2, 1)])
     equal (f "a b _") (3, [Right (0, 1), Right (1, 1)])
     equal (f "a~ a b") (3, [Right (0, 2), Right (2, 1)])
@@ -139,34 +139,34 @@ test_resolve_time = do
 
 test_check_barlines :: Test
 test_check_barlines = do
-    let f = bimap id (const ()) . parse_score
-    left_like (f "b = %meter=bargle [s r g]") "unknown meter: bargle"
-    left_like (f "b = [s4 r g | m]")
+    let f = bimap id (const ()) . parseScore
+    leftLike (f "b = %meter=bargle [s r g]") "unknown meter: bargle"
+    leftLike (f "b = [s4 r g | m]")
         "beat 3/4: saw |, next beat of that rank is 1"
-    right_equal (f "b = [s4 r g m |]") ()
+    rightEqual (f "b = [s4 r g m |]") ()
     -- 8/8 is the same as 4/4.
-    left_like (f "b = %meter=88 [s4 r g | m]")
+    leftLike (f "b = %meter=88 [s4 r g | m]")
         "beat 3/4: saw |, next beat of that rank is 1"
-    right_equal (f "b = %meter=88 [s4 r g m |]") ()
+    rightEqual (f "b = %meter=88 [s4 r g m |]") ()
     -- 8/4
-    left_like (f "b = %meter=84 [s4 r g m |]")
+    leftLike (f "b = %meter=84 [s4 r g m |]")
         "beat 1: saw |, next beat of that rank is 2"
-    right_equal (f "b = %meter=84 [s2 r g m |]") ()
+    rightEqual (f "b = %meter=84 [s2 r g m |]") ()
 
     -- adi talam
-    right_equal (f "b = %meter=adi [s1 r g m | p d | n s ||]") ()
-    left_like (f "b = %meter=adi [s1 r g m || p d | n s ||]")
+    rightEqual (f "b = %meter=adi [s1 r g m | p d | n s ||]") ()
+    leftLike (f "b = %meter=adi [s1 r g m || p d | n s ||]")
         "saw ||, expected |, next beat of that rank is 8"
-    left_like (f "b = %meter=adi [s1 r g || m | p d | n s ||]")
+    leftLike (f "b = %meter=adi [s1 r g || m | p d | n s ||]")
         "saw ||, next beat of that rank is 8"
 
 test_check_barlines_negative :: Test
 test_check_barlines_negative = do
     let f negative = map extract . check config . parse
             where
-            config = Check.default_config
-                { Check.config_negative = negative }
-        extract = bimap pretty $ fmap (fromMaybe "" . T.note_pitch)
+            config = Check.defaultConfig
+                { Check.configNegative = negative }
+        extract = bimap pretty $ fmap (fromMaybe "" . T.notePitch)
     equal (f False "4s2 r | g m") $ map Right
         [(0, "4s"), (1/2, "4r"), (1, "4g"), (3/2, "4m")]
     -- --s --r | --g --m |
@@ -175,7 +175,7 @@ test_check_barlines_negative = do
 
 test_multiplicative :: Test
 test_multiplicative = do
-    let f = map (fmap (fmap fst . e_ndur)) . Check.multiplicative . parse_cdur
+    let f = map (fmap (fmap fst . eNdur)) . Check.multiplicative . parseCdur
         rjs = map (EList.Elt . Just)
     equal (f "a b c") (rjs [1, 1, 1])
     equal (f "a2 b.") (rjs [1/2, 3/4])
@@ -189,7 +189,7 @@ test_multiplicative = do
 
 test_additive :: Test
 test_additive = do
-    let f = map (fmap (fmap fst . e_ndur)) . Check.additive . parse_cdur
+    let f = map (fmap (fmap fst . eNdur)) . Check.additive . parseCdur
         rjs = map (EList.Elt . Just)
     equal (f "a1 b") (rjs [1/4, 1/4])
     equal (f "a1:8 b") (rjs [1/8, 1/8])
@@ -201,68 +201,68 @@ test_additive = do
 
 -- * implementation
 
-error_msg :: T.Error -> Text
-error_msg (T.Error _ msg) = msg
+errorMsg :: T.Error -> Text
+errorMsg (T.Error _ msg) = msg
 
-just_errors :: [Either (Either a b) c] -> [Either a c]
-just_errors = mapMaybe $ \case
+justErrors :: [Either (Either a b) c] -> [Either a c]
+justErrors = mapMaybe $ \case
     Left (Left a) -> Just $ Left a
     Left (Right _) -> Nothing
     Right c -> Just $ Right c
 
-strip_note :: T.Note call pitch dur -> T.Note call pitch dur
-strip_note note = note { T.note_pos = T.Pos 0 }
+stripNote :: T.Note call pitch dur -> T.Note call pitch dur
+stripNote note = note { T.notePos = T.Pos 0 }
 
-e_ndur :: T.Token call pitch ndur rdur -> Maybe ndur
-e_ndur = \case
-    T.TNote _ note -> Just $ T.note_duration note
+eNdur :: T.Token call pitch ndur rdur -> Maybe ndur
+eNdur = \case
+    T.TNote _ note -> Just $ T.noteDuration note
     _ -> Nothing
 
-parse_cdur :: Text
+parseCdur :: Text
     -> Check.Stream (T.Token T.CallText (T.NPitch T.Pitch)
         (Either T.Time T.Duration) T.Duration)
-parse_cdur = resolve_call_duration . parse
+parseCdur = resolveCallDuration . parse
 
-parsed_score :: Text -> Either Text [UiTest.BlockSpec]
-parsed_score = fmap (UiTest.extract_blocks) . parse_score
+parsedScore :: Text -> Either Text [UiTest.BlockSpec]
+parsedScore = fmap (UiTest.extractBlocks) . parseScore
 
 -- | TScore.parse_score with make_ext_dur stubbed out.  Tests exercise tscore,
 -- not the deriver, so don't give them a derive environment.
 -- 'TScore.standalone_duration' is the one that does.
-parse_score :: Text -> Either Text Ui.State
-parse_score = TScore.score_to_ui $ const $ Right TScore.no_external_duration
+parseScore :: Text -> Either Text Ui.State
+parseScore = TScore.scoreToUi $ const $ Right TScore.noExternalDuration
 
 -- | Rather than actually doing a TScore.resolve_sub_block, I'll just fake it.
-convert_call :: T.Token T.Call pitch ndur rdur
+convertCall :: T.Token T.Call pitch ndur rdur
     -> T.Token T.CallText pitch ndur rdur
-convert_call = T.map_call $ \case
+convertCall = T.mapCall $ \case
     T.Call call -> call
     sub@(T.SubBlock {}) -> "((" <> pretty sub <> "))"
 
 parse :: Text -> [T.Token T.CallText (T.NPitch T.Pitch) T.NDuration T.Duration]
-parse = map convert_call . Testing.expect_right . Parse.parse_text p_tokens
-    where p_tokens = P.some (Parse.lexeme (Parse.parse Parse.default_config))
+parse = map convertCall . Testing.expectRight . Parse.parseText pTokens
+    where pTokens = P.some (Parse.lexeme (Parse.parse Parse.defaultConfig))
 
 check :: Check.Config
     -> [T.Token T.CallText (T.NPitch T.Pitch) T.NDuration T.Duration]
     -> [Either T.Error (T.Time, T.Note T.CallText (Maybe Text) T.Time)]
-check config = map (fmap (fmap strip_npitch)) . just_errors . fst
+check config = map (fmap (fmap stripNpitch)) . justErrors . fst
     . Check.check (const (Left "get_dur not supported", [])) config
 
 -- Strip out some complications that I don't want to deal with at the Check
 -- level.  Since they interact with the TScore level, they get tested there.
 
-resolve_call_duration :: [T.Token T.CallText pitch T.NDuration rdur]
+resolveCallDuration :: [T.Token T.CallText pitch T.NDuration rdur]
     -> Check.Stream (T.Token T.CallText pitch (Either T.Time T.Duration) rdur)
-resolve_call_duration =
-    map (EList.Elt . Identity.runIdentity . T.map_note_duration resolve)
+resolveCallDuration =
+    map (EList.Elt . Identity.runIdentity . T.mapNoteDuration resolve)
     where
     resolve (T.NDuration dur) = pure $ Right dur
     resolve T.CallDuration = pure $ Left 0
 
-strip_npitch :: T.Note call (T.NPitch pitch) dur -> T.Note call pitch dur
-strip_npitch note = note
-    { T.note_pitch = case T.note_pitch note of
+stripNpitch :: T.Note call (T.NPitch pitch) dur -> T.Note call pitch dur
+stripNpitch note = note
+    { T.notePitch = case T.notePitch note of
         T.NPitch pitch -> pitch
         T.CopyFrom -> error "didn't expect CopyForm in Check tests"
     }

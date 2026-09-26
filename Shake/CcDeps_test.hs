@@ -13,7 +13,7 @@ import qualified Shake.Util as Util
 
 
 test_includesOf :: Test
-test_includesOf = Testing.in_tmp_dir "CcDeps" $ do
+test_includesOf = Testing.inTmpDir "CcDeps" $ do
     let includesOf gen = CcDeps.includesOf gen []
         transitive gen = CcDeps.transitiveIncludesOf gen []
 
@@ -22,12 +22,12 @@ test_includesOf = Testing.in_tmp_dir "CcDeps" $ do
         "#include \"c.h\"\n\
         \#include <sys.h>\n"
 
-    io_equal (run $ includesOf mempty "a.h") (["b.h"], [])
-    io_equal (run $ includesOf mempty "b.h") ([], ["c.h"])
-    io_equal (run $ includesOf (Set.singleton "c.h") "b.h") (["c.h"], [])
-    io_equal (run $ transitive mempty "a.h") (["a.h", "b.h"], ["c.h"])
+    ioEqual (run $ includesOf mempty "a.h") (["b.h"], [])
+    ioEqual (run $ includesOf mempty "b.h") ([], ["c.h"])
+    ioEqual (run $ includesOf (Set.singleton "c.h") "b.h") (["c.h"], [])
+    ioEqual (run $ transitive mempty "a.h") (["a.h", "b.h"], ["c.h"])
 
 run :: Shake.Action a -> IO a
 run action = do
-    dir <- Testing.tmp_dir "shake"
+    dir <- Testing.tmpDir "shake"
     Util.runIO dir action

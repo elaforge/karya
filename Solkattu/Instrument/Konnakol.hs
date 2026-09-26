@@ -44,6 +44,6 @@ patterns = Realize.patternMap . map (second (S.fromList . map note))
     . map (first Solkattu.pattern)
 
 instance Expr.ToExpr Sollu where
-    to_expr = Expr.generator0 . Expr.Symbol . pretty
+    toExpr = Expr.generator0 . Expr.Symbol . pretty
 instance Expr.ToExpr (Realize.Stroke Sollu) where
-    to_expr = Realize.toExpr
+    toExpr = Realize.toExpr

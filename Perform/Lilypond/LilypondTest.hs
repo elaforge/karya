@@ -42,50 +42,50 @@ import           Types
 import           Util.Test
 
 
-default_config :: Types.Config
-default_config = Types.default_config
+defaultConfig :: Types.Config
+defaultConfig = Types.defaultConfig
 
-extract_rights :: (HasCallStack, Show a) => [Either a Text] -> Text
-extract_rights = Text.unwords . map expect_right
+extractRights :: (HasCallStack, Show a) => [Either a Text] -> Text
+extractRights = Text.unwords . map expectRight
 
 -- * extract
 
 -- | Extract lilypond with no voices and concatenate.
-extract_simple :: [Text] -> Either Text [Either Process.Voices Process.Ly]
+extractSimple :: [Text] -> Either Text [Either Process.Voices Process.Ly]
     -> Either Text Text
-extract_simple wanted = fmap extract_rights . extract_lys wanted
+extractSimple wanted = fmap extractRights . extractLys wanted
 
-extract_lys :: [Text]
+extractLys :: [Text]
     -- ^ Only include these lilypond backslash commands, or 'want_all'.
     -> Either Text [Either Process.Voices Process.Ly]
     -> Either Text [Either [(Process.Voice, Text)] Text]
-extract_lys wanted =
-    fmap $ unwords_right . map to_str . filter is_wanted . split_barlines
+extractLys wanted =
+    fmap $ unwordsRight . map toStr . filter isWanted . splitBarlines
     where
-    to_str = bimap show_voices Types.to_lily
-    show_voices (Process.Voices voices) =
-        [(v, Text.unwords $ map Types.to_lily lys) | (v, lys) <- voices]
-    is_wanted (Left _voices) = True -- TODO filter \s from voices?
-    is_wanted (Right ly) = wanted == want_all
+    toStr = bimap showVoices Types.toLily
+    showVoices (Process.Voices voices) =
+        [(v, Text.unwords $ map Types.toLily lys) | (v, lys) <- voices]
+    isWanted (Left _voices) = True -- TODO filter \s from voices?
+    isWanted (Right ly) = wanted == wantAll
         || case ly of
             Process.LyNote {} -> True
-            _ -> case Text.uncons $ Types.to_lily ly of
+            _ -> case Text.uncons $ Types.toLily ly of
                 Just ('\\', text) -> Text.takeWhile (/=' ') text `elem` wanted
                 _ -> True
     -- Split the time signature into a separate Code, instead of being bundled
     -- with LyBarlines.  This makes 'wanted' work properly.
-    split_barlines = concatMap $
-        either ((:[]) . Left . split_voices) (map Right . split_ly)
-    split_ly (Process.LyBarline (Just meter)) =
+    splitBarlines = concatMap $
+        either ((:[]) . Left . splitVoices) (map Right . splitLy)
+    splitLy (Process.LyBarline (Just meter)) =
         [ Process.LyBarline Nothing
-        , Process.LyCode $ "\\time " <> Types.to_lily meter
+        , Process.LyCode $ "\\time " <> Types.toLily meter
         ]
-    split_ly ly = [ly]
-    split_voices (Process.Voices voices) = Process.Voices $
-        map (second (concatMap split_ly)) voices
+    splitLy ly = [ly]
+    splitVoices (Process.Voices voices) = Process.Voices $
+        map (second (concatMap splitLy)) voices
 
-unwords_right :: [Either a Text] -> [Either a Text]
-unwords_right = go
+unwordsRight :: [Either a Text] -> [Either a Text]
+unwordsRight = go
     where
     go [] = []
     go (Right x : xs) = Right (Text.unwords (x:pre)) : go post
@@ -95,57 +95,57 @@ unwords_right = go
 -- * make data
 
 mkstate :: [Text] -> Process.State
-mkstate meters = Process.make_state default_config 0 (map parse_meter meters)
-    Process.default_key
+mkstate meters = Process.makeState defaultConfig 0 (map parseMeter meters)
+    Process.defaultKey
 
-parse_meter :: Text -> Meter.Meter
-parse_meter = expect_right . Meter.parse_meter
+parseMeter :: Text -> Meter.Meter
+parseMeter = expectRight . Meter.parseMeter
 
 -- | 1 == quarter, to be consistent with the default behaviour for
 -- 'Types.real_to_time'.
 mktime :: Double -> Types.Time
 mktime wholes = Types.Time $ floor $
-    wholes * fromIntegral Types.time_per_whole / 4
+    wholes * fromIntegral Types.timePerWhole / 4
 
-time_to_wholes :: Types.Time -> Double
-time_to_wholes = (/ fromIntegral Types.time_per_whole) . fromIntegral
+timeToWholes :: Types.Time -> Double
+timeToWholes = (/ fromIntegral Types.timePerWhole) . fromIntegral
 
 type SimpleEvent = (RealTime, RealTime, Types.Pitch)
 
-simple_event :: SimpleEvent -> Types.Event
-simple_event (start, dur, pitch) =
-    mkevent start dur (Just pitch) default_inst []
+simpleEvent :: SimpleEvent -> Types.Event
+simpleEvent (start, dur, pitch) =
+    mkevent start dur (Just pitch) defaultInst []
 
-attrs_event :: (RealTime, RealTime, Types.Pitch, Attrs.Attributes)
+attrsEvent :: (RealTime, RealTime, Types.Pitch, Attrs.Attributes)
     -> Types.Event
-attrs_event (start, dur, pitch, attrs) = environ_event
+attrsEvent (start, dur, pitch, attrs) = environEvent
     (start, dur, Just pitch, [(EnvKey.attributes, DeriveT.VAttributes attrs)])
 
-environ_event ::
+environEvent ::
     (RealTime, RealTime, Maybe Types.Pitch, [(Env.Key, DeriveT.Val)])
     -> Types.Event
-environ_event (start, dur, pitch, env) =
-    mkevent start dur pitch default_inst env
+environEvent (start, dur, pitch, env) =
+    mkevent start dur pitch defaultInst env
 
-voice_event :: (RealTime, RealTime, Types.Pitch, Maybe Int) -> Types.Event
-voice_event (start, dur, pitch, maybe_voice) =
-    mkevent start dur (Just pitch) default_inst $
-        maybe [] ((:[]) . (,) EnvKey.voice . Typecheck.to_val) maybe_voice
+voiceEvent :: (RealTime, RealTime, Types.Pitch, Maybe Int) -> Types.Event
+voiceEvent (start, dur, pitch, maybeVoice) =
+    mkevent start dur (Just pitch) defaultInst $
+        maybe [] ((:[]) . (,) EnvKey.voice . Typecheck.toVal) maybeVoice
 
 mkevent :: RealTime -> RealTime -> Maybe Types.Pitch -> ScoreT.Instrument
     -> [(Env.Key, DeriveT.Val)] -> Types.Event
 mkevent start dur pitch inst env = Types.Event
-    { event_start = Types.real_to_time 1 start
-    , event_duration = Types.real_to_time 1 dur
-    , event_pitch = pitch
-    , event_instrument = inst
-    , event_environ = Env.from_list env
-    , event_stack = UiTest.mkstack (1, 0, 1)
-    , event_clipped = False
+    { eventStart = Types.realToTime 1 start
+    , eventDuration = Types.realToTime 1 dur
+    , eventPitch = pitch
+    , eventInstrument = inst
+    , eventEnviron = Env.fromList env
+    , eventStack = UiTest.mkstack (1, 0, 1)
+    , eventClipped = False
     }
 
-default_inst :: ScoreT.Instrument
-default_inst = "test"
+defaultInst :: ScoreT.Instrument
+defaultInst = "test"
 
 -- * pitches
 
@@ -168,122 +168,122 @@ pitch pc = Types.Pitch 3 pc Types.Natural
 type StaffGroup = (Text, [Text])
 
 -- | Like 'convert_staves', but expect only one staff.
-convert_measures :: [Text] -> [Types.Event] -> Either Text Text
-convert_measures wanted staves = case convert_staves wanted staves of
+convertMeasures :: [Text] -> [Types.Event] -> Either Text Text
+convertMeasures wanted staves = case convertStaves wanted staves of
     Right [] -> Right ""
     Right [(_, [code])] -> Right code
     Right staves -> Left $ "error: expected one staff: " <> showt staves
     Left err -> Left err
 
 -- | Convert events to lilypond score.
-convert_staves ::
+convertStaves ::
     [Text] -- ^ Only include lilypond backslash commands listed here.
     -- Or 'want_all' to see them all, for debugging.
     -> [Types.Event] -> Either Text [StaffGroup]
-convert_staves wanted events =
-    bimap Log.msg_text (map extract_staves) $
-        Lilypond.convert_staff_groups default_config 0 global normal
+convertStaves wanted events =
+    bimap Log.msgText (map extractStaves) $
+        Lilypond.convertStaffGroups defaultConfig 0 global normal
     where
     (global, normal) = List.partition
-        ((==Constants.ly_global) . Types.event_instrument) events
-    extract_staves (Lilypond.StaffGroup inst staves) =
-        (ScoreT.instrument_name inst, map show_staff staves)
-    show_staff = Text.unwords . mapMaybe (either show_voices show_ly)
-    show_ly ly
-        | is_wanted code = Just code
+        ((==Constants.lyGlobal) . Types.eventInstrument) events
+    extractStaves (Lilypond.StaffGroup inst staves) =
+        (ScoreT.instrumentName inst, map showStaff staves)
+    showStaff = Text.unwords . mapMaybe (either showVoices showLy)
+    showLy ly
+        | isWanted code = Just code
         | otherwise = Nothing
-        where code = Types.to_lily ly
-    show_voices (Process.Voices voices) = Just $
-        "<< " <> Text.unwords (map show_voice voices) <> " >>"
-    show_voice (v, lys) = "{ " <> showt v <> ": "
-        <> Text.unwords (mapMaybe show_ly lys) <> " }"
-    is_wanted text | "\\" `Text.isPrefixOf` text =
+        where code = Types.toLily ly
+    showVoices (Process.Voices voices) = Just $
+        "<< " <> Text.unwords (map showVoice voices) <> " >>"
+    showVoice (v, lys) = "{ " <> showt v <> ": "
+        <> Text.unwords (mapMaybe showLy lys) <> " }"
+    isWanted text | "\\" `Text.isPrefixOf` text =
         Text.takeWhile (/=' ') (Text.drop 1 text) `elem` wanted
-            || wanted == want_all
-    is_wanted _ = True
+            || wanted == wantAll
+    isWanted _ = True
 
 -- | This is a magic code to see lilypond backslash commands.
-want_all :: [Text]
-want_all = ["ALL"]
+wantAll :: [Text]
+wantAll = ["ALL"]
 
 -- | Generate an entire ly score.
-convert_score :: Derive.Result -> (Text, [Text])
-convert_score = first (make_ly default_config) . partition_logs
+convertScore :: Derive.Result -> (Text, [Text])
+convertScore = first (makeLy defaultConfig) . partitionLogs
 
-derive_measures :: [Text] -> [UiTest.TrackSpec] -> (Either Text Text, [Text])
-derive_measures wanted = measures wanted . derive_tracks
+deriveMeasures :: [Text] -> [UiTest.TrackSpec] -> (Either Text Text, [Text])
+deriveMeasures wanted = measures wanted . deriveTracks
 
-derive_staves :: [Text] -> [UiTest.TrackSpec]
+deriveStaves :: [Text] -> [UiTest.TrackSpec]
     -> (Either Text [StaffGroup], [Text])
-derive_staves wanted = staves wanted . derive_tracks
+deriveStaves wanted = staves wanted . deriveTracks
 
 measures :: [Text] -> Derive.Result -> (Either Text Text, [Text])
-measures wanted = first (convert_measures wanted) . partition_logs
+measures wanted = first (convertMeasures wanted) . partitionLogs
 
 staves :: [Text] -> Derive.Result -> (Either Text [StaffGroup], [Text])
-staves wanted = first (convert_staves wanted) . partition_logs
+staves wanted = first (convertStaves wanted) . partitionLogs
 
 extract :: (Types.Event -> a) -> Derive.Result -> ([a], [Text])
-extract f = first (map f) . partition_logs
+extract f = first (map f) . partitionLogs
 
-partition_logs :: Derive.Result -> ([Types.Event], [Text])
-partition_logs result = (events, extract_logs (dlogs ++ logs))
+partitionLogs :: Derive.Result -> ([Types.Event], [Text])
+partitionLogs result = (events, extractLogs (dlogs ++ logs))
     where
     (events, logs) = LEvent.partition $ convert $
-        Stream.events_of $ Derive.r_events result
-    dlogs = Stream.logs_of (Derive.r_events result)
-    extract_logs = map DeriveTest.show_log . DeriveTest.quiet_filter_logs
+        Stream.eventsOf $ Derive.rEvents result
+    dlogs = Stream.logsOf (Derive.rEvents result)
+    extractLogs = map DeriveTest.showLog . DeriveTest.quietFilterLogs
 
 convert :: [Score.Event] -> [LEvent.LEvent Types.Event]
-convert = Convert.convert (default_config { Types.config_quarter_duration = 1 })
+convert = Convert.convert (defaultConfig { Types.configQuarterDuration = 1 })
 
-derive_tracks :: [UiTest.TrackSpec] -> Derive.Result
-derive_tracks = derive_tracks_setup mempty
+deriveTracks :: [UiTest.TrackSpec] -> Derive.Result
+deriveTracks = deriveTracksSetup mempty
 
-derive_tracks_linear :: [UiTest.TrackSpec] -> Derive.Result
-derive_tracks_linear = derive_tracks_setup DeriveTest.with_linear
+deriveTracksLinear :: [UiTest.TrackSpec] -> Derive.Result
+deriveTracksLinear = deriveTracksSetup DeriveTest.withLinear
 
-derive_tracks_setup :: DeriveTest.Setup -> [UiTest.TrackSpec] -> Derive.Result
-derive_tracks_setup setup tracks =
-    derive_blocks_setup setup [(UiTest.default_block_name, tracks)]
+deriveTracksSetup :: DeriveTest.Setup -> [UiTest.TrackSpec] -> Derive.Result
+deriveTracksSetup setup tracks =
+    deriveBlocksSetup setup [(UiTest.defaultBlockName, tracks)]
 
-derive_blocks :: [UiTest.BlockSpec] -> Derive.Result
-derive_blocks = derive_blocks_setup mempty
+deriveBlocks :: [UiTest.BlockSpec] -> Derive.Result
+deriveBlocks = deriveBlocksSetup mempty
 
-derive_blocks_setup :: DeriveTest.Setup -> [UiTest.BlockSpec] -> Derive.Result
-derive_blocks_setup setup blocks =
-    derive_lilypond state $ DeriveTest.setup_deriver setup $
-        Derive.with_imported True Module.europe $
-        Derive.with_imported True Module.ly $
-        Prelude.Block.eval_root_block bid
+deriveBlocksSetup :: DeriveTest.Setup -> [UiTest.BlockSpec] -> Derive.Result
+deriveBlocksSetup setup blocks =
+    deriveLilypond state $ DeriveTest.setupDeriver setup $
+        Derive.withImported True Module.europe $
+        Derive.withImported True Module.ly $
+        Prelude.Block.evalRootBlock bid
     where
-    state = DeriveTest.setup_ui setup state_
-    (bid:_, state_) = UiTest.run_mkblocks blocks
+    state = DeriveTest.setupUi setup state_
+    (bid:_, state_) = UiTest.runMkblocks blocks
 
-derive_lilypond :: HasCallStack => Ui.State -> Derive.NoteDeriver
+deriveLilypond :: HasCallStack => Ui.State -> Derive.NoteDeriver
     -> Derive.Result
-derive_lilypond state deriver =
-    extract $ CmdTest.result_val $
-        CmdTest.run state CmdTest.default_cmd_state $
+deriveLilypond state deriver =
+    extract $ CmdTest.resultVal $
+        CmdTest.run state CmdTest.defaultCmdState $
         Cmd.Lilypond.derive deriver
     where
     extract (Right (Just val)) = val
     extract (Right Nothing) = error "derive_lilypond: abort"
     extract (Left err) = error $ "derive_lilypond: " <> untxt err
 
-make_ly :: Types.Config -> [Types.Event] -> Text
-make_ly config events = Text.Lazy.toStrict $
-    Lilypond.ly_file config "title" $ expect_right $
-    Lilypond.extract_movements config events
+makeLy :: Types.Config -> [Types.Event] -> Text
+makeLy config events = Text.Lazy.toStrict $
+    Lilypond.lyFile config "title" $ expectRight $
+    Lilypond.extractMovements config events
 
 -- * extract
 
-e_note :: Types.Event -> (Types.Time, Types.Time, Text)
-e_note e =
-    ( Types.event_start e
-    , Types.event_duration e
-    , maybe "" Types.to_lily $ Types.event_pitch e
+eNote :: Types.Event -> (Types.Time, Types.Time, Text)
+eNote e =
+    ( Types.eventStart e
+    , Types.eventDuration e
+    , maybe "" Types.toLily $ Types.eventPitch e
     )
 
-e_ly_env :: Score.Event -> [(Env.Key, Text)]
-e_ly_env = DeriveTest.e_environ_like ("ly-" `Text.isPrefixOf`)
+eLyEnv :: Score.Event -> [(Env.Key, Text)]
+eLyEnv = DeriveTest.eEnvironLike ("ly-" `Text.isPrefixOf`)

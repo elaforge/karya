@@ -11,7 +11,7 @@ import           Util.Test
 
 test_get_set_bounds :: Test
 test_get_set_bounds = do
-    let f s e = Ruler.get_bounds $ Ruler.set_bounds s e Ruler.empty
+    let f s e = Ruler.getBounds $ Ruler.setBounds s e Ruler.empty
     equal (f Nothing Nothing) (Nothing, Nothing)
     equal (f (Just 1) Nothing) (Just 1, Nothing)
     equal (f Nothing (Just 1)) (Nothing, Just 1)
@@ -21,9 +21,9 @@ test_get_set_bounds = do
 
 test_bounds_of :: Test
 test_bounds_of = do
-    let f = Ruler.bounds_of
-    equal (f $ UiTest.mkruler_44 8 0.5) (0, Just 4)
+    let f = Ruler.boundsOf
+    equal (f $ UiTest.mkruler44 8 0.5) (0, Just 4)
     -- Old scores load with marklist but no Meter, make sure bounds still work!
-    let mlist = Ruler.get_marklist Ruler.meter_name $ UiTest.mkruler_44 8 0.5
-    equal (f $ Ruler.set_marklist Ruler.meter_name mlist Ruler.empty)
+    let mlist = Ruler.getMarklist Ruler.meterName $ UiTest.mkruler44 8 0.5
+    equal (f $ Ruler.setMarklist Ruler.meterName mlist Ruler.empty)
         (0, Just 4)

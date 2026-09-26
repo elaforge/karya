@@ -32,7 +32,7 @@ manual_test = do
 
 test_spellRests :: Test
 test_spellRests = do
-    let f = mconcat . map toSpace . map Util.Html.un_html
+    let f = mconcat . map toSpace . map Util.Html.unHtml
             . Html.spellRests . zip [0..]
     equal (f ["_", "_", "_", "_", "_", "_", "_"]) "‗   _  "
     equal (f ["x", "_", "_", "_", "_", "_", "_"]) "x _ _  "
@@ -47,7 +47,7 @@ korvai = Korvai.korvai Tala.adi (G.makeMridangam [])
 
 render :: Format.Abstraction -> Korvai.Korvai -> Text
 render abstraction =
-    Util.Html.un_html . mconcat . Html.sectionHtmls Korvai.IMridangam config
+    Util.Html.unHtml . mconcat . Html.sectionHtmls Korvai.IMridangam config
     where
     config = Html.Config
         { _abstraction = abstraction

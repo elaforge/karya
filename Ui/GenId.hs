@@ -17,47 +17,47 @@ import Global
 import Types
 
 
-view_id :: Ui.M m => BlockId -> m Id.Id
-view_id block_id =
-    require_id "view id" . generate_view_id block_id =<< Ui.gets Ui.state_views
+viewId :: Ui.M m => BlockId -> m Id.Id
+viewId blockId =
+    requireId "view id" . generateViewId blockId =<< Ui.gets Ui.stateViews
 
-block_id :: Ui.M m => Maybe BlockId -> m Id.Id
-block_id maybe_parent = do
-    ns <- Ui.get_namespace
-    require_id "block id" . generate_block_id maybe_parent ns
-        =<< Ui.gets Ui.state_blocks
+blockId :: Ui.M m => Maybe BlockId -> m Id.Id
+blockId maybeParent = do
+    ns <- Ui.getNamespace
+    requireId "block id" . generateBlockId maybeParent ns
+        =<< Ui.gets Ui.stateBlocks
 
-track_id :: Ui.M m => BlockId -> m Id.Id
-track_id block_id = require_id "track id" . generate_track_id block_id
-    =<< Ui.gets Ui.state_tracks
+trackId :: Ui.M m => BlockId -> m Id.Id
+trackId blockId = requireId "track id" . generateTrackId blockId
+    =<< Ui.gets Ui.stateTracks
 
 -- | ViewIds look like \"ns/b0.v0\", \"ns/b0.v1\", etc.
-generate_view_id :: BlockId -> Map ViewId a -> Maybe Id.Id
-generate_view_id bid views =
-    generate_id (Id.id_namespace ident) ident "v" Id.ViewId views
-    where ident = Id.unpack_id bid
+generateViewId :: BlockId -> Map ViewId a -> Maybe Id.Id
+generateViewId bid views =
+    generateId (Id.idNamespace ident) ident "v" Id.ViewId views
+    where ident = Id.unpackId bid
 
-generate_block_id :: Maybe BlockId -> Id.Namespace -> Map BlockId a
+generateBlockId :: Maybe BlockId -> Id.Namespace -> Map BlockId a
     -> Maybe Id.Id
-generate_block_id maybe_parent ns blocks =
-    generate_id ns parent "b" Id.BlockId blocks
-    where parent = maybe (Id.global "") Id.unpack_id maybe_parent
+generateBlockId maybeParent ns blocks =
+    generateId ns parent "b" Id.BlockId blocks
+    where parent = maybe (Id.global "") Id.unpackId maybeParent
 
-generate_track_id :: BlockId -> Map TrackId a -> Maybe Id.Id
-generate_track_id bid tracks =
-    generate_id (Id.id_namespace ident) ident "t" Id.TrackId tracks
-    where ident = Id.unpack_id bid
+generateTrackId :: BlockId -> Map TrackId a -> Maybe Id.Id
+generateTrackId bid tracks =
+    generateId (Id.idNamespace ident) ident "t" Id.TrackId tracks
+    where ident = Id.unpackId bid
 
-generate_id :: Ord a => Id.Namespace -> Id.Id -> Text -> (Id.Id -> a)
+generateId :: Ord a => Id.Namespace -> Id.Id -> Text -> (Id.Id -> a)
     -> Map a b -> Maybe Id.Id
-generate_id ns parent_id code typ fm =
+generateId ns parentId code typ fm =
     List.find (not . (`Map.member` fm) . typ) candidates
-    where candidates = ids_for ns (Id.id_name parent_id) code
+    where candidates = idsFor ns (Id.idName parentId) code
 
 -- | Guess a TrackId generated from GenId.  Useful for tests.
-track_id_at :: BlockId -> TrackNum -> TrackId
-track_id_at bid tracknum = Id.TrackId $ id_at ns ident "t" tracknum
-    where (ns, ident) = Id.un_id $ Id.unpack_id bid
+trackIdAt :: BlockId -> TrackNum -> TrackId
+trackIdAt bid tracknum = Id.TrackId $ idAt ns ident "t" tracknum
+    where (ns, ident) = Id.unId $ Id.unpackId bid
 
 -- | IDs are numbered, and they start at 1 instead of 0.
 --
@@ -67,13 +67,13 @@ track_id_at bid tracknum = Id.TrackId $ id_at ns ident "t" tracknum
 -- convenient if they line up with the tracknums.  So even though it's purely
 -- for testing and only for TrackIds, I start everything at 1 just for
 -- consistency.
-ids_for :: Id.Namespace -> Text -> Text -> [Id.Id]
-ids_for ns parent code = map (id_at ns parent code) [1..]
+idsFor :: Id.Namespace -> Text -> Text -> [Id.Id]
+idsFor ns parent code = map (idAt ns parent code) [1..]
 
-id_at :: Id.Namespace -> Text -> Text -> Int -> Id.Id
-id_at ns parent code n =
+idAt :: Id.Namespace -> Text -> Text -> Int -> Id.Id
+idAt ns parent code n =
     Id.id ns (dotted parent <> code <> showt n)
     where dotted s = if Text.null s then "" else s <> "."
 
-require_id :: Ui.M m => Text -> Maybe a -> m a
-require_id msg = maybe (Ui.throw $ "somehow can't find ID for " <> msg) pure
+requireId :: Ui.M m => Text -> Maybe a -> m a
+requireId msg = maybe (Ui.throw $ "somehow can't find ID for " <> msg) pure

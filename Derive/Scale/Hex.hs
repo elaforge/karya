@@ -22,12 +22,12 @@ import Global
 
 scales :: [Scale.Definition]
 scales = map Scale.Simple
-    [ JustScales.make_scale "hex"
-        (scale_map (TheoryFormat.letters pc_per_octave))
-        doc doc_fields
-    , JustScales.make_scale "hex-r"
-        (scale_map (TheoryFormat.cipher pc_per_octave relative_fmt))
-        doc doc_fields
+    [ JustScales.makeScale "hex"
+        (scaleMap (TheoryFormat.letters pcPerOctave))
+        doc docFields
+    , JustScales.makeScale "hex-r"
+        (scaleMap (TheoryFormat.cipher pcPerOctave relativeFmt))
+        doc docFields
     ]
 
 doc :: Doc.Doc
@@ -39,54 +39,54 @@ doc = "This is a family of 6 note just scales, based on Erv Wilson's hexanies.\
     \ 5th scale degree, you would change the key to `a-159b-6` and set\
     \ `%just-base` accordingly.\n"
 
-doc_fields :: [(Doc.Doc, Doc.Doc)]
-doc_fields =
+docFields :: [(Doc.Doc, Doc.Doc)]
+docFields =
     [ (Doc.literal name,
-        Doc.Doc $ JustScales.show_ratios (JustScales.key_ratios key))
-    | (name, key) <- ChromaticScales.group_tonic_mode (Map.toList keys)
+        Doc.Doc $ JustScales.showRatios (JustScales.keyRatios key))
+    | (name, key) <- ChromaticScales.groupTonicMode (Map.toList keys)
     ]
 
-pc_per_octave :: Int
-pc_per_octave = 6
+pcPerOctave :: Int
+pcPerOctave = 6
 
-scale_map :: TheoryFormat.Format -> JustScales.ScaleMap
-scale_map = JustScales.scale_map keys default_key Nothing
+scaleMap :: TheoryFormat.Format -> JustScales.ScaleMap
+scaleMap = JustScales.scaleMap keys defaultKey Nothing
 
-relative_fmt :: TheoryFormat.RelativeFormat TheoryFormat.Tonic
-relative_fmt = JustScales.make_relative_fmt keys default_key
+relativeFmt :: TheoryFormat.RelativeFormat TheoryFormat.Tonic
+relativeFmt = JustScales.makeRelativeFmt keys defaultKey
 
-default_key :: JustScales.Key
-Just default_key = Map.lookup (Pitch.Key "a-1357-1") keys
+defaultKey :: JustScales.Key
+Just defaultKey = Map.lookup (Pitch.Key "a-1357-1") keys
 
 keys :: JustScales.Keys
-keys = JustScales.make_keys (take pc_per_octave TheoryFormat.letter_degrees)
-    [(key, [("", ratios)]) | (key, ratios) <- key_ratios]
+keys = JustScales.makeKeys (take pcPerOctave TheoryFormat.letterDegrees)
+    [(key, [("", ratios)]) | (key, ratios) <- keyRatios]
 
-key_ratios :: [(Text, JustScales.Ratios)]
-key_ratios = concatMap make_hexany
+keyRatios :: [(Text, JustScales.Ratios)]
+keyRatios = concatMap makeHexany
     [ [a, b, c, d] | a <- primes, b <- primes, b > a
     , c <- primes, c > b, d <- primes, d > c
     ]
     where primes = [1, 3, 5, 7, 9, 11, 13]
 
-hexany_ratios :: [[Int]] -> [[Ratio]]
-hexany_ratios = map (snd . head . make_ratios)
+hexanyRatios :: [[Int]] -> [[Ratio]]
+hexanyRatios = map (snd . head . makeRatios)
 
-make_hexany :: [Int] -> [(Text, JustScales.Ratios)]
-make_hexany xs =
-    [ (show_roots xs <> "-" <> showt (n+1), Vector.fromList ratios)
-    | (n, ratios) <- make_ratios xs
+makeHexany :: [Int] -> [(Text, JustScales.Ratios)]
+makeHexany xs =
+    [ (showRoots xs <> "-" <> showt (n+1), Vector.fromList ratios)
+    | (n, ratios) <- makeRatios xs
     ]
 
-show_roots :: [Int] -> Text
-show_roots = txt . mapMaybe Num.showHigit
+showRoots :: [Int] -> Text
+showRoots = txt . mapMaybe Num.showHigit
 
-make_ratios :: [Int] -> [(Int, [Ratio])]
-make_ratios =
-    map (second (List.sort . map reduce_octave)) . choose_unity
+makeRatios :: [Int] -> [(Int, [Ratio])]
+makeRatios =
+    map (second (List.sort . map reduceOctave)) . chooseUnity
     . map (uncurry (*)) . permute . map (%1)
     where
-    choose_unity xs = [(n, map (/x) xs) | (n, x) <- zip [0..] xs]
+    chooseUnity xs = [(n, map (/x) xs) | (n, x) <- zip [0..] xs]
 
 permute :: [a] -> [(a, a)]
 permute (x:xs) = [(x, y) | y <- xs] ++ permute xs
@@ -94,8 +94,8 @@ permute [] = []
 
 type Ratio = Ratio.Ratio Int
 
-reduce_octave :: Ratio -> Ratio
-reduce_octave ratio
-    | ratio >= 2 = reduce_octave (ratio / 2)
-    | ratio < 1 = reduce_octave (ratio * 2)
+reduceOctave :: Ratio -> Ratio
+reduceOctave ratio
+    | ratio >= 2 = reduceOctave (ratio / 2)
+    | ratio < 1 = reduceOctave (ratio * 2)
     | otherwise = ratio

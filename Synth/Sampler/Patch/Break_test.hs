@@ -16,7 +16,7 @@ import           Util.Test
 test_lookupStroke :: Test
 test_lookupStroke = do
     let f octave char =
-            pretty <$> Cmd.note_entry_lookup octave char
+            pretty <$> Cmd.noteEntryLookup octave char
                 (Break.lookupStroke break.increment break.perMeasure strokeMap)
         strokeMap = Map.fromList
             [(beat, stroke) | (beat, stroke, _) <- break.beats]

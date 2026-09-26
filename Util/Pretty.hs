@@ -238,13 +238,13 @@ fraction :: (RealFrac a, Pretty a) => Bool -> a
     -> Text
 fraction asciiFraction d
     | d == 0 = "0"
-    | Just frac <- Map.lookup ratio fractions = int_s <> frac
+    | Just frac <- Map.lookup ratio fractions = intS <> frac
     | asciiFraction && Ratio.denominator ratio <= 12 =
-        int_s <> "+" <> pretty ratio
+        intS <> "+" <> pretty ratio
     | otherwise = pretty d
     where
     (int, frac) = properFraction d
-    int_s = if int == 0 then "" else Text.pack (show int)
+    intS = if int == 0 then "" else Text.pack (show int)
     ratio = Ratio.approxRational frac 0.0001
     fractions = Map.fromList
         [ (0 / 1, "")

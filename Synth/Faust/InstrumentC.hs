@@ -121,10 +121,10 @@ imControls :: PatchT ptr cptr -> Map Control.Control ControlConfig
 imControls patch =
     -- Control.gate is generated internally, and everyone gets Control.vol.
     Map.delete Control.gate $ Map.insert Control.volume vol $
-        Map.fromList (_inputControls patch) <> ui_controls
+        Map.fromList (_inputControls patch) <> uiControls
     where
-    ui_controls = Map.fromList $ do
-        (control, controls@((_, (_, config)) : _)) <- by_control
+    uiControls = Map.fromList $ do
+        (control, controls@((_, (_, config)) : _)) <- byControl
         let elts = filter (/="") $ map (fst . fst) controls
         pure $ (control,) $ config
             { _description =
@@ -132,7 +132,7 @@ imControls patch =
                     else "elements: [" <> Text.intercalate ", " elts <> "], ")
                 <> _description config
             }
-    by_control = Lists.keyedGroupSort (snd . fst) $
+    byControl = Lists.keyedGroupSort (snd . fst) $
         Map.toList $ _controls patch
     vol = ControlConfig False "Instrument volume, handled by faust-im."
 
@@ -176,7 +176,7 @@ metadataControls = check <=< mapMaybeM parse . Map.toAscList
     parse (c, desc)
         | Just rest <- Text.stripPrefix "control" c =
             let stripped = Text.drop 1 $ Text.dropWhile (/='_') rest
-            in if Id.valid_symbol stripped
+            in if Id.validSymbol stripped
                 then Right $
                     Just (Control.Control stripped, parseControlText desc)
                 else Left $ "invalid control name: " <> c
@@ -216,7 +216,7 @@ allocate patch = do
         Map.lookup c (_controls patch)
 
 destroy :: Instrument -> IO ()
-destroy = PatchC.c_faust_destroy . _ptr
+destroy = PatchC.cFaustDestroy . _ptr
 
 -- | Render chunk of time and return samples.
 render :: Audio.Frames -> Audio.Frames -> Instrument

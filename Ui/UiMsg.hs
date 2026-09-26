@@ -25,13 +25,13 @@ data UiMsg = UiMsg Context Msg
     deriving (Show)
 
 data Context = Context
-    { ctx_focus :: Maybe ViewId
+    { ctxFocus :: Maybe ViewId
     -- | Index into block tracks.  The TrackNum will be one greater than the
     -- last track if the cursor has moved beyond it.
-    , ctx_track :: Maybe (TrackNum, Track)
+    , ctxTrack :: Maybe (TrackNum, Track)
     -- | Indicates that the msg originated from the floating input.
     -- It should be an 'UpdateInput'.
-    , ctx_floating_input :: !Bool
+    , ctxFloatingInput :: !Bool
     } deriving (Show)
 
 -- | Whether the context is on the track itself or the skeleton display above
@@ -91,12 +91,12 @@ data MsgEvent
     -- modifiers?  Doesn't matter as long as fltk doesn't support it.
 
 data MouseEvent = MouseEvent
-    { mouse_state :: !MouseState
-    , mouse_modifiers :: ![Key.Modifier]
-    , mouse_coords :: !(Int, Int)
+    { mouseState :: !MouseState
+    , mouseModifiers :: ![Key.Modifier]
+    , mouseCoords :: !(Int, Int)
     -- | As per fltk, 0 is the first click, 1 is a double click, etc.
-    , mouse_clicks :: !Int
-    , mouse_is_click :: !Bool
+    , mouseClicks :: !Int
+    , mouseIsClick :: !Bool
     } deriving (Eq, Ord, Show)
 
 -- | Most of these are unused, but are included here for completeness.
@@ -113,11 +113,11 @@ instance Pretty MouseState where pretty = showt
 instance Pretty KbdState where pretty = showt
 
 -- | Like 'pretty', but more compact.  Only show the most important bits.
-show_short :: UiMsg -> Text
-show_short = \case
+showShort :: UiMsg -> Text
+showShort = \case
     UiMsg _ctx (MsgEvent mdata) -> case mdata of
-        Mouse (MouseEvent { mouse_state = state }) -> showt state
-        Kbd kstate mods key _maybe_char -> mconcat $ concat
+        Mouse (MouseEvent { mouseState = state }) -> showt state
+        Kbd kstate mods key _maybeChar -> mconcat $ concat
             [ map ((<>"+") . showt) mods
             , [pretty key]
             , case kstate of
@@ -127,19 +127,19 @@ show_short = \case
             ]
         AuxMsg msg -> showt msg
         Unhandled x -> "Unhandled: " <> showt x
-    UiMsg _ctx (UiUpdate vid update) -> Id.ident_text vid <> ":" <> word update
+    UiMsg _ctx (UiUpdate vid update) -> Id.identText vid <> ":" <> word update
     UiMsg _ctx (UpdateScreenSize {}) -> "UpdateScreenSize"
     where
     word :: Show a => a -> Text
     word = fromMaybe "" . Lists.head . Text.words . showt
 
 instance Pretty UiMsg where
-    pretty ui_msg = case ui_msg of
+    pretty uiMsg = case uiMsg of
         UiMsg ctx (MsgEvent mdata) -> case mdata of
             Mouse mouse -> Text.unwords [pretty mouse, pretty ctx]
-            Kbd kstate mods key maybe_char -> Text.unwords
+            Kbd kstate mods key maybeChar -> Text.unwords
                 [ "Kbd:", showt kstate, showt mods, showt key
-                , maybe "" (\c -> "(" <> Text.singleton c <> ") ") maybe_char
+                , maybe "" (\c -> "(" <> Text.singleton c <> ") ") maybeChar
                     <> pretty ctx
                 ]
             AuxMsg msg -> Text.unwords ["Aux:", showt msg, pretty ctx]
@@ -147,22 +147,22 @@ instance Pretty UiMsg where
         UiMsg ctx msg -> Text.unwords [showt msg, pretty ctx]
 
 instance Pretty MouseEvent where
-    pretty (MouseEvent mstate mods coords clicks is_click) = Text.unwords
+    pretty (MouseEvent mstate mods coords clicks isClick) = Text.unwords
         [ "Mouse:", showt mstate, showt mods, showt coords
-        , "click:", showt is_click, showt clicks
+        , "click:", showt isClick, showt clicks
         ]
 
 instance Pretty Context where
-    pretty (Context focus track floating_input) = "{" <> contents <> "}"
+    pretty (Context focus track floatingInput) = "{" <> contents <> "}"
         where
         contents = Text.unwords $ filter (not . Text.null)
-            [ show_maybe "focus" focus
-            , maybe "" show_track track
-            , if floating_input then "floating_input" else ""
+            [ showMaybe "focus" focus
+            , maybe "" showTrack track
+            , if floatingInput then "floating_input" else ""
             ]
-        show_track (tnum, track) =
+        showTrack (tnum, track) =
             "track=" <> showt tnum <> ":" <> pretty track
-        show_maybe desc = maybe "" (\v -> desc <> "=" <> showt v)
+        showMaybe desc = maybe "" (\v -> desc <> "=" <> showt v)
 
 instance Pretty Track where
     pretty (Track pos) = "track:" <> pretty pos

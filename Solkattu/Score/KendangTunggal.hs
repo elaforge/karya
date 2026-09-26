@@ -59,7 +59,7 @@ farans = faran $ korvaiV adi $ map su $ concat
         short = takeM 6 pattern
 
 exercise1 :: Korvai
-exercise1 = exercise $ date 2026 1 25 $ korvaiV Tala.any_beats
+exercise1 = exercise $ date 2026 1 25 $ korvaiV Tala.anyBeats
     [ r4 "kipp" -- TODO kipp or ippk?  Last does seem to start on i.
     , r4 "kipkpp"
     , r4 "kipkppkp"

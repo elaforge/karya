@@ -12,13 +12,13 @@ import           Global
 
 
 data Layout = Layout
-    { lt_size :: (Int, Int) -- ^ width and height for the window
-    , lt_bg_color :: Color.Color
-    , lt_keycap_color :: Color.Color
-    , lt_highlight_color :: Color.Color
-    , lt_label_color :: Color.Color
-    , lt_binding_color :: Color.Color
-    , lt_labels :: Map Keycap Rect.Rect
+    { ltSize :: (Int, Int) -- ^ width and height for the window
+    , ltBgColor :: Color.Color
+    , ltKeycapColor :: Color.Color
+    , ltHighlightColor :: Color.Color
+    , ltLabelColor :: Color.Color
+    , ltBindingColor :: Color.Color
+    , ltLabels :: Map Keycap Rect.Rect
     } deriving (Show)
 
 type Keycap = Text
@@ -30,22 +30,22 @@ type Doc = Text
 type Bindings = Map Keycap Binding
 
 data Binding = Binding
-    { b_color :: Maybe Color.Color
-    , b_text :: KeyDoc
-    , b_doc :: Doc
+    { bColor :: Maybe Color.Color
+    , bText :: KeyDoc
+    , bDoc :: Doc
     } deriving (Show)
 
 instance Pretty Binding where
-    pretty (Binding mb_color text doc) =
-        text <> "(" <> doc <> ")[" <> pretty mb_color <> "]"
+    pretty (Binding mbColor text doc) =
+        text <> "(" <> doc <> ")[" <> pretty mbColor <> "]"
 
 -- | Since Bindings have to have the same indices of 'lt_labels', I need dummy
 -- ones to fill out the array.
-no_binding :: Binding
-no_binding = Binding
-    { b_color = Nothing
-    , b_text = ""
-    , b_doc = ""
+noBinding :: Binding
+noBinding = Binding
+    { bColor = Nothing
+    , bText = ""
+    , bDoc = ""
     }
 
 -- | Low level type, for sending to fltk.

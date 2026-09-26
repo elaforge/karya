@@ -19,9 +19,9 @@ type Instrument = Text
 instrument :: Instrument -> ScoreT.Instrument
 instrument = ScoreT.Instrument . Text.dropWhile (=='>')
 
-match_map :: Id.Ident id => Text -> Map id a -> Map id a
-match_map match = Map.filterWithKey (\k _ -> match_id match k)
+matchMap :: Id.Ident id => Text -> Map id a -> Map id a
+matchMap match = Map.filterWithKey (\k _ -> matchId match k)
 
 -- | True if the ID contains the given substring.
-match_id :: Id.Ident id => Text -> id -> Bool
-match_id sub = (sub `Text.isInfixOf`) . Id.show_id . Id.unpack_id
+matchId :: Id.Ident id => Text -> id -> Bool
+matchId sub = (sub `Text.isInfixOf`) . Id.showId . Id.unpackId

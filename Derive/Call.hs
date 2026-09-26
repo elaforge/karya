@@ -54,189 +54,189 @@ import           Types
 -- | Unlike 'Derive.pitch_at', the transposition has already been applied.
 transposed :: RealTime -> Derive.Deriver (Maybe PSignal.Transposed)
 transposed pos =
-    justm (Derive.pitch_at pos) $ fmap Just . Derive.resolve_pitch pos
+    justm (Derive.pitchAt pos) $ fmap Just . Derive.resolvePitch pos
 
-get_transposed :: RealTime -> Derive.Deriver PSignal.Transposed
-get_transposed pos = Derive.require ("no pitch at " <> pretty pos)
+getTransposed :: RealTime -> Derive.Deriver PSignal.Transposed
+getTransposed pos = Derive.require ("no pitch at " <> pretty pos)
     =<< transposed pos
 
 -- | Pitch without the transposition applied.  You have to use this if you
 -- create an event with a pitch based on this pitch, otherwise the
 -- transposition will be applied twice.
-get_pitch :: RealTime -> Derive.Deriver PSignal.Pitch
-get_pitch pos = Derive.require ("no pitch at " <> pretty pos)
-    =<< Derive.pitch_at pos
+getPitch :: RealTime -> Derive.Deriver PSignal.Pitch
+getPitch pos = Derive.require ("no pitch at " <> pretty pos)
+    =<< Derive.pitchAt pos
 
-get_pitch_here :: Derive.PassedArgs a -> Derive.Deriver PSignal.Pitch
-get_pitch_here = get_pitch <=< Args.real_start
+getPitchHere :: Derive.PassedArgs a -> Derive.Deriver PSignal.Pitch
+getPitchHere = getPitch <=< Args.realStart
 
 -- | Get the symbolic version of the transposed pitch.  Since it's transposed,
 -- if you turn it back to a 'PSignal.Pitch', you should use
 -- 'with_transposed_pitch'.
-get_parsed_pitch :: (Pitch.Note -> Maybe Pitch.Pitch)
+getParsedPitch :: (Pitch.Note -> Maybe Pitch.Pitch)
     -- ^ Parse pitch function, as returned by 'get_pitch_functions'.
     -- It's passed separately to avoid the overhead of calling
     -- get_pitch_functions multiple times.
     -> RealTime -> Derive.Deriver Pitch.Pitch
-get_parsed_pitch parse = parse_pitch parse <=< get_transposed
+getParsedPitch parse = parsePitch parse <=< getTransposed
 
-get_symbolic_pitch :: RealTime -> Derive.Deriver Pitch.Note
-get_symbolic_pitch = Pitches.pitch_note <=< get_transposed
+getSymbolicPitch :: RealTime -> Derive.Deriver Pitch.Note
+getSymbolicPitch = Pitches.pitchNote <=< getTransposed
 
 dynamic :: RealTime -> Derive.Deriver Signal.Y
-dynamic pos = maybe Derive.default_dynamic ScoreT.val_of <$>
-    Derive.control_at Controls.dynamic pos
+dynamic pos = maybe Derive.defaultDynamic ScoreT.valOf <$>
+    Derive.controlAt Controls.dynamic pos
 
-with_pitch :: PSignal.Pitch -> Derive.Deriver a -> Derive.Deriver a
-with_pitch = Derive.with_constant_pitch
+withPitch :: PSignal.Pitch -> Derive.Deriver a -> Derive.Deriver a
+withPitch = Derive.withConstantPitch
 
-with_transposed_pitch :: PSignal.Transposed -> Derive.Deriver a
+withTransposedPitch :: PSignal.Transposed -> Derive.Deriver a
     -> Derive.Deriver a
-with_transposed_pitch pitch =
-    without_transpose . with_pitch (PSignal.coerce pitch)
+withTransposedPitch pitch =
+    withoutTranspose . withPitch (PSignal.coerce pitch)
 
-without_transpose :: Derive.Deriver a -> Derive.Deriver a
-without_transpose = Derive.remove_controls (Set.toList Controls.transposers)
+withoutTranspose :: Derive.Deriver a -> Derive.Deriver a
+withoutTranspose = Derive.removeControls (Set.toList Controls.transposers)
 
-with_symbolic_pitch :: DeriveT.PitchCall -> ScoreTime -> Derive.Deriver a
+withSymbolicPitch :: DeriveT.PitchCall -> ScoreTime -> Derive.Deriver a
     -> Derive.Deriver a
-with_symbolic_pitch call pos deriver = do
-    pitch <- Eval.eval_pitch pos call
-    with_pitch pitch deriver
+withSymbolicPitch call pos deriver = do
+    pitch <- Eval.evalPitch pos call
+    withPitch pitch deriver
 
 -- | Replace the dynamic with the given one.
-with_dynamic :: Signal.Y -> Derive.Deriver a -> Derive.Deriver a
-with_dynamic = with_constant Controls.dynamic
+withDynamic :: Signal.Y -> Derive.Deriver a -> Derive.Deriver a
+withDynamic = withConstant Controls.dynamic
 
-multiply_dynamic :: Signal.Y -> Derive.Deriver a -> Derive.Deriver a
-multiply_dynamic = multiply_constant Controls.dynamic
+multiplyDynamic :: Signal.Y -> Derive.Deriver a -> Derive.Deriver a
+multiplyDynamic = multiplyConstant Controls.dynamic
 
-with_constant :: ScoreT.Control -> Signal.Y -> Derive.Deriver a
+withConstant :: ScoreT.Control -> Signal.Y -> Derive.Deriver a
     -> Derive.Deriver a
-with_constant control = Derive.with_control control . ScoreT.untyped
+withConstant control = Derive.withControl control . ScoreT.untyped
     . Signal.constant
 
-add_control, multiply_control :: ScoreT.Control -> ScoreT.Typed Signal.Control
+addControl, multiplyControl :: ScoreT.Control -> ScoreT.Typed Signal.Control
     -> Derive.Deriver a -> Derive.Deriver a
-add_control = Derive.with_merged_control Derive.merge_add
-multiply_control = Derive.with_merged_control Derive.merge_mul
+addControl = Derive.withMergedControl Derive.mergeAdd
+multiplyControl = Derive.withMergedControl Derive.mergeMul
 
-add_constant, multiply_constant :: ScoreT.Control -> Signal.Y
+addConstant, multiplyConstant :: ScoreT.Control -> Signal.Y
     -> Derive.Deriver a -> Derive.Deriver a
-multiply_constant control val
+multiplyConstant control val
     | val == 1 = id
-    | otherwise = Derive.with_merged_control Derive.merge_mul control
+    | otherwise = Derive.withMergedControl Derive.mergeMul control
         (ScoreT.untyped (Signal.constant val))
-add_constant control val
+addConstant control val
     | val == 0 = id
-    | otherwise = Derive.with_merged_control Derive.merge_add control
+    | otherwise = Derive.withMergedControl Derive.mergeAdd control
         (ScoreT.untyped (Signal.constant val))
 
 -- * environ
 
-get_srate :: Derive.Deriver RealTime
-get_srate = RealTime.seconds <$> Derive.get_val EnvKey.srate
+getSrate :: Derive.Deriver RealTime
+getSrate = RealTime.seconds <$> Derive.getVal EnvKey.srate
 
-get_scale :: Derive.Deriver Scale.Scale
-get_scale = Derive.get_scale =<< get_scale_id
+getScale :: Derive.Deriver Scale.Scale
+getScale = Derive.getScale =<< getScaleId
 
-lookup_scale :: Derive.Deriver (Maybe Scale.Scale)
-lookup_scale = Derive.lookup_scale =<< get_scale_id
+lookupScale :: Derive.Deriver (Maybe Scale.Scale)
+lookupScale = Derive.lookupScale =<< getScaleId
 
-get_scale_id :: Derive.Deriver Pitch.ScaleId
-get_scale_id = Expr.str_to_scale_id <$> Derive.get_val EnvKey.scale
+getScaleId :: Derive.Deriver Pitch.ScaleId
+getScaleId = Expr.strToScaleId <$> Derive.getVal EnvKey.scale
 
-lookup_key :: Derive.Deriver (Maybe Pitch.Key)
-lookup_key = fmap Pitch.Key <$> Derive.lookup_val EnvKey.key
+lookupKey :: Derive.Deriver (Maybe Pitch.Key)
+lookupKey = fmap Pitch.Key <$> Derive.lookupVal EnvKey.key
 
-get_instrument :: Derive.Deriver ScoreT.Instrument
-get_instrument = Derive.get_val EnvKey.instrument
+getInstrument :: Derive.Deriver ScoreT.Instrument
+getInstrument = Derive.getVal EnvKey.instrument
 
-lookup_instrument :: Derive.Deriver (Maybe ScoreT.Instrument)
-lookup_instrument = Derive.lookup_val EnvKey.instrument
+lookupInstrument :: Derive.Deriver (Maybe ScoreT.Instrument)
+lookupInstrument = Derive.lookupVal EnvKey.instrument
 
-get_attributes :: Derive.Deriver Attrs.Attributes
-get_attributes = fromMaybe mempty <$> Derive.lookup_val EnvKey.attributes
+getAttributes :: Derive.Deriver Attrs.Attributes
+getAttributes = fromMaybe mempty <$> Derive.lookupVal EnvKey.attributes
 
 -- * parsing pitches
 
 -- | Get symbolic pitch manipulating functions for the current scale.  This
 -- is for calls that want to work with symbolic pitches.
-get_pitch_functions :: Derive.Deriver
+getPitchFunctions :: Derive.Deriver
     ( Pitch.Note -> Maybe Pitch.Pitch
     , Pitch.Pitch -> Maybe Pitch.Note
     , Scale.Transposition -> Pitch.Step -> Pitch.Pitch -> Maybe Pitch.Pitch
     )
-get_pitch_functions = do
-    scale <- get_scale
-    env <- Derive.get_environ
+getPitchFunctions = do
+    scale <- getScale
+    env <- Derive.getEnviron
     let transpose transposition steps =
-            to_maybe . Scale.scale_transpose scale transposition env steps
+            toMaybe . Scale.scaleTranspose scale transposition env steps
     pure
-        ( to_maybe . Scale.scale_read scale env
-        , to_maybe . Scale.scale_show scale env
+        ( toMaybe . Scale.scaleRead scale env
+        , toMaybe . Scale.scaleShow scale env
         , transpose
         )
-    where to_maybe = either (const Nothing) Just
+    where toMaybe = either (const Nothing) Just
 
-parse_pitch :: (Pitch.Note -> Maybe a) -> PSignal.Transposed
+parsePitch :: (Pitch.Note -> Maybe a) -> PSignal.Transposed
     -> Derive.Deriver a
-parse_pitch parse pitch = do
-    note <- Pitches.pitch_note pitch
+parsePitch parse pitch = do
+    note <- Pitches.pitchNote pitch
     Derive.require "unparseable pitch" $ parse note
 
-chromatic_difference :: PSignal.Transposed -> PSignal.Transposed
+chromaticDifference :: PSignal.Transposed -> PSignal.Transposed
     -> Derive.Deriver Pitch.Semi
-chromatic_difference = pitch_difference Scale.chromatic_difference
+chromaticDifference = pitchDifference Scale.chromaticDifference
 
-diatonic_difference :: PSignal.Transposed -> PSignal.Transposed
+diatonicDifference :: PSignal.Transposed -> PSignal.Transposed
     -> Derive.Deriver Pitch.PitchClass
-diatonic_difference = pitch_difference Scale.diatonic_difference
+diatonicDifference = pitchDifference Scale.diatonicDifference
 
-pitch_difference :: (Derive.Layout -> Pitch.Pitch -> Pitch.Pitch -> a)
+pitchDifference :: (Derive.Layout -> Pitch.Pitch -> Pitch.Pitch -> a)
     -> PSignal.Transposed -> PSignal.Transposed -> Derive.Deriver a
-pitch_difference difference p1 p2 = do
-    scale <- get_scale
-    env <- Derive.get_environ
-    let parse scale env = Scale.scale_read scale env <=< PSignal.pitch_note
+pitchDifference difference p1 p2 = do
+    scale <- getScale
+    env <- Derive.getEnviron
+    let parse scale env = Scale.scaleRead scale env <=< PSignal.pitchNote
     let msg = pretty p1 <> " - " <> pretty p2 <> ": "
-    Derive.require_right ((msg<>) . pretty) $
-        difference (Scale.scale_layout scale) <$>
+    Derive.requireRight ((msg<>) . pretty) $
+        difference (Scale.scaleLayout scale) <$>
             parse scale env p1 <*> parse scale env p2
 
-nn_difference :: RealTime -> PSignal.Pitch -> PSignal.Pitch
+nnDifference :: RealTime -> PSignal.Pitch -> PSignal.Pitch
     -> Derive.Deriver Pitch.NoteNumber
-nn_difference pos pitch1 pitch2 = do
-    pitch1 <- Derive.resolve_pitch pos pitch1
-    pitch2 <- Derive.resolve_pitch pos pitch2
-    (-) <$> Pitches.pitch_nn pitch1 <*> Pitches.pitch_nn pitch2
+nnDifference pos pitch1 pitch2 = do
+    pitch1 <- Derive.resolvePitch pos pitch1
+    pitch2 <- Derive.resolvePitch pos pitch2
+    (-) <$> Pitches.pitchNn pitch1 <*> Pitches.pitchNn pitch2
 
 -- * note
 
-eval_pitch_ :: ScoreTime -> Pitch.Pitch -> Derive.Deriver PSignal.Transposed
-eval_pitch_ start pitch = do
-    (_, show_pitch, _) <- get_pitch_functions
-    eval_pitch show_pitch start pitch
+evalPitch_ :: ScoreTime -> Pitch.Pitch -> Derive.Deriver PSignal.Transposed
+evalPitch_ start pitch = do
+    (_, showPitch, _) <- getPitchFunctions
+    evalPitch showPitch start pitch
 
 -- | Evaluate a 'Pitch.Pitch'.  It returns a transposed pitch since
 -- a 'Pitch.Pitch' is assumed to have been transposed (e.g. 'get_parsed_pitch'
 -- uses a transposed pitch so range calculation works).
-eval_pitch :: (Pitch.Pitch -> Maybe Pitch.Note) -> ScoreTime -> Pitch.Pitch
+evalPitch :: (Pitch.Pitch -> Maybe Pitch.Note) -> ScoreTime -> Pitch.Pitch
     -> Derive.Deriver PSignal.Transposed
-eval_pitch show_pitch start pitch = do
+evalPitch showPitch start pitch = do
     note <- Derive.require ("scale doesn't have pitch: " <> pretty pitch)
-        (show_pitch pitch)
-    eval_note start note
+        (showPitch pitch)
+    evalNote start note
 
 -- | Evaluate a symbolic pitch.  Like 'eval_pitch', I assume the Note was
 -- Transposed, or at least should be an absolute pitch.
-eval_note :: ScoreTime -> Pitch.Note -> Derive.Deriver PSignal.Transposed
-eval_note pos note = Eval.eval_pitch pos $
-    Expr.call0 (Expr.Symbol (Pitch.note_text note))
+evalNote :: ScoreTime -> Pitch.Note -> Derive.Deriver PSignal.Transposed
+evalNote pos note = Eval.evalPitch pos $
+    Expr.call0 (Expr.Symbol (Pitch.noteText note))
 
 -- | Generate a single note, from 0 to 1.
 note :: Derive.NoteDeriver
-note = Eval.eval_one_call True $ Expr.call0 Symbols.null_note
+note = Eval.evalOneCall True $ Expr.call0 Symbols.nullNote
 
 -- | Like 'note', but the note reuses the Context, which means it will inherit
 -- the caller's start and duration as well as sub-tracks and thus may apply
@@ -245,49 +245,49 @@ note = Eval.eval_one_call True $ Expr.call0 Symbols.null_note
 -- This is appropriate when adding a wrapper around the default note call, but
 -- not if you don't want to be overridden by sub-tracks.  See 'placed_note'
 -- if you want to inherit the time, but not the rest.
-reapply_note :: Derive.NoteArgs -> Derive.NoteDeriver
-reapply_note args = Eval.reapply_call (Args.context args) Symbols.null_note []
+reapplyNote :: Derive.NoteArgs -> Derive.NoteDeriver
+reapplyNote args = Eval.reapplyCall (Args.context args) Symbols.nullNote []
 
 -- | Override the pitch signal and generate a single note.
-pitched_note :: PSignal.Pitch -> Derive.NoteDeriver
-pitched_note pitch = with_pitch pitch note
+pitchedNote :: PSignal.Pitch -> Derive.NoteDeriver
+pitchedNote pitch = withPitch pitch note
 
-transposed_pitched_note :: PSignal.Transposed -> Derive.NoteDeriver
-transposed_pitched_note pitch = with_transposed_pitch pitch note
+transposedPitchedNote :: PSignal.Transposed -> Derive.NoteDeriver
+transposedPitchedNote pitch = withTransposedPitch pitch note
 
 -- | Add an attribute and generate a single note.
-attribute_note :: Attrs.Attributes -> Derive.NoteDeriver
-attribute_note attrs = add_attributes attrs note
+attributeNote :: Attrs.Attributes -> Derive.NoteDeriver
+attributeNote attrs = addAttributes attrs note
 
 -- | A zero-duration 'note'.
-triggered_note :: Derive.NoteDeriver
-triggered_note =
-    Eval.eval_one_at True 0 0 $ Expr.generator0 Symbols.null_note
+triggeredNote :: Derive.NoteDeriver
+triggeredNote =
+    Eval.evalOneAt True 0 0 $ Expr.generator0 Symbols.nullNote
 
 place :: Derive.PassedArgs d -> Derive.Deriver a -> Derive.Deriver a
 place = uncurry Derive.place . Args.extent
 
-placed_note :: Derive.PassedArgs d -> Derive.NoteDeriver
-placed_note args = place args note
+placedNote :: Derive.PassedArgs d -> Derive.NoteDeriver
+placedNote args = place args note
 
 -- * transformer notes
 
 -- | Derive with transformed Attributes.
-with_attributes :: (Attrs.Attributes -> Attrs.Attributes) -> Derive.Deriver d
+withAttributes :: (Attrs.Attributes -> Attrs.Attributes) -> Derive.Deriver d
     -> Derive.Deriver d
-with_attributes f deriver = do
-    attrs <- get_attributes
-    Derive.with_val EnvKey.attributes (f attrs) deriver
+withAttributes f deriver = do
+    attrs <- getAttributes
+    Derive.withVal EnvKey.attributes (f attrs) deriver
 
-add_attributes :: Attrs.Attributes -> Derive.Deriver d -> Derive.Deriver d
-add_attributes attrs
+addAttributes :: Attrs.Attributes -> Derive.Deriver d -> Derive.Deriver d
+addAttributes attrs
     | attrs == mempty = id
-    | otherwise = with_attributes (<> attrs)
+    | otherwise = withAttributes (<> attrs)
 
-add_flags :: Flags.Flags -> Derive.NoteDeriver -> Derive.NoteDeriver
-add_flags flags
+addFlags :: Flags.Flags -> Derive.NoteDeriver -> Derive.NoteDeriver
+addFlags flags
     | flags == mempty = id
-    | otherwise = fmap (fmap (Score.add_flags flags))
+    | otherwise = fmap (fmap (Score.addFlags flags))
 
 -- * random
 
@@ -304,29 +304,29 @@ class Random a where
     -- seed.
     randoms :: Derive.Deriver [a]
     -- | Infinite list of random numbers in the given range.
-    randoms_in :: a -> a -> Derive.Deriver [a]
+    randomsIn :: a -> a -> Derive.Deriver [a]
 
 instance Random Double where
     -- | Random numbers in the range [0, 1).
-    randoms = _make_randoms Pure64.randomDouble
+    randoms = _makeRandoms Pure64.randomDouble
         -- Pure64.randomDouble doesn't document the range, but that's what it
         -- is.
-    randoms_in low high = map (Num.scale low high) <$> randoms
+    randomsIn low high = map (Num.scale low high) <$> randoms
 
 instance Random Int where
     -- Random numbers between INT_MIN and INT_MAX.
-    randoms = _make_randoms Pure64.randomInt
-    randoms_in low high = map (Num.restrict low high) <$> randoms
+    randoms = _makeRandoms Pure64.randomInt
+    randomsIn low high = map (Num.restrict low high) <$> randoms
 
 -- | Get a random Double or Int.  Ints will lose precision if converted to
 -- double!
 random :: Random a => Derive.Deriver a
 random = head <$> randoms
 
-random_in :: (Random a, Real a) => a -> a -> Derive.Deriver a
-random_in low high
+randomIn :: (Random a, Real a) => a -> a -> Derive.Deriver a
+randomIn low high
     | low == high = pure low
-    | otherwise = head <$> randoms_in low high
+    | otherwise = head <$> randomsIn low high
 
 -- | If the chance is 1, return true all the time, if it's 0.5, return it half
 -- of the time.
@@ -335,22 +335,22 @@ chance v
     | v >= 1 = pure True
     | v <= 0 = pure False
     | otherwise = do
-        r <- random_in 0 1
+        r <- randomIn 0 1
         pure $ r <= v
 
 shuffle :: [a] -> Derive.Deriver [a]
 shuffle xs = Random.shuffle xs <$> randoms
 
-_make_randoms :: (Pure64.PureMT -> (a, Pure64.PureMT)) -> Derive.Deriver [a]
-_make_randoms f = List.unfoldr (Just . f) <$> _random_generator
+_makeRandoms :: (Pure64.PureMT -> (a, Pure64.PureMT)) -> Derive.Deriver [a]
+_makeRandoms f = List.unfoldr (Just . f) <$> _randomGenerator
 
-_random_generator :: Derive.Deriver Pure64.PureMT
-_random_generator = do
-    seed <- fromMaybe 0 <$> Derive.lookup_val EnvKey.seed
+_randomGenerator :: Derive.Deriver Pure64.PureMT
+_randomGenerator = do
+    seed <- fromMaybe 0 <$> Derive.lookupVal EnvKey.seed
     pure $ Pure64.pureMT (floor (seed :: Double))
 
-pick_weighted :: NonEmpty (Double, a) -> Double -> a
-pick_weighted weights rnd_ = go 0 weights
+pickWeighted :: NonEmpty (Double, a) -> Double -> a
+pickWeighted weights rnd_ = go 0 weights
     where
     rnd = rnd_ * Num.sum (fmap fst weights)
     go collect ((weight, a) :| weights) = case weights of
@@ -368,7 +368,7 @@ pick (x :| xs) rnd = (x:xs) !! i
 -- Unfortunately it seems to be really complicated to actually sample that.
 -- I could use anything with a similar shape actually.
 normal :: Double -> Derive.Deriver Double
-normal stddev = make_normal stddev <$> randoms
+normal stddev = makeNormal stddev <$> randoms
 {- notes:
     . Approximate normal distribution: sum (take n randoms) / n
     . normalCumulative mean stddev x =
@@ -391,32 +391,32 @@ normal stddev = make_normal stddev <$> randoms
 
 -- | Approximation to a normal distribution between 0 and 1, inclusive.
 -- I can't use an actual normal distribution because I need it to be bounded.
-make_normal :: Double -> [Double] -> Double
-make_normal stddev rnds = Num.sum (take samples rnds) / fromIntegral samples
+makeNormal :: Double -> [Double] -> Double
+makeNormal stddev rnds = Num.sum (take samples rnds) / fromIntegral samples
     where
     samples = 12
 
 -- * conditional
 
-if_env :: (Eq val, Typecheck.Typecheck val) => EnvKey.Key -> Maybe val
+ifEnv :: (Eq val, Typecheck.Typecheck val) => EnvKey.Key -> Maybe val
     -> Derive.Deriver a -> Derive.Deriver a -> Derive.Deriver a
-if_env key val is_set not_set =
-    ifM ((==val) <$> Derive.lookup_val key) is_set not_set
+ifEnv key val isSet notSet =
+    ifM ((==val) <$> Derive.lookupVal key) isSet notSet
 
-when_env :: (Eq val, Typecheck.Typecheck val) => EnvKey.Key -> Maybe val
+whenEnv :: (Eq val, Typecheck.Typecheck val) => EnvKey.Key -> Maybe val
     -> (Derive.Deriver a -> Derive.Deriver a)
     -> Derive.Deriver a -> Derive.Deriver a
-when_env key val transformer deriver =
-    if_env key val (transformer deriver) deriver
+whenEnv key val transformer deriver =
+    ifEnv key val (transformer deriver) deriver
 
 -- * time
 
 -- | Get the real duration of time val at the given point in time.  RealTime is
 -- linear, so 1 second is always 1 second no matter where it is, but ScoreTime
 -- will map to different amounts of RealTime depending on where it is.
-real_duration :: (Derive.Time t1, Derive.Time t2) => t1 -> t2
+realDuration :: (Derive.Time t1, Derive.Time t2) => t1 -> t2
     -> Derive.Deriver RealTime
-real_duration start dur = case Derive.to_duration dur of
+realDuration start dur = case Derive.toDuration dur of
     DeriveT.RealDuration t -> pure t
     DeriveT.ScoreDuration t
         | t == 0 -> pure 0
@@ -424,17 +424,17 @@ real_duration start dur = case Derive.to_duration dur of
             -- I'm adding score to real, so I want the amount of real time in
             -- the future I am if I advance the given amount of score time from
             -- 'start'.
-            score_start <- Derive.score start
-            real_start <- Derive.real start
-            end <- Derive.real $ score_start + t
-            pure $ end - real_start
+            scoreStart <- Derive.score start
+            realStart <- Derive.real start
+            end <- Derive.real $ scoreStart + t
+            pure $ end - realStart
 
 -- | Like 'real_duration', but get the duration in ScoreTime.  If you are
 -- manipulating deriver abstractly instead of directly emitting events then you
 -- will place them via 'Derive.at' and family, which are in ScoreTime.
-score_duration :: (Derive.Time t1, Derive.Time t2) => t1 -> t2
+scoreDuration :: (Derive.Time t1, Derive.Time t2) => t1 -> t2
     -> Derive.Deriver ScoreTime
-score_duration start dur = case Derive.to_duration dur of
+scoreDuration start dur = case Derive.toDuration dur of
     DeriveT.ScoreDuration t -> pure t
     DeriveT.RealDuration t
         | t == 0 -> pure 0
@@ -442,43 +442,43 @@ score_duration start dur = case Derive.to_duration dur of
             -- I'm adding real to score, so I want the amount of amount of
             -- score time I'd have to advance in order for the given amount
             -- of real time to pass.
-            score_start <- Derive.score start
-            real_start <- Derive.real start
-            end <- Derive.score $ real_start + t
-            pure $ end - score_start
+            scoreStart <- Derive.score start
+            realStart <- Derive.real start
+            end <- Derive.score $ realStart + t
+            pure $ end - scoreStart
 
 -- | A time range from the event start until a given duration.
-duration_from_start :: Derive.Time t => Derive.PassedArgs d -> t
+durationFromStart :: Derive.Time t => Derive.PassedArgs d -> t
     -> Derive.Deriver (RealTime, RealTime) -- ^ (start, start+dur)
-duration_from_start args t = do
-    start <- Args.real_start args
-    dur <- real_duration start t
+durationFromStart args t = do
+    start <- Args.realStart args
+    dur <- realDuration start t
     pure (start, start + dur)
 
 -- | Like 'duration_from_start', but subtract a duration from the end.
-duration_from_end :: Derive.Time t => Derive.PassedArgs d -> t
+durationFromEnd :: Derive.Time t => Derive.PassedArgs d -> t
     -> Derive.Deriver (RealTime, RealTime) -- ^ (end-dur, end)
-duration_from_end args t = do
-    end <- Args.real_end args
-    dur <- real_duration end t
+durationFromEnd args t = do
+    end <- Args.realEnd args
+    dur <- realDuration end t
     pure (end - dur, end)
 
 -- | This is 'real_duration', but takes a ScoreT.Typed Signal.Y.
-typed_real_duration :: Derive.Time t => ScoreT.TimeT -> t
+typedRealDuration :: Derive.Time t => ScoreT.TimeT -> t
     -> ScoreT.Typed Signal.Y -> Derive.Deriver RealTime
-typed_real_duration default_type from (ScoreT.Typed typ val)
+typedRealDuration defaultType from (ScoreT.Typed typ val)
     | typ == ScoreT.Real
-        || typ == ScoreT.Untyped && default_type == ScoreT.TReal =
+        || typ == ScoreT.Untyped && defaultType == ScoreT.TReal =
             pure (RealTime.seconds val)
     | typ == ScoreT.Score
-        || typ == ScoreT.Untyped && default_type == ScoreT.TScore =
-            real_duration from (ScoreTime.from_double val)
+        || typ == ScoreT.Untyped && defaultType == ScoreT.TScore =
+            realDuration from (ScoreTime.fromDouble val)
     | otherwise = Derive.throw $
-        "expected time type for " <> ShowVal.show_val (ScoreT.Typed typ val)
+        "expected time type for " <> ShowVal.showVal (ScoreT.Typed typ val)
 
-real_duration_at :: ScoreT.TypedFunction -> RealTime
+realDurationAt :: ScoreT.TypedFunction -> RealTime
     -> Derive.Deriver RealTime
-real_duration_at f t = typed_real_duration ScoreT.TReal t (($ t) <$> f)
+realDurationAt f t = typedRealDuration ScoreT.TReal t (($ t) <$> f)
 
 -- ** timestep
 
@@ -487,28 +487,28 @@ timestep :: ScoreTime -> TimeStep.TimeStep
     -> [Int] -- ^ pick the first steps that return Just
     -> Derive.Deriver ScoreTime
 timestep start ts steps = do
-    (block_id, tracknum) <- Internal.get_current_tracknum
-    Derive.require ("no valid timestep from " <> ShowVal.show_val start)
-        =<< Derive.eval_ui
-            (firstJusts [TimeStep.step_from step ts block_id tracknum start |
+    (blockId, tracknum) <- Internal.getCurrentTracknum
+    Derive.require ("no valid timestep from " <> ShowVal.showVal start)
+        =<< Derive.evalUi
+            (firstJusts [TimeStep.stepFrom step ts blockId tracknum start |
                 step <- steps])
 
 -- | Get the timestep duration from the given point.  This tries first to
 -- step forward, and then back.  This is because typically you use this to
 -- configure duration for a call, and it's confusing when the call stops
 -- working at the end of the block.
-meter_duration :: ScoreTime -> Meter.Rank -> Int
+meterDuration :: ScoreTime -> Meter.Rank -> Int
     -> Derive.Deriver ScoreTime
-meter_duration start rank steps = do
+meterDuration start rank steps = do
     end <- timestep start ts (map (*steps) [1, -1])
     pure $ abs (end - start)
     where
-    ts = TimeStep.time_step $ TimeStep.RelativeMark TimeStep.match_meter rank
+    ts = TimeStep.timeStep $ TimeStep.RelativeMark TimeStep.matchMeter rank
 
 -- | Duration of a single timestep, starting here.
-timestep_duration :: Derive.PassedArgs a -> Meter.Rank
+timestepDuration :: Derive.PassedArgs a -> Meter.Rank
     -> Derive.Deriver ScoreTime
-timestep_duration args step = meter_duration (Args.start args) step 1
+timestepDuration args step = meterDuration (Args.start args) step 1
 
 
 -- * general purpose types
@@ -524,18 +524,18 @@ instance Pretty UpDown where pretty = showt
 instance Typecheck.Typecheck UpDown
 instance Typecheck.ToVal UpDown
 instance ShowVal.ShowVal UpDown where
-    show_val Up = "u"
-    show_val Down = "d"
+    showVal Up = "u"
+    showVal Down = "d"
 
 data Hand = L | R deriving (Show, Enum, Bounded, Eq, Ord)
 
-other_hand :: Hand -> Hand
-other_hand L = R
-other_hand R = L
+otherHand :: Hand -> Hand
+otherHand L = R
+otherHand R = L
 
 instance Pretty Hand where pretty = showt
 instance Typecheck.Typecheck Hand
 instance Typecheck.ToVal Hand
 instance ShowVal.ShowVal Hand where
-    show_val L = "l"
-    show_val R = "r"
+    showVal L = "l"
+    showVal R = "r"

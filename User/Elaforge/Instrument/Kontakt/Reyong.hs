@@ -19,27 +19,27 @@ import Global
 
 patches :: [MidiInst.Patch]
 patches =
-    [ set_scale $ patch "reyong"
+    [ setScale $ patch "reyong"
     , patch "reyong12"
     ]
     where
-    patch name = MidiInst.code #= code $ set_params $
-        MidiInst.named_patch (-24, 24) name []
-    code = Bali.zero_dur_mute 1 <> MidiInst.null_call DUtil.constant_pitch
-    set_params = MidiInst.patch
-        %= MidiInst.add_flags [Patch.UseFinalNoteOff]
+    patch name = MidiInst.code #= code $ setParams $
+        MidiInst.namedPatch (-24, 24) name []
+    code = Bali.zeroDurMute 1 <> MidiInst.nullCall DUtil.constantPitch
+    setParams = MidiInst.patch
+        %= MidiInst.addFlags [Patch.UseFinalNoteOff]
             . (Patch.defaults#Patch.decay #= Just 0)
-            . (Patch.attribute_map #= attribute_map)
+            . (Patch.attributeMap #= attributeMap)
     tuning = BaliScales.Umbang -- TODO verify how mine are tuned
-    set_scale =
-        (MidiInst.patch#Patch.defaults#Patch.scale #= Just instrument_scale)
+    setScale =
+        (MidiInst.patch#Patch.defaults#Patch.scale #= Just instrumentScale)
         . MidiInst.environ EnvKey.tuning tuning
     -- Trompong starts at 3a, trompong + reyong has 15 keys.
-    instrument_scale =
-        Selisir.instrument_scale (take 15 . drop 4) Selisir.laras_rambat tuning
+    instrumentScale =
+        Selisir.instrumentScale (take 15 . drop 4) Selisir.larasRambat tuning
 
-attribute_map :: Patch.AttributeMap
-attribute_map = Patch.keyswitches $ map at
+attributeMap :: Patch.AttributeMap
+attributeMap = Patch.keyswitches $ map at
     [ (Reyong.cek <> Attrs.open, 4)
     , (Reyong.cek, 3)
     , (Attrs.mute <> Attrs.open, 2)

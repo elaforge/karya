@@ -29,49 +29,49 @@ import           Types
 
 -- * analyze
 
-initial_pitches :: [Note] -> [(Int, Pitch.NoteNumber)]
-initial_pitches notes = Lists.sortOn fst $ map Tuple.swap $ Map.toList $
-    Map.fromListWith (+) [(initial_pitch note, 1) | note <- notes ]
+initialPitches :: [Note] -> [(Int, Pitch.NoteNumber)]
+initialPitches notes = Lists.sortOn fst $ map Tuple.swap $ Map.toList $
+    Map.fromListWith (+) [(initialPitch note, 1) | note <- notes ]
 
-nonconstant_pitches :: [Note] -> [Note]
-nonconstant_pitches = filter $ not . null . note_pitches
+nonconstantPitches :: [Note] -> [Note]
+nonconstantPitches = filter $ not . null . notePitches
     -- filter out ones after note-off
     -- take a decay time
 
-initial_pitch :: Note -> Pitch.NoteNumber
-initial_pitch = round_cents . note_pitch
+initialPitch :: Note -> Pitch.NoteNumber
+initialPitch = roundCents . notePitch
 
-round_cents :: Pitch.NoteNumber -> Pitch.NoteNumber
-round_cents = (/100) . Pitch.nn . round . (*100)
+roundCents :: Pitch.NoteNumber -> Pitch.NoteNumber
+roundCents = (/100) . Pitch.nn . round . (*100)
 
 -- * compute
 
 data State = State
     -- constant
-    { state_pb_range :: !(Map Addr PbRange)
+    { statePbRange :: !(Map Addr PbRange)
 
-    , state_channel :: !MState.State
+    , stateChannel :: !MState.State
     -- | Notes still sounding.  This retains notes for 'deactivate_time' after
     -- their note-off to capture controls during the decay.
-    , state_active :: !(Map Addr [SoundingNote])
-    , state_notes :: ![Note]
-    , state_warns :: ![(Midi.WriteMessage, Text)]
+    , stateActive :: !(Map Addr [SoundingNote])
+    , stateNotes :: ![Note]
+    , stateWarns :: ![(Midi.WriteMessage, Text)]
     } deriving (Show)
 
-empty_state :: State
-empty_state = State
-    { state_pb_range = mempty
-    , state_channel = MState.empty
-    , state_active = mempty
-    , state_notes = []
-    , state_warns = []
+emptyState :: State
+emptyState = State
+    { statePbRange = mempty
+    , stateChannel = MState.empty
+    , stateActive = mempty
+    , stateNotes = []
+    , stateWarns = []
     }
 
 -- | (down, up)
 type PbRange = (Pitch.NoteNumber, Pitch.NoteNumber)
 
-get_pb_range :: Addr -> State -> PbRange
-get_pb_range addr = Map.findWithDefault (-2, 2) addr . state_pb_range
+getPbRange :: Addr -> State -> PbRange
+getPbRange addr = Map.findWithDefault (-2, 2) addr . statePbRange
     -- This (-2, 2) thing is probably wrong, maybe I should crash.
 
 -- | SoundingNotes may still be open.
@@ -79,14 +79,14 @@ type SoundingNote = NoteT (Maybe RealTime)
 type Note = NoteT RealTime
 
 data NoteT end = Note
-    { note_start :: RealTime
-    , note_end :: end
-    , note_key :: Midi.Key
-    , note_vel :: Midi.Velocity
-    , note_pitch :: Pitch.NoteNumber
-    , note_pitches :: [(RealTime, Pitch.NoteNumber)]
-    , note_controls :: ControlMap
-    , note_addr :: Addr
+    { noteStart :: RealTime
+    , noteEnd :: end
+    , noteKey :: Midi.Key
+    , noteVel :: Midi.Velocity
+    , notePitch :: Pitch.NoteNumber
+    , notePitches :: [(RealTime, Pitch.NoteNumber)]
+    , noteControls :: ControlMap
+    , noteAddr :: Addr
     } deriving (Eq, Show)
 
 type ControlMap = Map MState.Control [(RealTime, Midi.ControlValue)]
@@ -101,52 +101,52 @@ modify f = do
     State.put $! f st
 
 run :: State -> [Midi.WriteMessage] -> State
-run state msgs = postproc $ run_state (mapM_ msg1 (Lists.zipPrev msgs))
+run state msgs = postproc $ runState (mapM_ msg1 (Lists.zipPrev msgs))
     where
-    run_state = Identity.runIdentity . flip State.execStateT state
+    runState = Identity.runIdentity . flip State.execStateT state
     msg1 (prev, wmsg) = flip Reader.runReaderT wmsg $ do
-        let prev_t = maybe (-RealTime.larger) Midi.wmsg_ts prev
-        when (Midi.wmsg_ts wmsg < prev_t) $
-            warn $ "timestamp less than previous: " <> pretty prev_t
-        run_msg wmsg
+        let prevT = maybe (-RealTime.larger) Midi.wmsgTs prev
+        when (Midi.wmsgTs wmsg < prevT) $
+            warn $ "timestamp less than previous: " <> pretty prevT
+        runMsg wmsg
 
 postproc :: State -> State
 postproc state_ = state
-    { state_active = Map.filterWithKey (\_ ns -> not (null ns)) $
-        Map.map (map postproc_note) (state_active state)
-    , state_notes = reverse $ map postproc_note (state_notes state)
-    , state_warns = reverse $ state_warns state
+    { stateActive = Map.filterWithKey (\_ ns -> not (null ns)) $
+        Map.map (map postprocNote) (stateActive state)
+    , stateNotes = reverse $ map postprocNote (stateNotes state)
+    , stateWarns = reverse $ stateWarns state
     }
     where
     state = deactivate 9999999 state_
-    postproc_note note = note
-        { note_controls = Map.map reverse (note_controls note)
-        , note_pitches = reverse (note_pitches note)
+    postprocNote note = note
+        { noteControls = Map.map reverse (noteControls note)
+        , notePitches = reverse (notePitches note)
         }
 
-run_msg :: Midi.WriteMessage -> SynthM ()
-run_msg wmsg@(Midi.WriteMessage dev ts (Midi.ChannelMessage chan msg)) = do
+runMsg :: Midi.WriteMessage -> SynthM ()
+runMsg wmsg@(Midi.WriteMessage dev ts (Midi.ChannelMessage chan msg)) = do
     let addr = (dev, chan)
-    modify $ update_channel_state wmsg . deactivate ts
-    case normalize_msg msg of
-        Midi.NoteOff key _ -> note_off addr ts key
-        Midi.NoteOn key vel -> note_on addr ts key vel
+    modify $ updateChannelState wmsg . deactivate ts
+    case normalizeMsg msg of
+        Midi.NoteOff key _ -> noteOff addr ts key
+        Midi.NoteOn key vel -> noteOn addr ts key vel
         Midi.Aftertouch _ _ -> warn "aftertouch not supported"
         Midi.ControlChange c val -> control addr ts (MState.CC c) val
         Midi.ProgramChange _ -> warn "program change not supported"
         Midi.ChannelPressure val -> control addr ts MState.Pressure val
-        Midi.PitchBend val -> pitch_bend addr ts val
+        Midi.PitchBend val -> pitchBend addr ts val
         _ -> warn "unhandled msg"
-run_msg _ = pure ()
+runMsg _ = pure ()
 
-update_channel_state :: Midi.WriteMessage -> State -> State
-update_channel_state wmsg state =
-    state { state_channel = MState.process (state_channel state) msg }
-    where msg = (Midi.wmsg_dev wmsg, Midi.wmsg_msg wmsg)
+updateChannelState :: Midi.WriteMessage -> State -> State
+updateChannelState wmsg state =
+    state { stateChannel = MState.process (stateChannel state) msg }
+    where msg = (Midi.wmsgDev wmsg, Midi.wmsgMsg wmsg)
 
-normalize_msg :: Midi.ChannelMessage -> Midi.ChannelMessage
-normalize_msg (Midi.NoteOn key 0) = Midi.NoteOff key 1
-normalize_msg msg = msg
+normalizeMsg :: Midi.ChannelMessage -> Midi.ChannelMessage
+normalizeMsg (Midi.NoteOn key 0) = Midi.NoteOff key 1
+normalizeMsg msg = msg
 
 -- | After notes have had a note-off time for a certain amount of time, move
 -- them from 'state_active' to 'state_notes'.  The certain amount of time
@@ -154,97 +154,97 @@ normalize_msg msg = msg
 -- pick an arbitrary constant.
 deactivate :: RealTime -> State -> State
 deactivate now state = state
-    { state_active = still_active
-    , state_notes = mapMaybe close (concat done) ++ state_notes state
+    { stateActive = stillActive
+    , stateNotes = mapMaybe close (concat done) ++ stateNotes state
     }
     where
     (addrs, (done, active)) = second unzip $ unzip $
-        map (second (List.partition note_done)) $
-        Map.toList (state_active state)
-    still_active = Map.fromList $ filter (not . null . snd) $ zip addrs active
-    note_done note = case note_end note of
-        Just d -> now >= d + deactivate_time
+        map (second (List.partition noteDone)) $
+        Map.toList (stateActive state)
+    stillActive = Map.fromList $ filter (not . null . snd) $ zip addrs active
+    noteDone note = case noteEnd note of
+        Just d -> now >= d + deactivateTime
         Nothing -> False
-    close note = case note_end note of
+    close note = case noteEnd note of
         Nothing -> Nothing
-        Just d -> Just $ note { note_end = d }
+        Just d -> Just $ note { noteEnd = d }
 
-deactivate_time :: RealTime
-deactivate_time = 1
+deactivateTime :: RealTime
+deactivateTime = 1
 
 -- * msgs
 
-note_on :: Addr -> RealTime -> Midi.Key -> Midi.Velocity -> SynthM ()
-note_on addr ts key vel = do
-    active <- State.gets $ Map.findWithDefault [] addr . state_active
-    let sounding = filter (key_sounding key) active
+noteOn :: Addr -> RealTime -> Midi.Key -> Midi.Velocity -> SynthM ()
+noteOn addr ts key vel = do
+    active <- State.gets $ Map.findWithDefault [] addr . stateActive
+    let sounding = filter (keySounding key) active
     unless (null sounding) $
         warn $ "sounding notes: " <> pretty sounding
-    channel <- State.gets $ MState.get_channel addr . state_channel
-    pb_range <- State.gets $ get_pb_range addr
-    modify_notes addr (make_note pb_range channel addr ts key vel :)
+    channel <- State.gets $ MState.getChannel addr . stateChannel
+    pbRange <- State.gets $ getPbRange addr
+    modifyNotes addr (makeNote pbRange channel addr ts key vel :)
 
-make_note :: PbRange -> MState.Channel -> Addr -> RealTime -> Midi.Key
+makeNote :: PbRange -> MState.Channel -> Addr -> RealTime -> Midi.Key
     -> Midi.Velocity -> SoundingNote
-make_note pb_range state addr start key vel = Note
-    { note_start = start
-    , note_end = Nothing
-    , note_key = key
-    , note_vel = vel
-    , note_pitch = convert_pitch pb_range key (MState.chan_pb state)
-    , note_pitches = []
-    , note_controls = here <$> MState.chan_controls state
-    , note_addr = addr
+makeNote pbRange state addr start key vel = Note
+    { noteStart = start
+    , noteEnd = Nothing
+    , noteKey = key
+    , noteVel = vel
+    , notePitch = convertPitch pbRange key (MState.chanPb state)
+    , notePitches = []
+    , noteControls = here <$> MState.chanControls state
+    , noteAddr = addr
     }
     where here val = [(start, val)]
 
-note_off :: Addr -> RealTime -> Midi.Key -> SynthM ()
-note_off addr ts key = do
-    active <- State.gets $ Map.findWithDefault [] addr . state_active
-    let (sounding, rest) = List.partition (key_sounding key) active
+noteOff :: Addr -> RealTime -> Midi.Key -> SynthM ()
+noteOff addr ts key = do
+    active <- State.gets $ Map.findWithDefault [] addr . stateActive
+    let (sounding, rest) = List.partition (keySounding key) active
     case sounding of
         [] -> warn "no sounding notes"
         n : ns -> do
             unless (null ns) $
                 warn $ "multiple sounding notes: " <> pretty sounding
-            when (ts - note_start n < 0.01) $
-                warn $ "short note: dur " <> pretty (ts - note_start n)
+            when (ts - noteStart n < 0.01) $
+                warn $ "short note: dur " <> pretty (ts - noteStart n)
                     <> " of " <> pretty n
-            modify_notes addr $ const $
-                n { note_end = Just ts } : rest
+            modifyNotes addr $ const $
+                n { noteEnd = Just ts } : rest
 
-key_sounding :: Midi.Key -> SoundingNote -> Bool
-key_sounding key n = note_end n == Nothing && note_key n == key
+keySounding :: Midi.Key -> SoundingNote -> Bool
+keySounding key n = noteEnd n == Nothing && noteKey n == key
 
 -- | Append a CC change to all sounding notes.
 control :: Addr -> RealTime -> MState.Control -> Midi.ControlValue -> SynthM ()
-control addr ts control val = modify_notes addr (map insert)
+control addr ts control val = modifyNotes addr (map insert)
     where
-    insert note = note { note_controls =
-        Map.insertWith (++) control [(ts, val)] (note_controls note) }
+    insert note = note { noteControls =
+        Map.insertWith (++) control [(ts, val)] (noteControls note) }
 
 -- | Append pitch bend to all sounding notes.
-pitch_bend :: Addr -> RealTime -> Midi.PitchBendValue -> SynthM ()
-pitch_bend addr ts val = do
-    pb_range <- State.gets $ get_pb_range addr
-    modify_notes addr (map (insert pb_range))
+pitchBend :: Addr -> RealTime -> Midi.PitchBendValue -> SynthM ()
+pitchBend addr ts val = do
+    pbRange <- State.gets $ getPbRange addr
+    modifyNotes addr (map (insert pbRange))
     where
-    insert pb_range note = note { note_pitches =
-        (ts, convert_pitch pb_range (note_key note) val) : note_pitches note }
+    insert pbRange note = note { notePitches =
+        (ts, convertPitch pbRange (noteKey note) val) : notePitches note }
 
-convert_pitch :: PbRange -> Midi.Key -> Midi.PitchBendValue -> Pitch.NoteNumber
-convert_pitch (down, up) key val = Midi.from_key key + convert val
+convertPitch :: PbRange -> Midi.Key -> Midi.PitchBendValue -> Pitch.NoteNumber
+convertPitch (down, up) key val = Midi.fromKey key + convert val
     where
     convert v
         | v >= 0 = Pitch.nn (Num.f2d v) * up
         | otherwise = Pitch.nn (- (Num.f2d v)) * down
 
-modify_notes :: Addr -> ([SoundingNote] -> [SoundingNote]) -> SynthM ()
-modify_notes addr f = do
-    active <- State.gets state_active
+modifyNotes :: Addr -> ([SoundingNote] -> [SoundingNote]) -> SynthM ()
+modifyNotes addr f = do
+    active <- State.gets stateActive
     let notes = Map.findWithDefault [] addr active
     modify $ \state -> state
-        { state_active = Map.insert addr (f notes) (state_active state) }
+        { stateActive = Map.insert addr (f notes) (stateActive state) }
 
 -- * util
 
@@ -252,43 +252,43 @@ warn :: Text -> SynthM ()
 warn msg = do
     wmsg <- Reader.ask
     State.modify $ \state ->
-        state { state_warns = (wmsg, msg) : state_warns state }
+        state { stateWarns = (wmsg, msg) : stateWarns state }
 
 
 -- * pretty
 
 -- | Format synth state in an easier to read way.
-pretty_state :: State -> Text
-pretty_state (State _pb_range _chan active notes warns) =
+prettyState :: State -> Text
+prettyState (State _pbRange _chan active notes warns) =
     Text.intercalate "\n" $ concatMap (\(a, b) -> "  " <> a : b) $
     filter (not . null . snd)
         [ ("active:", map pretty (concat (Map.elems active)))
-        , ("warns:", map pretty_warn warns)
+        , ("warns:", map prettyWarn warns)
         , ("notes:", map pretty notes)
         ]
 
 instance Pretty end => Pretty (NoteT end) where
     pretty (Note start end key vel pitch0 pitches1 controls (dev, chan)) =
         Text.unwords $ filter (not . Text.null)
-            [ addr_s, pretty key
+            [ addrS, pretty key
             , pretty start <> "--" <> pretty end <> ":"
             , "vel:" <> Num.hex 2 vel
             , if null pitches then "" else "p:" <> pretty pitches
             , if Map.null controls then ""
-                else "c:" <> pretty_controls controls
+                else "c:" <> prettyControls controls
             ]
         where
-        pitches = dropWhile ((== Midi.from_key key) . snd) $
+        pitches = dropWhile ((== Midi.fromKey key) . snd) $
             (start, pitch0) : pitches1
-        addr_s = pretty dev <> ":" <> showt chan
+        addrS = pretty dev <> ":" <> showt chan
 
-pretty_controls :: ControlMap -> Text
-pretty_controls controls = Text.intercalate "\n\t"
+prettyControls :: ControlMap -> Text
+prettyControls controls = Text.intercalate "\n\t"
     [showt cont <> ":" <> pretty vals | (cont, vals) <- Map.assocs controls]
 
-pretty_warn :: (Midi.WriteMessage, Text) -> Text
-pretty_warn (Midi.WriteMessage dev ts (Midi.ChannelMessage chan msg), warn) =
+prettyWarn :: (Midi.WriteMessage, Text) -> Text
+prettyWarn (Midi.WriteMessage dev ts (Midi.ChannelMessage chan msg), warn) =
     pretty ts <> " " <> pretty dev <> ":" <> showt chan
         <> " " <> pretty msg <> ": " <> warn
-pretty_warn (Midi.WriteMessage dev ts msg, warn) =
+prettyWarn (Midi.WriteMessage dev ts msg, warn) =
     pretty ts <> " " <> pretty dev <> ":" <> pretty msg <> ": " <> warn

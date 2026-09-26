@@ -24,20 +24,20 @@ import Global
 
 library :: Library.Library
 library = Library.transformers
-    [ ("infer-hands", (c_infer_hands :: Derive.Transformer Derive.Note))
+    [ ("infer-hands", (cInferHands :: Derive.Transformer Derive.Note))
     ]
 
-c_infer_hands :: Derive.Taggable d => Derive.Transformer d
-c_infer_hands = Derive.transformer Module.prelude "infer-hands" mempty
+cInferHands :: Derive.Taggable d => Derive.Transformer d
+cInferHands = Derive.transformer Module.prelude "infer-hands" mempty
     "Infer `hand=l` and `hand=r` for the two tracks explicitly named with the\
     \ same instrument. >2 tracks is an error. This only sets `hand` if it\
     \ isn't already set."
     $ Sig.call0t $ \_ deriver ->
-        ifM (Derive.is_val_set EnvKey.hand) deriver $ do
-            voice <- Derive.lookup_val EnvKey.track_voice
+        ifM (Derive.isValSet EnvKey.hand) deriver $ do
+            voice <- Derive.lookupVal EnvKey.trackVoice
             case voice :: Maybe Int of
-                Just 0 -> Derive.with_val EnvKey.hand ("l" :: Text) deriver
-                Just 1 -> Derive.with_val EnvKey.hand ("r" :: Text) deriver
+                Just 0 -> Derive.withVal EnvKey.hand ("l" :: Text) deriver
+                Just 1 -> Derive.withVal EnvKey.hand ("r" :: Text) deriver
                 Just n -> Derive.throw $
                     "expected <=2 track-voices, got " <> showt n
                 Nothing -> deriver

@@ -26,77 +26,77 @@ import           Global hiding (pretty)
 --
 -- At least one place that relies on this is 'Derive.Call.Note.inverting'.
 class ShowVal a where
-    show_val :: a -> Text
+    showVal :: a -> Text
     -- This intentionally has redundant constraints, which correspond to
     -- Typecheck.TEnum.  Any old Showable is unlikely to be Typecheckable.
-    default show_val :: (Show a, Enum a, Bounded a) => a -> Text
-    show_val = Text.pack . map Char.toLower . show
+    default showVal :: (Show a, Enum a, Bounded a) => a -> Text
+    showVal = Text.pack . map Char.toLower . show
 
-hex_prefix :: Text
-hex_prefix = "`0x`"
+hexPrefix :: Text
+hexPrefix = "`0x`"
 
 -- | VNums have hex and decimal literals, and show_val produces the decimal
 -- one.  So I need a way to produce the hex literal.
-show_hex_val :: Double -> Text
-show_hex_val n
-    | -1 <= n && n <= 1 = (if n < 0 then "-" else "") <> hex_prefix
+showHexVal :: Double -> Text
+showHexVal n
+    | -1 <= n && n <= 1 = (if n < 0 then "-" else "") <> hexPrefix
         <> if Text.length h == 1 then "0" <> h else h
-    | otherwise = show_val n
+    | otherwise = showVal n
     where h = txt $ Numeric.showHex (round (abs n * 0xff)) ""
 
-is_hex_val :: Text -> Bool
-is_hex_val = (hex_prefix `Text.isPrefixOf`)
+isHexVal :: Text -> Bool
+isHexVal = (hexPrefix `Text.isPrefixOf`)
 
 -- | Show a val for inclusion into CallDoc.
 doc :: ShowVal a => a -> Doc.Doc
-doc = Doc.literal . show_val
+doc = Doc.literal . showVal
 
 -- Really these instances should go in "Derive.Parse", but it imports
 -- "Derive.DeriveT", which needs them.
 
 instance ShowVal a => ShowVal [a] where
-    show_val [] = "\"(list)"
-    show_val xs = "\"(list " <> Text.unwords (map show_val xs) <> ")"
+    showVal [] = "\"(list)"
+    showVal xs = "\"(list " <> Text.unwords (map showVal xs) <> ")"
 instance ShowVal a => ShowVal (Set a) where
-    show_val = show_val . Set.toList
+    showVal = showVal . Set.toList
 
 instance ShowVal Int where
-    show_val = showt
+    showVal = showt
 
 instance ShowVal Double where
-    show_val = Num.showFloat 3
+    showVal = Num.showFloat 3
 
 instance ShowVal (Ratio.Ratio Int) where
-    show_val r =
-        show_val (Ratio.numerator r) <> "/" <> show_val (Ratio.denominator r)
+    showVal r =
+        showVal (Ratio.numerator r) <> "/" <> showVal (Ratio.denominator r)
 
 instance ShowVal a => ShowVal (Maybe a) where
     -- This is a bit sketchy because while _ can mean Nothing, it actually
     -- means use the default, which may not be Nothing.
-    show_val Nothing = "_"
-    show_val (Just a) = show_val a
+    showVal Nothing = "_"
+    showVal (Just a) = showVal a
 
 instance (ShowVal a, ShowVal b) => ShowVal (Either a b) where
-    show_val = either show_val show_val
+    showVal = either showVal showVal
 
 instance ShowVal Bool where
-    show_val b = if b then "t" else "f"
+    showVal b = if b then "t" else "f"
 
 -- | This should be the inverse of 'Derive.Parse.p_str' and
 -- 'Derive.Parse.p_unquoted_str'.
 instance ShowVal Text where
-    show_val s
+    showVal s
         | bare = s
         | otherwise = "'" <> Text.concatMap quote s <> "'"
         where
         bare = case Text.uncons s of
-            Just (c, cs) -> is_unquoted_head c && Text.all is_unquoted_body cs
+            Just (c, cs) -> isUnquotedHead c && Text.all isUnquotedBody cs
             Nothing -> False
         quote '\'' = "''"
         quote c = Text.singleton c
 
-is_unquoted_head :: Char -> Bool
-is_unquoted_head c = c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || c == '-'
+isUnquotedHead :: Char -> Bool
+isUnquotedHead c = c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || c == '-'
 
-is_unquoted_body :: Char -> Bool
-is_unquoted_body c = c /= ' ' && c /= '\t' && c /= '\n' && c /= '='
+isUnquotedBody :: Char -> Bool
+isUnquotedBody c = c /= ' ' && c /= '\t' && c /= '\n' && c /= '='

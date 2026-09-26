@@ -16,12 +16,12 @@ import           Util.Test
 
 test_lookup_next_pitch :: Test
 test_lookup_next_pitch = do
-    let run = DeriveTest.extract (DeriveTest.e_environ "next")
-            . DeriveTest.derive_tracks_setup
-                (CallTest.with_note_generator "g" c_gen) "tempo=.5"
-            . UiTest.note_track1
-        c_gen = CallTest.generator $ \args -> do
-            next <- Args.lookup_next_pitch args
-            Derive.with_val "next" next Call.note
+    let run = DeriveTest.extract (DeriveTest.eEnviron "next")
+            . DeriveTest.deriveTracksSetup
+                (CallTest.withNoteGenerator "g" cGen) "tempo=.5"
+            . UiTest.noteTrack1
+        cGen = CallTest.generator $ \args -> do
+            next <- Args.lookupNextPitch args
+            Derive.withVal "next" next Call.note
     equal (run ["g -- 4c", "g -- 4d"])
         ([Just "<pitch: 62nn,4d(twelve)>", Nothing], [])

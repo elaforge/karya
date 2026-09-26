@@ -12,8 +12,8 @@ import qualified Derive.DeriveTest as DeriveTest
 
 test_omit :: Test
 test_omit = do
-    let extract = DeriveTest.extract DeriveTest.e_start_dur
-    let run n = extract $ DeriveTest.derive_tracks ""
+    let extract = DeriveTest.extract DeriveTest.eStartDur
+    let run n = extract $ DeriveTest.deriveTracks ""
             [(">", [(p, 1, n) | p <- Lists.range 0 5 1])]
     equal (run "omit 0 |") ([(p, 1) | p <- Lists.range 0 5 1], [])
     equal (run "omit 1 |") ([], [])
@@ -21,7 +21,7 @@ test_omit = do
     equal (run "omit .5 |") (map (, 1) present, [])
 
     -- Ensure different calls to the same block are differently random.
-    let blocks ns = extract $ DeriveTest.derive_blocks
+    let blocks ns = extract $ DeriveTest.deriveBlocks
             [ ("top",
                 [(">", [(p, 1, n) | (p, n) <- zip (Lists.range_ 0 1) ns])])
             , ("sub=ruler", [(">", [(0, 1, "omit .5 |")])])
@@ -31,7 +31,7 @@ test_omit = do
 
 test_alternate :: Test
 test_alternate = do
-    let run s = DeriveTest.extract DeriveTest.e_pitch $ DeriveTest.derive_blocks
+    let run s = DeriveTest.extract DeriveTest.ePitch $ DeriveTest.deriveBlocks
             [ ("top", [(">", [(p, 1, s) | p <- Lists.range 0 5 1])])
             , ("s1=ruler", [(">", [(0, 1, "")]), ("*", [(0, 0, "4c")])])
             , ("s2=ruler", [(">", [(0, 1, "")]), ("*", [(0, 0, "4d")])])
@@ -40,23 +40,23 @@ test_alternate = do
 
 test_alternate_weighted :: Test
 test_alternate_weighted = do
-    let run s = DeriveTest.extract (DeriveTest.e_control "c") $
-            DeriveTest.derive_tracks ""
+    let run s = DeriveTest.extract (DeriveTest.eControl "c") $
+            DeriveTest.deriveTracks ""
                 [(">", [(0, 1, "")]), ("c", [(0, 0, s)])]
-    strings_like (snd (run "alt-w a b")) ["expected Signal"]
+    stringsLike (snd (run "alt-w a b")) ["expected Signal"]
     equal (run "alt-w 1 '5'") ([[(0, 5)]], [])
     equal (run "alt-w 1 5") ([[(0, 5)]], [])
 
-    let runp s = DeriveTest.extract DeriveTest.e_note $
-            DeriveTest.derive_tracks ""
+    let runp s = DeriveTest.extract DeriveTest.eNote $
+            DeriveTest.deriveTracks ""
                 [(">", [(0, 1, "")]), ("*", [(0, 0, s)])]
     equal (runp "alt-w 1 '4c'") ([(0, 1, "4c")], [])
-    strings_like (snd (runp "alt-w 1 (4c)")) ["expected Quoted but got Pitch"]
+    stringsLike (snd (runp "alt-w 1 (4c)")) ["expected Quoted but got Pitch"]
 
 test_alternate_tracks :: Test
 test_alternate_tracks = do
-    let run tracks = DeriveTest.extract DeriveTest.e_attributes $
-            DeriveTest.derive_tracks_setup (DeriveTest.with_skel skel) ""
+    let run tracks = DeriveTest.extract DeriveTest.eAttributes $
+            DeriveTest.deriveTracksSetup (DeriveTest.withSkel skel) ""
                 (map ((,) ">") tracks)
             where skel = map ((,) 1) [2 .. length tracks]
     equal (run [[(0, 1, "+a")]]) (["+a"], [])
@@ -67,14 +67,14 @@ test_alternate_tracks = do
 
 test_tempo_alternate :: Test
 test_tempo_alternate = do
-    let run tempo note = DeriveTest.extract DeriveTest.e_pitch $
-            DeriveTest.derive_blocks (blocks tempo note)
+    let run tempo note = DeriveTest.extract DeriveTest.ePitch $
+            DeriveTest.deriveBlocks (blocks tempo note)
         blocks tempo note =
             [ ("top", [("tempo", [(0, 0, tempo)]), (">", [(0, 1, note)])])
-            , ("a=ruler", UiTest.note_track1 ["4c"])
-            , ("b=ruler", UiTest.note_track1 ["4d"])
+            , ("a=ruler", UiTest.noteTrack1 ["4c"])
+            , ("b=ruler", UiTest.noteTrack1 ["4d"])
             ]
-    strings_like (snd $ run "1" "t-alt a 2 b 1 a")
+    stringsLike (snd $ run "1" "t-alt a 2 b 1 a")
         ["thresholds should be in ascending order"]
     -- The fast alternate is to the left.
     equal (run "1" "t-alt a 2 b") (["4c"], [])
@@ -82,23 +82,23 @@ test_tempo_alternate = do
 
 test_under_threshold :: Test
 test_under_threshold = do
-    let f = Random.under_threshold 'a' [(1, 'b'), (3, 'c')]
+    let f = Random.underThreshold 'a' [(1, 'b'), (3, 'c')]
     equal (map f [0, 1, 2, 3, 4]) "abbcc"
 
 test_tempo_alternate_continuous :: Test
 test_tempo_alternate_continuous = do
     let run tempo note = DeriveTest.extract extract $
-            DeriveTest.derive_blocks (blocks tempo note)
+            DeriveTest.deriveBlocks (blocks tempo note)
         blocks tempo note =
             [ ("top",
-                [ ("tempo", UiTest.control_track tempo)
+                [ ("tempo", UiTest.controlTrack tempo)
                 , (">", [(0, 4, note)])
                 ])
-            , ("a=ruler", UiTest.note_track1 ["4c"])
-            , ("b=ruler", UiTest.note_track1 ["5c", "5d"])
-            , ("c=ruler", UiTest.note_track1 ["6c", "6d", "6e", "6f"])
+            , ("a=ruler", UiTest.noteTrack1 ["4c"])
+            , ("b=ruler", UiTest.noteTrack1 ["5c", "5d"])
+            , ("c=ruler", UiTest.noteTrack1 ["6c", "6d", "6e", "6f"])
             ]
-        extract = DeriveTest.e_note
+        extract = DeriveTest.eNote
     equal (run [(0, "1")] "t-alt-c a") ([(0, 4, "4c")], [])
     equal (run [(0, "1")] "t-alt-c a 1 b 2 c") ([(0, 4, "4c")], [])
     equal (run [(0, ".5")] "t-alt-c a 1 b 2 c")
@@ -117,7 +117,7 @@ test_tempo_alternate_continuous = do
 test_select_indices :: Test
 test_select_indices = do
     let f is = map (xs!!) is2
-            where (xs, is2) = Random.select_indices ("abcdef" :: [Char]) is
+            where (xs, is2) = Random.selectIndices ("abcdef" :: [Char]) is
     equal (f [1, 3]) "bd"
     equal (f [3, 1]) "db"
     equal (f [2, 0, 5]) "caf"

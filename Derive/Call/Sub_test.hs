@@ -26,9 +26,9 @@ import           Util.Test
 
 test_inverting :: Test
 test_inverting = do
-    let run = DeriveTest.extract_events extract
-            . DeriveTest.derive_tracks_linear ""
-        extract e = (DeriveTest.e_note e, DeriveTest.e_attributes e)
+    let run = DeriveTest.extractEvents extract
+            . DeriveTest.deriveTracksLinear ""
+        extract e = (DeriveTest.eNote e, DeriveTest.eAttributes e)
     -- Simple inversion.
     equal (run [(">", [(0, 1, "")]), ("*", [(0, 0, "4c")])])
         [((0, 1, "4c"), "+")]
@@ -42,23 +42,23 @@ test_inverting = do
 
 test_inverting_block :: Test
 test_inverting_block = do
-    let run = DeriveTest.extract DeriveTest.e_note
-            . DeriveTest.derive_blocks
+    let run = DeriveTest.extract DeriveTest.eNote
+            . DeriveTest.deriveBlocks
     -- This used to fail when I used an Inverted state instead of stripping
     -- the subtracks in 'Sub.inverting'.
     equal (run
             [ ("top", [(">", [(0, 1, "sub")]), ("*", [])])
-            , ("sub=ruler", UiTest.regular_notes 1)
+            , ("sub=ruler", UiTest.regularNotes 1)
             ])
         ([(0, 1, "3c")], [])
 
 test_under_invert :: Test
 test_under_invert = do
-    let run under_invert = DeriveTest.extract (DeriveTest.e_control_vals "out")
-            . DeriveTest.derive_tracks_setup (call under_invert) ""
-        call under_invert =
-            CallTest.with_note_transformer "t" (trans under_invert)
-            <> CallTest.with_note_generator "g" gen
+    let run underInvert = DeriveTest.extract (DeriveTest.eControlVals "out")
+            . DeriveTest.deriveTracksSetup (call underInvert) ""
+        call underInvert =
+            CallTest.withNoteTransformer "t" (trans underInvert)
+            <> CallTest.withNoteGenerator "g" gen
 
     -- A normal call sees the outer "c".
     equal (run False
@@ -92,31 +92,31 @@ test_under_invert = do
         -- Well, except the transformer gets lost, see 'Sub.under_invert'.
         -- ([[(0, 1)]], [])
     where
-    trans under_invert = CallTest.transformer $
-        (if under_invert then Sub.under_invert else ($)) $
+    trans underInvert = CallTest.transformer $
+        (if underInvert then Sub.underInvert else ($)) $
         \args deriver -> do
-            val <- Derive.untyped_control_at "c" =<< Args.real_start args
+            val <- Derive.untypedControlAt "c" =<< Args.realStart args
             let sig = ScoreT.untyped (Signal.constant (fromMaybe 0 val))
-            Derive.with_control "out" sig deriver
+            Derive.withControl "out" sig deriver
     gen :: Derive.Generator Derive.Note
     gen = Derive.generator1 "mod" "gen" mempty "doc" $ Sig.call0 $ \args -> do
-        dyn <- Internal.get_dynamic id
-        NoteUtil.make_event args dyn 0 1 "" mempty
+        dyn <- Internal.getDynamic id
+        NoteUtil.makeEvent args dyn 0 1 "" mempty
 
 test_inverted_control_scope :: Test
 test_inverted_control_scope = do
-    let run = DeriveTest.extract DeriveTest.e_nns
-            . DeriveTest.derive_tracks ""
+    let run = DeriveTest.extract DeriveTest.eNns
+            . DeriveTest.deriveTracks ""
     -- Inverted controls are clipped to their note's extent.
-    equal (run $ UiTest.note_track [(0, 1, "4c"), (1, 1, "4d")])
+    equal (run $ UiTest.noteTrack [(0, 1, "4c"), (1, 1, "4d")])
         ([[(0, 60), (1, 60)], [(1, 62)]], [])
-    equal (run $ UiTest.note_track [(0, 1, "+a -- 4c"), (1, 1, "4d")])
+    equal (run $ UiTest.noteTrack [(0, 1, "+a -- 4c"), (1, 1, "4d")])
         ([[(0, 60), (1, 60)], [(1, 62)]], [])
 
 test_overlapping_parent_control_scope :: Test
 test_overlapping_parent_control_scope = do
-    let run = DeriveTest.extract DeriveTest.e_nns
-            . DeriveTest.derive_tracks_linear "import ly"
+    let run = DeriveTest.extract DeriveTest.eNns
+            . DeriveTest.deriveTracksLinear "import ly"
     --          0 1 2 3 4
     -- >        v=1-----|
     -- > | ly-t v=2-|
@@ -146,8 +146,8 @@ test_overlapping_parent_control_scope = do
 test_sub_notes :: Test
 test_sub_notes = do
     let run tracks = DeriveTest.extract extract $
-            DeriveTest.derive_tracks_linear "" tracks
-        extract = DeriveTest.e_attributes
+            DeriveTest.deriveTracksLinear "" tracks
+        extract = DeriveTest.eAttributes
     -- Ensure zero duration subs show up.
     equal (run [(">", [(0, 2, "+a")]), (">", [(0, 0, ""), (1, 0, "")])])
         (["+a", "+a"], [])
@@ -156,25 +156,25 @@ test_sub_notes = do
             [(">", [(0, 0, "+a")]), (">", [(0, 0, "+b")]), (">", [(0, 1, "")])])
         (["+a+b"], [])
 
-make_controls :: String -> [Int] -> (String, [Slice_test.Event])
-make_controls title ps = (title, [(to_score p, 0, showt p) | p <- ps])
-    where to_score = ScoreTime.from_double . fromIntegral
+makeControls :: String -> [Int] -> (String, [Slice_test.Event])
+makeControls title ps = (title, [(toScore p, 0, showt p) | p <- ps])
+    where toScore = ScoreTime.fromDouble . fromIntegral
 
 mkargs :: Text -> [Slice_test.EventsTree] -> Derive.PassedArgs d
 mkargs text subs = Derive.PassedArgs [] "call" info
     where
     event = Event.event 0 1 text
     info = Derive.Context
-        { Derive.ctx_prev_val = Nothing
-        , Derive.ctx_event = event
-        , Derive.ctx_prev_events = prev
-        , Derive.ctx_next_events = next
-        , Derive.ctx_event_end = event_end
-        , Derive.ctx_track_shifted = 0
-        , Derive.ctx_sub_tracks = map Slice_test.make_tree subs
-        , Derive.ctx_sub_events = Nothing
-        , Derive.ctx_track_type = Nothing
+        { Derive.ctxPrevVal = Nothing
+        , Derive.ctxEvent = event
+        , Derive.ctxPrevEvents = prev
+        , Derive.ctxNextEvents = next
+        , Derive.ctxEventEnd = eventEnd
+        , Derive.ctxTrackShifted = 0
+        , Derive.ctxSubTracks = map Slice_test.makeTree subs
+        , Derive.ctxSubEvents = Nothing
+        , Derive.ctxTrackType = Nothing
         }
     prev = []
     next = [Event.event (Event.end event) 0 "next"]
-    event_end = 100
+    eventEnd = 100

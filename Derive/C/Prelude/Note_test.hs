@@ -21,17 +21,17 @@ import           Util.Test
 test_note_track_call :: Test
 test_note_track_call = do
     let run = DeriveTest.extract extract
-            . DeriveTest.derive_tracks_setup
-                (CallTest.with_note_transformer ">i1" trans) ""
-        extract e = DeriveTest.e_environ_val "x" e :: Maybe Int
-        trans = CallTest.transformer $ \_ -> Derive.with_val "x" (42 :: Int)
+            . DeriveTest.deriveTracksSetup
+                (CallTest.withNoteTransformer ">i1" trans) ""
+        extract e = DeriveTest.eEnvironVal "x" e :: Maybe Int
+        trans = CallTest.transformer $ \_ -> Derive.withVal "x" (42 :: Int)
     equal (run [(">i1", [(0, 1, "")])]) ([Just 42], [])
     equal (run [(">i2", [(0, 1, "")])]) ([Nothing], [])
 
 test_sustain_controls :: Test
 test_sustain_controls = do
-    let run title = DeriveTest.extract DeriveTest.e_start_dur
-            . DeriveTest.derive_tracks title . UiTest.note_track $ [(0, 1, "")]
+    let run title = DeriveTest.extract DeriveTest.eStartDur
+            . DeriveTest.deriveTracks title . UiTest.noteTrack $ [(0, 1, "")]
     equal (run "") ([(0, 1)], [])
     equal (run "sus-set = .25") ([(0, 0.25)], [])
     equal (run "sus-abs = .25") ([(0, 1.25)], [])
@@ -53,8 +53,8 @@ test_orphan_notes = do
     -- Also tested in 'Derive.Slice_test.test_slice_notes_orphans'.
     -- This is analogous to track level orphans, which are tested in
     -- "Ui.Call.BlockUtil_test".
-    let run = DeriveTest.extract extract . DeriveTest.derive_tracks_linear ""
-        extract e = (DeriveTest.e_note e, DeriveTest.e_attributes e)
+    let run = DeriveTest.extract extract . DeriveTest.deriveTracksLinear ""
+        extract e = (DeriveTest.eNote e, DeriveTest.eAttributes e)
     equal (run
         [ (">i", [(0, 2, "a = b")])
         , (">", [])
@@ -72,26 +72,26 @@ test_orphan_notes = do
 
 test_transpose :: Test
 test_transpose = do
-    let run = DeriveTest.extract DeriveTest.e_pitch
-            . DeriveTest.derive_tracks ""
+    let run = DeriveTest.extract DeriveTest.ePitch
+            . DeriveTest.deriveTracks ""
     equal (run [(">", [(0, 1, "")]), ("*", [(0, 0, "4c")]),
             ("t-chrom", [(0, 0, "1")])])
         (["4c#"], [])
 
 test_apply_instrument_controls :: Test
 test_apply_instrument_controls = do
-    let run title controls = DeriveTest.extract DeriveTest.e_pitch $
-            DeriveTest.derive_tracks_setup (with_config controls) title
+    let run title controls = DeriveTest.extract DeriveTest.ePitch $
+            DeriveTest.deriveTracksSetup (withConfig controls) title
                 [(">i1", [(0, 1, "")]), ("*", [(0, 0, "4c")])]
-        with_config controls = DeriveTest.with_midi_config "i1" "s/1"
-            (Common.controls #= controls $ Common.empty_config)
+        withConfig controls = DeriveTest.withMidiConfig "i1" "s/1"
+            (Common.controls #= controls $ Common.emptyConfig)
             (Patch.config [])
     -- This doesn't test the controls directly, but rather that the
     -- transposition is applied as expected.
     equal (run "" mempty) (["4c"], [])
-    let octave_up = Map.fromList [(Controls.octave, 1)]
-    equal (run "" octave_up) (["5c"], [])
+    let octaveUp = Map.fromList [(Controls.octave, 1)]
+    equal (run "" octaveUp) (["5c"], [])
     -- Controls are merged with their default mergers.
-    equal (run "t-oct=1" octave_up) (["6c"], [])
+    equal (run "t-oct=1" octaveUp) (["6c"], [])
     -- Controls don't get applied multiple times.
-    equal (run "inst = i1" octave_up) (["5c"], [])
+    equal (run "inst = i1" octaveUp) (["5c"], [])

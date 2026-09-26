@@ -38,5 +38,5 @@ invert Positive = Negative
 invert Negative = Positive
 
 instance Serialize.Serialize Orientation where
-    put = Serialize.put_enum_unsafe
-    get = Serialize.get_enum_unsafe
+    put = Serialize.putEnumUnsafe
+    get = Serialize.getEnumUnsafe

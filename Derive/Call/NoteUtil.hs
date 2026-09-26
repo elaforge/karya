@@ -4,7 +4,7 @@
 
 -- | Utilities for the default note call.  They're separated here so internal
 -- utilities can make events without importing "Derive.C.Prelude.Note".
-module Derive.Call.NoteUtil (make_event, make_event_control_vals) where
+module Derive.Call.NoteUtil (makeEvent, makeEventControlVals) where
 import qualified Data.Map as Map
 
 import qualified Derive.Args as Args
@@ -33,38 +33,38 @@ import           Types
 -- | This is the canonical way to make a Score.Event.  It handles all the
 -- control trimming and control function value stashing that the perform layer
 -- relies on.
-make_event :: Derive.PassedArgs a -> Derive.Dynamic -> RealTime -> RealTime
+makeEvent :: Derive.PassedArgs a -> Derive.Dynamic -> RealTime -> RealTime
     -> Text -> Flags.Flags -> Derive.Deriver Score.Event
-make_event args dyn start dur integrate flags = do
-    cvmap <- Derive.controls_at start
-    make_event_control_vals cvmap args dyn start dur integrate flags
+makeEvent args dyn start dur integrate flags = do
+    cvmap <- Derive.controlsAt start
+    makeEventControlVals cvmap args dyn start dur integrate flags
 
 -- | Specialized version of 'make_event' just so I can avoid calling
 -- Derive.controls_at twice.
-make_event_control_vals :: ScoreT.ControlValMap -> Derive.PassedArgs a
+makeEventControlVals :: ScoreT.ControlValMap -> Derive.PassedArgs a
     -> Derive.Dynamic -> RealTime -> RealTime -> Text -> Flags.Flags
     -> Derive.Deriver Score.Event
-make_event_control_vals cvmap args dyn start dur integrate flags = do
-    offset <- get_start_offset start
-    Internal.increment_event_serial
+makeEventControlVals cvmap args dyn start dur integrate flags = do
+    offset <- getStartOffset start
+    Internal.incrementEventSerial
     pure $! Score.Event
-        { event_start = start
-        , event_duration = dur
-        , event_text = Event.text (Args.event args)
-        , event_integrate = integrate
-        , event_pitch = trim_pitch start (Derive.state_pitch dyn)
-        , event_stack = Derive.state_stack dyn
-        , event_highlight = Color.NoHighlight
-        , event_instrument = fromMaybe ScoreT.empty_instrument $
-            Env.maybe_val EnvKey.instrument environ
+        { eventStart = start
+        , eventDuration = dur
+        , eventText = Event.text (Args.event args)
+        , eventIntegrate = integrate
+        , eventPitch = trimPitch start (Derive.statePitch dyn)
+        , eventStack = Derive.stateStack dyn
+        , eventHighlight = Color.NoHighlight
+        , eventInstrument = fromMaybe ScoreT.emptyInstrument $
+            Env.maybeVal EnvKey.instrument environ
         -- Put trimmed controls back into the environ.
-        , event_environ = Env.map (trim_control_vals start) $
-            stash_convert_values cvmap offset environ
-        , event_flags = flags
-        , event_delayed_args = mempty
-        , event_logs = []
+        , eventEnviron = Env.map (trimControlVals start) $
+            stashConvertValues cvmap offset environ
+        , eventFlags = flags
+        , eventDelayedArgs = mempty
+        , eventLogs = []
         }
-    where environ = Derive.state_environ dyn
+    where environ = Derive.stateEnviron dyn
 
 -- | Trim control signals.
 --
@@ -72,38 +72,38 @@ make_event_control_vals cvmap args dyn start dur integrate flags = do
 -- as-is and rely on the performer to trim the end according to the
 -- instrument's decay time.  This is so that a note whose decay persists
 -- outside of its block can still see control changes after its block ends.
-trim_control_vals :: RealTime -> DeriveT.Val -> DeriveT.Val
-trim_control_vals start = \case
-    DeriveT.VSignal sig -> DeriveT.VSignal $ Signal.drop_before start <$> sig
-    DeriveT.VPSignal sig -> DeriveT.VPSignal $ PSignal.drop_before start sig
+trimControlVals :: RealTime -> DeriveT.Val -> DeriveT.Val
+trimControlVals start = \case
+    DeriveT.VSignal sig -> DeriveT.VSignal $ Signal.dropBefore start <$> sig
+    DeriveT.VPSignal sig -> DeriveT.VPSignal $ PSignal.dropBefore start sig
     val -> val
 
 -- | Stash the dynamic value from the ControlValMap in
 -- 'Controls.dynamic_function'.  Gory details in NOTE [EnvKey.dynamic_val].
-stash_convert_values :: ScoreT.ControlValMap -> RealTime -> Env.Environ
+stashConvertValues :: ScoreT.ControlValMap -> RealTime -> Env.Environ
     -> Env.Environ
-stash_convert_values vals offset =
-    stash_start_offset
-    . insert_if Controls.dynamic EnvKey.dynamic_val
-    . insert_if Controls.attack_velocity EnvKey.attack_val
+stashConvertValues vals offset =
+    stashStartOffset
+    . insertIf Controls.dynamic EnvKey.dynamicVal
+    . insertIf Controls.attackVelocity EnvKey.attackVal
     -- Perhaps this should be sampled at the event end, but I don't want to
     -- get a whole new ControlValMap just for that.
-    . insert_if Controls.release_velocity EnvKey.release_val
+    . insertIf Controls.releaseVelocity EnvKey.releaseVal
     where
-    stash_start_offset = Env.insert_val EnvKey.start_offset_val offset
-    insert_if control key = maybe id (Env.insert_val key) $
+    stashStartOffset = Env.insertVal EnvKey.startOffsetVal offset
+    insertIf control key = maybe id (Env.insertVal key) $
         Map.lookup control vals
 
-get_start_offset :: RealTime -> Derive.Deriver RealTime
-get_start_offset start = do
-    start_s <- maybe 0 RealTime.seconds <$>
-        Derive.untyped_control_at Controls.start_s start
-    start_t <- maybe 0 ScoreTime.from_double <$>
-        Derive.untyped_control_at Controls.start_t start
-    start_t <- Call.real_duration start start_t
-    pure $ start_s + start_t
+getStartOffset :: RealTime -> Derive.Deriver RealTime
+getStartOffset start = do
+    startS <- maybe 0 RealTime.seconds <$>
+        Derive.untypedControlAt Controls.startS start
+    startT <- maybe 0 ScoreTime.fromDouble <$>
+        Derive.untypedControlAt Controls.startT start
+    startT <- Call.realDuration start startT
+    pure $ startS + startT
 
 -- | For inverted tracks, this trimming should already be done by
 -- 'Derive.Control.trim_signal'.
-trim_pitch :: RealTime -> PSignal.PSignal -> PSignal.PSignal
-trim_pitch = PSignal.drop_before
+trimPitch :: RealTime -> PSignal.PSignal -> PSignal.PSignal
+trimPitch = PSignal.dropBefore

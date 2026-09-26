@@ -51,45 +51,45 @@ data Clause = Clause Bool Tag.Key Tag.Value
 --
 -- An empty query matches everything.
 search :: Index -> Query -> [InstT.Qualified]
-search idx (Query []) = Map.keys (idx_instrument_tags idx)
+search idx (Query []) = Map.keys (idxInstrumentTags idx)
 search idx (Query clauses)
     | null positive = []
     | otherwise = Set.toList $
         foldl1 Set.intersection positive `Set.difference` negative
     where
     positive
-        | null kvs = [Map.keysSet (idx_instrument_tags idx)]
-        | otherwise = filter (not . Set.null) $ query_matches idx kvs
+        | null kvs = [Map.keysSet (idxInstrumentTags idx)]
+        | otherwise = filter (not . Set.null) $ queryMatches idx kvs
         where kvs = [(k, v) | Clause False k v <- clauses]
-    negative = mconcat $ query_matches idx [(k, v) | Clause True k v <- clauses]
+    negative = mconcat $ queryMatches idx [(k, v) | Clause True k v <- clauses]
 
-tags_of :: Index -> InstT.Qualified -> Maybe [Tag.Tag]
-tags_of idx inst = Map.lookup inst (idx_instrument_tags idx)
+tagsOf :: Index -> InstT.Qualified -> Maybe [Tag.Tag]
+tagsOf idx inst = Map.lookup inst (idxInstrumentTags idx)
 
 data Index = Index
-    { idx_by_key :: Map Tag.Key (Map Tag.Value [InstT.Qualified])
-    , idx_instrument_tags :: Map InstT.Qualified [Tag.Tag]
+    { idxByKey :: Map Tag.Key (Map Tag.Value [InstT.Qualified])
+    , idxInstrumentTags :: Map InstT.Qualified [Tag.Tag]
     } deriving (Show)
 
-empty_index :: Index
-empty_index = Index Map.empty Map.empty
+emptyIndex :: Index
+emptyIndex = Index Map.empty Map.empty
 
 -- | Merge the indices, favoring instruments from the left one.
-merge_indices :: Index -> Index -> Index
-merge_indices (Index keys0 inv0) (Index keys1 inv1) =
-    Index (merge_keys keys0 keys1) (Map.union inv0 inv1)
+mergeIndices :: Index -> Index -> Index
+mergeIndices (Index keys0 inv0) (Index keys1 inv1) =
+    Index (mergeKeys keys0 keys1) (Map.union inv0 inv1)
     where
-    merge_keys = Map.unionWith merge_vals
-    merge_vals = Map.unionWith (++)
+    mergeKeys = Map.unionWith mergeVals
+    mergeVals = Map.unionWith (++)
 
-make_index :: Inst.Db code -> Index
-make_index db = Index
-    { idx_by_key = Map.map Maps.multimap (Maps.multimap idx)
-    , idx_instrument_tags = Map.fromList inst_tags
+makeIndex :: Inst.Db code -> Index
+makeIndex db = Index
+    { idxByKey = Map.map Maps.multimap (Maps.multimap idx)
+    , idxInstrumentTags = Map.fromList instTags
     }
     where
-    inst_tags = instrument_tags db
-    idx = [(key, (val, inst)) | (inst, tags) <- inst_tags, (key, val) <- tags]
+    instTags = instrumentTags db
+    idx = [(key, (val, inst)) | (inst, tags) <- instTags, (key, val) <- tags]
 
 -- | The query language looks like \"a b= c=d !e=f\", which means
 --
@@ -117,45 +117,45 @@ parse = Query . map clause . Text.words
 
 -- * implementation
 
-query_matches :: Index -> [(Tag.Key, Tag.Value)] -> [Set InstT.Qualified]
-query_matches (Index idx _) = map (Set.fromList . with_tag)
+queryMatches :: Index -> [(Tag.Key, Tag.Value)] -> [Set InstT.Qualified]
+queryMatches (Index idx _) = map (Set.fromList . withTag)
     where
-    with_tag ("", val) = case Text.splitOn "/" val of
+    withTag ("", val) = case Text.splitOn "/" val of
         [synth, name] -> filter ((val `Text.isInfixOf`) . pretty) $
-            with_tag ("synth", synth) ++ with_tag ("name", name)
-        _ -> with_tag ("synth", val) ++ with_tag ("name", val)
-    with_tag (key, val) = case Map.lookup key idx of
+            withTag ("synth", synth) ++ withTag ("name", name)
+        _ -> withTag ("synth", val) ++ withTag ("name", val)
+    withTag (key, val) = case Map.lookup key idx of
         Nothing -> []
         Just vals -> concatMap snd $
             filter ((val `Text.isInfixOf`) . fst) (Map.assocs vals)
 
-instrument_tags :: Inst.Db code -> [(InstT.Qualified, [Tag.Tag])]
-instrument_tags = concatMap synth_tags . Inst.synths
+instrumentTags :: Inst.Db code -> [(InstT.Qualified, [Tag.Tag])]
+instrumentTags = concatMap synthTags . Inst.synths
 
-synth_tags :: (InstT.SynthName, Inst.Synth code)
+synthTags :: (InstT.SynthName, Inst.Synth code)
     -> [(InstT.Qualified, [Tag.Tag])]
-synth_tags (synth_name, synth) = do
-    (inst_name, inst) <- Map.toList (Inst.synth_insts synth)
-    let tags = normalize_tags $
-            common_tags synth_name inst_name (Inst.inst_common inst)
-            ++ inst_tags (Inst.inst_backend inst)
-    pure (InstT.Qualified synth_name inst_name, tags)
+synthTags (synthName, synth) = do
+    (instName, inst) <- Map.toList (Inst.synthInsts synth)
+    let tags = normalizeTags $
+            commonTags synthName instName (Inst.instCommon inst)
+            ++ instTags (Inst.instBackend inst)
+    pure (InstT.Qualified synthName instName, tags)
 
-common_tags :: InstT.SynthName -> InstT.Name -> Common.Common code -> [Tag.Tag]
-common_tags synth_name inst_name common =
-    (Tag.synth, synth_name)
-    : (Tag.name, inst_name)
-    : Common.common_tags common
+commonTags :: InstT.SynthName -> InstT.Name -> Common.Common code -> [Tag.Tag]
+commonTags synthName instName common =
+    (Tag.synth, synthName)
+    : (Tag.name, instName)
+    : Common.commonTags common
 
 -- | Get tags of an inst, including automatically generated tags.
-inst_tags :: Inst.Backend -> [Tag.Tag]
-inst_tags = \case
+instTags :: Inst.Backend -> [Tag.Tag]
+instTags = \case
     Inst.Midi patch -> concat
         [ [(Tag.backend, "midi")]
-        , control_tags $ Patch.patch_control_map patch
-        , case Patch.patch_initialize patch of
+        , controlTags $ Patch.patchControlMap patch
+        , case Patch.patchInitialize patch of
             Patch.InitializeMidi msgs
-                | any Midi.is_sysex msgs -> [(Tag.sysex, "")]
+                | any Midi.isSysex msgs -> [(Tag.sysex, "")]
                 | otherwise -> []
             _ -> []
         ]
@@ -163,9 +163,9 @@ inst_tags = \case
     Inst.Sc {} -> [(Tag.backend, "sc")]
     Inst.Dummy {} -> []
 
-normalize_tags :: [Tag.Tag] -> [Tag.Tag]
-normalize_tags =
+normalizeTags :: [Tag.Tag] -> [Tag.Tag]
+normalizeTags =
     Lists.dropDups id . List.sort . map (bimap Text.toLower Text.toLower)
 
-control_tags :: Control.ControlMap -> [Tag.Tag]
-control_tags = map ((,) Tag.control . ScoreT.control_name) . Map.keys
+controlTags :: Control.ControlMap -> [Tag.Tag]
+controlTags = map ((,) Tag.control . ScoreT.controlName) . Map.keys

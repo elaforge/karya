@@ -20,21 +20,21 @@ import           Util.Test
 
 test_recursive_call :: Test
 test_recursive_call = do
-    let extract = DeriveTest.extract DeriveTest.e_event
-    let result = extract $ DeriveTest.derive_tracks_setup with_recur ""
+    let extract = DeriveTest.extract DeriveTest.eEvent
+    let result = extract $ DeriveTest.deriveTracksSetup withRecur ""
             [(">", [(0, 1, "recur")])]
-        with_recur = CallTest.with_note_generator "recur" recursive
+        withRecur = CallTest.withNoteGenerator "recur" recursive
     equal result ([], ["call stack too deep: recursive"])
     where
     recursive :: Derive.Generator Derive.Note
     recursive = Derive.generator "test-module" "recursive" mempty "doc" $
         Sig.call0 $ \args ->
-            Eval.reapply_call (Derive.passed_ctx args) "recur" []
+            Eval.reapplyCall (Derive.passedCtx args) "recur" []
 
 test_reapply_generator :: Test
 test_reapply_generator = do
-    let run = DeriveTest.extract DeriveTest.e_attributes .
-            DeriveTest.derive_tracks_setup with ""
+    let run = DeriveTest.extract DeriveTest.eAttributes .
+            DeriveTest.deriveTracksSetup with ""
         dyn = ("dyn", [(0, 0, "1")])
     equal (run [(">", [(0, 0, "a")]), dyn]) (["+a"], [])
     -- If Eval.reapply_generator isn't replacing the info_expr, the inversion
@@ -42,16 +42,16 @@ test_reapply_generator = do
     -- multiple times.
     equal (run [(">", [(0, 0, "ab")]), dyn]) (["+a", "+b"], [])
     where
-    with = CallTest.with_note_generators $
-        ("ab", DUtil.multiple_call "ab" ["a", "b"])
-        : CUtil.drum_calls (map (,CUtil.call_config)
+    with = CallTest.withNoteGenerators $
+        ("ab", DUtil.multipleCall "ab" ["a", "b"])
+        : CUtil.drumCalls (map (,CUtil.callConfig)
             [ Drums.stroke 'a' "a" (Attrs.attr "a")
             , Drums.stroke 'b' "b" (Attrs.attr "b")
             ])
 
 test_block_id_to_call :: Test
 test_block_id_to_call = do
-    let f parent child = Eval.block_id_to_call True
+    let f parent child = Eval.blockIdToCall True
             (UiTest.bid parent) (UiTest.bid child)
     equal (f "foo" "bar") "bar"
     equal (f "foo" "foo-bar") "-bar"

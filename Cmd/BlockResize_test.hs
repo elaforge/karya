@@ -14,13 +14,13 @@ import           Util.Test
 
 test_update_callers :: Test
 test_update_callers = do
-    let run delta blocks = UiTest.extract_blocks $ UiTest.exec Ui.empty $ do
+    let run delta blocks = UiTest.extractBlocks $ UiTest.exec Ui.empty $ do
             UiTest.mkblocks blocks
-            BlockResize.update_callers (UiTest.bid "low") 0 delta
+            BlockResize.updateCallers (UiTest.bid "low") 0 delta
     let low = ("low", [(">", [(0, 2, "")])])
         low2 = ("low", [(">", [(2, 2, "")])])
 
-    equal_b (run 0
+    equalB (run 0
         [ low
         , ("mid", [(">", [(0, 2, "low")])])
         , ("top", [(">", [(0, 2, "mid")])])
@@ -29,7 +29,7 @@ test_update_callers = do
         , ("mid", [(">", [(0, 2, "low")])])
         , ("top", [(">", [(0, 2, "mid")])])
         ]
-    equal_b (run 2
+    equalB (run 2
         [ low
         , ("mid", [(">", [(0, 2, "low")])])
         , ("top", [(">", [(0, 2, "mid")])])
@@ -38,7 +38,7 @@ test_update_callers = do
         , ("mid", [(">", [(0, 4, "low")])])
         , ("top", [(">", [(0, 4, "mid")])])
         ]
-    equal_b (run (-2)
+    equalB (run (-2)
         [ low
         , ("mid", [(">", [(0, 2, "low")])])
         , ("top", [(">", [(0, 2, "mid")])])
@@ -55,7 +55,7 @@ test_update_callers = do
         "update delta -3t would invert event"
 
     -- Two calls in sequence accumulate delta.
-    equal_b (run 2
+    equalB (run 2
         [ low
         , ("mid", [(">", [(0, 2, "low"), (2, 2, "low"), (4, 0, "")])])
         , ("top", [(">", [(0, 2, "mid")]), (">", [(1, 2, "mid")])])
@@ -66,7 +66,7 @@ test_update_callers = do
         ]
 
     -- Not in sequence don't.
-    equal_b (run 2
+    equalB (run 2
         [ low
         , ("mid", [(">", [(0, 2, "low")]), (">", [(0, 2, "low")])])
         , ("top", [(">", [(0, 2, "mid")])])
@@ -77,7 +77,7 @@ test_update_callers = do
         ]
 
     -- Partial overlap.
-    equal_b (run 2
+    equalB (run 2
         [ low
         , ("mid", [(">", [(0, 2, "low")]), (">", [(1, 2, "low")])])
         , ("top", [(">", [(0, 3, "mid")])])
@@ -88,7 +88,7 @@ test_update_callers = do
         ]
 
     -- Children also move.
-    equal_b (run 2
+    equalB (run 2
         [ ("low", [(">", [(0, 2, "")]), ("*", [(0, 0, "3c")])])
         , ("mid", [(">", [(0, 2, "low"), (2, 0, "")]), ("*", [(2, 0, "4c")])])
         ])
@@ -98,9 +98,9 @@ test_update_callers = do
 
 test_update_rulers :: Test
 test_update_rulers = do
-    let run pos delta blocks = UiTest.e_rulers $ UiTest.exec Ui.empty $ do
+    let run pos delta blocks = UiTest.eRulers $ UiTest.exec Ui.empty $ do
             UiTest.mkblocks blocks
-            BlockResize.update_callers_rulers (UiTest.bid "low") pos delta
+            BlockResize.updateCallersRulers (UiTest.bid "low") pos delta
     let blocks mid top =
             [ ("low=ruler", [(">", [(0, 4, "")])])
             , ("mid=ruler", [(">", mid)])
@@ -120,5 +120,5 @@ test_update_rulers = do
 
 -- * util
 
-equal_b :: HasCallStack => [UiTest.BlockSpec] -> [UiTest.BlockSpec] -> Test
-equal_b = equal_fmt UiTest.fmt_blocks
+equalB :: HasCallStack => [UiTest.BlockSpec] -> [UiTest.BlockSpec] -> Test
+equalB = equalFmt UiTest.fmtBlocks

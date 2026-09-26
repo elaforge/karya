@@ -8,7 +8,7 @@ module Util.Rect (
     , Point
     -- * access
     , x, y, w, h, r, b
-    , upper_left, lower_left, upper_right, lower_right
+    , upperLeft, lowerLeft, upperRight, lowerRight
 
     -- * constructor
     , xywh, empty
@@ -17,8 +17,8 @@ module Util.Rect (
     , place, resize
 
     -- * functions
-    , distance, intersection, overlaps, touches, point_distance
-    , contains_point, touches_point
+    , distance, intersection, overlaps, touches, pointDistance
+    , containsPoint, touchesPoint
 ) where
 import qualified Util.Pretty as Pretty
 import qualified Util.FFI as FFI
@@ -41,11 +41,11 @@ r, b :: Rect -> Int
 r rect = x rect + w rect
 b rect = y rect + h rect
 
-upper_left, lower_left, upper_right, lower_right :: Rect -> Point
-upper_left rect = (x rect, y rect)
-lower_left rect = (x rect, b rect)
-upper_right rect = (r rect, y rect)
-lower_right rect = (r rect, b rect)
+upperLeft, lowerLeft, upperRight, lowerRight :: Rect -> Point
+upperLeft rect = (x rect, y rect)
+lowerLeft rect = (x rect, b rect)
+upperRight rect = (r rect, y rect)
+lowerRight rect = (r rect, b rect)
 
 
 -- * constructor
@@ -79,7 +79,7 @@ distance (px, py) (Rect x y w h)
     where
     r = x + w
     b = y + h
-    dist = point_distance (px, py)
+    dist = pointDistance (px, py)
 
 -- | Find the intersection of two rectangles.
 intersection :: Rect -> Rect -> Rect
@@ -100,18 +100,18 @@ touches :: Rect -> Rect -> Bool
 touches r1 r2 = not $
     x r1 > r r2 || r r1 < x r2 || y r1 > b r2 || b r1 < y r2
 
-point_distance :: Point -> Point -> Double
-point_distance (x1, y1) (x2, y2) =
+pointDistance :: Point -> Point -> Double
+pointDistance (x1, y1) (x2, y2) =
     sqrt $ fromIntegral (x2-x1) ** 2 + fromIntegral (y2-y1) ** 2
 
-contains_point :: Rect -> Point -> Bool
-contains_point rect (x_, y_) =
+containsPoint :: Rect -> Point -> Bool
+containsPoint rect (x_, y_) =
     x rect <= x_ && x_ < r rect && y rect <= y_ && y_ < b rect
 
 -- | This is like 'contains_point', but is also true if the the point is on the
 -- right or bottom edge of the rectangle.
-touches_point :: Rect -> Point -> Bool
-touches_point rect (x_, y_) =
+touchesPoint :: Rect -> Point -> Bool
+touchesPoint rect (x_, y_) =
     x rect <= x_ && x_ <= r rect && y rect <= y_ && y_ <= b rect
 
 
@@ -125,7 +125,7 @@ instance CStorable Rect where
         (#poke IRect, y) p (i y)
         (#poke IRect, w) p (i w)
         (#poke IRect, h) p (i h)
-        where i = FFI.c_int
+        where i = FFI.cInt
     peek p = do
         x <- (#peek IRect, x) p :: IO CInt
         y <- (#peek IRect, y) p :: IO CInt
@@ -140,7 +140,7 @@ instance CStorable Point where
     poke p (x, y) = do
         (#poke IPoint, x) p (i x)
         (#poke IPoint, y) p (i y)
-        where i = FFI.c_int
+        where i = FFI.cInt
     peek p = do
         x <- (#peek IPoint, x) p :: IO CInt
         y <- (#peek IPoint, y) p :: IO CInt

@@ -10,10 +10,10 @@ import qualified Cmd.Instrument.MidiInst as MidiInst
 synth :: MidiInst.Synth
 synth =
     MidiInst.synth "fm8" "Native Instruments FM8" $
-        MidiInst.synth_controls controls patches
+        MidiInst.synthControls controls patches
     where
     controls =
         [ (4, "fm8-control-1"), (11, "fm8-control-2")
         , (16, "morph-x"), (17, "morph-y")
         ]
-    patches = [MidiInst.default_patch (-96, 96) []]
+    patches = [MidiInst.defaultPatch (-96, 96) []]

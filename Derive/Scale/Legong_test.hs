@@ -19,8 +19,8 @@ import           Util.Test
 
 test_note_to_call :: Test
 test_note_to_call = do
-    let run scale title = ScaleTest.note_to_call scale title
-        ding = from_4i True Legong.laras_rambat
+    let run scale title = ScaleTest.noteToCall scale title
+        ding = from4i True Legong.larasRambat
 
     -- 4i is close to middle C (60nn).
     equal (run "legong" "" ["4i"]) ([Just (head ding)], [])
@@ -32,7 +32,7 @@ test_note_to_call = do
     equal (run "legong-pemade" "" ["i-", "o-", "e-"]) (map Just (take 3 i5), [])
 
     equal (run "legong" "" ["tuning=isep | -- 4i"])
-        ([Just (head (from_4i False Legong.laras_rambat))], [])
+        ([Just (head (from4i False Legong.larasRambat))], [])
     equal (run "legong" "" ["4i", "4o", "4e", "4e#"])
         (map Just (take 4 ding), [])
 
@@ -46,23 +46,23 @@ test_note_to_call = do
 
 test_note_to_call_mcphee :: Test
 test_note_to_call_mcphee = do
-    let run laras key = ScaleTest.note_to_call "legong"
+    let run laras key = ScaleTest.noteToCall "legong"
             ("laras=" <> laras <> " | " <> "key=" <> key)
     -- Ensure that when I convert tembung to selisir, I get ding in
     -- the correct place according to McPhee.
     equal (run "gambuh-tabanan" "selisir" ["4i", "4o", "4e"])
-        (map (Just . Pitch.hz_to_nn) [280, 303, 325], [])
+        (map (Just . Pitch.hzToNn) [280, 303, 325], [])
 
 Just laras = Map.lookup "gambuh-tabanan" Legong.laras
-laras_nns = map Pitch.hz_to_nn $ McPhee.hz $ McPhee.saih_pitu !! 4
+larasNns = map Pitch.hzToNn $ McPhee.hz $ McPhee.saihPitu !! 4
 
-selisir_nns = Vector.toList $ BaliScales.laras_umbang laras
-selisir_hz = map Pitch.nn_to_hz selisir_nns
+selisirNns = Vector.toList $ BaliScales.larasUmbang laras
+selisirHz = map Pitch.nnToHz selisirNns
 
 test_input_to_note :: Test
 test_input_to_note = do
-    let f scale key = ScaleTest.input_to_note scale
-            (maybe mempty ScaleTest.key_environ key)
+    let f scale key = ScaleTest.inputToNote scale
+            (maybe mempty ScaleTest.keyEnviron key)
         invalid = "invalid input"
 
     -- Ding is relative, so the input pattern is always the same.
@@ -75,18 +75,18 @@ test_input_to_note = do
     equal (map (f legong (Just "baro")) keys) pattern
     equal (map (f legong (Just "tembung")) keys) pattern
 
-    let legong_pemade = ScaleTest.get_scale Legong.scales "legong-pemade"
-    equal (map (f legong_pemade Nothing) $
+    let legongPemade = ScaleTest.getScale Legong.scales "legong-pemade"
+    equal (map (f legongPemade Nothing) $
             take 12 [(oct, pc, 0) | oct <- [4..6], pc <- [0..4]])
         [ invalid, "o_", "e_", "u_", "a_", "i-", "o-", "e-", "u-", "a-"
         , "i^", invalid
         ]
 
 legong :: Scale.Scale
-legong = ScaleTest.get_scale Legong.scales "legong"
+legong = ScaleTest.getScale Legong.scales "legong"
 
-from_4i :: Bool -> BaliScales.Laras -> [Pitch.NoteNumber]
-from_4i umbang laras = drop (2 + 5) $ Vector.toList (nns laras)
+from4i :: Bool -> BaliScales.Laras -> [Pitch.NoteNumber]
+from4i umbang laras = drop (2 + 5) $ Vector.toList (nns laras)
     where
-    nns = if umbang then BaliScales.laras_umbang else BaliScales.laras_isep
+    nns = if umbang then BaliScales.larasUmbang else BaliScales.larasIsep
     -- 2 to undo 'Legong.extend', 5 to get to ding

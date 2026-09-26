@@ -397,7 +397,7 @@ makePatch inst = (Patch.patch name)
     , Patch._karyaPatch =
         ImInst.code #= code $
         ImInst.range (makeRange tuning) $
-        ImInst.make_patch $
+        ImInst.makePatch $
         Lib.Bali.supportVariableMute $
         Util.patchPitchDynVar attributeMap
     , Patch._allFilenames = Set.fromList $ allFilenames inst
@@ -407,9 +407,9 @@ makePatch inst = (Patch.patch name)
     -- TODO copy paste with Rambat
     code = Lib.Bali.zeroDurMute 0.65
         <> Util.thru dir (convert inst attributeMap)
-        <> ImInst.postproc DUtil.with_symbolic_pitch
+        <> ImInst.postproc DUtil.withSymbolicPitch
     -- %character at 0 never adds +character, at 1 always adds it
-    attributeMap = Common.attribute_map $
+    attributeMap = Common.attributeMap $
         filter ((`Set.member` articulations) . snd)
             [ (Attrs.mute <> Attrs.loose, MuteLoose)
             , (Attrs.mute, Mute)

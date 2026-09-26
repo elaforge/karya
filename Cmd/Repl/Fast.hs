@@ -21,8 +21,8 @@ import qualified App.ReplProtocol as ReplProtocol
 
 -- | 'interpret' loads a whole bunch of modules and can be slow.  Shortcut a
 -- few common commands so they happen quickly.
-fast_interpret :: String -> Maybe (Cmd.CmdT IO ReplProtocol.CmdResult)
-fast_interpret text = case lex_all text of
+fastInterpret :: String -> Maybe (Cmd.CmdT IO ReplProtocol.CmdResult)
+fastInterpret text = case lexAll text of
     Nothing -> Nothing
     Just tokens -> interpret tokens
 
@@ -35,7 +35,7 @@ interpret = \case
 
     -- Called by the browser.
     ["LInst.set_instrument", str] | Just arg <- val str ->
-        action $ LInst.set_instrument arg
+        action $ LInst.setInstrument arg
 
     -- Called manually via the REPL.
 
@@ -48,17 +48,17 @@ interpret = \case
     ["quit"] -> action Global.quit
     ["save"] -> action Global.save
     ["save_state_as", str] | Just arg <- val str ->
-        action $ Global.save_state_as arg
+        action $ Global.saveStateAs arg
     ["write_state", str] | Just arg <- val str ->
-        action $ Global.write_state arg
+        action $ Global.writeState arg
     ["save_git_as", str] | Just arg <- val str ->
-        action $ Global.save_git_as arg
+        action $ Global.saveGitAs arg
     ["load", str] | Just arg <- val str -> action $ Global.load arg
 
     -- State
-    ["Ui.lookup_root_id"] -> action Ui.lookup_root_id
+    ["Ui.lookup_root_id"] -> action Ui.lookupRootId
     ["Ui.set_root_id", str] | Just arg <- val str ->
-        action $ Ui.set_root_id arg
+        action $ Ui.setRootId arg
 
     -- So I can see memory stats without loading GHC API.  Though it
     -- happens automatically in the background, so I'd have to disable that
@@ -67,21 +67,21 @@ interpret = \case
     ["LDebug.rssVsize"] -> action $ LDebug.rssVsize
     _ -> Nothing
     where
-    action c = Just (fmap (cmd_result . Global._to_result) c)
-    cmd_result result = ReplProtocol.CmdResult result []
+    action c = Just (fmap (cmdResult . Global._toResult) c)
+    cmdResult result = ReplProtocol.CmdResult result []
 
 val :: Read a => String -> Maybe a
 val text = case reads text of
     (val, "") : _ -> Just val
     _ -> Nothing
 
-lex_all :: String -> Maybe [String]
-lex_all text
+lexAll :: String -> Maybe [String]
+lexAll text
     | null (dropWhile Char.isSpace text) = Just []
-    | otherwise = case lex_fancy text of
+    | otherwise = case lexFancy text of
         [] -> Nothing
         (tok, rest) : _ -> do
-            toks <- lex_all rest
+            toks <- lexAll rest
             pure (tok : toks)
 
 -- | A version of 'lex' that understands qualified names.
@@ -89,10 +89,10 @@ lex_all text
 -- It also lexes parenthesized text as a single token, but it doesn't count
 -- open parens so it doesn't work for nested ones.
 -- TODO count parens, or come up with a better way to parse haskell
-lex_fancy :: String -> [(String, String)]
-lex_fancy s = case lex s of
+lexFancy :: String -> [(String, String)]
+lexFancy s = case lex s of
     [(tok1, '.':rest1)] ->
-        [(tok1 ++ "." ++ tok2, rest2) | (tok2, rest2) <- lex_fancy rest1]
+        [(tok1 ++ "." ++ tok2, rest2) | (tok2, rest2) <- lexFancy rest1]
     [("(", rest)] ->
         let (pre, post) = Then.break1 (==')') rest
         in [('(' : pre, post)]

@@ -24,20 +24,20 @@ import qualified Ui.UiConfig as UiConfig
 import           Global
 
 
-synth_name :: InstT.SynthName
-synth_name = "spicy"
+synthName :: InstT.SynthName
+synthName = "spicy"
 
 synth :: MidiInst.Synth
-synth = MidiInst.synth synth_name "Spicy Guitar, http://www.spicyguitar.com" $
-    MidiInst.synth_controls controls patches
+synth = MidiInst.synth synthName "Spicy Guitar, http://www.spicyguitar.com" $
+    MidiInst.synthControls controls patches
 
 patches :: [MidiInst.Patch]
 patches = (:[]) $
-    MidiInst.code #= MidiInst.null_call note_call $
-    MidiInst.make_patch $
-    MidiInst.add_flag Patch.HoldKeyswitch $
-    Patch.attribute_map #= Patch.single_keyswitches keyswitches $
-    Patch.patch (-3, 3) Patch.default_name
+    MidiInst.code #= MidiInst.nullCall noteCall $
+    MidiInst.makePatch $
+    MidiInst.addFlag Patch.HoldKeyswitch $
+    Patch.attributeMap #= Patch.singleKeyswitches keyswitches $
+    Patch.patch (-3, 3) Patch.defaultName
 
 
 -- | WARNING: changing these while playing tends to crash the VST.
@@ -61,29 +61,29 @@ keyswitches =
     , (Attrs.harm, Key.cs3)
     ]
 
-note_call :: Derive.Generator Derive.Note
-note_call = Note.transformed_note
-    ("If given a string-name attribute in " <> attrs_doc <> ", suffix the"
+noteCall :: Derive.Generator Derive.Note
+noteCall = Note.transformedNote
+    ("If given a string-name attribute in " <> attrsDoc <> ", suffix the"
         <> " instrument with the string name.  When combined with the proper"
         <> " midi config, this will redirect the note to the proper channel"
         <> " for that string.") mempty
     (const transform)
     where
-    attrs_doc = Doc.Doc $ Text.intercalate ", " ["`" <> a <> "`" | a <- strings]
+    attrsDoc = Doc.Doc $ Text.intercalate ", " ["`" <> a <> "`" | a <- strings]
     transform deriver = do
-        attrs <- Call.get_attributes
-        inst <- Call.lookup_instrument
+        attrs <- Call.getAttributes
+        inst <- Call.lookupInstrument
         let string = Lists.head
                 [ string
-                | attr <- Attrs.to_list attrs, string <- strings
+                | attr <- Attrs.toList attrs, string <- strings
                 , attr == string
                 ]
         case (inst, string) of
             (Just inst, Just string) ->
-                Derive.with_instrument (string_inst inst string) deriver
+                Derive.withInstrument (stringInst inst string) deriver
             _ -> deriver
-    string_inst inst string =
-        ScoreT.Instrument $ ScoreT.instrument_name inst <> "-" <> string
+    stringInst inst string =
+        ScoreT.Instrument $ ScoreT.instrumentName inst <> "-" <> string
 
 strings :: [Text]
 strings = ["e1", "a", "d", "g", "b", "e2"]
@@ -91,12 +91,12 @@ strings = ["e1", "a", "d", "g", "b", "e2"]
 -- | Create the proper midi config to work with the string attrs used by
 -- 'note_call'.
 allocations :: Text -> InstT.Name -> UiConfig.Allocations
-allocations dev_name name = UiConfig.midi_allocations $
+allocations devName name = UiConfig.midiAllocations $
     inst name 0 : [inst (name <> "-" <> string) chan
         | (string, chan) <- zip strings [1..]]
     where
     inst name chan =
         ( ScoreT.Instrument name
-        , (InstT.Qualified synth_name name, MidiInst.config1 dev chan)
+        , (InstT.Qualified synthName name, MidiInst.config1 dev chan)
         )
-    dev = Midi.write_device dev_name
+    dev = Midi.writeDevice devName

@@ -40,11 +40,11 @@ instance Solkattu.Notation Stroke where
 instance Pretty Stroke where pretty = Solkattu.notationText
 
 instance Expr.ToExpr Stroke where
-    to_expr (Stroke _ attrs) =
+    toExpr (Stroke _ attrs) =
         foldr Expr.transform0 (Expr.generator0 "")
             (map Expr.Symbol (Set.toList attrs))
 
-instance Expr.ToExpr (Realize.Stroke Stroke) where to_expr = Realize.toExpr
+instance Expr.ToExpr (Realize.Stroke Stroke) where toExpr = Realize.toExpr
 
 instance Solkattu.Notation Pitch.Pitch where
     notation (Pitch.Pitch oct degree) = Solkattu.textNotation $
@@ -76,8 +76,8 @@ dotBelow = "\x0323"
 
 pitchCall :: Pitch.Pitch -> Expr.Call Text
 pitchCall (Pitch.Pitch oct (Pitch.Degree pc acc)) = Expr.call "pitch" $
-    [ShowVal.show_val oct, ShowVal.show_val pc]
-        ++ if acc == 0 then [] else [ShowVal.show_val acc]
+    [ShowVal.showVal oct, ShowVal.showVal pc]
+        ++ if acc == 0 then [] else [ShowVal.showVal acc]
 
 data Strokes a = Strokes
     { s_::a, r_::a, g_::a, m_::a, p_::a, d_::a, n_::a
@@ -106,7 +106,7 @@ toScore :: ToScore.ToScore Stroke
 toScore durStrokes = (noteTrack, [("*", pitchTrack)])
     where
     noteTrack =
-        [ (start, dur, ShowVal.show_val expr)
+        [ (start, dur, ShowVal.showVal expr)
         | (start, dur, Just expr) <-
             zip3 starts durs (map ToScore.toExpr strokes)
         ]
@@ -124,7 +124,7 @@ noteOf _ = Nothing
 -- ** transposition
 
 octave :: Pitch.Octave -> Stroke -> Stroke
-octave oct s = s { _pitch = Pitch.add_octave oct (_pitch s) }
+octave oct s = s { _pitch = Pitch.addOctave oct (_pitch s) }
 
 add :: Pitch.PitchClass -> Stroke -> Stroke
-add steps s = s { _pitch = Pitch.add_pc 7 steps (_pitch s) }
+add steps s = s { _pitch = Pitch.addPc 7 steps (_pitch s) }

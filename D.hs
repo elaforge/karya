@@ -21,7 +21,7 @@ pp :: Show a => a -> IO ()
 pp = PPrint.pprint
 
 mkid :: Text.Text -> Id.Id
-mkid name = Id.read_short _default_ns name
+mkid name = Id.readShort _defaultNs name
 
 bid :: Text.Text -> BlockId
 bid = Id.BlockId . mkid
@@ -36,5 +36,5 @@ rid :: Text.Text -> RulerId
 rid = Id.RulerId . mkid
 
 -- | Change this to whatever namespace you're debugging.
-_default_ns :: Id.Namespace
-_default_ns = Id.namespace ""
+_defaultNs :: Id.Namespace
+_defaultNs = Id.namespace ""

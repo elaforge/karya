@@ -21,10 +21,10 @@ import           Util.Test
 
 test_generator :: Test
 test_generator = do
-    let run expr call = DeriveTest.extract DeriveTest.e_attributes $
-            DeriveTest.derive_tracks_setup (setup (make_expr expr)) ""
+    let run expr call = DeriveTest.extract DeriveTest.eAttributes $
+            DeriveTest.deriveTracksSetup (setup (makeExpr expr)) ""
                 [(">", [(0, 1, call)])]
-        setup expr = with_id <> CallTest.with_note_generator "m"
+        setup expr = withId <> CallTest.withNoteGenerator "m"
             (Macro.generator Module.prelude "m" mempty "doc" expr)
     equal (run [("+a", []), ("+b", [])] "m") (["+a+b"], [])
     equal (run [("attr", [attr "a"])] "m") (["+a"], [])
@@ -32,34 +32,34 @@ test_generator = do
     equal (run [("attr", [var "var"]), ("attr", [var "var"])] "m +x +y")
         (["+x+y"], [])
 
-    let val_call arg = Ky.ValCall (Ky.Call "id" [arg])
-    equal (run [("attr", [val_call (attr "a")])] "m") (["+a"], [])
-    equal (run [("attr", [val_call (var "var")])] "m +x") (["+x"], [])
+    let valCall arg = Ky.ValCall (Ky.Call "id" [arg])
+    equal (run [("attr", [valCall (attr "a")])] "m") (["+a"], [])
+    equal (run [("attr", [valCall (var "var")])] "m +x") (["+x"], [])
 
 test_val :: Test
 test_val = do
-    let run call = DeriveTest.extract DeriveTest.e_attributes $
-            DeriveTest.derive_tracks_setup setup ""
+    let run call = DeriveTest.extract DeriveTest.eAttributes $
+            DeriveTest.deriveTracksSetup setup ""
                 [(">", [(0, 1, call)])]
-        setup = with_id <> CallTest.with_val_call "m"
-            (Macro.val_call Module.prelude "m" mempty "doc" expr)
+        setup = withId <> CallTest.withValCall "m"
+            (Macro.valCall Module.prelude "m" mempty "doc" expr)
         expr = Ky.Call "id" [var "arg"]
     equal (run "attr (m +a)") (["+a"], [])
 
-with_id :: DeriveTest.Setup
-with_id = CallTest.with_val_call "id" c_id
+withId :: DeriveTest.Setup
+withId = CallTest.withValCall "id" cId
 
-c_id :: Derive.ValCall
-c_id = Derive.val_call "test" "id" mempty "doc" $
+cId :: Derive.ValCall
+cId = Derive.valCall "test" "id" mempty "doc" $
     Sig.call (Sig.required "a" "arg") $ \val _args ->
         pure (val :: DeriveT.Val)
 
 test_transformer :: Test
 test_transformer = do
-    let run expr call = DeriveTest.extract DeriveTest.e_attributes $
-            DeriveTest.derive_tracks_setup (setup (make_expr expr)) ""
+    let run expr call = DeriveTest.extract DeriveTest.eAttributes $
+            DeriveTest.deriveTracksSetup (setup (makeExpr expr)) ""
                 [(">", [(0, 1, call <> " | +z")])]
-        setup = CallTest.with_note_transformer "m"
+        setup = CallTest.withNoteTransformer "m"
             . Macro.transformer Module.prelude "m" mempty "doc"
     equal (run [("attr", [attr "a"])] "m") (["+a+z"], [])
     equal (run [("attr", [var "var"]), ("attr", [var "var"])] "m +x +y")
@@ -69,8 +69,8 @@ var :: Text -> Ky.Term
 var = Ky.VarTerm . Ky.Var
 
 attr :: Text -> Ky.Term
-attr = Ky.Literal . Typecheck.to_val . Attrs.attr
+attr = Ky.Literal . Typecheck.toVal . Attrs.attr
 
-make_expr :: [(Expr.Symbol, [Ky.Term])] -> Ky.Expr
-make_expr calls = Ky.Expr $ c :| cs
+makeExpr :: [(Expr.Symbol, [Ky.Term])] -> Ky.Expr
+makeExpr calls = Ky.Expr $ c :| cs
     where c : cs = map (uncurry Ky.Call) calls

@@ -39,91 +39,91 @@ import           Global
 
 
 -- | Top level scale constructor.
-make_scale :: Pitch.ScaleId -> ScaleMap -> Scale.Scale
-make_scale scale_id smap =
-    (ChromaticScales.make_scale scale_id (smap_chromatic smap) doc)
-    { Scale.scale_enharmonics = Scales.no_enharmonics }
+makeScale :: Pitch.ScaleId -> ScaleMap -> Scale.Scale
+makeScale scaleId smap =
+    (ChromaticScales.makeScale scaleId (smapChromatic smap) doc)
+    { Scale.scaleEnharmonics = Scales.noEnharmonics }
     where
     doc = "Balinese scales come in detuned pairs. They use the "
         <> ShowVal.doc EnvKey.tuning <> " env var to select between pengumbang\
         \ and pengisep. The env var should be set to either `umbang` or `isep`,\
         \ defaulting to `umbang`. Normally the umbang and isep\
         \ frequencies are hardcoded according to the scale, but if the "
-        <> ShowVal.doc c_ombak
+        <> ShowVal.doc cOmbak
         <> " control is present, they will be tuned that many hz apart.\
-        \\nThe " <> ShowVal.doc laras_key <> " env var chooses between\
+        \\nThe " <> ShowVal.doc larasKey <> " env var chooses between\
         \ different tunings.  It defaults to "
-        <> ShowVal.doc (laras_name (smap_default_laras smap))
+        <> ShowVal.doc (larasName (smapDefaultLaras smap))
         <> ". Laras:\n"
         <> Texts.enumeration
-            [ ShowVal.doc name <> " - " <> laras_doc laras
-            | (name, laras) <- Map.toList (smap_laras smap)
+            [ ShowVal.doc name <> " - " <> larasDoc laras
+            | (name, laras) <- Map.toList (smapLaras smap)
             ]
 
 data ScaleMap = ScaleMap
-    { smap_chromatic :: !ChromaticScales.ScaleMap
-    , smap_laras :: !LarasMap
-    , smap_default_laras :: !Laras
+    { smapChromatic :: !ChromaticScales.ScaleMap
+    , smapLaras :: !LarasMap
+    , smapDefaultLaras :: !Laras
     }
 
 type LarasMap = Map Text Laras
 
-scale_map :: Config -> TheoryFormat.Format -> Maybe (Pitch.Semi, Pitch.Semi)
+scaleMap :: Config -> TheoryFormat.Format -> Maybe (Pitch.Semi, Pitch.Semi)
     -- ^ If not given, use the complete range of the saih.
     -> ScaleMap
-scale_map (Config layout all_keys default_key laras default_laras)
-        fmt maybe_range =
+scaleMap (Config layout allKeys defaultKey laras defaultLaras)
+        fmt maybeRange =
     ScaleMap
-        { smap_chromatic =
-            (ChromaticScales.scale_map layout fmt all_keys default_key)
-            { ChromaticScales.smap_semis_to_nn =
-                semis_to_nn layout laras default_laras
+        { smapChromatic =
+            (ChromaticScales.scaleMap layout fmt allKeys defaultKey)
+            { ChromaticScales.smapSemisToNn =
+                semisToNn layout laras defaultLaras
             -- Convert range to absolute.
-            , ChromaticScales.smap_range = bimap (+offset) (+offset) range
+            , ChromaticScales.smapRange = bimap (+offset) (+offset) range
             }
-        , smap_laras = laras
-        , smap_default_laras = default_laras
+        , smapLaras = laras
+        , smapDefaultLaras = defaultLaras
         }
     where
     -- Each laras can start on a different note, but I use the default one
     -- for the range as a whole.
-    offset = laras_offset layout default_laras
-    range = fromMaybe (0, top) maybe_range
-    top = maybe 0 (subtract 1 . Vector.length . laras_umbang) $
+    offset = larasOffset layout defaultLaras
+    range = fromMaybe (0, top) maybeRange
+    top = maybe 0 (subtract 1 . Vector.length . larasUmbang) $
         Lists.head (Map.elems laras)
 
 data Config = Config
-    { config_layout :: !Theory.Layout
-    , config_keys :: !ChromaticScales.Keys
-    , config_default_key :: !Theory.Key
-    , config_laras :: !LarasMap
-    , config_default_laras :: !Laras
+    { configLayout :: !Theory.Layout
+    , configKeys :: !ChromaticScales.Keys
+    , configDefaultKey :: !Theory.Key
+    , configLaras :: !LarasMap
+    , configDefaultLaras :: !Laras
     } deriving (Show)
 
 -- | This is a specialized version of 'scale_map' that uses base octave and
 -- low and high pitches to compute the range.
-instrument_scale_map :: Config -> Instrument -> ScaleMap
-instrument_scale_map config
-        (Instrument degrees relative_octaves center_oct low high) =
-    scale_map config fmt (Just (to_pc low, to_pc high))
+instrumentScaleMap :: Config -> Instrument -> ScaleMap
+instrumentScaleMap config
+        (Instrument degrees relativeOctaves centerOct low high) =
+    scaleMap config fmt (Just (toPc low, toPc high))
     where
-    to_pc p = Pitch.diff_pc per_oct p base_pitch
-    base_pitch = laras_base (config_default_laras config)
-    fmt = relative_arrow degrees relative_octaves center_oct True
-        (config_default_key config) (config_keys config)
-    per_oct = Theory.layout_semis_per_octave (config_layout config)
+    toPc p = Pitch.diffPc perOct p basePitch
+    basePitch = larasBase (configDefaultLaras config)
+    fmt = relativeArrow degrees relativeOctaves centerOct True
+        (configDefaultKey config) (configKeys config)
+    perOct = Theory.layoutSemisPerOctave (configLayout config)
 
 -- | Describe an instrument-relative scale.
 data Instrument = Instrument
-    { inst_degrees :: !TheoryFormat.Degrees
-    , inst_relative_octaves :: !RelativeOctaves
-    , inst_center :: !Pitch.Octave
-    , inst_low :: !Pitch.Pitch
-    , inst_high :: !Pitch.Pitch
+    { instDegrees :: !TheoryFormat.Degrees
+    , instRelativeOctaves :: !RelativeOctaves
+    , instCenter :: !Pitch.Octave
+    , instLow :: !Pitch.Pitch
+    , instHigh :: !Pitch.Pitch
     } deriving (Eq, Show)
 
-instrument_range :: Instrument -> Scale.Range
-instrument_range inst = Scale.Range (inst_low inst) (inst_high inst)
+instrumentRange :: Instrument -> Scale.Range
+instrumentRange inst = Scale.Range (instLow inst) (instHigh inst)
 
 -- * Laras
 
@@ -131,150 +131,150 @@ instrument_range inst = Scale.Range (inst_low inst) (inst_high inst)
 -- since that's in the 'ScaleMap', and all saihs in one scale should have the
 -- same range.
 data Laras = Laras
-    { laras_name :: Text
-    , laras_doc :: Doc.Doc
+    { larasName :: Text
+    , larasDoc :: Doc.Doc
     -- | The pitch where the laras starts.  It should be such that octave 4 is
     -- close to middle C.
-    , laras_base :: Pitch.Pitch
-    , laras_umbang :: Vector.Vector Pitch.NoteNumber
-    , laras_isep :: Vector.Vector Pitch.NoteNumber
+    , larasBase :: Pitch.Pitch
+    , larasUmbang :: Vector.Vector Pitch.NoteNumber
+    , larasIsep :: Vector.Vector Pitch.NoteNumber
     } deriving (Eq, Show)
 
-laras_map :: [Laras] -> Map Text Laras
-laras_map = Map.fromList . Lists.keyOn laras_name
+larasMap :: [Laras] -> Map Text Laras
+larasMap = Map.fromList . Lists.keyOn larasName
 
 laras :: Text -> Pitch.Pitch -> ([Pitch.NoteNumber] -> [Pitch.NoteNumber])
     -> Doc.Doc -> [(Pitch.NoteNumber, Pitch.NoteNumber)] -> Laras
-laras name base_pitch extend doc nns = Laras
-    { laras_name = name
-    , laras_doc = doc
-    , laras_base = base_pitch
-    , laras_umbang = Vector.fromList (extend umbang)
-    , laras_isep = Vector.fromList (extend isep)
+laras name basePitch extend doc nns = Laras
+    { larasName = name
+    , larasDoc = doc
+    , larasBase = basePitch
+    , larasUmbang = Vector.fromList (extend umbang)
+    , larasIsep = Vector.fromList (extend isep)
     }
     where (umbang, isep) = unzip nns
 
-laras_offset :: Theory.Layout -> Laras -> Pitch.Semi
-laras_offset layout laras =
-    Theory.layout_semis_per_octave layout * Pitch.pitch_octave base_pitch
-        + Pitch.pitch_pc base_pitch
+larasOffset :: Theory.Layout -> Laras -> Pitch.Semi
+larasOffset layout laras =
+    Theory.layoutSemisPerOctave layout * Pitch.pitchOctave basePitch
+        + Pitch.pitchPc basePitch
     where
-    base_pitch = laras_base laras
+    basePitch = larasBase laras
 
-laras_nns :: Laras -> [(Pitch.NoteNumber, Pitch.NoteNumber)]
-laras_nns laras =
-    zip (Vector.toList (laras_umbang laras)) (Vector.toList (laras_isep laras))
+larasNns :: Laras -> [(Pitch.NoteNumber, Pitch.NoteNumber)]
+larasNns laras =
+    zip (Vector.toList (larasUmbang laras)) (Vector.toList (larasIsep laras))
 
 -- * Format
 
 -- | This can't use backtick symbols because then the combining octave
 -- characters don't combine.
 balinese :: TheoryFormat.Degrees
-balinese = TheoryFormat.make_degrees ["᭦", "᭡", "᭢", "᭣", "᭤"]
+balinese = TheoryFormat.makeDegrees ["᭦", "᭡", "᭢", "᭣", "᭤"]
 
 ioeua :: TheoryFormat.Degrees
-ioeua = TheoryFormat.make_degrees ["i", "o", "e", "u", "a"]
+ioeua = TheoryFormat.makeDegrees ["i", "o", "e", "u", "a"]
 
-digit_octave_relative :: TheoryFormat.Degrees -> Bool -> Theory.Key
+digitOctaveRelative :: TheoryFormat.Degrees -> Bool -> Theory.Key
     -> ChromaticScales.Keys -> TheoryFormat.Format
-digit_octave_relative degrees chromatic default_key keys =
-    TheoryFormat.make_relative_format
-        ("[1-9]" <> degrees_doc degrees <> if chromatic then "#?" else "")
+digitOctaveRelative degrees chromatic defaultKey keys =
+    TheoryFormat.makeRelativeFormat
+        ("[1-9]" <> degreesDoc degrees <> if chromatic then "#?" else "")
         degrees fmt
-    where fmt = ChromaticScales.relative_fmt default_key keys
+    where fmt = ChromaticScales.relativeFmt defaultKey keys
 
-ioeua_relative :: Bool -> Theory.Key -> ChromaticScales.Keys
+ioeuaRelative :: Bool -> Theory.Key -> ChromaticScales.Keys
     -> TheoryFormat.Format
-ioeua_relative = digit_octave_relative ioeua
+ioeuaRelative = digitOctaveRelative ioeua
 
 -- | (high, middle, low)
 type RelativeOctaves = (Char, Maybe Char, Char)
 
 -- | Use ascii-art arrows for octaves.
-arrow_octaves :: RelativeOctaves
-arrow_octaves = ('^', Just '-', '_')
+arrowOctaves :: RelativeOctaves
+arrowOctaves = ('^', Just '-', '_')
 
 -- | Use combining marks for octaves.
-balinese_octaves :: RelativeOctaves
-balinese_octaves =
+balineseOctaves :: RelativeOctaves
+balineseOctaves =
     ( '\x1b6b' -- balinese musical symbol combining tegeh
     , Nothing
     , '\x1b6c' -- balinese musical symbol combining endep
     )
 
-degrees_doc :: TheoryFormat.Degrees -> Text
-degrees_doc degrees = "[" <> mconcat (Vector.toList degrees) <> "]"
+degreesDoc :: TheoryFormat.Degrees -> Text
+degreesDoc degrees = "[" <> mconcat (Vector.toList degrees) <> "]"
 
-relative_arrow :: TheoryFormat.Degrees -> RelativeOctaves
+relativeArrow :: TheoryFormat.Degrees -> RelativeOctaves
     -> Pitch.Octave -> Bool -> Theory.Key
     -> ChromaticScales.Keys -> TheoryFormat.Format
-relative_arrow degrees relative_octaves center chromatic default_key keys =
-    TheoryFormat.make_relative_format
-        (degrees_doc degrees <> (if chromatic then "#?" else "") <> "[_^-]")
+relativeArrow degrees relativeOctaves center chromatic defaultKey keys =
+    TheoryFormat.makeRelativeFormat
+        (degreesDoc degrees <> (if chromatic then "#?" else "") <> "[_^-]")
         degrees fmt
     where
-    fmt = modify_config (set_relative_octaves relative_octaves center) $
-        ChromaticScales.relative_fmt default_key keys
+    fmt = modifyConfig (setRelativeOctaves relativeOctaves center) $
+        ChromaticScales.relativeFmt defaultKey keys
 
-ioeua_relative_arrow :: Pitch.Octave -> Bool -> Theory.Key
+ioeuaRelativeArrow :: Pitch.Octave -> Bool -> Theory.Key
     -> ChromaticScales.Keys -> TheoryFormat.Format
-ioeua_relative_arrow = relative_arrow ioeua arrow_octaves
+ioeuaRelativeArrow = relativeArrow ioeua arrowOctaves
 
-ioeua_absolute :: TheoryFormat.Format
-ioeua_absolute = TheoryFormat.make_absolute_format "[1-9][ioeua]" ioeua
+ioeuaAbsolute :: TheoryFormat.Format
+ioeuaAbsolute = TheoryFormat.makeAbsoluteFormat "[1-9][ioeua]" ioeua
 
-modify_config :: (TheoryFormat.Config -> TheoryFormat.Config)
+modifyConfig :: (TheoryFormat.Config -> TheoryFormat.Config)
     -> TheoryFormat.RelativeFormat key -> TheoryFormat.RelativeFormat key
-modify_config f fmt = fmt
-    { TheoryFormat.rel_config = f (TheoryFormat.rel_config fmt) }
+modifyConfig f fmt = fmt
+    { TheoryFormat.relConfig = f (TheoryFormat.relConfig fmt) }
 
-set_relative_octaves :: RelativeOctaves -> Pitch.Octave
+setRelativeOctaves :: RelativeOctaves -> Pitch.Octave
     -> TheoryFormat.Config -> TheoryFormat.Config
-set_relative_octaves (high, middle, low) center =
-    TheoryFormat.set_octave show_octave parse_octave
+setRelativeOctaves (high, middle, low) center =
+    TheoryFormat.setOctave showOctave parseOctave
     where
-    show_octave oct
+    showOctave oct
         | oct > center = (<> Text.replicate (oct-center) (t high))
         | oct < center = (<> Text.replicate (center-oct) (t low))
         | otherwise = (<> maybe "" t middle)
-    parse_octave p_degree = do
-        (pc, acc) <- p_degree
-        oct_str <- A.many' $ A.satisfy $ \c ->
+    parseOctave pDegree = do
+        (pc, acc) <- pDegree
+        octStr <- A.many' $ A.satisfy $ \c ->
             c == high || c == low || maybe True (==c) middle
-        let oct_value c
+        let octValue c
                 | c == high = 1
                 | c == low = -1
                 | otherwise = 0
-        let oct = Num.sum $ map oct_value oct_str
+        let oct = Num.sum $ map octValue octStr
         pure $ TheoryFormat.RelativePitch (center + oct) pc acc
     t = Text.singleton
 
-cipher_relative_dotted :: Pitch.Octave -> Theory.Key -> ChromaticScales.Keys
+cipherRelativeDotted :: Pitch.Octave -> Theory.Key -> ChromaticScales.Keys
     -> TheoryFormat.Format
-cipher_relative_dotted center default_key keys =
-    TheoryFormat.make_relative_format "[12356]|`[12356][.^]*`" cipher5 fmt
+cipherRelativeDotted center defaultKey keys =
+    TheoryFormat.makeRelativeFormat "[12356]|`[12356][.^]*`" cipher5 fmt
     where
-    fmt = modify_config (dotted_octaves center) $
-        ChromaticScales.relative_fmt default_key keys
+    fmt = modifyConfig (dottedOctaves center) $
+        ChromaticScales.relativeFmt defaultKey keys
 
 cipher5 :: TheoryFormat.Degrees
-cipher5 = TheoryFormat.make_degrees ["1", "2", "3", "5", "6"]
+cipher5 = TheoryFormat.makeDegrees ["1", "2", "3", "5", "6"]
 
-dotted_octaves :: Pitch.Octave -> TheoryFormat.Config -> TheoryFormat.Config
-dotted_octaves center = TheoryFormat.set_octave show_octave parse_octave
+dottedOctaves :: Pitch.Octave -> TheoryFormat.Config -> TheoryFormat.Config
+dottedOctaves center = TheoryFormat.setOctave showOctave parseOctave
     where
-    show_octave oct d
+    showOctave oct d
         | oct == center = d
         | otherwise = "`" <> d
             <> (if oct >= center then Text.replicate (oct-center) "^"
                 else Text.replicate (center-oct) ".")
             <> "`"
-    parse_octave p_degree =
-        uncurry (TheoryFormat.RelativePitch center) <$> p_degree
-            <|> with_octave p_degree
-    with_octave p_degree = do
+    parseOctave pDegree =
+        uncurry (TheoryFormat.RelativePitch center) <$> pDegree
+            <|> withOctave pDegree
+    withOctave pDegree = do
         A.char '`'
-        (pc, acc) <- p_degree
+        (pc, acc) <- pDegree
         octs <- A.many' $ A.satisfy $ \c -> c == '.' || c == '^'
         A.char '`'
         let oct = Lists.count (=='^') octs - Lists.count (=='.') octs
@@ -291,40 +291,40 @@ instance ShowVal.ShowVal Tuning
 
 -- | If ombak is unset, use the hardcoded tunings.  Otherwise, create new
 -- umbang and isep tunings based on the given number.
-c_ombak :: ScoreT.Control
-c_ombak = "ombak"
+cOmbak :: ScoreT.Control
+cOmbak = "ombak"
 
 -- | Convert 'Pitch.FSemi' to 'Pitch.NoteNumber'.
-semis_to_nn :: Theory.Layout -> LarasMap -> Laras
+semisToNn :: Theory.Layout -> LarasMap -> Laras
     -> ChromaticScales.SemisToNoteNumber
-semis_to_nn layout laras_map default_laras =
+semisToNn layout larasMap defaultLaras =
     \(PSignal.PitchConfig env controls) fsemis_ -> do
-        laras <- Scales.read_environ (\v -> Map.lookup v laras_map)
-            (Just default_laras) laras_key env
+        laras <- Scales.readEnviron (\v -> Map.lookup v larasMap)
+            (Just defaultLaras) larasKey env
         let fsemis = fsemis_ - fromIntegral offset
-            offset = laras_offset layout laras
-        tuning <- Scales.read_environ Just (Just Umbang) EnvKey.tuning env
-        let err = DeriveT.out_of_range_error fsemis
-                (0, Vector.length (laras_umbang laras))
-        justErr err $ case Map.lookup c_ombak controls of
+            offset = larasOffset layout laras
+        tuning <- Scales.readEnviron Just (Just Umbang) EnvKey.tuning env
+        let err = DeriveT.outOfRangeError fsemis
+                (0, Vector.length (larasUmbang laras))
+        justErr err $ case Map.lookup cOmbak controls of
             Nothing -> case tuning of
-                Umbang -> get_nn (laras_umbang laras) fsemis
-                Isep -> get_nn (laras_isep laras) fsemis
+                Umbang -> getNn (larasUmbang laras) fsemis
+                Isep -> getNn (larasIsep laras) fsemis
             Just ombak -> do
-                umbang <- get_nn (laras_umbang laras) fsemis
-                isep <- get_nn (laras_isep laras) fsemis
-                let avg = (Pitch.nn_to_hz umbang + Pitch.nn_to_hz isep) / 2
-                pure $ Pitch.hz_to_nn $ case tuning of
+                umbang <- getNn (larasUmbang laras) fsemis
+                isep <- getNn (larasIsep laras) fsemis
+                let avg = (Pitch.nnToHz umbang + Pitch.nnToHz isep) / 2
+                pure $ Pitch.hzToNn $ case tuning of
                     Umbang -> avg - ombak / 2
                     Isep -> avg + ombak / 2
 
 -- | VStr: Select saih tuning.
-laras_key :: EnvKey.Key
-laras_key = "laras"
+larasKey :: EnvKey.Key
+larasKey = "laras"
 
-get_nn :: Vector.Vector Pitch.NoteNumber -> Pitch.FSemi
+getNn :: Vector.Vector Pitch.NoteNumber -> Pitch.FSemi
     -> Maybe Pitch.NoteNumber
-get_nn nns fsemis
+getNn nns fsemis
     | frac == 0 = nns !? semis
     | otherwise = do
         low <- nns !? semis

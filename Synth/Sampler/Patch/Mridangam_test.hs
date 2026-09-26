@@ -42,10 +42,10 @@ test_variations = do
         )
 
 runNotes :: Text -> [UiTest.EventSpec] -> ([Sample.Sample], [Text])
-runNotes title events = (samples, logs ++ convert_logs)
+runNotes title events = (samples, logs ++ convertLogs)
     where
     (notes, logs) = derive title [(">m", events)]
-    (samples, convert_logs) = convert patch notes
+    (samples, convertLogs) = convert patch notes
     Just patch = Patch.lookupPatch "mridangam-d" Mridangam.patches
 
 convert :: Patch.Patch -> [Note.Note] -> ([Sample.Sample], [Text])
@@ -54,17 +54,17 @@ convert patch notes = (Maybe.catMaybes samples, concat logs)
     (samples, logs) = unzip (map convert1 (Patch._preprocess patch notes))
     convert1 note = case Patch.runConvert (Patch._convert patch note) of
         Left err -> (Nothing, [err])
-        Right (sample, logs) -> (Just sample, map Log.msg_text logs)
+        Right (sample, logs) -> (Just sample, map Log.msgText logs)
 
 derive :: Text -> [UiTest.TrackSpec] -> ([Note.Note], [Text])
-derive title = perform allocs . Derive.r_events
-    . DeriveTest.derive_tracks_setup (withSynth allocs) title
+derive title = perform allocs . Derive.rEvents
+    . DeriveTest.deriveTracksSetup (withSynth allocs) title
     where
     allocs = [("m", "sampler/mridangam-d")]
 
 withSynth :: DeriveTest.SimpleAllocations -> DeriveTest.Setup
-withSynth allocs = DeriveTest.with_synths_im allocs [PatchDb.synth]
+withSynth allocs = DeriveTest.withSynthsIm allocs [PatchDb.synth]
 
 perform :: DeriveTest.SimpleAllocations -> Stream.Stream Score.Event
     -> ([Note.Note], [Text])
-perform allocs = DeriveTest.perform_im_synths allocs [PatchDb.synth]
+perform allocs = DeriveTest.performImSynths allocs [PatchDb.synth]

@@ -38,157 +38,157 @@ import           Types
 -- you add one.
 block :: Cmd.M m => m ViewId
 block = do
-    source_block <- Cmd.get_focused_block
-    ruler_id <- Ui.block_ruler source_block
-    dest_block <- Create.block ruler_id
-    Ui.set_integrated_block dest_block $
-        Just (source_block, Block.DeriveDestinations [])
-    Cmd.derive_immediately [source_block]
-    Cmd.inflict_block_damage source_block
-    Create.view dest_block
+    sourceBlock <- Cmd.getFocusedBlock
+    rulerId <- Ui.blockRuler sourceBlock
+    destBlock <- Create.block rulerId
+    Ui.setIntegratedBlock destBlock $
+        Just (sourceBlock, Block.DeriveDestinations [])
+    Cmd.deriveImmediately [sourceBlock]
+    Cmd.inflictBlockDamage sourceBlock
+    Create.view destBlock
 
 -- | Create a block integrate copy of the selected block.  Details at
 -- 'Block.ScoreDestinations'.
-score_block :: Cmd.M m => m ViewId
-score_block = do
-    source_block <- Cmd.get_focused_block
-    ruler_id <- Ui.block_ruler source_block
-    dest_block <- Create.block ruler_id
-    Ui.set_integrated_block dest_block $
-        Just (source_block, Block.ScoreDestinations [])
-    Cmd.inflict_block_damage source_block
-    Create.view dest_block
+scoreBlock :: Cmd.M m => m ViewId
+scoreBlock = do
+    sourceBlock <- Cmd.getFocusedBlock
+    rulerId <- Ui.blockRuler sourceBlock
+    destBlock <- Create.block rulerId
+    Ui.setIntegratedBlock destBlock $
+        Just (sourceBlock, Block.ScoreDestinations [])
+    Cmd.inflictBlockDamage sourceBlock
+    Create.view destBlock
 
 -- | Similar to 'block', explicitly create another track integrated from the
 -- selected one, which should already have a `<` integrate call on it.
 track :: Cmd.M m => m ()
 track = do
-    (block_id, _, track_id, _) <- Selection.get_insert
-    Ui.modify_integrated_tracks block_id
-        ((track_id, Block.DeriveDestinations []) :)
-    Cmd.derive_immediately [block_id]
-    Cmd.inflict_track_damage block_id track_id
+    (blockId, _, trackId, _) <- Selection.getInsert
+    Ui.modifyIntegratedTracks blockId
+        ((trackId, Block.DeriveDestinations []) :)
+    Cmd.deriveImmediately [blockId]
+    Cmd.inflictTrackDamage blockId trackId
 
 -- | Create a track integrate copy of the selected track.  Details at
 -- 'Block.ScoreDestinations'.
-score_track :: Cmd.M m => m ()
-score_track = do
-    (block_id, _, track_id, _) <- Selection.get_insert
-    Ui.modify_integrated_tracks block_id
-        ((track_id, Block.ScoreDestinations []) :)
-    Cmd.inflict_track_damage block_id track_id
+scoreTrack :: Cmd.M m => m ()
+scoreTrack = do
+    (blockId, _, trackId, _) <- Selection.getInsert
+    Ui.modifyIntegratedTracks blockId
+        ((trackId, Block.ScoreDestinations []) :)
+    Cmd.inflictTrackDamage blockId trackId
 
-clear_score_track :: Cmd.M m => m ()
-clear_score_track = do
-    (block_id, _, track_ids, _) <- Selection.tracks
-    Ui.modify_integrated_tracks block_id $ filter ((`notElem` track_ids) . fst)
+clearScoreTrack :: Cmd.M m => m ()
+clearScoreTrack = do
+    (blockId, _, trackIds, _) <- Selection.tracks
+    Ui.modifyIntegratedTracks blockId $ filter ((`notElem` trackIds) . fst)
 
-clear_score_tracks_of :: Ui.M m => BlockId -> m ()
-clear_score_tracks_of block_id =
-    Ui.modify_integrated_tracks block_id (const [])
+clearScoreTracksOf :: Ui.M m => BlockId -> m ()
+clearScoreTracksOf blockId =
+    Ui.modifyIntegratedTracks blockId (const [])
 
 
 -- * revert
 
 -- | Revert the selected range back to the integrated state.
-sel_revert :: Cmd.M m => m ()
-sel_revert = do
-    (block_id, _, track_ids, range) <- Selection.tracks
-    Edit.clear_range track_ids range
-    by_dest <- Block.destination_to_source <$> Ui.get_block block_id
+selRevert :: Cmd.M m => m ()
+selRevert = do
+    (blockId, _, trackIds, range) <- Selection.tracks
+    Edit.clearRange trackIds range
+    byDest <- Block.destinationToSource <$> Ui.getBlock blockId
     sequence_
-        [ Ui.insert_block_events block_id track_id
+        [ Ui.insertBlockEvents blockId trackId
             (map Event.unmodified (Map.elems index))
-        | (track_id, (_, index)) <- by_dest
-        , track_id `elem` track_ids
+        | (trackId, (_, index)) <- byDest
+        , trackId `elem` trackIds
         ]
 
-delete_manual :: Cmd.M m => Block.SourceKey -> m ()
-delete_manual key = do
-    block_id <- Cmd.get_focused_block
-    Ui.set_integrated_manual block_id key Nothing
+deleteManual :: Cmd.M m => Block.SourceKey -> m ()
+deleteManual key = do
+    blockId <- Cmd.getFocusedBlock
+    Ui.setIntegratedManual blockId key Nothing
 
 
 -- * inspect
 
-track_sources :: Cmd.M m => m Text
-track_sources = do
-    block <- Ui.get_block =<< Cmd.get_focused_block
-    pure $ Text.unlines $ List.intercalate [""] $ map show_source $
-        Block.block_integrated_tracks block
+trackSources :: Cmd.M m => m Text
+trackSources = do
+    block <- Ui.getBlock =<< Cmd.getFocusedBlock
+    pure $ Text.unlines $ List.intercalate [""] $ map showSource $
+        Block.blockIntegratedTracks block
     where
-    show_source (source, dests) =
-        "=== source: " <> pretty source : show_track_dests dests
+    showSource (source, dests) =
+        "=== source: " <> pretty source : showTrackDests dests
 
-show_track_dests :: Block.TrackDestinations -> [Text]
-show_track_dests = \case
-    Block.DeriveDestinations dests -> concatMap show_dest dests
-    Block.ScoreDestinations dests -> concatMap show_score_dest dests
+showTrackDests :: Block.TrackDestinations -> [Text]
+showTrackDests = \case
+    Block.DeriveDestinations dests -> concatMap showDest dests
+    Block.ScoreDestinations dests -> concatMap showScoreDest dests
 
-show_score_dest :: (TrackId, (TrackId, Block.EventIndex)) -> [Text]
-show_score_dest (source, (dest, events)) =
+showScoreDest :: (TrackId, (TrackId, Block.EventIndex)) -> [Text]
+showScoreDest (source, (dest, events)) =
     "== " <> pretty source <> " -> " <> pretty dest <> ":"
-    : show_index events
+    : showIndex events
 
-show_dest :: Block.NoteDestination -> [Text]
-show_dest (Block.NoteDestination key note controls) =
+showDest :: Block.NoteDestination -> [Text]
+showDest (Block.NoteDestination key note controls) =
     "== key: " <> pretty key
-        : "== note: " <> pretty (fst note) : show_index (snd note)
-        ++ concatMap show_control (Map.toList controls)
+        : "== note: " <> pretty (fst note) : showIndex (snd note)
+        ++ concatMap showControl (Map.toList controls)
     where
-    show_control (name, (track_id, index)) =
-        "== control " <> name <> ": " <> pretty track_id
-        : show_index index
+    showControl (name, (trackId, index)) =
+        "== control " <> name <> ": " <> pretty trackId
+        : showIndex index
 
-show_index :: Block.EventIndex -> [Text]
-show_index = map show_event . Map.elems
+showIndex :: Block.EventIndex -> [Text]
+showIndex = map showEvent . Map.elems
 
-show_event :: Event.Event -> Text
-show_event e = mconcat
+showEvent :: Event.Event -> Text
+showEvent e = mconcat
     [ pretty (Event.start e), "+", pretty (Event.duration e)
     , " ", pretty (Event.text e)
     , " ", fromMaybe "?" $
-        Stack.pretty_ui_inner . Event.stack_stack =<< Event.stack e
+        Stack.prettyUiInner . Event.stackStack =<< Event.stack e
     ]
 
 -- | Show the integration state in an abbreviated way.
 -- This is an inverse mapping from dest to source.
-dest_to_sources :: Cmd.M m => m [(TrackId, (Block.Source, Text))]
-dest_to_sources = do
-    block <- Ui.get_block =<< Cmd.get_focused_block
-    pure $ map (fmap (fmap Block.short_event_index)) $
-        Block.destination_to_source block
+destToSources :: Cmd.M m => m [(TrackId, (Block.Source, Text))]
+destToSources = do
+    block <- Ui.getBlock =<< Cmd.getFocusedBlock
+    pure $ map (fmap (fmap Block.shortEventIndex)) $
+        Block.destinationToSource block
 
-sel_edits :: Cmd.M m => m ([Event.IndexKey], [Merge.Edit])
-sel_edits = do
-    (block_id, _, track_id, _) <- Selection.get_insert
-    edits block_id track_id
+selEdits :: Cmd.M m => m ([Event.IndexKey], [Merge.Edit])
+selEdits = do
+    (blockId, _, trackId, _) <- Selection.getInsert
+    edits blockId trackId
 
 edits :: Cmd.M m => BlockId -> TrackId -> m ([Event.IndexKey], [Merge.Edit])
-edits block_id track_id = do
-    block <- Ui.get_block block_id
+edits blockId trackId = do
+    block <- Ui.getBlock blockId
     index <- Cmd.require "track is not integrated from anywhere" $
-        lookup track_id $ indices_of (Block.block_integrated block)
-            (Block.block_integrated_tracks block)
-    events <- Ui.get_events track_id
-    let (deleted, edits) = Merge.diff_events index (Events.ascending events)
-    pure (Set.toList deleted, filter Merge.is_modified edits)
+        lookup trackId $ indicesOf (Block.blockIntegrated block)
+            (Block.blockIntegratedTracks block)
+    events <- Ui.getEvents trackId
+    let (deleted, edits) = Merge.diffEvents index (Events.ascending events)
+    pure (Set.toList deleted, filter Merge.isModified edits)
 
 -- | Show source UI events.
 indices :: Cmd.M m => m [(TrackId, (Block.Source, Block.EventIndex))]
 indices =
-    fmap Block.destination_to_source . Ui.get_block =<< Cmd.get_focused_block
+    fmap Block.destinationToSource . Ui.getBlock =<< Cmd.getFocusedBlock
 
-indices_of :: Maybe (BlockId, Block.TrackDestinations)
+indicesOf :: Maybe (BlockId, Block.TrackDestinations)
     -> [(TrackId, Block.TrackDestinations)] -> [(TrackId, Block.EventIndex)]
-indices_of integrated integrated_tracks =
-    block_indices ++ concatMap dest_indices integrated_tracks
+indicesOf integrated integratedTracks =
+    blockIndices ++ concatMap destIndices integratedTracks
     where
-    block_indices = maybe [] dest_indices integrated
-    dest_indices (_, Block.DeriveDestinations dests) =
-        concatMap derive_indices dests
-    dest_indices (_, Block.ScoreDestinations dests) = map snd dests
-    derive_indices (Block.NoteDestination _ note controls) =
+    blockIndices = maybe [] destIndices integrated
+    destIndices (_, Block.DeriveDestinations dests) =
+        concatMap deriveIndices dests
+    destIndices (_, Block.ScoreDestinations dests) = map snd dests
+    deriveIndices (Block.NoteDestination _ note controls) =
         note : Map.elems controls
 
 -- | This is always going to be empty because cache strips collect_integrated.
@@ -196,8 +196,8 @@ indices_of integrated integrated_tracks =
 -- debugging.
 integrated :: Cmd.M m => m Text
 integrated = do
-    integrated <- Cmd.perf_integrated <$> (Perf.get =<< Cmd.get_focused_block)
+    integrated <- Cmd.perfIntegrated <$> (Perf.get =<< Cmd.getFocusedBlock)
     pure $ Text.unlines $ concatMap fmt integrated
     where
     fmt (Derive.Integrated source events) =
-        pretty source : Stream.short_events events
+        pretty source : Stream.shortEvents events

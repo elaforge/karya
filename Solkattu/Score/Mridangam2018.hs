@@ -42,7 +42,7 @@ e_18_03_19 = exercise $ date 2018 3 19 $ ganesh $ korvai adi $ variations
     ]
 
 e_18_03_28 :: Korvai
-e_18_03_28 = exercise $ date 2018 3 27 $ ganesh $ korvaiS1 Tala.misra_chapu $
+e_18_03_28 = exercise $ date 2018 3 27 $ ganesh $ korvaiS1 Tala.misraChapu $
      kt.k.n.o.od.__ . k.n.p.k.od.__.k
     .kt.k.n.p.d .__ . k.n.p.k.d .__.k
 
@@ -54,12 +54,12 @@ e_18_05_25 = exercise $ date 2018 5 25 $ ganesh $ korvai adi $ variations
     ]
 
 tir_18_05_25 :: Korvai
-tir_18_05_25 = tirmanam $ date 2018 5 25 $ ganesh $ korvaiS1 Tala.misra_chapu $
-    __sam Tala.misra_chapu $
+tir_18_05_25 = tirmanam $ date 2018 5 25 $ ganesh $ korvaiS1 Tala.misraChapu $
+    __sam Tala.misraChapu $
         kt.__.k.__.k.__.o.__.o.k.o . tri (od.__.p.k.t.k.o) (o.k.o.o.k)
 
 tir_18_06_15 :: Korvai
-tir_18_06_15 = tirmanam $ date 2018 6 15 $ korvai Tala.misra_chapu $
+tir_18_06_15 = tirmanam $ date 2018 6 15 $ korvai Tala.misraChapu $
     variations
     -- 42424 as 41414
     [ sd $ tri od (k.o.o.k)
@@ -146,7 +146,7 @@ e_18_06_22 = exercise $ date 2018 6 22 $ korvai adi $ variations
             ]
 
 c_18_07_02_sarva :: Korvai
-c_18_07_02_sarva = sudhindra $ korvai Tala.misra_chapu $ variations
+c_18_07_02_sarva = sudhindra $ korvai Tala.misraChapu $ variations
     [ sd $ sarva & (o .__.o.o.o.__4.o.__.o.o.o.__)
          . sarva & (__.__.o.o.o.__4.o.__.o.o.o.__)
          . sarva & (o.__n 14)
@@ -156,7 +156,7 @@ c_18_07_02_sarva = sudhindra $ korvai Tala.misra_chapu $ variations
 
 e_misra_tisram :: Korvai
 e_misra_tisram = exercise $ date 2018 9 11 $ ganesh $
-    korvai Tala.misra_chapu $ variations $ map sd $ map (nadai 6)
+    korvai Tala.misraChapu $ variations $ map sd $ map (nadai 6)
     [ r5 (kt.k) . tk.kook
     , r5 ndk . n.k.n.n.d.k
     , (o.__3.p) & r5 ndk . n.k.on.on.od.k
@@ -175,7 +175,7 @@ e_misra_tisram = exercise $ date 2018 9 11 $ ganesh $
     ndk = n.d.k
 
 e_18_11_12 :: Korvai
-e_18_11_12 = exercise $ date 2018 11 12 $ ganesh $ korvai Tala.misra_chapu $
+e_18_11_12 = exercise $ date 2018 11 12 $ ganesh $ korvai Tala.misraChapu $
     variations
     [ kook.sarvaD_ 6 . kook.sarvaD_ 6
     , pattern1 $ kook.od.__4 . kook.od.__4

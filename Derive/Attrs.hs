@@ -40,9 +40,9 @@ newtype Attributes = Attributes (Set Attribute)
     deriving (Semigroup, Monoid, Eq, Ord, Read, Show, Serialize.Serialize,
         DeepSeq.NFData, Aeson.ToJSON, Aeson.FromJSON)
 
-instance Pretty Attributes where pretty = ShowVal.show_val
+instance Pretty Attributes where pretty = ShowVal.showVal
 instance ShowVal.ShowVal Attributes where
-    show_val = ("+"<>) . Text.intercalate "+" . to_list
+    showVal = ("+"<>) . Text.intercalate "+" . toList
 
 attr :: Text -> Attributes
 attr = Attributes . Set.singleton
@@ -50,11 +50,11 @@ attr = Attributes . Set.singleton
 attrs :: [Text] -> Attributes
 attrs = Attributes . Set.fromList
 
-to_set :: Attributes -> Set Attribute
-to_set (Attributes attrs) = attrs
+toSet :: Attributes -> Set Attribute
+toSet (Attributes attrs) = attrs
 
-to_list :: Attributes -> [Attribute]
-to_list = Set.toList . to_set
+toList :: Attributes -> [Attribute]
+toList = Set.toList . toSet
 
 difference :: Attributes -> Attributes -> Attributes
 difference (Attributes x) (Attributes y) = Attributes (Set.difference x y)
@@ -114,7 +114,7 @@ whole = attr "whole"
 
 arco = attr "arco"
 pizz = attr "pizz" -- pizzicato
-pizz_right = attr "pizz-right"
+pizzRight = attr "pizz-right"
 snap = attr "snap" -- snap pizz, aka Bartok pizz
 harm = attr "harm"
 legno = attr "legno"

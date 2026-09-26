@@ -32,17 +32,17 @@ module Derive.Deriver.Monad (
     -- * Deriver
     Deriver, RunResult
     , modify, get, gets, put, run
-    , initialize_log_msg
+    , initializeLogMsg
 
     -- * error
     , Error(..), ErrorVal(..), CallError(..), TypeErrorT(..), ErrorPlace(..)
     , EvalSource(..)
-    , throw, throw_arg_error, throw_error
+    , throw, throwArgError, throwError
     , annotate
-    , require, require_right
+    , require, requireRight
 
     -- * derived types
-    , Callable, callable_name, Tagged(..), Taggable(..)
+    , Callable, callableName, Tagged(..), Taggable(..)
     , CallableExpr
 
     , Note, NoteDeriver, NoteArgs
@@ -50,33 +50,33 @@ module Derive.Deriver.Monad (
     , Pitch, PitchDeriver, PitchArgs
 
     -- * lookup_call
-    , lookup_call
+    , lookupCall
 
     -- * state
-    , State(..), initial_state
-    , Threaded(..), initial_threaded
-    , Dynamic(..), InstrumentAliases, Inversion(..), initial_dynamic
-    , strip_dynamic
-    , initial_environ, initial_controls, initial_control_vals, default_dynamic
+    , State(..), initialState
+    , Threaded(..), initialThreaded
+    , Dynamic(..), InstrumentAliases, Inversion(..), initialDynamic
+    , stripDynamic
+    , initialEnviron, initialControls, initialControlVals, defaultDynamic
 
     -- ** scope
     , Builtins
-    , CallMap(..), single_call
+    , CallMap(..), singleCall
     , Scopes, ScopesT(..)
-    , s_generator, s_transformer, s_track, s_val
-    , Scope(..), s_note, s_control, s_pitch
+    , sGenerator, sTransformer, sTrack, sVal
+    , Scope(..), sNote, sControl, sPitch
     , ScopePriority(..), CallPriority(..)
-    , scope_priority, lookup_priority, add_priority, replace_priority
+    , scopePriority, lookupPriority, addPriority, replacePriority
     , DocumentedCall(..)
-    , PatternCall(..), pat_call_doc
-    , extract_doc
+    , PatternCall(..), patCallDoc
+    , extractDoc
     -- ** TrackCall
-    , TrackCall, track_call
+    , TrackCall, trackCall
 
     -- ** constant
-    , Constant(..), initial_constant
+    , Constant(..), initialConstant
     , Mode(..)
-    , mergers, merge_add, merge_sub, merge_mul, merge_scale
+    , mergers, mergeAdd, mergeSub, mergeMul, mergeScale
 
     -- ** instrument
     , Instrument(..), InstrumentCalls
@@ -90,30 +90,30 @@ module Derive.Deriver.Monad (
     , TrackDynamic, CallDuration(..)
 
     -- * calls
-    , Context(..), ctx_track_range, coerce_context
-    , dummy_context, tag_context, untag_context
-    , Call(..), make_call
+    , Context(..), ctxTrackRange, coerceContext
+    , dummyContext, tagContext, untagContext
+    , Call(..), makeCall
     , CallName(..), ArgName(..)
-    , sym_to_call_name, str_to_call_name, str_to_arg_name
+    , symToCallName, strToCallName, strToArgName
     , CallDoc(..), ArgDoc(..), ArgParser(..), EnvironDefault(..)
     , WithArgDoc
     , PassedArgs(..)
 
     -- ** generator
-    , Generator, GeneratorFunc(..), GeneratorF, generator_func
-    , generator, generator_events, generator1
-    , with_score_duration, with_real_duration
+    , Generator, GeneratorFunc(..), GeneratorF, generatorFunc
+    , generator, generatorEvents, generator1
+    , withScoreDuration, withRealDuration
 
     -- ** transformer
     , Transformer, TransformerF
     , transformer
 
     -- ** val
-    , ValCall, make_val_call
+    , ValCall, makeValCall
 
     -- ** cache types
     -- $cache_doc
-    , Cache(..), CacheKey(..), Cached(..), cache_size
+    , Cache(..), CacheKey(..), Cached(..), cacheSize
     , CacheEntry(..), CallType(..)
     , BlockDeps(..)
 
@@ -122,22 +122,22 @@ module Derive.Deriver.Monad (
     , ControlDamage(..)
 
     -- * util
-    , score_to_real, real_to_score
+    , scoreToReal, realToScore
 
     -- * scale
     -- $scale_doc
     , ScaleCall(..)
     , ScaleF
-    , scale_call
+    , scaleCall
     , Scale(..)
     , LookupScale(..)
     , Transpose, Transposition(..), Enharmonics, Layout
 
     -- * merge
-    , error_to_warn, merge_logs
+    , errorToWarn, mergeLogs
 
     -- * testing
-    , invalidate_damaged
+    , invalidateDamaged
 ) where
 import qualified Control.DeepSeq as DeepSeq
 import           Control.DeepSeq (rnf)
@@ -196,15 +196,15 @@ type Deriver = DeriveM.Deriver State Error
 type RunResult a = DeriveM.RunResult State Error a
 
 instance Log.LogMonad Deriver where
-    write = DeriveM.write <=< initialize_log_msg
+    write = DeriveM.write <=< initializeLogMsg
 
-initialize_log_msg :: Log.Msg -> Deriver Log.Msg
-initialize_log_msg msg = case Log.msg_stack msg of
+initializeLogMsg :: Log.Msg -> Deriver Log.Msg
+initializeLogMsg msg = case Log.msgStack msg of
     -- If the msg was created explicitly, it may already have a stack.
     Just _ -> pure msg
     Nothing -> do
-        stack <- gets (state_stack . state_dynamic)
-        pure $! msg { Log.msg_stack = Just stack }
+        stack <- gets (stateStack . stateDynamic)
+        pure $! msg { Log.msgStack = Just stack }
 
 -- * error
 
@@ -212,8 +212,8 @@ data Error = Error GHC.Stack.CallStack Stack.Stack ErrorVal
     deriving (Show)
 
 instance Pretty Error where
-    pretty (Error call_stack stack val) =
-        CallStack.showCaller (CallStack.caller call_stack)
+    pretty (Error callStack stack val) =
+        CallStack.showCaller (CallStack.caller callStack)
             <> " " <> pretty stack <> ": " <> pretty val
 
 data ErrorVal = GenericError Text | CallError CallError
@@ -233,14 +233,14 @@ data CallError
     deriving (Show)
 
 data TypeErrorT = TypeErrorT
-    { error_place :: ErrorPlace
-    , error_source :: EvalSource
-    , error_arg_name :: ArgName
-    , error_expected :: ValType.Type
-    , error_received :: Maybe DeriveT.Val
+    { errorPlace :: ErrorPlace
+    , errorSource :: EvalSource
+    , errorArgName :: ArgName
+    , errorExpected :: ValType.Type
+    , errorReceived :: Maybe DeriveT.Val
     -- | 'Typecheck.Eval' or evaluating 'DeriveT.Quoted' may produce a derive
     -- error.
-    , error_derive :: Maybe Error
+    , errorDerive :: Maybe Error
     } deriving (Show)
 
 -- | Where a type error came from.  The arg number starts at 0.
@@ -264,21 +264,21 @@ instance Pretty CallError where
         CallNotFound sym -> "CallNotFound: " <> pretty sym
 
 instance Pretty TypeErrorT where
-    pretty (TypeErrorT place source (ArgName arg_name) expected mb_received
-            derive_error) = mconcat $
-        [ "arg ", pretty place, "/", arg_name
-        , source_desc, ": expected ", pretty expected
-        ] ++ case mb_received of
-            Just received -> case derive_error of
+    pretty (TypeErrorT place source (ArgName argName) expected mbReceived
+            deriveError) = mconcat $
+        [ "arg ", pretty place, "/", argName
+        , sourceDesc, ": expected ", pretty expected
+        ] ++ case mbReceived of
+            Just received -> case deriveError of
                 Nothing ->
-                    [ " but got ", pretty (ValType.specific_type_of received)
+                    [ " but got ", pretty (ValType.specificTypeOf received)
                     , ": " <> pretty received
                     ]
                 -- The srcpos and stack of the derive error is probably not
                 -- interesting, so I strip those out.
                 Just (Error _ _ msg) ->
                     [ " but couldn't convert "
-                    , pretty (ValType.specific_type_of received)
+                    , pretty (ValType.specificTypeOf received)
                     ,  " ", pretty received, ": ", pretty msg
                     ]
             Nothing -> case source of
@@ -290,9 +290,9 @@ instance Pretty TypeErrorT where
                     [" but subtrack didn't make it through from_subtrack"]
                 _ -> [" but got no value"]
         where
-        source_desc = case source of
+        sourceDesc = case source of
             Literal -> ""
-            Quoted call -> " from " <> ShowVal.show_val call
+            Quoted call -> " from " <> ShowVal.showVal call
             SubTrack source -> " from subtrack:" <> either id showt source
 
 instance Pretty ErrorPlace where
@@ -300,14 +300,14 @@ instance Pretty ErrorPlace where
     pretty (TypeErrorEnviron key) = "environ:" <> pretty key
 
 throw :: GHC.Stack.HasCallStack => Text -> Deriver a
-throw = throw_error . GenericError
+throw = throwError . GenericError
 
-throw_arg_error :: GHC.Stack.HasCallStack => Text -> Deriver a
-throw_arg_error = throw_error . CallError . ArgError
+throwArgError :: GHC.Stack.HasCallStack => Text -> Deriver a
+throwArgError = throwError . CallError . ArgError
 
-throw_error :: GHC.Stack.HasCallStack => ErrorVal -> Deriver a
-throw_error err = do
-    stack <- gets (state_stack . state_dynamic)
+throwError :: GHC.Stack.HasCallStack => ErrorVal -> Deriver a
+throwError err = do
+    stack <- gets (stateStack . stateDynamic)
     DeriveM.throw (Error GHC.Stack.callStack stack err)
 
 -- | Catch and rethrow an error, presumably to annotate it with more
@@ -318,9 +318,9 @@ annotate f = DeriveM.annotate f
 require :: GHC.Stack.HasCallStack => Text -> Maybe a -> Deriver a
 require msg = maybe (throw msg) pure
 
-require_right :: GHC.Stack.HasCallStack => (err -> Text) -> Either err a
+requireRight :: GHC.Stack.HasCallStack => (err -> Text) -> Either err a
     -> Deriver a
-require_right fmt_err = either (throw . fmt_err) pure
+requireRight fmtErr = either (throw . fmtErr) pure
 
 
 -- * derived types
@@ -343,54 +343,54 @@ type CallableExpr d =
     it out yet.  TODO what would this look like in idris?
 -}
 class Callable call where
-    get_builtins_scope :: Builtins -> ModuleMap call
-    get_scopes_scope :: Scopes -> ScopePriority call
+    getBuiltinsScope :: Builtins -> ModuleMap call
+    getScopesScope :: Scopes -> ScopePriority call
     -- | What to call this call, for error msgs when lookup fails.
-    callable_name :: Proxy call -> Text
+    callableName :: Proxy call -> Text
 
 instance Callable (Generator Note) where
-    get_builtins_scope = scope_note . scopes_generator
-    get_scopes_scope = scope_note . scopes_generator
-    callable_name _ = "note generator"
+    getBuiltinsScope = scopeNote . scopesGenerator
+    getScopesScope = scopeNote . scopesGenerator
+    callableName _ = "note generator"
 instance Callable (Generator Control) where
-    get_builtins_scope = scope_control . scopes_generator
-    get_scopes_scope = scope_control . scopes_generator
-    callable_name _ = "control generator"
+    getBuiltinsScope = scopeControl . scopesGenerator
+    getScopesScope = scopeControl . scopesGenerator
+    callableName _ = "control generator"
 instance Callable (Generator Pitch) where
-    get_builtins_scope = scope_pitch . scopes_generator
-    get_scopes_scope = scope_pitch . scopes_generator
-    callable_name _ = "pitch generator"
+    getBuiltinsScope = scopePitch . scopesGenerator
+    getScopesScope = scopePitch . scopesGenerator
+    callableName _ = "pitch generator"
 
 instance Callable (Transformer Note) where
-    get_builtins_scope = scope_note . scopes_transformer
-    get_scopes_scope = scope_note . scopes_transformer
-    callable_name _ = "note transformer"
+    getBuiltinsScope = scopeNote . scopesTransformer
+    getScopesScope = scopeNote . scopesTransformer
+    callableName _ = "note transformer"
 instance Callable (Transformer Control) where
-    get_builtins_scope = scope_control . scopes_transformer
-    get_scopes_scope = scope_control . scopes_transformer
-    callable_name _ = "control transformer"
+    getBuiltinsScope = scopeControl . scopesTransformer
+    getScopesScope = scopeControl . scopesTransformer
+    callableName _ = "control transformer"
 instance Callable (Transformer Pitch) where
-    get_builtins_scope = scope_pitch . scopes_transformer
-    get_scopes_scope = scope_pitch . scopes_transformer
-    callable_name _ = "pitch transformer"
+    getBuiltinsScope = scopePitch . scopesTransformer
+    getScopesScope = scopePitch . scopesTransformer
+    callableName _ = "pitch transformer"
 
 instance Callable (TrackCall Note) where
-    get_builtins_scope = scope_note . scopes_track
-    get_scopes_scope = scope_note . scopes_track
-    callable_name _ = "note track call"
+    getBuiltinsScope = scopeNote . scopesTrack
+    getScopesScope = scopeNote . scopesTrack
+    callableName _ = "note track call"
 instance Callable (TrackCall Control) where
-    get_builtins_scope = scope_control . scopes_track
-    get_scopes_scope = scope_control . scopes_track
-    callable_name _ = "control track call"
+    getBuiltinsScope = scopeControl . scopesTrack
+    getScopesScope = scopeControl . scopesTrack
+    callableName _ = "control track call"
 instance Callable (TrackCall Pitch) where
-    get_builtins_scope = scope_pitch . scopes_track
-    get_scopes_scope = scope_pitch . scopes_track
-    callable_name _ = "pitch track call"
+    getBuiltinsScope = scopePitch . scopesTrack
+    getScopesScope = scopePitch . scopesTrack
+    callableName _ = "pitch track call"
 
 instance Callable ValCall where
-    get_builtins_scope = scopes_val
-    get_scopes_scope = scopes_val
-    callable_name _ = "val call"
+    getBuiltinsScope = scopesVal
+    getScopesScope = scopesVal
+    callableName _ = "val call"
 
 -- | This is for 'ctx_prev_val'.  Normally the previous value is available
 -- in all its untagged glory based on the type of the call, but ValCalls can
@@ -405,12 +405,12 @@ instance Pretty Tagged where
     format (TagPitch a) = Pretty.format a
 
 class (Show a, Pretty a) => Taggable a where
-    to_tagged :: a -> Tagged
-    from_tagged :: Tagged -> Maybe a
+    toTagged :: a -> Tagged
+    fromTagged :: Tagged -> Maybe a
 
 instance Taggable Tagged where
-    to_tagged = id
-    from_tagged = Just
+    toTagged = id
+    fromTagged = Just
 
 -- ** note
 
@@ -419,23 +419,23 @@ type NoteDeriver = Deriver (Stream.Stream Score.Event)
 type NoteArgs = PassedArgs Score.Event
 
 instance Taggable Note where
-    to_tagged = TagEvent
-    from_tagged (TagEvent a) = Just a
-    from_tagged _ = Nothing
+    toTagged = TagEvent
+    fromTagged (TagEvent a) = Just a
+    fromTagged _ = Nothing
 
 instance Semigroup NoteDeriver where
-    d1 <> d2 = d_merge [d1, d2]
+    d1 <> d2 = dMerge [d1, d2]
 instance Monoid NoteDeriver where
     mempty = pure mempty
     mappend = (<>)
-    mconcat = d_merge
+    mconcat = dMerge
 
 -- | This is an invalid instance, because a deriver has no literal syntax.
 -- But this lets me put a deriver in a defaulted argument, and get
 -- documentation for it.
-instance ShowVal.ShowVal NoteDeriver where show_val _ = "<note-deriver>"
-instance ShowVal.ShowVal PitchDeriver where show_val _ = "<pitch-deriver>"
-instance ShowVal.ShowVal ControlDeriver where show_val _ = "<control-deriver>"
+instance ShowVal.ShowVal NoteDeriver where showVal _ = "<note-deriver>"
+instance ShowVal.ShowVal PitchDeriver where showVal _ = "<pitch-deriver>"
+instance ShowVal.ShowVal ControlDeriver where showVal _ = "<control-deriver>"
 
 -- ** control
 
@@ -444,9 +444,9 @@ type ControlDeriver = Deriver (Stream.Stream Signal.Control)
 type ControlArgs = PassedArgs Control
 
 instance Taggable Control where
-    to_tagged = TagControl
-    from_tagged (TagControl a) = Just a
-    from_tagged _ = Nothing
+    toTagged = TagControl
+    fromTagged (TagControl a) = Just a
+    fromTagged _ = Nothing
 
 -- ** pitch
 
@@ -455,9 +455,9 @@ type PitchDeriver = Deriver (Stream.Stream PSignal.PSignal)
 type PitchArgs = PassedArgs Pitch
 
 instance Taggable Pitch where
-    to_tagged = TagPitch
-    from_tagged (TagPitch a) = Just a
-    from_tagged _ = Nothing
+    toTagged = TagPitch
+    fromTagged (TagPitch a) = Just a
+    fromTagged _ = Nothing
 
 -- * state
 
@@ -465,23 +465,23 @@ instance Taggable Pitch where
 data State = State
     -- | Threaded state means deriving one event depends on the results of the
     -- previous event.  This corresponds to StateT.
-    { state_threaded :: Threaded
+    { stateThreaded :: Threaded
     -- | This data is modified in a dynamically scoped way, for
     -- sub-derivations.  This corresponds to ReaderT.
-    , state_dynamic :: Dynamic
+    , stateDynamic :: Dynamic
     -- | This data is mappended.  It functions like an implicit return value.
     -- This corresponds to WriterT.
-    , state_collect :: Collect
+    , stateCollect :: Collect
     -- | This data is constant throughout the derivation.
-    , state_constant :: Constant
+    , stateConstant :: Constant
     }
 
-initial_state :: Constant -> Dynamic -> State
-initial_state constant dynamic = State
-    { state_threaded = initial_threaded
-    , state_dynamic = dynamic
-    , state_collect = mempty
-    , state_constant = constant
+initialState :: Constant -> Dynamic -> State
+initialState constant dynamic = State
+    { stateThreaded = initialThreaded
+    , stateDynamic = dynamic
+    , stateCollect = mempty
+    , stateConstant = constant
     }
 
 -- * Threaded
@@ -493,16 +493,16 @@ initial_state constant dynamic = State
 data Threaded = Threaded
     -- | Keep track of the previous value for each track currently being
     -- evaluated.  See NOTE [prev-val].
-    { state_prev_val :: Map (BlockId, TrackId) Tagged
+    { statePrevVal :: Map (BlockId, TrackId) Tagged
     -- | This is used for 'Stack.Serial' to ensure a unique stack for multiple
     -- generator calls within a single track event.  It's reset on the
     -- evaluation of each uninverted track event, and incremented after
     -- every Score.Event is emitted.  See NOTE [event-serial] for history.
-    , state_event_serial :: Stack.Serial
+    , stateEventSerial :: Stack.Serial
     } deriving (Show)
 
-initial_threaded :: Threaded
-initial_threaded = Threaded mempty 0
+initialThreaded :: Threaded
+initialThreaded = Threaded mempty 0
 
 
 -- * Dynamic
@@ -510,24 +510,24 @@ initial_threaded = Threaded mempty 0
 -- | This is a dynamically scoped environment that applies to generated events
 -- inside its scope.
 data Dynamic = Dynamic
-    { state_control_merge_defaults :: Map ScoreT.Control Merger
+    { stateControlMergeDefaults :: Map ScoreT.Control Merger
     -- | The unnamed pitch signal currently in scope.  This is the pitch signal
     -- that's applied to notes by default.  It's split off from 'state_environ'
     -- because it's convenient to guarentee that the main pitch signal is
     -- always present.
-    , state_pitch :: PSignal.PSignal
-    , state_environ :: DeriveT.Environ
-    , state_warp :: Warp.Warp
+    , statePitch :: PSignal.PSignal
+    , stateEnviron :: DeriveT.Environ
+    , stateWarp :: Warp.Warp
     -- | Calls currently in scope.
-    , state_scopes :: Scopes
-    , state_instrument_aliases :: InstrumentAliases
-    , state_control_damage :: ControlDamage
+    , stateScopes :: Scopes
+    , stateInstrumentAliases :: InstrumentAliases
+    , stateControlDamage :: ControlDamage
     -- | This is a delayed transform.  If a call wants to evaluate under
     -- inversion, it composes itself on to this, which is then applied as
     -- a transformation to the eventual synthesized event at the bottom of the
     -- inversion.
-    , state_under_invert :: NoteDeriver -> NoteDeriver
-    , state_inversion :: Inversion
+    , stateUnderInvert :: NoteDeriver -> NoteDeriver
+    , stateInversion :: Inversion
     {- | Each note track sets this to either an unsliced evaluation of the
         closest pitch track below it, or its surrounding 'state_pitch' if there
         is no pitch track below.  Calls can then use it to get neighboring
@@ -547,18 +547,18 @@ data Dynamic = Dynamic
         previous pitch, which seems error-prone.  But I think for it to be an
         error, I'd have to have it return an error, e.g. Map TrackTime Pitch
     -}
-    , state_pitch_map :: Maybe (Maybe PSignal.PSignal, [Log.Msg])
+    , statePitchMap :: Maybe (Maybe PSignal.PSignal, [Log.Msg])
 
     -- | This is set to the current note track being evaluated.  It's useful
     -- to look up 'state_prev_val' when evaluating other tracks in an
     -- inversion.  It's set when entering a note track, and unset when entering
     -- a block.
-    , state_note_track :: Maybe (BlockId, TrackId)
+    , stateNoteTrack :: Maybe (BlockId, TrackId)
     -- | This is the call stack for events.  It's used for error reporting,
     -- and attached to events in case they want to emit errors later (say
     -- during performance).
-    , state_stack :: Stack.Stack
-    , state_mode :: Mode
+    , stateStack :: Stack.Stack
+    , stateMode :: Mode
     }
 
 -- | Instrument aliases as (alias, destination) pairs.  Map through this before
@@ -590,21 +590,21 @@ instance Pretty Inversion where
     pretty NotInverted = "NotInverted"
     pretty (InversionInProgress {}) = "InversionInProgress"
 
-initial_dynamic :: DeriveT.Environ -> Dynamic
-initial_dynamic environ = Dynamic
-    { state_control_merge_defaults = initial_control_merge_defaults
-    , state_pitch = mempty
-    , state_environ = environ <> initial_environ
-    , state_warp = Warp.identity
-    , state_scopes = mempty
-    , state_instrument_aliases = mempty
-    , state_control_damage = mempty
-    , state_under_invert = id
-    , state_inversion = NotInverted
-    , state_pitch_map = Nothing
-    , state_note_track = Nothing
-    , state_stack = Stack.empty
-    , state_mode = Normal
+initialDynamic :: DeriveT.Environ -> Dynamic
+initialDynamic environ = Dynamic
+    { stateControlMergeDefaults = initialControlMergeDefaults
+    , statePitch = mempty
+    , stateEnviron = environ <> initialEnviron
+    , stateWarp = Warp.identity
+    , stateScopes = mempty
+    , stateInstrumentAliases = mempty
+    , stateControlDamage = mempty
+    , stateUnderInvert = id
+    , stateInversion = NotInverted
+    , statePitchMap = Nothing
+    , stateNoteTrack = Nothing
+    , stateStack = Stack.empty
+    , stateMode = Normal
     }
 
 -- | Strip out fields that I don't need to remember in a TrackDynamic.
@@ -613,42 +613,42 @@ initial_dynamic environ = Dynamic
 -- 'state_pitch_map' has an unevaluated pitch derivation, which in turn
 -- somehow retains the previous derivation, and then the previous, and so on.
 -- This makes each derivation leak more space.
-strip_dynamic :: Dynamic -> Dynamic
-strip_dynamic dyn = dyn { state_pitch_map = Nothing }
-{-# INLINE strip_dynamic #-}
+stripDynamic :: Dynamic -> Dynamic
+stripDynamic dyn = dyn { statePitchMap = Nothing }
+{-# INLINE stripDynamic #-}
 
 -- TODO This could go into PlayUtil.initial_environ, but there are
 -- already a bunch of tests that call initial_dynamic directly and
 -- probably rely on these controls being in there.
-initial_environ :: DeriveT.Environ
-initial_environ = DeriveT.Environ $ Map.fromAscList
-    [ (ScoreT.control_name c, DeriveT.VSignal s)
-    | (c, s) <- Map.toAscList initial_controls
+initialEnviron :: DeriveT.Environ
+initialEnviron = DeriveT.Environ $ Map.fromAscList
+    [ (ScoreT.controlName c, DeriveT.VSignal s)
+    | (c, s) <- Map.toAscList initialControls
     ]
 
 -- | Initial control environment.
-initial_controls :: ScoreT.ControlMap
-initial_controls = ScoreT.untyped . Signal.constant <$> initial_control_vals
+initialControls :: ScoreT.ControlMap
+initialControls = ScoreT.untyped . Signal.constant <$> initialControlVals
 
-initial_control_vals :: Map ScoreT.Control Signal.Y
-initial_control_vals = Map.fromList
-    [ (Controls.dynamic, default_dynamic)
+initialControlVals :: Map ScoreT.Control Signal.Y
+initialControlVals = Map.fromList
+    [ (Controls.dynamic, defaultDynamic)
     ]
 
-initial_control_merge_defaults :: Map ScoreT.Control Merger
-initial_control_merge_defaults =
-    Map.fromList [(c, merge_add) | c <- Controls.additive_controls]
+initialControlMergeDefaults :: Map ScoreT.Control Merger
+initialControlMergeDefaults =
+    Map.fromList [(c, mergeAdd) | c <- Controls.additiveControls]
 
 -- | A default dynamic that's not 0 is useful because otherwise you have to add
 -- dyn to everything.  Since control tracks multiply by default, 1 is the most
 -- convenient value.
-default_dynamic :: Signal.Y
-default_dynamic = 1
+defaultDynamic :: Signal.Y
+defaultDynamic = 1
 
 instance Pretty Dynamic where
     format (Dynamic cmerge pitch environ warp scopes
-            aliases control_damage _under_invert inversion pitch_map
-            note_track stack mode) =
+            aliases controlDamage _underInvert inversion pitchMap
+            noteTrack stack mode) =
         Pretty.record "Dynamic"
             [ ("control_merge_defaults", Pretty.format cmerge)
             , ("pitch", Pretty.format pitch)
@@ -656,21 +656,21 @@ instance Pretty Dynamic where
             , ("warp", Pretty.format warp)
             , ("scopes", Pretty.format scopes)
             , ("instrument_aliases", Pretty.format aliases)
-            , ("control_damage", Pretty.format control_damage)
+            , ("control_damage", Pretty.format controlDamage)
             , ("inversion", Pretty.format inversion)
-            , ("pitch_map", Pretty.format pitch_map)
-            , ("note_track", Pretty.format note_track)
+            , ("pitch_map", Pretty.format pitchMap)
+            , ("note_track", Pretty.format noteTrack)
             , ("stack", Pretty.format stack)
             , ("mode", Pretty.format mode)
             ]
 
 instance DeepSeq.NFData Dynamic where
     rnf (Dynamic cmerge pitch environ warp _scopes
-            aliases control_damage _under_invert _inversion pitch_map
-            note_track stack _mode) =
+            aliases controlDamage _underInvert _inversion pitchMap
+            noteTrack stack _mode) =
         rnf cmerge `seq` rnf pitch `seq` rnf environ `seq` rnf warp
-        `seq` rnf aliases `seq` rnf control_damage `seq` rnf pitch_map
-        `seq` rnf note_track `seq` rnf stack
+        `seq` rnf aliases `seq` rnf controlDamage `seq` rnf pitchMap
+        `seq` rnf noteTrack `seq` rnf stack
 
 -- ** scope
 
@@ -693,12 +693,12 @@ instance Show Builtins where show _ = "((Builtins))"
 
 -- | The map takes priority over the patterns.
 data CallMap call = CallMap
-    { call_map :: Map Expr.Symbol call
-    , call_patterns :: [PatternCall call]
+    { callMap :: Map Expr.Symbol call
+    , callPatterns :: [PatternCall call]
     }
 
-single_call :: Expr.Symbol -> call -> CallMap call
-single_call sym call = CallMap (Map.singleton sym call) []
+singleCall :: Expr.Symbol -> call -> CallMap call
+singleCall sym call = CallMap (Map.singleton sym call) []
 
 instance Semigroup (CallMap call) where
     CallMap a1 a2 <> CallMap b1 b2 = CallMap (a1<>b1) (a2<>b2)
@@ -749,10 +749,10 @@ type Scopes = ScopesT
 -- names: EScope, TScope for ExpressionScope and TrackScope?
 -- ExprScope, TrackScope?  I'd want to update the names in CallDoc too.
 data ScopesT gen trans track val = Scopes
-    { scopes_generator :: gen
-    , scopes_transformer :: trans
-    , scopes_track :: track
-    , scopes_val :: val
+    { scopesGenerator :: gen
+    , scopesTransformer :: trans
+    , scopesTrack :: track
+    , scopesVal :: val
     }
     -- Previously, a single Call contained both generator and transformer.
     -- This turned out to not be flexible enough, because an instrument that
@@ -761,11 +761,11 @@ data ScopesT gen trans track val = Scopes
     -- that want both generator and transformer versions, and it's convenient
     -- to be able to deal with those together.
 
-s_generator = Lens.lens scopes_generator (\r a -> r { scopes_generator = a })
-s_transformer = Lens.lens scopes_transformer
-    (\r a -> r { scopes_transformer = a })
-s_track = Lens.lens scopes_track (\r a -> r { scopes_track = a })
-s_val = Lens.lens scopes_val (\r a -> r { scopes_val = a })
+sGenerator = Lens.lens scopesGenerator (\r a -> r { scopesGenerator = a })
+sTransformer = Lens.lens scopesTransformer
+    (\r a -> r { scopesTransformer = a })
+sTrack = Lens.lens scopesTrack (\r a -> r { scopesTrack = a })
+sVal = Lens.lens scopesVal (\r a -> r { scopesVal = a })
 
 instance (Pretty gen, Pretty trans, Pretty track, Pretty val) =>
         Pretty (ScopesT gen trans track val) where
@@ -786,14 +786,14 @@ instance (Monoid gen, Monoid trans, Monoid track, Monoid val) =>
     mappend = (<>)
 
 data Scope note control pitch = Scope
-    { scope_note :: note
-    , scope_control :: control
-    , scope_pitch :: pitch
+    { scopeNote :: note
+    , scopeControl :: control
+    , scopePitch :: pitch
     }
 
-s_note = Lens.lens scope_note (\r a -> r { scope_note = a })
-s_control = Lens.lens scope_control (\r a -> r { scope_control = a })
-s_pitch = Lens.lens scope_pitch (\r a -> r { scope_pitch = a })
+sNote = Lens.lens scopeNote (\r a -> r { scopeNote = a })
+sControl = Lens.lens scopeControl (\r a -> r { scopeControl = a })
+sPitch = Lens.lens scopePitch (\r a -> r { scopePitch = a })
 
 instance (Pretty note, Pretty control, Pretty pitch) =>
         Pretty (Scope note control pitch) where
@@ -859,31 +859,31 @@ data CallPriority
 
 instance Pretty CallPriority where pretty = showt
 
-scope_priority :: [(CallPriority, CallMap call)] -> ScopePriority call
-scope_priority = ScopePriority . Map.fromList
+scopePriority :: [(CallPriority, CallMap call)] -> ScopePriority call
+scopePriority = ScopePriority . Map.fromList
 
-lookup_priority :: CallPriority -> ScopePriority call -> CallMap call
-lookup_priority prio (ScopePriority scopes) =
+lookupPriority :: CallPriority -> ScopePriority call -> CallMap call
+lookupPriority prio (ScopePriority scopes) =
     Map.findWithDefault mempty prio scopes
 
 -- | Add this call at this level of priority.  It will shadow existing calls
 -- with the same name.
-add_priority :: CallPriority -> CallMap call -> ScopePriority call
+addPriority :: CallPriority -> CallMap call -> ScopePriority call
     -> ScopePriority call
-add_priority prio cmap (ScopePriority scopes) =
+addPriority prio cmap (ScopePriority scopes) =
     ScopePriority $ Map.insertWith (<>) prio cmap scopes
 
 -- | Replace all calls at this level of priority.
-replace_priority :: CallPriority -> CallMap call -> ScopePriority call
+replacePriority :: CallPriority -> CallMap call -> ScopePriority call
     -> ScopePriority call
-replace_priority prio cmap (ScopePriority scopes) =
+replacePriority prio cmap (ScopePriority scopes) =
     ScopePriority $ Map.insert prio cmap scopes
 
 -- | This is like 'Call', but with only documentation.  (name, CallDoc)
 data DocumentedCall = DocumentedCall CallName CallDoc
 
-extract_doc :: Call d -> DocumentedCall
-extract_doc call = DocumentedCall (call_name call) (call_doc call)
+extractDoc :: Call d -> DocumentedCall
+extractDoc call = DocumentedCall (callName call) (callDoc call)
 
 -- ** TrackCall
 
@@ -891,62 +891,62 @@ type TrackCall d = Call (TrackCallFunc d)
 type TrackCallFunc d =
     TrackTree.Track -> Deriver (ScoreT.Typed ScoreT.Control, d)
 
-track_call :: Module.Module -> CallName -> Tags.Tags -> Doc.Doc
+trackCall :: Module.Module -> CallName -> Tags.Tags -> Doc.Doc
     -> TrackCallFunc d -> TrackCall d
-track_call module_ name tags doc call = Call
-    { call_name = name
-    , call_doc = CallDoc
-        { cdoc_module = module_
-        , cdoc_tags = tags
-        , cdoc_doc = doc
-        , cdoc_args = mempty
+trackCall module_ name tags doc call = Call
+    { callName = name
+    , callDoc = CallDoc
+        { cdocModule = module_
+        , cdocTags = tags
+        , cdocDoc = doc
+        , cdocArgs = mempty
         }
-    , call_func = call
+    , callFunc = call
     }
 
 -- ** lookup
 
-lookup_call :: Callable call => Expr.Symbol -> Deriver (Maybe call)
-lookup_call = lookup_call_with get_scopes_scope get_builtins_scope
+lookupCall :: Callable call => Expr.Symbol -> Deriver (Maybe call)
+lookupCall = lookupCallWith getScopesScope getBuiltinsScope
 
-lookup_call_with :: (Scopes -> ScopePriority call)
+lookupCallWith :: (Scopes -> ScopePriority call)
     -> (Builtins -> ModuleMap call) -> Expr.Symbol -> Deriver (Maybe call)
-lookup_call_with get_scopes get_builtins sym = do
-    cmaps <- get_call_maps get_scopes
-    lookup_call_maps cmaps sym >>= \case
+lookupCallWith getScopes getBuiltins sym = do
+    cmaps <- getCallMaps getScopes
+    lookupCallMaps cmaps sym >>= \case
         Just call -> pure $ Just call
-        Nothing -> case split_qualified sym of
+        Nothing -> case splitQualified sym of
             Nothing -> pure Nothing
-            Just (mod, sym) -> lookup_qualified get_builtins mod sym
+            Just (mod, sym) -> lookupQualified getBuiltins mod sym
 
-split_qualified :: Expr.Symbol -> Maybe (Module.Module, Expr.Symbol)
-split_qualified sym
+splitQualified :: Expr.Symbol -> Maybe (Module.Module, Expr.Symbol)
+splitQualified sym
     | Text.null mod || Text.null name = Nothing
     | otherwise = Just (Module.Module (Text.dropEnd 1 mod), Expr.Symbol name)
     where (mod, name) = Text.breakOnEnd "." (Expr.unsym sym)
 
-lookup_qualified :: (Builtins -> ModuleMap call)
+lookupQualified :: (Builtins -> ModuleMap call)
     -> Module.Module -> Expr.Symbol -> Deriver (Maybe call)
-lookup_qualified get_scope module_ sym = do
-    by_module <- gets $ get_scope . state_builtins . state_constant
+lookupQualified getScope module_ sym = do
+    byModule <- gets $ getScope . stateBuiltins . stateConstant
     pure $ do
-        cmap <- Map.lookup module_ by_module
-        Map.lookup sym (call_map cmap)
+        cmap <- Map.lookup module_ byModule
+        Map.lookup sym (callMap cmap)
 
 -- | Get CallMaps is 'CallPriority' order.
-get_call_maps :: (Scopes -> ScopePriority call) -> Deriver [CallMap call]
-get_call_maps get = do
-    ScopePriority scopes <- gets $ get . state_scopes . state_dynamic
+getCallMaps :: (Scopes -> ScopePriority call) -> Deriver [CallMap call]
+getCallMaps get = do
+    ScopePriority scopes <- gets $ get . stateScopes . stateDynamic
     pure $ Map.elems scopes
 
 -- | Find the symbol in the first CallMap.
-lookup_call_maps :: [CallMap call] -> Expr.Symbol -> Deriver (Maybe call)
-lookup_call_maps lookups sym = firstJusts $ map (lookup_call_map sym) lookups
+lookupCallMaps :: [CallMap call] -> Expr.Symbol -> Deriver (Maybe call)
+lookupCallMaps lookups sym = firstJusts $ map (lookupCallMap sym) lookups
 
-lookup_call_map :: Expr.Symbol -> CallMap call -> Deriver (Maybe call)
-lookup_call_map sym (CallMap cmap patterns) = case Map.lookup sym cmap of
+lookupCallMap :: Expr.Symbol -> CallMap call -> Deriver (Maybe call)
+lookupCallMap sym (CallMap cmap patterns) = case Map.lookup sym cmap of
     Just call -> pure $ Just call
-    Nothing -> firstJusts $ map (($sym) . pat_function) patterns
+    Nothing -> firstJusts $ map (($sym) . patFunction) patterns
 
 -- ** mode
 
@@ -973,37 +973,37 @@ instance Pretty Mode where
 
 -- | Values that don't change during one derive run.
 data Constant = Constant
-    { state_ui :: Ui.State
-    , state_builtins :: Builtins
+    { stateUi :: Ui.State
+    , stateBuiltins :: Builtins
     -- | Global map of signal mergers.  Unlike calls, this is static.
-    , state_mergers :: Map Expr.Symbol Merger
+    , stateMergers :: Map Expr.Symbol Merger
     -- | LookupScale is actually hardcoded to 'Derive.Scale.All.lookup_scale'.
     -- But using this means that if it ever becomes dynamic I hopefully don't
     -- have to change so much code.  Also I think it avoids a circular import.
-    , state_lookup_scale :: LookupScale
-    , state_scale_calls :: Map CallName ScaleCall
+    , stateLookupScale :: LookupScale
+    , stateScaleCalls :: Map CallName ScaleCall
     -- | Get the calls and environ that should be in scope with a certain
     -- instrument.  The environ is merged with the environ in effect.
-    , state_lookup_instrument :: ScoreT.Instrument -> Either Text Instrument
+    , stateLookupInstrument :: ScoreT.Instrument -> Either Text Instrument
     -- | Cache from the last derivation.
-    , state_cache :: Cache
-    , state_score_damage :: ScoreDamage
+    , stateCache :: Cache
+    , stateScoreDamage :: ScoreDamage
     }
 
-initial_constant :: Ui.State -> Builtins -> LookupScale
+initialConstant :: Ui.State -> Builtins -> LookupScale
     -> Map CallName ScaleCall -> (ScoreT.Instrument -> Either Text Instrument)
     -> Cache -> ScoreDamage -> Constant
-initial_constant ui_state builtins lookup_scale scale_calls lookup_inst cache
-        score_damage
+initialConstant uiState builtins lookupScale scaleCalls lookupInst cache
+        scoreDamage
     = Constant
-        { state_ui = ui_state
-        , state_builtins = builtins
-        , state_mergers = mergers
-        , state_lookup_scale = lookup_scale
-        , state_scale_calls = scale_calls
-        , state_lookup_instrument = lookup_inst
-        , state_cache = invalidate_damaged score_damage cache
-        , state_score_damage = score_damage
+        { stateUi = uiState
+        , stateBuiltins = builtins
+        , stateMergers = mergers
+        , stateLookupScale = lookupScale
+        , stateScaleCalls = scaleCalls
+        , stateLookupInstrument = lookupInst
+        , stateCache = invalidateDamaged scoreDamage cache
+        , stateScoreDamage = scoreDamage
         }
 
 -- ** instrument
@@ -1013,16 +1013,16 @@ initial_constant ui_state builtins lookup_scale scale_calls lookup_inst cache
 -- things, which are expressed here to avoid excessive dependencies between the
 -- systems.
 data Instrument = Instrument
-    { inst_calls :: InstrumentCalls
+    { instCalls :: InstrumentCalls
     -- | Merge this with the 'state_environ' when the instrument comes into
     -- scope.
-    , inst_environ :: DeriveT.Environ
+    , instEnviron :: DeriveT.Environ
     -- | Like 'inst_environ', merge these controls.
-    , inst_controls :: ScoreT.ControlValMap
+    , instControls :: ScoreT.ControlValMap
     -- | This is a list of the attributes that the instrument understands, in
     -- order of priority.  It corresponds to 'Instrument.Common.AttributeMap'.
-    , inst_attributes :: [Attrs.Attributes]
-    , inst_elements :: Set Shared.Note.Element
+    , instAttributes :: [Attrs.Attributes]
+    , instElements :: Set Shared.Note.Element
     } deriving (Show)
 
 -- | Some ornaments only apply to a particular instrument, so each instrument
@@ -1068,31 +1068,31 @@ data Merger
 -- It's not really a 'DeriveT.Val', so this is a bit wrong for ShowVal.  But
 -- I want to express that this is meant to be valid syntax for the track title.
 instance ShowVal.ShowVal Merger where
-    show_val Set = "set"
-    show_val Unset = "unset"
-    show_val (Merger name _ _) = name
-instance Pretty Merger where pretty = ShowVal.show_val
+    showVal Set = "set"
+    showVal Unset = "unset"
+    showVal (Merger name _ _) = name
+instance Pretty Merger where pretty = ShowVal.showVal
 instance Show Merger where
-    show merger = "((Merger " ++ untxt (ShowVal.show_val merger) ++ "))"
+    show merger = "((Merger " ++ untxt (ShowVal.showVal merger) ++ "))"
 instance DeepSeq.NFData Merger where rnf _ = ()
 
 -- *** control ops
 
 -- | The built-in set of control Mergers.
 mergers :: Map Expr.Symbol Merger
-mergers = Map.fromList $ map to_pair
-    [ Set, merge_add, merge_sub, merge_mul, merge_scale
+mergers = Map.fromList $ map toPair
+    [ Set, mergeAdd, mergeSub, mergeMul, mergeScale
     ]
-    where to_pair merger = (Expr.Symbol (ShowVal.show_val merger), merger)
+    where toPair merger = (Expr.Symbol (ShowVal.showVal merger), merger)
 
-merge_add, merge_sub, merge_mul :: Merger
-merge_add = Merger "add" Signal.sig_add 0
-merge_sub = Merger "sub" Signal.sig_subtract 0
-merge_mul = Merger "mul" Signal.sig_multiply 1
+mergeAdd, mergeSub, mergeMul :: Merger
+mergeAdd = Merger "add" Signal.sigAdd 0
+mergeSub = Merger "sub" Signal.sigSubtract 0
+mergeMul = Merger "mul" Signal.sigMultiply 1
 
 -- | Unlike the rest, this one is not associative.
-merge_scale :: Merger
-merge_scale = Merger "scale" Signal.sig_scale 0
+mergeScale :: Merger
+mergeScale = Merger "scale" Signal.sigScale 0
 
 
 -- * Collect
@@ -1104,32 +1104,32 @@ data Collect = Collect
     -- | Remember the warp signal for each track.  A warp usually applies to
     -- a set of tracks, so remembering them together will make the play monitor
     -- more efficient when it inverts them to get playback position.
-    { collect_warp_map :: TrackWarp.WarpMap
-    , collect_track_signals :: Track.TrackSignals
-    , collect_signal_fragments :: SignalFragments
-    , collect_track_dynamic :: TrackDynamic
+    { collectWarpMap :: TrackWarp.WarpMap
+    , collectTrackSignals :: Track.TrackSignals
+    , collectSignalFragments :: SignalFragments
+    , collectTrackDynamic :: TrackDynamic
     -- | I prefer the Dynamic from the inverted version of a track, if it
     -- exists.  But I want the controls to come from the non-inverted version,
     -- since they are sliced to a particular event in the inverted version.
     -- So I record both, and merge them together at the end.
-    , collect_track_dynamic_inverted :: TrackDynamic
+    , collectTrackDynamicInverted :: TrackDynamic
     -- | This is how a call records its dependencies.  After evaluation of
     -- a deriver, this will contain the dependencies of the most recent call.
-    , collect_block_deps :: BlockDeps
+    , collectBlockDeps :: BlockDeps
 
     -- | New caches accumulating over the course of the derivation.
-    , collect_cache :: Cache
-    , collect_cache_stats :: CacheStats
-    , collect_integrated :: [Integrated]
-    , collect_control_mods :: [ControlMod]
-    , collect_score_duration :: CallDuration ScoreTime
-    , collect_real_duration :: CallDuration RealTime
+    , collectCache :: Cache
+    , collectCacheStats :: CacheStats
+    , collectIntegrated :: [Integrated]
+    , collectControlMods :: [ControlMod]
+    , collectScoreDuration :: CallDuration ScoreTime
+    , collectRealDuration :: CallDuration RealTime
     }
 
 newtype CacheStats = CacheStats {
     -- This isn't Ranges RealTime because I don't want to allow
     -- Ranges.Everything.
-    cstats_hits :: [(Either BlockId TrackId, (RealTime, RealTime))]
+    cstatsHits :: [(Either BlockId TrackId, (RealTime, RealTime))]
     } deriving (Eq, Show)
 
 instance Pretty CacheStats where
@@ -1157,31 +1157,31 @@ instance Monoid CacheStats where
 type SignalFragments = Map (BlockId, TrackId) (Map TrackTime Signal.Control)
 
 instance Pretty Collect where
-    format (Collect warp_map tsigs frags trackdyn trackdyn_inv deps
-            cache cache_stats integrated cmods call_dur call_end) =
+    format (Collect warpMap tsigs frags trackdyn trackdynInv deps
+            cache cacheStats integrated cmods callDur callEnd) =
         Pretty.record "Collect"
-            [ ("warp_map", Pretty.format warp_map)
+            [ ("warp_map", Pretty.format warpMap)
             , ("track_signals", Pretty.format tsigs)
             , ("signal_fragments", Pretty.format frags)
             , ("track_dynamic", Pretty.format trackdyn)
-            , ("track_dynamic_inverted", Pretty.format trackdyn_inv)
+            , ("track_dynamic_inverted", Pretty.format trackdynInv)
             , ("block_deps", Pretty.format deps)
             , ("cache", Pretty.format cache)
-            , ("cache_stats", Pretty.format cache_stats)
+            , ("cache_stats", Pretty.format cacheStats)
             , ("integrated", Pretty.format integrated)
             , ("control_mods", Pretty.format cmods)
-            , ("call duration", Pretty.format call_dur)
-            , ("call end", Pretty.format call_end)
+            , ("call duration", Pretty.format callDur)
+            , ("call end", Pretty.format callEnd)
             ]
 
 instance Semigroup Collect where
-    (<>)    (Collect warps1 tsigs1 frags1 trackdyn1 trackdyn_inv1 deps1
+    (<>)    (Collect warps1 tsigs1 frags1 trackdyn1 trackdynInv1 deps1
                 cache1 cstats1 integrated1 cmods1 cdur1 cend1)
-            (Collect warps2 tsigs2 frags2 trackdyn2 trackdyn_inv2 deps2
+            (Collect warps2 tsigs2 frags2 trackdyn2 trackdynInv2 deps2
                 cache2 cstats2 integrated2 cmods2 cdur2 cend2) =
         Collect (warps1 <> warps2)
             (tsigs1 <> tsigs2) (Map.unionWith (<>) frags1 frags2)
-            (trackdyn1 <> trackdyn2) (trackdyn_inv1 <> trackdyn_inv2)
+            (trackdyn1 <> trackdyn2) (trackdynInv1 <> trackdynInv2)
             (deps1 <> deps2) (cache1 <> cache2) (cstats1 <> cstats2)
             (integrated1 <> integrated2) (cmods1 <> cmods2) (cdur1 <> cdur2)
             (cend1 <> cend2)
@@ -1191,10 +1191,10 @@ instance Monoid Collect where
     mappend = (<>)
 
 instance DeepSeq.NFData Collect where
-    rnf (Collect warp_map frags tsigs track_dyn track_dyn_inv local_dep
+    rnf (Collect warpMap frags tsigs trackDyn trackDynInv localDep
             cache _cstats integrated _cmods _cdur _cend) =
-        rnf warp_map `seq` rnf frags `seq` rnf tsigs `seq` rnf track_dyn
-        `seq` rnf track_dyn_inv `seq` rnf local_dep `seq` rnf cache
+        rnf warpMap `seq` rnf frags `seq` rnf tsigs `seq` rnf trackDyn
+        `seq` rnf trackDynInv `seq` rnf localDep `seq` rnf cache
         `seq` rnf integrated
 
 -- | This is a hack so a call on a control track can modify other controls.
@@ -1212,8 +1212,8 @@ instance Pretty ControlMod where
 
 data Integrated = Integrated
     -- BlockId for a block integration, TrackId for a track integration.
-    { integrated_source :: Either BlockId TrackId
-    , integrated_events :: Stream.Stream Score.Event
+    { integratedSource :: Either BlockId TrackId
+    , integratedEvents :: Stream.Stream Score.Event
     } deriving (Show)
 
 instance Pretty Integrated where
@@ -1292,35 +1292,35 @@ instance Monoid (CallDuration a) where
 data PatternCall call = PatternCall
     -- | Since this doesn't have a Symbol, this is a description of the kinds
     -- of symbols matched, presumably as a regex.
-    { pat_description :: Text
-    , pat_doc :: DocumentedCall
+    { patDescription :: Text
+    , patDoc :: DocumentedCall
     -- | The function is in Deriver because some calls want to look at the
     -- state to know if the Symbol is valid, e.g. block calls.
-    , pat_function :: Expr.Symbol -> Deriver (Maybe call)
+    , patFunction :: Expr.Symbol -> Deriver (Maybe call)
     }
 
-pat_call_doc :: PatternCall call -> CallDoc
-pat_call_doc pattern = doc
-    where DocumentedCall _ doc = pat_doc pattern
+patCallDoc :: PatternCall call -> CallDoc
+patCallDoc pattern = doc
+    where DocumentedCall _ doc = patDoc pattern
 
 instance Pretty (PatternCall call) where
-    pretty pattern = "Pattern:" <> pat_description pattern
+    pretty pattern = "Pattern:" <> patDescription pattern
 
 -- | Data passed to a 'Call'.
 data PassedArgs val = PassedArgs
-    { passed_vals :: [DeriveT.Val]
+    { passedVals :: [DeriveT.Val]
     -- | Used by "Derive.Sig" to look for default arg values in the
     -- environment.  This is technically redundant since a call should know its
     -- own name, but it turns out to be inconvenient to pass the name to all of
     -- those functions.
-    , passed_call_name :: CallName
-    , passed_ctx :: Context val
+    , passedCallName :: CallName
+    , passedCtx :: Context val
     } deriving (Functor)
 
 instance Pretty val => Pretty (PassedArgs val) where
-    format (PassedArgs vals call_name info) = Pretty.record "PassedArgs"
+    format (PassedArgs vals callName info) = Pretty.record "PassedArgs"
         [ ("vals", Pretty.format vals)
-        , ("call_name", Pretty.format call_name)
+        , ("call_name", Pretty.format callName)
         , ("info", Pretty.format info)
         ]
 
@@ -1345,11 +1345,11 @@ data Context val = Context
     -- may snip off the previous event.
     --
     -- See NOTE [prev-val] in "Derive.Args" for details.
-    { ctx_prev_val :: Maybe val
+    { ctxPrevVal :: Maybe val
 
-    , ctx_event :: Event.Event
-    , ctx_prev_events :: [Event.Event]
-    , ctx_next_events :: [Event.Event]
+    , ctxEvent :: Event.Event
+    , ctxPrevEvents :: [Event.Event]
+    , ctxNextEvents :: [Event.Event]
 
     -- | The extent of the note past its duration.  Since notes have decay,
     -- its important to capture control for that.  Normally this is the next
@@ -1359,72 +1359,72 @@ data Context val = Context
     --
     -- This is the same as the first element of 'ctx_next_events' except of
     -- course it has a value even when there is no next event.
-    , ctx_event_end :: ScoreTime
+    , ctxEventEnd :: ScoreTime
     -- | From 'TrackTree.track_shifted'.
-    , ctx_track_shifted :: TrackTime
+    , ctxTrackShifted :: TrackTime
 
     -- | The track tree below note tracks.  Not given for control tracks.
     -- TODO should this be Either with ctx_sub_events?  I don't think I ever
     -- need both set.
-    , ctx_sub_tracks :: TrackTree.EventsTree
+    , ctxSubTracks :: TrackTree.EventsTree
     -- | If present, 'Derive.Sub.sub_events' will directly return these sub
     -- events instead of slicing sub-tracks.  Track evaluation will never set
     -- this, but calls can set this to reapply a note parent.  It should
     -- be 'Derive.SubT.Event's, but isn't to avoid circular imports.
-    , ctx_sub_events :: Maybe [[(ScoreTime, ScoreTime, NoteDeriver)]]
+    , ctxSubEvents :: Maybe [[(ScoreTime, ScoreTime, NoteDeriver)]]
     -- | This is needed by val calls that want to evaluate events around them.
     -- Since val calls are the same on all track types, they need to know
     -- explicitly what the track type is to evaluate events on it.
-    , ctx_track_type :: Maybe ParseTitle.Type
+    , ctxTrackType :: Maybe ParseTitle.Type
     } deriving (Functor)
 
 -- | Range of the event in TrackTime.
-ctx_track_range :: Context a -> (TrackTime, TrackTime)
-ctx_track_range info = (shifted, shifted + ctx_event_end info)
-    where shifted = ctx_track_shifted info
+ctxTrackRange :: Context a -> (TrackTime, TrackTime)
+ctxTrackRange info = (shifted, shifted + ctxEventEnd info)
+    where shifted = ctxTrackShifted info
 
 instance Pretty val => Pretty (Context val) where
-    format (Context prev_val event prev_events next_events event_end
-            track_range sub_tracks sub_events track_type) =
+    format (Context prevVal event prevEvents nextEvents eventEnd
+            trackRange subTracks subEvents trackType) =
         Pretty.record "Context"
-            [ ("prev_val", Pretty.format prev_val)
+            [ ("prev_val", Pretty.format prevVal)
             , ("event", Pretty.format event)
-            , ("prev_events", Pretty.format prev_events)
-            , ("next_events", Pretty.format next_events)
-            , ("event_end", Pretty.format event_end)
-            , ("track_range", Pretty.format track_range)
-            , ("sub_tracks", Pretty.format sub_tracks)
+            , ("prev_events", Pretty.format prevEvents)
+            , ("next_events", Pretty.format nextEvents)
+            , ("event_end", Pretty.format eventEnd)
+            , ("track_range", Pretty.format trackRange)
+            , ("sub_tracks", Pretty.format subTracks)
             , ("sub_events", Pretty.format $
-                map (map (\(s, d, _) -> (s, d))) <$> sub_events)
-            , ("track_type", Pretty.format track_type)
+                map (map (\(s, d, _) -> (s, d))) <$> subEvents)
+            , ("track_type", Pretty.format trackType)
             ]
 
-coerce_context :: Context a -> Context b
-coerce_context ctx = ctx { ctx_prev_val = Nothing }
+coerceContext :: Context a -> Context b
+coerceContext ctx = ctx { ctxPrevVal = Nothing }
 
 -- | Transformer calls don't necessarily apply to any particular event, and
 -- neither do generators for that matter.
-dummy_context :: ScoreTime -> ScoreTime -> Text -> Context a
-dummy_context start dur text = Context
-    { ctx_prev_val = Nothing
-    , ctx_event = Event.event start dur text
-    , ctx_prev_events = []
-    , ctx_next_events = []
-    , ctx_event_end = start + dur
-    , ctx_track_shifted = 0
-    , ctx_sub_tracks = []
-    , ctx_sub_events = Nothing
-    , ctx_track_type = Nothing
+dummyContext :: ScoreTime -> ScoreTime -> Text -> Context a
+dummyContext start dur text = Context
+    { ctxPrevVal = Nothing
+    , ctxEvent = Event.event start dur text
+    , ctxPrevEvents = []
+    , ctxNextEvents = []
+    , ctxEventEnd = start + dur
+    , ctxTrackShifted = 0
+    , ctxSubTracks = []
+    , ctxSubEvents = Nothing
+    , ctxTrackType = Nothing
     }
 
 -- | Taggable the polymorphic part of the Context so it can be given to
 -- a 'ValCall'.  Otherwise, ValCall would have to be polymorphic too,
 -- which means it would hard to write generic ones.
-tag_context :: Taggable a => Context a -> Context Tagged
-tag_context ctx = ctx { ctx_prev_val = to_tagged <$> ctx_prev_val ctx }
+tagContext :: Taggable a => Context a -> Context Tagged
+tagContext ctx = ctx { ctxPrevVal = toTagged <$> ctxPrevVal ctx }
 
-untag_context :: Taggable a => Context Tagged -> Context a
-untag_context ctx = ctx { ctx_prev_val = from_tagged =<< ctx_prev_val ctx }
+untagContext :: Taggable a => Context Tagged -> Context a
+untagContext ctx = ctx { ctxPrevVal = fromTagged =<< ctxPrevVal ctx }
 
 -- | A Call will be called as either a generator or a transformer, depending on
 -- its position.  A call at the end of a compose pipeline will be called as
@@ -1433,17 +1433,17 @@ untag_context ctx = ctx { ctx_prev_val = from_tagged =<< ctx_prev_val ctx }
 --
 -- More details on this strange setup are in the "Derive.Call" haddock.
 data Call func = Call
-    { call_name :: CallName
-    , call_doc :: CallDoc
-    , call_func :: func
+    { callName :: CallName
+    , callDoc :: CallDoc
+    , callFunc :: func
     }
 type Generator d = Call (GeneratorFunc d)
 type Transformer d = Call (TransformerF d)
 
 instance Show (Call d) where
-    show call = "((Call " <> show (call_name call) <> "))"
+    show call = "((Call " <> show (callName call) <> "))"
 instance Pretty (Call d) where
-    pretty = pretty . call_name
+    pretty = pretty . callName
 
 {- | Each call has an intrinsic name.  Since call IDs may be rebound
     dynamically, each call has its own name so that error msgs are unambiguous.
@@ -1465,32 +1465,32 @@ newtype CallName = CallName Text
 newtype ArgName = ArgName Text
     deriving (Eq, Ord, Show, Pretty, String.IsString)
 
-sym_to_call_name :: Expr.Symbol -> CallName
-sym_to_call_name (Expr.Symbol sym) = CallName sym
+symToCallName :: Expr.Symbol -> CallName
+symToCallName (Expr.Symbol sym) = CallName sym
 
-str_to_call_name :: Expr.Str -> CallName
-str_to_call_name (Expr.Str str) = CallName str
+strToCallName :: Expr.Str -> CallName
+strToCallName (Expr.Str str) = CallName str
 
-str_to_arg_name :: Expr.Str -> ArgName
-str_to_arg_name (Expr.Str str) = ArgName str
+strToArgName :: Expr.Str -> ArgName
+strToArgName (Expr.Str str) = ArgName str
 
 -- | Documentation for a call.  The documentation is in markdown format, except
 -- that a single newline will be replaced with two, so a single \n is enough
 -- to start a new paragraph.  Also, single quotes are turned into links as per
 -- "Util.Texts".haddockUrl.
 data CallDoc = CallDoc
-    { cdoc_module :: Module.Module
-    , cdoc_tags :: Tags.Tags
-    , cdoc_doc :: Doc.Doc
-    , cdoc_args :: [ArgDoc]
+    { cdocModule :: Module.Module
+    , cdocTags :: Tags.Tags
+    , cdocDoc :: Doc.Doc
+    , cdocArgs :: [ArgDoc]
     } deriving (Eq, Ord, Show)
 
 data ArgDoc = ArgDoc
-    { arg_name :: ArgName
-    , arg_type :: ValType.Type
-    , arg_parser :: ArgParser
-    , arg_environ_default :: EnvironDefault
-    , arg_doc :: Doc.Doc
+    { argName :: ArgName
+    , argType :: ValType.Type
+    , argParser :: ArgParser
+    , argEnvironDefault :: EnvironDefault
+    , argDoc :: Doc.Doc
     } deriving (Eq, Ord, Show)
 
 -- | These enumerate the different ways an argumnt can be parsed, and
@@ -1521,46 +1521,46 @@ type WithArgDoc f = (f, [ArgDoc])
 -- ** make calls
 
 data GeneratorFunc d = GeneratorFunc
-    { gfunc_f :: GeneratorF d
+    { gfuncF :: GeneratorF d
     -- | This gets the logical duration of this call.  'CallDuration' has
     -- details.
-    , gfunc_score_duration :: PassedArgs d -> Deriver (CallDuration ScoreTime)
-    , gfunc_real_duration :: PassedArgs d -> Deriver (CallDuration RealTime)
+    , gfuncScoreDuration :: PassedArgs d -> Deriver (CallDuration ScoreTime)
+    , gfuncRealDuration :: PassedArgs d -> Deriver (CallDuration RealTime)
     }
 
 type GeneratorF d = PassedArgs d -> Deriver (Stream.Stream d)
 
-generator_func :: (PassedArgs d -> Deriver (Stream.Stream d)) -> GeneratorFunc d
-generator_func f = GeneratorFunc
-    { gfunc_f = f
-    , gfunc_score_duration = default_score_duration
-    , gfunc_real_duration = default_real_duration
+generatorFunc :: (PassedArgs d -> Deriver (Stream.Stream d)) -> GeneratorFunc d
+generatorFunc f = GeneratorFunc
+    { gfuncF = f
+    , gfuncScoreDuration = defaultScoreDuration
+    , gfuncRealDuration = defaultRealDuration
     }
 
 -- | Most calls have the same logical duration as their event.
-default_score_duration :: PassedArgs d -> Deriver (CallDuration ScoreTime)
-default_score_duration =
-    pure . CallDuration . Event.duration . ctx_event . passed_ctx
+defaultScoreDuration :: PassedArgs d -> Deriver (CallDuration ScoreTime)
+defaultScoreDuration =
+    pure . CallDuration . Event.duration . ctxEvent . passedCtx
 
-default_real_duration :: PassedArgs d -> Deriver (CallDuration RealTime)
-default_real_duration args = CallDuration <$>
-    score_to_real (Event.duration $ ctx_event $ passed_ctx args)
+defaultRealDuration :: PassedArgs d -> Deriver (CallDuration RealTime)
+defaultRealDuration args = CallDuration <$>
+    scoreToReal (Event.duration $ ctxEvent $ passedCtx args)
 
 -- | args -> deriver -> deriver
 type TransformerF d = PassedArgs d -> Deriver (Stream.Stream d)
     -> Deriver (Stream.Stream d)
 
-make_call :: Module.Module -> CallName -> Tags.Tags -> Doc.Doc
+makeCall :: Module.Module -> CallName -> Tags.Tags -> Doc.Doc
     -> WithArgDoc func -> Call func
-make_call module_ name tags doc (func, arg_docs) = Call
-    { call_name = name
-    , call_doc = CallDoc
-        { cdoc_module = module_
-        , cdoc_tags = tags
-        , cdoc_doc = doc
-        , cdoc_args = arg_docs
+makeCall module_ name tags doc (func, argDocs) = Call
+    { callName = name
+    , callDoc = CallDoc
+        { cdocModule = module_
+        , cdocTags = tags
+        , cdocDoc = doc
+        , cdocArgs = argDocs
         }
-    , call_func = func
+    , callFunc = func
     }
 
 -- | Create a generator that expects a list of derived values (e.g. Score.Event
@@ -1568,16 +1568,16 @@ make_call module_ name tags doc (func, arg_docs) = Call
 -- LEvent.Event.
 generator :: Module.Module -> CallName -> Tags.Tags -> Doc.Doc
     -> WithArgDoc (GeneratorF d) -> Generator d
-generator module_ name tags doc (func, arg_docs) =
-    make_call module_ name tags doc (generator_func func, arg_docs)
+generator module_ name tags doc (func, argDocs) =
+    makeCall module_ name tags doc (generatorFunc func, argDocs)
 
 -- | Make a generator from a function which returns events in sorted order.
 -- TODO this just trusts that the events will be sorted.  Is there a safer way?
-generator_events :: Module.Module -> CallName -> Tags.Tags -> Doc.Doc
+generatorEvents :: Module.Module -> CallName -> Tags.Tags -> Doc.Doc
     -> WithArgDoc (PassedArgs d -> Deriver [d]) -> Generator d
-generator_events module_ name tags doc (func, arg_docs) =
+generatorEvents module_ name tags doc (func, argDocs) =
     generator module_ name tags doc
-        ((Stream.from_sorted_events <$>) . func, arg_docs)
+        ((Stream.fromSortedEvents <$>) . func, argDocs)
 
 -- | Since Signals themselves are collections, there's little reason for a
 -- signal generator to return a Stream of events.  So wrap the generator result
@@ -1586,35 +1586,35 @@ generator_events module_ name tags doc (func, arg_docs) =
 -- TODO call this signal_generator?
 generator1 :: Module.Module -> CallName -> Tags.Tags -> Doc.Doc
     -> WithArgDoc (PassedArgs d -> Deriver d) -> Generator d
-generator1 module_ name tags doc (func, arg_docs) =
+generator1 module_ name tags doc (func, argDocs) =
     generator module_ name tags doc
-        ((Stream.from_event <$>) . func, arg_docs)
+        ((Stream.fromEvent <$>) . func, argDocs)
 
 -- | Set the 'gfunc_score_duration' field to get ScoreTime CallDuration.
-with_score_duration :: (PassedArgs d -> Deriver (CallDuration ScoreTime))
+withScoreDuration :: (PassedArgs d -> Deriver (CallDuration ScoreTime))
     -> Generator d -> Generator d
-with_score_duration get call = call
-    { call_func = (call_func call) { gfunc_score_duration = get } }
+withScoreDuration get call = call
+    { callFunc = (callFunc call) { gfuncScoreDuration = get } }
 
-with_real_duration :: (PassedArgs d -> Deriver (CallDuration RealTime))
+withRealDuration :: (PassedArgs d -> Deriver (CallDuration RealTime))
     -> Generator d -> Generator d
-with_real_duration get call = call
-    { call_func = (call_func call) { gfunc_real_duration = get } }
+withRealDuration get call = call
+    { callFunc = (callFunc call) { gfuncRealDuration = get } }
 
 -- ** transformer
 
 -- | Just 'make_call' with a more specific signature.
 transformer :: Module.Module -> CallName -> Tags.Tags -> Doc.Doc
     -> WithArgDoc (TransformerF d) -> Transformer d
-transformer = make_call
+transformer = makeCall
 
 -- ** val
 
 type ValCall = Call (PassedArgs Tagged -> Deriver DeriveT.Val)
 
-make_val_call :: Module.Module -> CallName -> Tags.Tags -> Doc.Doc
+makeValCall :: Module.Module -> CallName -> Tags.Tags -> Doc.Doc
     -> WithArgDoc (PassedArgs Tagged -> Deriver DeriveT.Val) -> ValCall
-make_val_call = make_call
+makeValCall = makeCall
 
 -- ** cache types
 
@@ -1628,8 +1628,8 @@ newtype Cache = Cache (Map CacheKey Cached)
     -- The monoid instance winds up being a left-biased union.  This is ok
     -- because merged caches shouldn't overlap anyway.
 
-cache_size :: Cache -> Int
-cache_size (Cache c) = Map.size c
+cacheSize :: Cache -> Int
+cacheSize (Cache c) = Map.size c
 
 {- | Ideally, the cache would be keyed by all data that can affect derivation,
     which would mean all of 'Dynamic' and 'Threaded'.  Effectively a deriver is
@@ -1643,7 +1643,7 @@ cache_size (Cache c) = Map.size c
     means a different warp.  'Stack.Serial' attempts to ensure that multiple
     generators within a single event also have unique stacks.
 -}
-newtype CacheKey = CacheKey { key_stack :: Stack.Stack }
+newtype CacheKey = CacheKey { keyStack :: Stack.Stack }
     deriving (Eq, Ord, Show, DeepSeq.NFData, Pretty)
 
 -- | When cache entries are invalidated by ScoreDamage, a marker is left in
@@ -1694,15 +1694,15 @@ newtype BlockDeps = BlockDeps (Set BlockId)
 -- | Modified ranges in the score.
 data ScoreDamage = ScoreDamage
     -- | Damaged ranges in tracks.
-    { sdamage_tracks :: Map TrackId (Ranges.Ranges ScoreTime)
+    { sdamageTracks :: Map TrackId (Ranges.Ranges ScoreTime)
     -- | The blocks with damaged tracks.  Calls depend on blocks
     -- ('BlockDeps') rather than tracks, so it's convenient to keep the
     -- blocks here.  This is different than block damage because a damaged
     -- block will invalidate all caches below it, but a block with damaged
     -- tracks must be called but may still have valid caches within.
-    , sdamage_track_blocks :: Set BlockId
+    , sdamageTrackBlocks :: Set BlockId
     -- | Blocks which are entirely damaged.
-    , sdamage_blocks :: Set BlockId
+    , sdamageBlocks :: Set BlockId
     } deriving (Eq, Show)
 
 instance Semigroup ScoreDamage where
@@ -1715,35 +1715,35 @@ instance Monoid ScoreDamage where
     mappend = (<>)
 
 instance Pretty ScoreDamage where
-    format (ScoreDamage tracks track_blocks blocks) =
+    format (ScoreDamage tracks trackBlocks blocks) =
         Pretty.record "ScoreDamage"
             [ ("tracks", Pretty.format tracks)
-            , ("track_blocks", Pretty.format track_blocks)
+            , ("track_blocks", Pretty.format trackBlocks)
             , ("blocks", Pretty.format blocks)
             ]
 
 instance DeepSeq.NFData ScoreDamage where
-    rnf (ScoreDamage tracks track_blocks blocks) =
-        rnf tracks `seq` rnf track_blocks `seq` rnf blocks
+    rnf (ScoreDamage tracks trackBlocks blocks) =
+        rnf tracks `seq` rnf trackBlocks `seq` rnf blocks
 
 -- | Clear the damaged portions out of the cache so they will rederive.
 --
 -- Block damage also clears track caches that are on that block.
-invalidate_damaged :: ScoreDamage -> Cache -> Cache
-invalidate_damaged (ScoreDamage tracks _ blocks) (Cache cache) =
-    Cache $ Map.mapWithKey invalidate $ Map.filter is_valid cache
+invalidateDamaged :: ScoreDamage -> Cache -> Cache
+invalidateDamaged (ScoreDamage tracks _ blocks) (Cache cache) =
+    Cache $ Map.mapWithKey invalidate $ Map.filter isValid cache
     where
-    is_valid Invalid = False
-    is_valid _ = True
+    isValid Invalid = False
+    isValid _ = True
     invalidate key cached
-        | has_damage (key_stack key) = Invalid
+        | hasDamage (keyStack key) = Invalid
         | otherwise = cached
-    has_damage stack = any overlaps (Stack.to_ui_innermost stack)
+    hasDamage stack = any overlaps (Stack.toUiInnermost stack)
     overlaps (block, track, range) = maybe False (`Set.member` blocks) block
         || case (track, range) of
-            (Just track_id, Nothing) -> Map.member track_id tracks
-            (Just track_id, Just (s, e))
-                | Just ranges <- Map.lookup track_id tracks ->
+            (Just trackId, Nothing) -> Map.member trackId tracks
+            (Just trackId, Just (s, e))
+                | Just ranges <- Map.lookup trackId tracks ->
                     Ranges.overlapping ranges (Ranges.range s e)
             _ -> False
 
@@ -1755,16 +1755,16 @@ newtype ControlDamage = ControlDamage (Ranges.Ranges ScoreTime)
 
 -- * util
 
-{-# SCC score_to_real #-}
-score_to_real :: ScoreTime -> Deriver RealTime
-score_to_real pos = do
-    warp <- gets (state_warp . state_dynamic)
+{-# SCC scoreToReal #-}
+scoreToReal :: ScoreTime -> Deriver RealTime
+scoreToReal pos = do
+    warp <- gets (stateWarp . stateDynamic)
     pure $ Warp.warp warp pos
 
-{-# SCC real_to_score #-}
-real_to_score :: RealTime -> Deriver ScoreTime
-real_to_score pos = do
-    warp <- gets (state_warp . state_dynamic)
+{-# SCC realToScore #-}
+realToScore :: RealTime -> Deriver ScoreTime
+realToScore pos = do
+    warp <- gets (stateWarp . stateDynamic)
     pure $ Warp.unwarp warp pos
 
 
@@ -1777,63 +1777,63 @@ real_to_score pos = do
 -- Val.  Ultimately that's because there would be a circular dependency as
 -- documented in "Derive.DeriveT".
 data ScaleCall = ScaleCall
-    { scall_name :: CallName
-    , scall_doc :: CallDoc
+    { scallName :: CallName
+    , scallDoc :: CallDoc
     -- ValCall takes PassedArgs, but scales don't need Context.
-    , scall_call :: ScaleF
+    , scallCall :: ScaleF
     }
 
 type ScaleF = [DeriveT.Val] -> Deriver Scale
 
-scale_call :: CallName -> Doc.Doc -> (ScaleF, [ArgDoc]) -> ScaleCall
-scale_call name doc (call, arg_docs) = ScaleCall
-    { scall_name = name
-    , scall_doc = CallDoc
-        { cdoc_module = Module.prelude
-        , cdoc_tags = mempty
-        , cdoc_doc = doc
-        , cdoc_args = arg_docs
+scaleCall :: CallName -> Doc.Doc -> (ScaleF, [ArgDoc]) -> ScaleCall
+scaleCall name doc (call, argDocs) = ScaleCall
+    { scallName = name
+    , scallDoc = CallDoc
+        { cdocModule = Module.prelude
+        , cdocTags = mempty
+        , cdocDoc = doc
+        , cdocArgs = argDocs
         }
-    , scall_call = call
+    , scallCall = call
     }
 
 data Scale = Scale
-    { scale_id :: Pitch.ScaleId
+    { scaleId :: Pitch.ScaleId
     -- | A pattern describing what the scale notes look like.  Used only for
     -- error msgs (i.e. parse errors) so it should be human readable and
     -- doesn't have to follow any particular syntax.  A regex is recommended
     -- though.
-    , scale_pattern :: Text
+    , scalePattern :: Text
 
     -- | If a scale uses 'Symbol.Symbol's, it can include the definitions here
     -- so they are close to their use.  This symbol list should be loaded as
     -- soon as possible, which means program startup for hardcoded scales.
-    , scale_symbols :: [Symbol.Symbol]
+    , scaleSymbols :: [Symbol.Symbol]
 
     -- | The controls that will casue a pitch from this scale to change.
     -- This is used by 'PSignal.apply_controls' to know when to reevaluate
     -- a given pitch.  Other controls can affect the pitch, but if they aren't
     -- in this set, the pitch won't be reevaluated when they change.
-    , scale_transposers :: Set ScoreT.Control
+    , scaleTransposers :: Set ScoreT.Control
     -- | Parse a Note into a Pitch.Pitch with scale degree and accidentals.
-    , scale_read :: DeriveT.Environ -> Pitch.Note
+    , scaleRead :: DeriveT.Environ -> Pitch.Note
         -> Either DeriveT.PitchError Pitch.Pitch
-    , scale_show :: DeriveT.Environ -> Pitch.Pitch
+    , scaleShow :: DeriveT.Environ -> Pitch.Pitch
         -> Either DeriveT.PitchError Pitch.Note
     -- | Bottom pitch of the scale, if there is one.  You can find the top
     -- pitch by transposing until you get OutOfRange.  TODO that's a dumb way,
     -- if I explicitly need the top I should just add it.
-    , scale_bottom :: Pitch.Pitch
+    , scaleBottom :: Pitch.Pitch
     -- | If a scale has a Layout, cmds can do math with 'Pitch.Pitch'es.
-    , scale_layout :: Layout
-    , scale_transpose :: Transpose
-    , scale_enharmonics :: Enharmonics
+    , scaleLayout :: Layout
+    , scaleTranspose :: Transpose
+    , scaleEnharmonics :: Enharmonics
 
     -- | Used by derivation.
-    , scale_note_to_call :: Pitch.Note -> Maybe ValCall
+    , scaleNoteToCall :: Pitch.Note -> Maybe ValCall
 
     -- | Used by note input.
-    , scale_input_to_note :: DeriveT.Environ -> Pitch.Input
+    , scaleInputToNote :: DeriveT.Environ -> Pitch.Input
         -> Either DeriveT.PitchError Pitch.Note
     -- | Used by MIDI thru.  This is a shortcut for
     -- @eval . note_to_call . input_to_note@ but can often be implemented more
@@ -1846,16 +1846,16 @@ data Scale = Scale
     -- This is because pitch val calls aren't evaluated in normalized time.
     -- If controls had (shift, stretch) I could normalize them efficiently
     -- and the pitch would just always look at time 0.  But they don't.
-    , scale_input_to_nn :: ScoreTime -> Pitch.Input
+    , scaleInputToNn :: ScoreTime -> Pitch.Input
         -> Deriver (Either DeriveT.PitchError Pitch.NoteNumber)
 
     -- | Documentation for all of the ValCalls that 'scale_note_to_call' can
     -- return.
-    , scale_call_doc :: DocumentedCall
+    , scaleCallDoc :: DocumentedCall
     }
 
 instance Pretty Scale where
-    pretty = pretty . scale_id
+    pretty = pretty . scaleId
 
 -- | A scale can configure itself by looking in the environment and by looking
 -- up other scales.
@@ -1900,24 +1900,24 @@ type Layout = Vector.Vector Pitch.Semi
 -- * merge
 
 -- | Merge the events of the given derivers.
-d_merge :: [NoteDeriver] -> NoteDeriver
-d_merge [] = mempty
-d_merge [d] = d
-d_merge derivers = mconcat <$> sequence derivers
+dMerge :: [NoteDeriver] -> NoteDeriver
+dMerge [] = mempty
+dMerge [d] = d
+dMerge derivers = mconcat <$> sequence derivers
     -- mconcat on Stream should keep them sorted.
     -- Previously, each deriver was run independently, and their Collects
     -- merged.  The theory was to allow their derivation to be interleaved
     -- on demand as the events themselves are interleaved.  However, profiling
     -- doesn't show a significant difference, and this way is simpler.
 
-merge_logs :: Either Error (Stream.Stream a) -> [Log.Msg] -> Stream.Stream a
-merge_logs result logs = case result of
-    Right stream -> Stream.merge_logs logs stream
-    Left err -> Stream.from_logs $ error_to_warn err : logs
+mergeLogs :: Either Error (Stream.Stream a) -> [Log.Msg] -> Stream.Stream a
+mergeLogs result logs = case result of
+    Right stream -> Stream.mergeLogs logs stream
+    Left err -> Stream.fromLogs $ errorToWarn err : logs
 
-error_to_warn :: Error -> Log.Msg
-error_to_warn (Error call_stack stack error_val) =
-    Log.msg_call_stack call_stack Log.Warn (Just stack) (pretty error_val)
+errorToWarn :: Error -> Log.Msg
+errorToWarn (Error callStack stack errorVal) =
+    Log.msgCallStack callStack Log.Warn (Just stack) (pretty errorVal)
 
 {- NOTE [control-modification]
     . Control tracks return a single control, and how that merges into the

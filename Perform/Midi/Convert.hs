@@ -50,12 +50,12 @@ import           Types
 -- need to be as high as one needed to express the nuances of more complicated
 -- curves.  If the tracklang srate is higher, then the MIDI output will be
 -- denser and more accurate.
-default_srate :: RealTime
-default_srate = 1 / 0.015 -- TODO set to PlayUtil.initial_environ[srate]
+defaultSrate :: RealTime
+defaultSrate = 1 / 0.015 -- TODO set to PlayUtil.initial_environ[srate]
 
 data MidiLookup = MidiLookup
-    { lookup_scale :: Derive.LookupScale
-    , lookup_control_defaults
+    { lookupScale :: Derive.LookupScale
+    , lookupControlDefaults
         :: ScoreT.Instrument -> Map ScoreT.Control Signal.Y
     }
 
@@ -65,65 +65,65 @@ convert :: RealTime -> MidiLookup
     -> (ScoreT.Instrument -> Maybe Cmd.ResolvedInstrument)
     -> [Score.Event] -> [LEvent.LEvent Types.Event]
 convert srate lookup = ConvertUtil.convert $ \event resolved ->
-    case Cmd.inst_backend resolved of
+    case Cmd.instBackend resolved of
         Cmd.Midi patch config ->
-            convert_event srate lookup patch config event
+            convertEvent srate lookup patch config event
         _ -> []
 
-convert_event :: RealTime -> MidiLookup -> Patch.Patch -> Patch.Config
+convertEvent :: RealTime -> MidiLookup -> Patch.Patch -> Patch.Config
     -> Score.Event -> [LEvent.LEvent Types.Event]
-convert_event srate lookup patch config event = run $ do
-    let inst = Score.event_instrument event
-    let event_controls = Score.event_controls event
-    ((perf_patch, ks_controls), pitch) <-
-        convert_midi_pitch srate inst patch config event_controls event
-    let mode_controls = mode_keyswitches (Score.event_environ event)
-            (Patch.patch_mode_map patch)
+convertEvent srate lookup patch config event = run $ do
+    let inst = Score.eventInstrument event
+    let eventControls = Score.eventControls event
+    ((perfPatch, ksControls), pitch) <-
+        convertMidiPitch srate inst patch config eventControls event
+    let modeControls = modeKeyswitches (Score.eventEnviron event)
+            (Patch.patchModeMap patch)
     let controls = mconcat
-            [ make_controls ks_controls
-            , MSignal.constant <$> mode_controls
-            , convert_controls srate (Types.patch_control_map perf_patch)
-                (convert_dynamic pressure event_controls)
-            , MSignal.constant <$> lookup_control_defaults lookup inst
+            [ makeControls ksControls
+            , MSignal.constant <$> modeControls
+            , convertControls srate (Types.patchControlMap perfPatch)
+                (convertDynamic pressure eventControls)
+            , MSignal.constant <$> lookupControlDefaults lookup inst
             ]
-        pressure = Patch.has_flag config Patch.Pressure
-        velocity = fromMaybe Perform.default_velocity $
-            Env.maybe_val EnvKey.attack_val env
-            <|> Env.maybe_val EnvKey.dynamic_val env
-        release_velocity = fromMaybe velocity $
-            Env.maybe_val EnvKey.release_val env
-        env = Score.event_environ event
+        pressure = Patch.hasFlag config Patch.Pressure
+        velocity = fromMaybe Perform.defaultVelocity $
+            Env.maybeVal EnvKey.attackVal env
+            <|> Env.maybeVal EnvKey.dynamicVal env
+        releaseVelocity = fromMaybe velocity $
+            Env.maybeVal EnvKey.releaseVal env
+        env = Score.eventEnviron event
     pure $ Types.Event
-        { event_start = Score.event_start event
-        , event_duration = Score.event_duration event
-        , event_patch = perf_patch
-        , event_controls = controls
-        , event_pitch = pitch
+        { eventStart = Score.eventStart event
+        , eventDuration = Score.eventDuration event
+        , eventPatch = perfPatch
+        , eventControls = controls
+        , eventPitch = pitch
         -- If it's a pressure instrument, then I'm using breath instead
         -- of velocity.  I still set velocity because some synths (e.g.
         -- vsl) use the velocity too in certain cases, but it should be
         -- at least 1 to avoid not even starting the note.  Of course
         -- even without pressure, a note on with velocity 0 is kind of
         -- pointless, but maybe someone wants to fade out.
-        , event_start_velocity = if pressure then max 0.008 velocity
+        , eventStartVelocity = if pressure then max 0.008 velocity
             else velocity
-        , event_end_velocity = release_velocity
-        , event_stack = Score.event_stack event
+        , eventEndVelocity = releaseVelocity
+        , eventStack = Score.eventStack event
         }
 
 -- TODO it's awkward how I have to go from (Midi.Control, Midi.ControlValue)
 -- up to (ScoreT.Control, Signal) only to go back down to
 -- (Midi.Control, Midi.ControlValue)
-make_controls :: [(Midi.Control, Midi.ControlValue)]
+makeControls :: [(Midi.Control, Midi.ControlValue)]
     -> Map ScoreT.Control MSignal.Signal
-make_controls controls = Map.fromList
-    [ (Control.cc_to_control cc, MSignal.constant $ Control.cval_to_val cval)
+makeControls controls = Map.fromList
+    [ (Control.ccToControl cc, MSignal.constant $ Control.cvalToVal cval)
     | (cc, cval) <- controls
     ]
 
 run :: Log.LogId a -> [LEvent.LEvent a]
 run action = LEvent.Event note : map LEvent.Log logs
-    where (note, logs) = Log.run_id action
+    where (note, logs) = Log.runId action
 
 type PitchSignal = MSignal.Signal
 
@@ -133,121 +133,121 @@ type PitchSignal = MSignal.Signal
 -- TODO this used to warn about unmatched attributes, but it got annoying
 -- because I use attributes freely.  It still seems like it could be useful,
 -- so maybe I want to put it back in again someday.
-convert_midi_pitch :: Log.LogMonad m => RealTime -> ScoreT.Instrument
+convertMidiPitch :: Log.LogMonad m => RealTime -> ScoreT.Instrument
     -> Patch.Patch -> Patch.Config -> ScoreT.ControlMap -> Score.Event
     -> m ((Types.Patch, [(Midi.Control, Midi.ControlValue)]), PitchSignal)
-convert_midi_pitch srate inst patch config controls event =
-    case Common.lookup_attributes (Score.event_attributes event) attr_map of
-        Nothing -> ((perf_patch, []),) . round_sig <$> get_signal
-        Just (_, (keyswitches, maybe_keymap)) -> do
-            sig <- maybe get_signal set_keymap maybe_keymap
-            pure (set_keyswitches keyswitches, round_sig sig)
+convertMidiPitch srate inst patch config controls event =
+    case Common.lookupAttributes (Score.eventAttributes event) attrMap of
+        Nothing -> ((perfPatch, []),) . roundSig <$> getSignal
+        Just (_, (keyswitches, maybeKeymap)) -> do
+            sig <- maybe getSignal setKeymap maybeKeymap
+            pure (setKeyswitches keyswitches, roundSig sig)
     where
-    set_keyswitches [] = (perf_patch, [])
-    set_keyswitches keyswitches =
-        (perf_patch { Types.patch_keyswitches = ks }, ccs)
-        where (ccs, ks) = Lists.partitionOn is_control_switch keyswitches
-    is_control_switch (Patch.ControlSwitch cc ccval) = Just (cc, ccval)
-    is_control_switch _ = Nothing
+    setKeyswitches [] = (perfPatch, [])
+    setKeyswitches keyswitches =
+        (perfPatch { Types.patchKeyswitches = ks }, ccs)
+        where (ccs, ks) = Lists.partitionOn isControlSwitch keyswitches
+    isControlSwitch (Patch.ControlSwitch cc ccval) = Just (cc, ccval)
+    isControlSwitch _ = Nothing
 
     -- A PitchedKeymap is mapped through the Patch.Scale.
-    set_keymap (Patch.PitchedKeymap low high low_pitch) =
-        convert_pitched_keymap (Midi.from_key low) (Midi.from_key high)
-            low_pitch <$> get_signal
+    setKeymap (Patch.PitchedKeymap low high lowPitch) =
+        convertPitchedKeymap (Midi.fromKey low) (Midi.fromKey high)
+            lowPitch <$> getSignal
     -- But UnpitchedKeymap is a constant.
-    set_keymap (Patch.UnpitchedKeymap key) =
-        pure $ MSignal.constant (Midi.from_key key)
-    get_signal = apply_patch_scale scale
-        =<< convert_event_pitch srate perf_patch controls event
-    scale = Patch.config_scale (Patch.config_settings config)
-    round_sig = MSignal.map_y round_pitch
+    setKeymap (Patch.UnpitchedKeymap key) =
+        pure $ MSignal.constant (Midi.fromKey key)
+    getSignal = applyPatchScale scale
+        =<< convertEventPitch srate perfPatch controls event
+    scale = Patch.configScale (Patch.configSettings config)
+    roundSig = MSignal.mapY roundPitch
 
-    perf_patch = Types.patch inst config patch
-    attr_map = Patch.patch_attribute_map patch
+    perfPatch = Types.patch inst config patch
+    attrMap = Patch.patchAttributeMap patch
 
-mode_keyswitches :: Env.Environ -> Patch.ModeMap -> Map ScoreT.Control Signal.Y
-mode_keyswitches (DeriveT.Environ env) (Patch.ModeMap modes) =
+modeKeyswitches :: Env.Environ -> Patch.ModeMap -> Map ScoreT.Control Signal.Y
+modeKeyswitches (DeriveT.Environ env) (Patch.ModeMap modes) =
     Map.fromList $ map get (Map.toList modes)
     where
     -- for each mode, if set, use that, if unset, use first
-    get (key, (deflt, mini_to_control)) = fromMaybe deflt $ do
-        mini <- DeriveT.val_to_mini =<< Map.lookup key env
+    get (key, (deflt, miniToControl)) = fromMaybe deflt $ do
+        mini <- DeriveT.valToMini =<< Map.lookup key env
         -- If the lookup fails, then they set a mode, but I don't recognize it.
         -- TODO warn about this?
-        Map.lookup mini mini_to_control
+        Map.lookup mini miniToControl
 
-convert_pitched_keymap :: Signal.Y -> Signal.Y -> Midi.Key
+convertPitchedKeymap :: Signal.Y -> Signal.Y -> Midi.Key
     -> PitchSignal -> PitchSignal
-convert_pitched_keymap low high low_pitch sig = clipped
+convertPitchedKeymap low high lowPitch sig = clipped
     where
     -- TODO warn about out_of_range
-    (clipped, out_of_range) = MSignal.clip_bounds low high $
-        MSignal.scalar_add (low - Midi.from_key low_pitch) sig
+    (clipped, outOfRange) = MSignal.clipBounds low high $
+        MSignal.scalarAdd (low - Midi.fromKey lowPitch) sig
 
 -- | Get the flattened Signal.NoteNumber from an event.
-convert_event_pitch :: Log.LogMonad m => RealTime -> Types.Patch
+convertEventPitch :: Log.LogMonad m => RealTime -> Types.Patch
     -> ScoreT.ControlMap -> Score.Event -> m PitchSignal
-convert_event_pitch srate patch controls event =
-    fmap (Signal.to_piecewise_constant srate) $
-        convert_pitch (Score.event_environ event) controls note_end $
-        Score.event_pitch event
+convertEventPitch srate patch controls event =
+    fmap (Signal.toPiecewiseConstant srate) $
+        convertPitch (Score.eventEnviron event) controls noteEnd $
+        Score.eventPitch event
     where
-    note_end = Score.event_end event
-        + fromMaybe Types.default_decay (Types.patch_decay patch)
+    noteEnd = Score.eventEnd event
+        + fromMaybe Types.defaultDecay (Types.patchDecay patch)
 
-convert_pitch :: Log.LogMonad m => Env.Environ
+convertPitch :: Log.LogMonad m => Env.Environ
     -> ScoreT.ControlMap -> RealTime -> PSignal.PSignal -> m Signal.NoteNumber
-convert_pitch env controls note_end psig = do
+convertPitch env controls noteEnd psig = do
     -- Trim controls to avoid applying out of range transpositions.
-    let trimmed = fmap (fmap (Signal.drop_after note_end)) controls
-    let (sig, nn_errs) = PSignal.to_nn $ PSignal.apply_controls trimmed $
-            PSignal.apply_environ env psig
-    unless (null nn_errs) $ Log.warn $ "convert pitch: "
+    let trimmed = fmap (fmap (Signal.dropAfter noteEnd)) controls
+    let (sig, nnErrs) = PSignal.toNn $ PSignal.applyControls trimmed $
+            PSignal.applyEnviron env psig
+    unless (null nnErrs) $ Log.warn $ "convert pitch: "
         <> Text.intercalate ", " (Texts.ellipsisList 4
-            [pretty x <> ": " <> err | (x, err) <- nn_errs])
+            [pretty x <> ": " <> err | (x, err) <- nnErrs])
     pure sig
 
-apply_patch_scale :: Log.LogMonad m => Maybe Patch.Scale -> PitchSignal
+applyPatchScale :: Log.LogMonad m => Maybe Patch.Scale -> PitchSignal
     -> m PitchSignal
-apply_patch_scale scale sig = do
-    let (nn_sig, scale_errs) = convert_scale scale sig
-    unless (null scale_errs) $ do
+applyPatchScale scale sig = do
+    let (nnSig, scaleErrs) = convertScale scale sig
+    unless (null scaleErrs) $ do
         Log.warn $ "out of range for patch scale: "
             <> Text.intercalate ", "
-                (Texts.ellipsisList 10 (map pretty scale_errs))
-    pure nn_sig
+                (Texts.ellipsisList 10 (map pretty scaleErrs))
+    pure nnSig
 
 -- | Round pitches to the nearest tenth of a cent.  Differences below this are
 -- probably imperceptible.  Due to floating point inaccuracy, pitches can wind
 -- up being slightly off of integral, leading to pitch bending where there
 -- should be none.
-round_pitch :: Signal.Y -> Signal.Y
-round_pitch nn = fromIntegral (round (nn * 1000)) / 1000
+roundPitch :: Signal.Y -> Signal.Y
+roundPitch nn = fromIntegral (round (nn * 1000)) / 1000
 
-convert_scale :: Maybe Patch.Scale -> PitchSignal
+convertScale :: Maybe Patch.Scale -> PitchSignal
     -> (PitchSignal, [(Signal.X, Signal.Y)])
-convert_scale Nothing = (, [])
-convert_scale (Just scale) = MSignal.map_err $ \(MSignal.Sample x y) ->
-    case Patch.convert_scale scale (Pitch.NoteNumber y) of
+convertScale Nothing = (, [])
+convertScale (Just scale) = MSignal.mapErr $ \(MSignal.Sample x y) ->
+    case Patch.convertScale scale (Pitch.NoteNumber y) of
         Just (Pitch.NoteNumber nn) -> Right (MSignal.Sample x nn)
         Nothing -> Left (x, y)
 
 -- | Convert deriver controls to performance controls.  Drop all non-MIDI
 -- controls, since those will inhibit channel sharing later.
-convert_controls :: RealTime
+convertControls :: RealTime
     -> Control.ControlMap -- ^ Instrument's control map.
     -> ScoreT.ControlMap -- ^ Controls to convert.
     -> Map ScoreT.Control MSignal.Signal
-convert_controls srate inst_cmap =
+convertControls srate instCmap =
     Map.fromAscList
-        . map (second (Signal.to_piecewise_constant srate . ScoreT.val_of))
-        . filter (Control.is_midi_control inst_cmap . fst)
+        . map (second (Signal.toPiecewiseConstant srate . ScoreT.valOf))
+        . filter (Control.isMidiControl instCmap . fst)
         . Map.toAscList
 
 -- | If it's a 'Patch.Pressure' instrument, move the 'Controls.dynamic'
 -- control to 'Controls.breath'.
-convert_dynamic :: Bool -> ScoreT.ControlMap -> ScoreT.ControlMap
-convert_dynamic pressure controls
+convertDynamic :: Bool -> ScoreT.ControlMap -> ScoreT.ControlMap
+convertDynamic pressure controls
     | pressure = maybe controls
         (\sig -> Map.insert Controls.breath sig controls)
         (Map.lookup Controls.dynamic controls)

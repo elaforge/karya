@@ -38,76 +38,76 @@ import           Global
 
 library :: Library.Library
 library = mconcat
-    [ Library.poly_transformers [("h", c_hold)]
+    [ Library.polyTransformers [("h", cHold)]
     , Library.transformers
-        [ ("add-flag", c_add_flag)
-        , ("infer-dur", c_infer_dur)
-        , ("initialize", c_initialize)
+        [ ("add-flag", cAddFlag)
+        , ("infer-dur", cInferDur)
+        , ("initialize", cInitialize)
         ]
     ]
 
-c_add_flag :: Derive.Transformer Derive.Note
-c_add_flag = Derive.transformer Module.prelude "add-flag" Tags.postproc
+cAddFlag :: Derive.Transformer Derive.Note
+cAddFlag = Derive.transformer Module.prelude "add-flag" Tags.postproc
     "Add the given flags to transformed events.\
     \ Mostly for debugging and testing."
     $ Sig.callt (Sig.many1 "flag" "Add these flags.") $ \flags _args ->
-        fmap $ Post.emap1_ $ Score.add_flags $ mconcatMap Flags.flag $
+        fmap $ Post.emap1_ $ Score.addFlags $ mconcatMap Flags.flag $
             NonEmpty.toList flags
 
-c_hold :: Derive.Taggable d => Derive.Transformer d
-c_hold = Make.environ Module.prelude EnvKey.hold "'Derive.EnvKey.hold'"
+cHold :: Derive.Taggable d => Derive.Transformer d
+cHold = Make.environ Module.prelude EnvKey.hold "'Derive.EnvKey.hold'"
     (Sig.defaulted "time" (Typecheck.real 0.25) "Hold this long.")
     Typecheck._real
 
-c_infer_dur :: Derive.Transformer Derive.Note
-c_infer_dur = Derive.transformer Module.prelude "infer-dur" Tags.postproc
+cInferDur :: Derive.Transformer Derive.Note
+cInferDur = Derive.transformer Module.prelude "infer-dur" Tags.postproc
     "Add 'Derive.Flags.infer_duration' to the events."
     $ Sig.call0t $ \_args ->
-        fmap $ Post.emap1_ $ Score.add_flags Flags.infer_duration
+        fmap $ Post.emap1_ $ Score.addFlags Flags.inferDuration
 
 -- * initialize
 
-c_initialize :: Derive.Transformer Derive.Note
-c_initialize = Derive.transformer Module.prelude "initialize" mempty
+cInitialize :: Derive.Transformer Derive.Note
+cInitialize = Derive.transformer Module.prelude "initialize" mempty
     "Emit initialization controls for im instruments." $
     Sig.callt ((,)
         <$> Sig.required "inst" "Instrument to initialize."
-        <*> Sig.many_pairs "control,val" "(control, val) pairs.\
+        <*> Sig.manyPairs "control,val" "(control, val) pairs.\
             \ If the val is a list, expect the instrument to have that many\
             \ elements, and set the control for each element."
     ) $ \(inst, pairs) args deriver -> do
-        elements <- Derive.inst_elements . snd <$> Derive.get_instrument inst
-        start <- Args.real_start args
+        elements <- Derive.instElements . snd <$> Derive.getInstrument inst
+        start <- Args.realStart args
         -- [(_, [Either _ Pitch])] -> [(_, [Either _ Transposed])]
         pairs <- (traverse . traverse . traverse . traverse)
-            (Derive.resolve_pitch start) pairs
-        element_controls <- Derive.require_right id $
-            parse_pairs (Set.toAscList elements) pairs
-        let notes = map (uncurry (dummy_note inst))
-                (Map.toList element_controls)
-        (Stream.from_events notes <>) <$> deriver
+            (Derive.resolvePitch start) pairs
+        elementControls <- Derive.requireRight id $
+            parsePairs (Set.toAscList elements) pairs
+        let notes = map (uncurry (dummyNote inst))
+                (Map.toList elementControls)
+        (Stream.fromEvents notes <>) <$> deriver
 
-dummy_note :: ScoreT.Instrument -> Note.Element -> Map ScoreT.Control Double
+dummyNote :: ScoreT.Instrument -> Note.Element -> Map ScoreT.Control Double
     -> Score.Event
-dummy_note inst element controls = Score.empty_event
-    { Score.event_pitch = case Map.lookup pitch controls of
+dummyNote inst element controls = Score.emptyEvent
+    { Score.eventPitch = case Map.lookup pitch controls of
         Nothing -> mempty
-        Just nn -> PSignal.constant $ PSignal.nn_pitch (Pitch.nn nn)
-    , Score.event_text = "faust initialize"
-    , Score.event_instrument = inst
-    , Score.event_environ =
-        (Env.from_list [(EnvKey.element, Typecheck.to_val element)] <>) $
-        Env.from_controls $ make_val <$>
+        Just nn -> PSignal.constant $ PSignal.nnPitch (Pitch.nn nn)
+    , Score.eventText = "faust initialize"
+    , Score.eventInstrument = inst
+    , Score.eventEnviron =
+        (Env.fromList [(EnvKey.element, Typecheck.toVal element)] <>) $
+        Env.fromControls $ makeVal <$>
             Map.insert Controls.dynamic 0 (Map.delete pitch controls)
     }
     where
     pitch = "pitch"
-    make_val = ScoreT.untyped . Signal.constant
+    makeVal = ScoreT.untyped . Signal.constant
 
-parse_pairs :: [Note.Element]
+parsePairs :: [Note.Element]
     -> [(ScoreT.Control, [Either Double PSignal.Transposed])]
     -> Either Text (Map Note.Element (Map ScoreT.Control Double))
-parse_pairs elements =
+parsePairs elements =
     fmap (fmap Map.fromList . Maps.multimap) . concatMapM parse
     where
     parse (_, []) = pure []
@@ -122,4 +122,4 @@ parse_pairs elements =
             vals <- mapM resolve vals
             pure $ zip elements (map (control,) vals)
     resolve (Left nn) = Right nn
-    resolve (Right p) = bimap pretty Pitch.nn_to_double $ DeriveT.pitch_nn p
+    resolve (Right p) = bimap pretty Pitch.nnToDouble $ DeriveT.pitchNn p

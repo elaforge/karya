@@ -31,10 +31,10 @@
 -}
 module Instrument.Inst (
     -- * Inst
-    Inst(..), common, backend, Backend(..), backend_name
-    , inst_midi, inst_attributes
+    Inst(..), common, backend, Backend(..), backendName
+    , instMidi, instAttributes
     -- * db
-    , Db, Synth(..), empty, size, synth_names, synths, lookup_synth, lookup
+    , Db, Synth(..), empty, size, synthNames, synths, lookupSynth, lookup
     , SynthDecl(..), db, merge
     , annotate
 ) where
@@ -61,12 +61,12 @@ import           Global
 -- * Inst
 
 data Inst code = Inst
-    { inst_backend :: Backend
-    , inst_common :: Common.Common code
+    { instBackend :: Backend
+    , instCommon :: Common.Common code
     } deriving (Show)
 
-backend = Lens.lens inst_backend (\r a -> r { inst_backend = a })
-common = Lens.lens inst_common (\r a -> r { inst_common = a })
+backend = Lens.lens instBackend (\r a -> r { instBackend = a })
+common = Lens.lens instCommon (\r a -> r { instCommon = a })
 
 instance Pretty code => Pretty (Inst code) where
     format (Inst backend common) = Pretty.record "Inst"
@@ -90,25 +90,25 @@ instance Pretty Backend where
         Im patch -> Pretty.format patch
         Sc patch -> Pretty.format patch
 
-backend_name :: Backend -> Text
-backend_name = \case
+backendName :: Backend -> Text
+backendName = \case
     Dummy {} -> "dummy"
     Midi {} -> "midi"
     Im {} -> "im"
     Sc {} -> "sc"
 
-inst_midi :: Inst code -> Maybe Midi.Patch.Patch
-inst_midi inst = case inst_backend inst of
+instMidi :: Inst code -> Maybe Midi.Patch.Patch
+instMidi inst = case instBackend inst of
     Midi inst -> Just inst
     _ -> Nothing
 
-inst_attributes :: Inst code -> [Attrs.Attributes]
-inst_attributes inst = case inst_backend inst of
+instAttributes :: Inst code -> [Attrs.Attributes]
+instAttributes inst = case instBackend inst of
     Dummy {} -> []
-    Midi patch -> Common.mapped_attributes $
-        Midi.Patch.patch_attribute_map patch
-    Im patch -> Common.mapped_attributes $
-        Im.Patch.patch_attribute_map patch
+    Midi patch -> Common.mappedAttributes $
+        Midi.Patch.patchAttributeMap patch
+    Im patch -> Common.mappedAttributes $
+        Im.Patch.patchAttributeMap patch
     Sc _patch -> []
 
 -- * Db
@@ -117,11 +117,11 @@ newtype Db code = Db (Map InstT.SynthName (Synth code))
     deriving (Show, Pretty)
 
 data Synth code = Synth
-    { synth_doc :: Text -- ^ Full name, just for documentation.
-    , synth_insts :: Map InstT.Name (Inst code)
+    { synthDoc :: Text -- ^ Full name, just for documentation.
+    , synthInsts :: Map InstT.Name (Inst code)
     } deriving (Show)
 
-insts = Lens.lens synth_insts (\r a -> r { synth_insts = a })
+insts = Lens.lens synthInsts (\r a -> r { synthInsts = a })
 
 instance Pretty code => Pretty (Synth code) where
     format (Synth _ insts) = Pretty.format insts
@@ -131,30 +131,30 @@ empty = Db mempty
 
 -- | Number of 'Inst's in the db.
 size :: Db code -> Int
-size (Db db) = Num.sum $ map (Map.size . synth_insts) $ Map.elems db
+size (Db db) = Num.sum $ map (Map.size . synthInsts) $ Map.elems db
 
-synth_names :: Db code -> [InstT.SynthName]
-synth_names (Db db) = Map.keys db
+synthNames :: Db code -> [InstT.SynthName]
+synthNames (Db db) = Map.keys db
 
 synths :: Db code -> [(InstT.SynthName, Synth code)]
 synths (Db db) = Map.toList db
 
-lookup_synth :: InstT.SynthName -> Db code -> Maybe (Synth code)
-lookup_synth synth (Db db) = Map.lookup synth db
+lookupSynth :: InstT.SynthName -> Db code -> Maybe (Synth code)
+lookupSynth synth (Db db) = Map.lookup synth db
 
 lookup :: InstT.Qualified -> Db code -> Maybe (Inst code)
 lookup (InstT.Qualified synth name) (Db db) =
-    Map.lookup name . synth_insts =<< Map.lookup synth db
+    Map.lookup name . synthInsts =<< Map.lookup synth db
 
 type Warn = Text
 
 -- | Unchecked synth declaration.  'db' will check it for duplicates and other
 -- problems.
 data SynthDecl code = SynthDecl
-    { synthd_name :: InstT.SynthName
-    , synthd_doc :: Text
-    , synthd_patches :: [(InstT.Name, Inst code)]
-    , synthd_warns :: [Warn]
+    { synthdName :: InstT.SynthName
+    , synthdDoc :: Text
+    , synthdPatches :: [(InstT.Name, Inst code)]
+    , synthdWarns :: [Warn]
     } deriving (Show)
 
 instance Pretty code => Pretty (SynthDecl code) where
@@ -167,32 +167,32 @@ instance Pretty code => Pretty (SynthDecl code) where
 
 -- | Construct and validate a Db, returning any errors that occurred.
 db :: [SynthDecl code] -> (Db code, [Warn])
-db synth_decls = (Db db, synth_errors ++ inst_errors ++ validate_errors)
+db synthDecls = (Db db, synthErrors ++ instErrors ++ validateErrors)
     where
-    (inst_maps, inst_errors) = second concat $ unzip $ do
-        SynthDecl synth synth_doc insts warns <- synth_decls
-        let (inst_map, dups) = Maps.unique insts
+    (instMaps, instErrors) = second concat $ unzip $ do
+        SynthDecl synth synthDoc insts warns <- synthDecls
+        let (instMap, dups) = Maps.unique insts
         let errors =
                 [ "duplicate inst: " <> pretty (InstT.Qualified synth name)
                 | name <- map fst dups
                 ]
-        pure ((synth, Synth synth_doc inst_map), warns ++ errors)
-    (db, dups) = Maps.unique inst_maps
-    synth_errors = ["duplicate synth: " <> showt synth | synth <- map fst dups]
-    validate_errors = concat
+        pure ((synth, Synth synthDoc instMap), warns ++ errors)
+    (db, dups) = Maps.unique instMaps
+    synthErrors = ["duplicate synth: " <> showt synth | synth <- map fst dups]
+    validateErrors = concat
         [ map ((pretty (InstT.Qualified synth name) <> ": ") <>)
             (validate inst)
-        | SynthDecl synth _ insts _ <- synth_decls, (name, inst) <- insts
+        | SynthDecl synth _ insts _ <- synthDecls, (name, inst) <- insts
         ]
 
 -- | Return any errors found in the Inst.
 validate :: Inst code -> [Warn]
-validate inst = case inst_backend inst of
+validate inst = case instBackend inst of
     Dummy {} -> []
-    Midi patch -> Common.overlapping_attributes $
-        Midi.Patch.patch_attribute_map patch
-    Im patch -> Common.overlapping_attributes $
-        Im.Patch.patch_attribute_map patch
+    Midi patch -> Common.overlappingAttributes $
+        Midi.Patch.patchAttributeMap patch
+    Im patch -> Common.overlappingAttributes $
+        Im.Patch.patchAttributeMap patch
     Sc _patch -> []
 
 -- | Merge the Dbs, and return any duplicate synths.
@@ -204,14 +204,14 @@ annotate :: Map InstT.Qualified [Tag.Tag] -> Db code
     -> (Db code, [InstT.Qualified])
 annotate annots db = Map.foldrWithKey modify (db, []) annots
     where
-    modify qualified@(InstT.Qualified synth name) tags (db, not_found) =
-        case modify_inst synth name (add_tags tags) db of
-            Nothing -> (db, qualified : not_found)
-            Just db -> (db, not_found)
-    add_tags tags = common#Common.tags %= (tags++)
+    modify qualified@(InstT.Qualified synth name) tags (db, notFound) =
+        case modifyInst synth name (addTags tags) db of
+            Nothing -> (db, qualified : notFound)
+            Just db -> (db, notFound)
+    addTags tags = common#Common.tags %= (tags++)
 
-modify_inst :: InstT.SynthName -> InstT.Name -> (Inst code -> Inst code)
+modifyInst :: InstT.SynthName -> InstT.Name -> (Inst code -> Inst code)
     -> Db code -> Maybe (Db code)
-modify_inst synth name modify (Db db) = Db <$> do
-    inst <- Map.lookup name . synth_insts =<< Map.lookup synth db
+modifyInst synth name modify (Db db) = Db <$> do
+    inst <- Map.lookup name . synthInsts =<< Map.lookup synth db
     pure $ Map.adjust (insts %= Map.insert name (modify inst)) synth db

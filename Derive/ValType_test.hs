@@ -13,7 +13,7 @@ import           Util.Test
 
 test_type_of :: Test
 test_type_of = do
-    let f = ValType.specific_type_of
+    let f = ValType.specificTypeOf
     let nn = DeriveT.constant ScoreT.Nn
     equal (f (DeriveT.VList [])) $ TList TVal
     equal (f (DeriveT.VList [DeriveT.num 1])) $

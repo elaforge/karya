@@ -30,11 +30,11 @@ patches = (:[]) $ (Patch.patch patchName)
     , Patch._convert = convert
     , Patch._karyaPatch =
         ImInst.code #= code $
-        ImInst.make_patch $ Im.Patch.patch
-            { Im.Patch.patch_controls = Control.supportDyn }
+        ImInst.makePatch $ Im.Patch.patch
+            { Im.Patch.patchControls = Control.supportDyn }
     }
     where
-    code = ImInst.note_generators [("s", c_sample)]
+    code = ImInst.noteGenerators [("s", cSample)]
     dir = untxt patchName
 
 patchName :: Text
@@ -42,8 +42,8 @@ patchName = "sample"
 
 -- TODO start offset, pitch adjust
 -- time stretch?  I need rubberband in sampler though.
-c_sample :: Derive.Generator Derive.Note
-c_sample = Derive.generator Module.instrument "sample" mempty doc $
+cSample :: Derive.Generator Derive.Note
+cSample = Derive.generator Module.instrument "sample" mempty doc $
     Sig.call ((,,)
         <$> Sig.required "name" "name of sample"
         <*> Sig.required "dir" "directory of sample"
@@ -51,8 +51,8 @@ c_sample = Derive.generator Module.instrument "sample" mempty doc $
     ) $ \(sample, dir, ext) args -> do
         when (Text.null sample) $ Derive.throw "no sample"
         when (Text.null dir) $ Derive.throw "no sample dir"
-        Derive.with_val EnvKey.element (dir <> "/" <> sample <> "." <> ext) $
-            Call.placed_note args
+        Derive.withVal EnvKey.element (dir <> "/" <> sample <> "." <> ext) $
+            Call.placedNote args
     where
     doc = "Play a single sample."
 

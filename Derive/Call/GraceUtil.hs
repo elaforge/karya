@@ -40,252 +40,252 @@ import           Types
 
 -- * standard args
 
-grace_envs :: Sig.Parser (DeriveT.Duration, Typecheck.Normalized)
-grace_envs = (,) <$> grace_dur_env <*> grace_place_env
+graceEnvs :: Sig.Parser (DeriveT.Duration, Typecheck.Normalized)
+graceEnvs = (,) <$> graceDurEnv <*> gracePlaceEnv
 
-grace_dur_env :: Sig.Parser DeriveT.Duration
-grace_dur_env = Typecheck._real <$>
-    Sig.environ "dur" Sig.Both default_grace_dur "Duration of grace notes."
+graceDurEnv :: Sig.Parser DeriveT.Duration
+graceDurEnv = Typecheck._real <$>
+    Sig.environ "dur" Sig.Both defaultGraceDur "Duration of grace notes."
 
-grace_dyn_env :: Sig.Parser Double
-grace_dyn_env =
-    Typecheck.non_negative <$> Sig.environ "grace-dyn" Sig.Unprefixed
+graceDynEnv :: Sig.Parser Double
+graceDynEnv =
+    Typecheck.nonNegative <$> Sig.environ "grace-dyn" Sig.Unprefixed
         (0.5 :: Double) "Scale the dyn of the grace notes."
 
-grace_place_env :: Sig.Parser Typecheck.Normalized
-grace_place_env = Sig.environ "place" Sig.Both (0 :: Double) grace_place_doc
+gracePlaceEnv :: Sig.Parser Typecheck.Normalized
+gracePlaceEnv = Sig.environ "place" Sig.Both (0 :: Double) gracePlaceDoc
 
-grace_place_doc :: Doc.Doc
-grace_place_doc =
+gracePlaceDoc :: Doc.Doc
+gracePlaceDoc =
     "At 0, grace notes fall before their base note.  At 1, grace notes fall on\
     \ the base note, and the base note is delayed."
 
 -- | It's pretty much arbitrary, but this seems ok.
-default_grace_dur :: Typecheck.DefaultReal
-default_grace_dur = Typecheck.real (1/12)
+defaultGraceDur :: Typecheck.DefaultReal
+defaultGraceDur = Typecheck.real (1/12)
 
-grace_pitches_arg :: Sig.Parser [Either PSignal.Pitch (ScoreT.Typed Signal.Y)]
-grace_pitches_arg = Sig.many "pitch" grace_pitches_doc
+gracePitchesArg :: Sig.Parser [Either PSignal.Pitch (ScoreT.Typed Signal.Y)]
+gracePitchesArg = Sig.many "pitch" gracePitchesDoc
 
-grace_pitches_doc :: Doc.Doc
-grace_pitches_doc = "Grace note pitches. If they are numbers,\
+gracePitchesDoc :: Doc.Doc
+gracePitchesDoc = "Grace note pitches. If they are numbers,\
     \ they are taken as transpositions and must all be the same type,\
     \ defaulting to diatonic."
 
 -- * calls
 
 -- | Make a grace call with the standard arguments.
-make_grace :: Module.Module -> Doc.Doc
+makeGrace :: Module.Module -> Doc.Doc
     -> (Derive.NoteDeriver -> Derive.NoteDeriver)
     -> (Derive.PassedArgs Score.Event -> [SubT.Event] -> Derive.NoteDeriver)
     -> Derive.Generator Derive.Note
-make_grace module_ doc transform derive =
+makeGrace module_ doc transform derive =
     Derive.generator module_ "grace" (Tags.ornament <> Tags.ly) doc
     $ Sig.call ((,,)
-    <$> grace_pitches_arg <*> grace_dyn_env <*> grace_envs
-    ) $ \(pitches, dyn, (grace_dur, place)) -> Sub.inverting $ \args -> do
-        start <- Args.real_start args
-        base <- Call.get_pitch start
-        pitches <- resolve_pitches base pitches
-        Ly.when_lilypond (lily_grace args start pitches) $ do
-            with_dyn <- (*dyn) <$> (Call.dynamic =<< Args.real_start args)
-            derive args =<< basic_grace_transform args pitches
-                (transform . Call.with_dynamic with_dyn) grace_dur place
+    <$> gracePitchesArg <*> graceDynEnv <*> graceEnvs
+    ) $ \(pitches, dyn, (graceDur, place)) -> Sub.inverting $ \args -> do
+        start <- Args.realStart args
+        base <- Call.getPitch start
+        pitches <- resolvePitches base pitches
+        Ly.whenLilypond (lilyGrace args start pitches) $ do
+            withDyn <- (*dyn) <$> (Call.dynamic =<< Args.realStart args)
+            derive args =<< basicGraceTransform args pitches
+                (transform . Call.withDynamic withDyn) graceDur place
 
 -- | This is like 'make_grace', but gives you pitches instead of realized
 -- events, in case you want to merge them or something.
-make_grace_pitch :: Module.Module -> Doc.Doc
+makeGracePitch :: Module.Module -> Doc.Doc
     -> (Derive.PassedArgs Score.Event -> [SubT.EventT PSignal.Pitch]
         -> Derive.NoteDeriver)
     -> Derive.Generator Derive.Note
-make_grace_pitch module_ doc derive =
+makeGracePitch module_ doc derive =
     Derive.generator module_ "grace" (Tags.ornament <> Tags.ly) doc
     $ Sig.call ((,)
-    <$> grace_pitches_arg <*> grace_envs
-    ) $ \(pitches, (grace_dur, place)) -> Sub.inverting $ \args -> do
-        start <- Args.real_start args
-        base <- Call.get_pitch start
-        pitches <- resolve_pitches base pitches
-        Ly.when_lilypond (lily_grace args start pitches) $ do
-            here <- Call.get_pitch_here args
-            notes <- basic_grace args (pitches ++ [here]) grace_dur place
+    <$> gracePitchesArg <*> graceEnvs
+    ) $ \(pitches, (graceDur, place)) -> Sub.inverting $ \args -> do
+        start <- Args.realStart args
+        base <- Call.getPitch start
+        pitches <- resolvePitches base pitches
+        Ly.whenLilypond (lilyGrace args start pitches) $ do
+            here <- Call.getPitchHere args
+            notes <- basicGrace args (pitches ++ [here]) graceDur place
             derive args notes
 
-repeat_notes :: Derive.NoteDeriver -> Int -> DeriveT.Duration
+repeatNotes :: Derive.NoteDeriver -> Int -> DeriveT.Duration
     -> Typecheck.Normalized -- ^ placement, 'grace_place_doc'
     -> Derive.PassedArgs a -> Derive.Deriver [SubT.Event]
-repeat_notes note times time place args =
-    make_grace_notes (Args.prev_start args)
-        (Args.range_or_next args) (replicate times note) time place
+repeatNotes note times time place args =
+    makeGraceNotes (Args.prevStart args)
+        (Args.rangeOrNext args) (replicate times note) time place
 
-make_grace_notes :: Maybe ScoreTime -> (ScoreTime, ScoreTime) -- ^ (start, end)
+makeGraceNotes :: Maybe ScoreTime -> (ScoreTime, ScoreTime) -- ^ (start, end)
     -> [note] -- ^ the last note is the destination
     -> DeriveT.Duration
     -> Typecheck.Normalized -- ^ placement, see 'grace_place_doc'
     -> Derive.Deriver [SubT.EventT note]
-make_grace_notes prev (start, end) notes grace_dur place = do
-    case grace_dur of
-        DeriveT.ScoreDuration grace_dur -> do
-            let extents = fit_grace_durs place prev start end (length notes)
-                    grace_dur
+makeGraceNotes prev (start, end) notes graceDur place = do
+    case graceDur of
+        DeriveT.ScoreDuration graceDur -> do
+            let extents = fitGraceDurs place prev start end (length notes)
+                    graceDur
             pure [SubT.EventT s d n | ((s, d), n) <- zip extents notes]
-        DeriveT.RealDuration grace_dur -> do
-            real_start <- Derive.real start
-            real_end <- Derive.real end
-            real_prev <- maybe (pure Nothing) ((Just <$>) . Derive.real) prev
-            let extents = fit_grace_durs place real_prev real_start real_end
-                    (length notes) grace_dur
-            zipWithM note_real extents notes
+        DeriveT.RealDuration graceDur -> do
+            realStart <- Derive.real start
+            realEnd <- Derive.real end
+            realPrev <- maybe (pure Nothing) ((Just <$>) . Derive.real) prev
+            let extents = fitGraceDurs place realPrev realStart realEnd
+                    (length notes) graceDur
+            zipWithM noteReal extents notes
     where
-    note_real (start, dur) note = do
-        score_start <- Derive.score start
-        score_end <- Derive.score (start + dur)
-        pure $ SubT.EventT score_start (score_end - score_start) note
+    noteReal (start, dur) note = do
+        scoreStart <- Derive.score start
+        scoreEnd <- Derive.score (start + dur)
+        pure $ SubT.EventT scoreStart (scoreEnd - scoreStart) note
 
-lily_grace :: Derive.PassedArgs d -> RealTime -> [PSignal.Pitch]
+lilyGrace :: Derive.PassedArgs d -> RealTime -> [PSignal.Pitch]
     -> Derive.NoteDeriver
-lily_grace args start pitches = do
-    env <- Derive.get_environ
-    pitches <- mapM (Ly.pitch_to_lily env)
-        =<< mapM (Derive.resolve_pitch start) pitches
-    let ly_notes = map (<> Lilypond.to_lily Lilypond.D8) pitches
-        beamed = Lists.firstLast (<>"[") (<>"]") ly_notes
+lilyGrace args start pitches = do
+    env <- Derive.getEnviron
+    pitches <- mapM (Ly.pitchToLily env)
+        =<< mapM (Derive.resolvePitch start) pitches
+    let lyNotes = map (<> Lilypond.toLily Lilypond.D8) pitches
+        beamed = Lists.firstLast (<>"[") (<>"]") lyNotes
         -- I use \acciaccatura instead of \grace because it adds a slur
         -- automatically.
         code = "\\acciaccatura { " <> Text.unwords beamed <> " } "
     -- Prepending to the note instead of emitting a separate code event ensures
     -- it stays with the note's voice.
-    Ly.add_first (Ly.prepend, code) $ Call.place args Call.note
+    Ly.addFirst (Ly.prepend, code) $ Call.place args Call.note
 
 -- * attr grace
 
-c_attr_grace :: Map Int Attrs.Attributes
+cAttrGrace :: Map Int Attrs.Attributes
     -- ^ Map intervals in semitones (positive or negative) to attrs.
     -> Derive.Generator Derive.Note
-c_attr_grace supported =
+cAttrGrace supported =
     Derive.generator Module.instrument "grace" (Tags.ornament <> Tags.ly)
     ("Emit grace notes as attrs, given a set of possible interval attrs.\
     \ If the grace note can't be expressed by the supported attrs, then emit\
     \ notes like the normal grace call.\nSupported: "
     <> Doc.commas (map ShowVal.doc (Map.elems supported))
     ) $ Sig.call ((,,,)
-    <$> grace_pitches_arg <*> grace_dyn_env <*> grace_envs
+    <$> gracePitchesArg <*> graceDynEnv <*> graceEnvs
     <*> Sig.environ "attr" Sig.Prefixed (Nothing :: Maybe Sig.Dummy)
         "If given, put this attr on the grace notes. Otherwise, pick a grace\
         \ note from the support list."
-    ) $ \(pitches, dyn, (grace_dur, place), attr) -> Sub.inverting $ \args -> do
-        start <- Args.real_start args
-        base <- Call.get_pitch start
-        pitches <- resolve_pitches base pitches
-        Ly.when_lilypond (lily_grace args start pitches) $ case attr of
-            Just attr -> Call.add_attributes attr $
-                basic_grace_dyn dyn args pitches grace_dur place
+    ) $ \(pitches, dyn, (graceDur, place), attr) -> Sub.inverting $ \args -> do
+        start <- Args.realStart args
+        base <- Call.getPitch start
+        pitches <- resolvePitches base pitches
+        Ly.whenLilypond (lilyGrace args start pitches) $ case attr of
+            Just attr -> Call.addAttributes attr $
+                basicGraceDyn dyn args pitches graceDur place
             Nothing -> do
-                maybe_attrs <- grace_attributes start supported pitches base
-                case maybe_attrs of
-                    Just attrs -> attr_grace start args grace_dur
+                maybeAttrs <- graceAttributes start supported pitches base
+                case maybeAttrs of
+                    Just attrs -> attrGrace start args graceDur
                         (length pitches) attrs
                     -- Fall back on normal grace.
-                    Nothing -> legato_grace args dyn pitches grace_dur place
+                    Nothing -> legatoGrace args dyn pitches graceDur place
     where
-    attr_grace real_start args grace_dur notes attrs = do
+    attrGrace realStart args graceDur notes attrs = do
         let (start, dur) = Args.extent args
-        grace_dur <- Call.score_duration start grace_dur
-        dyn <- Call.dynamic real_start
-        let before = fromIntegral notes * grace_dur
-        pitch <- Call.get_pitch real_start
+        graceDur <- Call.scoreDuration start graceDur
+        dyn <- Call.dynamic realStart
+        let before = fromIntegral notes * graceDur
+        pitch <- Call.getPitch realStart
         Derive.place (start - before) (dur + before) $
-            Call.add_attributes attrs $ Call.with_dynamic dyn $
-            Call.pitched_note pitch
+            Call.addAttributes attrs $ Call.withDynamic dyn $
+            Call.pitchedNote pitch
 
-grace_attributes :: RealTime -> Map Int Attrs.Attributes -> [PSignal.Pitch]
+graceAttributes :: RealTime -> Map Int Attrs.Attributes -> [PSignal.Pitch]
     -> PSignal.Pitch -> Derive.Deriver (Maybe Attrs.Attributes)
-grace_attributes pos supported [grace] base = do
-    diff <- Call.nn_difference pos base grace
+graceAttributes pos supported [grace] base = do
+    diff <- Call.nnDifference pos base grace
     pure $ Map.lookup (round diff) supported
-grace_attributes _ _ _ _ = pure Nothing
+graceAttributes _ _ _ _ = pure Nothing
 
 -- * util
 
-legato_grace :: Derive.NoteArgs -> Signal.Y -> [PSignal.Pitch]
+legatoGrace :: Derive.NoteArgs -> Signal.Y -> [PSignal.Pitch]
     -> DeriveT.Duration -> Typecheck.Normalized -> Derive.NoteDeriver
-legato_grace args dyn_scale pitches grace_dur place = do
-    dyn <- (*dyn_scale) <$> (Call.dynamic =<< Args.real_start args)
-    events <- basic_grace_transform args pitches (Call.with_dynamic dyn)
-        grace_dur place
+legatoGrace args dynScale pitches graceDur place = do
+    dyn <- (*dynScale) <$> (Call.dynamic =<< Args.realStart args)
+    events <- basicGraceTransform args pitches (Call.withDynamic dyn)
+        graceDur place
     -- Normally legato notes emphasize the first note, but that's not
     -- appropriate for grace notes.
-    Derive.with_val "legato-dyn" (1 :: Double) $
-        Sub.reapply_call (Args.context args) "(" [] [events]
+    Derive.withVal "legato-dyn" (1 :: Double) $
+        Sub.reapplyCall (Args.context args) "(" [] [events]
 
-basic_grace_dyn :: Signal.Y -> Derive.PassedArgs a -> [PSignal.Pitch]
+basicGraceDyn :: Signal.Y -> Derive.PassedArgs a -> [PSignal.Pitch]
     -> DeriveT.Duration -> Typecheck.Normalized -> Derive.NoteDeriver
-basic_grace_dyn dyn_scale args pitches grace_dur place = do
-    dyn <- (*dyn_scale) <$> (Call.dynamic =<< Args.real_start args)
-    Sub.derive =<< basic_grace_transform args pitches (Call.with_dynamic dyn)
-        grace_dur place
+basicGraceDyn dynScale args pitches graceDur place = do
+    dyn <- (*dynScale) <$> (Call.dynamic =<< Args.realStart args)
+    Sub.derive =<< basicGraceTransform args pitches (Call.withDynamic dyn)
+        graceDur place
 
-basic_grace_transform :: Derive.PassedArgs a -> [PSignal.Pitch]
+basicGraceTransform :: Derive.PassedArgs a -> [PSignal.Pitch]
     -> (Derive.NoteDeriver -> Derive.NoteDeriver)
     -> DeriveT.Duration -> Typecheck.Normalized -> Derive.Deriver [SubT.Event]
-basic_grace_transform args pitches transform = basic_grace args notes
-    where notes = map (transform . Call.pitched_note) pitches ++ [Call.note]
+basicGraceTransform args pitches transform = basicGrace args notes
+    where notes = map (transform . Call.pitchedNote) pitches ++ [Call.note]
 
-basic_grace :: Derive.PassedArgs a -> [note]
+basicGrace :: Derive.PassedArgs a -> [note]
     -> DeriveT.Duration -> Typecheck.Normalized
     -> Derive.Deriver [SubT.EventT note]
-basic_grace args pitches =
-    make_grace_notes (Args.prev_start args) (Args.range_or_next args) pitches
+basicGrace args pitches =
+    makeGraceNotes (Args.prevStart args) (Args.rangeOrNext args) pitches
 
 -- | Determine grace note starting times and durations if they are to fit in
 -- the given time range, shortening them if they don't fit.
-fit_grace_durs :: (Fractional a, Ord a) => Typecheck.Normalized -> Maybe a
+fitGraceDurs :: (Fractional a, Ord a) => Typecheck.Normalized -> Maybe a
     -> a -> a -> Int -> a -> [(a, a)]
-fit_grace_durs place prev start end notes dur =
-    map add_dur $ Lists.zipNext $ fit_grace place prev start end notes dur
+fitGraceDurs place prev start end notes dur =
+    map addDur $ Lists.zipNext $ fitGrace place prev start end notes dur
     where
-    add_dur (x, Nothing) = (x, end - x)
-    add_dur (x, Just next) = (x, next - x)
+    addDur (x, Nothing) = (x, end - x)
+    addDur (x, Just next) = (x, next - x)
 
-fit_grace :: (Fractional a, Ord a)
+fitGrace :: (Fractional a, Ord a)
     => Typecheck.Normalized -- ^ placement, see 'grace_place_doc'
     -> Maybe a -> a -> a -> Int -> a -> [a]
-fit_grace (Typecheck.Normalized place) maybe_prev start end notes dur
+fitGrace (Typecheck.Normalized place) maybePrev start end notes dur
     | place <= 0 = before
     | place >= 1 = after
     | otherwise =
         zipWith (\x y -> Num.scale x y (realToFrac place)) before after
     where
-    after = fit_after start end notes dur
-    before = fit_before maybe_prev start notes dur
+    after = fitAfter start end notes dur
+    before = fitBefore maybePrev start notes dur
 
-fit_before :: (Fractional a, Ord a) => Maybe a -> a -> Int -> a -> [a]
-fit_before maybe_prev start notes dur =
-    take notes $ drop 1 $ Lists.range_ (start - notes_t * step) step
+fitBefore :: (Fractional a, Ord a) => Maybe a -> a -> Int -> a -> [a]
+fitBefore maybePrev start notes dur =
+    take notes $ drop 1 $ Lists.range_ (start - notesT * step) step
     where
-    notes_t = fromIntegral notes
+    notesT = fromIntegral notes
     step
-        | Just prev <- maybe_prev, start - dur * notes_t < prev =
-            (start - prev) / notes_t
+        | Just prev <- maybePrev, start - dur * notesT < prev =
+            (start - prev) / notesT
         | otherwise = dur
 
-fit_after :: (Fractional a, Ord a) => a -> a -> Int -> a -> [a]
-fit_after start end notes dur = take notes $ Lists.range_ start step
+fitAfter :: (Fractional a, Ord a) => a -> a -> Int -> a -> [a]
+fitAfter start end notes dur = take notes $ Lists.range_ start step
     where
-    notes_t = fromIntegral notes
+    notesT = fromIntegral notes
     step
-        | dur * notes_t >= end - start = (end - start) / notes_t
+        | dur * notesT >= end - start = (end - start) / notesT
         | otherwise = dur
 
-resolve_pitches :: PSignal.Pitch
+resolvePitches :: PSignal.Pitch
     -> [Either PSignal.Pitch (ScoreT.Typed Signal.Y)]
     -> Derive.Deriver [PSignal.Pitch]
-resolve_pitches base = either Derive.throw pure . check_pitches base
+resolvePitches base = either Derive.throw pure . checkPitches base
 
-check_pitches :: PSignal.Pitch -> [Either PSignal.Pitch (ScoreT.Typed Signal.Y)]
+checkPitches :: PSignal.Pitch -> [Either PSignal.Pitch (ScoreT.Typed Signal.Y)]
     -> Either Text [PSignal.Pitch]
-check_pitches base pitches = do
-    make <- case map ScoreT.type_of $ Either.rights pitches of
+checkPitches base pitches = do
+    make <- case map ScoreT.typeOf $ Either.rights pitches of
         t_ : ts_
             | all (==t) ts -> case t of
                 ScoreT.Diatonic -> Right Pitch.Diatonic
@@ -299,7 +299,7 @@ check_pitches base pitches = do
             t = deflt ScoreT.Diatonic t_
             ts = map (deflt t) ts_
         [] -> Right Pitch.Diatonic
-    pure $ map (either id (resolve make . ScoreT.val_of)) pitches
+    pure $ map (either id (resolve make . ScoreT.valOf)) pitches
     where
     resolve make n = Pitches.transpose (make n) base
     deflt typ ScoreT.Untyped = typ

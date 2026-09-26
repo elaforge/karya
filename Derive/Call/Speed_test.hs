@@ -16,8 +16,8 @@ import           Util.Test
 
 test_starts :: Test
 test_starts = do
-    let f speed (range :: (RealTime, RealTime)) include_end =
-            DeriveTest.eval Ui.empty (Speed.starts speed range include_end)
+    let f speed (range :: (RealTime, RealTime)) includeEnd =
+            DeriveTest.eval Ui.empty (Speed.starts speed range includeEnd)
         fun dtype val = Typecheck.RealTimeFunctionT dtype (const val)
     equal (f (fun ScoreT.TReal 1) (1, 4) True) (Right [1, 2, 3, 4])
     equal (f (fun ScoreT.TScore 1) (1, 4) True) (Right [1, 2, 3, 4])
@@ -31,10 +31,10 @@ test_starts = do
 
 test_duration_starts :: Test
 test_duration_starts = do
-    let f = Speed.duration_starts
+    let f = Speed.durationStarts
     let s = 4 * 2/3 :: RealTime
     -- Float imprecision doesn't cause the end to be omitted.
     equal (f (const (1/12)) s (s + 3/12))
         (Right [s, s + 1/12, s + 2/12, s + 3/12])
     equal (f (\t -> if t < 4 then 1 else 2) 1 8) (Right [1, 2, 3, 4, 6, 8])
-    left_like (f (\t -> if t < 4 then 1 else 0) 1 8) "duration <= 0"
+    leftLike (f (\t -> if t < 4 then 1 else 0) 1 8) "duration <= 0"

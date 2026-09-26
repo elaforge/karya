@@ -16,48 +16,48 @@ import qualified Util.Fltk as Fltk
 type Window = Fltk.Window MsgType
 
 create :: Int -> Int -> Int -> Int -> String -> Int -> Fltk.Fltk Window
-create x y w h title max_bytes = Fltk.fltk $
-    Fltk.create_window decode_type (c_create_logview (fromIntegral max_bytes))
+create x y w h title maxBytes = Fltk.fltk $
+    Fltk.createWindow decodeType (cCreateLogview (fromIntegral maxBytes))
         x y w h title
 
 foreign import ccall "create_logview"
-    c_create_logview :: CInt -> CInt -> CInt -> CInt -> CInt -> CString
+    cCreateLogview :: CInt -> CInt -> CInt -> CInt -> CInt -> CString
         -> FunPtr Fltk.MsgCallback -> IO (Ptr Window)
 
-append_log :: Window -> UTF8.ByteString -> UTF8.ByteString -> Fltk.Fltk ()
-append_log view msg style = Fltk.fltk $
+appendLog :: Window -> UTF8.ByteString -> UTF8.ByteString -> Fltk.Fltk ()
+appendLog view msg style = Fltk.fltk $
     B.useAsCString msg $ \msgp -> B.useAsCString style $ \stylep ->
-        c_append_log (Fltk.win_ptr view) msgp stylep
+        cAppendLog (Fltk.winPtr view) msgp stylep
 foreign import ccall "append_log"
-    c_append_log :: Ptr Window -> CString -> CString -> IO ()
+    cAppendLog :: Ptr Window -> CString -> CString -> IO ()
 
-clear_logs :: Window -> Fltk.Fltk ()
-clear_logs view = Fltk.fltk $ c_clear_logs (Fltk.win_ptr view)
-foreign import ccall "clear_logs" c_clear_logs :: Ptr Window -> IO ()
+clearLogs :: Window -> Fltk.Fltk ()
+clearLogs view = Fltk.fltk $ cClearLogs (Fltk.winPtr view)
+foreign import ccall "clear_logs" cClearLogs :: Ptr Window -> IO ()
 
-set_status :: Window -> UTF8.ByteString -> UTF8.ByteString -> Fltk.Fltk ()
-set_status view status style = Fltk.fltk $
+setStatus :: Window -> UTF8.ByteString -> UTF8.ByteString -> Fltk.Fltk ()
+setStatus view status style = Fltk.fltk $
     B.useAsCString status $ \statusp -> B.useAsCString style $ \stylep ->
-        c_set_status (Fltk.win_ptr view) statusp stylep
+        cSetStatus (Fltk.winPtr view) statusp stylep
 foreign import ccall "set_status"
-    c_set_status :: Ptr Window -> CString -> CString -> IO ()
+    cSetStatus :: Ptr Window -> CString -> CString -> IO ()
 
-set_filter :: Window -> Text.Text -> Fltk.Fltk ()
-set_filter view filt = Fltk.fltk $ withCString (Text.unpack filt) $ \filtp ->
-    c_set_filter (Fltk.win_ptr view) filtp
+setFilter :: Window -> Text.Text -> Fltk.Fltk ()
+setFilter view filt = Fltk.fltk $ withCString (Text.unpack filt) $ \filtp ->
+    cSetFilter (Fltk.winPtr view) filtp
 foreign import ccall "set_filter"
-    c_set_filter :: Ptr Window -> CString -> IO ()
+    cSetFilter :: Ptr Window -> CString -> IO ()
 
-bring_to_front :: Window -> Fltk.Fltk ()
-bring_to_front view = Fltk.fltk $ c_bring_to_front (Fltk.win_ptr view)
+bringToFront :: Window -> Fltk.Fltk ()
+bringToFront view = Fltk.fltk $ cBringToFront (Fltk.winPtr view)
 foreign import ccall "bring_to_front"
-    c_bring_to_front :: Ptr Window -> IO ()
+    cBringToFront :: Ptr Window -> IO ()
 
 -- * implementation
 
 data MsgType = Click | Command | Unknown CInt
 
-decode_type msg_type = case msg_type of
+decodeType msgType = case msgType of
     (#const cb_click) -> Click
     (#const cb_command) -> Command
-    _ -> Unknown msg_type
+    _ -> Unknown msgType

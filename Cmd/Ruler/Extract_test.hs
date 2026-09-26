@@ -17,28 +17,28 @@ import           Util.Test
 
 test_pull_up :: Test
 test_pull_up = do
-    let ((top, top_rid), state_pre) = UiTest.run Ui.empty $ do
+    let ((top, topRid), statePre) = UiTest.run Ui.empty $ do
             [top, b1, b2] <- UiTest.mkblocks
                 [ ("top", [(">", [(0, 10, "b1"), (10, 6, "b2")])])
                 , ("b1", [])
                 , ("b2", [])
                 ]
-            top_rid <- Create.new_ruler top "r.top" $
+            topRid <- Create.newRuler top "r.top" $
                 UiTest.mkruler 4 16 (mkmeter 4)
-            Create.new_ruler b1 "r.b1" $ UiTest.mkruler 4 10 (mkmeter 4)
-            Create.new_ruler b2 "r.b2" $ UiTest.mkruler 3 6 (mkmeter 3)
-            pure (top, top_rid)
-    let state_post = UiTest.exec state_pre $ do
-            meter <- Extract.pull_up top (UiTest.mk_tid_block top 1)
-            RulerUtil.set_meter top_rid meter
+            Create.newRuler b1 "r.b1" $ UiTest.mkruler 4 10 (mkmeter 4)
+            Create.newRuler b2 "r.b2" $ UiTest.mkruler 3 6 (mkmeter 3)
+            pure (top, topRid)
+    let statePost = UiTest.exec statePre $ do
+            meter <- Extract.pullUp top (UiTest.mkTidBlock top 1)
+            RulerUtil.setMeter topRid meter
         -- extract = map (second Mark.mark_rank) . Meter.Make.make_measures
         -- extract (t, m) = (Mark.mark_rank m, Mark.mark_duration m)
-    equal (UiTest.e_rulers state_pre)
+    equal (UiTest.eRulers statePre)
         [ ("b1", "1 .2 .3 .4 2 .2 .3 .4 3 .2 4")
         , ("b2", "1 .2 .3 2 .2 .3 3")
         , ("top", "1 .2 .3 .4 2 .2 .3 .4 3 .2 .3 .4 4 .2 .3 .4 5")
         ]
-    equal (UiTest.e_rulers state_post)
+    equal (UiTest.eRulers statePost)
         [ ("b1",  "1 .2 .3 .4 2 .2 .3 .4 3 .2 4")
         , ("b2",  "1 .2 .3 2 .2 .3 3")
         , ("top", "1 .2 .3 .4 2 .2 .3 .4 3 .2 4 .2 .3 5 .2 .3 6")
@@ -52,18 +52,18 @@ test_push_down = do
                 , ("b1=ruler", [(">", [(0, 10, "")])])
                 , ("b2=ruler", [(">", [(0, 6, "")])])
                 ]
-            Create.new_ruler top "r.top" $ UiTest.mkruler 4 16 (mkmeter 4)
-            mapM_ (Create.set_block_ruler Ui.no_ruler) [b1, b2]
+            Create.newRuler top "r.top" $ UiTest.mkruler 4 16 (mkmeter 4)
+            mapM_ (Create.setBlockRuler Ui.noRuler) [b1, b2]
             pure top
-    let (top, state_pre) = UiTest.run Ui.empty make
-    let state_post = UiTest.exec state_pre $
-            Extract.push_down True top (UiTest.mk_tid_block top 1)
-    equal (UiTest.e_rulers state_pre)
+    let (top, statePre) = UiTest.run Ui.empty make
+    let statePost = UiTest.exec statePre $
+            Extract.pushDown True top (UiTest.mkTidBlock top 1)
+    equal (UiTest.eRulers statePre)
         [ ("b1", "")
         , ("b2", "")
         , ("top", "1 .2 .3 .4 2 .2 .3 .4 3 .2 .3 .4 4 .2 .3 .4 5")
         ]
-    equal (UiTest.e_rulers state_post)
+    equal (UiTest.eRulers statePost)
         [ ("b1", "1 .2 .3 .4 2 .2 .3 .4 3 .2 4")
         -- TODO previously would set Meter.config_start_measure
         -- , (UiTest.bid "b2", ".3 .4 4 .2 .3 .4 5")

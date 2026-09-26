@@ -53,34 +53,34 @@ parsePitch _ = Nothing
 -- * code
 
 zeroDurMute :: Util.Dyn -> ImInst.Code
-zeroDurMute dyn = Bali.zero_dur_mute_with ""
-    (\_args -> transform . Call.multiply_dynamic dyn)
+zeroDurMute dyn = Bali.zeroDurMuteWith ""
+    (\_args -> transform . Call.multiplyDynamic dyn)
     (\args -> transform $
-        Prelude.Note.default_note Prelude.Note.use_attributes args)
+        Prelude.Note.defaultNote Prelude.Note.useAttributes args)
     where transform = Code.withVariation
 
 wayangCode :: ImInst.Code
-wayangCode = ImInst.null_call weakNote
+wayangCode = ImInst.nullCall weakNote
 
 -- TODO what's the difference with zeroDurMute?
 weakNote :: Derive.Generator Derive.Note
-weakNote = DUtil.zero_duration "note"
+weakNote = DUtil.zeroDuration "note"
     "When zero duration, and use-weak=t, use the `weak` call.\
     \ When `symbolic-pitch=t`, tell the samples to use pitch by name rather\
     \ than nn."
-    (Sub.inverting $ \args -> transform $ Call.if_env "use-weak" (Just True)
-        (Gender.weak_call args)
-        (Call.multiply_dynamic 0.65 (Bali.reapply_mute args)))
+    (Sub.inverting $ \args -> transform $ Call.ifEnv "use-weak" (Just True)
+        (Gender.weakCall args)
+        (Call.multiplyDynamic 0.65 (Bali.reapplyMute args)))
     (Sub.inverting $ \args -> transform (note args))
     where
-    note = Prelude.Note.default_note Prelude.Note.use_attributes
+    note = Prelude.Note.defaultNote Prelude.Note.useAttributes
     transform = Code.withVariation
 
 -- * convert
 
 supportVariableMute :: Im.Patch.Patch -> Im.Patch.Patch
 supportVariableMute patch = patch
-    { Im.Patch.patch_controls = Im.Patch.patch_controls patch <>
+    { Im.Patch.patchControls = Im.Patch.patchControls patch <>
         Map.singleton Control.mute
             "Variable amount of mute. Simulated with a shortened envelope."
     }

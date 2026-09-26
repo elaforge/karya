@@ -25,13 +25,13 @@ test_hashOverlapping = do
     -- 0 dur notes are also counted.
     equal (f 0 1 [(0, 0)]) [Checkpoint._hash $ mkSpan (0, 0)]
 
-    check_val (f 0 1 [(1, 2)]) $ \case
+    checkVal (f 0 1 [(1, 2)]) $ \case
         [x0, x1, x2] -> x0 == mempty && x1 == x2
         _ -> False
-    check_val (f 0 2 [(1, 2)]) $ \case
+    checkVal (f 0 2 [(1, 2)]) $ \case
         [x1, x2] -> x1 /= mempty && x1 == x2
         _ -> False
-    check_val (f 0 1 [(0, 3), (1, 1)]) $ \case
+    checkVal (f 0 1 [(0, 3), (1, 1)]) $ \case
         [x1, y1, x2] -> y1 /= mempty && x1 == x2
         _ -> False
 

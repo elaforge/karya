@@ -9,30 +9,30 @@
 -}
 module Perform.Pitch (
     -- * Note
-    Note(..), note_text
+    Note(..), noteText
 
     -- * Pitch
     , Pitch(..), pitch, Degree(..)
     , Octave, PitchClass, Accidentals, Semi, FSemi, Step
-    , pitch_accidentals, pitch_pc
-    , add_octave, add_pc, diff_pc
-    , middle_octave, middle_c
+    , pitchAccidentals, pitchPc
+    , addOctave, addPc, diffPc
+    , middleOctave, middleC
 
     -- * Input
     , Input(..), KbdType(..), Frac
 
     -- * NoteNumber
-    , NoteNumber(..), nn, nn_to_double
-    , Cent, nn_to_cents
-    , nns_equal, nns_close
+    , NoteNumber(..), nn, nnToDouble
+    , Cent, nnToCents
+    , nnsEqual, nnsClose
 
     -- * Hz
-    , Hz, add_hz, modify_hz, nn_to_hz, hz_to_nn, middle_c_hz
+    , Hz, addHz, modifyHz, nnToHz, hzToNn, middleCHz
 
     -- * Scale
-    , ScaleId(..), empty_scale, twelve
-    , Transpose(..), zero_transpose, modify_transpose
-    , Key(Key), key_text
+    , ScaleId(..), emptyScale, twelve
+    , Transpose(..), zeroTranspose, modifyTranspose
+    , Key(Key), keyText
 ) where
 import qualified Data.String as String
 import qualified Data.Text as Text
@@ -58,8 +58,8 @@ import           Global
 newtype Note = Note Text
     deriving (Eq, Ord, Show, String.IsString, Serialize.Serialize)
 
-note_text :: Note -> Text
-note_text (Note s) = s
+noteText :: Note -> Text
+noteText (Note s) = s
 
 instance Pretty Note where pretty (Note n) = n
 
@@ -70,8 +70,8 @@ instance Pretty Note where pretty (Note n) = n
 -- in a scale-independent way can ask the scale to convert to and from a Note.
 -- Not all scales use all the fields.
 data Pitch = Pitch
-    { pitch_octave :: !Octave
-    , pitch_degree :: !Degree
+    { pitchOctave :: !Octave
+    , pitchDegree :: !Degree
     } deriving (Eq, Ord, Read, Show)
 
 pitch :: Enum pc => Octave -> pc -> Pitch
@@ -82,7 +82,7 @@ instance Pretty Pitch where
 
 -- | This relies on the presence of a @pitch@ val call.
 instance ShowVal.ShowVal Pitch where
-    show_val (Pitch oct (Degree pc accs)) =
+    showVal (Pitch oct (Degree pc accs)) =
         "\"(pitch " <> Text.unwords args <> ")"
         where args = map showt $ oct : pc : if accs == 0 then [] else [accs]
 
@@ -92,9 +92,9 @@ instance Serialize.Serialize Pitch where
 
 -- | A scale degree, without reference to an octave.
 data Degree = Degree
-    { degree_pc :: !PitchClass
+    { degreePc :: !PitchClass
     -- | Ignored for diatonic scales.
-    , degree_accidentals :: !Accidentals
+    , degreeAccidentals :: !Accidentals
     } deriving (Eq, Ord, Read, Show)
 
 instance Pretty Degree where
@@ -136,34 +136,34 @@ type FSemi = Double
 -- or diatonic.
 type Step = Int
 
-pitch_accidentals :: Pitch -> Accidentals
-pitch_accidentals = degree_accidentals . pitch_degree
+pitchAccidentals :: Pitch -> Accidentals
+pitchAccidentals = degreeAccidentals . pitchDegree
 
-pitch_pc :: Pitch -> PitchClass
-pitch_pc = degree_pc . pitch_degree
+pitchPc :: Pitch -> PitchClass
+pitchPc = degreePc . pitchDegree
 
-add_octave :: Octave  -> Pitch -> Pitch
-add_octave oct (Pitch octave degree) = Pitch (oct + octave) degree
+addOctave :: Octave  -> Pitch -> Pitch
+addOctave oct (Pitch octave degree) = Pitch (oct + octave) degree
 
 -- | Add diatonic steps.  This doesn't deal with key signatures or non-diatonic
 -- scales.
-add_pc :: PitchClass -> PitchClass -> Pitch -> Pitch
-add_pc per_octave steps (Pitch octave (Degree pc accs)) =
+addPc :: PitchClass -> PitchClass -> Pitch -> Pitch
+addPc perOctave steps (Pitch octave (Degree pc accs)) =
     Pitch (oct + octave) (Degree pc2 accs)
-    where (oct, pc2) = (pc + steps) `divMod` per_octave
+    where (oct, pc2) = (pc + steps) `divMod` perOctave
 
-diff_pc :: PitchClass -> Pitch -> Pitch -> PitchClass
-diff_pc per_octave (Pitch oct1 (Degree pc1 _)) (Pitch oct2 (Degree pc2 _)) =
-    oct_diff + pc1 - pc2
-    where oct_diff = per_octave * (oct1 - oct2)
+diffPc :: PitchClass -> Pitch -> Pitch -> PitchClass
+diffPc perOctave (Pitch oct1 (Degree pc1 _)) (Pitch oct2 (Degree pc2 _)) =
+    octDiff + pc1 - pc2
+    where octDiff = perOctave * (oct1 - oct2)
 
 -- | The middle octave.  The \"center\" of a scale should be oriented around
 -- this.
-middle_octave :: Octave
-middle_octave = 4
+middleOctave :: Octave
+middleOctave = 4
 
-middle_c :: Pitch
-middle_c = Pitch middle_octave (Degree 0 0)
+middleC :: Pitch
+middleC = Pitch middleOctave (Degree 0 0)
 
 -- * Input
 
@@ -232,7 +232,7 @@ instance Read NoteNumber where
         pure (NoteNumber n)
 
 instance ShowVal.ShowVal NoteNumber where
-    show_val (NoteNumber nn) = ShowVal.show_val nn <> "nn"
+    showVal (NoteNumber nn) = ShowVal.showVal nn <> "nn"
     -- The suffix should be the same as DeriveT.type_to_code Nn
 
 instance Pretty NoteNumber where
@@ -241,53 +241,53 @@ instance Pretty NoteNumber where
 nn :: Real a => a -> NoteNumber
 nn = NoteNumber . realToFrac
 
-nn_to_double :: NoteNumber -> Double
-nn_to_double (NoteNumber nn) = nn
+nnToDouble :: NoteNumber -> Double
+nnToDouble (NoteNumber nn) = nn
 
 type Cent = Int
 
-nn_to_cents :: NoteNumber -> Cent
-nn_to_cents = round . (*100)
+nnToCents :: NoteNumber -> Cent
+nnToCents = round . (*100)
 
 -- | True if the NoteNumbers are close enough that they sound the same.
-nns_equal :: NoteNumber -> NoteNumber -> Bool
-nns_equal = nns_close 3 -- almost certainly less than JND
+nnsEqual :: NoteNumber -> NoteNumber -> Bool
+nnsEqual = nnsClose 3 -- almost certainly less than JND
 
-nns_close :: Cent -> NoteNumber -> NoteNumber -> Bool
-nns_close cents nn1 nn2 = abs (nn_to_cents nn1 - nn_to_cents nn2) <= cents
+nnsClose :: Cent -> NoteNumber -> NoteNumber -> Bool
+nnsClose cents nn1 nn2 = abs (nnToCents nn1 - nnToCents nn2) <= cents
 
 -- * Hz
 
 -- | This is absolute non-logarithmic frequency.
 type Hz = Double
 
-add_hz :: Hz -> NoteNumber -> NoteNumber
-add_hz 0 nn = nn -- hz_to_nn . nn_to_hz adds a tiny bit of inaccuracy
-add_hz hz nn = hz_to_nn (hz + nn_to_hz nn)
+addHz :: Hz -> NoteNumber -> NoteNumber
+addHz 0 nn = nn -- hz_to_nn . nn_to_hz adds a tiny bit of inaccuracy
+addHz hz nn = hzToNn (hz + nnToHz nn)
 
-modify_hz :: (Hz -> Hz) -> NoteNumber -> NoteNumber
-modify_hz f = hz_to_nn . f . nn_to_hz
+modifyHz :: (Hz -> Hz) -> NoteNumber -> NoteNumber
+modifyHz f = hzToNn . f . nnToHz
 
-nn_to_hz :: NoteNumber -> Hz
-nn_to_hz (NoteNumber nn) = exp (nn * _hz_scale + _hz_offset)
+nnToHz :: NoteNumber -> Hz
+nnToHz (NoteNumber nn) = exp (nn * _hzScale + _hzOffset)
 
 -- | Negative hz will result in NaN.  TODO take an abs or throw an error, or
 -- let the NaN propagate?
-hz_to_nn :: Hz -> NoteNumber
-hz_to_nn hz = NoteNumber $ (log hz - _hz_offset) / _hz_scale
+hzToNn :: Hz -> NoteNumber
+hzToNn hz = NoteNumber $ (log hz - _hzOffset) / _hzScale
 
 -- | Constants to calculate equal tempered conversions.
-_hz_scale, _hz_offset :: Hz
-_hz_scale = log 2 / 12
-_hz_offset = log a_hz - (a_nn * _hz_scale)
+_hzScale, _hzOffset :: Hz
+_hzScale = log 2 / 12
+_hzOffset = log aHz - (aNn * _hzScale)
     where
     -- NoteNumber is defined with these values.  Ultimately it's because midi
     -- synthesizers are by default defined with these values.
-    a_hz = 440
-    a_nn = 69
+    aHz = 440
+    aNn = 69
 
-middle_c_hz :: Hz
-middle_c_hz = nn_to_hz 60
+middleCHz :: Hz
+middleCHz = nnToHz 60
 
 -- Alternate implementation that also introduces a bit of imprecision.  Seems
 -- to be about the same as the one above.
@@ -313,8 +313,8 @@ newtype ScaleId = ScaleId Text
 instance Pretty ScaleId where pretty (ScaleId s) = s
 
 -- | Usually this means to use the scale currently in scope.
-empty_scale :: ScaleId
-empty_scale = ""
+emptyScale :: ScaleId
+emptyScale = ""
 
 twelve :: ScaleId
 twelve = "twelve"
@@ -327,21 +327,21 @@ data Transpose = Chromatic Double | Diatonic Double
     | Nn Double
     deriving (Eq, Ord, Show)
 
-instance Pretty Transpose where pretty = ShowVal.show_val
+instance Pretty Transpose where pretty = ShowVal.showVal
 instance ShowVal.ShowVal Transpose where
     -- TODO convert to a ScoreT.Typed Signal.Y and use its ShowVal
-    show_val (Chromatic d) = ShowVal.show_val d <> "c"
-    show_val (Diatonic d) = ShowVal.show_val d <> "d"
-    show_val (Nn d) = ShowVal.show_val d <> "nn"
+    showVal (Chromatic d) = ShowVal.showVal d <> "c"
+    showVal (Diatonic d) = ShowVal.showVal d <> "d"
+    showVal (Nn d) = ShowVal.showVal d <> "nn"
 
-zero_transpose :: Transpose -> Bool
-zero_transpose t = case t of
+zeroTranspose :: Transpose -> Bool
+zeroTranspose t = case t of
     Chromatic d -> d == 0
     Diatonic d -> d == 0
     Nn d -> d == 0
 
-modify_transpose :: (Double -> Double) -> Transpose -> Transpose
-modify_transpose f t = case t of
+modifyTranspose :: (Double -> Double) -> Transpose -> Transpose
+modifyTranspose f t = case t of
     Chromatic d -> Chromatic (f d)
     Diatonic d -> Diatonic (f d)
     Nn d -> Nn (f d)
@@ -354,7 +354,7 @@ modify_transpose f t = case t of
 newtype Key = Key Text
     deriving (Eq, Ord, Read, Show, ShowVal.ShowVal, Serialize.Serialize)
 
-key_text :: Key -> Text
-key_text (Key t) = t
+keyText :: Key -> Text
+keyText (Key t) = t
 
 instance Pretty Key where format (Key s) = Pretty.text s

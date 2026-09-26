@@ -4,7 +4,7 @@
 
 {-# LANGUAGE CPP #-}
 module Perform.Sc.Convert (
-    default_srate, convert
+    defaultSrate, convert
 #ifdef TESTING
     , module Perform.Sc.Convert
 #endif
@@ -33,74 +33,74 @@ import           Types
 -- Technically SC should not need this, since it should be able to do
 -- interpolation on its own side like with im, but in practice SC patches
 -- are probably set up like MIDI ones.
-default_srate :: RealTime
-default_srate = 1 / 0.015 -- TODO set to PlayUtil.initial_environ[srate]
+defaultSrate :: RealTime
+defaultSrate = 1 / 0.015 -- TODO set to PlayUtil.initial_environ[srate]
 
 -- | Convert Score events to Sc Notes.
 convert :: RealTime -> (ScoreT.Instrument -> Maybe Cmd.ResolvedInstrument)
     -> [Score.Event] -> Note.Notes
 convert srate = ConvertUtil.convert $ \event resolved ->
-    case Cmd.inst_backend resolved of
-        Cmd.Sc patch -> convert_event srate patch triggered event
+    case Cmd.instBackend resolved of
+        Cmd.Sc patch -> convertEvent srate patch triggered event
             where
             triggered = Common.Triggered `Set.member` flags
-            flags = Common.common_flags $ Cmd.inst_common resolved
+            flags = Common.commonFlags $ Cmd.instCommon resolved
         _ -> []
 
-convert_event :: RealTime -> Patch.Patch -> Bool -> Score.Event -> Note.Notes
-convert_event srate patch triggered event = run $ do
-    pitch <- if Map.member Patch.c_pitch (Patch.controls patch)
-        then Just <$> convert_pitch event
+convertEvent :: RealTime -> Patch.Patch -> Bool -> Score.Event -> Note.Notes
+convertEvent srate patch triggered event = run $ do
+    pitch <- if Map.member Patch.cPitch (Patch.controls patch)
+        then Just <$> convertPitch event
         else pure Nothing
-    let controls = maybe id (add_control Patch.c_pitch) pitch $
-            Score.event_controls event
+    let controls = maybe id (addControl Patch.cPitch) pitch $
+            Score.eventControls event
     pure $ Note.Note
         { patch = Patch.name patch
-        , start = Score.event_start event
-        , controls = Map.insert Note.gate_id gate $
-            convert_controls srate (Patch.controls patch)
-                (Score.event_start event) (Score.event_end event) controls
+        , start = Score.eventStart event
+        , controls = Map.insert Note.gateId gate $
+            convertControls srate (Patch.controls patch)
+                (Score.eventStart event) (Score.eventEnd event) controls
         }
     where
-    add_control c sig = Map.insert c (ScoreT.untyped (Signal.coerce sig))
+    addControl c sig = Map.insert c (ScoreT.untyped (Signal.coerce sig))
     gate
-        | triggered = MSignal.from_pairs [(start, 1), (start+srate, 0)]
+        | triggered = MSignal.fromPairs [(start, 1), (start+srate, 0)]
         | otherwise =
-            MSignal.from_pairs [(start, 1), (Score.event_end event, 0)]
-        where start = Score.event_start event
+            MSignal.fromPairs [(start, 1), (Score.eventEnd event, 0)]
+        where start = Score.eventStart event
 
 run :: Log.LogId a -> [LEvent.LEvent a]
 run action = LEvent.Event note : map LEvent.Log logs
-    where (note, logs) = Log.run_id action
+    where (note, logs) = Log.runId action
 
 -- | Convert deriver controls to performance controls.  Drop all non-MIDI
 -- controls, since those will inhibit channel sharing later.
-convert_controls :: RealTime
+convertControls :: RealTime
     -> Map ScoreT.Control Note.ControlId -- ^ Patch control map.
     -> RealTime -> RealTime
     -> ScoreT.ControlMap -- ^ Controls to convert.
     -> Map Note.ControlId MSignal.Signal
-convert_controls srate patch_controls start end =
+convertControls srate patchControls start end =
     Map.fromAscList . mapMaybe convert . Map.toAscList
     where
     -- TODO trim to start of the next note of this patch.  But this will be
     -- quite inefficient if there's a long signal and a short decay.
-    convert (control, signal) = case Map.lookup control patch_controls of
+    convert (control, signal) = case Map.lookup control patchControls of
         Nothing -> Nothing
         Just cid -> Just
             ( cid
-            , Signal.to_piecewise_constant srate $
-                Signal.clip_after end $ Signal.clip_before start $
-                ScoreT.val_of signal
+            , Signal.toPiecewiseConstant srate $
+                Signal.clipAfter end $ Signal.clipBefore start $
+                ScoreT.valOf signal
             )
     -- TODO it might be more efficient to skip the MSignal and go directly to
     -- OSC.  Especially because I want just in dur range...  or I guess longer,
     -- to account for decay?
 
 -- TODO same as Im.Convert.convert_pitch
-convert_pitch :: Log.LogMonad m => Score.Event -> m Signal.NoteNumber
-convert_pitch event = do
-    let (sig, warns) = Score.nn_signal event
+convertPitch :: Log.LogMonad m => Score.Event -> m Signal.NoteNumber
+convertPitch event = do
+    let (sig, warns) = Score.nnSignal event
     unless (null warns) $ Log.warn $
         "convert pitch: " <> Text.intercalate ", " (map pretty warns)
     pure sig

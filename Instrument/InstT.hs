@@ -22,7 +22,7 @@ synth (Qualified synth _) = synth
 name :: Qualified -> Name
 name (Qualified _ name) = name
 
-instance Pretty Qualified where pretty = show_qualified
+instance Pretty Qualified where pretty = showQualified
 
 instance Serialize.Serialize Qualified where
     put (Qualified a b) = Serialize.put a >> Serialize.put b
@@ -36,12 +36,12 @@ type SynthName = Text
 -- follow 'Ui.Id.valid_symbol'.
 type Name = Text
 
-parse_qualified :: Text -> Qualified
-parse_qualified text = Qualified pre (Text.drop 1 post)
+parseQualified :: Text -> Qualified
+parseQualified text = Qualified pre (Text.drop 1 post)
     where (pre, post) = Text.break (=='/') text
 
-show_qualified :: Qualified -> Text
-show_qualified (Qualified synth name) = synth <> "/" <> name
+showQualified :: Qualified -> Text
+showQualified (Qualified synth name) = synth <> "/" <> name
 
 -- | This will always resolve to an empty instrument, for Dummy allocations.
 dummy :: Qualified

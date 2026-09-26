@@ -25,8 +25,8 @@ import           Util.Test
 
 test_convert :: Test
 test_convert = do
-    let no_dur = first $ map $ second $ map $ \(s, _, t) -> (s, t)
-    let derive0 (patch, title) = no_dur . derive (patch, title, "")
+    let noDur = first $ map $ second $ map $ \(s, _, t) -> (s, t)
+    let derive0 (patch, title) = noDur . derive (patch, title, "")
     equal (derive ("kontakt/", "", "") [(0, 1, "d .25 | -- 4c")])
         ([(">i", [(0.25, 1, "")]), ("*", [(0.25, 0, "4c")])], [])
     equal (derive ("kontakt/", "", "") [(0, 4, "tr 1d 1 -- 4c")])
@@ -83,12 +83,12 @@ test_convert = do
 
 test_convert_dyn :: Test
 test_convert_dyn = do
-    let no_dur = first $ map $ second $ map $ \(s, _, t) -> (s, t)
-    let derive0 title pre_integrate = no_dur
+    let noDur = first $ map $ second $ map $ \(s, _, t) -> (s, t)
+    let derive0 title preIntegrate = noDur
             . derive
                 ( "kontakt/"
                 , Texts.join2 " | " "weak-dyn=.5" title
-                , pre_integrate
+                , preIntegrate
                 )
     -- No dyn track if it's just the default value.
     equal (derive0 "" "" [(0, 1, "4c")])
@@ -113,8 +113,8 @@ test_convert_dyn = do
         ( [ (">i", [(1, ""), (2, "")])
           , ("*", [(1, "4c"), (2, "4c")])
           , ( "dyn"
-            , [ (1, ShowVal.show_hex_val (0.6 / 0.75))
-              , (2, ShowVal.show_hex_val (0.3 / 0.75))
+            , [ (1, ShowVal.showHexVal (0.6 / 0.75))
+              , (2, ShowVal.showHexVal (0.3 / 0.75))
               ]
             )
           ]
@@ -123,33 +123,33 @@ test_convert_dyn = do
 
 derive :: (Text, Convert.Title, Convert.Title) -> [UiTest.EventSpec]
     -> ([(Convert.Title, [UiTest.EventSpec])], [Text])
-derive (patch, title, pre_integrate) pitches =
+derive (patch, title, preIntegrate) pitches =
     (map extract (concatMap flatten converted), logs0 ++ logs ++ errors)
     where
     inst = "i"
     allocs = [(inst, patch)]
     result =
-        DeriveTest.derive_tracks_setup (with_synth allocs)
+        DeriveTest.deriveTracksSetup (withSynth allocs)
             (Texts.join2 " | " "inst=i" title) $
-        UiTest.note_spec
-            (Texts.join2 " | " (inst <> " | <") pre_integrate, pitches, [])
+        UiTest.noteSpec
+            (Texts.join2 " | " (inst <> " | <") preIntegrate, pitches, [])
     logs0 = snd $ DeriveTest.extract id result
-    (events, logs) = DeriveTest.extract_levents id $ Stream.to_list $
-        Derive.integrated_events $ head $ Derive.r_integrated result
+    (events, logs) = DeriveTest.extractLevents id $ Stream.toList $
+        Derive.integratedEvents $ head $ Derive.rIntegrated result
     (errors, converted) = integrate events
     flatten (note, controls) = note : controls
     extract (Convert.Track title events) =
-        (title, map UiTest.extract_event events)
+        (title, map UiTest.extractEvent events)
 
-with_synth :: DeriveTest.SimpleAllocations -> DeriveTest.Setup
-with_synth allocs =
-    DeriveTest.with_synths (DeriveTest.simple_allocs allocs) [Kontakt.synth]
+withSynth :: DeriveTest.SimpleAllocations -> DeriveTest.Setup
+withSynth allocs =
+    DeriveTest.withSynths (DeriveTest.simpleAllocs allocs) [Kontakt.synth]
 
 integrate :: [Score.Event] -> ([Convert.Error], Convert.Tracks)
-integrate = Convert.integrate (lookup_attrs, Pitch.twelve) tracknums
+integrate = Convert.integrate (lookupAttrs, Pitch.twelve) tracknums
     where
-    lookup_attrs = const mempty
-    tracknums = Map.fromList [(UiTest.mk_tid n, n) | n <- [1..10]]
+    lookupAttrs = const mempty
+    tracknums = Map.fromList [(UiTest.mkTid n, n) | n <- [1..10]]
 
 test_integrate :: Test
 test_integrate = do
@@ -157,27 +157,27 @@ test_integrate = do
         plak = Attrs.attr "plak"
         flatten (note, controls) = note : controls
         extract (Convert.Track title events) =
-            (title, map UiTest.extract_event events)
+            (title, map UiTest.extractEvent events)
     equal (f [event (0, 1, "4c", [], inst)])
         ([], [(">inst", [(0, 1, "")]), ("*", [(0, 0, "4c")])])
     -- No pitch track, has a control track.
-    equal (f [no_pitch (0, 1, [("dyn", [(0, 0), (2, 1)])])])
+    equal (f [noPitch (0, 1, [("dyn", [(0, 0), (2, 1)])])])
         ( []
         , [ (">inst", [(0, 1, "")])
           , ("dyn", [(0, 0, "`0x`00"), (2, 0, "`0x`ff")])
           ]
         )
     -- Attributes get mapped back to their call.
-    let set = Score.modify_attributes . const
-    equal (f [set plak (no_pitch (0, 1, []))])
+    let set = Score.modifyAttributes . const
+    equal (f [set plak (noPitch (0, 1, []))])
         ( []
         , [(">inst", [(0, 1, "+plak")])]
         )
 
     -- Duplicate controls are suppressed.
     equal (f
-            [ no_pitch (0, 1, [("dyn", [(0, 1), (1, 1), (2, 0)])])
-            , no_pitch (3, 1, [("dyn", [(3, 0)])])
+            [ noPitch (0, 1, [("dyn", [(0, 1), (1, 1), (2, 0)])])
+            , noPitch (3, 1, [("dyn", [(3, 0)])])
             ])
         ( []
         , [ (">inst", [(0, 1, ""), (3, 1, "")])
@@ -195,20 +195,20 @@ test_integrate = do
           ]
         )
     where
-    no_pitch (start, dur, controls) =
-        Score.set_pitch mempty $ event (start, dur, "4c", controls, inst)
+    noPitch (start, dur, controls) =
+        Score.setPitch mempty $ event (start, dur, "4c", controls, inst)
     pitches (start, dur, pitches) =
-        Score.set_pitch (DeriveTest.psignal pitches) $
+        Score.setPitch (DeriveTest.psignal pitches) $
             event (start, dur, "4c", [], inst)
     event = DeriveTest.mkevent
     inst = "inst"
 
 test_split_overlapping :: Test
 test_split_overlapping = do
-    let f = map (map extract) . Convert.split_overlapping . map mkevent
+    let f = map (map extract) . Convert.splitOverlapping . map mkevent
         mkevent (s, e) =
-            DeriveTest.mkevent (s, e, "4c", [], ScoreT.empty_instrument)
-        extract e = (Score.event_start e, Score.event_duration e)
+            DeriveTest.mkevent (s, e, "4c", [], ScoreT.emptyInstrument)
+        extract e = (Score.eventStart e, Score.eventDuration e)
     equal (f [(0, 1), (1, 1)]) [[(0, 1), (1, 1)]]
     equal (f [(0, 1), (0.5, 1), (1, 1)]) [[(0, 1), (1, 1)], [(0.5, 1)]]
     equal (f [(0, 0), (0, 0), (1, 0), (1, 0)])

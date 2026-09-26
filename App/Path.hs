@@ -8,14 +8,14 @@
 --
 -- I used to have a separate Absolute path, but the conversions get awkward.
 module App.Path (
-    AppDir(..), get_app_dir
+    AppDir(..), getAppDir
     , Relative, relative, unrelative, (</>)
-    , to_absolute
+    , toAbsolute
     -- * Canonical
-    , Canonical, make_canonical, canonical, to_path
-    , drop_prefix
+    , Canonical, makeCanonical, canonical, toPath
+    , dropPrefix
     -- * FilePath
-    , in_dir
+    , inDir
 ) where
 import qualified Data.List as List
 import qualified Data.String as String
@@ -28,8 +28,8 @@ import qualified Util.Lists as Lists
 
 -- | All paths should be relative to this one.
 -- I may later change this to an env var, a flag, or just leave it hardcoded.
-get_app_dir :: IO AppDir
-get_app_dir = AppDir <$> Directory.getCurrentDirectory
+getAppDir :: IO AppDir
+getAppDir = AppDir <$> Directory.getCurrentDirectory
 
 newtype AppDir = AppDir FilePath
     deriving (Eq, Show)
@@ -51,8 +51,8 @@ unrelative (Relative path) = path
 (</>) :: Relative -> Relative -> Relative
 Relative a </> Relative b = Relative (a FilePath.</> b)
 
-to_absolute :: AppDir -> Relative -> FilePath
-to_absolute (AppDir app_dir) (Relative path) = app_dir FilePath.</> path
+toAbsolute :: AppDir -> Relative -> FilePath
+toAbsolute (AppDir appDir) (Relative path) = appDir FilePath.</> path
 
 -- * Canonical
 
@@ -64,22 +64,22 @@ newtype Canonical = Canonical FilePath
     deriving (Eq, Show)
 
 -- | For tests.
-make_canonical :: FilePath -> Canonical
-make_canonical = Canonical
+makeCanonical :: FilePath -> Canonical
+makeCanonical = Canonical
 
 canonical :: FilePath -> IO Canonical
 canonical = fmap Canonical . Directory.canonicalizePath
 
-to_path :: Canonical -> FilePath
-to_path (Canonical path) = path
+toPath :: Canonical -> FilePath
+toPath (Canonical path) = path
 
-drop_prefix :: Canonical -> Canonical -> FilePath
-drop_prefix (Canonical prefix) (Canonical path) =
+dropPrefix :: Canonical -> Canonical -> FilePath
+dropPrefix (Canonical prefix) (Canonical path) =
     dropWhile (=='/') $ fst $ Lists.dropPrefix prefix path
 
 -- * FilePath
 
-in_dir :: FilePath -> FilePath -> Bool
-in_dir path dir =
+inDir :: FilePath -> FilePath -> Bool
+inDir path dir =
     (if "/" `List.isSuffixOf` dir then dir else dir <> "/")
         `List.isPrefixOf` path

@@ -19,32 +19,32 @@ import qualified Cmd.TimeStep as TimeStep
 -- Since everyone's setup is different, this is expected to be configured in
 -- "Local.Config".
 data TransportConfig = TransportConfig
-    { config_repeat :: MatchMidi
-    , config_backward :: MatchMidi
-    , config_forward :: MatchMidi
-    , config_stop :: MatchMidi
-    , config_play :: MatchMidi
-    , config_record :: MatchMidi
+    { configRepeat :: MatchMidi
+    , configBackward :: MatchMidi
+    , configForward :: MatchMidi
+    , configStop :: MatchMidi
+    , configPlay :: MatchMidi
+    , configRecord :: MatchMidi
     }
 
 type MatchMidi = Midi.Message -> Bool
 
-note_on :: Midi.Key -> MatchMidi
-note_on key (Midi.ChannelMessage _ (Midi.NoteOn k _)) = key == k
-note_on _ _ = False
+noteOn :: Midi.Key -> MatchMidi
+noteOn key (Midi.ChannelMessage _ (Midi.NoteOn k _)) = key == k
+noteOn _ _ = False
 
 transport :: TransportConfig -> Msg.Msg -> Cmd.CmdT IO Cmd.Status
 transport config msg = do
-    msg <- Cmd.abort_unless $ Msg.midi msg
-    if  | config_repeat config msg -> done Edit.toggle_note_duration
-        | config_backward config msg ->
+    msg <- Cmd.abortUnless $ Msg.midi msg
+    if  | configRepeat config msg -> done Edit.toggleNoteDuration
+        | configBackward config msg ->
             done $ Selection.step TimeStep.Rewind Selection.Replace
-        | config_forward config msg ->
+        | configForward config msg ->
             done $ Selection.step TimeStep.Advance Selection.Replace
-        | config_stop config msg -> done $ Play.cmd_context_stop
+        | configStop config msg -> done $ Play.cmdContextStop
         -- TODO configure what this is
         -- I could have a "default play" cmd
-        | config_play config msg -> Cmd.Play <$> Play.local_top
-        | config_record config msg -> done Edit.cmd_toggle_val_edit
+        | configPlay config msg -> Cmd.Play <$> Play.localTop
+        | configRecord config msg -> done Edit.cmdToggleValEdit
         | otherwise -> Cmd.abort
     where done = (>> pure Cmd.Done)

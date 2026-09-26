@@ -15,9 +15,9 @@ test_jegog = do
     let title = "import bali.gong | jegog-insts = (list i1) | scale=legong"
             <> " | cancel"
     let run = DeriveTest.extract extract
-            . DeriveTest.derive_tracks title . UiTest.note_track
-        extract e = (s, d, p, DeriveTest.e_instrument e)
-            where (s, d, p) = DeriveTest.e_note e
+            . DeriveTest.deriveTracks title . UiTest.noteTrack
+        extract e = (s, d, p, DeriveTest.eInstrument e)
+            where (s, d, p) = DeriveTest.eNote e
         jegog = "i1"
     equal (run [(0, 1, "J | -- 4i")])
         ([(0, 1, "4i", ""), (0, 1, "3i", jegog)], [])
@@ -30,8 +30,8 @@ test_jegog = do
 
 test_nruk :: Test
 test_nruk = do
-    let run = DeriveTest.extract Score.event_start
-            . DeriveTest.derive_tracks "import bali.gong" . UiTest.note_track
+    let run = DeriveTest.extract Score.eventStart
+            . DeriveTest.deriveTracks "import bali.gong" . UiTest.noteTrack
     equal (run [(0, 2, "nruk 2 2 | --")]) ([0, 0.5, 1, 1.5], [])
     -- It only emits full duration notes.
     equal (run [(0, 2.15, "nruk 2 2 | --")]) ([0, 0.5, 1, 1.5], [])
@@ -39,8 +39,8 @@ test_nruk = do
 test_cycle :: Test
 test_cycle = do
     let run = DeriveTest.extract extract
-            . DeriveTest.derive_tracks "import bali.gong" . UiTest.note_track
-        extract e = (Score.event_start e, DeriveTest.e_attributes e)
+            . DeriveTest.deriveTracks "import bali.gong" . UiTest.noteTrack
+        extract e = (Score.eventStart e, DeriveTest.eAttributes e)
     equal (run [(0, 4, "cycle (list '+a' '+b' '+c') 1 --")])
         ([(0, "+a"), (1, "+b"), (2, "+c"), (3, "+a")], [])
     equal (run [(4, -4, "cycle (list '+a' '+b' '+c') 1 --")])

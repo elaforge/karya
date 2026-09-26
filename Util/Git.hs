@@ -11,28 +11,28 @@ module Util.Git (
     -- * repo
     , init
     -- * blob
-    , write_blob, read_blob
+    , writeBlob, readBlob
     -- * tree
-    , Modification(..), ModifyDir, ModifyFile(..), modifications_to_dir
-    , write_tree, modify_tree, read_tree
+    , Modification(..), ModifyDir, ModifyFile(..), modificationsToDir
+    , writeTree, modifyTree, readTree
     -- * commit
     , CommitData(..)
-    , parse_commit, write_commit, read_commit
+    , parseCommit, writeCommit, readCommit
     -- * diff
-    , diff_commits, diff_trees
+    , diffCommits, diffTrees
     -- * refs
-    , write_ref, read_ref
+    , writeRef, readRef
     -- ** symbolic refs
-    , read_refs, read_ref_map
-    , write_symbolic_ref, read_symbolic_ref
+    , readRefs, readRefMap
+    , writeSymbolicRef, readSymbolicRef
     -- ** HEAD ref
-    , update_head, read_head_commit, write_head, read_head
+    , updateHead, readHeadCommit, writeHead, readHead
     -- * revwalk
-    , read_log, read_log_from, read_log_head
+    , readLog, readLogFrom, readLogHead
     -- * dir
     , Dir, File(..)
-    , make_dir, flatten_dir
-    , write_dir, read_dir
+    , makeDir, flattenDir
+    , writeDir, readDir
     -- * misc
     , gc
     -- * errors
@@ -77,25 +77,25 @@ initialize =
 -- | This should be a bytestring of length 40 containing the git object ID.
 newtype OID = OID ByteString deriving (Eq, Ord, Show)
 
-with_oid :: OID -> (Ptr G.C'git_oid -> IO a) -> IO a
-with_oid (OID bytes) action =
+withOid :: OID -> (Ptr G.C'git_oid -> IO a) -> IO a
+withOid (OID bytes) action =
     ByteString.Unsafe.unsafeUseAsCStringLen bytes $ \(bytesp, len) ->
         alloca $ \oidp -> do
             check ("OID poke " ++ show bytes) $
                 G.c'git_oid_fromstrn oidp bytesp (fromIntegral len)
             action oidp
 
-peek_oid :: Ptr G.C'git_oid -> IO OID
-peek_oid oidp = allocaBytes 40 $ \bufferp -> do
+peekOid :: Ptr G.C'git_oid -> IO OID
+peekOid oidp = allocaBytes 40 $ \bufferp -> do
     G.c'git_oid_fmt bufferp oidp
     OID `fmap` Char8.packCStringLen (bufferp, 40)
 
-cuchar_to_oid :: [CUChar] -> IO OID
-cuchar_to_oid bytes = alloca $ \oidp -> do
+cucharToOid :: [CUChar] -> IO OID
+cucharToOid bytes = alloca $ \oidp -> do
     let bs = ByteString.pack (map fromIntegral bytes)
     ByteString.Unsafe.unsafeUseAsCString bs $ \bytesp -> do
         G.c'git_oid_fromraw oidp (castPtr bytesp)
-        peek_oid oidp
+        peekOid oidp
 
 newtype Blob = Blob OID deriving (Eq, Ord, Show)
 newtype Tree = Tree OID deriving (Eq, Ord, Show)
@@ -113,28 +113,28 @@ type Ref = FilePath
 -- | Pointer to git_repository C type.
 type RepoP = Ptr G.C'git_repository
 
-to_commit :: OID -> Commit
-to_commit (OID bs) = Commit bs
+toCommit :: OID -> Commit
+toCommit (OID bs) = Commit bs
 
-from_commit :: Commit -> OID
-from_commit (Commit bs) = OID bs
+fromCommit :: Commit -> OID
+fromCommit (Commit bs) = OID bs
 
 -- * repo
 
 -- | True if it already existed.
 init :: Repo -> IO Bool
-init repo = ifM is_git (pure True) $ do
+init repo = ifM isGit (pure True) $ do
     alloca $ \repopp -> withCString repo $ \pathp -> do
         check ("init " ++ repo) $ G.c'git_repository_init repopp pathp 1
         repop <- peek repopp
         G.c'git_repository_free repop
     pure False
     where
-    is_git = andM [Directory.doesDirectoryExist repo,
+    isGit = andM [Directory.doesDirectoryExist repo,
         Directory.doesDirectoryExist (repo </> "objects")]
 
-with_repo :: Repo -> (RepoP -> IO a) -> IO a
-with_repo path action = withCString path $ \pathp -> alloca $ \repopp -> do
+withRepo :: Repo -> (RepoP -> IO a) -> IO a
+withRepo path action = withCString path $ \pathp -> alloca $ \repopp -> do
     check ("open " ++ path) $ G.c'git_repository_open repopp pathp
     repop <- peek repopp
     result <- Exception.try $ action repop
@@ -146,23 +146,23 @@ with_repo path action = withCString path $ \pathp -> alloca $ \repopp -> do
 
 -- * blob
 
-write_blob :: Repo -> ByteString -> IO Blob
-write_blob repo bytes = with_repo repo $ \repop -> write_blob_repo repop bytes
+writeBlob :: Repo -> ByteString -> IO Blob
+writeBlob repo bytes = withRepo repo $ \repop -> writeBlobRepo repop bytes
 
-write_blob_repo :: RepoP -> ByteString -> IO Blob
-write_blob_repo repop bytes = alloca $ \oidp ->
+writeBlobRepo :: RepoP -> ByteString -> IO Blob
+writeBlobRepo repop bytes = alloca $ \oidp ->
     ByteString.Unsafe.unsafeUseAsCStringLen bytes $ \(bytesp, len) -> do
         check "write_blob" $
             G.c'git_blob_create_frombuffer oidp repop (castPtr bytesp)
                 (fromIntegral len)
-        Blob <$> peek_oid oidp
+        Blob <$> peekOid oidp
 
-read_blob :: Repo -> Blob -> IO ByteString
-read_blob repo blob = with_repo repo $ \repop -> read_blob_repo repop blob
+readBlob :: Repo -> Blob -> IO ByteString
+readBlob repo blob = withRepo repo $ \repop -> readBlobRepo repop blob
 
-read_blob_repo :: RepoP -> Blob -> IO ByteString
-read_blob_repo repop (Blob blob) =
-    with_oid blob $ \oidp -> alloca $ \blobpp -> do
+readBlobRepo :: RepoP -> Blob -> IO ByteString
+readBlobRepo repop (Blob blob) =
+    withOid blob $ \oidp -> alloca $ \blobpp -> do
         check ("blob_lookup: " ++ show blob) $
             G.c'git_blob_lookup blobpp repop oidp
         blobp <- peek blobpp
@@ -187,29 +187,29 @@ type ModifyDir = [(FileName, ModifyFile)]
 data ModifyFile = ModifyFile (Maybe ByteString) | ModifyDir ModifyDir
     deriving (Eq, Show)
 
-modifications_to_dir :: [Modification] -> ModifyDir
-modifications_to_dir mods = go (strip mods)
+modificationsToDir :: [Modification] -> ModifyDir
+modificationsToDir mods = go (strip mods)
     where
-    go entries = concatMap make (by_dir entries)
+    go entries = concatMap make (byDir entries)
     make (dir, entries) = dirs ++ files
         where
-        dirs = if null dir_ents then [] else [(dir, ModifyDir (go dir_ents))]
-        files = case Lists.last file_ents of
+        dirs = if null dirEnts then [] else [(dir, ModifyDir (go dirEnts))]
+        files = case Lists.last fileEnts of
             Nothing -> []
             Just (_, bytes) -> [(dir, ModifyFile bytes)]
-        (file_ents, dir_ents) = List.partition (null . fst) entries
-    by_dir entries = [(dir, map (first drop_dir) subs)
+        (fileEnts, dirEnts) = List.partition (null . fst) entries
+    byDir entries = [(dir, map (first dropDir) subs)
         | (dir, subs) <- Lists.keyedGroupSort (takeWhile (/='/') . fst) entries]
-    drop_dir = dropWhile (=='/') . dropWhile (/='/')
+    dropDir = dropWhile (=='/') . dropWhile (/='/')
     -- Strip out redundent modifications.
     strip = Map.toList . Map.fromList . map extract
     extract (Remove fn) = (fn, Nothing)
     extract (Add fn bytes) = (fn, Just bytes)
 
-write_tree :: Repo -> Maybe Tree -> [(FileName, Maybe (Either Blob Tree))]
+writeTree :: Repo -> Maybe Tree -> [(FileName, Maybe (Either Blob Tree))]
     -> IO Tree
-write_tree repo maybe_from files = with_repo repo $ \repop ->
-    maybe_with repop $ \fromp -> alloca $ \builderpp -> do
+writeTree repo maybeFrom files = withRepo repo $ \repop ->
+    maybeWith repop $ \fromp -> alloca $ \builderpp -> do
         check "treebuilder_create" $ G.c'git_treebuilder_create builderpp
             fromp
         builderp <- peek builderpp
@@ -217,25 +217,25 @@ write_tree repo maybe_from files = with_repo repo $ \repop ->
         oid <- alloca $ \oidp -> do
             check "treebuilder_write" $
                 G.c'git_treebuilder_write oidp repop builderp
-            peek_oid oidp
+            peekOid oidp
         G.c'git_treebuilder_free builderp
         pure $ Tree oid
     where
-    maybe_with repop io = case maybe_from of
-        Just tree -> with_tree repop tree io
+    maybeWith repop io = case maybeFrom of
+        Just tree -> withTree repop tree io
         Nothing -> io nullPtr
     modify builderp (name, val) = withCString name $ \namep -> case val of
-        Nothing -> treebuilder_remove builderp name namep
-        Just (Left blob) -> treebuilder_insert_file builderp name namep blob
-        Just (Right tree) -> treebuilder_insert_dir builderp name namep tree
+        Nothing -> treebuilderRemove builderp name namep
+        Just (Left blob) -> treebuilderInsertFile builderp name namep blob
+        Just (Right tree) -> treebuilderInsertDir builderp name namep tree
 
 -- | Apply a list of modifications to an existing tree.
-modify_tree :: Repo -> Tree -> [Modification] -> IO Tree
-modify_tree repo tree mods = with_repo repo $ \repop ->
-    go repop (Just tree) (modifications_to_dir mods)
+modifyTree :: Repo -> Tree -> [Modification] -> IO Tree
+modifyTree repo tree mods = withRepo repo $ \repop ->
+    go repop (Just tree) (modificationsToDir mods)
     where
-    go repop maybe_tree entries =
-        with_maybe_tree repop maybe_tree $ \treep -> alloca $ \builderpp -> do
+    go repop maybeTree entries =
+        withMaybeTree repop maybeTree $ \treep -> alloca $ \builderpp -> do
             check "treebuilder_create" $
                 G.c'git_treebuilder_create builderpp treep
             builderp <- peek builderpp
@@ -243,74 +243,74 @@ modify_tree repo tree mods = with_repo repo $ \repop ->
             oid <- alloca $ \oidp -> do
                 check "treebuilder_write" $
                     G.c'git_treebuilder_write oidp repop builderp
-                peek_oid oidp
+                peekOid oidp
             G.c'git_treebuilder_free builderp
             pure $ Tree oid
-    with_maybe_tree _ Nothing io = io nullPtr
-    with_maybe_tree repop (Just tree) io = with_tree repop tree io
+    withMaybeTree _ Nothing io = io nullPtr
+    withMaybeTree repop (Just tree) io = withTree repop tree io
 
-    modify repop builderp (name, ModifyFile maybe_bytes) =
-        withCString name $ \namep -> case maybe_bytes of
-            Nothing -> treebuilder_remove builderp name namep
+    modify repop builderp (name, ModifyFile maybeBytes) =
+        withCString name $ \namep -> case maybeBytes of
+            Nothing -> treebuilderRemove builderp name namep
             Just bytes -> do
-                blob <- write_blob_repo repop bytes
-                treebuilder_insert_file builderp name namep blob
+                blob <- writeBlobRepo repop bytes
+                treebuilderInsertFile builderp name namep blob
     modify repop builderp (name, ModifyDir entries) =
         withCString name $ \namep -> do
             entryp <- G.c'git_treebuilder_get builderp namep
-            maybe_tree <- if entryp == nullPtr
+            maybeTree <- if entryp == nullPtr
                 then pure Nothing
-                else Just . Tree <$> (peek_oid =<< G.c'git_tree_entry_id entryp)
-            tree <- go repop maybe_tree entries
+                else Just . Tree <$> (peekOid =<< G.c'git_tree_entry_id entryp)
+            tree <- go repop maybeTree entries
             -- Delete empty directories automatically.  This shouldn't be
             -- necessary, but without it git_diff_tree_to_tree gets extraneous
             -- Removes.
-            ifM (empty_tree_repo repop tree)
-                (treebuilder_remove builderp name namep)
-                (treebuilder_insert_dir builderp name namep tree)
+            ifM (emptyTreeRepo repop tree)
+                (treebuilderRemove builderp name namep)
+                (treebuilderInsertDir builderp name namep tree)
 
-treebuilder_remove :: Ptr G.C'git_treebuilder -> String -> CString -> IO ()
-treebuilder_remove builderp name namep =
+treebuilderRemove :: Ptr G.C'git_treebuilder -> String -> CString -> IO ()
+treebuilderRemove builderp name namep =
     check ("git_treebuilder_remove: " ++ show name) $
         G.c'git_treebuilder_remove builderp namep
 
-treebuilder_insert_file :: Ptr G.C'git_treebuilder -> String -> CString
+treebuilderInsertFile :: Ptr G.C'git_treebuilder -> String -> CString
     -> Blob -> IO ()
-treebuilder_insert_file builderp name namep (Blob oid) =
-    check ("git_treebuilder_insert: " ++ show name) $ with_oid oid $ \oidp ->
+treebuilderInsertFile builderp name namep (Blob oid) =
+    check ("git_treebuilder_insert: " ++ show name) $ withOid oid $ \oidp ->
         G.c'git_treebuilder_insert nullPtr builderp namep oidp 0o100644
 
-treebuilder_insert_dir :: Ptr G.C'git_treebuilder -> String -> CString
+treebuilderInsertDir :: Ptr G.C'git_treebuilder -> String -> CString
     -> Tree -> IO ()
-treebuilder_insert_dir builderp name namep (Tree oid) =
+treebuilderInsertDir builderp name namep (Tree oid) =
     check ("git_treebuilder_insert: " ++ show (name ++ "/")) $
-    with_oid oid $ \oidp ->
+    withOid oid $ \oidp ->
         G.c'git_treebuilder_insert nullPtr builderp namep oidp 0o040000
 
-read_tree :: Repo -> Tree -> IO [(FileName, Either Blob Tree)]
-read_tree repo tree = with_repo repo $ \repop ->
-    with_tree repop tree $ \treep -> do
+readTree :: Repo -> Tree -> IO [(FileName, Either Blob Tree)]
+readTree repo tree = withRepo repo $ \repop ->
+    withTree repop tree $ \treep -> do
         count <- G.c'git_tree_entrycount treep
         entries <- mapM (G.c'git_tree_entry_byindex treep)
             (Lists.range' 0 count 1)
-        mapM peek_entry entries
+        mapM peekEntry entries
     where
-    peek_entry entryp = do
+    peekEntry entryp = do
         typ <- G.c'git_tree_entry_type entryp
         name <- peekCString =<< G.c'git_tree_entry_name entryp
-        oid <- peek_oid =<< G.c'git_tree_entry_id entryp
+        oid <- peekOid =<< G.c'git_tree_entry_id entryp
         val <- if typ == G.c'GIT_OBJ_TREE then pure (Right (Tree oid)) else
             if typ == G.c'GIT_OBJ_BLOB then pure (Left (Blob oid)) else
             throw $ show oid ++ " expected tree or blob: " ++ show typ
         pure (name, val)
 
-empty_tree_repo :: RepoP -> Tree -> IO Bool
-empty_tree_repo repop tree = with_tree repop tree $ \treep -> do
+emptyTreeRepo :: RepoP -> Tree -> IO Bool
+emptyTreeRepo repop tree = withTree repop tree $ \treep -> do
     count <- G.c'git_tree_entrycount treep
     pure $ count == 0
 
-with_tree :: RepoP -> Tree -> (Ptr G.C'git_tree -> IO a) -> IO a
-with_tree repop (Tree oid) io = with_oid oid $ \oidp -> alloca $ \treepp -> do
+withTree :: RepoP -> Tree -> (Ptr G.C'git_tree -> IO a) -> IO a
+withTree repop (Tree oid) io = withOid oid $ \oidp -> alloca $ \treepp -> do
     check ("tree_lookup: " ++ show oid) $
         G.c'git_tree_lookup treepp repop oidp
     treep <- peek treepp
@@ -318,61 +318,61 @@ with_tree repop (Tree oid) io = with_oid oid $ \oidp -> alloca $ \treepp -> do
 
 -- * commit
 
-parse_commit :: String -> Maybe Commit
-parse_commit str
+parseCommit :: String -> Maybe Commit
+parseCommit str
     | length str == 40 = Just $ Commit $ Char8.pack str
     | otherwise = Nothing
 
-write_commit :: Repo -> Text -> Text -> [Commit] -> Tree -> String
+writeCommit :: Repo -> Text -> Text -> [Commit] -> Tree -> String
     -> IO Commit
-write_commit repo user email parents tree description =
-    with_repo repo $ \repop -> with_sig $ \sigp ->
-    with_commits repop parents $ \parents_len parentsp ->
-    with_tree repop tree $ \treep -> withCString description $ \descp ->
+writeCommit repo user email parents tree description =
+    withRepo repo $ \repop -> withSig $ \sigp ->
+    withCommits repop parents $ \parentsLen parentsp ->
+    withTree repop tree $ \treep -> withCString description $ \descp ->
     withCString "HEAD" $ \headp -> alloca $ \commitp -> do
         check "write_commit" $ G.c'git_commit_create commitp repop headp
-            sigp sigp nullPtr descp treep (fromIntegral parents_len) parentsp
-        to_commit <$> peek_oid commitp
+            sigp sigp nullPtr descp treep (fromIntegral parentsLen) parentsp
+        toCommit <$> peekOid commitp
     where
-    with_sig io = withText user $ \userp -> withText email $ \emailp ->
+    withSig io = withText user $ \userp -> withText email $ \emailp ->
         alloca $ \sigpp -> do
             check "signature_now" $ G.c'git_signature_now sigpp userp emailp
             sigp <- peek sigpp
             io sigp `Exception.finally` G.c'git_signature_free sigp
-    with_commits repop commits io = go [] commits $ \ps -> withArrayLen ps io
+    withCommits repop commits io = go [] commits $ \ps -> withArrayLen ps io
         where
         go ps [] cont = cont (reverse ps)
-        go ps (c:cs) cont = with_commit repop c $ \p -> go (p:ps) cs cont
+        go ps (c:cs) cont = withCommit repop c $ \p -> go (p:ps) cs cont
 
 data CommitData = CommitData
-    { commit_tree :: !Tree
-    , commit_parents :: ![Commit]
-    , commit_author :: !String
-    , commit_text :: !String
+    { commitTree :: !Tree
+    , commitParents :: ![Commit]
+    , commitAuthor :: !String
+    , commitText :: !String
     } deriving (Eq, Show)
 
-read_commit :: Repo -> Commit -> IO CommitData
-read_commit repo commit =
-    with_repo repo $ \repop -> read_commit_repo repop commit
+readCommit :: Repo -> Commit -> IO CommitData
+readCommit repo commit =
+    withRepo repo $ \repop -> readCommitRepo repop commit
 
-read_commit_repo :: RepoP -> Commit -> IO CommitData
-read_commit_repo repop commit = with_commit repop commit $ \commitp -> do
-    author <- peek_user =<< peek =<< G.c'git_commit_author commitp
-    tree <- peek_oid =<< G.c'git_commit_tree_id commitp
-    parents_len <- G.c'git_commit_parentcount commitp
-    parents <- mapM peek_oid
+readCommitRepo :: RepoP -> Commit -> IO CommitData
+readCommitRepo repop commit = withCommit repop commit $ \commitp -> do
+    author <- peekUser =<< peek =<< G.c'git_commit_author commitp
+    tree <- peekOid =<< G.c'git_commit_tree_id commitp
+    parentsLen <- G.c'git_commit_parentcount commitp
+    parents <- mapM peekOid
         =<< mapM (G.c'git_commit_parent_id commitp)
-            (if parents_len == 0 then [] else [0..parents_len-1])
+            (if parentsLen == 0 then [] else [0..parentsLen-1])
     desc <- peekCString =<< G.c'git_commit_message commitp
-    pure $ CommitData (Tree tree) (map to_commit parents) author desc
+    pure $ CommitData (Tree tree) (map toCommit parents) author desc
     where
-    peek_user sig = do
+    peekUser sig = do
         name <- peekCString (G.c'git_signature'name sig)
         email <- peekCString (G.c'git_signature'email sig)
         pure $ name ++ " <" ++ email ++ ">"
 
-with_commit :: RepoP -> Commit -> (Ptr G.C'git_commit -> IO a) -> IO a
-with_commit repop commit io = with_oid (from_commit commit) $
+withCommit :: RepoP -> Commit -> (Ptr G.C'git_commit -> IO a) -> IO a
+withCommit repop commit io = withOid (fromCommit commit) $
     \oidp -> alloca $ \commitpp -> do
         check ("tree_lookup: " ++ show commit) $
             G.c'git_commit_lookup commitpp repop oidp
@@ -381,20 +381,20 @@ with_commit repop commit io = with_oid (from_commit commit) $
 
 -- * diff
 
-diff_commits :: Repo -> Commit -> Commit -> IO [Modification]
-diff_commits repo old new = with_repo repo $ \repop -> do
-    oldc <- read_commit_repo repop old
-    newc <- read_commit_repo repop new
-    diff_trees repo (commit_tree oldc) (commit_tree newc)
+diffCommits :: Repo -> Commit -> Commit -> IO [Modification]
+diffCommits repo old new = withRepo repo $ \repop -> do
+    oldc <- readCommitRepo repop old
+    newc <- readCommitRepo repop new
+    diffTrees repo (commitTree oldc) (commitTree newc)
 
 -- | Recursively diff two trees.
-diff_trees :: Repo -> Tree -> Tree -> IO [Modification]
-diff_trees repo old new =
-    with_repo repo $ \repop -> diff_tree_repo repop old new
+diffTrees :: Repo -> Tree -> Tree -> IO [Modification]
+diffTrees repo old new =
+    withRepo repo $ \repop -> diffTreeRepo repop old new
 
-diff_tree_repo :: RepoP -> Tree -> Tree -> IO [Modification]
-diff_tree_repo repop old new =
-    with_tree repop old $ \oldp -> with_tree repop new $ \newp -> do
+diffTreeRepo :: RepoP -> Tree -> Tree -> IO [Modification]
+diffTreeRepo repop old new =
+    withTree repop old $ \oldp -> withTree repop new $ \newp -> do
     diffs <- alloca $ \listpp -> do
         check "diff_tree" $
             G.c'git_diff_tree_to_tree listpp repop oldp newp nullPtr
@@ -403,28 +403,28 @@ diff_tree_repo repop old new =
         -- with_fptr (G.mk'git_diff_line_cb (diff_cb ref)) $ \callback ->
         --     check "diff_print" $ G.c'git_diff_print listp
         --         G.c'GIT_DIFF_FORMAT_NAME_STATUS callback nullPtr
-        with_fptr (G.mk'git_diff_data_cb (diff_cb ref)) $ \callback ->
+        withFptr (G.mk'git_diff_data_cb (diffCb ref)) $ \callback ->
             check "diff_print_compact" $
                 G.c'git_diff_print_compact listp callback nullPtr
         IORef.readIORef ref
-    concatMapM to_mod diffs
+    concatMapM toMod diffs
     where
     -- I'm only interested in which files were deleted, added, or modified.
-    to_mod (status, path, oid)
+    toMod (status, path, oid)
         | status == G.c'GIT_DELTA_DELETED = pure [Remove path]
         | status == G.c'GIT_DELTA_ADDED || status == G.c'GIT_DELTA_MODIFIED = do
-            bytes <- read_blob_repo repop (Blob oid)
+            bytes <- readBlobRepo repop (Blob oid)
             pure [Add path bytes]
         | otherwise = throw $ "diff_trees " ++ show (old, new)
             ++ ": unknown status: " ++ show status
-    diff_cb ref deltap _rangep _line_origin _contentp _content_len _data = do
+    diffCb ref deltap _rangep _lineOrigin _contentp _contentLen _data = do
         delta <- peek deltap
-        let new_file = G.c'git_diff_delta'new_file delta
+        let newFile = G.c'git_diff_delta'new_file delta
             status = G.c'git_diff_delta'status delta
-        let oid_bytes = G.c'git_oid'id (G.c'git_diff_file'oid new_file)
-            pathp = G.c'git_diff_file'path new_file
+        let oidBytes = G.c'git_oid'id (G.c'git_diff_file'oid newFile)
+            pathp = G.c'git_diff_file'path newFile
         path <- peekCString pathp
-        oid <- cuchar_to_oid oid_bytes
+        oid <- cucharToOid oidBytes
         IORef.modifyIORef ref ((status, path, oid):)
         pure 0
 
@@ -439,9 +439,9 @@ diff_tree_repo repop old new =
 
 -- * refs
 
-write_ref :: Repo -> Commit -> Ref -> IO ()
-write_ref repo commit ref = with_repo repo $ \repop ->
-    with_oid (from_commit commit) $ \commitp -> with_ref_name ref $ \namep ->
+writeRef :: Repo -> Commit -> Ref -> IO ()
+writeRef repo commit ref = withRepo repo $ \repop ->
+    withOid (fromCommit commit) $ \commitp -> withRefName ref $ \namep ->
     alloca $ \refpp -> do
         check ("write_ref " ++ show ref) $
             G.c'git_reference_create refpp repop namep commitp 1
@@ -449,19 +449,19 @@ write_ref repo commit ref = with_repo repo $ \repop ->
         when (refp /= nullPtr) $
             G.c'git_reference_free refp
 
-read_ref :: Repo -> Ref -> IO (Maybe Commit)
-read_ref repo ref = with_repo repo $ \repop -> read_ref_repo repop ref
+readRef :: Repo -> Ref -> IO (Maybe Commit)
+readRef repo ref = withRepo repo $ \repop -> readRefRepo repop ref
 
-read_ref_repo :: RepoP -> Ref -> IO (Maybe Commit)
-read_ref_repo repop ref = with_ref_name ref $ \namep ->
+readRefRepo :: RepoP -> Ref -> IO (Maybe Commit)
+readRefRepo repop ref = withRefName ref $ \namep ->
     alloca $ \oidp -> do
         code <- G.c'git_reference_name_to_id oidp repop namep
         if code /= G.c'GIT_OK then pure Nothing else do
-        oid <- peek_oid oidp
-        pure (Just (to_commit oid))
+        oid <- peekOid oidp
+        pure (Just (toCommit oid))
 
-with_ref :: RepoP -> Ref -> (Ptr G.C'git_reference -> IO a) -> IO a
-with_ref repop ref io =
+withRef :: RepoP -> Ref -> (Ptr G.C'git_reference -> IO a) -> IO a
+withRef repop ref io =
     withCString ref $ \namep -> alloca $ \refpp -> do
         check ("reference_lookup " ++ show ref) $
             G.c'git_reference_lookup refpp repop namep
@@ -470,137 +470,137 @@ with_ref repop ref io =
             (G.c'git_reference_free refp)
 
 -- | Read all the refs in the repo.
-read_refs :: RepoP -> IO [Ref]
-read_refs repop = alloca $ \arrayp -> do
+readRefs :: RepoP -> IO [Ref]
+readRefs repop = alloca $ \arrayp -> do
     check "read_refs" $ G.c'git_reference_list arrayp repop
         G.c'GIT_REF_LISTALL
     G.C'git_strarray stringsp count <- peek arrayp
     strps <- peekArray (fromIntegral count) stringsp
-    refs <- mapM (peek_ref_name "") strps
+    refs <- mapM (peekRefName "") strps
     G.c'git_strarray_free arrayp
     pure refs
 
 -- | Read all refs along with their commits.
-read_ref_map :: Repo -> IO (Map Ref Commit)
-read_ref_map repo = with_repo repo $ \repop -> do
-    refs <- read_refs repop
-    commits <- mapM (read_ref_repo repop) refs
+readRefMap :: Repo -> IO (Map Ref Commit)
+readRefMap repo = withRepo repo $ \repop -> do
+    refs <- readRefs repop
+    commits <- mapM (readRefRepo repop) refs
     pure $ Map.fromList
         [(ref, commit) | (ref, Just commit) <- zip refs commits]
 
-with_ref_name :: Ref -> (CString -> IO a) -> IO a
-with_ref_name ref io = withCString ("refs" </> ref) $ \namep -> io namep
+withRefName :: Ref -> (CString -> IO a) -> IO a
+withRefName ref io = withCString ("refs" </> ref) $ \namep -> io namep
 
-peek_ref_name :: String -> CString -> IO Ref
-peek_ref_name prefix str = do
+peekRefName :: String -> CString -> IO Ref
+peekRefName prefix str = do
     (name, stripped) <- Lists.dropPrefix "refs/" <$> peekCString str
     unless stripped $ throw $ prefix ++ "wasn't in refs/: " ++ show name
     pure name
 
 -- ** symbolic refs
 
-write_symbolic_ref :: Repo -> Ref -> Ref -> IO ()
-write_symbolic_ref repo sym ref
-    | not (valid_symbolic_ref sym) = throw $ "ref should be ALL_CAPS: " ++ sym
-    | otherwise = with_repo repo $ \repop ->
-        with_ref_name ref $ \namep -> withCString sym $ \symp ->
+writeSymbolicRef :: Repo -> Ref -> Ref -> IO ()
+writeSymbolicRef repo sym ref
+    | not (validSymbolicRef sym) = throw $ "ref should be ALL_CAPS: " ++ sym
+    | otherwise = withRepo repo $ \repop ->
+        withRefName ref $ \namep -> withCString sym $ \symp ->
         alloca $ \refpp -> do
-            refp <- check_lookup "reference_symbolic_create" refpp $
+            refp <- checkLookup "reference_symbolic_create" refpp $
                 G.c'git_reference_symbolic_create refpp repop symp namep 1
             when (refp /= nullPtr) $
                 G.c'git_reference_free refp
 
-read_symbolic_ref :: Repo -> Ref -> IO (Maybe Ref)
-read_symbolic_ref repo sym = with_repo repo $ \repop ->
-    with_ref repop sym $ \symp -> alloca $ \refpp -> do
-        refp <- check_lookup "reference_resolve" refpp $
+readSymbolicRef :: Repo -> Ref -> IO (Maybe Ref)
+readSymbolicRef repo sym = withRepo repo $ \repop ->
+    withRef repop sym $ \symp -> alloca $ \refpp -> do
+        refp <- checkLookup "reference_resolve" refpp $
             G.c'git_reference_resolve refpp symp
         if refp == nullPtr then pure Nothing
-            else fmap Just $ peek_ref_name ("ref of " ++ show sym ++ " ")
+            else fmap Just $ peekRefName ("ref of " ++ show sym ++ " ")
                 =<< G.c'git_reference_name refp
 
 -- | Rationale documented at: https://github.com/libgit2/libgit2/pull/938
-valid_symbolic_ref :: Ref -> Bool
-valid_symbolic_ref ref =
+validSymbolicRef :: Ref -> Bool
+validSymbolicRef ref =
     not (null ref) && all (\c -> Char.isAsciiUpper c || c == '_') ref
         && head ref /= '_' && last ref /= '_'
 
 -- ** HEAD ref
 
 -- | Point HEAD to a commit.
-update_head :: Repo -> Commit -> IO ()
-update_head repo commit = do
-    maybe_ref <- read_symbolic_ref repo "HEAD"
-    maybe (throw "HEAD symbolic ref missing") (write_ref repo commit) maybe_ref
+updateHead :: Repo -> Commit -> IO ()
+updateHead repo commit = do
+    maybeRef <- readSymbolicRef repo "HEAD"
+    maybe (throw "HEAD symbolic ref missing") (writeRef repo commit) maybeRef
 
-read_head_commit :: Repo -> IO (Maybe Commit)
-read_head_commit repo = read_ref repo =<< read_head repo
+readHeadCommit :: Repo -> IO (Maybe Commit)
+readHeadCommit repo = readRef repo =<< readHead repo
 
-write_head :: Repo -> Ref -> IO ()
-write_head repo = write_symbolic_ref repo "HEAD"
+writeHead :: Repo -> Ref -> IO ()
+writeHead repo = writeSymbolicRef repo "HEAD"
 
-read_head :: Repo -> IO Ref
-read_head repo = maybe (throw "HEAD symbolic ref missing") pure =<<
-    read_symbolic_ref repo "HEAD"
+readHead :: Repo -> IO Ref
+readHead repo = maybe (throw "HEAD symbolic ref missing") pure =<<
+    readSymbolicRef repo "HEAD"
 
 -- * revwalk
 
 -- | Get commits in reverse chronological order from the given ref.
-read_log :: Repo -> Ref -> IO [Commit]
-read_log repo ref = with_repo repo $ \repop -> with_ref_name ref $ \refnamep ->
-    with_revwalk repop $ \walkp -> do
+readLog :: Repo -> Ref -> IO [Commit]
+readLog repo ref = withRepo repo $ \repop -> withRefName ref $ \refnamep ->
+    withRevwalk repop $ \walkp -> do
         check ("revwalk_push_ref: " ++ ref) $
             G.c'git_revwalk_push_ref walkp refnamep
         walk walkp [SortTime]
 
 -- | Read commits starting from the given commit.
-read_log_from :: Repo -> Commit -> IO [Commit]
-read_log_from repo commit = with_repo repo $ \repop ->
-    with_oid (from_commit commit) $ \oidp -> with_revwalk repop $ \walkp -> do
+readLogFrom :: Repo -> Commit -> IO [Commit]
+readLogFrom repo commit = withRepo repo $ \repop ->
+    withOid (fromCommit commit) $ \oidp -> withRevwalk repop $ \walkp -> do
         check ("revwalk_push: " ++ show commit) $
             G.c'git_revwalk_push walkp oidp
         walk walkp [SortTime]
 
 -- | Get commits in reverse chronological order from the HEAD.
-read_log_head :: Repo -> IO [Commit]
-read_log_head repo = read_log repo =<< read_head repo
+readLogHead :: Repo -> IO [Commit]
+readLogHead repo = readLog repo =<< readHead repo
 
 data SortFlag = SortTopological | SortTime | SortReverse deriving (Show)
 
 walk :: Ptr G.C'git_revwalk -> [SortFlag] -> IO [Commit]
 walk walkp flags = do
     G.c'git_revwalk_sorting walkp
-        (foldl' (Bits..|.) git_sort_none (map flag flags))
-    alloca $ \oidp -> while_just (next oidp)
+        (foldl' (Bits..|.) gitSortNone (map flag flags))
+    alloca $ \oidp -> whileJust (next oidp)
     where
     next oidp = do
         errno <- G.c'git_revwalk_next oidp walkp
         if errno == G.c'GIT_ITEROVER then pure Nothing else do
         check "revwalk_next" (pure errno)
-        oid <- peek_oid oidp
-        pure (Just (to_commit oid))
-    while_just io = do
-        maybe_val <- io
-        case maybe_val of
+        oid <- peekOid oidp
+        pure (Just (toCommit oid))
+    whileJust io = do
+        maybeVal <- io
+        case maybeVal of
             Nothing -> pure []
             Just val -> do
-                vals <- while_just io
+                vals <- whileJust io
                 pure (val : vals)
     flag f = case f of
-        SortTopological -> git_sort_topological
-        SortTime -> git_sort_time
-        SortReverse -> git_sort_reverse
+        SortTopological -> gitSortTopological
+        SortTime -> gitSortTime
+        SortReverse -> gitSortReverse
 
 -- | These aren't declared as a type at the C level, so the binding doesn't
 -- have them.
-git_sort_none, git_sort_topological, git_sort_time, git_sort_reverse :: CUInt
-git_sort_none = 0
-git_sort_topological = 1
-git_sort_time = 2
-git_sort_reverse = 4
+gitSortNone, gitSortTopological, gitSortTime, gitSortReverse :: CUInt
+gitSortNone = 0
+gitSortTopological = 1
+gitSortTime = 2
+gitSortReverse = 4
 
-with_revwalk :: RepoP -> (Ptr G.C'git_revwalk -> IO a) -> IO a
-with_revwalk repop io = alloca $ \walkpp -> do
+withRevwalk :: RepoP -> (Ptr G.C'git_revwalk -> IO a) -> IO a
+withRevwalk repop io = alloca $ \walkpp -> do
     check "revwalk_new" $ G.c'git_revwalk_new walkpp repop
     walkp <- peek walkpp
     io walkp `Exception.finally` G.c'git_revwalk_free walkp
@@ -610,8 +610,8 @@ with_revwalk repop io = alloca $ \walkpp -> do
 type Dir = Map FileName File
 data File = File ByteString | Dir Dir deriving (Eq, Show)
 
-make_dir :: [(FilePath, ByteString)] -> Either String Dir
-make_dir = foldM merge Map.empty
+makeDir :: [(FilePath, ByteString)] -> Either String Dir
+makeDir = foldM merge Map.empty
     where
     -- System.FilePath is incorrect because git always uses /s.
     merge dir (path, bytes) = insert dir (Lists.split (=='/') path) bytes
@@ -626,29 +626,29 @@ make_dir = foldM merge Map.empty
         subs <- insert subs names bytes
         pure $ Map.insert name (Dir subs) files
 
-flatten_dir :: Dir -> [(FilePath, ByteString)]
-flatten_dir = concatMap flatten . Map.toList
+flattenDir :: Dir -> [(FilePath, ByteString)]
+flattenDir = concatMap flatten . Map.toList
     where
     flatten (name, File bytes) = [(name, bytes)]
-    flatten (name, Dir dir) = map (first (name </>)) (flatten_dir dir)
+    flatten (name, Dir dir) = map (first (name </>)) (flattenDir dir)
 
-write_dir :: Repo -> Dir -> IO Tree
-write_dir repo filemap = do
+writeDir :: Repo -> Dir -> IO Tree
+writeDir repo filemap = do
     let files = Map.toList filemap
     hashes <- mapM (write . snd) files
-    write_tree repo Nothing (zip (map fst files) (map Just hashes))
+    writeTree repo Nothing (zip (map fst files) (map Just hashes))
     where
-    write (File bytes) = Left <$> write_blob repo bytes
-    write (Dir dir) = Right <$> write_dir repo dir
+    write (File bytes) = Left <$> writeBlob repo bytes
+    write (Dir dir) = Right <$> writeDir repo dir
 
-read_dir :: Repo -> Tree -> IO Dir
-read_dir repo tree = do
-    (names, files) <- unzip <$> read_tree repo tree
+readDir :: Repo -> Tree -> IO Dir
+readDir repo tree = do
+    (names, files) <- unzip <$> readTree repo tree
     files <- mapM read files
     pure $ Map.fromList $ zip names files
     where
-    read (Left blob) = File <$> read_blob repo blob
-    read (Right tree) = Dir <$> read_dir repo tree
+    read (Left blob) = File <$> readBlob repo blob
+    read (Right tree) = Dir <$> readDir repo tree
 
 -- * misc
 
@@ -658,11 +658,11 @@ gc :: Repo -> IO ()
 gc repo = git repo ["gc", "--aggressive"] "" >> pure ()
 
 git :: Repo -> [String] -> ByteString -> IO ByteString
-git repo = git_env repo []
+git repo = gitEnv repo []
 
-git_env :: Repo -> [(String, String)] -> [String] -> ByteString
+gitEnv :: Repo -> [(String, String)] -> [String] -> ByteString
     -> IO ByteString
-git_env repo env args stdin = do
+gitEnv repo env args stdin = do
     (ex, out, err) <- Processes.readProcessWithExitCode
         (Just (("GIT_DIR", repo) : env)) "git" args stdin
     -- let sin = " <" ++ show (Char8.length stdin)
@@ -679,8 +679,8 @@ git_env repo env args stdin = do
 
 type Error = CInt
 
-error_msg :: Error -> Maybe String
-error_msg errno
+errorMsg :: Error -> Maybe String
+errorMsg errno
     | errno == G.c'GIT_OK = Nothing
     | otherwise = Just $ Map.findWithDefault
         ("undocumented errno: " ++ show errno) errno errors
@@ -706,22 +706,22 @@ throw = Exception.throwIO . GitException
 check :: String -> IO Error -> IO ()
 check caller action = do
     errno <- action
-    case error_msg errno of
+    case errorMsg errno of
         Nothing -> pure ()
         Just msg -> throw $ caller ++ ": " ++ msg
 
-check_lookup :: String -> Ptr (Ptr a) -> IO Error -> IO (Ptr a)
-check_lookup caller ptrptr io = do
+checkLookup :: String -> Ptr (Ptr a) -> IO Error -> IO (Ptr a)
+checkLookup caller ptrptr io = do
     errno <- io
     if errno == G.c'GIT_ENOTFOUND then pure nullPtr else do
-    case error_msg errno of
+    case errorMsg errno of
         Nothing -> peek ptrptr
         Just msg -> throw $ caller ++ ": " ++ msg
 
 -- * util
 
-with_fptr :: IO (FunPtr a) -> (FunPtr a -> IO b) -> IO b
-with_fptr make io = do
+withFptr :: IO (FunPtr a) -> (FunPtr a -> IO b) -> IO b
+withFptr make io = do
     fptr <- make
     io fptr `Exception.finally` freeHaskellFunPtr fptr
 

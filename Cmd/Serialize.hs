@@ -13,8 +13,8 @@
     updated.
 -}
 module Cmd.Serialize (
-    allocations_magic, score_magic, views_magic
-    , is_old_settings
+    allocationsMagic, scoreMagic, viewsMagic
+    , isOldSettings
 ) where
 import qualified Data.Set as Set
 import qualified Data.Text as Text
@@ -24,8 +24,8 @@ import qualified Util.Lists as Lists
 import qualified Util.Rect as Rect
 import qualified Util.Serialize as Serialize
 import           Util.Serialize
-    (Serialize, bad_enum, bad_tag, bad_version, get, get_enum, get_tag,
-     get_version, put, put_enum, put_tag, put_version)
+    (Serialize, badEnum, badTag, badVersion, get, getEnum, getTag,
+     getVersion, put, putEnum, putTag, putVersion)
 
 import qualified Derive.Parse.Instruments as Instruments
 import qualified Derive.Parse.Ky as Ky
@@ -60,22 +60,22 @@ import           Global
 import           Types
 
 
-allocations_magic :: Serialize.Magic UiConfig.Allocations
-allocations_magic = Serialize.Magic 'a' 'l' 'l' 'o'
+allocationsMagic :: Serialize.Magic UiConfig.Allocations
+allocationsMagic = Serialize.Magic 'a' 'l' 'l' 'o'
 
-score_magic :: Serialize.Magic Ui.State
-score_magic = Serialize.Magic 's' 'c' 'o' 'r'
+scoreMagic :: Serialize.Magic Ui.State
+scoreMagic = Serialize.Magic 's' 'c' 'o' 'r'
 
-views_magic :: Serialize.Magic (Map ViewId Block.View)
-views_magic = Serialize.Magic 'v' 'i' 'e' 'w'
+viewsMagic :: Serialize.Magic (Map ViewId Block.View)
+viewsMagic = Serialize.Magic 'v' 'i' 'e' 'w'
 
 -- * Serialize instances
 
 instance Serialize Ui.State where
-    put (Ui.State a b c d e) = put_version 6
+    put (Ui.State a b c d e) = putVersion 6
         >> put a >> put b >> put c >> put d >> put e
     get = do
-        v <- get_version
+        v <- getVersion
         case v of
             6 -> do
                 views :: Map Types.ViewId Block.View <- get
@@ -84,16 +84,16 @@ instance Serialize Ui.State where
                 rulers :: Map Types.RulerId Ruler.Ruler <- get
                 config :: UiConfig.Config <- get
                 pure $ Ui.State views blocks tracks rulers config
-            _ -> bad_version "Ui.State" v
+            _ -> badVersion "Ui.State" v
 
 instance Serialize UiConfig.Config where
     put (UiConfig.Config ns meta root _insts lilypond defaults
-            saved_views ky tscore)
-        =  put_version 15
+            savedViews ky tscore)
+        =  putVersion 15
             >> put ns >> put meta >> put root -- >> put insts
             >> put lilypond
-            >> put defaults >> put saved_views >> put ky >> put tscore
-    get = get_version >>= \v -> case v of
+            >> put defaults >> put savedViews >> put ky >> put tscore
+    get = getVersion >>= \v -> case v of
         11 -> do
             ns :: Id.Namespace <- get
             meta :: UiConfig.Meta <- get
@@ -102,13 +102,13 @@ instance Serialize UiConfig.Config where
             insts :: UiConfig.Allocations <- get
             lilypond :: Lilypond.Config <- get
             defaults :: UiConfig.Default <- get
-            saved_views :: UiConfig.SavedViews <- get
-            ky_file :: Maybe FilePath <- get
-            let ky = upgrade_transform transform
-                    (maybe "" (\fn -> "import '" <> txt fn <> "'\n") ky_file)
-            ky <- either (fail . untxt) pure $ upgrade_ky insts ky
+            savedViews :: UiConfig.SavedViews <- get
+            kyFile :: Maybe FilePath <- get
+            let ky = upgradeTransform transform
+                    (maybe "" (\fn -> "import '" <> txt fn <> "'\n") kyFile)
+            ky <- either (fail . untxt) pure $ upgradeKy insts ky
             pure $ UiConfig.Config ns meta root insts lilypond defaults
-                saved_views ky ""
+                savedViews ky ""
         12 -> do
             ns :: Id.Namespace <- get
             meta :: UiConfig.Meta <- get
@@ -117,11 +117,11 @@ instance Serialize UiConfig.Config where
             insts :: UiConfig.Allocations <- get
             lilypond :: Lilypond.Config <- get
             defaults :: UiConfig.Default <- get
-            saved_views :: UiConfig.SavedViews <- get
+            savedViews :: UiConfig.SavedViews <- get
             ky :: Text <- get
-            ky <- either (fail . untxt) pure $ upgrade_ky insts ky
+            ky <- either (fail . untxt) pure $ upgradeKy insts ky
             pure $ UiConfig.Config ns meta root insts lilypond
-                defaults saved_views (upgrade_transform transform ky)
+                defaults savedViews (upgradeTransform transform ky)
                 ""
         13 -> do
             ns :: Id.Namespace <- get
@@ -130,11 +130,11 @@ instance Serialize UiConfig.Config where
             insts :: UiConfig.Allocations <- get
             lilypond :: Lilypond.Config <- get
             defaults :: UiConfig.Default <- get
-            saved_views :: UiConfig.SavedViews <- get
+            savedViews :: UiConfig.SavedViews <- get
             ky :: Text <- get
-            ky <- either (fail . untxt) pure $ upgrade_ky insts ky
+            ky <- either (fail . untxt) pure $ upgradeKy insts ky
             pure $ UiConfig.Config ns meta root insts lilypond defaults
-                saved_views ky ""
+                savedViews ky ""
         14 -> do
             ns :: Id.Namespace <- get
             meta :: UiConfig.Meta <- get
@@ -142,12 +142,12 @@ instance Serialize UiConfig.Config where
             insts :: UiConfig.Allocations <- get
             lilypond :: Lilypond.Config <- get
             defaults :: UiConfig.Default <- get
-            saved_views :: UiConfig.SavedViews <- get
+            savedViews :: UiConfig.SavedViews <- get
             ky :: Text <- get
             tscore :: Text <- get
-            ky <- either (fail . untxt) pure $ upgrade_ky insts ky
+            ky <- either (fail . untxt) pure $ upgradeKy insts ky
             pure $ UiConfig.Config ns meta root insts lilypond defaults
-                saved_views ky tscore
+                savedViews ky tscore
         15 -> do
             -- No more UiConfig.Allocations, stored in ky now.
             ns :: Id.Namespace <- get
@@ -157,54 +157,54 @@ instance Serialize UiConfig.Config where
             let insts = mempty
             lilypond :: Lilypond.Config <- get
             defaults :: UiConfig.Default <- get
-            saved_views :: UiConfig.SavedViews <- get
+            savedViews :: UiConfig.SavedViews <- get
             ky :: Text <- get
             tscore :: Text <- get
             pure $ UiConfig.Config ns meta root insts lilypond defaults
-                saved_views ky tscore
-        _ -> bad_version "UiConfig.Config" v
+                savedViews ky tscore
+        _ -> badVersion "UiConfig.Config" v
         where
-        upgrade_transform global_transform ky
-            | Text.null (Text.strip global_transform) = ky
+        upgradeTransform globalTransform ky
+            | Text.null (Text.strip globalTransform) = ky
             | otherwise = ky <> "\n\nnote transformer:\nGLOBAL = "
-                <> global_transform
+                <> globalTransform
 
-upgrade_ky :: UiConfig.Allocations -> Text -> Either Text Text
-upgrade_ky insts ky = do
-    section <- Instruments.un_instruments (const Nothing) insts
+upgradeKy :: UiConfig.Allocations -> Text -> Either Text Text
+upgradeKy insts ky = do
+    section <- Instruments.unInstruments (const Nothing) insts
     pure $ mconcat
         [ Text.stripEnd $
-            Ky.replace_section Instruments.instrument_section ("-- "<>) ky
-        , "\n\n", Instruments.instrument_section, ":\n", section
+            Ky.replaceSection Instruments.instrumentSection ("-- "<>) ky
+        , "\n\n", Instruments.instrumentSection, ":\n", section
         ]
 
 instance Serialize UiConfig.Allocations where
-    put (UiConfig.Allocations a) = put_version 1 >> put a
+    put (UiConfig.Allocations a) = putVersion 1 >> put a
     get = do
-        v <- get_version
+        v <- getVersion
         case v of
             1 -> do
                 configs :: Map ScoreT.Instrument UiConfig.Allocation <- get
                 pure $ UiConfig.Allocations configs
-            _ -> bad_version "UiConfig.Allocations" v
+            _ -> badVersion "UiConfig.Allocations" v
 
 instance Serialize UiConfig.Allocation where
-    put (UiConfig.Allocation a b c) = put_version 0 >> put a >> put b >> put c
-    get = get_version >>= \case
+    put (UiConfig.Allocation a b c) = putVersion 0 >> put a >> put b >> put c
+    get = getVersion >>= \case
         0 -> do
             qualified :: InstT.Qualified <- get
             config :: Common.Config <- get
             backend :: UiConfig.Backend <- get
             pure $ UiConfig.Allocation qualified config backend
-        v -> bad_version "UiConfig.Allocation" v
+        v -> badVersion "UiConfig.Allocation" v
 
 instance Serialize UiConfig.Backend where
     put = \case
-        UiConfig.Midi a -> put_tag 0 >> put a
-        UiConfig.Im -> put_tag 1
-        UiConfig.Dummy a -> put_tag 4 >> put a
-        UiConfig.Sc -> put_tag 3
-    get = get_tag >>= \case
+        UiConfig.Midi a -> putTag 0 >> put a
+        UiConfig.Im -> putTag 1
+        UiConfig.Dummy a -> putTag 4 >> put a
+        UiConfig.Sc -> putTag 3
+    get = getTag >>= \case
         0 -> do
             config :: Patch.Config <- get
             pure $ UiConfig.Midi config
@@ -212,58 +212,58 @@ instance Serialize UiConfig.Backend where
         2 -> pure $ UiConfig.Dummy ""
         3 -> pure UiConfig.Sc
         4 -> UiConfig.Dummy <$> (get :: Serialize.Get Text)
-        tag -> bad_tag "UiConfig.Backend" tag
+        tag -> badTag "UiConfig.Backend" tag
 
 -- | For backward compatibility.
 newtype MidiConfigs = MidiConfigs (Map ScoreT.Instrument Patch.Config)
     deriving (Show)
 
 instance Serialize MidiConfigs where
-    put (MidiConfigs a) = put_version 5 >> put a
-    get = get_version >>= \case
+    put (MidiConfigs a) = putVersion 5 >> put a
+    get = getVersion >>= \case
         5 -> do
             insts :: Map ScoreT.Instrument Patch.Config <- get
             pure $ MidiConfigs insts
-        v -> bad_version "Patch.MidiConfigs" v
+        v -> badVersion "Patch.MidiConfigs" v
 
 instance Serialize UiConfig.Meta where
-    put (UiConfig.Meta a b c d e f) = put_version 4
+    put (UiConfig.Meta a b c d e f) = putVersion 4
         >> put a >> put b >> put c >> put d >> put e >> put f
-    get = get_version >>= \case
+    get = getVersion >>= \case
         3 -> do
             creation :: Time.UTCTime <- get
-            last_save :: Time.UTCTime <- get
+            lastSave :: Time.UTCTime <- get
             notes :: Text <- get
             midi :: Map BlockId UiConfig.MidiPerformance <- get
             lily :: Map BlockId UiConfig.LilypondPerformance <- get
-            pure $ UiConfig.Meta creation last_save notes midi lily mempty
+            pure $ UiConfig.Meta creation lastSave notes midi lily mempty
         4 -> do
             creation :: Time.UTCTime <- get
-            last_save :: Time.UTCTime <- get
+            lastSave :: Time.UTCTime <- get
             notes :: Text <- get
             midi :: Map BlockId UiConfig.MidiPerformance <- get
             lily :: Map BlockId UiConfig.LilypondPerformance <- get
             im :: Map BlockId UiConfig.ImPerformance <- get
-            pure $ UiConfig.Meta creation last_save notes midi lily im
-        v -> bad_version "UiConfig.Meta" v
+            pure $ UiConfig.Meta creation lastSave notes midi lily im
+        v -> badVersion "UiConfig.Meta" v
 
 instance Serialize a => Serialize (UiConfig.Performance a) where
-    put (UiConfig.Performance a b c) = put_version 0 >> put a >> put b >> put c
-    get = get_version >>= \case
+    put (UiConfig.Performance a b c) = putVersion 0 >> put a >> put b >> put c
+    get = getVersion >>= \case
         0 -> do
             perf :: a <- get
             creation :: Time.UTCTime <- get
             patch :: Text <- get
             pure $ UiConfig.Performance perf creation patch
-        v -> bad_version "UiConfig.Performance" v
+        v -> badVersion "UiConfig.Performance" v
 
 instance Serialize UiConfig.Default where
-    put (UiConfig.Default a) = put_version 4 >> put a
-    get = get_version >>= \case
+    put (UiConfig.Default a) = putVersion 4 >> put a
+    get = getVersion >>= \case
         4 -> do
             tempo :: Signal.Y <- get
             pure $ UiConfig.Default tempo
-        v -> bad_version "UiConfig.Default" v
+        v -> badVersion "UiConfig.Default" v
 
 -- ** Block
 
@@ -271,10 +271,10 @@ instance Serialize Block.Block where
     -- Config is not serialized because everything in the block config is
     -- either derived from the Cmd.State or is hardcoded.
     -- Except Block.config_skeleton breaks this rule :/
-    put (Block.Block a config b c d e f g) = put_version 14
+    put (Block.Block a config b c d e f g) = putVersion 14
         >> put a >> put b >> put c >> put d >> put e >> put f >> put g
-        >> put (Block.config_skeleton config)
-    get = get_version >>= \case
+        >> put (Block.configSkeleton config)
+    get = getVersion >>= \case
         11 -> do
             title :: Text <- get
             tracks :: [Block.Track] <- get
@@ -293,7 +293,7 @@ instance Serialize Block.Block where
             manual :: Map Block.SourceKey [OldNoteDestination] <- get
             meta :: Map Text Text <- get
             pure $ Block.Block title config tracks skel iblock itracks
-                (map upgrade_note_destination <$> manual) meta
+                (map upgradeNoteDestination <$> manual) meta
         13 -> do
             title :: Text <- get
             tracks :: [Block.Track] <- get
@@ -312,31 +312,31 @@ instance Serialize Block.Block where
             itracks :: [(TrackId, Block.TrackDestinations)] <- get
             dtracks :: Block.ManualDestinations <- get
             meta :: Map Text Text <- get
-            skel_config :: Block.Skeleton <- get
+            skelConfig :: Block.Skeleton <- get
             pure $ Block.Block title
-                (config { Block.config_skeleton = skel_config })
+                (config { Block.configSkeleton = skelConfig })
                 tracks skel iblock itracks dtracks meta
-        v -> bad_version "Block.Block" v
+        v -> badVersion "Block.Block" v
         where
-        config = Block.default_config { Block.config_skeleton = Block.Explicit }
+        config = Block.defaultConfig { Block.configSkeleton = Block.Explicit }
 
 instance Serialize Block.Skeleton where
     put = \case
-        Block.Explicit -> put_tag 0
-        Block.Implicit -> put_tag 1
-    get = get_tag >>= \case
+        Block.Explicit -> putTag 0
+        Block.Implicit -> putTag 1
+    get = getTag >>= \case
         0 -> pure Block.Explicit
         1 -> pure Block.Implicit
-        tag -> bad_tag "Block.Skeleton" tag
+        tag -> badTag "Block.Skeleton" tag
 
 instance Serialize Block.TrackDestinations where
-    put (Block.DeriveDestinations a) = put_tag 2 >> put a
-    put (Block.ScoreDestinations a) = put_tag 1 >> put a
-    get = get_tag >>= \case
-        0 -> Block.DeriveDestinations . map upgrade_note_destination <$> get
+    put (Block.DeriveDestinations a) = putTag 2 >> put a
+    put (Block.ScoreDestinations a) = putTag 1 >> put a
+    get = getTag >>= \case
+        0 -> Block.DeriveDestinations . map upgradeNoteDestination <$> get
         1 -> Block.ScoreDestinations <$> get
         2 -> Block.DeriveDestinations <$> get
-        tag -> bad_tag "Block.TrackDestinations" tag
+        tag -> badTag "Block.TrackDestinations" tag
 
 -- | Oops, I forgot to put a version on NoteDestination so of course this
 -- happens...
@@ -344,59 +344,59 @@ data OldNoteDestination = OldNoteDestination
     (TrackId, Block.EventIndex)
     (Map Text (TrackId, Block.EventIndex))
 
-upgrade_note_destination :: OldNoteDestination -> Block.NoteDestination
-upgrade_note_destination (OldNoteDestination a b) = Block.NoteDestination "" a b
+upgradeNoteDestination :: OldNoteDestination -> Block.NoteDestination
+upgradeNoteDestination (OldNoteDestination a b) = Block.NoteDestination "" a b
 
 instance Serialize OldNoteDestination where
     put (OldNoteDestination a b) = put a >> put b
     get = OldNoteDestination <$> get <*> get
 
 instance Serialize Block.NoteDestination where
-    put (Block.NoteDestination a b c) = put_version 0 >> put a >> put b >> put c
-    get = get_version >>= \case
+    put (Block.NoteDestination a b c) = putVersion 0 >> put a >> put b >> put c
+    get = getVersion >>= \case
         0 -> do
             key :: Text <- get
             note :: (TrackId, Block.EventIndex) <- get
             controls :: (Map Text (TrackId, Block.EventIndex)) <- get
             pure $ Block.NoteDestination key note controls
-        v -> bad_version "Block.Block" v
+        v -> badVersion "Block.Block" v
 
 instance Serialize Block.Track where
     -- The suggested_width is actually derived from fltk, so don't save it.
     -- It's awkward to have it in Block.Track, I have another derived
     -- field like this in Ruler.Ruler's Marklist when there's a Meter.
-    put (Block.Track id width _suggested flags merged) = put_version 3
+    put (Block.Track id width _suggested flags merged) = putVersion 3
         >> put id >> put width>> put flags >> put merged
-    get = get_version >>= \case
+    get = getVersion >>= \case
         3 -> do
             id :: Block.TracklikeId <- get
             width :: Types.Width <- get
             flags :: Set Block.TrackFlag <- get
             merged :: Set Types.TrackId <- get
             pure $ Block.Track id width width flags merged
-        v -> bad_version "Block.Track" v
+        v -> badVersion "Block.Track" v
 
 instance Serialize Block.TrackFlag where
-    put = put_tag . \case
+    put = putTag . \case
         Block.Collapse -> 0
         Block.Solo -> 1
         Block.Mute -> 2
         Block.Disable -> 3
         Block.Merge -> 4
-    get = get_tag >>= \case
+    get = getTag >>= \case
         0 -> pure Block.Collapse
         1 -> pure Block.Solo
         2 -> pure Block.Mute
         3 -> pure Block.Disable
         4 -> pure Block.Merge
-        tag -> bad_tag "Block.TrackFlag" tag
+        tag -> badTag "Block.TrackFlag" tag
 
 instance Serialize Block.TracklikeId where
-    put (Block.TId a b) = put_tag 0 >> put a >> put b
-    put (Block.RId a) = put_tag 1 >> put a
-    put (Block.DId a) = put_tag 2 >> put a
+    put (Block.TId a b) = putTag 0 >> put a >> put b
+    put (Block.RId a) = putTag 1 >> put a
+    put (Block.DId a) = putTag 2 >> put a
     get = do
-        tag <- get_tag
+        tag <- getTag
         case tag of
             0 -> do
                 tid :: TrackId <- get
@@ -408,62 +408,62 @@ instance Serialize Block.TracklikeId where
             2 -> do
                 div :: Block.Divider <- get
                 pure $ Block.DId div
-            _ -> bad_tag "Block.TracklikeId" tag
+            _ -> badTag "Block.TracklikeId" tag
 
 instance Serialize Block.Divider where
     put (Block.Divider a) = put a
     get = Block.Divider <$> get
 
 instance Serialize Block.View where
-    put (Block.View a b c d e f g) = put_version 7
+    put (Block.View a b c d e f g) = putVersion 7
         >> put a >> put b >> put c >> put d >> put e >> put f >> put g
-    get = get_version >>= \case
+    get = getVersion >>= \case
         5 -> do
             block :: Types.BlockId <- get
             rect :: Rect.Rect <- get
-            track_padding :: Int <- get
-            time_padding :: Int <- get
+            trackPadding :: Int <- get
+            timePadding :: Int <- get
             status :: Map (Int, Text) Text <- get
-            track_scroll :: Types.Width <- get
+            trackScroll :: Types.Width <- get
             zoom :: Zoom.Zoom <- get
             selections :: Map Sel.Num OldSelection <- get
-            let padding = Block.Padding track_padding time_padding 0
-            pure $ Block.View block rect padding status track_scroll zoom
+            let padding = Block.Padding trackPadding timePadding 0
+            pure $ Block.View block rect padding status trackScroll zoom
                 (upgrade <$> selections)
         6 -> do
             block :: Types.BlockId <- get
             rect :: Rect.Rect <- get
             padding :: Block.Padding <- get
             status :: Map (Int, Text) Text <- get
-            track_scroll :: Types.Width <- get
+            trackScroll :: Types.Width <- get
             zoom :: Zoom.Zoom <- get
             selections :: Map Sel.Num OldSelection <- get
-            pure $ Block.View block rect padding status track_scroll zoom
+            pure $ Block.View block rect padding status trackScroll zoom
                 (upgrade <$> selections)
         7 -> do
             block :: Types.BlockId <- get
             rect :: Rect.Rect <- get
             padding :: Block.Padding <- get
             status :: Map (Int, Text) Text <- get
-            track_scroll :: Types.Width <- get
+            trackScroll :: Types.Width <- get
             zoom :: Zoom.Zoom <- get
             selections :: Map Sel.Num Sel.Selection <- get
-            pure $ Block.View block rect padding status track_scroll zoom
+            pure $ Block.View block rect padding status trackScroll zoom
                 selections
-        v -> bad_version "Block.View" v
+        v -> badVersion "Block.View" v
         where
         upgrade (OldSelection a b c d) = Sel.Selection a b c d Sel.Positive
 
 instance Serialize Block.Padding where
-    put (Block.Padding a b c) = put_version 0
+    put (Block.Padding a b c) = putVersion 0
         >> put a >> put b >> put c
-    get = get_version >>= \case
+    get = getVersion >>= \case
         0 -> do
             left :: Int <- get
             top :: Int <- get
             bottom :: Int <- get
             pure $ Block.Padding left top bottom
-        v -> bad_version "Block.Padding" v
+        v -> badVersion "Block.Padding" v
 
 instance Serialize Rect.Rect where
     put r = put (Rect.x r) >> put (Rect.y r) >> put (Rect.w r) >> put (Rect.h r)
@@ -484,9 +484,9 @@ instance Serialize OldSelection where
     get = OldSelection <$> get <*> get <*> get <*> get
 
 instance Serialize Sel.Selection where
-    put (Sel.Selection a b c d e) = put_version 0
+    put (Sel.Selection a b c d e) = putVersion 0
         >> put a >> put b >> put c >> put d >> put e
-    get = get_version >>= \case
+    get = getVersion >>= \case
         0 -> do
             strack :: Int <- get
             stime :: ScoreTime <- get
@@ -494,11 +494,11 @@ instance Serialize Sel.Selection where
             ctime :: ScoreTime <- get
             orient :: Sel.Orientation <- get
             pure $ Sel.Selection strack stime ctrack ctime orient
-        v -> bad_version "Sel.Selection" v
+        v -> badVersion "Sel.Selection" v
 
 instance Serialize Sel.Orientation where
-    put = Serialize.put_enum_unsafe
-    get = Serialize.get_enum_unsafe
+    put = Serialize.putEnumUnsafe
+    get = Serialize.getEnumUnsafe
 
 -- ** Types, Color, Font
 
@@ -511,7 +511,7 @@ instance Serialize Color.Color where
 
 instance Serialize Ruler.Ruler where
     put (Ruler.Ruler marklists b c d) = do
-        put_version 8
+        putVersion 8
         put $ strip <$> marklists
         put b >> put c >> put d
         where
@@ -519,28 +519,28 @@ instance Serialize Ruler.Ruler where
         -- I can regenerate it.
         strip (Just meter, _mlist) = (Just meter, Mark.empty)
         strip (Nothing, mlist) = (Nothing, mlist)
-    get = get_version >>= \case
+    get = getVersion >>= \case
         6 -> do
             marklists :: Map Ruler.Name (Maybe Text, OldMarklist) <- get
             bg :: Color.Color <- get
-            show_names :: Bool <- get
-            align_to_bottom :: Bool <- get
-            pure $ Ruler.Ruler (upgrade <$> marklists) bg show_names
-                align_to_bottom
+            showNames :: Bool <- get
+            alignToBottom :: Bool <- get
+            pure $ Ruler.Ruler (upgrade <$> marklists) bg showNames
+                alignToBottom
             where
             upgrade (_name, OldMarklist mlist) =
-                (Nothing, Mark.marklist_from_vector mlist)
+                (Nothing, Mark.marklistFromVector mlist)
         7 -> do
             marklists :: OldMarklists <- get
             bg :: Color.Color <- get
-            show_names :: Bool <- get
-            align_to_bottom :: Bool <- get
-            pure $ Ruler.Ruler (upgrade marklists) bg show_names
-                align_to_bottom
+            showNames :: Bool <- get
+            alignToBottom :: Bool <- get
+            pure $ Ruler.Ruler (upgrade marklists) bg showNames
+                alignToBottom
             where
             upgrade :: OldMarklists -> Ruler.Marklists
             upgrade = fmap $ \(_config, OldMarklist mlist) ->
-                (Nothing, Mark.marklist_from_vector mlist)
+                (Nothing, Mark.marklistFromVector mlist)
             -- Upgrade marklists by throwing out the OldMeterConfig.
             -- Alternately, I could try to automatically figure out what the
             -- Meter should be...
@@ -548,67 +548,67 @@ instance Serialize Ruler.Ruler where
             marklists :: Map Ruler.Name (Maybe Meter.Meter, Mark.Marklist)
                 <- get
             bg :: Color.Color <- get
-            show_names :: Bool <- get
-            align_to_bottom :: Bool <- get
-            pure $ Ruler.Ruler (add <$> marklists) bg show_names
-                align_to_bottom
+            showNames :: Bool <- get
+            alignToBottom :: Bool <- get
+            pure $ Ruler.Ruler (add <$> marklists) bg showNames
+                alignToBottom
             where
-            add (Just meter, _) = (Just meter, Meter.Make.make_marklist meter)
+            add (Just meter, _) = (Just meter, Meter.Make.makeMarklist meter)
             add (Nothing, mlist) = (Nothing, mlist)
-        v -> bad_version "Ruler.Ruler" v
+        v -> badVersion "Ruler.Ruler" v
 
 type OldMarklists = Map Text (Maybe OldMeterConfig, OldMarklist)
 
 instance Serialize OldMeterConfig where
-    put (OldMeterConfig a b) = put_version 0 >> put a >> put b
-    get = get_version >>= \case
+    put (OldMeterConfig a b) = putVersion 0 >> put a >> put b
+    get = getVersion >>= \case
         0 -> OldMeterConfig <$> get <*> get
-        v -> bad_version "OldMeterConfig" v
+        v -> badVersion "OldMeterConfig" v
 
 -- | Configuration specific to the 'meter' marklist.
 data OldMeterConfig = OldMeterConfig
     -- | The type of meter that this marklist represents.  This is looked up in
     -- a table of meter types to figure out how to do transformations on the
     -- meter, since different meters follow different rules.
-    { config_name :: !Text
-    , config_start_measure :: !Int
+    { configName :: !Text
+    , configStartMeasure :: !Int
     } deriving (Eq, Show)
 
 instance Serialize Meter.Meter where
-    put (Meter.Meter a b) = put_version 0 >> put a >> put b
-    get = get_version >>= \case
+    put (Meter.Meter a b) = putVersion 0 >> put a >> put b
+    get = getVersion >>= \case
         0 -> do
             config :: Meter.Config <- get
             sections :: [Meter.MSection] <- get
             pure $ Meter.Meter config sections
-        v -> bad_version "Meter.Meter" v
+        v -> badVersion "Meter.Meter" v
 
 instance Serialize Meter.MSection where
-    put (Meter.MSection a b c) = put_version 0 >> put a >> put b >> put c
-    get = get_version >>= \case
+    put (Meter.MSection a b c) = putVersion 0 >> put a >> put b >> put c
+    get = getVersion >>= \case
         0 -> do
             count :: Meter.Measures <- get
-            measure_duration :: Meter.Duration <- get
+            measureDuration :: Meter.Duration <- get
             measure :: Meter.AbstractMeter <- get
-            pure $ Meter.MSection count measure_duration measure
-        v -> bad_version "Meter.MSection" v
+            pure $ Meter.MSection count measureDuration measure
+        v -> badVersion "Meter.MSection" v
 
 instance Serialize Meter.Config where
-    put (Meter.Config a b c d e) = put_version 0
+    put (Meter.Config a b c d e) = putVersion 0
         >> put a >> put b >> put c >> put d >> put e
-    get = get_version >>= \case
+    get = getVersion >>= \case
         0 -> do
-            labeled_ranks :: Set Meter.Rank <- get
+            labeledRanks :: Set Meter.Rank <- get
             label :: Meter.LabelConfig <- get
-            start_measure :: Meter.Measures <- get
-            min_depth :: Int <- get
-            strip_depth :: Int <- get
-            pure $ Meter.Config labeled_ranks label start_measure min_depth
-                strip_depth
-        v -> bad_version "Meter.Config" v
+            startMeasure :: Meter.Measures <- get
+            minDepth :: Int <- get
+            stripDepth :: Int <- get
+            pure $ Meter.Config labeledRanks label startMeasure minDepth
+                stripDepth
+        v -> badVersion "Meter.Config" v
 
 instance Serialize Meter.Rank where
-    put a = (put_version 1 >>) $ put_enum $ case a of
+    put a = (putVersion 1 >>) $ putEnum $ case a of
         Meter.Section -> 0
         Meter.W -> 1
         Meter.H -> 2
@@ -619,9 +619,9 @@ instance Serialize Meter.Rank where
         Meter.T64 -> 7
         Meter.T128 -> 8
         Meter.T256 -> 9
-    get = get_version >>= \case
-        0 -> Serialize.get_enum_unsafe
-        1 -> get_enum >>= \case
+    get = getVersion >>= \case
+        0 -> Serialize.getEnumUnsafe
+        1 -> getEnum >>= \case
             0 -> pure Meter.Section
             1 -> pure Meter.W
             2 -> pure Meter.H
@@ -632,40 +632,40 @@ instance Serialize Meter.Rank where
             7 -> pure Meter.T64
             8 -> pure Meter.T128
             9 -> pure Meter.T256
-            n -> bad_enum "Meter.Rank" n
-        v -> bad_version "Meter.Rank" v
+            n -> badEnum "Meter.Rank" n
+        v -> badVersion "Meter.Rank" v
 
 instance Serialize Meter.LabelConfig where
-    put a = put_version 0 >> case a of
-        Meter.BigNumber a -> put_tag 0 >> put a
-        Meter.Cycle a -> put_tag 1 >> put a
-    get = get_version >>= \case
-        0 -> get_tag >>= \case
+    put a = putVersion 0 >> case a of
+        Meter.BigNumber a -> putTag 0 >> put a
+        Meter.Cycle a -> putTag 1 >> put a
+    get = getVersion >>= \case
+        0 -> getTag >>= \case
             0 -> Meter.BigNumber <$> get
             1 -> Meter.Cycle <$> get
-            t -> bad_tag "Meter.LabelConfig" t
-        v -> bad_version "Meter.LabelConfig" v
+            t -> badTag "Meter.LabelConfig" t
+        v -> badVersion "Meter.LabelConfig" v
 
 instance Serialize Meter.AbstractMeter where
     put = \case
-        Meter.T -> put_tag 0
-        Meter.D ts -> put_tag 1 >> put ts
-    get = get_tag >>= \case
+        Meter.T -> putTag 0
+        Meter.D ts -> putTag 1 >> put ts
+    get = getTag >>= \case
         0 -> pure Meter.T
         1 -> Meter.D <$> get
-        tag -> bad_tag "Meter.AbstractMeter" tag
+        tag -> badTag "Meter.AbstractMeter" tag
 
 -- The old version is unversioned
 newtype OldMarklist = OldMarklist Mark.MarklistVector
     deriving (Serialize)
 
 instance Serialize Mark.Marklist where
-    put mlist = put_version 0 >> put (Mark.marklist_vec mlist)
-    get = get_version >>= \case
+    put mlist = putVersion 0 >> put (Mark.marklistVec mlist)
+    get = getVersion >>= \case
         0 -> do
             vec :: Mark.MarklistVector <- get
-            pure $ Mark.marklist_from_vector vec
-        v -> bad_version "Mark.Marklist" v
+            pure $ Mark.marklistFromVector vec
+        v -> badVersion "Mark.Marklist" v
 
 -- TODO I thought to make a new Mark with typed Mark.Rank, but it's
 -- easier to just fromEnum it.
@@ -677,16 +677,16 @@ instance Serialize Mark.Mark where
         width :: Int <- get
         color :: Color.Color <- get
         name :: Text <- get
-        name_zoom :: Double <- get
+        nameZoom :: Double <- get
         zoom :: Double <- get
-        pure $ Mark.Mark (toEnum rank) width color name name_zoom zoom
+        pure $ Mark.Mark (toEnum rank) width color name nameZoom zoom
 
 -- ** Track
 
 instance Serialize Track.Track where
-    put (Track.Track a b c d e) = put_version 5
+    put (Track.Track a b c d e) = putVersion 5
         >> put a >> put b >> put c >> put d >> put e
-    get = get_version >>= \case
+    get = getVersion >>= \case
         4 -> do
             title :: Text <- get
             events :: Events.Events <- get
@@ -700,22 +700,22 @@ instance Serialize Track.Track where
             render :: Track.RenderConfig <- get
             waveform :: Bool <- get
             pure $ Track.Track title events color render waveform
-        v -> bad_version "Track.Track" v
+        v -> badVersion "Track.Track" v
 
 instance Serialize Track.RenderConfig where
-    put (Track.RenderConfig a b) = put_version 1 >> put a >> put b
-    get = get_version >>= \case
+    put (Track.RenderConfig a b) = putVersion 1 >> put a >> put b
+    get = getVersion >>= \case
         1 -> do
             style :: Track.RenderStyle <- get
             color :: Color.Color <- get
             pure $ Track.RenderConfig style color
-        v -> bad_version "Track.RenderConfig" v
+        v -> badVersion "Track.RenderConfig" v
 
 instance Serialize Track.RenderStyle where
-    put Track.NoRender = put_tag 0
-    put (Track.Line a) = put_tag 1 >> put a
-    put (Track.Filled a) = put_tag 2 >> put a
-    get = get_tag >>= \case
+    put Track.NoRender = putTag 0
+    put (Track.Line a) = putTag 1 >> put a
+    put (Track.Filled a) = putTag 2 >> put a
+    get = getTag >>= \case
         0 -> pure Track.NoRender
         1 -> do
             source :: Maybe Track.RenderSource <- get
@@ -723,113 +723,113 @@ instance Serialize Track.RenderStyle where
         2 -> do
             source :: Maybe Track.RenderSource <- get
             pure $ Track.Filled source
-        tag -> bad_tag "Track.RenderStyle" tag
+        tag -> badTag "Track.RenderStyle" tag
 
 instance Serialize Track.RenderSource where
-    put (Track.Control a) = put_tag 0 >> put a
+    put (Track.Control a) = putTag 0 >> put a
     put (Track.Pitch a) = do
-        put_tag 1
+        putTag 1
         -- It used to be @Maybe ScoreT.Control@ but changed to ScoreT.PControl.
         -- RenderSource isn't versioned so adjust here.
-        let c = if a == ScoreT.default_pitch then Nothing else Just a
+        let c = if a == ScoreT.defaultPitch then Nothing else Just a
         put c
-    get = get_tag >>= \case
+    get = getTag >>= \case
         0 -> do
             control :: ScoreT.Control <- get
             pure $ Track.Control control
         1 -> do
             control :: Maybe ScoreT.PControl <- get
-            pure $ Track.Pitch (fromMaybe ScoreT.default_pitch control)
-        tag -> bad_tag "Track.RenderSource" tag
+            pure $ Track.Pitch (fromMaybe ScoreT.defaultPitch control)
+        tag -> badTag "Track.RenderSource" tag
 
 -- ** Perform.Midi.Patch
 
 instance Serialize Patch.Config where
-    put (Patch.Config a b c) = put_version 11 >> put a >> put b >> put c
-    get = get_version >>= \case
+    put (Patch.Config a b c) = putVersion 11 >> put a >> put b >> put c
+    get = getVersion >>= \case
         7 -> do
             alloc :: [(Patch.Addr, Maybe Patch.Voices)] <- get
             scale :: Maybe Patch.Scale <- get
-            control_defaults :: ScoreT.ControlValMap <- get
-            let settings = old_settings
-                    { Patch.config_scale = scale
-                    , Patch.config_control_defaults = nonempty control_defaults
+            controlDefaults :: ScoreT.ControlValMap <- get
+            let settings = oldSettings
+                    { Patch.configScale = scale
+                    , Patch.configControlDefaults = nonempty controlDefaults
                     }
             pure $ Patch.Config alloc Nothing settings
         8 -> do
             alloc :: [(Patch.Addr, Maybe Patch.Voices)] <- get
             scale :: Maybe Patch.Scale <- get
-            control_defaults :: ScoreT.ControlValMap <- get
+            controlDefaults :: ScoreT.ControlValMap <- get
             initialization :: Set Patch.Initialization <- get
-            let settings = old_settings
-                    { Patch.config_scale = scale
-                    , Patch.config_control_defaults = nonempty control_defaults
+            let settings = oldSettings
+                    { Patch.configScale = scale
+                    , Patch.configControlDefaults = nonempty controlDefaults
                     }
-            pure $ Patch.Config alloc (upgrade_initialization initialization)
+            pure $ Patch.Config alloc (upgradeInitialization initialization)
                 settings
         9 -> do
             alloc :: [(Patch.Addr, Maybe Patch.Voices)] <- get
-            control_defaults :: ScoreT.ControlValMap <- get
+            controlDefaults :: ScoreT.ControlValMap <- get
             initialization :: Set Patch.Initialization <- get
             settings :: Patch.Settings <- get
             pure $ Patch.Config alloc
-                (upgrade_initialization initialization)
+                (upgradeInitialization initialization)
                 (settings
-                    { Patch.config_control_defaults = nonempty control_defaults
+                    { Patch.configControlDefaults = nonempty controlDefaults
                     })
         10 -> do
             alloc :: [(Patch.Addr, Maybe Patch.Voices)] <- get
             initialization :: Set Patch.Initialization <- get
             settings :: Patch.Settings <- get
-            pure $ Patch.Config alloc (upgrade_initialization initialization)
+            pure $ Patch.Config alloc (upgradeInitialization initialization)
                 settings
         11 -> do
             alloc :: [(Patch.Addr, Maybe Patch.Voices)] <- get
             initialization :: Maybe Patch.Initialization <- get
             settings :: Patch.Settings <- get
             pure $ Patch.Config alloc initialization settings
-        v -> bad_version "Patch.Config" v
+        v -> badVersion "Patch.Config" v
         where
         nonempty x = if x == mempty then Nothing else Just x
-        upgrade_initialization = Lists.head . Set.toList
+        upgradeInitialization = Lists.head . Set.toList
 
 -- | This tags Settings which will have to be upgraded by merging with patch
 -- defaults.
-old_settings :: Patch.Settings
-old_settings = mempty
+oldSettings :: Patch.Settings
+oldSettings = mempty
 
-is_old_settings :: Patch.Settings -> Bool
-is_old_settings =
-    (== Patch.config_pitch_bend_range mempty) . Patch.config_pitch_bend_range
+isOldSettings :: Patch.Settings -> Bool
+isOldSettings =
+    (== Patch.configPitchBendRange mempty) . Patch.configPitchBendRange
 
 instance Serialize Patch.Scale where
     put (Patch.Scale a b) = put a >> put b
     get = Patch.Scale <$> get <*> get
 
 instance Serialize Patch.Initialization where
-    put a = (put_version 1 >>) $ put_enum $ case a of
+    put a = (putVersion 1 >>) $ putEnum $ case a of
         Patch.Tuning -> 0
         Patch.NrpnTuning -> 1
-    get = get_version >>= \case
+    get = getVersion >>= \case
         0 -> get >>= \n -> case n :: Int of
             0 -> pure Patch.Tuning
             1 -> pure Patch.NrpnTuning
             n -> fail $ "unknown enum val for Patch.Initialization " <> show n
-        1 -> get_enum >>= \case
+        1 -> getEnum >>= \case
             0 -> pure Patch.Tuning
             1 -> pure Patch.NrpnTuning
-            n -> bad_enum "Patch.Initialization" n
-        v -> bad_version "Patch.Initialization" v
+            n -> badEnum "Patch.Initialization" n
+        v -> badVersion "Patch.Initialization" v
 
 instance Serialize Patch.Settings where
-    put (Patch.Settings a b c d e) = put_version 2
+    put (Patch.Settings a b c d e) = putVersion 2
         >> put a >> put b >> put c >> put d >> put e
-    get = get_version >>= \case
+    get = getVersion >>= \case
         0 -> do
             flags :: Set OldFlag <- get
             scale :: Maybe Patch.Scale <- get
             decay :: Maybe RealTime <- get
-            _pitch_bend_range :: Midi.Control.PbRange <- get
+            _pitchBendRange :: Midi.Control.PbRange <- get
             pure $ Patch.Settings
                 (if Set.null flags then Nothing else Just (upgrade flags))
                 scale decay Nothing Nothing
@@ -837,35 +837,35 @@ instance Serialize Patch.Settings where
             flags :: Maybe (Set OldFlag) <- get
             scale :: Maybe Patch.Scale <- get
             decay :: Maybe RealTime <- get
-            pitch_bend_range :: Maybe Midi.Control.PbRange <- get
+            pitchBendRange :: Maybe Midi.Control.PbRange <- get
             pure $ Patch.Settings (upgrade <$> flags) scale decay
-                pitch_bend_range Nothing
+                pitchBendRange Nothing
         2 -> do
             flags :: Maybe (Set OldFlag) <- get
             scale :: Maybe Patch.Scale <- get
             decay :: Maybe RealTime <- get
-            pitch_bend_range :: Maybe Midi.Control.PbRange <- get
-            control_defaults :: Maybe ScoreT.ControlValMap <- get
+            pitchBendRange :: Maybe Midi.Control.PbRange <- get
+            controlDefaults :: Maybe ScoreT.ControlValMap <- get
             pure $ Patch.Settings (upgrade <$> flags) scale decay
-                pitch_bend_range control_defaults
-        v -> bad_version "Patch.Settings" v
+                pitchBendRange controlDefaults
+        v -> badVersion "Patch.Settings" v
         where
         upgrade = Set.fromList . map (\(OldFlag a) -> a) . Set.toList
 
 instance Serialize Patch.Flag where
-    put a = (put_version 0 >>) $ put_enum $ case a of
+    put a = (putVersion 0 >>) $ putEnum $ case a of
         Patch.Pressure -> 0
         Patch.HoldKeyswitch -> 1
         Patch.ResumePlay -> 2
         Patch.UseFinalNoteOff -> 3
-    get = get_version >>= \case
+    get = getVersion >>= \case
         0 -> get >>= \n -> case n :: Int of
             0 -> pure Patch.Pressure
             1 -> pure Patch.HoldKeyswitch
             2 -> pure Patch.ResumePlay
             3 -> pure Patch.UseFinalNoteOff
             n -> fail $ "unknown enum val for Patch.Flag " <> show n
-        v -> bad_version "Patch.Initialization" v
+        v -> badVersion "Patch.Initialization" v
 
 newtype OldFlag = OldFlag Patch.Flag
     deriving (Show, Eq, Ord)
@@ -877,15 +877,15 @@ instance Serialize OldFlag where
         2 -> pure Patch.HoldKeyswitch
         3 -> pure Patch.ResumePlay
         4 -> pure Patch.UseFinalNoteOff
-        _ -> bad_tag "Flag" (fromIntegral tag)
+        _ -> badTag "Flag" (fromIntegral tag)
 
 -- ** Instrument.Common
 
 instance Serialize Common.Config where
     -- This went from version 1 to 0 because I reverted the Maybe Environ.
-    put (Common.Config a b c d) = put_version 0
+    put (Common.Config a b c d) = putVersion 0
         >> put a >> put b >> put c >> put d
-    get = get_version >>= \case
+    get = getVersion >>= \case
         0 -> do
             environ :: REnv.Environ <- get
             controls :: ScoreT.ControlValMap <- get
@@ -898,50 +898,50 @@ instance Serialize Common.Config where
             mute :: Bool <- get
             solo :: Bool <- get
             pure $ Common.Config (fromMaybe mempty environ) controls mute solo
-        v -> bad_version "Common.Config" v
+        v -> badVersion "Common.Config" v
 
 instance Serialize Common.Flag where
-    put a = (put_version 1 >>) $ put_enum $ case a of
+    put a = (putVersion 1 >>) $ putEnum $ case a of
         Common.Triggered -> 0
-    get = get_version >>= \case
+    get = getVersion >>= \case
         0 -> get >>= \(t :: Int) -> case t of
             0 -> pure Common.Triggered
-            _ -> bad_tag name (fromIntegral t)
-        1 -> get_enum >>= \case
+            _ -> badTag name (fromIntegral t)
+        1 -> getEnum >>= \case
             0 -> pure Common.Triggered
-            n -> bad_enum name n
-        v -> bad_version name v
+            n -> badEnum name n
+        v -> badVersion name v
         where name = "Common.Flag"
 
 -- ** lilypond
 
 instance Serialize Lilypond.Config where
-    put (Lilypond.Config a b c d) = put_version 3
+    put (Lilypond.Config a b c d) = putVersion 3
         >> put a >> put b >> put c >> put d
     get = do
-        v <- get_version
+        v <- getVersion
         case v of
             3 -> do
                 quarter :: RealTime <- get
                 quantize :: Lilypond.Duration <- get
-                dotted_rests :: Bool <- get
+                dottedRests :: Bool <- get
                 staves :: [(ScoreT.Instrument, Lilypond.StaffConfig)] <- get
-                pure $ Lilypond.Config quarter quantize dotted_rests staves
-            _ -> bad_version "Lilypond.Config" v
+                pure $ Lilypond.Config quarter quantize dottedRests staves
+            _ -> badVersion "Lilypond.Config" v
 
 instance Serialize Lilypond.StaffConfig where
-    put (Lilypond.StaffConfig a b c d e) = put_version 2
+    put (Lilypond.StaffConfig a b c d e) = putVersion 2
         >> put a >> put b >> put c >> put d >> put e
-    get = get_version >>= \case
+    get = getVersion >>= \case
         2 -> do
             long :: Lilypond.Instrument <- get
             short :: Lilypond.Instrument <- get
             code :: [Text] <- get
             display :: Bool <- get
-            add_bass :: Bool <- get
-            pure $ Lilypond.StaffConfig long short code display add_bass
-        v -> bad_version "Lilypond.StaffConfig" v
+            addBass :: Bool <- get
+            pure $ Lilypond.StaffConfig long short code display addBass
+        v -> badVersion "Lilypond.StaffConfig" v
 
 instance Serialize Lilypond.Duration where
-    put = Serialize.put_enum_unsafe
-    get = Serialize.get_enum_unsafe
+    put = Serialize.putEnumUnsafe
+    get = Serialize.getEnumUnsafe

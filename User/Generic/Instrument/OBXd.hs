@@ -11,16 +11,16 @@ import qualified Midi.Midi as Midi
 synth :: MidiInst.Synth
 synth =
     MidiInst.synth "obxd" "https://www.discodsp.com/obxd/" $
-        MidiInst.synth_controls controls
-        [MidiInst.default_patch pb_range []]
+        MidiInst.synthControls controls
+        [MidiInst.defaultPatch pbRange []]
 
 -- According to midiMap.h, it actually has bendrange at 118, but it's
 -- overwritten by level-dif.  It toggles between 2 and 12.
 --
 -- Since it's open source if I wanted to I could probably patch it to support
 -- Midi.pitch_bend_range.
-pb_range :: (Int, Int)
-pb_range = (-2, 2)
+pbRange :: (Int, Int)
+pbRange = (-2, 2)
 
 controls :: [(Midi.Control, ScoreT.Control)]
 controls =

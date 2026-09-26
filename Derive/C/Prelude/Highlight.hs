@@ -5,8 +5,8 @@
 -- | Calls to highlight events.
 module Derive.C.Prelude.Highlight (
     library
-    , c_highlight_strings_note
-    , out_of_range, open_strings, warn_non_open
+    , cHighlightStringsNote
+    , outOfRange, openStrings, warnNonOpen
 ) where
 import qualified Data.Maybe as Maybe
 
@@ -36,16 +36,16 @@ import           Types
 
 library :: Library.Library
 library = Library.transformers
-    [ ("highlight", c_highlight)
-    , ("highlight-strings", c_highlight_strings)
-    , ("highlight-out-of-range", c_highlight_out_of_range)
+    [ ("highlight", cHighlight)
+    , ("highlight-strings", cHighlightStrings)
+    , ("highlight-out-of-range", cHighlightOutOfRange)
     ]
 
-c_highlight :: Derive.Transformer Derive.Note
-c_highlight = Derive.transformer Module.prelude "highlight" mempty
+cHighlight :: Derive.Transformer Derive.Note
+cHighlight = Derive.transformer Module.prelude "highlight" mempty
     "Add a highlight color."
     $ Sig.callt (Sig.required "highlight" "Highlight code.")
-    $ \highlight _ deriver -> Post.emap1_ (add_highlight highlight) <$> deriver
+    $ \highlight _ deriver -> Post.emap1_ (addHighlight highlight) <$> deriver
 
 instance ShowVal.ShowVal Color.Highlight
 instance Typecheck.Typecheck Color.Highlight
@@ -55,108 +55,108 @@ instance Typecheck.Typecheck Color.Highlight
 
 -- | This is a generator that goes on null call, not a transformer over
 -- everything.
-c_highlight_strings_note :: Derive.Generator Derive.Note
-c_highlight_strings_note = Note.transformed_note_name "note-highlight"
+cHighlightStringsNote :: Derive.Generator Derive.Note
+cHighlightStringsNote = Note.transformedNoteName "note-highlight"
     ("Highlight any notes whose initial pitch isn't in "
-        <> ShowVal.doc EnvKey.open_strings <> ".")
+        <> ShowVal.doc EnvKey.openStrings <> ".")
     mempty $ \args deriver -> do
-        pos <- Args.real_start args
-        out_of_range (Args.start args) $ open_strings pos warn_non_open deriver
+        pos <- Args.realStart args
+        outOfRange (Args.start args) $ openStrings pos warnNonOpen deriver
 
-c_highlight_strings :: Derive.Transformer Derive.Note
-c_highlight_strings = Derive.transformer Module.prelude "highlight-strings"
+cHighlightStrings :: Derive.Transformer Derive.Note
+cHighlightStrings = Derive.transformer Module.prelude "highlight-strings"
     mempty ("Highlight any notes whose initial pitch either is or isn't in "
-        <> ShowVal.doc EnvKey.open_strings <> ".")
+        <> ShowVal.doc EnvKey.openStrings <> ".")
     $ Sig.callt
     ( Sig.environ "open" Sig.Prefixed False
         "If true, put Info on open strings, else put Warning on non-open ones."
-    ) $ \highlight_open args deriver -> do
-        pos <- Args.real_start args
-        open_strings pos (if highlight_open then notice_open else warn_non_open)
+    ) $ \highlightOpen args deriver -> do
+        pos <- Args.realStart args
+        openStrings pos (if highlightOpen then noticeOpen else warnNonOpen)
             deriver
 
-warn_non_open :: Bool -> Maybe Color.Highlight
-warn_non_open open = if open then Nothing else Just Color.Warning
+warnNonOpen :: Bool -> Maybe Color.Highlight
+warnNonOpen open = if open then Nothing else Just Color.Warning
 
-notice_open :: Bool -> Maybe Color.Highlight
-notice_open open = if open then Just Color.Notice else Nothing
+noticeOpen :: Bool -> Maybe Color.Highlight
+noticeOpen open = if open then Just Color.Notice else Nothing
 
-open_strings :: RealTime -> (Bool -> Maybe Color.Highlight)
+openStrings :: RealTime -> (Bool -> Maybe Color.Highlight)
     -- ^ True if this note is on an open string.
     -> Derive.NoteDeriver -> Derive.NoteDeriver
-open_strings pos highlight deriver = do
-    maybe_pitches <- Derive.lookup_val EnvKey.open_strings
-    maybe_pitches <- case maybe_pitches of
-        Just pitches -> Just <$> mapM (Derive.resolve_pitch pos) pitches
+openStrings pos highlight deriver = do
+    maybePitches <- Derive.lookupVal EnvKey.openStrings
+    maybePitches <- case maybePitches of
+        Just pitches -> Just <$> mapM (Derive.resolvePitch pos) pitches
         Nothing -> pure Nothing
-    maybe id (\pitches -> fmap (Post.emap1_ (apply pitches))) maybe_pitches
+    maybe id (\pitches -> fmap (Post.emap1_ (apply pitches))) maybePitches
         deriver
     where
     apply :: [PSignal.Transposed] -> Score.Event -> Score.Event
-    apply pitches event = case Score.initial_nn event of
-        Just nn -> case highlight (any (same_pitch nn) pitches) of
+    apply pitches event = case Score.initialNn event of
+        Just nn -> case highlight (any (samePitch nn) pitches) of
             Nothing -> event
-            Just highlight -> add_highlight highlight event
+            Just highlight -> addHighlight highlight event
         _ -> event
-    same_pitch nn pitch = case PSignal.pitch_nn pitch of
-        Right string_nn -> ApproxEq.eq 0.05 nn string_nn
+    samePitch nn pitch = case PSignal.pitchNn pitch of
+        Right stringNn -> ApproxEq.eq 0.05 nn stringNn
         _ -> False
 
 
 -- * out of range
 
-c_highlight_out_of_range :: Derive.Transformer Derive.Note
-c_highlight_out_of_range = Derive.transformer Module.prelude
+cHighlightOutOfRange :: Derive.Transformer Derive.Note
+cHighlightOutOfRange = Derive.transformer Module.prelude
     "highlight-out-of-range" mempty
     ("Error on notes whose initial pitch is below "
-        <> ShowVal.doc EnvKey.instrument_bottom <> " or above "
-        <> ShowVal.doc EnvKey.instrument_top <> ". The range must be \
+        <> ShowVal.doc EnvKey.instrumentBottom <> " or above "
+        <> ShowVal.doc EnvKey.instrumentTop <> ". The range must be \
         \ in NNs.")
-    $ Sig.call0t $ \args deriver -> out_of_range (Args.start args) deriver
+    $ Sig.call0t $ \args deriver -> outOfRange (Args.start args) deriver
 
 -- | Highlight with 'Color.Warning' if there is 'EnvKey.instrument_top' or
 -- 'EnvKey.instrument_bottom' and the pitch is above or below it,
 -- respectively.
-out_of_range :: ScoreTime -> Derive.NoteDeriver -> Derive.NoteDeriver
-out_of_range pos deriver = do
-    (maybe_top, maybe_bottom) <- get_instrument_range pos
-    if all Maybe.isNothing [maybe_top, maybe_bottom] then deriver
-        else Post.emap1_ (apply maybe_top maybe_bottom) <$> deriver
+outOfRange :: ScoreTime -> Derive.NoteDeriver -> Derive.NoteDeriver
+outOfRange pos deriver = do
+    (maybeTop, maybeBottom) <- getInstrumentRange pos
+    if all Maybe.isNothing [maybeTop, maybeBottom] then deriver
+        else Post.emap1_ (apply maybeTop maybeBottom) <$> deriver
     where
-    apply maybe_top maybe_bottom event
-        | is_oor = add_highlight Color.Error event
+    apply maybeTop maybeBottom event
+        | isOor = addHighlight Color.Error event
         | otherwise = event
         where
-        is_oor = fromMaybe False $ do
-            nn <- Score.initial_nn event
-            pure $ maybe False (<nn) maybe_top
-                || maybe False (>nn) maybe_bottom
+        isOor = fromMaybe False $ do
+            nn <- Score.initialNn event
+            pure $ maybe False (<nn) maybeTop
+                || maybe False (>nn) maybeBottom
 
-get_instrument_range :: ScoreTime
+getInstrumentRange :: ScoreTime
     -> Derive.Deriver (Maybe Pitch.NoteNumber, Maybe Pitch.NoteNumber)
-get_instrument_range pos = do
-    (_parse_p, show_p, _) <- Call.get_pitch_functions
-    maybe_top <- get show_p EnvKey.instrument_top
-    maybe_bottom <- get show_p EnvKey.instrument_bottom
-    pure (maybe_top, maybe_bottom)
+getInstrumentRange pos = do
+    (_parseP, showP, _) <- Call.getPitchFunctions
+    maybeTop <- get showP EnvKey.instrumentTop
+    maybeBottom <- get showP EnvKey.instrumentBottom
+    pure (maybeTop, maybeBottom)
     where
-    get show_p key =
+    get showP key =
         maybe (pure Nothing)
-            (fmap Just . either (resolve_pitch show_p pos) pure)
-        =<< Derive.lookup_val key
+            (fmap Just . either (resolvePitch showP pos) pure)
+        =<< Derive.lookupVal key
 
-resolve_pitch :: (Pitch.Pitch -> Maybe Pitch.Note) -> ScoreTime -> Pitch.Pitch
+resolvePitch :: (Pitch.Pitch -> Maybe Pitch.Note) -> ScoreTime -> Pitch.Pitch
     -> Derive.Deriver Pitch.NoteNumber
-resolve_pitch show_p pos = Pitches.pitch_nn <=< Call.eval_pitch show_p pos
+resolvePitch showP pos = Pitches.pitchNn <=< Call.evalPitch showP pos
 
-_initial_pitch :: Scale.Scale -> Score.Event -> Maybe Pitch.Pitch
-_initial_pitch scale event = do
-    note <- Score.initial_note event
-    either (const Nothing) Just $ Scale.scale_read scale mempty note
+_initialPitch :: Scale.Scale -> Score.Event -> Maybe Pitch.Pitch
+_initialPitch scale event = do
+    note <- Score.initialNote event
+    either (const Nothing) Just $ Scale.scaleRead scale mempty note
 
 
 -- * util
 
-add_highlight :: Color.Highlight -> Score.Event -> Score.Event
-add_highlight highlight event = event
-    { Score.event_highlight = highlight <> Score.event_highlight event }
+addHighlight :: Color.Highlight -> Score.Event -> Score.Event
+addHighlight highlight event = event
+    { Score.eventHighlight = highlight <> Score.eventHighlight event }

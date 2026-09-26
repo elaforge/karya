@@ -26,31 +26,31 @@ import           Types
 
 -- | Dump perform events to a Readable format so they can be pasted into
 -- a test.  This is analogous to 'Ui.UiTest.to_spec'.
-dump_perf_events :: FilePath -> [Types.Event] -> IO ()
-dump_perf_events fname events =
-    IO.writeFile fname $ PPrint.pshow (map Simple.dump_exact_perf_event events)
+dumpPerfEvents :: FilePath -> [Types.Event] -> IO ()
+dumpPerfEvents fname events =
+    IO.writeFile fname $ PPrint.pshow (map Simple.dumpExactPerfEvent events)
 
-read_perf_events :: [Simple.ExactPerfEvent] -> IO [Types.Event]
-read_perf_events events = do
-    db <- LoadInstruments.load =<< Path.get_app_dir
-    pure $ mapMaybe (Simple.load_exact_perf_event (lookup_patch db)) events
+readPerfEvents :: [Simple.ExactPerfEvent] -> IO [Types.Event]
+readPerfEvents events = do
+    db <- LoadInstruments.load =<< Path.getAppDir
+    pure $ mapMaybe (Simple.loadExactPerfEvent (lookupPatch db)) events
 
-lookup_patch :: Cmd.InstrumentDb -> InstT.Qualified -> Maybe Types.Patch
-lookup_patch db qualified = do
-    patch <- Inst.inst_midi =<< Inst.lookup qualified db
-    let score_inst = ScoreT.Instrument (InstT.show_qualified qualified)
-    pure $ Types.patch_from_settings score_inst mempty patch
+lookupPatch :: Cmd.InstrumentDb -> InstT.Qualified -> Maybe Types.Patch
+lookupPatch db qualified = do
+    patch <- Inst.instMidi =<< Inst.lookup qualified db
+    let scoreInst = ScoreT.Instrument (InstT.showQualified qualified)
+    pure $ Types.patchFromSettings scoreInst mempty patch
 
-empty_event :: Types.Event
-empty_event = Types.Event
-    { event_start = 0
-    , event_duration = 0
-    , event_patch = patch1
-    , event_controls = mempty
-    , event_pitch = mempty
-    , event_start_velocity = Perform.default_velocity
-    , event_end_velocity = Perform.default_velocity
-    , event_stack = DeriveTest.fake_stack
+emptyEvent :: Types.Event
+emptyEvent = Types.Event
+    { eventStart = 0
+    , eventDuration = 0
+    , eventPatch = patch1
+    , eventControls = mempty
+    , eventPitch = mempty
+    , eventStartVelocity = Perform.defaultVelocity
+    , eventEndVelocity = Perform.defaultVelocity
+    , eventStack = DeriveTest.fakeStack
     }
 
 patch1, patch2 :: Types.Patch
@@ -59,8 +59,8 @@ patch2 = mkpatch "patch2"
 
 mkpatch :: Text -> Types.Patch
 mkpatch name =
-    Types.patch_from_settings (ScoreT.Instrument name)
-        (Patch.patch_defaults patch) patch
+    Types.patchFromSettings (ScoreT.Instrument name)
+        (Patch.patchDefaults patch) patch
     where patch = Patch.patch (-1, 1) name
 
 
@@ -68,44 +68,44 @@ mkpatch name =
 
 type Extracted a = (Text, RealTime, a)
 
-extract_msg :: (Midi.Message -> Maybe a) -> [Midi.WriteMessage] -> [a]
-extract_msg f = map (\(_, _, a) -> a) . extract f
+extractMsg :: (Midi.Message -> Maybe a) -> [Midi.WriteMessage] -> [a]
+extractMsg f = map (\(_, _, a) -> a) . extract f
 
-extract_msg_ts :: (Midi.Message -> Maybe a) -> [Midi.WriteMessage]
+extractMsgTs :: (Midi.Message -> Maybe a) -> [Midi.WriteMessage]
     -> [(RealTime, a)]
-extract_msg_ts f = map (\(_, ts, a) -> (ts, a)) . extract f
+extractMsgTs f = map (\(_, ts, a) -> (ts, a)) . extract f
 
 extract :: (Midi.Message -> Maybe a) -> [Midi.WriteMessage]
     -> [Extracted a]
 extract e wmsgs =
     [ (dev, ts, a)
-    | (dev, ts, msg) <- extract_midi wmsgs, Just a <- [e msg]
+    | (dev, ts, msg) <- extractMidi wmsgs, Just a <- [e msg]
     ]
 
-extract_midi :: [Midi.WriteMessage] -> [Extracted Midi.Message]
-extract_midi wmsgs =
-    [ (Midi.write_device_text dev, ts, msg)
+extractMidi :: [Midi.WriteMessage] -> [Extracted Midi.Message]
+extractMidi wmsgs =
+    [ (Midi.writeDeviceText dev, ts, msg)
     | Midi.WriteMessage dev ts msg <- wmsgs
     ]
 
-e_note_on_off :: Midi.Message -> Maybe (Midi.Channel, Bool, Midi.Key)
-e_note_on_off msg = case msg of
+eNoteOnOff :: Midi.Message -> Maybe (Midi.Channel, Bool, Midi.Key)
+eNoteOnOff msg = case msg of
     Midi.ChannelMessage chan (Midi.NoteOn key _) -> Just (chan, True, key)
     Midi.ChannelMessage chan (Midi.NoteOff key _) -> Just (chan, False, key)
     _ -> Nothing
 
-e_chan_msg :: Midi.Message -> Maybe (Midi.Channel, Midi.ChannelMessage)
-e_chan_msg (Midi.ChannelMessage chan msg) = Just (chan, msg)
-e_chan_msg _ = Nothing
+eChanMsg :: Midi.Message -> Maybe (Midi.Channel, Midi.ChannelMessage)
+eChanMsg (Midi.ChannelMessage chan msg) = Just (chan, msg)
+eChanMsg _ = Nothing
 
-e_cmsg :: Midi.Message -> Maybe Midi.ChannelMessage
-e_cmsg = fmap snd . e_chan_msg
+eCmsg :: Midi.Message -> Maybe Midi.ChannelMessage
+eCmsg = fmap snd . eChanMsg
 
-e_cc :: Midi.Control -> Midi.Message -> Maybe Midi.ControlValue
-e_cc cc (Midi.ChannelMessage _ (Midi.ControlChange msg_cc val))
-    | cc == msg_cc = Just val
-e_cc _ _ = Nothing
+eCc :: Midi.Control -> Midi.Message -> Maybe Midi.ControlValue
+eCc cc (Midi.ChannelMessage _ (Midi.ControlChange msgCc val))
+    | cc == msgCc = Just val
+eCc _ _ = Nothing
 
-e_pitchbend :: Midi.Message -> Maybe Midi.PitchBendValue
-e_pitchbend (Midi.ChannelMessage _ (Midi.PitchBend n)) = Just n
-e_pitchbend _ = Nothing
+ePitchbend :: Midi.Message -> Maybe Midi.PitchBendValue
+ePitchbend (Midi.ChannelMessage _ (Midi.PitchBend n)) = Just n
+ePitchbend _ = Nothing

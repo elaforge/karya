@@ -9,15 +9,15 @@
     This module creates the pitches that are later parsed by Derive.Control.
 -}
 module Cmd.PitchTrack (
-    cmd_val_edit, cmd_method_edit
-    , val_edit_at, method_edit_at
-    , cmd_record_note_status
+    cmdValEdit, cmdMethodEdit
+    , valEditAt, methodEditAt
+    , cmdRecordNoteStatus
     -- * edits
-    , transpose_selection
+    , transposeSelection
     , transpose
-    , cycle_enharmonics
+    , cycleEnharmonics
     , pitches
-    , pitch_tracks
+    , pitchTracks
 #ifdef TESTING
     , module Cmd.PitchTrack
 #endif
@@ -56,56 +56,56 @@ import           Global
 --
 -- Like control tracks, @'@ will add a @'@ call, which repeats the last value.
 -- This is useful to extend a constant pitch value to the desired breakpoint.
-cmd_val_edit :: Cmd.M m => Msg.Msg -> m Cmd.Status
-cmd_val_edit msg = Cmd.suppress_history Cmd.ValEdit "pitch track val edit" $ do
+cmdValEdit :: Cmd.M m => Msg.Msg -> m Cmd.Status
+cmdValEdit msg = Cmd.suppressHistory Cmd.ValEdit "pitch track val edit" $ do
     EditUtil.fallthrough EditUtil.NoBackspace msg
     case msg of
         Msg.InputNote (InputNote.NoteOn _ input _) -> do
-            pos <- EditUtil.get_pos
-            note <- EditUtil.input_to_note input
-            val_edit_at pos note
-            whenM (Cmd.gets (Cmd.state_advance . Cmd.state_edit))
+            pos <- EditUtil.getPos
+            note <- EditUtil.inputToNote input
+            valEditAt pos note
+            whenM (Cmd.gets (Cmd.stateAdvance . Cmd.stateEdit))
                 Selection.advance
         Msg.InputNote (InputNote.PitchChange _ input) -> do
-            pos <- EditUtil.get_pos
-            note <- EditUtil.input_to_note input
-            val_edit_at pos note
-        (Msg.key_down -> Just (Key.Char '\'')) -> EditUtil.soft_insert "'"
+            pos <- EditUtil.getPos
+            note <- EditUtil.inputToNote input
+            valEditAt pos note
+        (Msg.keyDown -> Just (Key.Char '\'')) -> EditUtil.softInsert "'"
         _ -> Cmd.abort
     pure Cmd.Done
 
 -- | Method edit directs keystrokes to the (optional) call around the pitch
 -- call.  Pitches by themselves simply set a constant pitch by default, but
 -- a call can create an interpolated curve, or a trill, or anything really.
-cmd_method_edit :: Cmd.M m => Msg.Msg -> m Cmd.Status
-cmd_method_edit msg = Cmd.suppress_history Cmd.MethodEdit
+cmdMethodEdit :: Cmd.M m => Msg.Msg -> m Cmd.Status
+cmdMethodEdit msg = Cmd.suppressHistory Cmd.MethodEdit
         "pitch track method edit" $ do
     EditUtil.fallthrough EditUtil.WantBackspace msg
-    key <- Cmd.abort_unless $ EditUtil.method_key msg
-    pos <- EditUtil.get_pos
-    method_edit_at pos key
+    key <- Cmd.abortUnless $ EditUtil.methodKey msg
+    pos <- EditUtil.getPos
+    methodEditAt pos key
     pure Cmd.Done
 
-val_edit_at :: Cmd.M m => EditUtil.Pos -> Pitch.Note -> m ()
-val_edit_at pos note = modify_event_at pos $ \partial ->
-    (Just $ partial { ControlTrack._val = Pitch.note_text note }, False)
+valEditAt :: Cmd.M m => EditUtil.Pos -> Pitch.Note -> m ()
+valEditAt pos note = modifyEventAt pos $ \partial ->
+    (Just $ partial { ControlTrack._val = Pitch.noteText note }, False)
 
-method_edit_at :: Cmd.M m => EditUtil.Pos -> EditUtil.Key -> m ()
-method_edit_at pos key = modify_event_at pos $ \partial ->
+methodEditAt :: Cmd.M m => EditUtil.Pos -> EditUtil.Key -> m ()
+methodEditAt pos key = modifyEventAt pos $ \partial ->
     ( Just $ partial
         { ControlTrack._method = fromMaybe "" $
-            EditUtil.modify_text_key [] key (ControlTrack._method partial)
+            EditUtil.modifyTextKey [] key (ControlTrack._method partial)
         }
     , False
     )
 
 -- | Record the last note entered.
-cmd_record_note_status :: Cmd.M m => Msg.Msg -> m Cmd.Status
-cmd_record_note_status msg = do
+cmdRecordNoteStatus :: Cmd.M m => Msg.Msg -> m Cmd.Status
+cmdRecordNoteStatus msg = do
     case msg of
         Msg.InputNote (InputNote.NoteOn _ input _) -> do
-            note <- EditUtil.input_to_note input
-            Cmd.set_status Config.status_note $ Just $ Pitch.note_text note
+            note <- EditUtil.inputToNote input
+            Cmd.setStatus Config.statusNote $ Just $ Pitch.noteText note
         _ -> pure ()
     pure Cmd.Continue
 
@@ -114,14 +114,14 @@ cmd_record_note_status msg = do
 -- | old -> (new, advance?)
 type Modify = ControlTrack.Partial -> (Maybe ControlTrack.Partial, Bool)
 
-modify_event_at :: Cmd.M m => EditUtil.Pos -> Modify -> m ()
-modify_event_at pos f = EditUtil.modify_event_at pos True True
+modifyEventAt :: Cmd.M m => EditUtil.Pos -> Modify -> m ()
+modifyEventAt pos f = EditUtil.modifyEventAt pos True True
     (first (fmap unparse) . f . parse . fromMaybe "")
 
 parse :: Text -> ControlTrack.Partial
-parse = ControlTrack.parse_general split_expr
+parse = ControlTrack.parseGeneral splitExpr
     where
-    split_expr method val args
+    splitExpr method val args
         -- Uses parens to disambiguate between call and val vs. val
         -- with args.
         | "(" `Text.isPrefixOf` val = (method, val, args)
@@ -131,19 +131,19 @@ parse = ControlTrack.parse_general split_expr
 -- to or from toplevel call position.  This is one reason parse and unparse
 -- are not exact inverses.
 unparse :: ControlTrack.Partial -> Text
-unparse = ControlTrack.unparse_general join_expr
+unparse = ControlTrack.unparseGeneral joinExpr
     where
-    join_expr method val args
+    joinExpr method val args
         | Text.null method && Text.null val = args
         -- If the method is gone, the note no longer needs its parens.
-        | Text.null method = strip_parens val : args
-        | otherwise = [method, add_parens (Text.unwords (val : args))]
-    strip_parens t
+        | Text.null method = stripParens val : args
+        | otherwise = [method, addParens (Text.unwords (val : args))]
+    stripParens t
         | "(" `Text.isPrefixOf` t && ")" `Text.isSuffixOf` t =
             Text.drop 1 $ Text.take (Text.length t - 1) t
         | otherwise = t
     -- If there's a method and it doesn't already have parens, it'll need them.
-    add_parens val
+    addParens val
         | Text.null val || "(" `Text.isPrefixOf` val = val
         | otherwise = "(" <> val <> ")"
 
@@ -159,18 +159,18 @@ unparse = ControlTrack.unparse_general join_expr
 --
 -- This works with the convention that pitch calls take the \"base\" pitch as
 -- their first argument.
-modify_note :: (Pitch.Note -> Either Text Pitch.Note) -> Text
+modifyNote :: (Pitch.Note -> Either Text Pitch.Note) -> Text
     -> Either Text Text
-modify_note f = modify_expr $ \note_str -> case Text.uncons note_str of
+modifyNote f = modifyExpr $ \noteStr -> case Text.uncons noteStr of
     Just ('(', rest) ->
         let (note, post) = Text.break (`elem` (" )" :: [Char])) rest
-        in Text.cons '(' . (<>post) . Pitch.note_text <$> f (Pitch.Note note)
-    _ -> Pitch.note_text <$> f (Pitch.Note note_str)
+        in Text.cons '(' . (<>post) . Pitch.noteText <$> f (Pitch.Note note)
+    _ -> Pitch.noteText <$> f (Pitch.Note noteStr)
 
 -- | Modify the note expression, e.g. in @i (a b c)@ it would be @(a b c)@,
 -- including the parens.
-modify_expr :: (Text -> Either Text Text) -> Text -> Either Text Text
-modify_expr f text = case Parse.parse_expr text of
+modifyExpr :: (Text -> Either Text Text) -> Text -> Either Text Text
+modifyExpr f text = case Parse.parseExpr text of
     Left _ -> Right text
     Right expr -> case expr of
         Expr.Call sym (Expr.ValCall _ : _) :| []
@@ -197,9 +197,9 @@ modify_expr f text = case Parse.parse_expr text of
 type ModifyPitch =
     Scale.Scale -> Env.Environ -> Pitch.Note -> Either Text Pitch.Note
 
-transpose_selection :: Cmd.M m => Scale.Transposition -> Pitch.Octave
+transposeSelection :: Cmd.M m => Scale.Transposition -> Pitch.Octave
     -> Pitch.Step -> m ()
-transpose_selection transposition oct steps =
+transposeSelection transposition oct steps =
     pitches $ transpose transposition oct steps
 
 transpose :: Scale.Transposition -> Pitch.Octave -> Pitch.Step -> ModifyPitch
@@ -210,19 +210,19 @@ transpose transposition octaves steps = \scale env note ->
         Left err -> Left (pretty err)
         Right note2 -> Right note2
 
-cycle_enharmonics :: ModifyPitch
-cycle_enharmonics scale env note = first pretty $ do
-    enharmonics <- Scale.scale_enharmonics scale env note
+cycleEnharmonics :: ModifyPitch
+cycleEnharmonics scale env note = first pretty $ do
+    enharmonics <- Scale.scaleEnharmonics scale env note
     pure $ fromMaybe note (Lists.head enharmonics)
 
 pitches :: Cmd.M m => ModifyPitch -> m ()
-pitches = ModifyEvents.selection . pitch_tracks
+pitches = ModifyEvents.selection . pitchTracks
 
 -- | Apply a ModifyPitch to only pitch tracks.
-pitch_tracks :: Cmd.M m => ModifyPitch -> ModifyEvents.Track m
-pitch_tracks f = ModifyEvents.tracks_named ParseTitle.is_pitch_track $
-        \block_id track_id events -> do
-    scale <- Perf.get_scale (block_id, Just track_id)
-    env <- Perf.get_environ (block_id, Just track_id)
-    let modify = modify_note (f scale env)
-    ModifyEvents.failable_text modify block_id track_id events
+pitchTracks :: Cmd.M m => ModifyPitch -> ModifyEvents.Track m
+pitchTracks f = ModifyEvents.tracksNamed ParseTitle.isPitchTrack $
+        \blockId trackId events -> do
+    scale <- Perf.getScale (blockId, Just trackId)
+    env <- Perf.getEnviron (blockId, Just trackId)
+    let modify = modifyNote (f scale env)
+    ModifyEvents.failableText modify blockId trackId events

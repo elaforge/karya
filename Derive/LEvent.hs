@@ -4,7 +4,8 @@
 
 {-# LANGUAGE DeriveFunctor, DeriveFoldable, DeriveTraversable #-}
 module Derive.LEvent where
-import Prelude hiding (length, either, log, zip, zip3)
+import Prelude hiding (either, length, log, takeWhile, dropWhile, zip, zip3)
+import qualified Prelude
 import qualified Control.DeepSeq as DeepSeq
 import qualified Data.Either as Either
 import qualified Data.List as List
@@ -25,45 +26,45 @@ data LEvent a = Event !a | Log !Log.Msg
     deriving (Eq, Show, Functor, Foldable, Traversable)
 
 instance Pretty d => Pretty (LEvent d) where
-    format = either Pretty.format format_log
+    format = either Pretty.format formatLog
 
 instance DeepSeq.NFData a => DeepSeq.NFData (LEvent a) where
     rnf = either DeepSeq.rnf DeepSeq.rnf
 
 -- | A variation on 'Log.format_msg', except this can format the stack nicely.
-format_log :: Log.Msg -> Pretty.Doc
-format_log msg =
+formatLog :: Log.Msg -> Pretty.Doc
+formatLog msg =
     Pretty.text stars <+> Pretty.text caller <+> Pretty.format stack
-        <> Pretty.indent_ (Pretty.text (Log.msg_text msg))
+        <> Pretty.indent_ (Pretty.text (Log.msgText msg))
     where
-    stars = Text.replicate (fromEnum (Log.msg_priority msg)) "*"
-    caller = CallStack.showCaller (Log.msg_caller msg) <> ": "
-    stack = case Log.msg_stack msg of
+    stars = Text.replicate (fromEnum (Log.msgPriority msg)) "*"
+    caller = CallStack.showCaller (Log.msgCaller msg) <> ": "
+    stack = case Log.msgStack msg of
         Nothing -> Pretty.text "[]"
-        Just stack -> Stack.format_ui stack
+        Just stack -> Stack.formatUi stack
 
 event :: LEvent a -> Maybe a
 event (Event d) = Just d
 event _ = Nothing
 
-is_event :: LEvent a -> Bool
-is_event (Event {}) = True
-is_event _ = False
+isEvent :: LEvent a -> Bool
+isEvent (Event {}) = True
+isEvent _ = False
 
-is_log :: LEvent a -> Bool
-is_log (Log {}) = True
-is_log _ = False
+isLog :: LEvent a -> Bool
+isLog (Log {}) = True
+isLog _ = False
 
 -- | Always true for logs.  Useful for take and drop on events.
-log_or :: (d -> Bool) -> LEvent d -> Bool
-log_or f = either f (const True)
+logOr :: (d -> Bool) -> LEvent d -> Bool
+logOr f = either f (const True)
 
-event_or :: (Log.Msg -> Bool) -> LEvent d -> Bool
-event_or = either (const True)
+eventOr :: (Log.Msg -> Bool) -> LEvent d -> Bool
+eventOr = either (const True)
 
 -- | Drop while the predicate is true, but keep preceding logs.
-drop_while :: (a -> Bool) -> [LEvent a] -> [LEvent a]
-drop_while f = go []
+dropWhile :: (a -> Bool) -> [LEvent a] -> [LEvent a]
+dropWhile f = go []
     where
     go accum [] = reverse accum
     go accum es@(Event event : rest)
@@ -71,66 +72,66 @@ drop_while f = go []
         | otherwise = reverse accum ++ es
     go accum (log@(Log _) : rest) = go (log:accum) rest
 
-take_while :: (a -> Bool) -> [LEvent a] -> [LEvent a]
-take_while f = takeWhile (log_or f)
+takeWhile :: (a -> Bool) -> [LEvent a] -> [LEvent a]
+takeWhile f = Prelude.takeWhile (logOr f)
 
 either :: (d -> a) -> (Log.Msg -> a) -> LEvent d -> a
 either f1 _ (Event event) = f1 event
 either _ f2 (Log log) = f2 log
 
-map_log :: (Log.Msg -> Log.Msg) -> LEvent a -> LEvent a
-map_log f (Log log) = Log (f log)
-map_log _ event = event
+mapLog :: (Log.Msg -> Log.Msg) -> LEvent a -> LEvent a
+mapLog f (Log log) = Log (f log)
+mapLog _ event = event
 
-find_event :: (a -> Bool) -> [LEvent a] -> Maybe a
-find_event _ [] = Nothing
-find_event f (Log _ : rest) = find_event f rest
-find_event f (Event event : rest)
+findEvent :: (a -> Bool) -> [LEvent a] -> Maybe a
+findEvent _ [] = Nothing
+findEvent f (Log _ : rest) = findEvent f rest
+findEvent f (Event event : rest)
     | f event = Just event
-    | otherwise = find_event f rest
+    | otherwise = findEvent f rest
 
-events_of :: [LEvent d] -> [d]
-events_of [] = []
-events_of (Event e : rest) = e : events_of rest
-events_of (Log _ : rest) = events_of rest
+eventsOf :: [LEvent d] -> [d]
+eventsOf [] = []
+eventsOf (Event e : rest) = e : eventsOf rest
+eventsOf (Log _ : rest) = eventsOf rest
 
-logs_of :: [LEvent d] -> [Log.Msg]
-logs_of [] = []
-logs_of (Log log : rest) = log : logs_of rest
-logs_of (_ : rest) = logs_of rest
+logsOf :: [LEvent d] -> [Log.Msg]
+logsOf [] = []
+logsOf (Log log : rest) = log : logsOf rest
+logsOf (_ : rest) = logsOf rest
 
-write_logs :: Log.LogMonad m => [LEvent d] -> m [d]
-write_logs events = mapM_ Log.write logs >> pure vals
+writeLogs :: Log.LogMonad m => [LEvent d] -> m [d]
+writeLogs events = mapM_ Log.write logs >> pure vals
     where (vals, logs) = partition events
 
-write_snd :: Log.LogMonad m => (a, [Log.Msg]) -> m a
-write_snd (result, logs) = mapM_ Log.write logs >> pure result
+writeSnd :: Log.LogMonad m => (a, [Log.Msg]) -> m a
+writeSnd (result, logs) = mapM_ Log.write logs >> pure result
 
-write_snd_prefix :: Log.LogMonad m => Text -> (a, [Log.Msg]) -> m a
-write_snd_prefix prefix (result, logs) =
-    mapM_ Log.write (map (Log.add_prefix prefix) logs) >> pure result
+writeSndPrefix :: Log.LogMonad m => Text -> (a, [Log.Msg]) -> m a
+writeSndPrefix prefix (result, logs) =
+    mapM_ Log.write (map (Log.addPrefix prefix) logs) >> pure result
 
 partition :: [LEvent d] -> ([d], [Log.Msg])
-partition = Either.partitionEithers . map to_either
+partition = Either.partitionEithers . map toEither
     where
-    to_either (Event d) = Left d
-    to_either (Log msg) = Right msg
+    toEither (Event d) = Left d
+    toEither (Log msg) = Right msg
 
 -- | This is similar to 'List.mapAccumL', but lifted into LEvents.  It also
 -- passes future events to the function.
-map_accum :: (state -> a -> [a] -> (state, [b])) -> state -> [LEvent a]
+mapAccum :: (state -> a -> [a] -> (state, [b])) -> state -> [LEvent a]
     -> (state, [[LEvent b]])
-map_accum f state events =
+mapAccum f state events =
     List.mapAccumL process state (List.zip events (drop 1 (List.tails events)))
     where
-    process st (Event event, future_events) =
-        second (map Event) (f st event (events_of future_events))
+    process st (Event event, futureEvents) =
+        second (map Event) (f st event (eventsOf futureEvents))
     process st (Log log, _) = (st, [Log log])
 
 -- | Like 'map_accum', but provide past and future events to the function.
-map_around :: ([a] -> a -> [a] -> [b]) -> [LEvent a] -> [[LEvent b]]
-map_around f =
-    snd . map_accum (\prev event next -> (event : prev, f prev event next)) []
+mapAround :: ([a] -> a -> [a] -> [b]) -> [LEvent a] -> [[LEvent b]]
+mapAround f =
+    snd . mapAccum (\prev event next -> (event : prev, f prev event next)) []
 
 zip :: [a] -> [LEvent x] -> [LEvent (a, x)]
 zip as (Log x : xs) = Log x : zip as xs

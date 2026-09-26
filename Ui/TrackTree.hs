@@ -28,29 +28,29 @@ import           Types
 -- | A TrackTree is the Skeleton resolved to the tracks it references.
 type TrackTree = [Tree.Tree Ui.TrackInfo]
 
-tracks_of :: Ui.M m => BlockId -> m [Ui.TrackInfo]
-tracks_of block_id = do
-    block <- Ui.get_block block_id
+tracksOf :: Ui.M m => BlockId -> m [Ui.TrackInfo]
+tracksOf blockId = do
+    block <- Ui.getBlock blockId
     state <- Ui.get
-    pure $ track_info block (Ui.state_tracks state)
+    pure $ trackInfo block (Ui.stateTracks state)
     where
-    track_info block tracks = do
-        (i, btrack@(Block.Track { Block.tracklike_id = Block.TId tid _}))
-            <- zip [0..] (Block.block_tracks block)
+    trackInfo block tracks = do
+        (i, btrack@(Block.Track { Block.tracklikeId = Block.TId tid _}))
+            <- zip [0..] (Block.blockTracks block)
         track <- maybe [] (:[]) (Map.lookup tid tracks)
         pure $ Ui.TrackInfo
-            { track_title = Track.track_title track
-            , track_id = tid
-            , track_tracknum = i
-            , track_block = btrack
+            { trackTitle = Track.trackTitle track
+            , trackId = tid
+            , trackTracknum = i
+            , trackBlock = btrack
             }
 
 -- | Return @(parents, self : children)@.
-parents_children_of :: Ui.M m => BlockId -> TrackId
+parentsChildrenOf :: Ui.M m => BlockId -> TrackId
     -> m (Maybe ([Ui.TrackInfo], [Ui.TrackInfo]))
-parents_children_of block_id track_id = do
-    tree <- track_tree_of block_id
-    case List.find (\(t, _, _) -> Ui.track_id t == track_id)
+parentsChildrenOf blockId trackId = do
+    tree <- trackTreeOf blockId
+    case List.find (\(t, _, _) -> Ui.trackId t == trackId)
             (Trees.flatPaths tree) of
         Nothing -> pure Nothing
         Just (track, parents, children) ->
@@ -58,17 +58,17 @@ parents_children_of block_id track_id = do
 
 -- | This is like 'parents_children_of', but only the children, and it doesn't
 -- include the given TrackId.
-get_children_of :: Ui.M m => BlockId -> TrackId -> m [Ui.TrackInfo]
-get_children_of block_id track_id =
-    parents_children_of block_id track_id >>= \case
+getChildrenOf :: Ui.M m => BlockId -> TrackId -> m [Ui.TrackInfo]
+getChildrenOf blockId trackId =
+    parentsChildrenOf blockId trackId >>= \case
         Just (_, _ : children) -> pure children
-        _ -> Ui.throw $ "no children of " <> pretty (block_id, track_id)
+        _ -> Ui.throw $ "no children of " <> pretty (blockId, trackId)
 
-is_child_of :: Ui.M m => BlockId -> TrackNum -> TrackNum -> m Bool
-is_child_of block_id parent child = do
-    children <- get_children_of block_id
-        =<< Ui.get_event_track_at block_id parent
-    pure $ child `elem` map Ui.track_tracknum children
+isChildOf :: Ui.M m => BlockId -> TrackNum -> TrackNum -> m Bool
+isChildOf blockId parent child = do
+    children <- getChildrenOf blockId
+        =<< Ui.getEventTrackAt blockId parent
+    pure $ child `elem` map Ui.trackTracknum children
 
 -- | Combine the skeleton with the tracks to create a TrackTree.
 --
@@ -77,100 +77,100 @@ is_child_of block_id parent child = do
 -- away.  But that would mean redoing all the "Ui.Skeleton" operations for
 -- trees.  And the reason I didn't do it in the first place was the hassle of
 -- graph operations on a Data.Tree.
-track_tree_of :: Ui.M m => BlockId -> m TrackTree
-track_tree_of block_id = do
-    skel <- Ui.get_skeleton block_id
-    tracks <- tracks_of block_id
-    ntracks <- fmap (length . Block.block_tracklike_ids) (Ui.get_block block_id)
-    let by_tracknum = Map.fromList $
-            zip (map Ui.track_tracknum tracks) tracks
-    let (resolved, missing) = resolve_track_tree by_tracknum
-            (Skeleton.to_forest ntracks skel)
+trackTreeOf :: Ui.M m => BlockId -> m TrackTree
+trackTreeOf blockId = do
+    skel <- Ui.getSkeleton blockId
+    tracks <- tracksOf blockId
+    ntracks <- fmap (length . Block.blockTracklikeIds) (Ui.getBlock blockId)
+    let byTracknum = Map.fromList $
+            zip (map Ui.trackTracknum tracks) tracks
+    let (resolved, missing) = resolveTrackTree byTracknum
+            (Skeleton.toForest ntracks skel)
     -- Rulers and dividers should show up as missing.  They're ok as long as
     -- they have no edges.
-    let really_missing = filter (not . Skeleton.lonely_vertex skel) missing
-    unless (null really_missing) $
-        Ui.throw $ "skeleton of " <> showt block_id
-            <> " names missing tracknums: " <> showt really_missing
+    let reallyMissing = filter (not . Skeleton.lonelyVertex skel) missing
+    unless (null reallyMissing) $
+        Ui.throw $ "skeleton of " <> showt blockId
+            <> " names missing tracknums: " <> showt reallyMissing
     pure resolved
 
 -- | Resolve the TrackNum indices in a tree into whatever values as given by
 -- a map.
-resolve_track_tree :: Map TrackNum a -> [Tree.Tree TrackNum]
+resolveTrackTree :: Map TrackNum a -> [Tree.Tree TrackNum]
     -> ([Tree.Tree a], [TrackNum]) -- ^ resolved tree, and missing TrackNums
-resolve_track_tree tracknums = foldr (cat_tree . go) ([], [])
+resolveTrackTree tracknums = foldr (catTree . go) ([], [])
     where
     go (Tree.Node tracknum subs) = case Map.lookup tracknum tracknums of
         Nothing -> (Nothing, [tracknum])
-        Just track_info ->
-            let (subforest, missing) = resolve_track_tree tracknums subs
-            in (Just (Tree.Node track_info subforest), missing)
-    cat_tree (maybe_tree, missing) (forest, all_missing) = case maybe_tree of
-        Nothing -> (forest, missing ++ all_missing)
-        Just tree -> (tree : forest, missing ++ all_missing)
+        Just trackInfo ->
+            let (subforest, missing) = resolveTrackTree tracknums subs
+            in (Just (Tree.Node trackInfo subforest), missing)
+    catTree (maybeTree, missing) (forest, allMissing) = case maybeTree of
+        Nothing -> (forest, missing ++ allMissing)
+        Just tree -> (tree : forest, missing ++ allMissing)
 
-strip_disabled_tracks :: Ui.M m => BlockId -> TrackTree -> m TrackTree
-strip_disabled_tracks block_id = concatMapM strip
+stripDisabledTracks :: Ui.M m => BlockId -> TrackTree -> m TrackTree
+stripDisabledTracks blockId = concatMapM strip
     where
     strip (Tree.Node track subs) = ifM (disabled track)
         (concatMapM strip subs)
         ((:[]) . Tree.Node track <$> concatMapM strip subs)
     disabled = fmap (Block.Disable `Set.member`)
-        . Ui.track_flags block_id . Ui.track_tracknum
+        . Ui.trackFlags blockId . Ui.trackTracknum
 
 type EventsTree = [EventsNode]
 type EventsNode = Tree.Tree Track
 
 data Track = Track
-    { track_title :: !Text
+    { trackTitle :: !Text
     -- | Events on this track.  These are shifted by
     -- 'Derive.Slice.slice_notes', so they are in ScoreTime, not TrackTime.
-    , track_events :: !Events.Events
+    , trackEvents :: !Events.Events
     -- | This goes into the stack when the track is evaluated.  Inverted tracks
     -- will carry the TrackId of the track they were inverted from, so they'll
     -- show up in the stack twice.  This means they can record their environ
     -- as it actually is when the notes are evaluated, rather than its
     -- pre-invert value, which is likely to not have the right scale.
-    , track_id :: !(Maybe TrackId)
+    , trackId :: !(Maybe TrackId)
     -- | The block these events came from.  A track can appear in multiple
     -- blocks, but can only appear once in each block.
-    , track_block_id :: !(Maybe BlockId)
+    , trackBlockId :: !(Maybe BlockId)
 
     -- | The relative start and end of this slice of track.  Like
     -- 'track_events', this is in ScoreTime, not TrackTime.
-    , track_start :: !ScoreTime
-    , track_end :: !ScoreTime
+    , trackStart :: !ScoreTime
+    , trackEnd :: !ScoreTime
 
     -- | True if this is a sliced track.  That means it's a fragment of
     -- a track and certain track-level things should be skipped.
-    , track_sliced :: !Sliced
+    , trackSliced :: !Sliced
     -- | These events are not evaluated, but go in
     -- 'Derive.Derive.ctx_prev_events' and ctx_next_events.  This is so that
     -- sliced calls (such as inverting calls) can see previous and following
     -- events.  Shifted along with 'track_events'.
-    , track_around :: !([Event.Event], [Event.Event])
+    , trackAround :: !([Event.Event], [Event.Event])
 
     -- | If the events have been shifted from their original positions on the
     -- track, add this to them to put them back in TrackTime.
-    , track_shifted :: !TrackTime
+    , trackShifted :: !TrackTime
     -- | This is the track's track voice, as defined in 'Environ.track_voices'.
     -- Originally I tried to keep it all within "Derive.Call.BlockUtil", but
     -- it gets complicated with child tracks and slicing.  Putting it in
     -- 'Track' ensures it can't get lost.
-    , track_voice :: !(Maybe Int)
+    , trackVoice :: !(Maybe Int)
     } deriving (Show)
 
-track_range :: Track -> (TrackTime, TrackTime)
-track_range track = (track_shifted track, track_shifted track + track_end track)
+trackRange :: Track -> (TrackTime, TrackTime)
+trackRange track = (trackShifted track, trackShifted track + trackEnd track)
 
 instance Pretty Track where
-    format (Track title events track_id block_id start end sliced
+    format (Track title events trackId blockId start end sliced
             around shifted voice) =
         Pretty.record "Track"
             [ ("title", Pretty.format title)
             , ("events", Pretty.format events)
-            , ("track_id", Pretty.format track_id)
-            , ("block_id", Pretty.format block_id)
+            , ("track_id", Pretty.format trackId)
+            , ("block_id", Pretty.format blockId)
             , ("start", Pretty.format start)
             , ("end", Pretty.format end)
             , ("sliced", Pretty.format sliced)
@@ -179,18 +179,18 @@ instance Pretty Track where
             , ("voice", Pretty.format voice)
             ]
 
-make_track :: Text -> Events.Events -> ScoreTime -> Track
-make_track title events end = Track
-    { track_title = title
-    , track_events = events
-    , track_id = Nothing
-    , track_block_id = Nothing
-    , track_start = 0
-    , track_end = end
-    , track_sliced = NotSliced
-    , track_around = ([], [])
-    , track_shifted = 0
-    , track_voice = Nothing
+makeTrack :: Text -> Events.Events -> ScoreTime -> Track
+makeTrack title events end = Track
+    { trackTitle = title
+    , trackEvents = events
+    , trackId = Nothing
+    , trackBlockId = Nothing
+    , trackStart = 0
+    , trackEnd = end
+    , trackSliced = NotSliced
+    , trackAround = ([], [])
+    , trackShifted = 0
+    , trackVoice = Nothing
     }
 
 data Sliced
@@ -208,68 +208,68 @@ data Sliced
 
 instance Pretty Sliced where pretty = showt
 
-block_track_id :: Track -> Maybe (BlockId, TrackId)
-block_track_id track = do
-    bid <- track_block_id track
-    tid <- track_id track
+blockTrackId :: Track -> Maybe (BlockId, TrackId)
+blockTrackId track = do
+    bid <- trackBlockId track
+    tid <- trackId track
     pure (bid, tid)
 
-events_tree_of :: Ui.M m => BlockId -> m EventsTree
-events_tree_of block_id = do
-    info_tree <- track_tree_of block_id
-    end <- Ui.block_ruler_end block_id
-    events_tree block_id end info_tree
+eventsTreeOf :: Ui.M m => BlockId -> m EventsTree
+eventsTreeOf blockId = do
+    infoTree <- trackTreeOf blockId
+    end <- Ui.blockRulerEnd blockId
+    eventsTree blockId end infoTree
 
-events_tree :: Ui.M m => BlockId -> ScoreTime -> [Tree.Tree Ui.TrackInfo]
+eventsTree :: Ui.M m => BlockId -> ScoreTime -> [Tree.Tree Ui.TrackInfo]
     -> m EventsTree
-events_tree block_id end = mapM resolve . track_voices
+eventsTree blockId end = mapM resolve . trackVoices
     where
-    resolve (Tree.Node (Ui.TrackInfo title track_id _ _, voice) subs) =
-        Tree.Node <$> make title track_id voice <*> mapM resolve subs
-    make title track_id voice = do
-        events <- Ui.get_events track_id
-        pure $ (make_track title events end)
-            { track_id = Just track_id
-            , track_block_id = Just block_id
-            , track_voice = voice
+    resolve (Tree.Node (Ui.TrackInfo title trackId _ _, voice) subs) =
+        Tree.Node <$> make title trackId voice <*> mapM resolve subs
+    make title trackId voice = do
+        events <- Ui.getEvents trackId
+        pure $ (makeTrack title events end)
+            { trackId = Just trackId
+            , trackBlockId = Just blockId
+            , trackVoice = voice
             }
 
 -- | Get the EventsTree of a block.  Strip disabled tracks.
-block_events_tree :: Ui.M m => BlockId -> m EventsTree
-block_events_tree block_id = do
-    info_tree <- strip_disabled_tracks block_id =<< track_tree_of block_id
+blockEventsTree :: Ui.M m => BlockId -> m EventsTree
+blockEventsTree blockId = do
+    infoTree <- stripDisabledTracks blockId =<< trackTreeOf blockId
     -- This is the end of the last event or ruler, not
     -- Ui.block_logical_range.  The reason is that functions that look at
     -- track_end are expecting the physical end, e.g.
     -- Control.derive_control uses it to put the last sample on the tempo
     -- track.
-    end <- Ui.block_end block_id
-    events_tree block_id end info_tree
+    end <- Ui.blockEnd blockId
+    eventsTree blockId end infoTree
 
 -- | All the children of this EventsNode with TrackIds.
-track_children :: EventsNode -> Set TrackId
-track_children = foldl' (flip Set.insert) Set.empty
-    . mapMaybe track_id . Tree.flatten
+trackChildren :: EventsNode -> Set TrackId
+trackChildren = foldl' (flip Set.insert) Set.empty
+    . mapMaybe trackId . Tree.flatten
 
 -- | Each note track with an instrument gets a count and maximum count, so they
 -- can go in 'Environ.track_voice' and 'Environ.track_voices'.
-track_voices :: [Tree.Tree Ui.TrackInfo]
+trackVoices :: [Tree.Tree Ui.TrackInfo]
     -> [Tree.Tree (Ui.TrackInfo, Maybe Int)]
-track_voices tracks = map (fmap only_inst) $ count_occurrences inst_of tracks
+trackVoices tracks = map (fmap onlyInst) $ countOccurrences instOf tracks
     where
-    inst_of = not_empty <=< ParseTitle.title_to_instrument . Ui.track_title
+    instOf = notEmpty <=< ParseTitle.titleToInstrument . Ui.trackTitle
         where
-        not_empty inst = if inst == ScoreT.empty_instrument
+        notEmpty inst = if inst == ScoreT.emptyInstrument
             then Nothing else Just inst
-    only_inst (track, voice)
-        | Just _ <- inst_of track = (track, Just voice)
+    onlyInst (track, voice)
+        | Just _ <- instOf track = (track, Just voice)
         | otherwise = (track, Nothing)
 
 -- | For each element, give its index amount its equals, and the total number
 -- of elements equal to it.
-count_occurrences :: (Traversable f, Traversable g, Ord k) =>
+countOccurrences :: (Traversable f, Traversable g, Ord k) =>
     (a -> k) -> f (g a) -> f (g (a, Int))
-count_occurrences key =
+countOccurrences key =
     snd . (Traversable.mapAccumL . Traversable.mapAccumL) go mempty
     where
     go counts x = (Map.insert (key x) (n+1) counts, (x, n))

@@ -29,20 +29,20 @@ import Types
 
 test_slice :: Test
 test_slice = do
-    let f exclusive s e insert = map (fmap extract_tree)
-            . map (Slice.slice exclusive s e insert . make_tree)
-    equal (f False 1 2 Nothing [Node (make_notes 2 "ab") []])
+    let f exclusive s e insert = map (fmap extractTree)
+            . map (Slice.slice exclusive s e insert . makeTree)
+    equal (f False 1 2 Nothing [Node (makeNotes 2 "ab") []])
         [Node (">", []) []]
-    equal (f False 1 2 Nothing [Node (make_notes 1 "ab") []])
+    equal (f False 1 2 Nothing [Node (makeNotes 1 "ab") []])
         [Node (">", [(1, 1, "a")]) []]
-    equal (f True 1 2 Nothing [Node (make_notes 1 "ab") []])
+    equal (f True 1 2 Nothing [Node (makeNotes 1 "ab") []])
         [Node (">", []) []]
 
     -- control tracks get neighbors
-    equal (f False 1 2 Nothing [Node (make_controls "c" [0, 2..10]) []])
-        [Node (make_controls "c" [0, 2]) []]
-    equal (f False 2 5 Nothing [Node (make_controls "c" [0, 2..10]) []])
-        [Node (make_controls "c" [2, 4, 6]) []]
+    equal (f False 1 2 Nothing [Node (makeControls "c" [0, 2..10]) []])
+        [Node (makeControls "c" [0, 2]) []]
+    equal (f False 2 5 Nothing [Node (makeControls "c" [0, 2..10]) []])
+        [Node (makeControls "c" [2, 4, 6]) []]
 
     -- Zero duration slice still slices exact matches. This is so zero duration
     -- note slicing works.
@@ -52,22 +52,22 @@ test_slice = do
 test_slice_neighbors :: Test
 test_slice_neighbors = do
     let f exclusive s e =
-            extract . Slice.slice exclusive s e Nothing . make_tree
+            extract . Slice.slice exclusive s e Nothing . makeTree
         extract = fmap $ \track ->
-            extract_around (TrackTree.track_around track)
-        extract_around (before, after) =
+            extractAround (TrackTree.trackAround track)
+        extractAround (before, after) =
             (mconcatMap Event.text before, mconcatMap Event.text after)
-    let notes offset ns = Node (make_notes offset ns)
-        controls cs = Node (make_controls "c" cs)
+    let notes offset ns = Node (makeNotes offset ns)
+        controls cs = Node (makeControls "c" cs)
     equal (f False 1 2 (controls [0..4] [notes 0 "xyz" []]))
         (Node ("0", "34") [Node ("x", "z") []])
 
 test_slice_notes :: Test
 test_slice_notes = do
-    let f = slice_notes False
-    let notes ns = Node (make_notes 0 ns)
-        control cs = Node (make_controls "c" cs)
-        control2 cs = Node (make_controls2 "c" cs)
+    let f = sliceNotes False
+    let notes ns = Node (makeNotes 0 ns)
+        control cs = Node (makeControls "c" cs)
+        control2 cs = Node (makeControls2 "c" cs)
 
     -- no sub tracks works too
     equal (f 0 1 [notes "abc" []])
@@ -92,12 +92,12 @@ test_slice_notes = do
 
     -- make sure parent track order doesn't get messed up
     equal (f 0 1
-        [Node (make_controls "c1" [0..6])
-            [Node (make_controls "c2" [0..6])
-                [Node (make_notes 0 "a") []]]])
+        [Node (makeControls "c1" [0..6])
+            [Node (makeControls "c2" [0..6])
+                [Node (makeNotes 0 "a") []]]])
         [[ (0, 1,
-            [Node (make_controls "c1" [0, 1])
-                [Node (make_controls "c2" [0, 1])
+            [Node (makeControls "c1" [0, 1])
+                [Node (makeControls "c2" [0, 1])
                     [Node (">", [(0, 1, "a")]) []]]])
         ]]
 
@@ -136,9 +136,9 @@ test_slice_notes = do
 
 test_slice_notes_track_id :: Test
 test_slice_notes_track_id = do
-    let f = slice_notes_track_id False
-    let notes inst ns = Node (make_notes_inst inst 0 ns)
-        control cs = Node (make_controls "c" cs)
+    let f = sliceNotesTrackId False
+    let notes inst ns = Node (makeNotesInst inst 0 ns)
+        control cs = Node (makeControls "c" cs)
     equal (f 0 1 [notes "i1" "ab" [], notes "i2" "cd" []])
         [ (Just (UiTest.tid "i1"), [(0, 1, [notes "i1" "a" []])])
         , (Just (UiTest.tid "i2"), [(0, 1, [notes "i2" "c" []])])
@@ -152,7 +152,7 @@ test_slice_notes_track_id = do
 
 test_slice_notes_zero_dur :: Test
 test_slice_notes_zero_dur = do
-    let f = slice_notes False
+    let f = sliceNotes False
     equal (f 0 2 [Node (">", [(0, 0, "a")]) []])
         [[(0, 0, [Node (">", [(0, 0, "a")]) []])]]
     equal (f 0 2 [Node (">", [(0, 0, "a"), (1, 0, "b")]) []])
@@ -166,13 +166,13 @@ test_slice_notes_shift :: Test
 test_slice_notes_shift = do
     -- Verify that shifting and slicing modify track_start, track_end and
     -- track_shifted properly.
-    let f s e = map snd . extract_notes extract . Slice.slice_notes False s e
-        extract t = ((TrackTree.track_start t, TrackTree.track_end t),
-            TrackTree.track_shifted t)
-    let tree start track_end = Node (track start track_end) []
-        track start track_end = (make_track ">" [(start, 1, "a")] 32)
-            { TrackTree.track_end = track_end
-            , TrackTree.track_shifted = 1
+    let f s e = map snd . extractNotes extract . Slice.sliceNotes False s e
+        extract t = ((TrackTree.trackStart t, TrackTree.trackEnd t),
+            TrackTree.trackShifted t)
+    let tree start trackEnd = Node (track start trackEnd) []
+        track start trackEnd = (makeTrack ">" [(start, 1, "a")] 32)
+            { TrackTree.trackEnd = trackEnd
+            , TrackTree.trackShifted = 1
             }
     -- No shift, so the values remain the same.
     equal (f 0 1 [tree 0 1]) [[(0, 1, [Node ((0, 1), 1) []])]]
@@ -185,8 +185,8 @@ test_slice_notes_shift = do
 
 test_slice_include_end :: Test
 test_slice_include_end = do
-    let f = slice_notes
-    let notes ns = Node (make_notes 0 ns)
+    let f = sliceNotes
+    let notes ns = Node (makeNotes 0 ns)
     equal (f False 1 3 [notes "abcde" []])
         [[(1, 1, [notes "b" []]), (2, 1, [notes "c" []])]]
     equal (f True 1 3 [notes "abcde" []])
@@ -198,9 +198,9 @@ test_slice_notes_sparse = do
     -- Ensure that an intervening empty note track doesn't hide the notes
     -- on the track below it.  This is analogous to orphan extraction in the
     -- top level.
-    let f = slice_notes False
-    let notes offset ns = Node (make_notes offset ns)
-        control cs = Node (make_controls "c" cs)
+    let f = sliceNotes False
+    let notes offset ns = Node (makeNotes offset ns)
+        control cs = Node (makeControls "c" cs)
         empty = notes 0 ""
 
     -- Intervening track is empty.
@@ -244,36 +244,36 @@ test_slice_notes_sparse = do
     -- c---
     -- 1-2-
     -- => (a (c 1)) (b 2)
-    let dur = Node . make_notes_dur
+    let dur = Node . makeNotesDur
     equal (f 0 2 [notes 0 "ab" [dur [(0, 2, 'c')] [notes 0 "12" []]]])
         [ [ (0, 1, [notes 0 "a" [dur [(0, 2, 'c')] [notes 0 "1" []]]])
           , (1, 1, [notes 0 "b" [empty [notes 0 "2" []]]])
           ]
         ]
 
-slice_notes :: Bool -> ScoreTime -> ScoreTime -> [EventsTree]
+sliceNotes :: Bool -> ScoreTime -> ScoreTime -> [EventsTree]
     -> [[(ScoreTime, ScoreTime, [EventsTree])]]
-slice_notes include_end s e = map snd . slice_notes_track_id include_end s e
+sliceNotes includeEnd s e = map snd . sliceNotesTrackId includeEnd s e
 
-slice_notes_track_id :: Bool -> ScoreTime -> ScoreTime -> [EventsTree]
+sliceNotesTrackId :: Bool -> ScoreTime -> ScoreTime -> [EventsTree]
     -> [(Maybe TrackId, [(ScoreTime, ScoreTime, [EventsTree])])]
-slice_notes_track_id include_end s e = extract_notes extract_tree
-    . Slice.slice_notes include_end s e . map make_tree
+sliceNotesTrackId includeEnd s e = extractNotes extractTree
+    . Slice.sliceNotes includeEnd s e . map makeTree
 
-extract_notes :: (TrackTree.Track -> a)
+extractNotes :: (TrackTree.Track -> a)
     -> [Slice.Track]
     -> [(Maybe TrackId, [(ScoreTime, ScoreTime, [Tree a])])]
-extract_notes f = map $ \(Slice.Track track_id notes) ->
-    (track_id, map (\(s, e, t) -> (s, e, map (fmap f) t)) notes)
+extractNotes f = map $ \(Slice.Track trackId notes) ->
+    (trackId, map (\(s, e, t) -> (s, e, map (fmap f) t)) notes)
 
 test_slur :: Test
 test_slur = do
     let run = DeriveTest.extract extract
-            . LilypondTest.derive_tracks_linear
+            . LilypondTest.deriveTracksLinear
         extract e =
-            ( DeriveTest.e_note e
-            , LilypondTest.e_ly_env e
-            , ShowVal.show_val (Score.event_attributes e)
+            ( DeriveTest.eNote e
+            , LilypondTest.eLyEnv e
+            , ShowVal.showVal (Score.eventAttributes e)
             )
     -- Yeah, a slur test should probably go in Attribute_test, but I'm also
     -- testing that the slicing mechanic interacts with calls how I expect it
@@ -281,8 +281,8 @@ test_slur = do
     let (events, logs) = run $
             [ (">", [(0, 2, "(")])
             , (">", [(0, 1, "+a")])
-            ] ++ UiTest.regular_notes 2
-    let key pos dist = Constants.position_key $
+            ] ++ UiTest.regularNotes 2
+    let key pos dist = Constants.positionKey $
             Constants.CodePosition Constants.Chord pos dist
     equal events
         [ ((0, 1, "3c"), [(key Constants.Append Constants.First, "'('")], "+a")
@@ -292,10 +292,10 @@ test_slur = do
 
 test_strip_empty_tracks :: Test
 test_strip_empty_tracks = do
-    let f = map (fmap extract_tree) . Slice.strip_empty_tracks . make_tree
-    let empty = Node (make_notes 0 "")
-        notes c = Node (make_notes 0 (c:""))
-        controls = Node (make_controls "c" [1])
+    let f = map (fmap extractTree) . Slice.stripEmptyTracks . makeTree
+    let empty = Node (makeNotes 0 "")
+        notes c = Node (makeNotes 0 (c:""))
+        controls = Node (makeControls "c" [1])
     equal (f $ notes 'a' [empty []]) [notes 'a' [empty []]]
     equal (f $ empty [empty [controls []]]) []
     -- Empty branch is stripped.
@@ -305,9 +305,9 @@ test_strip_empty_tracks = do
 
 test_overlaps :: Test
 test_overlaps = do
-    let run = DeriveTest.extract extract . DeriveTest.derive_tracks_linear ""
-        extract e = (DeriveTest.e_pitch e, DeriveTest.e_attributes e)
-        overlapping_log = "slice has overlap"
+    let run = DeriveTest.extract extract . DeriveTest.deriveTracksLinear ""
+        extract e = (DeriveTest.ePitch e, DeriveTest.eAttributes e)
+        overlappingLog = "slice has overlap"
 
     -- +b overlaps with the orphan spaces after +a.
     -- +a
@@ -316,24 +316,24 @@ test_overlaps = do
     let (events, logs) = run $
             [ (">", [(0, 1, "+a")])
             , (">", [(0, 2, "+b")])
-            ] ++ UiTest.regular_notes 2
+            ] ++ UiTest.regularNotes 2
     equal events [("3c", "+a+b"), ("3d", "+a+b")]
-    strings_like logs [overlapping_log]
+    stringsLike logs [overlappingLog]
 
     -- It's ok if +a duration is 0, though.
     equal (run $ [(">", [(0, 0, "+a")]), (">", [(0, 2, "+b")])]
-            ++ UiTest.regular_notes 1)
+            ++ UiTest.regularNotes 1)
         ([("3c", "+a+b")], [])
 
     -- Zero dur with a note afterwards.
-    equal (run $ (">", [(0, 0, "+a")]) : UiTest.regular_notes 2)
+    equal (run $ (">", [(0, 0, "+a")]) : UiTest.regularNotes 2)
         ([("3c", "+a"), ("3d", "+")], [])
 
     -- +a
     --   +b
     -- 3c3d
     equal (run $ [(">", [(0, 0, "+a"), (1, 0, "+b")])]
-            ++ UiTest.regular_notes 2)
+            ++ UiTest.regularNotes 2)
         ([("3c", "+a"), ("3d", "+b")], [])
 
     -- But not if there are multiple notes underneath.  Otherwise, the
@@ -344,9 +344,9 @@ test_overlaps = do
     let (events, logs) = run $
             [ (">", [(0, 0, "+a")])
             , (">", [(0, 2, "+b")])
-            ] ++ UiTest.regular_notes 2
+            ] ++ UiTest.regularNotes 2
     equal events [("3d", "+")]
-    strings_like logs ["zero duration slice"]
+    stringsLike logs ["zero duration slice"]
 
     -- +b overlaps with +a, but +b is an orphan.
     --   +a
@@ -356,11 +356,11 @@ test_overlaps = do
     let (events, logs) = run $
             [ (">", [(1, 1, "+a")])
             , (">", [(0, 2, "+b")])
-            ] ++ UiTest.regular_notes 2
+            ] ++ UiTest.regularNotes 2
     -- ("3c", "+b") doesn't happen because derive_orphans is not isolated from
     -- the event derive when it throws.  Not a big deal.
     equal events []
-    strings_like logs [overlapping_log]
+    stringsLike logs [overlappingLog]
 
     -- +c overlaps with +b.
     -- +a+b
@@ -369,9 +369,9 @@ test_overlaps = do
     let (events, logs) = run $
             [ (">", [(0, 1, "+a"), (1, 1, "+b")])
             , (">", [(0, 2, "+c")])
-            ] ++ UiTest.regular_notes 2
+            ] ++ UiTest.regularNotes 2
     equal events [("3c", "+a+c"), ("3d", "+a+c")]
-    strings_like logs [overlapping_log]
+    stringsLike logs [overlappingLog]
 
     -- No overlaps.
     -- +a--
@@ -380,11 +380,11 @@ test_overlaps = do
     let (events, logs) = run $
             [ (">", [(0, 2, "+a")])
             , (">", [(0, 1, "+b"), (1, 1, "+c")])
-            ] ++ UiTest.regular_notes 2
+            ] ++ UiTest.regularNotes 2
     equal events [("3c", "+a+b"), ("3d", "+a+c")]
     equal logs []
     -- No overlaps.
-    equal (run $ UiTest.note_track [(0, 1, "4c"), (1, 1, "4d")])
+    equal (run $ UiTest.noteTrack [(0, 1, "4c"), (1, 1, "4d")])
         ([("4c", "+"), ("4d", "+")], [])
 
     -- +d overlaps with +b.
@@ -394,21 +394,21 @@ test_overlaps = do
     let (events, logs) = run $
             [ (">", [(0, 2, "+a"), (2, 2, "+b")])
             , (">", [(0, 1, "+c"), (1, 3, "+d")])
-            ] ++ UiTest.regular_notes 4
+            ] ++ UiTest.regularNotes 4
     equal events
         [ ("3c", "+a+c")
         , ("3d", "+a+d")
         , ("3e", "+a+d")
         , ("3f", "+a+d")
         ]
-    strings_like logs [overlapping_log]
+    stringsLike logs [overlappingLog]
 
 test_note_transformer_stack :: Test
 test_note_transformer_stack = do
     -- The stack should be correct even in the presence of slicing and
     -- inversion.
-    let run = DeriveTest.extract (DeriveTest.stack_to_ui . Score.event_stack)
-            . DeriveTest.derive_tracks_linear ""
+    let run = DeriveTest.extract (DeriveTest.stackToUi . Score.eventStack)
+            . DeriveTest.deriveTracksLinear ""
     let (stacks, logs) = run
             [ (">", [(1, 1, "ap")])
             , (">", [(1, 1, "")])
@@ -431,47 +431,47 @@ test_note_transformer_stack = do
 type EventsTree = Tree.Tree (Text, [Event])
 type Event = (ScoreTime, ScoreTime, Text)
 
-extract_tree :: TrackTree.Track -> (Text, [Event])
-extract_tree track =
-    (TrackTree.track_title track, extract_track (TrackTree.track_events track))
+extractTree :: TrackTree.Track -> (Text, [Event])
+extractTree track =
+    (TrackTree.trackTitle track, extractTrack (TrackTree.trackEvents track))
 
-extract_track :: Events.Events -> [Event]
-extract_track events =
+extractTrack :: Events.Events -> [Event]
+extractTrack events =
     [(Event.start e, Event.duration e, Event.text e)
         | e <- Events.ascending events]
 
-make_tree :: EventsTree -> TrackTree.EventsNode
-make_tree = fmap $ \(title, events) -> make_track title events 32
+makeTree :: EventsTree -> TrackTree.EventsNode
+makeTree = fmap $ \(title, events) -> makeTrack title events 32
 
-make_track :: Text -> [Event] -> TrackTime -> TrackTree.Track
-make_track title events end =
-    (TrackTree.make_track title tevents end)
-        { TrackTree.track_id =
-            Just $ UiTest.tid $ Text.filter Id.is_id_char title
+makeTrack :: Text -> [Event] -> TrackTime -> TrackTree.Track
+makeTrack title events end =
+    (TrackTree.makeTrack title tevents end)
+        { TrackTree.trackId =
+            Just $ UiTest.tid $ Text.filter Id.isIdChar title
         }
     where
-    tevents = Events.from_list
+    tevents = Events.fromList
         [Event.event start dur text | (start, dur, text) <- events]
 
-make_controls :: Text -> [Int] -> (Text, [Event])
-make_controls title ps = (title, [(to_score p, 0, showt p) | p <- ps])
+makeControls :: Text -> [Int] -> (Text, [Event])
+makeControls title ps = (title, [(toScore p, 0, showt p) | p <- ps])
 
-make_controls2 :: Text -> [(Int, Text)] -> (Text, [Event])
-make_controls2 title ps = (title, [(to_score p, 0, val) | (p, val) <- ps])
+makeControls2 :: Text -> [(Int, Text)] -> (Text, [Event])
+makeControls2 title ps = (title, [(toScore p, 0, val) | (p, val) <- ps])
 
-to_score :: Int -> ScoreTime
-to_score = ScoreTime.from_double . fromIntegral
+toScore :: Int -> ScoreTime
+toScore = ScoreTime.fromDouble . fromIntegral
 
-make_notes :: ScoreTime -> [Char] -> (Text, [Event])
-make_notes = make_notes_inst ""
+makeNotes :: ScoreTime -> [Char] -> (Text, [Event])
+makeNotes = makeNotesInst ""
 
-make_notes_inst :: Text -> ScoreTime -> [Char] -> (Text, [Event])
-make_notes_inst inst offset notes =
+makeNotesInst :: Text -> ScoreTime -> [Char] -> (Text, [Event])
+makeNotesInst inst offset notes =
     ( ">" <> inst
     , zipWith (\start note -> (start, 1, Text.singleton note))
         (Lists.range_ offset 1) notes
     )
 
-make_notes_dur :: [(ScoreTime, ScoreTime, Char)] -> (Text, [Event])
-make_notes_dur notes =
+makeNotesDur :: [(ScoreTime, ScoreTime, Char)] -> (Text, [Event])
+makeNotesDur notes =
     (">", [(start, dur, Text.singleton c) | (start, dur, c) <- notes])

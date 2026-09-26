@@ -31,9 +31,9 @@ import           Util.Test
 
 test_note_trill :: Test
 test_note_trill = do
-    let run tempo notes pitches = DeriveTest.extract extract $ derive_tracks
+    let run tempo notes pitches = DeriveTest.extract extract $ deriveTracks
             [("tempo", [(0, 0, showt tempo)]), (">", notes), ("*", pitches)]
-        extract = DeriveTest.e_note
+        extract = DeriveTest.eNote
     equal (run 1 [(0, 3, "tr 1 1")] [(0, 0, "4c")])
         ([(0, 1, "4c"), (1, 1, "4d"), (2, 1, "4c")], [])
     equal (run 1 [(0, 3, "tr 2 1")] [(0, 0, "4a"), (2, 0, "i (4b)")])
@@ -49,17 +49,17 @@ test_note_trill = do
     -- equal (run 1 [(0, 3, "tr (4db) 1")] [(0, 0, "4c")])
     --     ([(0, 1, "4c"), (1, 1, "4db"), (2, 1, "4c")], [])
 
-    let run_nn = DeriveTest.extract e_nn . derive_tracks . UiTest.note_track
-        e_nn e = (Score.event_start e, Score.initial_nn e)
-    equal (run_nn [(0, 3, "tr 1c 1 -- 4c")])
+    let runNn = DeriveTest.extract eNn . deriveTracks . UiTest.noteTrack
+        eNn e = (Score.eventStart e, Score.initialNn e)
+    equal (runNn [(0, 3, "tr 1c 1 -- 4c")])
         ([(0, Just NN.c4), (1, Just NN.cs4), (2, Just NN.c4)], [])
-    equal (run_nn [(0, 3, "tr (4db) 1 -- 4c")])
+    equal (runNn [(0, 3, "tr (4db) 1 -- 4c")])
         ([(0, Just NN.c4), (1, Just NN.cs4), (2, Just NN.c4)], [])
 
 test_note_trill_ly :: Test
 test_note_trill_ly = do
     let run = LilypondTest.measures ["repeat"]
-            . LilypondTest.derive_tracks . UiTest.note_track
+            . LilypondTest.deriveTracks . UiTest.noteTrack
     equal (run [(0, 4, "tr -- 3c")]) (Right "c1 \\trill", [])
     equal (run [(0, 2, "tr -- 3c")]) (Right "c2 \\trill r2", [])
     equal (run [(0, 4, "tr 1c -- 3c")]) (Right "c1 ^\\trFlat", [])
@@ -87,7 +87,7 @@ test_note_trill_ly_code :: Test
 test_note_trill_ly_code = do
     -- Code attaches to the notes inside the tremolo.
     let run = LilypondTest.measures ["f", "repeat"]
-            . LilypondTest.derive_tracks . concatMap UiTest.note_track
+            . LilypondTest.deriveTracks . concatMap UiTest.noteTrack
     equal (run [[(0, 0, "dyn f --")], [(0, 4, "tr 4 -- 3c")]])
         (Right "\\repeat tremolo 16 { c32( \\f g32) }", [])
     equal (run [[(4, 0, "dyn f --")], [(0, 8, "tr 4 -- 3c")]])
@@ -100,7 +100,7 @@ test_note_trill_ly_style = do
                 [ "pitchedTrill", "startTrillSpan", "stopTrillSpan", "repeat"
                 , "trill"
                 ]
-            . LilypondTest.derive_tracks . UiTest.note_track
+            . LilypondTest.deriveTracks . UiTest.noteTrack
     equal (run [(0, 6, "tr-style=span | tr -- 3c")])
         ( Right "\\pitchedTrill c1~ \\startTrillSpan d | c2 \\stopTrillSpan r2"
         , []
@@ -125,11 +125,11 @@ test_note_trill_ly_style = do
 test_attr_trill :: Test
 test_attr_trill = do
     let run = DeriveTest.extract extract
-            . DeriveTest.derive_tracks_setup with ""
-            . UiTest.note_track
-        with = CallTest.with_note_generator "tr"
-            (Trill.c_note_trill True Nothing Nothing)
-        extract e = (DeriveTest.e_note e, DeriveTest.e_attributes e)
+            . DeriveTest.deriveTracksSetup with ""
+            . UiTest.noteTrack
+        with = CallTest.withNoteGenerator "tr"
+            (Trill.cNoteTrill True Nothing Nothing)
+        extract e = (DeriveTest.eNote e, DeriveTest.eAttributes e)
     equal (run [(0, 1, "tr -- 4c")]) ([((0, 1, "4c"), "+trill+whole")], [])
     equal (run [(0, 1, "tr 1c -- 4c")]) ([((0, 1, "4c"), "+half+trill")], [])
     equal (run [(0, 1, "tr -- 4e")]) ([((0, 1, "4e"), "+half+trill")], [])
@@ -138,9 +138,9 @@ test_attr_trill = do
 
 test_tremolo :: Test
 test_tremolo = do
-    let run tempo notes = extract $ derive_tracks
+    let run tempo notes = extract $ deriveTracks
             [("tempo", [(0, 0, tempo)]), (">", notes), ("*", [(0, 0, "4c")])]
-        extract = DeriveTest.extract DeriveTest.e_note
+        extract = DeriveTest.extract DeriveTest.eNote
     -- RealTime
     equal (run "1" [(0, 2, "trem 1s")]) ([(0, 1, "4c"), (1, 1, "4c")], [])
     equal (run "2" [(0, 4, "trem 1s")]) ([(0, 1, "4c"), (1, 1, "4c")], [])
@@ -160,7 +160,7 @@ test_tremolo = do
 
 test_full_notes :: Test
 test_full_notes = do
-    let f = Trill.full_notes
+    let f = Trill.fullNotes
     equal (f 2.5 [0, 1, 2]) [0, 1, 2.5]
     equal (f 2 [0, 1, 2]) [0, 1, 2]
     equal (f 0.5 [0]) [0, 0.5]
@@ -168,12 +168,12 @@ test_full_notes = do
 
 test_tremolo_transformer :: Test
 test_tremolo_transformer = do
-    let run notes = extract $ derive_tracks $
+    let run notes = extract $ deriveTracks $
             [ (">", notes)
             , ("*", [(s, 0, p) | ((s, _, _), p)
                 <- zip notes (cycle ["4a", "4b", "4c"])])
             ]
-        extract = DeriveTest.extract_events DeriveTest.e_note
+        extract = DeriveTest.extractEvents DeriveTest.eNote
     equal (run [(0, 2, ""), (2, 2, "trem 1 |"), (4, 2, "")])
         [ (0, 2, "4a")
         , (2, 1, "4b"), (3, 1, "4b")
@@ -193,11 +193,11 @@ test_tremolo_transformer = do
 
 test_chord_tremolo :: Test
 test_chord_tremolo = do
-    let run dur notes1 notes2 = DeriveTest.extract DeriveTest.e_pitch $
-            DeriveTest.derive_tracks_setup skel "" $
+    let run dur notes1 notes2 = DeriveTest.extract DeriveTest.ePitch $
+            DeriveTest.deriveTracksSetup skel "" $
                 (">", [(0, dur, "trem 1s")])
-                : concatMap UiTest.note_track [notes1, notes2]
-        skel = DeriveTest.with_skel [(1, 2), (1, 4), (2, 3), (4, 5)]
+                : concatMap UiTest.noteTrack [notes1, notes2]
+        skel = DeriveTest.withSkel [(1, 2), (1, 4), (2, 3), (4, 5)]
     equal (run 2 [(0, 2, "4c")] [(0, 2, "4d")])
         (["4c", "4d"], [])
     equal (run 4 [(0, 4, "4c")] [(0, 2, "4d")])
@@ -209,10 +209,10 @@ test_chord_tremolo = do
 
 test_chord_tremolo_function :: Test
 test_chord_tremolo_function = do
-    let f dur = map ex_event . Trill.chord_tremolo (Lists.range 0 dur 1)
+    let f dur = map exEvent . Trill.chordTremolo (Lists.range 0 dur 1)
             . map (map mkevent)
         mkevent (s, d, n) = SubT.EventT s d (n :: Char)
-        ex_event (SubT.EventT s d n) = (s, d, n)
+        exEvent (SubT.EventT s d n) = (s, d, n)
     equal (f 3 []) []
     equal (f 6 [[(0, 4, 'a')], [(0, 4, 'b')]])
         [(0, 1, 'a'), (1, 1, 'b'), (2, 1, 'a'), (3, 1, 'b')]
@@ -221,10 +221,10 @@ test_chord_tremolo_function = do
 
 test_pitch_trill :: Test
 test_pitch_trill = do
-    let run text = extract $ derive_tracks
+    let run text = extract $ deriveTracks
             [(">", [(0, 3, "")]), ("*", [(0, 0, text), (3, 0, "--|")])]
-        extract = DeriveTest.extract DeriveTest.e_nns
-    let flat = DeriveTest.flat_segments
+        extract = DeriveTest.extract DeriveTest.eNns
+    let flat = DeriveTest.flatSegments
     -- Defaults to diatonic.
     equal (run "tr (4c) 1 1")
         ([flat [(0, 60), (1, 62), (2, 60)]], [])
@@ -235,19 +235,19 @@ test_pitch_trill = do
     equal (run "tr (4c) -1d 1")
         ([flat [(0, 60), (1, 59), (2, 60)]], [])
 
-    let run_neighbor suffix val = extract $ derive_tracks
+    let runNeighbor suffix val = extract $ deriveTracks
             [ (">", [(0, 3, "")])
             , ("tr-neighbor" <> suffix, [(0, 0, val)])
             , ("*", [(0, 0, "tr (4c) %tr-neighbor 1"), (3, 0, "--|")])
             ]
-    equal (run_neighbor "" "1") ([flat [(0, 60), (1, 62), (2, 60)]], [])
-    equal (run_neighbor "" "-2") ([flat [(0, 60), (1, 57), (2, 60)]], [])
-    equal (run_neighbor ":d" "1") ([flat [(0, 60), (1, 62), (2, 60)]], [])
-    equal (run_neighbor ":d" "-2") ([flat [(0, 60), (1, 57), (2, 60)]], [])
-    equal (run_neighbor ":c" "1") ([flat [(0, 60), (1, 61), (2, 60)]], [])
-    equal (run_neighbor ":c" "-2") ([flat [(0, 60), (1, 58), (2, 60)]], [])
+    equal (runNeighbor "" "1") ([flat [(0, 60), (1, 62), (2, 60)]], [])
+    equal (runNeighbor "" "-2") ([flat [(0, 60), (1, 57), (2, 60)]], [])
+    equal (runNeighbor ":d" "1") ([flat [(0, 60), (1, 62), (2, 60)]], [])
+    equal (runNeighbor ":d" "-2") ([flat [(0, 60), (1, 57), (2, 60)]], [])
+    equal (runNeighbor ":c" "1") ([flat [(0, 60), (1, 61), (2, 60)]], [])
+    equal (runNeighbor ":c" "-2") ([flat [(0, 60), (1, 58), (2, 60)]], [])
 
-    let run_speed suffix = extract $ derive_tracks
+    let runSpeed suffix = extract $ deriveTracks
             [ ("tempo", [(0, 0, "2")])
             , (">", [(0, 3, "")])
             , ("tr-speed" <> suffix, [(0, 0, "2")])
@@ -255,10 +255,10 @@ test_pitch_trill = do
             ]
         trill xs = [flat $ zip xs (cycle [60, 62])]
     -- 3 at tempo 2 means the trill should end at 1.5.
-    equal (run_speed "") (trill [0, 0.5, 1], [])
-    equal (run_speed ":s") (trill [0, 0.5, 1], [])
-    equal (run_speed ":t") (trill [0, 0.25, 0.5, 0.75, 1, 1.25], [])
-    equal (run_speed ":d")
+    equal (runSpeed "") (trill [0, 0.5, 1], [])
+    equal (runSpeed ":s") (trill [0, 0.5, 1], [])
+    equal (runSpeed ":t") (trill [0, 0.25, 0.5, 0.75, 1, 1.25], [])
+    equal (runSpeed ":d")
         ( [[]]
         , [ "TypeError: arg 3/speed: expected time signal (default real)\
             \ but got Signal (Transposition): (signal d 0 2)"
@@ -267,7 +267,7 @@ test_pitch_trill = do
 
 test_pitch_trill2 :: Test
 test_pitch_trill2 = do
-    equal (CallTest.run_pitch "" [(0, "tr (4e) 2 2"), (2.8, "4c")])
+    equal (CallTest.runPitch "" [(0, "tr (4e) 2 2"), (2.8, "4c")])
         [ (0, NN.e4), (0.5, NN.e4)
         , (0.5, NN.g4), (1, NN.g4)
         , (1, NN.e4), (1.5, NN.e4)
@@ -279,7 +279,7 @@ test_pitch_trill2 = do
 test_pitch_trill_smooth :: Test
 test_pitch_trill_smooth = do
     let run c = Lists.dropDups fst $
-            CallTest.run_pitch "" [(0, c), (4, "--|")]
+            CallTest.runPitch "" [(0, c), (4, "--|")]
     equalf 0.01 (run "trs (4c) 1 1")
         [(0, 60), (1, 62), (2, 60), (3, 62), (4, 60)]
     equalf 0.01 (run "hold=2 | trs (4c) 1 1")
@@ -287,25 +287,25 @@ test_pitch_trill_smooth = do
 
 test_trill_transition :: Test
 test_trill_transition = do
-    let run text = extract $ derive_tracks
+    let run text = extract $ deriveTracks
             [(">", [(0, 3, "")]), ("*", [(0, 0, text), (12, 0, "--|")])]
-        extract = DeriveTest.extract e_nns_exact
+        extract = DeriveTest.extract eNnsExact
     equal (run "tr (4c) 1 .25")
         ([[(0, NN.c4), (4, NN.c4), (4, NN.d4), (8, NN.d4), (8, NN.c4)]], [])
     equal (run "tr-transition=.5 | tr (4c) 1 .25")
         ([[(0, NN.c4), (2, NN.c4), (4, NN.d4), (6, NN.d4), (8, NN.c4)]], [])
 
-e_nns_exact :: HasCallStack => Score.Event -> [(RealTime, Pitch.NoteNumber)]
-e_nns_exact e
+eNnsExact :: HasCallStack => Score.Event -> [(RealTime, Pitch.NoteNumber)]
+eNnsExact e
     | not (null errs) = error $ "errors flattening signal: " <> show errs
     | otherwise = sig
-    where (sig, errs) = DeriveTest.e_nns_errors e
+    where (sig, errs) = DeriveTest.eNnsErrors e
 
 test_trill_start_end :: Test
 test_trill_start_end = do
-    let run ex text = DeriveTest.extract ex $ derive_tracks
+    let run ex text = DeriveTest.extract ex $ deriveTracks
             [(">", [(0, 3, "")]), ("*", [(0, 0, text), (3, 0, "--|")])]
-        nns = Lists.dropDups id . map snd . DeriveTest.e_nns
+        nns = Lists.dropDups id . map snd . DeriveTest.eNns
     equal (run nns "tr (4c) 1 1") ([[60, 62, 60]], [])
     equal (run nns "tr-start = high | tr (4c) 1 1") ([[62, 60, 62]], [])
     -- Default is ignored for high and low variants.
@@ -313,14 +313,14 @@ test_trill_start_end = do
     equal (run nns "tr-mode = high | tr_ (4c) 1 1") ([[60, 62, 60]], [])
 
     -- Start, end, and adjust.
-    equal (run DeriveTest.e_nns "tr-adjust = shorten | tr^_ (4c) 1 1")
+    equal (run DeriveTest.eNns "tr-adjust = shorten | tr^_ (4c) 1 1")
         ([[(0, 62), (1, 62), (1, 60)]], [])
-    equal (run DeriveTest.e_nns "tr-adjust = stretch | tr^_ (4c) 1 1")
+    equal (run DeriveTest.eNns "tr-adjust = stretch | tr^_ (4c) 1 1")
         ([[(0, 62), (3, 62), (3, 60)]], [])
 
 test_trill_hold :: Test
 test_trill_hold = do
-    let run call dur = DeriveTest.extract DeriveTest.e_nns $ derive_tracks
+    let run call dur = DeriveTest.extract DeriveTest.eNns $ deriveTracks
             [(">", [(0, dur, "")]), ("*", [(0, 0, call), (dur, 0, "--|")])]
     equal (run "hold=1 | tr (4c) 1 1" 3)
         ([[(0, NN.c4), (1, NN.c4), (2, NN.c4), (2, NN.d4)]], [])
@@ -337,9 +337,9 @@ test_trill_hold = do
 test_moving_trill :: Test
 test_moving_trill = do
     -- Ensure a diatonic trill on a moving base note remains correct.
-    let run tracks = extract $ derive_tracks $
+    let run tracks = extract $ deriveTracks $
             (">", [(0, 6, "")]) : tracks
-        extract = DeriveTest.extract DeriveTest.e_nns
+        extract = DeriveTest.extract DeriveTest.eNns
     -- Trill transitions from 2 semitones to 1 semitone.
     equal (run
         [ ("*", [(0, 0, "4a"), (4, 0, "i (4b)")])
@@ -372,18 +372,18 @@ test_moving_trill = do
 
 test_real_trill :: Test
 test_real_trill = do
-    let f neighbor speed = Trill.get_trill_control (config speed) (0, 1)
+    let f neighbor speed = Trill.getTrillControl (config speed) (0, 1)
             (Signal.at neighbor)
         config speed = Trill.Config
-            { _start_dir = Nothing
-            , _end_dir = Nothing
+            { _startDir = Nothing
+            , _endDir = Nothing
             , _adjust = Trill.Shorten
             , _hold = DeriveT.RealDuration 0
             , _speed = mkfun ScoreT.TReal speed
             , _bias = 0
-            , _include_end = False
+            , _includeEnd = False
             }
-        run = DeriveTest.extract_run id . DeriveTest.run Ui.empty
+        run = DeriveTest.extractRun id . DeriveTest.run Ui.empty
         cnst = Signal.constant
     equal (run $ f (cnst 1) (cnst 2)) $ Right [(0, 0), (0.5, 1)]
     equal (run $ f (cnst (-1)) (cnst 2)) $ Right [(0, 0), (0.5, -1)]
@@ -393,25 +393,25 @@ test_real_trill = do
         Right [(0, 0), (0.5, 1), (1, 0), (1.5, 1)]
 
     -- Changing depth signal.
-    equal (run $ f (Signal.from_pairs [(0, 1), (0.5, 1), (0.5, 2)]) (cnst 4)) $
+    equal (run $ f (Signal.fromPairs [(0, 1), (0.5, 1), (0.5, 2)]) (cnst 4)) $
         Right [(0, 0), (0.25, 1), (0.5, 0), (0.75, 2)]
-    equal (run $ f (cnst 1) (Signal.from_pairs [(0, 2), (0.5, 4)])) $
+    equal (run $ f (cnst 1) (Signal.fromPairs [(0, 2), (0.5, 4)])) $
         Right [(0, 0), (0.5, 1), (0.75, 0)]
 
 test_score_trill :: Test
 test_score_trill = do
-    let f dur neighbor speed = Trill.get_trill_control (config speed) (0, dur)
+    let f dur neighbor speed = Trill.getTrillControl (config speed) (0, dur)
                 (Signal.at neighbor)
         config speed = Trill.Config
-            { _start_dir = Nothing
-            , _end_dir = Nothing
+            { _startDir = Nothing
+            , _endDir = Nothing
             , _adjust = Trill.Shorten
             , _hold = DeriveT.RealDuration 0
             , _speed = mkfun ScoreT.TScore speed
             , _bias = 0
-            , _include_end = False
+            , _includeEnd = False
             }
-        run = DeriveTest.extract_run id . DeriveTest.run Ui.empty
+        run = DeriveTest.extractRun id . DeriveTest.run Ui.empty
         cnst = Signal.constant
     equal (run $ f 1 (cnst 1) (cnst 2)) $
         Right [(0, 0), (0.5, 1)]
@@ -427,10 +427,10 @@ mkfun typ sig = Typecheck.RealTimeFunctionT typ (Signal.at sig)
 
 test_xcut_pitch :: Test
 test_xcut_pitch = do
-    let f tracks = DeriveTest.extract DeriveTest.e_nns $
-            DeriveTest.derive_tracks_linear "" $
+    let f tracks = DeriveTest.extract DeriveTest.eNns $
+            DeriveTest.deriveTracksLinear "" $
             (">", [(0, 4, "")]) : tracks
-    let flat = DeriveTest.flat_segments
+    let flat = DeriveTest.flatSegments
     equal (f
             [ ("* #xcut-fst", [(0, 0, "4c")])
             , ("* #xcut-snd", [(0, 0, "5c")])
@@ -445,12 +445,12 @@ test_xcut_pitch = do
 
 test_control_trill :: Test
 test_control_trill = do
-    let run tempo text = extract $ derive_tracks
+    let run tempo text = extract $ deriveTracks
             [ ("tempo", [(0, 0, showt tempo)])
             , (">", [(0, 3, "")])
             , ("cont", [(0, 0, text), (3, 0, "--|")])
             ]
-        extract = DeriveTest.extract (DeriveTest.e_control "cont")
+        extract = DeriveTest.extract (DeriveTest.eControl "cont")
         trill [] = []
         trill (x:xs) = (x, 0) :
             [(x, y) | (x, ys) <- zip xs (cycle [[0, 1], [1, 0]]), y <- ys]
@@ -459,14 +459,14 @@ test_control_trill = do
     equal (run 0.5 "tr 1 1") ([trill [0, 1, 2, 3, 4, 5]], [])
     equal (run 0.5 "tr 1 1s") ([trill [0, 1, 2, 3, 4, 5]], [])
     equal (run 0.5 "tr 1 1t") ([trill [0, 2, 4]], [])
-    strings_like (snd (run 1 "tr 1 1d"))
+    stringsLike (snd (run 1 "tr 1 1d"))
         ["expected time signal (default real) but got Signal* 1d"]
 
 test_xcut_control :: Test
 test_xcut_control = do
-    let f hold val1 val2 = Signal.to_pairs
-            . Trill.xcut_control hold (Signal.from_pairs val1)
-                (Signal.from_pairs val2)
+    let f hold val1 val2 = Signal.toPairs
+            . Trill.xcutControl hold (Signal.fromPairs val1)
+                (Signal.fromPairs val2)
     let sig1 = [(0, 0.25), (1, 0.5), (2, 0.75), (3, 1)]
         sig2 = [(0, 0)]
     equal (f False sig1 sig2 [1, 2]) [(1, 0.5), (2, 0.75), (2, 0)]
@@ -482,9 +482,9 @@ test_xcut_control = do
 
 test_saw :: Test
 test_saw = do
-    let run = CallTest.run_control
+    let run = CallTest.runControl
     equal (run [(0, "saw .5"), (4, "--|")]) [(0, 1), (2, 0), (2, 1), (4, 0)]
     equal (run [(0, "saw .25 .5 .75"), (4, "--|")]) [(0, 0.5), (4, 0.75)]
 
-derive_tracks :: [UiTest.TrackSpec] -> Derive.Result
-derive_tracks = DeriveTest.derive_tracks "import europe"
+deriveTracks :: [UiTest.TrackSpec] -> Derive.Result
+deriveTracks = DeriveTest.deriveTracks "import europe"

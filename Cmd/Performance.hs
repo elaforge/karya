@@ -10,9 +10,9 @@
     asynchronously.
 -}
 module Cmd.Performance (
-    SendStatus, update_performance, derive_blocks, performance, derive
-    , Process, evaluate_im
-    , wait_for_subprocesses
+    SendStatus, updatePerformance, deriveBlocks, performance, derive
+    , Process, evaluateIm
+    , waitForSubprocesses
 ) where
 import qualified Control.Concurrent.Chan as Chan
 import qualified Control.Monad.State.Strict as Monad.State
@@ -101,47 +101,47 @@ type StateM = Monad.State.StateT Cmd.State IO ()
     comes in while it's waiting it'll get killed off, and the out-of-date
     derivation will never happen.  Yay for laziness!
 -}
-update_performance :: SendStatus -> Ui.State -> Cmd.State
+updatePerformance :: SendStatus -> Ui.State -> Cmd.State
     -> Derive.ScoreDamage -> IO Cmd.State
-update_performance send_status ui_state cmd_state damage =
+updatePerformance sendStatus uiState cmdState damage =
     -- The update will be modifying Cmd.State, especially PlayState.
-    Monad.State.execStateT (run_update send_status ui_state)
-        (insert_damage damage cmd_state)
+    Monad.State.execStateT (runUpdate sendStatus uiState)
+        (insertDamage damage cmdState)
 
-run_update :: SendStatus -> Ui.State -> StateM
-run_update send_status ui_state = do
-    kill_threads
-    mapM_ (try_generate_performance send_status ui_state)
-        (derive_blocks ui_state)
+runUpdate :: SendStatus -> Ui.State -> StateM
+runUpdate sendStatus uiState = do
+    killThreads
+    mapM_ (tryGeneratePerformance sendStatus uiState)
+        (deriveBlocks uiState)
 
 -- | Which blocks should get derived?
-derive_blocks :: Ui.State -> Set BlockId
-derive_blocks ui_state = Set.fromList $ maybe id (:) root_id visible
+deriveBlocks :: Ui.State -> Set BlockId
+deriveBlocks uiState = Set.fromList $ maybe id (:) rootId visible
     where
-    root_id = UiConfig.config_root (Ui.state_config ui_state)
-    visible = map Block.view_block $ Map.elems $ Ui.state_views ui_state
+    rootId = UiConfig.configRoot (Ui.stateConfig uiState)
+    visible = map Block.viewBlock $ Map.elems $ Ui.stateViews uiState
 
-try_generate_performance :: SendStatus -> Ui.State -> BlockId -> StateM
-try_generate_performance send_status ui_state block_id = do
+tryGeneratePerformance :: SendStatus -> Ui.State -> BlockId -> StateM
+tryGeneratePerformance sendStatus uiState blockId = do
     state <- Monad.State.get
-    when (needs_generate state block_id) $
-        generate_performance ui_state (derive_wait state block_id)
-            send_status block_id
+    when (needsGenerate state blockId) $
+        generatePerformance uiState (deriveWait state blockId)
+            sendStatus blockId
 
 -- | Theoretically I should be able to do away with the wait, but in practice
 -- deriving constantly causes UI latency.
-derive_wait :: Cmd.State -> BlockId -> Thread.Seconds
-derive_wait cmd_state block_id
-    | block_id `Set.member` Cmd.state_derive_immediately cmd_state = 0
-    | otherwise = App.Config.default_derive_wait
+deriveWait :: Cmd.State -> BlockId -> Thread.Seconds
+deriveWait cmdState blockId
+    | blockId `Set.member` Cmd.stateDeriveImmediately cmdState = 0
+    | otherwise = App.Config.defaultDeriveWait
 
 -- | Since caches are stored per-performance, score damage is also
 -- per-performance.  It accumulates in an existing performance and is cleared
 -- when a new performance is created from the old one.
-insert_damage :: Derive.ScoreDamage -> Cmd.State -> Cmd.State
-insert_damage damage
+insertDamage :: Derive.ScoreDamage -> Cmd.State -> Cmd.State
+insertDamage damage
     | damage == mempty = id
-    | otherwise = modify_play_state $ \st -> st
+    | otherwise = modifyPlayState $ \st -> st
         -- Damage update is tricky.  Damage in 'Cmd.state_current_performance'
         -- is a signal that the performance for that block is out of date and
         -- needs to be updated.  Technically all I need is a Bool since it just
@@ -155,44 +155,44 @@ insert_damage damage
         -- for derivation, not as a out-of-date flag.  When
         -- state_current_performance is promoted to state_performance, the
         -- damage is also cleared.
-        { Cmd.state_current_performance =
-            update <$> Cmd.state_current_performance st
-        , Cmd.state_performance = update <$> Cmd.state_performance st
+        { Cmd.stateCurrentPerformance =
+            update <$> Cmd.stateCurrentPerformance st
+        , Cmd.statePerformance = update <$> Cmd.statePerformance st
         }
     where
     update perf
-        | dependency_damaged perf =
-            let !accum = damage <> Cmd.perf_damage perf
-            in perf { Cmd.perf_damage = accum }
+        | dependencyDamaged perf =
+            let !accum = damage <> Cmd.perfDamage perf
+            in perf { Cmd.perfDamage = accum }
         | otherwise = perf
-    dependency_damaged perf = not $ Set.disjoint damaged_blocks deps
-        where Derive.BlockDeps deps = Cmd.perf_block_deps perf
-    damaged_blocks =
-        Derive.sdamage_track_blocks damage <> Derive.sdamage_blocks damage
+    dependencyDamaged perf = not $ Set.disjoint damagedBlocks deps
+        where Derive.BlockDeps deps = Cmd.perfBlockDeps perf
+    damagedBlocks =
+        Derive.sdamageTrackBlocks damage <> Derive.sdamageBlocks damage
 
 -- | Kill all performance threads with damage.  If they are still deriving
 -- they're now out of date and should stop.  Whether or not they finished
 -- deriving, this will remove them from 'Cmd.state_performance_threads',
 -- which will cause them to rederive.
-kill_threads :: StateM
-kill_threads = do
-    play_state <- Monad.State.gets Cmd.state_play
-    let threads = Cmd.state_performance_threads play_state
-        perfs = Cmd.state_current_performance play_state
-        with_damage =
-            [ block_id | (block_id, perf) <- Map.toList perfs
-            , Cmd.perf_damage perf /= mempty
+killThreads :: StateM
+killThreads = do
+    playState <- Monad.State.gets Cmd.statePlay
+    let threads = Cmd.statePerformanceThreads playState
+        perfs = Cmd.stateCurrentPerformance playState
+        withDamage =
+            [ blockId | (blockId, perf) <- Map.toList perfs
+            , Cmd.perfDamage perf /= mempty
             ]
         -- Kill threads for damaged blocks, but also ones with no performance
         -- at all.  This is so Cmd.invalidate_performances can force a
         -- re-generate by clearing out state_current_performance, and doesn't
         -- need to be in IO to immediately kill the threads.
-        obsolete bid = Map.notMember bid perfs || bid `elem` with_damage
+        obsolete bid = Map.notMember bid perfs || bid `elem` withDamage
         kill = filter (obsolete . fst) $ Map.toList threads
-    liftIO $ mapM_ (Cmd.kill_thread . snd) kill
-    Monad.State.modify $ modify_play_state $ const $ play_state
-        { Cmd.state_performance_threads = Maps.deleteKeys (map fst kill)
-            (Cmd.state_performance_threads play_state)
+    liftIO $ mapM_ (Cmd.killThread . snd) kill
+    Monad.State.modify $ modifyPlayState $ const $ playState
+        { Cmd.statePerformanceThreads = Maps.deleteKeys (map fst kill)
+            (Cmd.statePerformanceThreads playState)
         }
 
 
@@ -205,9 +205,9 @@ kill_threads = do
 -- I use 'Cmd.state_performance_threads' and not
 -- 'Cmd.state_current_performance', because the thread is filled in
 -- synchronously, while the current performance is filled in later.
-needs_generate :: Cmd.State -> BlockId -> Bool
-needs_generate state block_id = not (Map.member block_id perfs)
-    where perfs = Cmd.state_performance_threads $ Cmd.state_play state
+needsGenerate :: Cmd.State -> BlockId -> Bool
+needsGenerate state blockId = not (Map.member blockId perfs)
+    where perfs = Cmd.statePerformanceThreads $ Cmd.statePlay state
 
 -- | Start a new performance thread.
 --
@@ -216,134 +216,134 @@ needs_generate state block_id = not (Map.member block_id perfs)
 -- thread into 'Cmd.state_performance_threads' and performance into
 -- 'Cmd.state_current_performance'.  It will be promoted to
 -- 'Cmd.state_performance' when 'evaluate_performance' completes.
-generate_performance :: Ui.State -> Thread.Seconds -> SendStatus -> BlockId
+generatePerformance :: Ui.State -> Thread.Seconds -> SendStatus -> BlockId
     -> StateM
-generate_performance ui_state wait send_status block_id = do
-    cmd_state <- Monad.State.get
-    let (perf, logs) = derive ui_state cmd_state block_id
+generatePerformance uiState wait sendStatus blockId = do
+    cmdState <- Monad.State.get
+    let (perf, logs) = derive uiState cmdState blockId
     mapM_ Log.write logs
-    thread_id <- liftIO $ Thread.asyncLogged ("perf:" <> prettys block_id) $ do
-        let allocs = Ui.config#UiConfig.allocations #$ ui_state
-            im_config = Cmd.config_im (Cmd.state_config cmd_state)
-        let lookup_inst = either (const Nothing) Just
-                . Cmd.state_lookup_instrument ui_state cmd_state
-        evaluate_performance
-            (if im_allocated allocs then Just im_config else Nothing)
-            lookup_inst wait send_status (Cmd.score_path cmd_state)
-            (Cmd.state_play_multiplier (Cmd.state_play cmd_state)) block_id perf
-    Monad.State.modify $ modify_play_state $ \st -> st
-        { Cmd.state_performance_threads = Map.insert block_id
-            (Cmd.Thread thread_id) (Cmd.state_performance_threads st)
-        , Cmd.state_current_performance = Map.insert block_id
-            perf (Cmd.state_current_performance st)
+    threadId <- liftIO $ Thread.asyncLogged ("perf:" <> prettys blockId) $ do
+        let allocs = Ui.config#UiConfig.allocations #$ uiState
+            imConfig = Cmd.configIm (Cmd.stateConfig cmdState)
+        let lookupInst = either (const Nothing) Just
+                . Cmd.stateLookupInstrument uiState cmdState
+        evaluatePerformance
+            (if imAllocated allocs then Just imConfig else Nothing)
+            lookupInst wait sendStatus (Cmd.scorePath cmdState)
+            (Cmd.statePlayMultiplier (Cmd.statePlay cmdState)) blockId perf
+    Monad.State.modify $ modifyPlayState $ \st -> st
+        { Cmd.statePerformanceThreads = Map.insert blockId
+            (Cmd.Thread threadId) (Cmd.statePerformanceThreads st)
+        , Cmd.stateCurrentPerformance = Map.insert blockId
+            perf (Cmd.stateCurrentPerformance st)
         }
     -- If the derivation somehow failed, then the old performance will remain,
     -- and since there is no thread, this will try again the next time around.
 
 {-# SCC derive #-}
 derive :: Ui.State -> Cmd.State -> BlockId -> (Cmd.Performance, [Log.Msg])
-derive ui_state cmd_state block_id = (perf, logs)
+derive uiState cmdState blockId = (perf, logs)
     where
-    perf = case cmd_result of
-        Left err -> broken_performance $
-            "derivation for " <> showt block_id <> " failed: " <> pretty err
-        Right (derive_result, _, _) -> case derive_result of
-            Nothing -> broken_performance $
-                "derivation for " <> showt block_id <> " aborted"
-            Just result -> performance ui_state result
+    perf = case cmdResult of
+        Left err -> brokenPerformance $
+            "derivation for " <> showt blockId <> " failed: " <> pretty err
+        Right (deriveResult, _, _) -> case deriveResult of
+            Nothing -> brokenPerformance $
+                "derivation for " <> showt blockId <> " aborted"
+            Just result -> performance uiState result
     -- The previous cache comes from the fully evaluated performance, since
     -- otherwise there's no point killing the 'evaluate_performance' thread if
     -- the cache makes all derivation serialized.
-    prev_cache = maybe mempty Cmd.perf_derive_cache $ Map.lookup block_id $
-        Cmd.state_performance $ Cmd.state_play cmd_state
+    prevCache = maybe mempty Cmd.perfDeriveCache $ Map.lookup blockId $
+        Cmd.statePerformance $ Cmd.statePlay cmdState
     -- The damage also comes from the current performance, since that's where
     -- the performance is deriving from.
-    damage = maybe mempty Cmd.perf_damage $ Map.lookup block_id $
-        Cmd.state_performance $ Cmd.state_play cmd_state
-    (_state, _midi, logs, cmd_result) = Cmd.run_id ui_state cmd_state $
-        PlayUtil.derive_block prev_cache damage block_id
+    damage = maybe mempty Cmd.perfDamage $ Map.lookup blockId $
+        Cmd.statePerformance $ Cmd.statePlay cmdState
+    (_state, _midi, logs, cmdResult) = Cmd.runId uiState cmdState $
+        PlayUtil.deriveBlock prevCache damage blockId
 
-evaluate_performance :: Maybe Config.Config
+evaluatePerformance :: Maybe Config.Config
     -> (ScoreT.Instrument -> Maybe Cmd.ResolvedInstrument)
     -> Thread.Seconds -> SendStatus -> FilePath -> RealTime -> BlockId
     -> Cmd.Performance -> IO ()
-evaluate_performance im_config lookup_inst wait send_status score_path
-        play_multiplier block_id perf = do
-    send_status block_id Msg.OutOfDate
+evaluatePerformance imConfig lookupInst wait sendStatus scorePath
+        playMultiplier blockId perf = do
+    sendStatus blockId Msg.OutOfDate
     Thread.delay wait
-    send_status block_id Msg.Deriving
+    sendStatus blockId Msg.Deriving
     -- I just force the logs here, and wait for a play to actually write them.
-    ((), metric) <- Thread.timeAction $ pure $! Msg.force_performance perf
-    forM_ (check_dummy lookup_inst (Msg.perf_events perf)) $ \(event, msg) ->
-        Log.warn $ "note with dummy instrument: " <> Score.short_event event
+    ((), metric) <- Thread.timeAction $ pure $! Msg.forcePerformance perf
+    forM_ (checkDummy lookupInst (Msg.perfEvents perf)) $ \(event, msg) ->
+        Log.warn $ "note with dummy instrument: " <> Score.shortEvent event
             <> ": " <> msg
     when (Thread.metricWall metric > 1) $
-        Log.notice $ "derived " <> showt block_id <> " in "
+        Log.notice $ "derived " <> showt blockId <> " in "
             <> Thread.showMetric metric
     -- This should match the adjust0 in 'Cmd.Play.start_adjustment'.
-    let adjust0 = case Vector.toList (Cmd.perf_events perf) of
-            event : _ -> max (- Score.event_start event) 0
+    let adjust0 = case Vector.toList (Cmd.perfEvents perf) of
+            event : _ -> max (- Score.eventStart event) 0
             _ -> 0
-    (procs, events) <- case im_config of
-        Nothing -> pure ([], Cmd.perf_events perf)
-        Just config -> evaluate_im config lookup_inst score_path
-            adjust0 play_multiplier block_id (Cmd.perf_events perf)
-    send_status block_id $ Msg.DeriveComplete
-        (perf { Cmd.perf_events = events })
+    (procs, events) <- case imConfig of
+        Nothing -> pure ([], Cmd.perfEvents perf)
+        Just config -> evaluateIm config lookupInst scorePath
+            adjust0 playMultiplier blockId (Cmd.perfEvents perf)
+    sendStatus blockId $ Msg.DeriveComplete
+        (perf { Cmd.perfEvents = events })
         (if null procs then Msg.ImUnnecessary else Msg.ImStarted)
-    ok <- case im_config of
-        Just config -> watch_subprocesses block_id
-            (make_status (Cmd.perf_inv_tempo perf)
-                (state_wants_waveform (Cmd.perf_ui_state perf))
-                (Config.imDir config) score_path adjust0 play_multiplier)
-            (send_status block_id)
+    ok <- case imConfig of
+        Just config -> watchSubprocesses blockId
+            (makeStatus (Cmd.perfInvTempo perf)
+                (stateWantsWaveform (Cmd.perfUiState perf))
+                (Config.imDir config) scorePath adjust0 playMultiplier)
+            (sendStatus blockId)
             (Set.fromList procs)
         Nothing -> pure True
     unless (null procs) $ do
-        stats <- case (ok, im_config) of
-            (True, Just config) -> fmap Just $ im_gc $
-                Config.outputDirectory (Config.imDir config) score_path block_id
+        stats <- case (ok, imConfig) of
+            (True, Just config) -> fmap Just $ imGc $
+                Config.outputDirectory (Config.imDir config) scorePath blockId
             _ -> pure Nothing
-        send_status block_id $ Msg.ImStatus block_id Set.empty $
+        sendStatus blockId $ Msg.ImStatus blockId Set.empty $
             Msg.ImComplete (not ok) stats
 
-im_gc :: FilePath -> IO ImGc.Stats
-im_gc output_dir = do
-    stats <- ImGc.gc output_dir
+imGc :: FilePath -> IO ImGc.Stats
+imGc outputDir = do
+    stats <- ImGc.gc outputDir
     when (ImGc._deletedFiles stats > 0) $
         Log.notice $ ImGc.showStats stats
     pure stats
 
 -- | Return events with a 'Inst.Dummy' backend.  These shouldn't have made it
 -- through to actual performance.
-check_dummy :: (ScoreT.Instrument -> Maybe Cmd.ResolvedInstrument)
+checkDummy :: (ScoreT.Instrument -> Maybe Cmd.ResolvedInstrument)
     -> Vector.Vector Score.Event -> [(Score.Event, Text)]
-check_dummy lookup_inst = snd . Vector.foldl' go (HashSet.empty, [])
+checkDummy lookupInst = snd . Vector.foldl' go (HashSet.empty, [])
     where
     go (seen, warns) event
         | HashSet.member inst seen = (seen, warns)
         | otherwise =
             ( HashSet.insert inst seen
-            , maybe warns (\msg -> (event, msg) : warns) (is_dummy inst)
+            , maybe warns (\msg -> (event, msg) : warns) (isDummy inst)
             -- , if is_dummy inst then event : warns else warns
             )
         where
-        inst = Score.event_instrument event
-    is_dummy inst = case Cmd.inst_backend <$> lookup_inst inst of
+        inst = Score.eventInstrument event
+    isDummy inst = case Cmd.instBackend <$> lookupInst inst of
         Just (Cmd.Dummy msg) -> Just msg
         _ -> Nothing
 
-state_wants_waveform :: Ui.State -> TrackId -> Bool
-state_wants_waveform state track_id = maybe False Track.track_waveform $
-    Map.lookup track_id (Ui.state_tracks state)
+stateWantsWaveform :: Ui.State -> TrackId -> Bool
+stateWantsWaveform state trackId = maybe False Track.trackWaveform $
+    Map.lookup trackId (Ui.stateTracks state)
 
 type Process = (FilePath, [String])
 
 -- | Watch subprocesses and convert their msgs to Msg.DeriveStatus.
-watch_subprocesses :: BlockId -> (Config.Message -> ImStatus)
+watchSubprocesses :: BlockId -> (Config.Message -> ImStatus)
     -> (Msg.DeriveStatus -> IO ()) -> Set Process -> IO Bool
-watch_subprocesses root_block_id make_status send_status procs =
-    stream_subprocesses procs $ S.mapM_ watch
+watchSubprocesses rootBlockId makeStatus sendStatus procs =
+    streamSubprocesses procs $ S.mapM_ watch
     where
     watch ((cmd, args), ProcessExit code)
         | code /= Processes.ExitCode 0 = Log.warn $ "subprocess failed with "
@@ -353,19 +353,19 @@ watch_subprocesses root_block_id make_status send_status procs =
         -- This is an update for a child block.  I only display progress
         -- for each block as its own toplevel.  If a block is child of
         -- another, I can see its prorgess in the parent.
-        | Config._blockId msg /= root_block_id = pure ()
-        | otherwise = case make_status msg of
-            ImStatus status -> send_status =<< resolve_waveform_links status
+        | Config._blockId msg /= rootBlockId = pure ()
+        | otherwise = case makeStatus msg of
+            ImStatus status -> sendStatus =<< resolveWaveformLinks status
             ImWarn msg -> Log.write msg
             ImFail msg -> Log.write msg
             ImNothing -> pure ()
 
 -- | Like 'watch_subprocesses', but notify the callback as soon as
 -- they have all rendered enough audio.
-wait_for_subprocesses :: IO () -> Set ScoreT.Instrument -> Set Process
+waitForSubprocesses :: IO () -> Set ScoreT.Instrument -> Set Process
     -> IO Bool
-wait_for_subprocesses ready expected_instruments procs =
-    stream_subprocesses procs $ Streams.mapAccumL_ check (Set.empty, Set.empty)
+waitForSubprocesses ready expectedInstruments procs =
+    streamSubprocesses procs $ Streams.mapAccumL_ check (Set.empty, Set.empty)
     where
     check (started, insts) ((cmd, args), ProcessExit code) = do
         unless (code == Processes.ExitCode 0) $
@@ -380,12 +380,12 @@ wait_for_subprocesses ready expected_instruments procs =
                     insts2 = Set.insert (Config._instrument msg) insts
                 Log.debug $ "started: " <> pretty started2
                     <> ", insts: " <> pretty insts2
-                    <> ", expected: " <> pretty expected_instruments
-                when (started2 == procs && insts2 == expected_instruments) ready
+                    <> ", expected: " <> pretty expectedInstruments
+                when (started2 == procs && insts2 == expectedInstruments) ready
                 pure (started2, insts2)
             | otherwise -> ignore
         Config.Failure err -> Log.warn err >> ignore
-        Config.Warn stack msg -> Log.warn_stack stack msg >> ignore
+        Config.Warn stack msg -> Log.warnStack stack msg >> ignore
         Config.RenderingRange {} -> ignore
         where ignore = pure (started, insts)
 
@@ -396,9 +396,9 @@ data Progress = ProcessExit Processes.Exit | Message Config.Message
 --
 -- This is a bracket and doesn't return the stream because I want to kill the
 -- subprocesses when leaving the scope.
-stream_subprocesses :: Set Process
+streamSubprocesses :: Set Process
     -> (S.Stream (S.Of (Process, Progress)) IO Bool -> IO a) -> IO a
-stream_subprocesses procs action
+streamSubprocesses procs action
     | Set.null procs = action $ pure False
     | otherwise = Processes.multipleOutput (Set.toList procs) $ \chan ->
         action $ Control.loop1 (procs, True) $ \loop (procs, ok) -> if
@@ -425,55 +425,55 @@ stream_subprocesses procs action
                 Config.Failure {} -> False
                 _ -> True
     -- These get called concurrently, so avoid jumbled output.
-    put line = liftIO $ Log.with_stdio_lock $ Text.IO.hPutStrLn IO.stdout line
+    put line = liftIO $ Log.withStdioLock $ Text.IO.hPutStrLn IO.stdout line
 
 data ImStatus =
     ImStatus Msg.DeriveStatus | ImWarn Log.Msg | ImFail Log.Msg | ImNothing
     deriving (Show)
 
 -- | Convert the status output from an im subprocess to an 'ImStatus'.
-make_status :: Transport.InverseTempoFunction -> (TrackId -> Bool) -> FilePath
+makeStatus :: Transport.InverseTempoFunction -> (TrackId -> Bool) -> FilePath
     -> FilePath -> RealTime -> RealTime -> Config.Message -> ImStatus
-make_status inv_tempo wants_waveform im_dir score_path adjust0 play_multiplier
-        (Config.Message block_id track_ids instrument payload) =
+makeStatus invTempo wantsWaveform imDir scorePath adjust0 playMultiplier
+        (Config.Message blockId trackIds instrument payload) =
     case payload of
         Config.RenderingRange start end ->
             status $ Msg.ImRenderingRange instrument start end
         Config.WaveformsCompleted chunknums
-            | Set.null wanted_track_ids -> ImNothing
-            | otherwise -> case mapM make_waveform chunknums of
+            | Set.null wantedTrackIds -> ImNothing
+            | otherwise -> case mapM makeWaveform chunknums of
                 Right waveforms -> status $ Msg.ImWaveformsCompleted waveforms
                 Left err -> ImWarn $ Log.msg Log.Warn Nothing $
                     "to_score for " <> pretty chunknums <> ": " <> err
         Config.Warn stack err -> ImWarn $ Log.msg Log.Warn (Just stack) $
             "im instrument " <> pretty instrument <> ": " <> err
         Config.Failure err -> ImFail $ Log.msg Log.Warn Nothing $
-            "im failure: " <> pretty block_id <> ": " <> pretty track_ids
+            "im failure: " <> pretty blockId <> ": " <> pretty trackIds
             <> ": " <> err
     where
-    status = ImStatus . Msg.ImStatus block_id wanted_track_ids
-    wanted_track_ids = Set.filter wants_waveform track_ids
-    make_waveform chunknum = do
-        (start, ratios) <- chunk_ratios to_score
-            (time_at chunknum) (time_at (chunknum+1)) ratios_per_chunk
-        adjust0 <- to_score adjust0
+    status = ImStatus . Msg.ImStatus blockId wantedTrackIds
+    wantedTrackIds = Set.filter wantsWaveform trackIds
+    makeWaveform chunknum = do
+        (start, ratios) <- chunkRatios toScore
+            (timeAt chunknum) (timeAt (chunknum+1)) ratiosPerChunk
+        adjust0 <- toScore adjust0
         -- Debug.tracepM "start, ratio"
         --     ((time_at chunknum, time_at (chunknum+1)), start, ratios)
         pure $ Track.WaveformChunk
-            { _filename = Config.chunkPath im_dir score_path block_id
+            { _filename = Config.chunkPath imDir scorePath blockId
                 instrument chunknum
             , _chunknum = chunknum
-            , _start = start * RealTime.to_score play_multiplier - adjust0
-            , _ratios = map (/ RealTime.to_seconds play_multiplier) ratios
+            , _start = start * RealTime.toScore playMultiplier - adjust0
+            , _ratios = map (/ RealTime.toSeconds playMultiplier) ratios
             }
-    time_at chunknum = RealTime.seconds $
+    timeAt chunknum = RealTime.seconds $
         fromIntegral $ chunknum * Config.chunkSeconds
     -- If this fails, it means I don't have any tempo info for this
     -- (block_id, track_id), which likely means the block or track failed
     -- to derive, at which point I shouldn't have gotten any notes from it.
     -- So this shouldn't happen.
-    to_score t = tryJust ("no ScoreTime for " <> pretty t) $
-        real_to_score inv_tempo block_id track_ids t
+    toScore t = tryJust ("no ScoreTime for " <> pretty t) $
+        realToScore invTempo blockId trackIds t
 
 -- | How many ratios to put into 'Track._ratios'.  This will make waveform
 -- display more accurate when tempos change, since it's the resolution used
@@ -490,18 +490,18 @@ make_status inv_tempo wants_waveform im_dir score_path adjust0 play_multiplier
 -- every chunk getting its own independent ratios.  At the moment, it dosen't
 -- seem like a big priority if waveform display is a bit inaccurate, because
 -- I'm not using it to line anything up.
-ratios_per_chunk :: Int
-ratios_per_chunk = 2
+ratiosPerChunk :: Int
+ratiosPerChunk = 2
 
-chunk_ratios :: (RealTime -> Either Text ScoreTime) -> RealTime -> RealTime
+chunkRatios :: (RealTime -> Either Text ScoreTime) -> RealTime -> RealTime
     -> Int -> Either Text (ScoreTime, [Double])
-chunk_ratios to_score start end n = do
-    score_bps <- mapM to_score bps
-    pure (head score_bps, zipWith ratio_at score_bps (drop 1 score_bps))
+chunkRatios toScore start end n = do
+    scoreBps <- mapM toScore bps
+    pure (head scoreBps, zipWith ratioAt scoreBps (drop 1 scoreBps))
     where
-    ratio_at start end =
+    ratioAt start end =
         (fromIntegral Config.chunkSeconds / fromIntegral n)
-            / ScoreTime.to_double (end - start)
+            / ScoreTime.toDouble (end - start)
     bps = Lists.rangeEnd start end ((end - start) / fromIntegral n)
 
 -- | Resolve symlinks in 'Track._filename's.  The PeakCache uses the filename
@@ -510,8 +510,8 @@ chunk_ratios to_score start end n = do
 --
 -- I don't do this in 'make_status' because that would put the whole thing into
 -- IO.
-resolve_waveform_links :: Msg.DeriveStatus -> IO Msg.DeriveStatus
-resolve_waveform_links (Msg.ImStatus block_id track_ids
+resolveWaveformLinks :: Msg.DeriveStatus -> IO Msg.DeriveStatus
+resolveWaveformLinks (Msg.ImStatus blockId trackIds
         (Msg.ImWaveformsCompleted waveforms)) = do
 
     -- resolved <- mapM (Directory.getSymbolicLinkTarget . Track._filename)
@@ -522,21 +522,21 @@ resolve_waveform_links (Msg.ImStatus block_id track_ids
     --     let dir = FilePath.takeDirectory $ Track._filename (head waveforms)
     --     Process.callProcess "ls" ["-l", dir]
 
-    fns <- mapM (resolve_link . Track._filename) waveforms
+    fns <- mapM (resolveLink . Track._filename) waveforms
     -- I got a directory in there once and don't know why...
     when (any (not . (".wav" `List.isSuffixOf`)) fns) $ do
         Log.error $ "waveforms resolved to non-wav: "
             <> pretty (zip (map Track._filename waveforms) fns)
-        fns2 <- mapM (resolve_link . Track._filename) waveforms
+        fns2 <- mapM (resolveLink . Track._filename) waveforms
         Log.error $ "tried again:"
             <> pretty (zip (map Track._filename waveforms) fns2)
 
-    pure $ Msg.ImStatus block_id track_ids $ Msg.ImWaveformsCompleted
+    pure $ Msg.ImStatus blockId trackIds $ Msg.ImWaveformsCompleted
         [wave { Track._filename = fn } | (fn, wave) <- zip fns waveforms]
-resolve_waveform_links status = pure status
+resolveWaveformLinks status = pure status
 
-resolve_link :: FilePath -> IO FilePath
-resolve_link fname = do
+resolveLink :: FilePath -> IO FilePath
+resolveLink fname = do
     dest <- Directory.getSymbolicLinkTarget fname
     dest <- if "checkpoint/" `List.isPrefixOf` dest
             && ".wav" `List.isSuffixOf` dest
@@ -552,41 +552,41 @@ resolve_link fname = do
 -- resolve_link fname =
 --     (FilePath.takeDirectory fname </>) <$> Directory.getSymbolicLinkTarget fname
 
-real_to_score :: Transport.InverseTempoFunction -> BlockId -> Set TrackId
+realToScore :: Transport.InverseTempoFunction -> BlockId -> Set TrackId
     -> RealTime -> Maybe ScoreTime
-real_to_score inv_tempo block_id track_ids =
-    fmap snd . List.find ((`Set.member` track_ids) . fst) <=< lookup block_id
-        . inv_tempo Transport.NoStop
+realToScore invTempo blockId trackIds =
+    fmap snd . List.find ((`Set.member` trackIds) . fst) <=< lookup blockId
+        . invTempo Transport.NoStop
 
 -- | If there are im events, serialize them and return a Processes to render
 -- them, and the non-im events.
-evaluate_im :: Config.Config
+evaluateIm :: Config.Config
     -> (ScoreT.Instrument -> Maybe Cmd.ResolvedInstrument)
     -> FilePath -> RealTime -> RealTime -> BlockId -> Vector.Vector Score.Event
     -> IO ([Process], Vector.Vector Score.Event)
-evaluate_im config lookup_inst score_path adjust0 play_multiplier block_id
+evaluateIm config lookupInst scorePath adjust0 playMultiplier blockId
         events = do
-    procs <- Maybe.catMaybes <$> mapM write_notes by_synth
-    Config.clearUnusedInstruments output_dir instruments
-    pure (procs, fromMaybe mempty $ lookup Nothing by_synth)
+    procs <- Maybe.catMaybes <$> mapM writeNotes bySynth
+    Config.clearUnusedInstruments outputDir instruments
+    pure (procs, fromMaybe mempty $ lookup Nothing bySynth)
     where
     instruments = Vector.foldl' add mempty events
-        where add = flip $ HashSet.insert . Score.event_instrument
-    by_synth = Util.Vector.partition_on im_synth events
-    lookup_im inst = case lookup_inst inst of
+        where add = flip $ HashSet.insert . Score.eventInstrument
+    bySynth = Util.Vector.partitionOn imSynth events
+    lookupIm inst = case lookupInst inst of
         Just inst
-            | Inst.Inst (Inst.Im {}) _  <- Cmd.inst_instrument inst ->
+            | Inst.Inst (Inst.Im {}) _  <- Cmd.instInstrument inst ->
                 Just inst
         _ -> Nothing
-    im_synth = fmap Cmd.inst_synth . lookup_im . Score.event_instrument
+    imSynth = fmap Cmd.instSynth . lookupIm . Score.eventInstrument
 
-    output_dir = Config.outputDirectory (Config.imDir config) score_path
-        block_id
-    write_notes (Just synth_name, events) =
-        case Map.lookup synth_name (Config.synths config) of
+    outputDir = Config.outputDirectory (Config.imDir config) scorePath
+        blockId
+    writeNotes (Just synthName, events) =
+        case Map.lookup synthName (Config.synths config) of
             Just synth -> do
-                let notes_file = Config.notesFilename (Config.imDir config)
-                        score_path block_id synth
+                let notesFile = Config.notesFilename (Config.imDir config)
+                        scorePath blockId synth
                 -- I used to get the changed flag out of Im.Convert.write and
                 -- skip the subprocess if it hadn't changed.  But that gets in
                 -- the way of getting waveforms on the first run (assuming the
@@ -594,80 +594,80 @@ evaluate_im config lookup_inst score_path adjust0 play_multiplier block_id
                 -- more careful in insert_damage, so we shouldn't even get here
                 -- unless there was damage on the block, and if there was but
                 -- notes haven't changed, the im synth should hit its cache.
-                Im.Convert.write adjust0 play_multiplier block_id
-                    lookup_inst notes_file events
+                Im.Convert.write adjust0 playMultiplier blockId
+                    lookupInst notesFile events
                 let binary = Config.binary synth
                 pure $ if null binary
                     then Nothing
-                    else Just (binary, ["--progress", notes_file, output_dir])
+                    else Just (binary, ["--progress", notesFile, outputDir])
             Nothing -> do
-                Log.warn $ "unknown im synth " <> showt synth_name <> " with "
+                Log.warn $ "unknown im synth " <> showt synthName <> " with "
                     <> showt (Vector.length events) <> " events"
                 pure Nothing
-    write_notes (Nothing, _) = pure Nothing
+    writeNotes (Nothing, _) = pure Nothing
 
 -- | If there are no UiConfig.Im instruments, then I don't need to bother to
 -- partition out its events.  However, it means I won't get errors if there
 -- happen to be any, but I'll worry about that if it becomes a problem.
-im_allocated :: UiConfig.Allocations -> Bool
-im_allocated (UiConfig.Allocations allocs) =
-    any ((==UiConfig.Im) . UiConfig.alloc_backend) (Map.elems allocs)
+imAllocated :: UiConfig.Allocations -> Bool
+imAllocated (UiConfig.Allocations allocs) =
+    any ((==UiConfig.Im) . UiConfig.allocBackend) (Map.elems allocs)
 
 -- | Make a broken performance with just an error msg.  This ensures that
 -- the msg is logged when you try to play, but will still suppress further
 -- performance, so you don't get a million msgs.
-broken_performance :: Text -> Cmd.Performance
-broken_performance msg = Cmd.Performance
-    { perf_derive_cache = mempty
-    , perf_events = mempty
-    , perf_logs = [Log.msg Log.Warn Nothing msg]
-    , perf_logs_written = False
-    , perf_track_dynamic = mempty
-    , perf_integrated = mempty
-    , perf_damage = mempty
-    , perf_warps = mempty
-    , perf_track_signals = mempty
-    , perf_block_deps = mempty
-    , perf_track_instruments = mempty
-    , perf_ui_state = Ui.empty
+brokenPerformance :: Text -> Cmd.Performance
+brokenPerformance msg = Cmd.Performance
+    { perfDeriveCache = mempty
+    , perfEvents = mempty
+    , perfLogs = [Log.msg Log.Warn Nothing msg]
+    , perfLogsWritten = False
+    , perfTrackDynamic = mempty
+    , perfIntegrated = mempty
+    , perfDamage = mempty
+    , perfWarps = mempty
+    , perfTrackSignals = mempty
+    , perfBlockDeps = mempty
+    , perfTrackInstruments = mempty
+    , perfUiState = Ui.empty
     }
 
 -- | Constructor for 'Cmd.Performance'.
 performance :: Ui.State -> Derive.Result -> Cmd.Performance
 performance state result = Cmd.Performance
-    { perf_derive_cache = Derive.r_cache result
-    , perf_events = vevents
-    , perf_logs = logs
-    , perf_logs_written = False
-    , perf_track_dynamic = Derive.r_track_dynamic result
-    , perf_integrated = Derive.r_integrated result
-    , perf_damage = mempty
-    , perf_warps = Derive.r_track_warps result
-    , perf_track_signals = Derive.r_track_signals result
-    , perf_block_deps = Derive.collect_block_deps $ Derive.state_collect $
-        Derive.r_state result
-    , perf_track_instruments = track_instruments
-        vevents (Map.keys (Ui.state_tracks state))
-    , perf_ui_state = state
+    { perfDeriveCache = Derive.rCache result
+    , perfEvents = vevents
+    , perfLogs = logs
+    , perfLogsWritten = False
+    , perfTrackDynamic = Derive.rTrackDynamic result
+    , perfIntegrated = Derive.rIntegrated result
+    , perfDamage = mempty
+    , perfWarps = Derive.rTrackWarps result
+    , perfTrackSignals = Derive.rTrackSignals result
+    , perfBlockDeps = Derive.collectBlockDeps $ Derive.stateCollect $
+        Derive.rState result
+    , perfTrackInstruments = trackInstruments
+        vevents (Map.keys (Ui.stateTracks state))
+    , perfUiState = state
     }
     where
     vevents = Vector.fromList events
-    (events, logs) = Stream.partition (Derive.r_events result)
+    (events, logs) = Stream.partition (Derive.rEvents result)
 
-modify_play_state :: (Cmd.PlayState -> Cmd.PlayState) -> Cmd.State -> Cmd.State
-modify_play_state modify state =
-    state { Cmd.state_play = modify (Cmd.state_play state) }
+modifyPlayState :: (Cmd.PlayState -> Cmd.PlayState) -> Cmd.State -> Cmd.State
+modifyPlayState modify state =
+    state { Cmd.statePlay = modify (Cmd.statePlay state) }
 
-track_instruments :: Vector.Vector Score.Event -> [TrackId]
+trackInstruments :: Vector.Vector Score.Event -> [TrackId]
     -> Map TrackId (Set ScoreT.Instrument)
-track_instruments events = Map.Lazy.fromAscList . Lists.keyOnSnd instruments_of
+trackInstruments events = Map.Lazy.fromAscList . Lists.keyOnSnd instrumentsOf
     -- fromAscList should be safe since Map.keys returns in order.
     where
     -- Go by TrackId, so I can make each Map value lazy, since I will only
     -- even need the instruments if I do an im mute on the track.
-    instruments_of track_id = Vector.foldl' (get track_id) mempty events
-    get track_id seen event
-        | track_id `elem` track_ids =
-            Set.insert (Score.event_instrument event) seen
+    instrumentsOf trackId = Vector.foldl' (get trackId) mempty events
+    get trackId seen event
+        | trackId `elem` trackIds =
+            Set.insert (Score.eventInstrument event) seen
         | otherwise = seen
-        where track_ids = Stack.track_ids_of (Score.event_stack event)
+        where trackIds = Stack.trackIdsOf (Score.eventStack event)

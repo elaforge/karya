@@ -6,11 +6,11 @@
 module Derive.C.Post.Postproc (
     library
     , Key
-    , make_cancel
-    , adjust_offset
-    , cancel_strong_weak
-    , group_and_cancel
-    , infer_duration_merged
+    , makeCancel
+    , adjustOffset
+    , cancelStrongWeak
+    , groupAndCancel
+    , inferDurationMerged
 ) where
 import qualified Data.List as List
 import qualified Data.Map.Strict as Map
@@ -46,15 +46,15 @@ import           Types
 
 library :: Library.Library
 library = Library.transformers
-    [ ("apply-start-offset", c_apply_start_offset)
-    , ("cancel", c_cancel)
-    , ("infer-negative", c_infer_negative)
-    , ("randomize-start", c_randomize_start)
-    , ("strong", Make.add_flag module_ "strong"
+    [ ("apply-start-offset", cApplyStartOffset)
+    , ("cancel", cCancel)
+    , ("infer-negative", cInferNegative)
+    , ("randomize-start", cRandomizeStart)
+    , ("strong", Make.addFlag module_ "strong"
         "Add the 'Derive.Flags.strong' flag, which will cancel coincident\
             \ non-strong notes."
         Flags.strong)
-    , ("weak", Make.add_flag module_ "weak"
+    , ("weak", Make.addFlag module_ "weak"
         "Add the 'Derive.Flags.weak' flag, which will cause this to be\
             \ cancelled by coincident non-weak notes."
         Flags.weak)
@@ -65,67 +65,67 @@ module_ = Module.prelude
 
 -- * infer-negative
 
-c_infer_negative :: Derive.Transformer Derive.Note
-c_infer_negative = Derive.transformer module_ "infer-negative" Tags.postproc
+cInferNegative :: Derive.Transformer Derive.Note
+cInferNegative = Derive.transformer module_ "infer-negative" Tags.postproc
     "Infer durations for negative events, by instrument."
     $ Sig.callt ((,)
     <$> Sig.defaulted "heuristic" ("note" :: Text) "doc"
-    <*> final_duration_arg
-    ) $ \(heuristic, final_dur) _args deriver -> do
+    <*> finalDurationArg
+    ) $ \(heuristic, finalDur) _args deriver -> do
         process <- Derive.require ("invalid heuristic: " <> heuristic) $
-            Map.lookup (heuristic :: Text) infer_heuristics
-        process final_dur <$> deriver
+            Map.lookup (heuristic :: Text) inferHeuristics
+        process finalDur <$> deriver
     where
-    infer_heuristics = Map.fromList
-        [ ("hand", next_hand)
-        , ("note", next_note)
+    inferHeuristics = Map.fromList
+        [ ("hand", nextHand)
+        , ("note", nextNote)
         ]
 
 -- | Until the next note with the same hand.  Suitable for gender barung.
 -- If the next event doesn't touch this one, stop at its (negative) start time.
 -- This is a bit weird conceptually but in practice seems to be useful for
 -- controlling duration.
-next_hand :: RealTime -> Stream.Stream Score.Event -> Stream.Stream Score.Event
-next_hand = infer_duration Post.hand_key $ \here nexts ->
+nextHand :: RealTime -> Stream.Stream Score.Event -> Stream.Stream Score.Event
+nextHand = inferDuration Post.handKey $ \here nexts ->
     subtract here . until here <$> Lists.head nexts
     where
     until here next
-        | Score.event_min next >= here + threshold = Score.event_min next
-        | otherwise = Score.event_max next
+        | Score.eventMin next >= here + threshold = Score.eventMin next
+        | otherwise = Score.eventMax next
     threshold = 0.05
 
 -- | Until the next note with the same instrument.  Suitable for gender
 -- panerus.
-next_note :: RealTime -> Stream.Stream Score.Event -> Stream.Stream Score.Event
-next_note = infer_duration Score.event_instrument $ \here nexts ->
+nextNote :: RealTime -> Stream.Stream Score.Event -> Stream.Stream Score.Event
+nextNote = inferDuration Score.eventInstrument $ \here nexts ->
     subtract here . start <$>
         Lists.head (dropWhile (\n -> start n - here < threshold) nexts)
     where
     threshold = 0.15
-    start = Score.event_start
+    start = Score.eventStart
 
-infer_duration :: Eq key => Key key
+inferDuration :: Eq key => Key key
     -> (RealTime -> [Score.Event] -> Maybe RealTime)
     -> RealTime
     -> Stream.Stream Score.Event
     -> Stream.Stream Score.Event
-infer_duration next_key infer final_dur =
-    Post.emap1_ infer1 . Post.nexts_by next_key
+inferDuration nextKey infer finalDur =
+    Post.emap1_ infer1 . Post.nextsBy nextKey
     where
     infer1 (event, nexts)
-        | null nexts = Score.set_duration final_dur event
-        | Score.event_duration event >= 0 = event
-        | otherwise = case infer (Score.event_start event) nexts of
-            Nothing -> Score.set_duration final_dur event
-            Just dur -> Score.set_duration dur event
+        | null nexts = Score.setDuration finalDur event
+        | Score.eventDuration event >= 0 = event
+        | otherwise = case infer (Score.eventStart event) nexts of
+            Nothing -> Score.setDuration finalDur event
+            Just dur -> Score.setDuration dur event
 
 -- * cancel
 
-c_cancel :: Derive.Transformer Derive.Note
-c_cancel = Derive.transformer module_ "cancel" Tags.postproc
+cCancel :: Derive.Transformer Derive.Note
+cCancel = Derive.transformer module_ "cancel" Tags.postproc
     "Process the 'Derive.Flags.strong' and 'Derive.Flags.weak' flags.\
     \ This will cause notes to be dropped."
-    $ make_cancel (cancel_strong_weak infer_duration_merged) Post.hand_key
+    $ makeCancel (cancelStrongWeak inferDurationMerged) Post.handKey
 
 -- | Given a set of coincident notes, return either an error, or merge them
 -- into a set of output notes.
@@ -136,22 +136,22 @@ type Cancel = [Score.Event] -> Either Text [Score.Event]
 -- form a composite part.
 type Key key = Score.Event -> key
 
-make_cancel :: Ord key => Cancel -> Key key
+makeCancel :: Ord key => Cancel -> Key key
     -> Derive.WithArgDoc (Derive.TransformerF Derive.Note)
-make_cancel cancel key =
-    Sig.callt final_duration_arg $ \final_dur _args deriver ->
-        Derive.require_right id . group_and_cancel cancel key final_dur
+makeCancel cancel key =
+    Sig.callt finalDurationArg $ \finalDur _args deriver ->
+        Derive.requireRight id . groupAndCancel cancel key finalDur
             =<< deriver
 
-final_duration_arg :: Sig.Parser RealTime
-final_duration_arg = Sig.defaulted_env "final-duration" Sig.Unprefixed
+finalDurationArg :: Sig.Parser RealTime
+finalDurationArg = Sig.defaultedEnv "final-duration" Sig.Unprefixed
     (1 :: RealTime) "If there is no following note, infer this duration."
 
-group_and_cancel :: Ord key => Cancel -> Key key -> RealTime
+groupAndCancel :: Ord key => Cancel -> Key key -> RealTime
     -> Events -> Either Text Events
-group_and_cancel cancel key final_dur =
-    fmap (infer_duration_single key final_dur . suppress_notes)
-    . merge_groups cancel . group_coincident key
+groupAndCancel cancel key finalDur =
+    fmap (inferDurationSingle key finalDur . suppressNotes)
+    . mergeGroups cancel . groupCoincident key
 
 -- | Merge notes with 'Flags.strong' and 'Flags.weak'.  The rules are that
 -- strong notes merge with weaker ones, in the order strong, normal, weak.
@@ -159,30 +159,30 @@ group_and_cancel cancel key final_dur =
 -- Previously I considered multiple weaks or strongs ambiguous, but it turns
 -- out I get multiple strongs with two hand strokes at the end of a block,
 -- and I might as well allow the rest too, for simplicity.
-cancel_strong_weak :: (Score.Event -> [Score.Event] -> Score.Event)
+cancelStrongWeak :: (Score.Event -> [Score.Event] -> Score.Event)
     -> [Score.Event] -> Either Text [Score.Event]
-cancel_strong_weak merge events = case partition events of
+cancelStrongWeak merge events = case partition events of
     (strongs@(_:_), weaks, normals) ->
         Right [merge strong (normals ++ weaks) | strong <- strongs]
     ([], weaks, normals@(_:_)) -> Right [merge normal weaks | normal <- normals]
     ([], weaks, []) -> Right weaks
     where
-    partition = Lists.partition2 (Score.has_flags Flags.strong)
-        (Score.has_flags Flags.weak)
+    partition = Lists.partition2 (Score.hasFlags Flags.strong)
+        (Score.hasFlags Flags.weak)
 
 -- | Handle 'Flags.infer_duration' for notes merged together.  This is the case
 -- where a final note replaces a coincident initial note.  The strong note gets
 -- the duration of the longest weak notes, if there are any.  If there are no
 -- weaks, then there are no coincedent notes to merge, so return the event
 -- unchanged so 'infer_duration_single' can handle it.
-infer_duration_merged :: Score.Event -> [Score.Event] -> Score.Event
-infer_duration_merged strong weaks =
-    case Lists.maximum (map Score.event_end weaks) of
-        Just end | Score.has_flags Flags.infer_duration strong ->
-            Score.add_log ("set duration to max of weak notes: "
-                <> Score.short_events weaks) $
-            Score.remove_flags Flags.infer_duration $
-            Score.set_duration (end - Score.event_start strong) strong
+inferDurationMerged :: Score.Event -> [Score.Event] -> Score.Event
+inferDurationMerged strong weaks =
+    case Lists.maximum (map Score.eventEnd weaks) of
+        Just end | Score.hasFlags Flags.inferDuration strong ->
+            Score.addLog ("set duration to max of weak notes: "
+                <> Score.shortEvents weaks) $
+            Score.removeFlags Flags.inferDuration $
+            Score.setDuration (end - Score.eventStart strong) strong
         _ -> strong
 
 -- | Handle 'Flags.infer_duration' for a note by itself.  When there is no
@@ -193,24 +193,24 @@ infer_duration_merged strong weaks =
 -- one.  Normally notes of the same key are not expected to occur
 -- simultaneously, but may still do so, for example pasang parts which are
 -- normally considered a single voice but may still contain unison or kempyung.
-infer_duration_single :: Eq key => Key key -> RealTime
+inferDurationSingle :: Eq key => Key key -> RealTime
     -> Stream.Stream Score.Event -> Stream.Stream Score.Event
-infer_duration_single key final_dur = Post.emap1_ infer . Post.nexts_by key
+inferDurationSingle key finalDur = Post.emap1_ infer . Post.nextsBy key
     where
-    infer (event, _) | not (Score.has_flags Flags.infer_duration event) = event
+    infer (event, _) | not (Score.hasFlags Flags.inferDuration event) = event
     infer (event, nexts) =
-        Score.remove_flags Flags.infer_duration $ case next of
-            Just next -> Score.add_log "set duration to next start" $
-                set_end (Score.event_start next) event
-            Nothing -> Score.add_log "set duration to final dur" $
-                Score.set_duration final_dur event
+        Score.removeFlags Flags.inferDuration $ case next of
+            Just next -> Score.addLog "set duration to next start" $
+                setEnd (Score.eventStart next) event
+            Nothing -> Score.addLog "set duration to final dur" $
+                Score.setDuration finalDur event
         where
-        next = List.find ((> Score.event_start event) . Score.event_start) nexts
-    set_end end event = Score.set_duration (end - Score.event_start event) event
+        next = List.find ((> Score.eventStart event) . Score.eventStart) nexts
+    setEnd end event = Score.setDuration (end - Score.eventStart event) event
 
-merge_groups :: ([a] -> Either Text [a]) -> [Either [LEvent.LEvent a] [a]]
+mergeGroups :: ([a] -> Either Text [a]) -> [Either [LEvent.LEvent a] [a]]
     -> Either Text (Stream.Stream a)
-merge_groups merge = fmap Stream.from_sorted_list . concatMapM go
+mergeGroups merge = fmap Stream.fromSortedList . concatMapM go
     where
     go (Left ungrouped) = Right ungrouped
     go (Right []) = Right []
@@ -220,9 +220,9 @@ merge_groups merge = fmap Stream.from_sorted_list . concatMapM go
 type Events = Stream.Stream Score.Event
 
 -- | Group events with the same start time.  Events in Left are not grouped.
-group_coincident :: Ord key => (Score.Event -> key) -> Events
+groupCoincident :: Ord key => (Score.Event -> key) -> Events
     -> [Either [LEvent.LEvent Score.Event] [Score.Event]]
-group_coincident key = go . Stream.to_list
+groupCoincident key = go . Stream.toList
     where
     go [] = []
     go (log@(LEvent.Log {}) : es) = Left [log] : go es
@@ -231,10 +231,10 @@ group_coincident key = go . Stream.to_list
             groups ++ go after
         where
         ((during, logs), after) = first LEvent.partition $
-            span (LEvent.log_or $ same_start e) es
+            span (LEvent.logOr $ sameStart e) es
         -- [e] is going to be a common case, since most notes don't group.
         groups = map Right (Lists.groupSort key (e : during))
-    same_start e1 e2 = Score.event_start e1 RealTime.== Score.event_start e2
+    sameStart e1 e2 = Score.eventStart e1 RealTime.== Score.eventStart e2
 
 -- | Filter out events that fall at and before the 'EnvKey.suppress_until'
 -- range of an event with the same (instrument, hand).  Only events that don't
@@ -243,39 +243,39 @@ group_coincident key = go . Stream.to_list
 -- This is complicated by the fact that an event should suppress coincident
 -- events even if the supressor follows the suppressee in the list, so I have
 -- to look into the future for the greatest suppress_until.
-suppress_notes :: Stream.Stream Score.Event -> Stream.Stream Score.Event
-suppress_notes =
-    snd . Post.emap go Map.empty . Stream.zip_on Post.nexts
-        . Stream.zip3_on (map Post.hand_key) (map get_suppress)
+suppressNotes :: Stream.Stream Score.Event -> Stream.Stream Score.Event
+suppressNotes =
+    snd . Post.emap go Map.empty . Stream.zipOn Post.nexts
+        . Stream.zip3On (map Post.handKey) (map getSuppress)
     where
     go suppressed (nexts, (key, suppress, event)) = case suppress of
-        Nothing -> (,) suppressed $ case suppress_until of
-            Just until | until >= Score.event_start event - RealTime.eta -> []
+        Nothing -> (,) suppressed $ case suppressUntil of
+            Just until | until >= Score.eventStart event - RealTime.eta -> []
             _ -> [event]
         Just until -> (Map.insert key until suppressed, [event])
         where
-        suppress_until = Lists.maximum $ Maybe.catMaybes $
-            (Map.lookup key suppressed :) $ map suppress_of $
-            takeWhile (coincident . event_of) $
-            filter ((==key) . key_of) nexts
-        coincident e = Score.event_start e
-            <= Score.event_start event + RealTime.eta
-    get_suppress :: Score.Event -> Maybe RealTime
-    get_suppress = Env.maybe_val EnvKey.suppress_until . Score.event_environ
-    key_of (k, _, _) = k
-    suppress_of (_, s, _) = s
-    event_of (_, _, e) = e
+        suppressUntil = Lists.maximum $ Maybe.catMaybes $
+            (Map.lookup key suppressed :) $ map suppressOf $
+            takeWhile (coincident . eventOf) $
+            filter ((==key) . keyOf) nexts
+        coincident e = Score.eventStart e
+            <= Score.eventStart event + RealTime.eta
+    getSuppress :: Score.Event -> Maybe RealTime
+    getSuppress = Env.maybeVal EnvKey.suppressUntil . Score.eventEnviron
+    keyOf (k, _, _) = k
+    suppressOf (_, s, _) = s
+    eventOf (_, _, e) = e
 
 -- * apply start offset
 
-c_randomize_start :: Derive.Transformer Derive.Note
-c_randomize_start = StaticMacro.check "c_randomize_start" $
+cRandomizeStart :: Derive.Transformer Derive.Note
+cRandomizeStart = StaticMacro.check "c_randomize_start" $
     StaticMacro.transformer module_ "randomize-start" Tags.postproc ""
         -- apply-start-offset | start-s = (cf-rnd-a+ $)
-        [ StaticMacro.Call c_apply_start_offset []
-        , StaticMacro.Call Equal.c_equal
-            [ StaticMacro.literal (ShowVal.show_val Controls.start_s)
-            , StaticMacro.call (ControlFunction.c_cf_rnd_around (+))
+        [ StaticMacro.Call cApplyStartOffset []
+        , StaticMacro.Call Equal.cEqual
+            [ StaticMacro.literal (ShowVal.showVal Controls.startS)
+            , StaticMacro.call (ControlFunction.cCfRndAround (+))
                 [StaticMacro.Var]
             ]
         ]
@@ -286,48 +286,48 @@ c_randomize_start = StaticMacro.check "c_randomize_start" $
     work other calls, like say block calls, and I can't apply the controls
     before the block call
 -}
-c_apply_start_offset :: Derive.Transformer Derive.Note
-c_apply_start_offset =
+cApplyStartOffset :: Derive.Transformer Derive.Note
+cApplyStartOffset =
     Derive.transformer module_ "apply-start-offset" Tags.postproc
-    ("Apply the " <> ShowVal.doc EnvKey.start_offset_val <> " env var.\
+    ("Apply the " <> ShowVal.doc EnvKey.startOffsetVal <> " env var.\
      \ This is set by note deriver from the "
-     <> ShowVal.doc Controls.start_s <> " and "
-     <> ShowVal.doc Controls.start_t <> " controls, so if you want those\
+     <> ShowVal.doc Controls.startS <> " and "
+     <> ShowVal.doc Controls.startT <> " controls, so if you want those\
      \ controls to have an effect, you have to use this postproc."
     ) $ Sig.callt (
         Sig.defaulted "min-duration" (Nothing :: Maybe RealTime)
             "If given, notes on the same hand\
             \ won't be moved closer than this time. Otherwise, hand and\
             \ instrument is ignored."
-    ) $ \min_dur _args deriver -> apply_start_offset min_dur <$> deriver
+    ) $ \minDur _args deriver -> applyStartOffset minDur <$> deriver
 
-apply_start_offset :: Maybe RealTime -> Stream.Stream Score.Event
+applyStartOffset :: Maybe RealTime -> Stream.Stream Score.Event
     -> Stream.Stream Score.Event
-apply_start_offset maybe_min_dur =
-    apply_offset . tweak_offset . Stream.zip_on (map offset_of)
+applyStartOffset maybeMinDur =
+    applyOffset . tweakOffset . Stream.zipOn (map offsetOf)
     where
-    tweak_offset = case maybe_min_dur of
+    tweakOffset = case maybeMinDur of
         Nothing -> id
-        Just min_dur -> Post.emap1_ (tweak min_dur)
-            . Post.neighbors_by (Post.hand_key . snd)
-    tweak min_dur (prev, (offset, event), next) = (new_offset, event)
+        Just minDur -> Post.emap1_ (tweak minDur)
+            . Post.neighborsBy (Post.handKey . snd)
+    tweak minDur (prev, (offset, event), next) = (newOffset, event)
         where
-        new_offset = adjust_offset min_dur (extract <$> prev) (extract <$> next)
-            offset (Score.event_start event)
-        extract (offset, event) = (offset, Score.event_start event)
+        newOffset = adjustOffset minDur (extract <$> prev) (extract <$> next)
+            offset (Score.eventStart event)
+        extract (offset, event) = (offset, Score.eventStart event)
 
-    apply_offset =
-        Post.emap1_ord_ apply . Post.neighbors_by (Post.hand_key . snd)
-    apply (_, (offset, event), maybe_next) =
-        set_dur $ Score.move_start (fromMaybe Note.min_duration maybe_min_dur)
+    applyOffset =
+        Post.emap1Ord_ apply . Post.neighborsBy (Post.handKey . snd)
+    apply (_, (offset, event), maybeNext) =
+        setDur $ Score.moveStart (fromMaybe Note.minDuration maybeMinDur)
             offset event
         where
-        set_dur event = case maybe_next of
+        setDur event = case maybeNext of
             Nothing -> event
-            Just (next_offset, next) -> Score.duration (const dur) event
+            Just (nextOffset, next) -> Score.duration (const dur) event
                 where
-                dur = adjust_duration (Score.event_start next)
-                    (Score.event_start next + next_offset) event
+                dur = adjustDuration (Score.eventStart next)
+                    (Score.eventStart next + nextOffset) event
 
 {- | Conceptually, all notes move together until they bump into each
     other.  Or, they move without restriction, and then go to midway of the
@@ -343,10 +343,10 @@ apply_start_offset maybe_min_dur =
     TODO this is still broken if an offset causes an note to skip over another.
     But that should be stopped by the next event, right?
 -}
-adjust_offset :: RealTime -- ^ don't move notes any closer than this
+adjustOffset :: RealTime -- ^ don't move notes any closer than this
     -> Maybe (RealTime, RealTime) -> Maybe (RealTime, RealTime)
     -> RealTime -> RealTime -> RealTime
-adjust_offset min_dur prev next offset start
+adjustOffset minDur prev next offset start
     | offset == 0 = offset
     | offset > 0 = case next of
         Nothing -> offset
@@ -357,43 +357,43 @@ adjust_offset min_dur prev next offset start
             --     <---+---|
             -- [------->   )
             --     |------->
-        Just (next_offset, next_start)
-            | overlap <= 0 -> min (next_end - min_dur) end - start
-            | otherwise -> (end - overlap + overlap / 2 - min_dur) - start
+        Just (nextOffset, nextStart)
+            | overlap <= 0 -> min (nextEnd - minDur) end - start
+            | otherwise -> (end - overlap + overlap / 2 - minDur) - start
             where
-            overlap = end - next_end
-            end = min (max next_start next_end) (start + offset)
-            next_end = max start (next_start + next_offset)
+            overlap = end - nextEnd
+            end = min (max nextStart nextEnd) (start + offset)
+            nextEnd = max start (nextStart + nextOffset)
     | otherwise = case prev of
         Nothing -> offset
             -- 0   1   2   3   4
             -- <-------|
             -- (   <-------|
-        Just (prev_offset, prev_start)
+        Just (prevOffset, prevStart)
             -- If the prev_offset is positive, then it will have already given
             -- the min_dur space.
-            | overlap <= 0 -> if prev_offset > 0
+            | overlap <= 0 -> if prevOffset > 0
                 then offset
-                else max (prev_end + min_dur) end - start
+                else max (prevEnd + minDur) end - start
             | otherwise -> (end + overlap - overlap / 2) - start
             where
-            overlap = prev_end - end
-            end = max (min prev_start prev_end) (start + offset)
-            prev_end = min start (prev_start + prev_offset)
+            overlap = prevEnd - end
+            end = max (min prevStart prevEnd) (start + offset)
+            prevEnd = min start (prevStart + prevOffset)
 
 -- | Change the duration based on the movement of the next event.
 --
 -- If the event end touches the next start, then adjust dur by next_offset.  If
 -- it's less, then shorten but don't lengthen.  If it overlaps the next note,
 -- then leave it alone.
-adjust_duration :: RealTime -> RealTime -> Score.Event -> RealTime
-adjust_duration next new_next event =
-    subtract (Score.event_start event) $ case ApproxEq.compare 0.001 end next of
-        EQ -> new_next
-        LT -> min new_next end
+adjustDuration :: RealTime -> RealTime -> Score.Event -> RealTime
+adjustDuration next newNext event =
+    subtract (Score.eventStart event) $ case ApproxEq.compare 0.001 end next of
+        EQ -> newNext
+        LT -> min newNext end
         GT -> end
-    where end = Score.event_end event
+    where end = Score.eventEnd event
 
-offset_of :: Score.Event -> RealTime
-offset_of = fromMaybe 0 . Env.maybe_val EnvKey.start_offset_val
-    . Score.event_environ
+offsetOf :: Score.Event -> RealTime
+offsetOf = fromMaybe 0 . Env.maybeVal EnvKey.startOffsetVal
+    . Score.eventEnviron

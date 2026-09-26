@@ -130,7 +130,7 @@ c_17_03_20 = date 2017 3 20 $ ganesh $
 
 c_17_09_25 :: Korvai
 c_17_09_25 = ganesh $ date 2017 9 25 $ similarTo "Solkattu2017" "c_17_03_20" $
-    korvaiS Tala.misra_chapu mridangam
+    korvaiS Tala.misraChapu mridangam
     [ sarvaD_ 3 . theme
     , mconcat [v `replaceStart` theme_ . __.__. dropM 6 theme | v <- variants]
     , dropM 4 theme . sequence
@@ -155,7 +155,7 @@ c_17_09_25 = ganesh $ date 2017 9 25 $ similarTo "Solkattu2017" "c_17_03_20" $
 
 c_17_04_04 :: Korvai
 c_17_04_04 = date 2017 4 4 $ source "subash chandran" $
-    korvaiS Tala.misra_chapu mridangam $ map (sd • (purvangam.))
+    korvaiS Tala.misraChapu mridangam $ map (sd • (purvangam.))
     [ utarangam 3 takita (ta.taka)
     , utarangam 4 takadinna takadinna
     , utarangam 5 tdgnt tdgnt
@@ -493,7 +493,7 @@ c_17_08_21 = date 2017 8 21 $ sudhindra $ tirmanam $ korvaiS adi mridangam $
 
 c_17_08_29 :: Korvai
 c_17_08_29 = date 2017 8 29 $ ganesh $
-    korvaiS Tala.misra_chapu (mridangam<>kendang1)
+    korvaiS Tala.misraChapu (mridangam<>kendang1)
     [ sarvaD_ 7 . sarvaD_ 3   . develop.na.__.din
     , dit.__4 . sarvaD_ 2 . develop . na.__
     , r2 $ dit.__4 . sarvaD_ 2 . r3 develop . na.__
@@ -620,7 +620,7 @@ c_17_10_23 = date 2017 10 23 $ ganesh $ koraippu $
 
 c_20_12_12_kanda :: Korvai
 c_20_12_12_kanda = date 2020 12 12 $ koraippu $
-    korvaiS Tala.kanda_chapu (mridangam<>kendang1) $ map sd
+    korvaiS Tala.kandaChapu (mridangam<>kendang1) $ map sd
     [ sarvaD_ (13/2) . t1
         . sarvaD_ (12/2) . kitataka.t1
         . sarvaD_ (11/2) . kitakita.kitataka.t1
@@ -728,7 +728,7 @@ c_17_12_11 = date 2017 12 11 $ ganesh $ korvaiS adi mridangam
         ]
 
 speaking1 :: Korvai
-speaking1 = ganesh $ exercise $ korvaiS Tala.any_beats mridangam $
+speaking1 = ganesh $ exercise $ korvaiS Tala.anyBeats mridangam $
     -- 5s, 15 beats
     [ r4 $ t5.t5 . su (t5.t5)
     , r4 $ nadai 6 (in3 (g tdgnt.g tdgnt)) . su (t5.t5)

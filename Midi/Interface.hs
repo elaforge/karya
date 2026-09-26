@@ -9,11 +9,11 @@ module Midi.Interface (
     , ReadChan
     , RawInterface(..), Interface
     , Message(..)
-    , track_interface
-    , reset_pitch
-    , reset_controls
+    , trackInterface
+    , resetPitch
+    , resetControls
 
-    , note_tracker
+    , noteTracker
 ) where
 import qualified Control.Concurrent.MVar as MVar
 import qualified Control.Concurrent.STM.TChan as TChan
@@ -39,8 +39,8 @@ import           Global
 -- | Not all synths observe AllNotesOff, but swam does.  Swam also
 -- tends to get stuck notes.  TODO who doesn't support it?  And does this fix
 -- swam?  If no one and yes, then I can remove the old tracking mechanism.
-use_all_notes_off :: Bool
-use_all_notes_off = True
+useAllNotesOff :: Bool
+useAllNotesOff = True
 
 type Error = Text
 
@@ -58,28 +58,28 @@ type Initialize a = String -- ^ register this name with CoreMIDI
 type WantMessage = ByteString.ByteString -> Bool
 
 -- | Produced by an @initialize@ function.
-data RawInterface write_message = Interface
+data RawInterface writeMessage = Interface
     -- | Name of the MIDI driver.  Just for debugging.
     { name :: String
     -- | ReadMessages from the opened ReadDevices become available on this
     -- channel.
-    , read_channel :: ReadChan
+    , readChannel :: ReadChan
     -- | Get currently connected read and write devices, along with a list
     -- of aliases for each one.
-    , read_devices :: IO [(Midi.ReadDevice, [Midi.ReadDevice])]
-    , write_devices :: IO [(Midi.WriteDevice, [Midi.WriteDevice])]
+    , readDevices :: IO [(Midi.ReadDevice, [Midi.ReadDevice])]
+    , writeDevices :: IO [(Midi.WriteDevice, [Midi.WriteDevice])]
 
     -- | Start receiving messages on 'read_channel' from the given device.
     -- If it doesn't exist, return False.  But it's ok to connect to
     -- non-existent ReadDevices because if it does get plugged in, it will
     -- be connected automatically.
-    , connect_read_device :: Midi.ReadDevice -> IO Bool
+    , connectReadDevice :: Midi.ReadDevice -> IO Bool
     -- | Stop receiving messages for this device.  False if it wasn't
     -- connected.
-    , disconnect_read_device :: Midi.ReadDevice -> IO Bool
+    , disconnectReadDevice :: Midi.ReadDevice -> IO Bool
 
     -- | The same as 'connect_read_device'.
-    , connect_write_device :: Midi.WriteDevice -> IO Bool
+    , connectWriteDevice :: Midi.WriteDevice -> IO Bool
 
     -- | Write a message to the output.  To avoid overflow, try to not have
     -- more than a thousand or so pending.  False if the WriteDevice isn't
@@ -87,7 +87,7 @@ data RawInterface write_message = Interface
     --
     -- Messages should be written in increasing time order, with a special
     -- case that timestamp 0 messages will be written immediately.
-    , write_message :: write_message -> IO (Maybe Error)
+    , writeMessage :: writeMessage -> IO (Maybe Error)
     -- | Deschedule all pending write messages.
     , abort :: IO ()
     -- | Current time according to the MIDI driver.
@@ -122,20 +122,20 @@ instance DeepSeq.NFData Message where
     rnf (AllNotesOff _) = ()
     rnf (AllDevices _ msgs) = DeepSeq.rnf msgs
 
-track_interface :: RawInterface Midi.WriteMessage -> IO Interface
-track_interface interface = do
-    tracker <- note_tracker use_all_notes_off (write_message interface)
-    pure $ interface { write_message = tracker }
+trackInterface :: RawInterface Midi.WriteMessage -> IO Interface
+trackInterface interface = do
+    tracker <- noteTracker useAllNotesOff (writeMessage interface)
+    pure $ interface { writeMessage = tracker }
 
-reset_pitch :: RealTime -> Message
-reset_pitch time = AllDevices time $ all_channels (Midi.PitchBend 0)
+resetPitch :: RealTime -> Message
+resetPitch time = AllDevices time $ allChannels (Midi.PitchBend 0)
 
-reset_controls :: RealTime -> Message
-reset_controls time = AllDevices time $
-    concatMap all_channels [Midi.ResetAllControls, Midi.PitchBend 0]
+resetControls :: RealTime -> Message
+resetControls time = AllDevices time $
+    concatMap allChannels [Midi.ResetAllControls, Midi.PitchBend 0]
 
-all_channels :: Midi.ChannelMessage -> [Midi.Message]
-all_channels msg = [Midi.ChannelMessage chan msg | chan <- [0..15]]
+allChannels :: Midi.ChannelMessage -> [Midi.Message]
+allChannels msg = [Midi.ChannelMessage chan msg | chan <- [0..15]]
 
 -- * implementation
 
@@ -151,47 +151,47 @@ run state = fmap Tuple.swap . flip State.runStateT state
 -- This is necessary because some synthesizers do not support AllNotesOff,
 -- but also relieves callers of having to track which devices and channels
 -- have active notes.
-note_tracker :: Bool -> (Midi.WriteMessage -> IO (Maybe err))
+noteTracker :: Bool -> (Midi.WriteMessage -> IO (Maybe err))
     -> IO (Message -> IO (Maybe err))
-note_tracker use_all_notes_off write = do
+noteTracker useAllNotesOff write = do
     mstate <- MVar.newMVar Map.empty
     pure $ \msg -> MVar.modifyMVar mstate $ \state -> run state $ do
-        new_msgs <- handle_msg msg
+        newMsgs <- handleMsg msg
         liftIO $ do
-            mapM_ write new_msgs
+            mapM_ write newMsgs
             case msg of
                 Midi wmsg -> write wmsg
                 _ -> pure Nothing
     where
-    handle_msg (Midi wmsg) = do
-        case Midi.wmsg_msg wmsg of
+    handleMsg (Midi wmsg) = do
+        case Midi.wmsgMsg wmsg of
             Midi.ChannelMessage chan _
                 | not (Num.inRange 0 15 chan) -> pure ()
             Midi.ChannelMessage chan (Midi.NoteOn key vel)
-                | vel == 0 -> note_off dev chan key
-                | otherwise -> note_on dev chan key
+                | vel == 0 -> noteOff dev chan key
+                | otherwise -> noteOn dev chan key
             Midi.ChannelMessage chan (Midi.NoteOff key _) ->
-                note_off dev chan key
+                noteOff dev chan key
             _ -> pure ()
         pure []
-        where dev = Midi.wmsg_dev wmsg
-    handle_msg (AllNotesOff time) = all_notes_off use_all_notes_off time
-    handle_msg (AllDevices time msgs) = send_devices time msgs
+        where dev = Midi.wmsgDev wmsg
+    handleMsg (AllNotesOff time) = allNotesOff useAllNotesOff time
+    handleMsg (AllDevices time msgs) = sendDevices time msgs
 
 -- if dev in state:
 --      state[dev][chan][key] -= 1
-note_off :: Midi.WriteDevice -> Midi.Channel -> Midi.Key -> TrackerM ()
-note_off dev chan key = when (Num.inRange 0 128 key) $ do
+noteOff :: Midi.WriteDevice -> Midi.Channel -> Midi.Key -> TrackerM ()
+noteOff dev chan key = when (Num.inRange 0 128 key) $ do
     state <- State.get
     whenJust (Map.lookup dev state) $ \chans -> liftIO $
         Mutable.modify (chans ! fromIntegral chan) (subtract 1)
-            (Midi.from_key key)
+            (Midi.fromKey key)
 
 -- if dev not in state:
 --      state[dev] = [[0]*128] * 16
 -- state[dev][chan][key] += 1
-note_on :: Midi.WriteDevice -> Midi.Channel -> Midi.Key -> TrackerM ()
-note_on dev chan key = when (Num.inRange 0 128 key) $ do
+noteOn :: Midi.WriteDevice -> Midi.Channel -> Midi.Key -> TrackerM ()
+noteOn dev chan key = when (Num.inRange 0 128 key) $ do
     state <- State.get
     case Map.lookup dev state of
         Nothing -> do
@@ -202,23 +202,23 @@ note_on dev chan key = when (Num.inRange 0 128 key) $ do
         Just chans -> set chans
     where
     set chans = liftIO $
-        Mutable.modify (chans ! fromIntegral chan) (+1) (Midi.from_key key)
+        Mutable.modify (chans ! fromIntegral chan) (+1) (Midi.fromKey key)
 
 -- | Send the given messages on all devices.
-send_devices :: RealTime -> [Midi.Message] -> TrackerM [Midi.WriteMessage]
-send_devices time msgs = do
+sendDevices :: RealTime -> [Midi.Message] -> TrackerM [Midi.WriteMessage]
+sendDevices time msgs = do
     state <- State.get
     pure $ concatMap mkmsgs (Map.keys state)
     where
     mkmsgs dev = map (Midi.WriteMessage dev time) msgs
 
-all_notes_off :: Bool -> RealTime -> TrackerM [Midi.WriteMessage]
-all_notes_off use_all_notes_off time = do
+allNotesOff :: Bool -> RealTime -> TrackerM [Midi.WriteMessage]
+allNotesOff useAllNotesOff time = do
     state <- State.get
     -- Debug.traceM "state" =<< traverse (traverse Unboxed.freeze) state
     msgs <- liftIO $ forM (Map.toList state) $ \(dev, chans) ->
         forM (zip [0..] (Vector.toList chans)) $ \(chan, notes) ->
-            if use_all_notes_off then pure
+            if useAllNotesOff then pure
                 [ Midi.WriteMessage dev time $
                     Midi.ChannelMessage chan Midi.AllNotesOff
                 ]
@@ -226,7 +226,7 @@ all_notes_off use_all_notes_off time = do
                 keys <- Unboxed.toList <$> Unboxed.freeze notes
                 liftIO $ Mutable.set notes 0
                 -- Emit a NoteOff for each current NoteOn I've seen.
-                pure $ map (note_off dev chan)
+                pure $ map (noteOff dev chan)
                     [ Midi.Key (fromIntegral i)
                     | (i, count) <- zip [0..] keys
                     , _ <- [0 .. count-1]
@@ -234,5 +234,5 @@ all_notes_off use_all_notes_off time = do
     -- Debug.tracepM "msgs" $ concat $ concat msgs
     pure $ concat (concat msgs)
     where
-    note_off dev chan key = Midi.WriteMessage dev time $
+    noteOff dev chan key = Midi.WriteMessage dev time $
         Midi.ChannelMessage chan $ Midi.NoteOff key 0

@@ -26,7 +26,7 @@ import           Util.Test
 
 test_parse_expr :: Test
 test_parse_expr = do
-    let f = fmap NonEmpty.toList . Parse.parse_expr
+    let f = fmap NonEmpty.toList . Parse.parseExpr
         vsig = DeriveT.num
     equal (f "a | b") $ Right [Call "a" [], Call "b" []]
     equal (f "a | b | c") $ Right $ [Call "a" [], Call "b" [], Call "c" []]
@@ -34,7 +34,7 @@ test_parse_expr = do
     equal (f "4") $ Right [Call "4" []]
     equal (f "()") $ Right [Call "()" []]
     equal (f "4 4") $ Right [Call "4" [Literal (vsig 4)]]
-    equal (f "4 (4)") $ Right [Call "4" [Expr.val_call "4" []]]
+    equal (f "4 (4)") $ Right [Call "4" [Expr.valCall "4" []]]
     -- So the only way to have a null call is a null expression.
     equal (f "") $ Right [Call "" []]
 
@@ -53,11 +53,11 @@ test_parse_expr = do
 
     -- Subcalls, however, use a close paren to delimit.
     equal (f "a (b) c") $
-        Right [Call "a" [Expr.val_call "b" [], Literal (VStr "c")]]
+        Right [Call "a" [Expr.valCall "b" [], Literal (VStr "c")]]
     equal (f "a (()") $
-        Right [Call "a" [Expr.val_call "(" []]]
+        Right [Call "a" [Expr.valCall "(" []]]
     -- Unbalanced parens.
-    left_like (f "a (b") "parse error"
+    leftLike (f "a (b") "parse error"
 
     equal (f "") $ Right [Call "" []]
     equal (f "--") $ Right [Call "" []]
@@ -69,12 +69,12 @@ test_parse_expr = do
 
 test_parse_expr_val_tokenization :: Test
 test_parse_expr_val_tokenization = do
-    let f = fmap NonEmpty.toList . Parse.parse_expr
+    let f = fmap NonEmpty.toList . Parse.parseExpr
     -- This is because of the spaces1 in p_call.  I want to force call
     -- arguments to be separated by spaces because otherwise "-1.1a" parses
     -- as two valid vals, which is confusing.
     -- TODO I wish for a better error than "expected eof" then
-    left_like (f "a -1.1a") "parse error"
+    leftLike (f "a -1.1a") "parse error"
 
 test_show_val :: Test
 test_show_val = do
@@ -88,15 +88,15 @@ test_show_val = do
 
 roundtrip :: Stack.HasCallStack => Text -> Test
 roundtrip t =
-    right_equal (Text.strip . ShowVal.show_val <$> Parse.parse_expr t) t
+    rightEqual (Text.strip . ShowVal.showVal <$> Parse.parseExpr t) t
 
 test_unparsed_call :: Test
 test_unparsed_call = do
-    let f = fmap NonEmpty.toList . Parse.parse_expr
+    let f = fmap NonEmpty.toList . Parse.parseExpr
         vsym = Literal . DeriveT.VStr
-        null_call = Call "" []
+        nullCall = Call "" []
     equal (f "!<>\"('|") $ Right
-        [Call Parse.unparsed_call [vsym "<>\"('"], null_call]
+        [Call Parse.unparsedCall [vsym "<>\"('"], nullCall]
     equal (f "hi \"(!blah)") $ Right
         [Call "hi" [Literal $ DeriveT.VQuoted $
             DeriveT.Quoted (Call "!" [vsym "blah"] :| [])]]
@@ -106,8 +106,8 @@ test_unparsed_call = do
     equal (f "!'a' -- b") $ Right [Call "!" [vsym "'a'"]]
 
 -- | Vals whose 'ShowVal.show_val' is the inverse of 'Parse.parse_val'.
-invertible_vals :: [(Text, Maybe Val)]
-invertible_vals =
+invertibleVals :: [(Text, Maybe Val)]
+invertibleVals =
     [ ("0", Just (DeriveT.num 0))
     , ("0.", Nothing)
     , (".2", Just (DeriveT.num 0.2))
@@ -159,8 +159,8 @@ invertible_vals =
     str = Just . VStr
 
 -- | Vals whose 'ShowVal.show_val' doesn't reproduce the parsed val.
-noninvertible_vals :: [(Text, Maybe Val)]
-noninvertible_vals =
+noninvertibleVals :: [(Text, Maybe Val)]
+noninvertibleVals =
     [ ("3/2", num ScoreT.Untyped 1.5)
     , ("-3/2", num ScoreT.Untyped (-1.5))
     , ("3/2d", num ScoreT.Diatonic 1.5)
@@ -172,10 +172,10 @@ noninvertible_vals =
 
 test_parse_val :: Test
 test_parse_val = do
-    let exprs = map ((,) True) invertible_vals
-            ++ map ((,) False) noninvertible_vals
+    let exprs = map ((,) True) invertibleVals
+            ++ map ((,) False) noninvertibleVals
     forM_ exprs $ \(invertible, (expr, expected)) -> do
-        let res = Parse.parse_val expr
+        let res = Parse.parseVal expr
         case (res, expected) of
             (Left err, Just expect) -> void $ failure $
                 err <> ", expected " <> showt expect
@@ -184,26 +184,26 @@ test_parse_val = do
             (Right val, Just expect) -> do
                 equal val expect
                 when invertible $
-                    void $ equal (ShowVal.show_val val) expr
+                    void $ equal (ShowVal.showVal val) expr
             _ -> void $ success $ showt res <> " == " <> showt expected
 
 test_parse_num :: Test
 test_parse_num = do
-    let f = Parse.parse_num
+    let f = Parse.parseNum
     equal (f "`0x`00") (Right 0)
     equal (f "`0x`ff") (Right 1)
     equal (f "-`0x`ff") (Right (-1))
-    left_like (f "`0x`000") "parse error"
+    leftLike (f "`0x`000") "parse error"
 
 test_p_equal :: Test
 test_p_equal = do
     let eq a b = Right (Call "=" [Literal (VStr a), b])
         num = Literal . DeriveT.num
-    let f = ParseText.parse1 Parse.p_equal
+    let f = ParseText.parse1 Parse.pEqual
     equal (f "a = b") (eq "a" (Literal (VStr "b")))
     equal (f "a=b") (eq "a" (Literal (VStr "b")))
     equal (f "a = 10") (eq "a" (num 10))
-    equal (f "a = (b c)") (eq "a" (Expr.val_call "b" [VStr "c"]))
+    equal (f "a = (b c)") (eq "a" (Expr.valCall "b" [VStr "c"]))
     equal (f "a] = 1") (eq "a]" (num 1))
     equal (f "a) = 1") (eq "a)" (num 1))
     equal (f ">a = 1") (eq ">a" (num 1))
@@ -211,13 +211,13 @@ test_p_equal = do
     equal (f "'=>' = 1") (eq "=>" (num 1))
     equal (f ".-i = t") (eq ".-i" (Literal (VStr "t")))
 
-    let eq_syms = Call "=" . map (Literal . VStr)
-    equal (f "a = b c") $ Right (eq_syms ["a", "b", "c"])
-    equal (f "i=+a") $ Right (eq_syms ["i", "a", "+"])
-    equal (f "i =@ a b") $ Right (eq_syms ["i", "a", "b", "@"])
+    let eqSyms = Call "=" . map (Literal . VStr)
+    equal (f "a = b c") $ Right (eqSyms ["a", "b", "c"])
+    equal (f "i=+a") $ Right (eqSyms ["i", "a", "+"])
+    equal (f "i =@ a b") $ Right (eqSyms ["i", "a", "b", "@"])
 
-    left_like (f "a = ()") "parse error"
-    left_like (f "a=") "not enough input"
+    leftLike (f "a = ()") "parse error"
+    leftLike (f "a=") "not enough input"
 
 test_lex1 :: Test
 test_lex1 = do
@@ -246,14 +246,14 @@ test_lex = do
 
 test_split_pipeline :: Test
 test_split_pipeline = do
-    let f = Parse.split_pipeline
+    let f = Parse.splitPipeline
     equal (f "x | y") [["x "], ["y"]]
     equal (f "x=y") [["x", "=", "y"]]
     equal (f "x=y | y") [["x", "=", "y "], ["y"]]
 
 test_split_pipeline_roundtrip :: Test
 test_split_pipeline_roundtrip = do
-    let f = Parse.join_pipeline . Parse.split_pipeline
+    let f = Parse.joinPipeline . Parse.splitPipeline
     equal (f "x | y") "x | y"
     -- Spaces preserved in round-trip.
     equal (f "x=y | y") "x=y | y"
@@ -262,10 +262,10 @@ test_split_pipeline_roundtrip = do
 
 test_expand_macros :: Test
 test_expand_macros = do
-    let f = Parse.expand_macros (\s -> "(" <> s <> ")")
+    let f = Parse.expandMacros (\s -> "(" <> s <> ")")
     equal (f "") (Right "")
     equal (f "hi") (Right "hi")
-    left_like (f "hi @") "parse error"
+    leftLike (f "hi @") "parse error"
     equal (f "hi @a-b") (Right "hi (a-b)")
     equal (f "hi @a b") (Right "hi (a) b")
     equal (f "hi (Just @a/b)") (Right "hi (Just (a/b))")

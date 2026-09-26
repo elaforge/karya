@@ -37,21 +37,21 @@ import           Global
 type Ratios = Vector.Vector (Ratio.Ratio Int)
 
 -- | Hz frequency of 1/1.
-just_base_control :: ScoreT.Control
-just_base_control = "just-base"
+justBaseControl :: ScoreT.Control
+justBaseControl = "just-base"
 
 -- | Bundle up data needed to construct a just scale.
 data ScaleMap = ScaleMap
-    { smap_fmt :: TheoryFormat.Format
-    , smap_keys :: Keys
-    , smap_default_key :: Key
+    { smapFmt :: TheoryFormat.Format
+    , smapKeys :: Keys
+    , smapDefaultKey :: Key
     -- | Use this Tuning if there is no EnvKey.tuning.  If Nothing, don't even
     -- look for EnvKey.tuning, and use "" for 'key_ratios'.
-    , smap_default_tuning :: Maybe Tuning
+    , smapDefaultTuning :: Maybe Tuning
     -- | Previously I would default to the 12TET of the tonic when just-base
     -- isn't set, but that doesn't work when the scale doesn't use 12TET names.
-    , smap_default_base_hz :: Pitch.Hz
-    , smap_named_intervals :: ScaleDegree.NamedIntervals
+    , smapDefaultBaseHz :: Pitch.Hz
+    , smapNamedIntervals :: ScaleDegree.NamedIntervals
     -- | Sharps multiply by this, flats divide by this.
     --
     -- While these scales recognize sharps and flats, and 'input_to_note' will
@@ -59,7 +59,7 @@ data ScaleMap = ScaleMap
     -- accidentals are not considered part of the scale.  So chromatic
     -- transposition is treated the same as diatonic transposition, and you
     -- can't root a key on a note with an accidental.
-    , smap_accidental_interval :: Double
+    , smapAccidentalInterval :: Double
     }
 
 type Tuning = Text
@@ -70,85 +70,85 @@ type Keys = Map Pitch.Key Key
 -- as the number of scale degrees as defined by the 'TheoryFormat.Format'.  If
 -- there are too many, the extras will never be reached, if too few, they'll
 -- wrap around.
-scale_map :: Keys -> Key -> Maybe Tuning -> TheoryFormat.Format -> ScaleMap
-scale_map keys default_key default_tuning fmt = ScaleMap
-    { smap_fmt = fmt
-    , smap_keys = keys
-    , smap_default_key = default_key
-    , smap_default_tuning = default_tuning
-    , smap_default_base_hz = Pitch.nn_to_hz NN.middle_c
-    , smap_named_intervals = default_named_intervals
-    , smap_accidental_interval = 16 / 15
+scaleMap :: Keys -> Key -> Maybe Tuning -> TheoryFormat.Format -> ScaleMap
+scaleMap keys defaultKey defaultTuning fmt = ScaleMap
+    { smapFmt = fmt
+    , smapKeys = keys
+    , smapDefaultKey = defaultKey
+    , smapDefaultTuning = defaultTuning
+    , smapDefaultBaseHz = Pitch.nnToHz NN.middleC
+    , smapNamedIntervals = defaultNamedIntervals
+    , smapAccidentalInterval = 16 / 15
     }
 
 -- | TODO this should be 'repeat 2', but as long as this is also controlling
 -- the input layout, it has to be piano layout, or it won't work properly with
 -- kbd and midi entry.
 layout :: Theory.Layout
-layout = Theory.piano_layout
+layout = Theory.pianoLayout
 
-make_scale :: Pitch.ScaleId -> ScaleMap -> Doc.Doc -> [(Doc.Doc, Doc.Doc)]
+makeScale :: Pitch.ScaleId -> ScaleMap -> Doc.Doc -> [(Doc.Doc, Doc.Doc)]
     -> Scale.Scale
-make_scale scale_id smap doc doc_fields = Scale.Scale
-    { scale_id = scale_id
-    , scale_pattern = TheoryFormat.fmt_pattern fmt
-    , scale_symbols = []
-    , scale_transposers = Scales.standard_transposers
-    , scale_read = TheoryFormat.read_pitch fmt . Scales.environ_key
-    , scale_show = TheoryFormat.scale_show_pitch fmt . Scales.environ_key
-    , scale_bottom = Theory.semis_to_pitch_sharps layout $ Theory.nn_to_semis 0
-    , scale_layout = Scale.diatonic_layout $ TheoryFormat.fmt_pc_per_octave fmt
-    , scale_transpose = transpose fmt
-    , scale_enharmonics = enharmonics layout fmt
-    , scale_note_to_call = note_to_call scale smap
-    , scale_input_to_note = input_to_note smap
-    , scale_input_to_nn = Scales.computed_input_to_nn (input_to_note smap)
-        (note_to_call scale smap)
-    , scale_call_doc = Scales.annotate_call_doc Scales.standard_transposers
-        all_doc doc_fields dummy_call
+makeScale scaleId smap doc docFields = Scale.Scale
+    { scaleId = scaleId
+    , scalePattern = TheoryFormat.fmtPattern fmt
+    , scaleSymbols = []
+    , scaleTransposers = Scales.standardTransposers
+    , scaleRead = TheoryFormat.readPitch fmt . Scales.environKey
+    , scaleShow = TheoryFormat.scaleShowPitch fmt . Scales.environKey
+    , scaleBottom = Theory.semisToPitchSharps layout $ Theory.nnToSemis 0
+    , scaleLayout = Scale.diatonicLayout $ TheoryFormat.fmtPcPerOctave fmt
+    , scaleTranspose = transpose fmt
+    , scaleEnharmonics = enharmonics layout fmt
+    , scaleNoteToCall = noteToCall scale smap
+    , scaleInputToNote = inputToNote smap
+    , scaleInputToNn = Scales.computedInputToNn (inputToNote smap)
+        (noteToCall scale smap)
+    , scaleCallDoc = Scales.annotateCallDoc Scales.standardTransposers
+        allDoc docFields dummyCall
     }
     where
-    all_doc = mconcat [doc, "\n", defaults_doc, "\n", just_doc]
-    defaults_doc = Texts.join ", " $
-        [ "Defaults: " <> ShowVal.doc just_base_control <> ": "
-            <> Doc.pretty (smap_default_base_hz smap)
+    allDoc = mconcat [doc, "\n", defaultsDoc, "\n", justDoc]
+    defaultsDoc = Texts.join ", " $
+        [ "Defaults: " <> ShowVal.doc justBaseControl <> ": "
+            <> Doc.pretty (smapDefaultBaseHz smap)
         -- TODO This should be the symbolic key name, but I don't have it here.
-        , "key: " <> Doc.pretty (smap_default_key smap)
-        ] ++ case smap_default_tuning smap of
+        , "key: " <> Doc.pretty (smapDefaultKey smap)
+        ] ++ case smapDefaultTuning smap of
             Nothing -> []
             Just deflt -> ["tuning: " <> ShowVal.doc deflt]
-    scale = PSignal.Scale scale_id Scales.standard_transposers
-    dummy_call = Scales.scale_degree_doc $ \scale ->
-        ScaleDegree.scale_degree_just scale (smap_named_intervals smap) 0
-    fmt = smap_fmt smap
+    scale = PSignal.Scale scaleId Scales.standardTransposers
+    dummyCall = Scales.scaleDegreeDoc $ \scale ->
+        ScaleDegree.scaleDegreeJust scale (smapNamedIntervals smap) 0
+    fmt = smapFmt smap
 
 -- | Call doc that assumes I'm using 'default_named_intervals'.
-default_call_doc :: Derive.DocumentedCall
-default_call_doc = Scales.scale_degree_doc $ \scale ->
-    ScaleDegree.scale_degree_just scale default_named_intervals 0
+defaultCallDoc :: Derive.DocumentedCall
+defaultCallDoc = Scales.scaleDegreeDoc $ \scale ->
+    ScaleDegree.scaleDegreeJust scale defaultNamedIntervals 0
 
 -- | Group keys and format them into fields suitable to pass to 'make_scale'.
 -- The 'Key's are expected to be relative, so their 'key_tonic's are ignored.
-group_relative_keys :: [(Pitch.Key, Key)] -> [(Doc.Doc, Doc.Doc)]
-group_relative_keys = mapMaybe fmt . Lists.groupStable snd
+groupRelativeKeys :: [(Pitch.Key, Key)] -> [(Doc.Doc, Doc.Doc)]
+groupRelativeKeys = mapMaybe fmt . Lists.groupStable snd
     where
     fmt ((name, key) :| rest) =
-        Just (fmt_names (name : map fst rest),
-            Doc.Doc $ show_ratios (key_ratios key))
-    fmt_names = Doc.commas . map ShowVal.doc
+        Just (fmtNames (name : map fst rest),
+            Doc.Doc $ showRatios (keyRatios key))
+    fmtNames = Doc.commas . map ShowVal.doc
 
-show_ratios :: Map Tuning Ratios -> Text
-show_ratios tunings = Text.intercalate "; "
+showRatios :: Map Tuning Ratios -> Text
+showRatios tunings = Text.intercalate "; "
     [ Texts.join2 ": " tuning (ratios r)
     | (tuning, r) <- Map.toList tunings
     ]
     where
     ratios = Text.intercalate ", " . map Pretty.improperRatio . Vector.toList
 
-just_doc :: Doc.Doc
-just_doc =
+justDoc :: Doc.Doc
+justDoc =
     "\nJust scales are tuned by ratios from a base frequency, taken from the "
-    <> ShowVal.doc just_base_control
+    <> ShowVal.doc justBaseControl
     <> " control, as hz. Typically the \"key\" will select the set\
     \ of ratios used, dependent on the scale.\
     \\nJust scales recognize accidentals as an offset by a fixed ratio,\
@@ -161,164 +161,164 @@ just_doc =
 
 enharmonics :: Theory.Layout -> TheoryFormat.Format -> Derive.Enharmonics
 enharmonics layout fmt env note = do
-    let key = Scales.environ_key env
-    pitch <- TheoryFormat.read_pitch fmt key note
-    pure $ map (TheoryFormat.show_pitch fmt key) $
-        Theory.enharmonics_of layout pitch
+    let key = Scales.environKey env
+    pitch <- TheoryFormat.readPitch fmt key note
+    pure $ map (TheoryFormat.showPitch fmt key) $
+        Theory.enharmonicsOf layout pitch
 
-input_to_note :: ScaleMap -> Scales.InputToNote
-input_to_note smap env (Pitch.Input kbd_type pitch _frac) = do
-    key <- read_key smap (Scales.environ_key env)
-    pitch <- Scales.kbd_to_scale kbd_type pc_per_octave (key_tonic key) pitch
-    pure $ TheoryFormat.show_pitch (smap_fmt smap) Nothing pitch
-    where pc_per_octave = TheoryFormat.fmt_pc_per_octave (smap_fmt smap)
+inputToNote :: ScaleMap -> Scales.InputToNote
+inputToNote smap env (Pitch.Input kbdType pitch _frac) = do
+    key <- readKey smap (Scales.environKey env)
+    pitch <- Scales.kbdToScale kbdType pcPerOctave (keyTonic key) pitch
+    pure $ TheoryFormat.showPitch (smapFmt smap) Nothing pitch
+    where pcPerOctave = TheoryFormat.fmtPcPerOctave (smapFmt smap)
 
 
 -- * transpose
 
 transpose :: TheoryFormat.Format -> Derive.Transpose
 transpose fmt _transposition _key steps pitch =
-    pure $ Pitch.add_pc per_oct steps pitch
-    where per_oct = TheoryFormat.fmt_pc_per_octave fmt
+    pure $ Pitch.addPc perOct steps pitch
+    where perOct = TheoryFormat.fmtPcPerOctave fmt
 
 -- * note_to_call
 
 -- | To modulate to another scale: @just-base = (hz (4g)) | key = g-maj@
 -- The order is important, so the @(hz (4g))@ happens in the context of the old
 -- key.
-note_to_call :: PSignal.Scale -> ScaleMap -> Pitch.Note -> Maybe Derive.ValCall
-note_to_call scale smap note =
-    case TheoryFormat.read_relative_pitch fmt note of
-        Left _ -> ScaleDegree.scale_degree_interval
-            scale (smap_named_intervals smap) note
-        Right relative -> Just $ ScaleDegree.scale_degree_just
-                scale (smap_named_intervals smap)
-                (smap_accidental_interval smap ^^ acc)
-                (pitch_nn smap stripped) (pitch_note fmt stripped)
+noteToCall :: PSignal.Scale -> ScaleMap -> Pitch.Note -> Maybe Derive.ValCall
+noteToCall scale smap note =
+    case TheoryFormat.readRelativePitch fmt note of
+        Left _ -> ScaleDegree.scaleDegreeInterval
+            scale (smapNamedIntervals smap) note
+        Right relative -> Just $ ScaleDegree.scaleDegreeJust
+                scale (smapNamedIntervals smap)
+                (smapAccidentalInterval smap ^^ acc)
+                (pitchNn smap stripped) (pitchNote fmt stripped)
             where
             (acc, stripped) = case relative of
                 TheoryFormat.RelativePitch oct pc acc ->
                     (fromMaybe 0 acc,
                         TheoryFormat.RelativePitch oct pc (Just 0))
-    where fmt = smap_fmt smap
+    where fmt = smapFmt smap
 
-pitch_nn :: ScaleMap -> TheoryFormat.RelativePitch -> Scale.PitchNn
-pitch_nn smap relative (PSignal.PitchConfig env controls) = do
-    key <- read_key smap $ Scales.environ_key env
-    tuning <- case smap_default_tuning smap of
+pitchNn :: ScaleMap -> TheoryFormat.RelativePitch -> Scale.PitchNn
+pitchNn smap relative (PSignal.PitchConfig env controls) = do
+    key <- readKey smap $ Scales.environKey env
+    tuning <- case smapDefaultTuning smap of
         Nothing -> pure ""
-        Just deflt -> Scales.read_environ id (Just deflt) EnvKey.tuning env
+        Just deflt -> Scales.readEnviron id (Just deflt) EnvKey.tuning env
     ratios <- tryJust
         (DeriveT.EnvironError EnvKey.tuning
             (Just $ "unknown: " <> pretty tuning))
-        (Map.lookup tuning (key_ratios key))
-    pitch <- TheoryFormat.fmt_to_absolute (smap_fmt smap)
-        (Scales.environ_key env) relative
-    when (base_hz == 0) $
-        Left $ PSignal.ControlError just_base_control "==0"
-    let hz = transpose_to_hz per_octave base_hz
-            (key_tonic key) ratios
-            (octave * fromIntegral per_octave + chromatic + diatonic) pitch
-    pure $ Pitch.hz_to_nn hz
+        (Map.lookup tuning (keyRatios key))
+    pitch <- TheoryFormat.fmtToAbsolute (smapFmt smap)
+        (Scales.environKey env) relative
+    when (baseHz == 0) $
+        Left $ PSignal.ControlError justBaseControl "==0"
+    let hz = transposeToHz perOctave baseHz
+            (keyTonic key) ratios
+            (octave * fromIntegral perOctave + chromatic + diatonic) pitch
+    pure $ Pitch.hzToNn hz
     where
-    per_octave = TheoryFormat.fmt_pc_per_octave (smap_fmt smap)
+    perOctave = TheoryFormat.fmtPcPerOctave (smapFmt smap)
     octave = get Controls.octave
     chromatic = get Controls.chromatic
     diatonic = get Controls.diatonic
     get m = Map.findWithDefault 0 m controls
-    base_hz = Map.findWithDefault (smap_default_base_hz smap)
-        just_base_control controls
+    baseHz = Map.findWithDefault (smapDefaultBaseHz smap)
+        justBaseControl controls
 
-pitch_note :: TheoryFormat.Format -> TheoryFormat.RelativePitch
+pitchNote :: TheoryFormat.Format -> TheoryFormat.RelativePitch
     -> Scale.PitchNote
-pitch_note fmt relative (PSignal.PitchConfig env controls) = do
-    let maybe_key = Scales.environ_key env
+pitchNote fmt relative (PSignal.PitchConfig env controls) = do
+    let maybeKey = Scales.environKey env
     -- TODO wait, shouldn't I display the relative pitch?
-    pitch <- TheoryFormat.fmt_to_absolute fmt maybe_key relative
-    let transposed = Pitch.add_pc
-            (TheoryFormat.fmt_pc_per_octave fmt)
+    pitch <- TheoryFormat.fmtToAbsolute fmt maybeKey relative
+    let transposed = Pitch.addPc
+            (TheoryFormat.fmtPcPerOctave fmt)
             (round (chromatic + diatonic)) pitch
-    Right $ TheoryFormat.show_pitch fmt maybe_key transposed
+    Right $ TheoryFormat.showPitch fmt maybeKey transposed
     where
     chromatic = get Controls.chromatic
     diatonic = get Controls.diatonic
     get m = Map.findWithDefault 0 m controls
 
-transpose_to_hz :: Pitch.PitchClass -> Pitch.Hz -> TheoryFormat.Tonic -> Ratios
+transposeToHz :: Pitch.PitchClass -> Pitch.Hz -> TheoryFormat.Tonic -> Ratios
     -> Double -> Pitch.Pitch -> Pitch.Hz
-transpose_to_hz per_oct base_hz tonic ratios frac_steps pitch =
+transposeToHz perOct baseHz tonic ratios fracSteps pitch =
     Num.scale hz1 hz2 frac
     where
     -- The 'frac' must be positive for it to fall between pitch1 and pitch2.
-    (steps, frac) = split_fraction frac_steps
-    pitch1 = Pitch.add_pc per_oct (steps - tonic) pitch
-    pitch2 = Pitch.add_pc per_oct 1 pitch1
-    hz1 = degree_to_hz ratios base_hz pitch1
-    hz2 = degree_to_hz ratios base_hz pitch2
+    (steps, frac) = splitFraction fracSteps
+    pitch1 = Pitch.addPc perOct (steps - tonic) pitch
+    pitch2 = Pitch.addPc perOct 1 pitch1
+    hz1 = degreeToHz ratios baseHz pitch1
+    hz2 = degreeToHz ratios baseHz pitch2
 
 -- | Like 'properFraction', but the fraction is always positive.
-split_fraction :: (RealFrac a, Integral b) => a -> (b, a)
-split_fraction frac
+splitFraction :: (RealFrac a, Integral b) => a -> (b, a)
+splitFraction frac
     | f < 0 = (i - 1, f + 1)
     | otherwise = (i, f)
     where (i, f) = properFraction frac
 
 -- | Given a Key, convert a pitch in that key to its hz value, calculated as
 -- a ratio from the given base hz.
-degree_to_hz :: Ratios -> Pitch.Hz
+degreeToHz :: Ratios -> Pitch.Hz
     -> Pitch.Pitch -- ^ should be relative to scale's tonic
     -> Pitch.Hz
-degree_to_hz ratios base_hz pitch = base * realToFrac ratio
+degreeToHz ratios baseHz pitch = base * realToFrac ratio
     where
-    base = adjusted_base * 2 ^^ Pitch.pitch_octave pitch
+    base = adjustedBase * 2 ^^ Pitch.pitchOctave pitch
     -- Normalize the base_hz to lie within the first octave.
     -- Add an octave because of NOTE [middle-c].
-    adjusted_base = Pitch.nn_to_hz $ Pitch.hz_to_nn base_hz `Num.fmod` 12 + 12
-    ratio = index_mod ratios $ Pitch.degree_pc (Pitch.pitch_degree pitch)
+    adjustedBase = Pitch.nnToHz $ Pitch.hzToNn baseHz `Num.fmod` 12 + 12
+    ratio = indexMod ratios $ Pitch.degreePc (Pitch.pitchDegree pitch)
 
-index_mod :: Vector.Vector a -> Int -> a
-index_mod v i = Vector.unsafeIndex v (i `mod` Vector.length v)
+indexMod :: Vector.Vector a -> Int -> a
+indexMod v i = Vector.unsafeIndex v (i `mod` Vector.length v)
 
 -- * key
 
 data Key = Key
-    { key_tonic :: TheoryFormat.Tonic
-    , key_ratios :: Map Tuning Ratios
+    { keyTonic :: TheoryFormat.Tonic
+    , keyRatios :: Map Tuning Ratios
     } deriving (Eq, Show)
 
 instance Pretty Key where
     pretty (Key tonic ratios) =
-        "(Key " <> showt tonic <> " [" <> show_ratios ratios <> "])"
+        "(Key " <> showt tonic <> " [" <> showRatios ratios <> "])"
 
-read_key :: ScaleMap -> Maybe Pitch.Key -> Either DeriveT.PitchError Key
-read_key smap = Scales.get_key (smap_default_key smap) (smap_keys smap)
+readKey :: ScaleMap -> Maybe Pitch.Key -> Either DeriveT.PitchError Key
+readKey smap = Scales.getKey (smapDefaultKey smap) (smapKeys smap)
 
-make_keys :: [Text] -> [(Text, [(Tuning, Ratios)])] -> Keys
-make_keys degrees key_tuning_ratios = Map.fromList
+makeKeys :: [Text] -> [(Text, [(Tuning, Ratios)])] -> Keys
+makeKeys degrees keyTuningRatios = Map.fromList
     [ (Pitch.Key (degree <> "-" <> key),
-        (Key tonic (Map.fromList tuning_ratios)))
-    | (key, tuning_ratios) <- key_tuning_ratios
+        (Key tonic (Map.fromList tuningRatios)))
+    | (key, tuningRatios) <- keyTuningRatios
     , (degree, tonic) <- zip degrees [0..]
     ]
 
 -- * format
 
-make_relative_fmt :: Keys -> Key -- ^ only 'key_tonic' is used
+makeRelativeFmt :: Keys -> Key -- ^ only 'key_tonic' is used
     -> TheoryFormat.RelativeFormat TheoryFormat.Tonic
-make_relative_fmt keys default_key = TheoryFormat.RelativeFormat
-    { rel_config = TheoryFormat.default_config
-    , rel_key_config = TheoryFormat.KeyConfig
-        { key_parse = fmap key_tonic . Scales.get_key default_key keys
-        , key_default = 0
+makeRelativeFmt keys defaultKey = TheoryFormat.RelativeFormat
+    { relConfig = TheoryFormat.defaultConfig
+    , relKeyConfig = TheoryFormat.KeyConfig
+        { keyParse = fmap keyTonic . Scales.getKey defaultKey keys
+        , keyDefault = 0
         }
-    , rel_show_degree = TheoryFormat.show_degree_diatonic
-    , rel_to_absolute = TheoryFormat.diatonic_to_absolute
+    , relShowDegree = TheoryFormat.showDegreeDiatonic
+    , relToAbsolute = TheoryFormat.diatonicToAbsolute
     }
 
 -- * named intervals
 
-default_named_intervals :: ScaleDegree.NamedIntervals
-default_named_intervals = Map.fromList
+defaultNamedIntervals :: ScaleDegree.NamedIntervals
+defaultNamedIntervals = Map.fromList
     [ ("m2-", 25 % 24) -- 71, 5-limit minor half-step
     , ("m2", 16 % 15) -- 112, 5-limit major half-step
     , ("M2-", 10 % 9) -- 182, minor whole tone

@@ -40,20 +40,20 @@ import           Global
     parameter.  But that would require a bunch of extra work, e.g. keymaps
     would then need a separate PhysicalKey type wrapper and a resolution step.
 -}
-physical_key :: HasCallStack => Char -> Char
-physical_key c = fromMaybe (errorStack $ showt c <> " not found") $
+physicalKey :: HasCallStack => Char -> Char
+physicalKey c = fromMaybe (errorStack $ showt c <> " not found") $
 #ifdef TESTING
-    KeyLayouts.from_qwerty KeyLayouts.dvorak c
+    KeyLayouts.fromQwerty KeyLayouts.dvorak c
 #else
-    KeyLayouts.from_qwerty Local.KeyLayout.layout c
+    KeyLayouts.fromQwerty Local.KeyLayout.layout c
 #endif
 
 -- | Map logical keys to the pitches they emit when kbd entry is on.
 -- It's in this module so it can be shared with instruments that also want
 -- to take over those keys.  I intentionally omit some keys so their editing
 -- functions still work in kbd entry.
-pitch_map :: Map Char Pitch.Pitch
-pitch_map = Map.fromList $ concat
+pitchMap :: Map Char Pitch.Pitch
+pitchMap = Map.fromList $ concat
     -- I leave '-' free since it's mapped to change octave.
     [ [('1', Pitch.Pitch 1 (Pitch.Degree 0 (-1)))]
     , keys 1 "234567890" 1
@@ -67,5 +67,5 @@ pitch_map = Map.fromList $ concat
     keys oct letters accs =
         [ (c, Pitch.Pitch oct $ Pitch.Degree pc accs)
         -- The mapping should happen at compile time, even though it doesn't.
-        | (pc, c) <- zip [0..] (map physical_key letters)
+        | (pc, c) <- zip [0..] (map physicalKey letters)
         ]

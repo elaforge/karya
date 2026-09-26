@@ -23,7 +23,7 @@
                                                  bonang panerus--------------->
     @
 -}
-module Derive.Scale.Java (scales, old_scales) where
+module Derive.Scale.Java (scales, oldScales) where
 import qualified Data.Map as Map
 
 import qualified Util.Lists as Lists
@@ -42,43 +42,43 @@ type Pathet = Text
 
 scales :: Map Derive.CallName Derive.ScaleCall
 scales = Map.fromList
-    [ ("pelog", s_pelog)
+    [ ("pelog", sPelog)
     ]
 
-s_pelog :: Derive.ScaleCall
-s_pelog = Derive.scale_call "pelog" "doc" $
+sPelog :: Derive.ScaleCall
+sPelog = Derive.scaleCall "pelog" "doc" $
     Scale.call ((,)
     <$> Sig.defaulted "pathet" ("lima" :: Text) "doc"
     <*> Sig.defaulted "scale-inst" (Nothing :: Maybe Text) "doc"
-    ) $ \(pathet, mb_inst) -> do
+    ) $ \(pathet, mbInst) -> do
         layout <- Derive.require ("unknown pathet: " <> pathet) $
             Map.lookup pathet keys
-        mb_inst <- traverse
+        mbInst <- traverse
             (\inst -> Derive.require ("unknown scale-inst: " <> inst) $
                 Map.lookup inst instruments)
-            mb_inst
-        pure $ make_scale "pelog" layout mb_inst
+            mbInst
+        pure $ makeScale "pelog" layout mbInst
 
 -- TODO name and "doc" are now redundant, they now come from ScaleCall
-make_scale :: Text -> JavaScales.Layout -> Maybe JavaScales.Instrument
+makeScale :: Text -> JavaScales.Layout -> Maybe JavaScales.Instrument
     -> Scale.Scale
-make_scale name layout mb_inst =
-    JavaScales.make_scale (Pitch.ScaleId name) smap "doc"
+makeScale name layout mbInst =
+    JavaScales.makeScale (Pitch.ScaleId name) smap "doc"
     where
     smap = JavaScales.ScaleMap
         { layout
-        , default_laras
-        , laras_map
-        , format = case mb_inst of
-            Nothing -> JavaScales.cipher_absolute layout
-            Just inst -> JavaScales.cipher_octave_relative layout inst
+        , defaultLaras
+        , larasMap
+        , format = case mbInst of
+            Nothing -> JavaScales.cipherAbsolute layout
+            Just inst -> JavaScales.cipherOctaveRelative layout inst
         }
 
 keys :: Map Pathet JavaScales.Layout
 keys = Map.fromList
-    [ ("lima", JavaScales.make_layout 0 [1, 1, 2, 1, 2]) -- 12356
-    , ("nem", JavaScales.make_layout 0 [1, 1, 2, 1, 2]) -- 12356
-    , ("barang", JavaScales.make_layout 1 [1, 2, 1, 1, 2]) -- 23567
+    [ ("lima", JavaScales.makeLayout 0 [1, 1, 2, 1, 2]) -- 12356
+    , ("nem", JavaScales.makeLayout 0 [1, 1, 2, 1, 2]) -- 12356
+    , ("barang", JavaScales.makeLayout 1 [1, 2, 1, 1, 2]) -- 23567
     ]
 
 instruments :: Map Text JavaScales.Instrument
@@ -99,16 +99,16 @@ instruments = Map.fromList
       )
     ]
 
-laras_map :: Map Text BaliScales.Laras
-laras_map = Map.fromList $ Lists.keyOn BaliScales.laras_name
-    [ laras_sequoia_pelog
+larasMap :: Map Text BaliScales.Laras
+larasMap = Map.fromList $ Lists.keyOn BaliScales.larasName
+    [ larasSequoiaPelog
     ]
 
-default_laras :: BaliScales.Laras
-default_laras = laras_sequoia_pelog
+defaultLaras :: BaliScales.Laras
+defaultLaras = larasSequoiaPelog
 
-laras_sequoia_pelog :: BaliScales.Laras
-laras_sequoia_pelog = BaliScales.laras "sequoia-pelog" (Pitch.pitch 1 5) id
+larasSequoiaPelog :: BaliScales.Laras
+larasSequoiaPelog = BaliScales.laras "sequoia-pelog" (Pitch.pitch 1 5) id
     "Tuning of Sekar Sequoia." $ map (\nn -> (nn, nn)) $
     [ 46.68 -- 16
     , 48.13 -- 17
@@ -154,29 +154,29 @@ laras_sequoia_pelog = BaliScales.laras "sequoia-pelog" (Pitch.pitch 1 5) id
 -- * old
 
 
-old_scales :: [Scale.Definition]
-old_scales = map Scale.Simple $
+oldScales :: [Scale.Definition]
+oldScales = map Scale.Simple $
     -- TODO This permutation game is no good, let's go back to key=pathet
     -- and maybe even scale-range=gender-panerus
-    [ make_scale "pelog-lima" lima Nothing
-    , make_scale "pelog-nem" lima Nothing
-    , make_scale "pelog-barang" barang Nothing
-    ] ++ concatMap (uncurry inst_scale) (Map.toList instruments)
+    [ makeScale "pelog-lima" lima Nothing
+    , makeScale "pelog-nem" lima Nothing
+    , makeScale "pelog-barang" barang Nothing
+    ] ++ concatMap (uncurry instScale) (Map.toList instruments)
     where
-    lima = JavaScales.make_layout 0 [1, 1, 2, 1, 2] -- 12356
-    barang = JavaScales.make_layout 1 [1, 2, 1, 1, 2] -- 23567
-    inst_scale name inst =
-        [ make_scale ("pelog-lima-" <> name) lima (Just inst)
-        , make_scale ("pelog-barang-" <> name) barang (Just inst)
+    lima = JavaScales.makeLayout 0 [1, 1, 2, 1, 2] -- 12356
+    barang = JavaScales.makeLayout 1 [1, 2, 1, 1, 2] -- 23567
+    instScale name inst =
+        [ makeScale ("pelog-lima-" <> name) lima (Just inst)
+        , makeScale ("pelog-barang-" <> name) barang (Just inst)
         ]
-    make_scale name layout mb_inst =
-        JavaScales.make_scale (Pitch.ScaleId name) smap "doc"
+    makeScale name layout mbInst =
+        JavaScales.makeScale (Pitch.ScaleId name) smap "doc"
         where
         smap = JavaScales.ScaleMap
             { layout
-            , default_laras
-            , laras_map
-            , format = case mb_inst of
-                Nothing -> JavaScales.cipher_absolute layout
-                Just inst -> JavaScales.cipher_octave_relative layout inst
+            , defaultLaras
+            , larasMap
+            , format = case mbInst of
+                Nothing -> JavaScales.cipherAbsolute layout
+                Just inst -> JavaScales.cipherOctaveRelative layout inst
             }

@@ -23,8 +23,8 @@ c_1 : cs_1 : d_1 : ds_1 : e_1 : f_1 : fs_1 : g_1 : gs_1 : a_1 : as_1 : b_1
     : c9 : cs9 : d9 : ds9 : e9 : f9 : fs9 : g9
     : _ = map Pitch.NoteNumber [0..]
 
-middle_c :: Pitch.NoteNumber
-middle_c = c4
+middleC :: Pitch.NoteNumber
+middleC = c4
 
 name :: Pitch.NoteNumber -> Text
 name nn = note <> showt (oct - 1)
@@ -40,8 +40,8 @@ name nn = note <> showt (oct - 1)
         11 -> "b"
         _ -> ""
 
-karya_name :: Pitch.NoteNumber -> Text
-karya_name nn = showt (oct - 1) <> note
+karyaName :: Pitch.NoteNumber -> Text
+karyaName nn = showt (oct - 1) <> note
     where
     (oct, k) = (round nn :: Int) `divMod` 12
     note = case k of

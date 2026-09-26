@@ -10,87 +10,87 @@
 module Derive.Deriver.Lib (
     Result(..)
     , derive
-    , extract_result
-    , with_default_imported
+    , extractResult
+    , withDefaultImported
     -- * errors
-    , require, require_right
+    , require, requireRight
     , catch
 
     -- * state access
-    , get_stack
-    , real_function, score_function
+    , getStack
+    , realFunction, scoreFunction
     -- ** import
-    , with_imported, with_imported_symbols
-    , with_scopes
+    , withImported, withImportedSymbols
+    , withScopes
     -- ** scale
-    , get_scale, lookup_scale
+    , getScale, lookupScale
 
     -- ** environment
-    , lookup_val, is_val_set, get_val
-    , with_val, with_vals
-    , with_environ
-    , with_val_raw
-    , remove_val, remove_vals
-    , modify_val
-    , with_scale, with_instrument
-    , with_instrument_alias, with_instrument_aliases
-    , instrument_exists
-    , get_instrument, lookup_instrument
-    , get_tempo
+    , lookupVal, isValSet, getVal
+    , withVal, withVals
+    , withEnviron
+    , withValRaw
+    , removeVal, removeVals
+    , modifyVal
+    , withScale, withInstrument
+    , withInstrumentAlias, withInstrumentAliases
+    , instrumentExists
+    , getInstrument, lookupInstrument
+    , getTempo
 
     -- ** control
-    , lookup_signal
-    , lookup_function, get_function
-    , is_control_set
-    , get_control_map
-    , get_function_map
-    , control_at, untyped_control_at, controls_at
-    , modify_signals
+    , lookupSignal
+    , lookupFunction, getFunction
+    , isControlSet
+    , getControlMap
+    , getFunctionMap
+    , controlAt, untypedControlAt, controlsAt
+    , modifySignals
 
     -- *** control signal
-    , with_control, with_constant_control
-    , with_controls
-    , remove_controls
-    , with_merged_control, with_merged_controls
-    , resolve_merge
-    , get_control_merge
-    , get_default_merger
+    , withControl, withConstantControl
+    , withControls
+    , removeControls
+    , withMergedControl, withMergedControls
+    , resolveMerge
+    , getControlMerge
+    , getDefaultMerger
 
     -- *** ControlMod
-    , modify_control
-    , eval_control_mods
-    , with_control_mods
+    , modifyControl
+    , evalControlMods
+    , withControlMods
 
     -- ** pitch
-    , pitch_at, named_pitch_at
-    , resolve_pitch
-    , nn_at
-    , get_pitch
-    , named_nn_at
-    , lookup_pitch_signal
-    , logged_pitch_nn
+    , pitchAt, namedPitchAt
+    , resolvePitch
+    , nnAt
+    , getPitch
+    , namedNnAt
+    , lookupPitchSignal
+    , loggedPitchNn
 
     -- *** with signal
-    , with_pitch, with_named_pitch, with_constant_pitch
-    , remove_pitch
+    , withPitch, withNamedPitch, withConstantPitch
+    , removePitch
 
     -- * run monad
-    , run_logs
+    , runLogs
 
     -- * Mode
-    , get_mode
-    , is_lilypond_mode
-    , lookup_lilypond_config
-    , get_score_duration, get_real_duration
+    , getMode
+    , isLilypondMode
+    , lookupLilypondConfig
+    , getScoreDuration, getRealDuration
 
     -- * postproc
-    , with_event
-    , with_event_stack
-    , shift_controls
+    , withEvent
+    , withEventStack
+    , shiftControls
 
     -- * call
-    , val_call
-    , set_module
+    , valCall
+    , setModule
 ) where
 import qualified Data.Either as Either
 import qualified Data.List as List
@@ -142,43 +142,43 @@ import           Types
 
 -- | Package up the results of a derivation.
 data Result = Result
-    { r_events :: Stream.Stream Score.Event
-    , r_cache :: Cache
-    , r_track_warps :: [TrackWarp.TrackWarp]
-    , r_track_signals :: Track.TrackSignals
-    , r_track_dynamic :: TrackDynamic
-    , r_integrated :: [Integrated]
+    { rEvents :: Stream.Stream Score.Event
+    , rCache :: Cache
+    , rTrackWarps :: [TrackWarp.TrackWarp]
+    , rTrackSignals :: Track.TrackSignals
+    , rTrackDynamic :: TrackDynamic
+    , rIntegrated :: [Integrated]
 
     -- | The relevant parts of the final state should be extracted into the
     -- above fields, but returning the whole state can be useful for testing.
-    , r_state :: State
+    , rState :: State
     }
 
 -- | Kick off a derivation.
 derive :: Constant -> Dynamic -> Deriver a -> RunResult a
-derive constant dynamic = run (initial_state constant dynamic)
-    . with_initial_scope (state_environ dynamic)
-    . with_default_imported
+derive constant dynamic = run (initialState constant dynamic)
+    . withInitialScope (stateEnviron dynamic)
+    . withDefaultImported
 
-extract_result :: RunResult (Stream.Stream Score.Event) -> Result
-extract_result (result, state, logs) = Result
-    { r_events = merge_logs result (more_logs ++ logs)
-    , r_cache = collect_cache collect <> state_cache (state_constant state)
-    , r_track_warps =
-        TrackWarp.collect_track_warps blocks (collect_warp_map collect)
-    , r_track_signals = collect_track_signals collect
-    , r_track_dynamic = extract_track_dynamic collect
-    , r_integrated = collect_integrated collect
-    , r_state = state
+extractResult :: RunResult (Stream.Stream Score.Event) -> Result
+extractResult (result, state, logs) = Result
+    { rEvents = mergeLogs result (moreLogs ++ logs)
+    , rCache = collectCache collect <> stateCache (stateConstant state)
+    , rTrackWarps =
+        TrackWarp.collectTrackWarps blocks (collectWarpMap collect)
+    , rTrackSignals = collectTrackSignals collect
+    , rTrackDynamic = extractTrackDynamic collect
+    , rIntegrated = collectIntegrated collect
+    , rState = state
     }
     where
-    (more_logs, blocks) =
-        case Ui.run_id ui_state TrackWarp.get_track_trees of
+    (moreLogs, blocks) =
+        case Ui.runId uiState TrackWarp.getTrackTrees of
             Left err -> ([Log.msg Log.Warn Nothing msg], [])
                 where msg = "error collecting TrackWarps: " <> pretty err
             Right (blocks, _, _) -> ([], blocks)
-    ui_state = state_ui $ state_constant state
-    collect = state_collect state
+    uiState = stateUi $ stateConstant state
+    collect = stateCollect state
 
 -- | Extract the merged TrackDynamic from the Collect.
 --
@@ -189,37 +189,37 @@ extract_result (result, state, logs) = Result
 -- @>kendang-pasang@ has events that are @>kendang-wadon@ or @>kendang-lanang@.
 --
 -- See 'Collect' and 'TrackDynamic' for why.
-extract_track_dynamic :: Collect -> TrackDynamic
-extract_track_dynamic collect =
-    strip_dynamic . extract <$> Maps.paired
-        (collect_track_dynamic collect) (collect_track_dynamic_inverted collect)
+extractTrackDynamic :: Collect -> TrackDynamic
+extractTrackDynamic collect =
+    stripDynamic . extract <$> Maps.paired
+        (collectTrackDynamic collect) (collectTrackDynamicInverted collect)
     where
     extract = \case
         Lists.First dyn -> dyn
         Lists.Second dyn -> dyn
         Lists.Both normal inverted -> merge normal inverted
     merge normal inverted = normal
-        { state_environ = keep (state_environ inverted) <> state_environ normal
+        { stateEnviron = keep (stateEnviron inverted) <> stateEnviron normal
         }
-    keep env = maybe mempty (Env.from_list . (:[]) . (,) EnvKey.scale) $
+    keep env = maybe mempty (Env.fromList . (:[]) . (,) EnvKey.scale) $
         Env.lookup EnvKey.scale env
 
 -- | Given an environ, bring instrument and scale calls into scope.
-with_initial_scope :: Env.Environ -> Deriver d -> Deriver d
-with_initial_scope env deriver = set_inst (set_scale deriver)
+withInitialScope :: Env.Environ -> Deriver d -> Deriver d
+withInitialScope env deriver = setInst (setScale deriver)
     where
-    set_inst = case Env.get_val EnvKey.instrument env of
-        Right inst -> with_instrument inst
+    setInst = case Env.getVal EnvKey.instrument env of
+        Right inst -> withInstrument inst
         _ -> id
-    set_scale = case Env.get_val EnvKey.scale env of
+    setScale = case Env.getVal EnvKey.scale env of
         Right str -> \deriver -> do
-            scale <- get_scale (Expr.str_to_scale_id str)
-            with_scale scale deriver
+            scale <- getScale (Expr.strToScaleId str)
+            withScale scale deriver
         _ -> id
 
-with_default_imported :: Deriver a -> Deriver a
-with_default_imported deriver =
-    foldr (with_imported True) deriver
+withDefaultImported :: Deriver a -> Deriver a
+withDefaultImported deriver =
+    foldr (withImported True) deriver
         [Module.internal, Module.prelude, Module.local]
     -- Calls from Module.local should shadow the others.
 
@@ -235,152 +235,152 @@ catch collect deriver = do
     state <- get
     -- It's critical to clear the collect, because if I merge it again later
     -- I can't go duplicating the whole thing.
-    let (result, state2, logs) = run (state { state_collect = mempty }) deriver
+    let (result, state2, logs) = run (state { stateCollect = mempty }) deriver
     mapM_ Log.write logs
     case result of
         Left err -> do
-            Log.write $ error_to_warn err
+            Log.write $ errorToWarn err
             pure Nothing
         Right val -> do
-            when collect $ Internal.merge_collect (state_collect state2)
-            Internal.set_threaded (state_threaded state2)
+            when collect $ Internal.mergeCollect (stateCollect state2)
+            Internal.setThreaded (stateThreaded state2)
             pure $ Just val
 
 
 -- * state access
 
-get_stack :: Deriver Stack.Stack
-get_stack = gets (state_stack . state_dynamic)
+getStack :: Deriver Stack.Stack
+getStack = gets (stateStack . stateDynamic)
 
-real_function :: Deriver (ScoreTime -> RealTime)
-real_function = Warp.warp <$> Internal.get_dynamic state_warp
+realFunction :: Deriver (ScoreTime -> RealTime)
+realFunction = Warp.warp <$> Internal.getDynamic stateWarp
 
-score_function :: Deriver (RealTime -> ScoreTime)
-score_function = Warp.unwarp <$> Internal.get_dynamic state_warp
+scoreFunction :: Deriver (RealTime -> ScoreTime)
+scoreFunction = Warp.unwarp <$> Internal.getDynamic stateWarp
 
 -- ** import
 
 -- | Merge calls from the given module into scope.
-with_imported :: Bool -> Module.Module -> Deriver a -> Deriver a
-with_imported empty_ok module_ deriver = do
-    builtins <- Internal.get_constant state_builtins
-    scopes <- case extract_module module_ builtins of
+withImported :: Bool -> Module.Module -> Deriver a -> Deriver a
+withImported emptyOk module_ deriver = do
+    builtins <- Internal.getConstant stateBuiltins
+    scopes <- case extractModule module_ builtins of
         Scopes gen trans track val
-            | not empty_ok && scope_empty gen && scope_empty trans
-                    && scope_empty track && empty val ->
+            | not emptyOk && scopeEmpty gen && scopeEmpty trans
+                    && scopeEmpty track && empty val ->
                 throw $ "no calls in the imported module: " <> pretty module_
         extracted -> pure extracted
-    with_scopes (scopes<>) deriver
+    withScopes (scopes<>) deriver
     where
-    scope_empty (Scope a b c) = empty a && empty b && empty c
+    scopeEmpty (Scope a b c) = empty a && empty b && empty c
     empty (ScopePriority m) = Map.null m
 
 -- | Import only the given symbols from the module.
-with_imported_symbols :: Module.Module -> Set Expr.Symbol -> Deriver a
+withImportedSymbols :: Module.Module -> Set Expr.Symbol -> Deriver a
     -> Deriver a
-with_imported_symbols module_ syms deriver = do
-    scopes <- extract_symbols (`Set.member` syms) . extract_module module_ <$>
-        Internal.get_constant state_builtins
-    let missing = syms `Set.difference` Set.fromList (scope_symbols scopes)
+withImportedSymbols module_ syms deriver = do
+    scopes <- extractSymbols (`Set.member` syms) . extractModule module_ <$>
+        Internal.getConstant stateBuiltins
+    let missing = syms `Set.difference` Set.fromList (scopeSymbols scopes)
     unless (Set.null missing) $
         throw $ "symbols not in module " <> pretty module_ <> ": "
             <> pretty (Set.toList missing)
-    with_scopes (scopes<>) deriver
+    withScopes (scopes<>) deriver
 
 -- | Run the derivation with a modified scope.
-with_scopes :: (Scopes -> Scopes) -> Deriver a -> Deriver a
-with_scopes modify = Internal.local $ \state ->
-    state { state_scopes = modify (state_scopes state) }
+withScopes :: (Scopes -> Scopes) -> Deriver a -> Deriver a
+withScopes modify = Internal.local $ \state ->
+    state { stateScopes = modify (stateScopes state) }
 
 -- | Filter out any calls that aren't in the given module.
-extract_module :: Module.Module -> Builtins -> Scopes
-extract_module module_ (Scopes gen trans track val) = Scopes
-    { scopes_generator = extract_scope gen
-    , scopes_transformer = extract_scope trans
-    , scopes_track = extract_scope track
-    , scopes_val = extract val
+extractModule :: Module.Module -> Builtins -> Scopes
+extractModule module_ (Scopes gen trans track val) = Scopes
+    { scopesGenerator = extractScope gen
+    , scopesTransformer = extractScope trans
+    , scopesTrack = extractScope track
+    , scopesVal = extract val
     }
     where
-    extract_scope (Scope note control pitch) = Scope
-        { scope_note = extract note
-        , scope_control = extract control
-        , scope_pitch = extract pitch
+    extractScope (Scope note control pitch) = Scope
+        { scopeNote = extract note
+        , scopeControl = extract control
+        , scopePitch = extract pitch
         }
     extract = make . Map.findWithDefault mempty module_
     make :: CallMap a -> ScopePriority a
     make cmap@(CallMap calls patterns)
-        | Map.null calls && null patterns = scope_priority []
-        | null prio_block = scope_priority [(PrioBuiltin, cmap)]
-        | otherwise = scope_priority
-            [ (PrioBuiltin, cmap { call_patterns = normal })
-            , (PrioBlock, mempty { call_patterns = prio_block })
+        | Map.null calls && null patterns = scopePriority []
+        | null prioBlock = scopePriority [(PrioBuiltin, cmap)]
+        | otherwise = scopePriority
+            [ (PrioBuiltin, cmap { callPatterns = normal })
+            , (PrioBlock, mempty { callPatterns = prioBlock })
             ]
         where
-        (prio_block, normal) =
-            List.partition has_prio_block (call_patterns cmap)
-    has_prio_block pattern =
-        cdoc_tags (pat_call_doc pattern) `Tags.contains` Tags.prio_block
+        (prioBlock, normal) =
+            List.partition hasPrioBlock (callPatterns cmap)
+    hasPrioBlock pattern =
+        cdocTags (patCallDoc pattern) `Tags.contains` Tags.prioBlock
 
 -- | Filter out calls that don't match the predicate.  LookupCalls are also
 -- filtered out.  This might be confusing since you might not even know a
 -- call comes from a LookupPattern, but then you can't import it by name.
-extract_symbols :: (Expr.Symbol -> Bool) -> Scopes -> Scopes
-extract_symbols wanted (Scopes gen trans track val) = Scopes
-    { scopes_generator = extract_scope gen
-    , scopes_transformer = extract_scope trans
-    , scopes_track = extract_scope track
-    , scopes_val = extract val
+extractSymbols :: (Expr.Symbol -> Bool) -> Scopes -> Scopes
+extractSymbols wanted (Scopes gen trans track val) = Scopes
+    { scopesGenerator = extractScope gen
+    , scopesTransformer = extractScope trans
+    , scopesTrack = extractScope track
+    , scopesVal = extract val
     }
     where
-    extract_scope (Scope note control pitch) = Scope
-        { scope_note = extract note
-        , scope_control = extract control
-        , scope_pitch = extract pitch
+    extractScope (Scope note control pitch) = Scope
+        { scopeNote = extract note
+        , scopeControl = extract control
+        , scopePitch = extract pitch
         }
-    extract = map_cmap $ \cmap -> mempty
-        { call_map = Maps.filterKey wanted (call_map cmap) }
-    map_cmap f (ScopePriority m) = ScopePriority $ f <$> m
+    extract = mapCmap $ \cmap -> mempty
+        { callMap = Maps.filterKey wanted (callMap cmap) }
+    mapCmap f (ScopePriority m) = ScopePriority $ f <$> m
 
-scope_symbols :: Scopes -> [Expr.Symbol]
-scope_symbols (Scopes gen trans track val) = mconcat
-    [extract_scope gen, extract_scope trans, extract_scope track, extract val]
+scopeSymbols :: Scopes -> [Expr.Symbol]
+scopeSymbols (Scopes gen trans track val) = mconcat
+    [extractScope gen, extractScope trans, extractScope track, extract val]
     where
-    extract_scope (Scope note control pitch) =
+    extractScope (Scope note control pitch) =
         extract note <> extract control <> extract pitch
-    extract (ScopePriority m) = concatMap (Map.keys . call_map) (Map.elems m)
+    extract (ScopePriority m) = concatMap (Map.keys . callMap) (Map.elems m)
 
 -- ** scale
 
 -- | Lookup a scale_id or throw.
-get_scale :: Pitch.ScaleId -> Deriver Scale
-get_scale scale_id =
-    maybe (throw $ "get_scale: unknown scale: " <> pretty scale_id) pure
-    =<< lookup_scale scale_id
+getScale :: Pitch.ScaleId -> Deriver Scale
+getScale scaleId =
+    maybe (throw $ "get_scale: unknown scale: " <> pretty scaleId) pure
+    =<< lookupScale scaleId
 
-lookup_scale :: Pitch.ScaleId -> Deriver (Maybe Scale)
-lookup_scale scale_id = do
-    LookupScale lookup <- gets (state_lookup_scale . state_constant)
-    env <- Internal.get_environ
-    case lookup env scale_id of
+lookupScale :: Pitch.ScaleId -> Deriver (Maybe Scale)
+lookupScale scaleId = do
+    LookupScale lookup <- gets (stateLookupScale . stateConstant)
+    env <- Internal.getEnviron
+    case lookup env scaleId of
         Nothing -> pure Nothing
-        Just (Left err) -> throw $ "lookup " <> pretty scale_id <> ": "
+        Just (Left err) -> throw $ "lookup " <> pretty scaleId <> ": "
             <> pretty err
         Just (Right scale) -> pure $ Just scale
 
 
 -- ** environment
 
-lookup_val :: Typecheck.Typecheck a => Env.Key -> Deriver (Maybe a)
-lookup_val key =
-    either throw pure . Env.checked_val key =<< Internal.get_environ
+lookupVal :: Typecheck.Typecheck a => Env.Key -> Deriver (Maybe a)
+lookupVal key =
+    either throw pure . Env.checkedVal key =<< Internal.getEnviron
 
-is_val_set :: Env.Key -> Deriver Bool
-is_val_set key = Maybe.isJust . Env.lookup key <$> Internal.get_environ
+isValSet :: Env.Key -> Deriver Bool
+isValSet key = Maybe.isJust . Env.lookup key <$> Internal.getEnviron
 
 -- | Like 'lookup_val', but throw if the value isn't present.
-get_val :: Typecheck.Typecheck a => Env.Key -> Deriver a
-get_val key = do
-    val <- lookup_val key
+getVal :: Typecheck.Typecheck a => Env.Key -> Deriver a
+getVal key = do
+    val <- lookupVal key
     maybe (throw $ "environ val not found: " <> pretty key) pure val
 
 {- | Set the given val dynamically within the given computation.  This is
@@ -398,77 +398,77 @@ get_val key = do
     scale or instrument, so scale or instrument scopes are always set when scale
     and instrument are.
 -}
-with_val :: Typecheck.ToVal val => Env.Key -> val -> Deriver a -> Deriver a
-with_val key val deriver
-    | key == EnvKey.scale, Just scale_id <- DeriveT.to_scale_id v = do
-        scale <- get_scale scale_id
-        with_val_raw EnvKey.scale val $ with_scale scale deriver
-    | key == EnvKey.instrument, Just inst <- Typecheck.from_val_simple v =
-        with_instrument inst deriver
+withVal :: Typecheck.ToVal val => Env.Key -> val -> Deriver a -> Deriver a
+withVal key val deriver
+    | key == EnvKey.scale, Just scaleId <- DeriveT.toScaleId v = do
+        scale <- getScale scaleId
+        withValRaw EnvKey.scale val $ withScale scale deriver
+    | key == EnvKey.instrument, Just inst <- Typecheck.fromValSimple v =
+        withInstrument inst deriver
     | otherwise = do
-        env <- Internal.get_environ
-        case Env.put_val key v env of
+        env <- Internal.getEnviron
+        case Env.putVal key v env of
             Left err -> throw err
             Right env -> Internal.local
-                (\state -> state { state_environ = env }) deriver
-    where v = Typecheck.to_val val
+                (\state -> state { stateEnviron = env }) deriver
+    where v = Typecheck.toVal val
 
 -- | Like 'with_val', but should be slightly more efficient for setting
 -- multiple values at once.
-with_vals :: Typecheck.ToVal val => [(Env.Key, val)] -> Deriver a -> Deriver a
-with_vals vals deriver
+withVals :: Typecheck.ToVal val => [(Env.Key, val)] -> Deriver a -> Deriver a
+withVals vals deriver
     | null vals = deriver
     | any (`elem` [EnvKey.scale, EnvKey.instrument]) (map fst vals) =
-        foldr (uncurry with_val) deriver vals
+        foldr (uncurry withVal) deriver vals
     | otherwise = Internal.localm with deriver
     where
     with state = do
         environ <- either throw pure $
-            foldr (\(k, v) env -> Env.put_val k v =<< env)
-                (pure $ state_environ state) vals
-        environ `seq` pure $! state { state_environ = environ }
+            foldr (\(k, v) env -> Env.putVal k v =<< env)
+                (pure $ stateEnviron state) vals
+        environ `seq` pure $! state { stateEnviron = environ }
 
 -- | Merge the given environ into the environ in effect.  Unlike 'with_val' or
 -- 'with_vals', this won't set scopes for 'EnvKey.scale' and
 -- 'EnvKey.instrument'.
-with_environ :: Env.Environ -> Deriver a -> Deriver a
-with_environ environ
+withEnviron :: Env.Environ -> Deriver a -> Deriver a
+withEnviron environ
     | Env.null environ = id
     | otherwise = Internal.local $ \state -> state
-        { state_environ = environ <> state_environ state }
+        { stateEnviron = environ <> stateEnviron state }
 
 -- | Like 'with_val', but don't set scopes for instrument and scale.  Also
 -- don't check for types, so you can replace a val with one of a different
 -- type.  Due to this it's also more efficient.
-with_val_raw :: Typecheck.ToVal val => Env.Key -> val -> Deriver a -> Deriver a
-with_val_raw key val = Internal.local $ \state -> state
-    { state_environ = Env.insert_val key val (state_environ state) }
+withValRaw :: Typecheck.ToVal val => Env.Key -> val -> Deriver a -> Deriver a
+withValRaw key val = Internal.local $ \state -> state
+    { stateEnviron = Env.insertVal key val (stateEnviron state) }
 
-with_vals_raw :: Typecheck.ToVal val => [(EnvKey.Key, val)] -> Deriver a
+withValsRaw :: Typecheck.ToVal val => [(EnvKey.Key, val)] -> Deriver a
     -> Deriver a
-with_vals_raw vals =
-    with_environ $ Env.from_list (map (second Typecheck.to_val) vals)
+withValsRaw vals =
+    withEnviron $ Env.fromList (map (second Typecheck.toVal) vals)
 
-remove_val :: Env.Key -> Deriver a -> Deriver a
-remove_val = remove_vals . (:[])
+removeVal :: Env.Key -> Deriver a -> Deriver a
+removeVal = removeVals . (:[])
 -- remove_val key = Internal.local $ \state ->
 --     state { state_environ = Env.delete key $ state_environ state }
 
-remove_vals :: [Env.Key] -> Deriver a -> Deriver a
-remove_vals keys = Internal.local $ \state ->
-    state { state_environ = foldr Env.delete (state_environ state) keys }
+removeVals :: [Env.Key] -> Deriver a -> Deriver a
+removeVals keys = Internal.local $ \state ->
+    state { stateEnviron = foldr Env.delete (stateEnviron state) keys }
 
-modify_val :: (Typecheck.Typecheck val, Typecheck.ToVal val) => Env.Key
+modifyVal :: (Typecheck.Typecheck val, Typecheck.ToVal val) => Env.Key
     -> (Maybe val -> val) -> Deriver a -> Deriver a
-modify_val key modify = Internal.localm $ \state -> do
+modifyVal key modify = Internal.localm $ \state -> do
     val <- modify <$>
-        require_right id (Env.checked_val key (state_environ state))
-    pure $! insert_env key val state
+        requireRight id (Env.checkedVal key (stateEnviron state))
+    pure $! insertEnv key val state
 
-insert_env :: Typecheck.ToVal val => Env.Key -> val -> Dynamic -> Dynamic
-insert_env key val state = state
-    { state_environ =
-        Env.insert_val key (Typecheck.to_val val) (state_environ state)
+insertEnv :: Typecheck.ToVal val => Env.Key -> val -> Dynamic -> Dynamic
+insertEnv key val state = state
+    { stateEnviron =
+        Env.insertVal key (Typecheck.toVal val) (stateEnviron state)
     }
 
 -- | Replace the scale's calls.
@@ -477,93 +477,93 @@ insert_env key val state = state
 -- meant you could overlay scales and use both at the same time.  Maybe that's
 -- actually a useful feature?  In any case, I don't need it at the moment, so
 -- it seems more likely to be confusing than useful.
-with_scale :: Scale -> Deriver d -> Deriver d
-with_scale scale = with_scopes (val . pitch)
+withScale :: Scale -> Deriver d -> Deriver d
+withScale scale = withScopes (val . pitch)
     where
-    pitch = s_generator#s_pitch %= replace (scale_to_call scale val_to_pitch)
-    val = s_val %= replace (scale_to_call scale id)
+    pitch = sGenerator#sPitch %= replace (scaleToCall scale valToPitch)
+    val = sVal %= replace (scaleToCall scale id)
     replace pattern =
-        replace_priority PrioScale (mempty { call_patterns = [pattern] })
+        replacePriority PrioScale (mempty { callPatterns = [pattern] })
 
-scale_to_call :: Scale -> (ValCall -> call) -> PatternCall call
-scale_to_call scale convert = PatternCall
-    { pat_description = description
-    , pat_doc = scale_call_doc scale
-    , pat_function = \sym ->
-        pure $ convert <$> scale_note_to_call scale (to_note sym)
+scaleToCall :: Scale -> (ValCall -> call) -> PatternCall call
+scaleToCall scale convert = PatternCall
+    { patDescription = description
+    , patDoc = scaleCallDoc scale
+    , patFunction = \sym ->
+        pure $ convert <$> scaleNoteToCall scale (toNote sym)
     }
     where
-    description = pretty (scale_id scale) <> ": " <> scale_pattern scale
-    to_note (Expr.Symbol sym) = Pitch.Note sym
+    description = pretty (scaleId scale) <> ": " <> scalePattern scale
+    toNote (Expr.Symbol sym) = Pitch.Note sym
 
 -- | Convert a val call to a pitch call.  This is used so scales can export
 -- their ValCalls to pitch generators.
-val_to_pitch :: ValCall -> Generator Pitch
-val_to_pitch (Call name doc vcall) = Call
-    { call_name = name
-    , call_doc = doc
-    , call_func = generator_func pitch_call
+valToPitch :: ValCall -> Generator Pitch
+valToPitch (Call name doc vcall) = Call
+    { callName = name
+    , callDoc = doc
+    , callFunc = generatorFunc pitchCall
     }
     where
-    convert_args args = args { passed_ctx = tag_context (passed_ctx args) }
-    pitch_call args = do
-        val <- vcall (convert_args args)
-        case PSignal.pitch_val val of
-            Just pitch -> lookup_call Symbols.default_pitch >>= \case
-                Nothing -> default_pitch_call args pitch
-                Just pcall -> gfunc_f (call_func pcall) $ PassedArgs
-                    { passed_vals = [DeriveT.VPSignal (PSignal.constant pitch)]
-                    , passed_call_name = call_name pcall
-                    , passed_ctx = passed_ctx args
+    convertArgs args = args { passedCtx = tagContext (passedCtx args) }
+    pitchCall args = do
+        val <- vcall (convertArgs args)
+        case PSignal.pitchVal val of
+            Just pitch -> lookupCall Symbols.defaultPitch >>= \case
+                Nothing -> defaultPitchCall args pitch
+                Just pcall -> gfuncF (callFunc pcall) $ PassedArgs
+                    { passedVals = [DeriveT.VPSignal (PSignal.constant pitch)]
+                    , passedCallName = callName pcall
+                    , passedCtx = passedCtx args
                     }
             Nothing -> throw $ "scale call " <> pretty name
-                <> " returned non-pitch: " <> ShowVal.show_val val
+                <> " returned non-pitch: " <> ShowVal.showVal val
 
 -- | This is the default pitch call for bare scale degrees if
 -- 'Symbols.default_pitch' isn't set.
-default_pitch_call :: PassedArgs val -> PSignal.Pitch
+defaultPitchCall :: PassedArgs val -> PSignal.Pitch
     -> Deriver (Stream.Stream PSignal.PSignal)
-default_pitch_call args pitch = do
+defaultPitchCall args pitch = do
     -- This is Args.real, but I can't import it here.
-    pos <- Internal.real $ Event.start $ ctx_event $ passed_ctx args
-    pure $ Stream.from_event $ PSignal.from_sample pos pitch
+    pos <- Internal.real $ Event.start $ ctxEvent $ passedCtx args
+    pure $ Stream.fromEvent $ PSignal.fromSample pos pitch
 
 -- | Run the a deriver with the given instrument in scope.  In addition to
 -- assigning the instrument to the 'EnvKey.instrument' field where note calls
 -- can inherit it, this also brings the 'Instrument' fields into scope, which
 -- is the per-instrument calls and per-instrument environ.
-with_instrument :: ScoreT.Instrument -> Deriver d -> Deriver d
-with_instrument inst deriver = do
+withInstrument :: ScoreT.Instrument -> Deriver d -> Deriver d
+withInstrument inst deriver = do
     -- Previously, I would just substitute an empty instrument instead of
     -- throwing, but it turned out to be error prone, since a misspelled
     -- instrument would derive anyway, only without the right calls and
     -- environ.
-    (inst, derive_inst) <- get_instrument inst
-    let with_inst = with_val_raw EnvKey.instrument inst
-    let with_scale = maybe id (with_val EnvKey.scale) $
-            Env.lookup EnvKey.scale (inst_environ derive_inst)
-    with_inst $ with_scopes (set_scopes (inst_calls derive_inst)) $
-        with_scale $ with_environ (inst_environ derive_inst) deriver
+    (inst, deriveInst) <- getInstrument inst
+    let withInst = withValRaw EnvKey.instrument inst
+    let withScale = maybe id (withVal EnvKey.scale) $
+            Env.lookup EnvKey.scale (instEnviron deriveInst)
+    withInst $ withScopes (setScopes (instCalls deriveInst)) $
+        withScale $ withEnviron (instEnviron deriveInst) deriver
     where
     -- Replace the calls in the instrument scope type.
-    set_scopes (Scopes inst_gen inst_trans inst_track inst_val)
+    setScopes (Scopes instGen instTrans instTrack instVal)
             (Scopes gen trans track val) =
         Scopes
-            { scopes_generator = (s_note %= replace inst_gen) gen
-            , scopes_transformer = (s_note %= replace inst_trans) trans
-            , scopes_track = (s_note %= replace inst_track) track
-            , scopes_val = replace inst_val val
+            { scopesGenerator = (sNote %= replace instGen) gen
+            , scopesTransformer = (sNote %= replace instTrans) trans
+            , scopesTrack = (sNote %= replace instTrack) track
+            , scopesVal = replace instVal val
             }
-    replace = replace_priority PrioInstrument
+    replace = replacePriority PrioInstrument
 
-with_instrument_alias :: ScoreT.Instrument -> ScoreT.Instrument
+withInstrumentAlias :: ScoreT.Instrument -> ScoreT.Instrument
     -> Deriver a -> Deriver a
-with_instrument_alias alias inst =
-    with_instrument_aliases (Map.singleton alias inst)
+withInstrumentAlias alias inst =
+    withInstrumentAliases (Map.singleton alias inst)
 
-with_instrument_aliases :: Map ScoreT.Instrument ScoreT.Instrument
+withInstrumentAliases :: Map ScoreT.Instrument ScoreT.Instrument
     -> Deriver a -> Deriver a
-with_instrument_aliases aliases deriver
+withInstrumentAliases aliases deriver
     | Map.null aliases = deriver
     -- I used to verify that the rhs insts exist, but verification can be
     -- annoying if there is a library ky that creates some general purpose
@@ -571,119 +571,119 @@ with_instrument_aliases aliases deriver
     | otherwise = Internal.local with deriver
     where
     with state = state
-        { state_instrument_aliases = (resolve <$> aliases) <> old_aliases }
+        { stateInstrumentAliases = (resolve <$> aliases) <> oldAliases }
         where
-        old_aliases = state_instrument_aliases state
-        resolve inst = Map.findWithDefault inst inst old_aliases
+        oldAliases = stateInstrumentAliases state
+        resolve inst = Map.findWithDefault inst inst oldAliases
 
-instrument_exists :: ScoreT.Instrument -> Deriver Bool
-instrument_exists = (Either.isRight . snd <$>) . lookup_instrument
+instrumentExists :: ScoreT.Instrument -> Deriver Bool
+instrumentExists = (Either.isRight . snd <$>) . lookupInstrument
 
-get_instrument :: ScoreT.Instrument -> Deriver (ScoreT.Instrument, Instrument)
-get_instrument score_inst = do
-    (real_inst, result) <- lookup_instrument score_inst
+getInstrument :: ScoreT.Instrument -> Deriver (ScoreT.Instrument, Instrument)
+getInstrument scoreInst = do
+    (realInst, result) <- lookupInstrument scoreInst
     case result of
         Left err -> throw $ "instrument "
-            <> "'" <> ShowVal.show_val real_inst <> "': " <> err
-            <> if real_inst == score_inst then ""
-                else " (aliased from " <> ShowVal.show_val score_inst <> ")"
-        Right inst -> pure (real_inst, inst)
+            <> "'" <> ShowVal.showVal realInst <> "': " <> err
+            <> if realInst == scoreInst then ""
+                else " (aliased from " <> ShowVal.showVal scoreInst <> ")"
+        Right inst -> pure (realInst, inst)
 
 -- | Look up the instrument.  Also return the instrument name after resolving
 -- any alias.  This is what goes in 'Score.event_instrument', since it's what
 -- the performer understands.
-lookup_instrument :: ScoreT.Instrument
+lookupInstrument :: ScoreT.Instrument
     -> Deriver (ScoreT.Instrument, Either Text Instrument)
-lookup_instrument inst = do
-    aliases <- Internal.get_dynamic state_instrument_aliases
-    let real_inst = Map.findWithDefault inst inst aliases
-    lookup_inst <- gets $ state_lookup_instrument . state_constant
-    pure (real_inst, lookup_inst real_inst)
+lookupInstrument inst = do
+    aliases <- Internal.getDynamic stateInstrumentAliases
+    let realInst = Map.findWithDefault inst inst aliases
+    lookupInst <- gets $ stateLookupInstrument . stateConstant
+    pure (realInst, lookupInst realInst)
 
 -- | Get instantaneous tempo at the given time.
-get_tempo :: ScoreTime -> Deriver Double
-get_tempo t = do
-    warp <- Internal.get_warp
-    pure $ Warp.tempo_at warp t
+getTempo :: ScoreTime -> Deriver Double
+getTempo t = do
+    warp <- Internal.getWarp
+    pure $ Warp.tempoAt warp t
 
 
 -- ** control
 
-lookup_signal :: ScoreT.Control -> Deriver (Maybe (ScoreT.Typed Signal.Control))
-lookup_signal = Typecheck.lookup_signal
+lookupSignal :: ScoreT.Control -> Deriver (Maybe (ScoreT.Typed Signal.Control))
+lookupSignal = Typecheck.lookupSignal
 
-lookup_function :: ScoreT.Control -> Deriver (Maybe ScoreT.TypedFunction)
-lookup_function = Typecheck.lookup_function . flip DeriveT.Ref Nothing
+lookupFunction :: ScoreT.Control -> Deriver (Maybe ScoreT.TypedFunction)
+lookupFunction = Typecheck.lookupFunction . flip DeriveT.Ref Nothing
 
-get_function :: ScoreT.Control -> Deriver ScoreT.TypedFunction
-get_function = Typecheck.resolve_function . flip DeriveT.Ref Nothing
+getFunction :: ScoreT.Control -> Deriver ScoreT.TypedFunction
+getFunction = Typecheck.resolveFunction . flip DeriveT.Ref Nothing
 
 -- | Get the control value at the given time.
-control_at :: ScoreT.Control -> RealTime
+controlAt :: ScoreT.Control -> RealTime
     -> Deriver (Maybe (ScoreT.Typed Signal.Y))
-control_at control pos = fmap (fmap ($ pos)) <$> lookup_function control
+controlAt control pos = fmap (fmap ($ pos)) <$> lookupFunction control
 
-untyped_control_at :: ScoreT.Control -> RealTime -> Deriver (Maybe Signal.Y)
-untyped_control_at control = fmap (fmap ScoreT.val_of) . control_at control
+untypedControlAt :: ScoreT.Control -> RealTime -> Deriver (Maybe Signal.Y)
+untypedControlAt control = fmap (fmap ScoreT.valOf) . controlAt control
 
-is_control_set :: ScoreT.Control -> Deriver Bool
-is_control_set = is_val_set . ScoreT.control_name
+isControlSet :: ScoreT.Control -> Deriver Bool
+isControlSet = isValSet . ScoreT.controlName
 
 -- *** all signals / functions
 
 -- TODO for notes, to get just signals, no cfs.  Keeping with function / signal
 -- naming, should be get_signals and SignalMap?
-get_control_map :: Deriver ScoreT.ControlMap
-get_control_map =
-    fmap Map.fromList $ mapMaybeM convert . Env.to_list =<< Internal.get_environ
+getControlMap :: Deriver ScoreT.ControlMap
+getControlMap =
+    fmap Map.fromList $ mapMaybeM convert . Env.toList =<< Internal.getEnviron
     where
-    convert (key, val) = fmap (ScoreT.Control key,) <$> to_signal val
-    to_signal val = case Typecheck.val_to_signal val of
+    convert (key, val) = fmap (ScoreT.Control key,) <$> toSignal val
+    toSignal val = case Typecheck.valToSignal val of
         Nothing -> pure Nothing
         Just (Right sig) -> pure $ Just sig
         Just (Left dsig) -> Just <$> dsig
 
 -- | Like 'get_function', but get them all.
-get_function_map :: Deriver ScoreT.FunctionMap
-get_function_map = do
-    cf_dyn <- Internal.get_control_function_dynamic
-    let to_function val = case Typecheck.val_to_function_dyn cf_dyn val of
+getFunctionMap :: Deriver ScoreT.FunctionMap
+getFunctionMap = do
+    cfDyn <- Internal.getControlFunctionDynamic
+    let toFunction val = case Typecheck.valToFunctionDyn cfDyn val of
             Nothing -> pure Nothing
             Just (Left dtf) -> Just <$> dtf
             Just (Right tf) -> pure $ Just tf
-    let resolve (key, val) = fmap (ScoreT.Control key,) <$> to_function val
+    let resolve (key, val) = fmap (ScoreT.Control key,) <$> toFunction val
     Map.fromAscList <$>
-        (mapMaybeM resolve . Env.to_list =<< Internal.get_environ)
+        (mapMaybeM resolve . Env.toList =<< Internal.getEnviron)
 
 -- | Get a ControlValMap at the given time.
-{-# SCC controls_at #-}
-controls_at :: RealTime -> Deriver ScoreT.ControlValMap
-controls_at = fmap (fmap ScoreT.val_of) . typed_controls_at
+{-# SCC controlsAt #-}
+controlsAt :: RealTime -> Deriver ScoreT.ControlValMap
+controlsAt = fmap (fmap ScoreT.valOf) . typedControlsAt
 
-typed_controls_at :: RealTime -> Deriver ScoreT.TypedControlValMap
-typed_controls_at pos = fmap (fmap ($ pos)) <$> get_function_map
+typedControlsAt :: RealTime -> Deriver ScoreT.TypedControlValMap
+typedControlsAt pos = fmap (fmap ($ pos)) <$> getFunctionMap
 
 -- *** control signal
 
-with_control :: ScoreT.Control -> ScoreT.Typed Signal.Control -> Deriver a
+withControl :: ScoreT.Control -> ScoreT.Typed Signal.Control -> Deriver a
     -> Deriver a
-with_control control signal = with_val_raw (ScoreT.control_name control) signal
+withControl control signal = withValRaw (ScoreT.controlName control) signal
 
-with_constant_control :: ScoreT.Control -> Signal.Y -> Deriver a -> Deriver a
-with_constant_control control val =
-    with_control control (ScoreT.untyped (Signal.constant val))
+withConstantControl :: ScoreT.Control -> Signal.Y -> Deriver a -> Deriver a
+withConstantControl control val =
+    withControl control (ScoreT.untyped (Signal.constant val))
 
-with_controls :: [(ScoreT.Control, ScoreT.Typed Signal.Control)] -> Deriver a
+withControls :: [(ScoreT.Control, ScoreT.Typed Signal.Control)] -> Deriver a
     -> Deriver a
-with_controls controls =
-    with_vals_raw (map (first ScoreT.control_name) controls)
+withControls controls =
+    withValsRaw (map (first ScoreT.controlName) controls)
 
 -- | Remove both controls and control functions.  Use this when a control has
 -- already been applied, and you don't want it to affect further derivation.
-remove_controls :: [ScoreT.Control] -> Deriver a -> Deriver a
-remove_controls controls = Internal.local $ \state -> state
-    { state_environ = foldr Env.delete (state_environ state) keys }
-    where keys = map ScoreT.control_name controls
+removeControls :: [ScoreT.Control] -> Deriver a -> Deriver a
+removeControls controls = Internal.local $ \state -> state
+    { stateEnviron = foldr Env.delete (stateEnviron state) keys }
+    where keys = map ScoreT.controlName controls
 
 -- | Modify the given control according to the Merger.
 --
@@ -692,51 +692,51 @@ remove_controls controls = Internal.local $ \state -> state
 --
 -- As documented in 'merge', this acts like a Set if there is no existing
 -- control.
-with_merged_control :: Merger -> ScoreT.Control -> ScoreT.Typed Signal.Control
+withMergedControl :: Merger -> ScoreT.Control -> ScoreT.Typed Signal.Control
     -> Deriver a -> Deriver a
-with_merged_control merger control signal =
-    modify_signal control (\mb_sig -> merge merger mb_sig signal)
+withMergedControl merger control signal =
+    modifySignal control (\mbSig -> merge merger mbSig signal)
 
 -- | This is not just 'with_control', because I have to merge a control signal
 -- into a possible ControlFunction.
-modify_signal :: ScoreT.Control
+modifySignal :: ScoreT.Control
     -> (Maybe ScoreT.TypedSignal -> ScoreT.TypedSignal) -> Deriver a
     -> Deriver a
-modify_signal (ScoreT.Control control) modify = Internal.localm $ \state -> do
-    val <- require_right ((control <> ": ")<>) $
-        Env.modify_signal modify control (state_environ state)
-    pure $! insert_env control val state
+modifySignal (ScoreT.Control control) modify = Internal.localm $ \state -> do
+    val <- requireRight ((control <> ": ")<>) $
+        Env.modifySignal modify control (stateEnviron state)
+    pure $! insertEnv control val state
 
 -- | Like 'with_controls', but merge them with their respective default
 -- 'Merger's.
-with_merged_controls :: [(ScoreT.Control, ScoreT.Typed Signal.Control)]
+withMergedControls :: [(ScoreT.Control, ScoreT.Typed Signal.Control)]
     -> Deriver a -> Deriver a
-with_merged_controls control_vals deriver
-    | null control_vals = deriver
+withMergedControls controlVals deriver
+    | null controlVals = deriver
     | otherwise = do
-        let (controls, new_sigs) = unzip control_vals
-        mergers <- mapM get_default_merger controls
-        old_sigs <- mapM lookup_signal controls
-        let merged = zipWith3 merge mergers old_sigs new_sigs
-        with_controls (zip controls merged) deriver
+        let (controls, newSigs) = unzip controlVals
+        mergers <- mapM getDefaultMerger controls
+        oldSigs <- mapM lookupSignal controls
+        let merged = zipWith3 merge mergers oldSigs newSigs
+        withControls (zip controls merged) deriver
 
-resolve_merge :: Merge -> ScoreT.Control -> Deriver Merger
-resolve_merge DefaultMerge control = get_default_merger control
-resolve_merge (Merge merger) _ = pure merger
+resolveMerge :: Merge -> ScoreT.Control -> Deriver Merger
+resolveMerge DefaultMerge control = getDefaultMerger control
+resolveMerge (Merge merger) _ = pure merger
 
-get_control_merge :: Expr.Symbol -> Deriver Merger
-get_control_merge name = do
-    mergers <- gets (state_mergers . state_constant)
-    require ("unknown control merger: " <> ShowVal.show_val name)
+getControlMerge :: Expr.Symbol -> Deriver Merger
+getControlMerge name = do
+    mergers <- gets (stateMergers . stateConstant)
+    require ("unknown control merger: " <> ShowVal.showVal name)
         (Map.lookup name mergers)
 
 -- | Get the default merger for this control, or 'merge_mul' if there is none.
-get_default_merger :: ScoreT.Control -> Deriver Merger
-get_default_merger control = do
-    defaults <- Internal.get_dynamic state_control_merge_defaults
-    pure $ Map.findWithDefault default_merge control defaults
+getDefaultMerger :: ScoreT.Control -> Deriver Merger
+getDefaultMerger control = do
+    defaults <- Internal.getDynamic stateControlMergeDefaults
+    pure $ Map.findWithDefault defaultMerge control defaults
     where
-    default_merge = merge_mul
+    defaultMerge = mergeMul
 
 -- | Combine two signals with a Merger.  If there was no old signal, use
 -- merger-defined identity value.
@@ -749,56 +749,56 @@ merge :: Merger -> Maybe (ScoreT.Typed Signal.Control)
 merge Set _ new = new
 merge Unset (Just old) _ = old
 merge Unset Nothing new = new
-merge (Merger _ merger ident) maybe_old new =
-    ScoreT.Typed (ScoreT.type_of old <> ScoreT.type_of new)
-        (merger (ScoreT.val_of old) (ScoreT.val_of new))
-    where old = fromMaybe (ScoreT.untyped (Signal.constant ident)) maybe_old
+merge (Merger _ merger ident) maybeOld new =
+    ScoreT.Typed (ScoreT.typeOf old <> ScoreT.typeOf new)
+        (merger (ScoreT.valOf old) (ScoreT.valOf new))
+    where old = fromMaybe (ScoreT.untyped (Signal.constant ident)) maybeOld
     -- Using ident is *not* the same as just emitting the 'new' signal for
     -- subtraction!
 
 -- *** ControlMod
 
 -- | Emit a 'ControlMod'.
-modify_control :: Merger -> ScoreT.Control -> Signal.Control -> Deriver ()
-modify_control merger control signal = Internal.modify_collect $ \collect ->
-    collect { collect_control_mods =
-        ControlMod control signal merger : collect_control_mods collect }
+modifyControl :: Merger -> ScoreT.Control -> Signal.Control -> Deriver ()
+modifyControl merger control signal = Internal.modifyCollect $ \collect ->
+    collect { collectControlMods =
+        ControlMod control signal merger : collectControlMods collect }
 
 -- | Modify all VSignal and VPSignal types in environ.
-modify_signals :: (Signal.Control -> Signal.Control)
+modifySignals :: (Signal.Control -> Signal.Control)
     -> (PSignal.PSignal -> PSignal.PSignal) -> Deriver a -> Deriver a
-modify_signals modify_control modify_pitch = Internal.local $ \state -> state
-    { state_environ = Env.map update (state_environ state)
-    , state_pitch = modify_pitch (state_pitch state)
+modifySignals modifyControl modifyPitch = Internal.local $ \state -> state
+    { stateEnviron = Env.map update (stateEnviron state)
+    , statePitch = modifyPitch (statePitch state)
     }
     where
     update = \case
-        DeriveT.VSignal sig -> DeriveT.VSignal (modify_control <$> sig)
-        DeriveT.VPSignal sig -> DeriveT.VPSignal (modify_pitch sig)
+        DeriveT.VSignal sig -> DeriveT.VSignal (modifyControl <$> sig)
+        DeriveT.VPSignal sig -> DeriveT.VPSignal (modifyPitch sig)
         DeriveT.VCFunction cf -> DeriveT.VCFunction $
-            cf { DeriveT.cf_signal = modify_control <$> DeriveT.cf_signal cf }
+            cf { DeriveT.cfSignal = modifyControl <$> DeriveT.cfSignal cf }
         val -> val
 
 -- | Apply the collected control mods to the given deriver and clear them out.
-eval_control_mods :: RealTime -- ^ Trim controls to end at this time.
+evalControlMods :: RealTime -- ^ Trim controls to end at this time.
     -- If a ControlMod is local to a slice it should end when the slice ends,
     -- and since it bypasses 'Derive.Control.trim_signal', I have to trim
     -- it explicitly.
     -> Deriver a -> Deriver a
-eval_control_mods end deriver = do
-    mods <- gets (collect_control_mods . state_collect)
+evalControlMods end deriver = do
+    mods <- gets (collectControlMods . stateCollect)
     if null mods then deriver else do
         -- TODO Wait, is this really legit?
-        Internal.modify_collect $ \collect ->
-            collect { collect_control_mods = [] }
-        with_control_mods mods end deriver
+        Internal.modifyCollect $ \collect ->
+            collect { collectControlMods = [] }
+        withControlMods mods end deriver
 
-with_control_mods :: [ControlMod] -> RealTime -> Deriver a -> Deriver a
-with_control_mods mods end deriver = foldr ($) deriver (map apply mods)
+withControlMods :: [ControlMod] -> RealTime -> Deriver a -> Deriver a
+withControlMods mods end deriver = foldr ($) deriver (map apply mods)
     where
     apply (ControlMod control signal merger) =
-        with_merged_control merger control $ ScoreT.untyped $
-            Signal.clip_after end signal
+        withMergedControl merger control $ ScoreT.untyped $
+            Signal.clipAfter end signal
             -- TODO is clip_after necessary?  Document end better, with
             -- a reference to a test which demonstrates the issue.
 
@@ -812,52 +812,52 @@ with_control_mods mods end deriver = foldr ($) deriver (map apply mods)
 -- If 'pitch_at' applied the transposition, the new note would have to remove
 -- the transposition signals so they don't get applied again at performance
 -- conversion.
-pitch_at :: RealTime -> Deriver (Maybe PSignal.Pitch)
-pitch_at pos = (`PSignal.at` pos) <$> get_pitch
+pitchAt :: RealTime -> Deriver (Maybe PSignal.Pitch)
+pitchAt pos = (`PSignal.at` pos) <$> getPitch
 
 -- | Like 'pitch_at', this is a raw pitch.
-named_pitch_at :: ScoreT.PControl -> RealTime -> Deriver (Maybe PSignal.Pitch)
-named_pitch_at name pos = (`PSignal.at` pos) <$> get_pitch_signal name
+namedPitchAt :: ScoreT.PControl -> RealTime -> Deriver (Maybe PSignal.Pitch)
+namedPitchAt name pos = (`PSignal.at` pos) <$> getPitchSignal name
 
 -- | Resolve the raw pitch returned from 'pitch_at' to the final transposed
 -- pitch.
-resolve_pitch :: RealTime -> PSignal.Pitch -> Deriver PSignal.Transposed
-resolve_pitch pos pitch = do
-    controls <- controls_at pos
+resolvePitch :: RealTime -> PSignal.Pitch -> Deriver PSignal.Transposed
+resolvePitch pos pitch = do
+    controls <- controlsAt pos
     pure $ PSignal.apply controls pitch
 
 -- | Unlike 'pitch_at', the transposition has already been applied, because you
 -- can't transpose any further once you have a NoteNumber.
-nn_at :: RealTime -> Deriver (Maybe Pitch.NoteNumber)
-nn_at pos = justm (pitch_at pos) $ \pitch ->
-    logged_pitch_nn ("nn " <> pretty pos) =<< resolve_pitch pos pitch
+nnAt :: RealTime -> Deriver (Maybe Pitch.NoteNumber)
+nnAt pos = justm (pitchAt pos) $ \pitch ->
+    loggedPitchNn ("nn " <> pretty pos) =<< resolvePitch pos pitch
 
-get_pitch :: Deriver PSignal.PSignal
-get_pitch = Internal.get_dynamic state_pitch
+getPitch :: Deriver PSignal.PSignal
+getPitch = Internal.getDynamic statePitch
 
 -- | Re-export 'Typecheck.lookup_pitch_signal', defined there to avoid
 -- circular import.
-lookup_pitch_signal :: ScoreT.PControl -> Deriver (Maybe PSignal.PSignal)
-lookup_pitch_signal = Typecheck.lookup_pitch_signal
+lookupPitchSignal :: ScoreT.PControl -> Deriver (Maybe PSignal.PSignal)
+lookupPitchSignal = Typecheck.lookupPitchSignal
 
-get_pitch_signal :: ScoreT.PControl -> Deriver PSignal.PSignal
-get_pitch_signal pcontrol =
+getPitchSignal :: ScoreT.PControl -> Deriver PSignal.PSignal
+getPitchSignal pcontrol =
     -- The PControl itself doesn't add the # because that's the ref syntax,
     -- but let's add the # to remind that it's a PControl.
-    require ("no named pitch #" <> ShowVal.show_val pcontrol)
-        =<< lookup_pitch_signal pcontrol
+    require ("no named pitch #" <> ShowVal.showVal pcontrol)
+        =<< lookupPitchSignal pcontrol
 
-named_nn_at :: ScoreT.PControl -> RealTime -> Deriver (Maybe Pitch.NoteNumber)
-named_nn_at name pos = do
-    controls <- controls_at pos
-    justm (named_pitch_at name pos) $ \pitch ->
-        logged_pitch_nn ("named_nn " <> pretty (name, pos)) $
+namedNnAt :: ScoreT.PControl -> RealTime -> Deriver (Maybe Pitch.NoteNumber)
+namedNnAt name pos = do
+    controls <- controlsAt pos
+    justm (namedPitchAt name pos) $ \pitch ->
+        loggedPitchNn ("named_nn " <> pretty (name, pos)) $
             PSignal.apply controls pitch
 
 -- | Version of 'PSignal.pitch_nn' that logs errors.
-logged_pitch_nn :: Text -> PSignal.Transposed
+loggedPitchNn :: Text -> PSignal.Transposed
     -> Deriver (Maybe Pitch.NoteNumber)
-logged_pitch_nn msg pitch = case PSignal.pitch_nn pitch of
+loggedPitchNn msg pitch = case PSignal.pitchNn pitch of
     Left err -> do
         Log.warn $ "pitch_nn " <> msg <> ": " <> pretty err
         pure Nothing
@@ -865,85 +865,85 @@ logged_pitch_nn msg pitch = case PSignal.pitch_nn pitch of
 
 -- *** with signal
 
-with_pitch :: PSignal.PSignal -> Deriver a -> Deriver a
-with_pitch = modify_pitch ScoreT.default_pitch . const
+withPitch :: PSignal.PSignal -> Deriver a -> Deriver a
+withPitch = modifyPitch ScoreT.defaultPitch . const
 
 -- TODO now that named pitch is just env VPSignals, do I really need this?
-with_named_pitch :: ScoreT.PControl -> PSignal.PSignal -> Deriver a -> Deriver a
-with_named_pitch pcontrol = modify_pitch pcontrol . const
+withNamedPitch :: ScoreT.PControl -> PSignal.PSignal -> Deriver a -> Deriver a
+withNamedPitch pcontrol = modifyPitch pcontrol . const
 
-with_constant_pitch :: PSignal.Pitch -> Deriver a -> Deriver a
-with_constant_pitch = with_pitch . PSignal.constant
+withConstantPitch :: PSignal.Pitch -> Deriver a -> Deriver a
+withConstantPitch = withPitch . PSignal.constant
 
-remove_pitch :: Deriver a -> Deriver a
-remove_pitch = modify_pitch ScoreT.default_pitch (const mempty)
+removePitch :: Deriver a -> Deriver a
+removePitch = modifyPitch ScoreT.defaultPitch (const mempty)
 
-modify_pitch :: ScoreT.PControl -> (Maybe PSignal.PSignal -> PSignal.PSignal)
+modifyPitch :: ScoreT.PControl -> (Maybe PSignal.PSignal -> PSignal.PSignal)
     -> Deriver a -> Deriver a
-modify_pitch pcontrol modify deriver
-    | pcontrol == ScoreT.default_pitch = Internal.local
-        (\state -> state { state_pitch = modify (Just (state_pitch state)) })
+modifyPitch pcontrol modify deriver
+    | pcontrol == ScoreT.defaultPitch = Internal.local
+        (\state -> state { statePitch = modify (Just (statePitch state)) })
         deriver
     | otherwise = do
-        mb_sig <- lookup_val (ScoreT.pcontrol_name pcontrol)
-        with_val_raw (ScoreT.pcontrol_name pcontrol) (modify mb_sig) deriver
+        mbSig <- lookupVal (ScoreT.pcontrolName pcontrol)
+        withValRaw (ScoreT.pcontrolName pcontrol) (modify mbSig) deriver
 
 -- * run monad
 
 -- | Embed a LogId into Deriver.  This is for computations that need logging
 -- but not a full Deriver.
-run_logs :: Log.LogId a -> Deriver a
-run_logs action = do
-    let (val, logs) = Log.run_id action
+runLogs :: Log.LogId a -> Deriver a
+runLogs action = do
+    let (val, logs) = Log.runId action
     mapM_ Log.write logs
     pure val
 
-run_try :: (State -> State) -> Deriver a -> Deriver (Either Error a, State)
-run_try with_state deriver = do
+runTry :: (State -> State) -> Deriver a -> Deriver (Either Error a, State)
+runTry withState deriver = do
     state <- get
-    let (val, state2, logs) = run (with_state state) deriver
+    let (val, state2, logs) = run (withState state) deriver
     mapM_ Log.write logs
     pure (val, state2)
 
 -- * 'Mode'
 
-get_mode :: Deriver Mode
-get_mode = gets (state_mode . state_dynamic)
+getMode :: Deriver Mode
+getMode = gets (stateMode . stateDynamic)
 
-is_lilypond_mode :: Deriver Bool
-is_lilypond_mode = Maybe.isJust <$> lookup_lilypond_config
+isLilypondMode :: Deriver Bool
+isLilypondMode = Maybe.isJust <$> lookupLilypondConfig
 
-lookup_lilypond_config :: Deriver (Maybe Lilypond.Types.Config)
-lookup_lilypond_config = get_mode >>= \mode -> pure $ case mode of
+lookupLilypondConfig :: Deriver (Maybe Lilypond.Types.Config)
+lookupLilypondConfig = getMode >>= \mode -> pure $ case mode of
     Lilypond config -> Just config
     _ -> Nothing
 
 -- | Get the 'CallDuration' of the given deriver.
-get_score_duration :: Deriver a
+getScoreDuration :: Deriver a
     -> Deriver (Either Error (CallDuration ScoreTime))
-get_score_duration deriver = do
-    (val, out) <- run_try set_mode deriver
+getScoreDuration deriver = do
+    (val, out) <- runTry setMode deriver
     pure $ case val of
         Left err -> Left err
-        Right _ -> Right $ collect_score_duration $ state_collect out
+        Right _ -> Right $ collectScoreDuration $ stateCollect out
     where
-    set_mode state = state
-        { state_collect = mempty
-        , state_dynamic = (state_dynamic state)
-            { state_mode = ScoreDurationQuery }
+    setMode state = state
+        { stateCollect = mempty
+        , stateDynamic = (stateDynamic state)
+            { stateMode = ScoreDurationQuery }
         }
 
-get_real_duration :: Deriver a -> Deriver (Either Error (CallDuration RealTime))
-get_real_duration deriver = do
-    (val, out) <- run_try set_mode deriver
+getRealDuration :: Deriver a -> Deriver (Either Error (CallDuration RealTime))
+getRealDuration deriver = do
+    (val, out) <- runTry setMode deriver
     pure $ case val of
         Left err -> Left err
-        Right _ -> Right $ collect_real_duration $ state_collect out
+        Right _ -> Right $ collectRealDuration $ stateCollect out
     where
-    set_mode state = state
-        { state_collect = mempty
-        , state_dynamic = (state_dynamic state)
-            { state_mode = RealDurationQuery }
+    setMode state = state
+        { stateCollect = mempty
+        , stateDynamic = (stateDynamic state)
+            { stateMode = RealDurationQuery }
         }
 
 -- * postproc
@@ -951,35 +951,35 @@ get_real_duration deriver = do
 -- | Replace the 'state_stack' with the one from the event.  This is useful
 -- for transformers, so they can show a stack trace to the event they are
 -- processing.
-with_event_stack :: Score.Event -> Deriver a -> Deriver a
-with_event_stack event =
-    maybe id with_stack (Stack.block_track_region_of (Score.event_stack event))
+withEventStack :: Score.Event -> Deriver a -> Deriver a
+withEventStack event =
+    maybe id withStack (Stack.blockTrackRegionOf (Score.eventStack event))
     where
-    with_stack (block_id, track_id, (s, e)) = Internal.with_stack_block block_id
-        . Internal.with_stack_track track_id . Internal.with_stack_region s e
+    withStack (blockId, trackId, (s, e)) = Internal.withStackBlock blockId
+        . Internal.withStackTrack trackId . Internal.withStackRegion s e
 
 -- | A combination of 'catch' and 'with_event_stack'.
-with_event :: Score.Event -> Deriver a -> Deriver (Maybe a)
-with_event event = catch False . with_event_stack event
+withEvent :: Score.Event -> Deriver a -> Deriver (Maybe a)
+withEvent event = catch False . withEventStack event
 
 -- | Shift the controls of a deriver.  You're supposed to apply the warp
 -- before deriving the controls, but I don't have a good solution for how to
 -- do this yet, so I can leave these here for the moment.
-shift_controls :: ScoreTime -> Deriver a -> Deriver a
-shift_controls shift deriver = do
+shiftControls :: ScoreTime -> Deriver a -> Deriver a
+shiftControls shift deriver = do
     real <- Internal.real shift
-    modify_signals (Signal.shift real) (PSignal.shift real) deriver
+    modifySignals (Signal.shift real) (PSignal.shift real) deriver
 
 -- * call
 
 -- | Wrap 'make_val_call' with a 'Typecheck.to_val' to automatically convert
 -- to a 'DeriveT.Val'.  This is not in "Derive.Deriver.Monad" to avoid
 -- a circular import with "Derive.DeriveT".
-val_call :: Typecheck.ToVal a => Module.Module -> CallName -> Tags.Tags
+valCall :: Typecheck.ToVal a => Module.Module -> CallName -> Tags.Tags
     -> Doc.Doc -> WithArgDoc (PassedArgs Tagged -> Deriver a) -> ValCall
-val_call module_ name tags doc (call, arg_docs) =
-    make_val_call module_ name tags doc (fmap Typecheck.to_val . call, arg_docs)
+valCall module_ name tags doc (call, argDocs) =
+    makeValCall module_ name tags doc (fmap Typecheck.toVal . call, argDocs)
 
-set_module :: Module.Module -> Call f -> Call f
-set_module module_ call = call
-    { call_doc = (call_doc call) { cdoc_module = module_ } }
+setModule :: Module.Module -> Call f -> Call f
+setModule module_ call = call
+    { callDoc = (callDoc call) { cdocModule = module_ } }

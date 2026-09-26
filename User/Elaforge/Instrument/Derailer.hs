@@ -12,7 +12,7 @@ import Global
 synth :: MidiInst.Synth
 synth =
     MidiInst.synth "derailer" "PA3 Derailer." $
-        MidiInst.synth_controls controls patches
+        MidiInst.synthControls controls patches
     where
     controls = map (second ScoreT.Control) $ concat
         [ [ (cc, "drone" <> showt n <> "-mass")
@@ -33,4 +33,4 @@ synth =
         , patch "multi-strike" [(33, "strike-rate"), (1, "breath")]
         , MidiInst.pressure $ patch "bow" [(34, "bow-depth"), (1, "dyn")]
         ]
-    patch = MidiInst.named_patch (-2, 2)
+    patch = MidiInst.namedPatch (-2, 2)

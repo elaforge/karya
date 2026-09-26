@@ -12,9 +12,9 @@ import qualified Derive.Score as Score
 
 test_pizz_arp :: Test
 test_pizz_arp = do
-    let run = DeriveTest.extract DeriveTest.e_note
-            . DeriveTest.derive_tracks "pizz-arp .5"
-            . concatMap UiTest.note_track
+    let run = DeriveTest.extract DeriveTest.eNote
+            . DeriveTest.deriveTracks "pizz-arp .5"
+            . concatMap UiTest.noteTrack
 
     equal (run [[(0, 1, "+pizz -- 4c")], [(0, 1, "+pizz -- 4d")]])
         ([(0, 1, "4c"), (0.5, 1, "4d")], [])
@@ -23,21 +23,21 @@ test_pizz_arp = do
 
 test_avoid_overlap :: Test
 test_avoid_overlap = do
-    let run = DeriveTest.extract DeriveTest.e_note
-            . DeriveTest.derive_tracks "avoid-overlap .5"
-            . UiTest.note_track
+    let run = DeriveTest.extract DeriveTest.eNote
+            . DeriveTest.deriveTracks "avoid-overlap .5"
+            . UiTest.noteTrack
     equal (run [(0, 1, "4c"), (1, 1, "4d")])
         ([(0, 1, "4c"), (1, 1, "4d")], [])
     equal (run [(0, 1, "4c"), (1, 1, "4d"), (2, 1, "4d"), (3, 1, "4c")])
         ([(0, 1, "4c"), (1, 0.5, "4d"), (2, 1, "4d"), (3, 1, "4c")], [])
     equal (run [(0, 0.25, "4c"), (0.25, 0.25, "4c")])
-        ([(0, Note.min_duration, "4c"), (0.25, 0.25, "4c")], [])
+        ([(0, Note.minDuration, "4c"), (0.25, 0.25, "4c")], [])
 
 test_extend_duration :: Test
 test_extend_duration = do
-    let run = DeriveTest.extract DeriveTest.e_note
-            . DeriveTest.derive_tracks "extend-duration (list +a +b) 2"
-            . UiTest.note_track
+    let run = DeriveTest.extract DeriveTest.eNote
+            . DeriveTest.deriveTracks "extend-duration (list +a +b) 2"
+            . UiTest.noteTrack
     equal (run [(0, 1, "+a -- 4c")]) ([(0, 2, "4c")], [])
     equal (run [(0, 1, "+b+z -- 4c")]) ([(0, 2, "4c")], [])
     equal (run [(0, 1, "+z -- 4c")]) ([(0, 1, "4c")], [])
@@ -53,8 +53,8 @@ test_extend_duration = do
 test_apply_attributes :: Test
 test_apply_attributes = do
     let run = DeriveTest.extract extract
-            . DeriveTest.derive_tracks "apply-attributes"
-        extract e = (Score.event_start e, DeriveTest.e_attributes e)
+            . DeriveTest.deriveTracks "apply-attributes"
+        extract e = (Score.eventStart e, DeriveTest.eAttributes e)
     equal (run
             [ ("attr-a-b", [(0, 0, "0"), (1, 0, "1"), (2, 0, "0")])
             , (">", [(0, 1, ""), (1, 1, ""), (2, 1, "")])

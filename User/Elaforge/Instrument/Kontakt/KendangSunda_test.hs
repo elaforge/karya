@@ -17,8 +17,8 @@ test_kendang = do
     let run control notes = DeriveTest.extract extract $ derive $
             control ++ [(">k", mknotes notes)]
         extract e =
-            ( DeriveTest.e_attributes e
-            , DeriveTest.e_control_vals KendangSunda.pitch_control e
+            ( DeriveTest.eAttributes e
+            , DeriveTest.eControlVals KendangSunda.pitchControl e
             )
         mknotes ns = [(t, 0, n) | (t, n) <- zip (Lists.range_ 0 1) ns]
     equal (run [] ["o", "e_", "e-", "e^"])
@@ -29,10 +29,10 @@ test_kendang = do
 
 test_resolve :: Test
 test_resolve = do
-    equal KendangSunda.resolve_errors []
+    equal KendangSunda.resolveErrors []
 
 derive :: [UiTest.TrackSpec] -> Derive.Result
-derive = DeriveTest.derive_tracks_setup with_synths ""
+derive = DeriveTest.deriveTracksSetup withSynths ""
     where
-    with_synths = DeriveTest.with_synths_simple
+    withSynths = DeriveTest.withSynthsSimple
         [("k", "kontakt/kendang-sunda")] [Kontakt.synth]

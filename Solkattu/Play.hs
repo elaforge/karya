@@ -5,7 +5,7 @@
 {-# LANGUAGE CPP #-}
 -- | Convert solkattu to audio via karya score, and play it.
 module Solkattu.Play (
-    play_m, print_m
+    playM, printM
 #ifdef TESTING
     , module Solkattu.Play
 #endif
@@ -62,114 +62,114 @@ import           Types
 
 
 -- | Play mridangam realization for the korvai.
-play_m :: RealTime -- ^ akshara dur
+playM :: RealTime -- ^ akshara dur
     -> Korvai.Korvai -> IO Bool
-play_m = play_instrument Korvai.IMridangam
+playM = playInstrument Korvai.IMridangam
     (InstT.Qualified "sampler" "mridangam-d")
     "# = (natural) | dyn = .75"
 
 -- | Show the generated UI state.
-print_m :: RealTime -> Korvai.Korvai -> Either Text Simple.State
-print_m akshara_dur korvai =
-    merge $ dump <$> to_state Korvai.IMridangam
-        (InstT.Qualified "sampler" "mridangam-d") "" akshara_dur korvai
+printM :: RealTime -> Korvai.Korvai -> Either Text Simple.State
+printM aksharaDur korvai =
+    merge $ dump <$> toState Korvai.IMridangam
+        (InstT.Qualified "sampler" "mridangam-d") "" aksharaDur korvai
     where
-    dump state = Ui.eval state Simple.dump_state
+    dump state = Ui.eval state Simple.dumpState
     merge = \case
         Left s -> Left s
         Right (Left e) -> Left $ pretty e
         Right (Right x) -> Right x
 
-play_instrument
+playInstrument
     :: ( Solkattu.Notation stroke, Expr.ToExpr (Realize.Stroke stroke)
        , Ord stroke
        )
     => Korvai.Instrument stroke
     -> InstT.Qualified -> Text -> RealTime -> Korvai.Korvai -> IO Bool
-play_instrument instrument im_instrument transform akshara_dur korvai = do
+playInstrument instrument imInstrument transform aksharaDur korvai = do
     state <- either errorIO pure $
-        to_state instrument im_instrument transform akshara_dur korvai
-    (procs, output_dir) <- derive_to_disk "solkattu" state
-    Log.debug $ "procs: " <> showt procs <> " out_dir: " <> txt output_dir
-    play_procs procs output_dir
+        toState instrument imInstrument transform aksharaDur korvai
+    (procs, outputDir) <- deriveToDisk "solkattu" state
+    Log.debug $ "procs: " <> showt procs <> " out_dir: " <> txt outputDir
+    playProcs procs outputDir
 
-play_procs :: [Performance.Process] -> FilePath -> IO Bool
-play_procs [] _ = pure True -- I think this shouldn't happen?
-play_procs procs output_dir = do
+playProcs :: [Performance.Process] -> FilePath -> IO Bool
+playProcs [] _ = pure True -- I think this shouldn't happen?
+playProcs procs outputDir = do
     ready <- MVar.newEmptyMVar
     Log.debug $ "start render: " <> pretty procs
     rendering <- Async.async $
-        Performance.wait_for_subprocesses (MVar.putMVar ready ())
-            (Set.fromList [inst_name, metronome_name]) (Set.fromList procs)
+        Performance.waitForSubprocesses (MVar.putMVar ready ())
+            (Set.fromList [instName, metronomeName]) (Set.fromList procs)
     Log.debug "wait for ready"
     MVar.takeMVar ready
-    Log.debug $ Text.unwords ["%", "build/opt/stream_audio", txt output_dir]
-    Processes.call "build/opt/stream_audio" [output_dir]
+    Log.debug $ Text.unwords ["%", "build/opt/stream_audio", txt outputDir]
+    Processes.call "build/opt/stream_audio" [outputDir]
     Async.wait rendering
 
 -- | Derive the Ui.State and write the im parts to disk.
-derive_to_disk :: FilePath -> Ui.State -> IO ([Performance.Process], FilePath)
-derive_to_disk score_path ui_state = do
-    cmd_state <- load_cmd_state
-    block_id <- either (errorIO . pretty) pure $
-        Ui.eval ui_state Ui.get_root_id
-    let (events, logs) = derive cmd_state ui_state block_id
-    mapM_ Log.write $ filter ((>Log.Debug) . Log.msg_priority) logs
+deriveToDisk :: FilePath -> Ui.State -> IO ([Performance.Process], FilePath)
+deriveToDisk scorePath uiState = do
+    cmdState <- loadCmdState
+    blockId <- either (errorIO . pretty) pure $
+        Ui.eval uiState Ui.getRootId
+    let (events, logs) = derive cmdState uiState blockId
+    mapM_ Log.write $ filter ((>Log.Debug) . Log.msgPriority) logs
     putStrLn $ "events: " <> show (length events)
-    let im_config = Cmd.config_im (Cmd.state_config cmd_state)
-        lookup_inst = either (const Nothing) Just
-            . Cmd.state_lookup_instrument ui_state cmd_state
-    (procs, non_im) <- Performance.evaluate_im im_config lookup_inst score_path
-        0 1 block_id events
-    unless (null non_im) $
-        Log.warn $ "non-im events: " <> pretty non_im
+    let imConfig = Cmd.configIm (Cmd.stateConfig cmdState)
+        lookupInst = either (const Nothing) Just
+            . Cmd.stateLookupInstrument uiState cmdState
+    (procs, nonIm) <- Performance.evaluateIm imConfig lookupInst scorePath
+        0 1 blockId events
+    unless (null nonIm) $
+        Log.warn $ "non-im events: " <> pretty nonIm
     config <- Config.getConfig
     pure
         ( procs
-        , Config.outputDirectory (Config.imDir config) score_path block_id
+        , Config.outputDirectory (Config.imDir config) scorePath blockId
         )
 
 derive :: Cmd.State -> Ui.State -> BlockId
     -> (Vector.Vector Score.Event, [Log.Msg])
-derive cmd_state ui_state block_id =
-    (Msg.perf_events perf, logs ++ Msg.perf_logs perf)
-    where (perf, logs) = Performance.derive ui_state cmd_state block_id
+derive cmdState uiState blockId =
+    (Msg.perfEvents perf, logs ++ Msg.perfLogs perf)
+    where (perf, logs) = Performance.derive uiState cmdState blockId
 
-load_cmd_state :: IO Cmd.State
-load_cmd_state = Cmd.initial_state <$> DeriveSaved.cmd_config db
+loadCmdState :: IO Cmd.State
+loadCmdState = Cmd.initialState <$> DeriveSaved.cmdConfig db
     where db = fst $ Inst.db [Sampler.PatchDb.synth]
 
 
 -- * to_state
 
 -- | Realize and convert to Ui.State.
-to_state :: (Solkattu.Notation stroke, Expr.ToExpr (Realize.Stroke stroke),
+toState :: (Solkattu.Notation stroke, Expr.ToExpr (Realize.Stroke stroke),
         Ord stroke)
     => Korvai.Instrument stroke
     -> InstT.Qualified -> Text -> RealTime -> Korvai.Korvai
     -> Either Text Ui.State
-to_state instrument im_instrument transform akshara_dur_ korvai = do
+toState instrument imInstrument transform aksharaDur_ korvai = do
     results <- sequence $ Korvai.realize instrument korvai
     let (strokes, _warnings) = first concat $ unzip results
     -- Leave the warnings for the realize call.
-    let notes = to_note_track (Korvai.instToScore instrument) akshara_dur
+    let notes = toNoteTrack (Korvai.instToScore instrument) aksharaDur
             strokes
     let end = case notes of
-            NoteTrack _ events _ -> Events.time_end events
-    first pretty $ make_state im_instrument transform $ map make_tracks
+            NoteTrack _ events _ -> Events.timeEnd events
+    first pretty $ makeState imInstrument transform $ map makeTracks
         [ notes
-        , make_track metronome_name $
-            tala_metronome (Korvai.korvaiTala korvai) akshara_dur end
+        , makeTrack metronomeName $
+            talaMetronome (Korvai.korvaiTala korvai) aksharaDur end
         ]
     where
-    akshara_dur = RealTime.to_score akshara_dur_
+    aksharaDur = RealTime.toScore aksharaDur_
 
-make_state :: InstT.Qualified -> Text -> [[Track.Track]]
+makeState :: InstT.Qualified -> Text -> [[Track.Track]]
     -> Either Ui.Error Ui.State
-make_state instrument transform track_groups = Ui.exec Ui.empty $ do
-    bid <- GenId.block_id Nothing
+makeState instrument transform trackGroups = Ui.exec Ui.empty $ do
+    bid <- GenId.blockId Nothing
     let title = Text.intercalate " | " $ filter (not . Text.null)
-            [ "inst = " <> ShowVal.show_val inst_name
+            [ "inst = " <> ShowVal.showVal instName
             , transform
             , "scale = just-r"
             , "key = d-maj"
@@ -178,18 +178,18 @@ make_state instrument transform track_groups = Ui.exec Ui.empty $ do
             -- TODO fix this
             , "just-base = (hz 62.5)"
             ]
-    bid <- Ui.create_block bid title []
-    Ui.set_root_id bid
-    tids <- forM (concat track_groups) $ \t -> do
-        tid <- GenId.track_id bid
-        Ui.create_track tid t
-    Ui.insert_track bid 0 $ Block.track (Block.RId Ui.no_ruler) 40
-    mapM_ (Ui.insert_track bid 999 . block_track) tids
+    bid <- Ui.createBlock bid title []
+    Ui.setRootId bid
+    tids <- forM (concat trackGroups) $ \t -> do
+        tid <- GenId.trackId bid
+        Ui.createTrack tid t
+    Ui.insertTrack bid 0 $ Block.track (Block.RId Ui.noRuler) 40
+    mapM_ (Ui.insertTrack bid 999 . blockTrack) tids
     -- Ui.set_skeleton bid $ Skeleton.make $ note_track_edges track_groups
-    allocate inst_name instrument
-    allocate metronome_name (InstT.Qualified "sampler" "metronome")
+    allocate instName instrument
+    allocate metronomeName (InstT.Qualified "sampler" "metronome")
     where
-    block_track tid = Block.track (Block.TId tid Ui.no_ruler) 40
+    blockTrack tid = Block.track (Block.TId tid Ui.noRuler) 40
 
 -- -- | TODO this is much like the one in Cmd.Load.Midi, and the one in
 -- -- Cmd.Load.Mod.  I should have a common track creator.
@@ -201,18 +201,18 @@ make_state instrument transform track_groups = Ui.exec Ui.empty $ do
 --         end = n + length tracks
 --         ns = [n .. end-1]
 
-metronome_name :: ScoreT.Instrument
-metronome_name = "metronome"
+metronomeName :: ScoreT.Instrument
+metronomeName = "metronome"
 
-inst_name :: ScoreT.Instrument
-inst_name = "instrument"
+instName :: ScoreT.Instrument
+instName = "instrument"
 
 allocate :: Ui.M m => ScoreT.Instrument -> InstT.Qualified -> m ()
 allocate inst qualified = do
     let alloc = UiConfig.allocation qualified UiConfig.Im
     -- I just trust that this is an im synth and it exists.
     -- Otherwise I need the inst db from Cmd.
-    Ui.modify_config $ UiConfig.allocations_map %= Map.insert inst alloc
+    Ui.modifyConfig $ UiConfig.allocationsMap %= Map.insert inst alloc
 
 -- * make_tracks
 
@@ -224,37 +224,37 @@ type Controls = Map Control Events.Events
 data Control = Pitch Pitch.ScaleId | Control ScoreT.Control
     deriving (Eq, Ord, Show)
 
-make_tracks :: NoteTrack -> [Track.Track]
-make_tracks (NoteTrack inst events controls) =
-    Track.track (ParseTitle.instrument_to_title inst) events
+makeTracks :: NoteTrack -> [Track.Track]
+makeTracks (NoteTrack inst events controls) =
+    Track.track (ParseTitle.instrumentToTitle inst) events
         : map control (Map.toAscList controls)
-    where control (c, events) = Track.track (control_to_title c) events
+    where control (c, events) = Track.track (controlToTitle c) events
 
-control_to_title :: Control -> Text
-control_to_title control = case control of
-    Control c -> ParseTitle.control_to_title $ ScoreT.untyped c
-    Pitch scale_id -> ParseTitle.scale_to_title scale_id
+controlToTitle :: Control -> Text
+controlToTitle control = case control of
+    Control c -> ParseTitle.controlToTitle $ ScoreT.untyped c
+    Pitch scaleId -> ParseTitle.scaleToTitle scaleId
 
-to_note_track :: ToScore.ToScore stroke -> TrackTime
+toNoteTrack :: ToScore.ToScore stroke -> TrackTime
     -> [S.Flat g (Realize.Note stroke)] -> NoteTrack
-to_note_track to_score akshara_dur strokes =
-    NoteTrack ScoreT.empty_instrument (mk_events notes) control_tracks
+toNoteTrack toScore aksharaDur strokes =
+    NoteTrack ScoreT.emptyInstrument (mkEvents notes) controlTracks
     where
     controls :: [(Text, [ToScore.Event])]
-    (notes, controls) = ToScore.fromStrokes to_score strokes
+    (notes, controls) = ToScore.fromStrokes toScore strokes
     pitches = fromMaybe [] $ lookup "*" controls
-    pitch_track
+    pitchTrack
         | null pitches = Nothing
-        | otherwise = Just (Pitch Pitch.empty_scale, mk_events pitches)
-    control_tracks = Map.fromList $ maybe id (:) pitch_track $
-        [ (Control (ScoreT.Control control), mk_events events)
+        | otherwise = Just (Pitch Pitch.emptyScale, mkEvents pitches)
+    controlTracks = Map.fromList $ maybe id (:) pitchTrack $
+        [ (Control (ScoreT.Control control), mkEvents events)
         | (control, events) <- controls
         , control /= "*"
         ]
-    mk_events = Events.from_list . map mk_event
-    mk_event (start, dur, text) =
-        Event.event (realToFrac start * akshara_dur)
-            (realToFrac dur * akshara_dur) text
+    mkEvents = Events.fromList . map mkEvent
+    mkEvent (start, dur, text) =
+        Event.event (realToFrac start * aksharaDur)
+            (realToFrac dur * aksharaDur) text
 
 -- | This needs tala, akshara_dur, base pitch
 --
@@ -262,13 +262,13 @@ to_note_track to_score akshara_dur strokes =
 --
 -- TODO this is just [(start, dur, pitch, dyn)] -> [Track], which I should have
 -- already.
-tala_metronome :: Talas.Tala -> TrackTime -> TrackTime
+talaMetronome :: Talas.Tala -> TrackTime -> TrackTime
     -> [(TrackTime, TrackTime, Text, Double)]
-tala_metronome (Talas.Hindustani _) _ _ = error "hindustani not implemented"
-tala_metronome (Talas.Carnatic tala) akshara_dur end =
+talaMetronome (Talas.Hindustani _) _ _ = error "hindustani not implemented"
+talaMetronome (Talas.Carnatic tala) aksharaDur end =
         takeWhile (\(s, _, _, _) -> s < end)
     [ (s, 0, pitch, dyn)
-    | (s, Just (pitch, dyn)) <- zip (Lists.range_ 0 akshara_dur) (cycle pattern)
+    | (s, Just (pitch, dyn)) <- zip (Lists.range_ 0 aksharaDur) (cycle pattern)
     ]
     where
     pattern = concatMap make (Tala._angas tala)
@@ -283,14 +283,14 @@ tala_metronome (Talas.Carnatic tala) akshara_dur end =
     wave = "4p"
     beat = "4s"
 
-make_track :: ScoreT.Instrument -> [(TrackTime, TrackTime, Text, Double)]
+makeTrack :: ScoreT.Instrument -> [(TrackTime, TrackTime, Text, Double)]
     -> NoteTrack
-make_track inst notes =
-    NoteTrack inst (mk_events events) (Map.fromList [pitch_track, dyn_track])
+makeTrack inst notes =
+    NoteTrack inst (mkEvents events) (Map.fromList [pitchTrack, dynTrack])
     where
-    pitch_track = (Pitch Pitch.empty_scale, mk_events pitches)
-    dyn_track = (Control Controls.dynamic , mk_events dyns)
+    pitchTrack = (Pitch Pitch.emptyScale, mkEvents pitches)
+    dynTrack = (Control Controls.dynamic , mkEvents dyns)
     events = [(s, d, "") | (s, d, _, _) <- notes]
     pitches = [(s, 0, pitch) | (s, _, pitch, _) <- notes]
-    dyns = [(s, 0, ShowVal.show_val dyn) | (s, _, _, dyn) <- notes]
-    mk_events = Events.from_list . map (Control.uncurry3 Event.event)
+    dyns = [(s, 0, ShowVal.showVal dyn) | (s, _, _, dyn) <- notes]
+    mkEvents = Events.fromList . map (Control.uncurry3 Event.event)

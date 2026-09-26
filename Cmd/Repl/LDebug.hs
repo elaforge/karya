@@ -54,70 +54,70 @@ rssVsize = liftIO Memory.rssVsize
 
 -- | Save state in a format that can be copy-pasted into a test, and loaded
 -- with 'Derive.DeriveTest.derive_dump'.
-dump_blocks :: FilePath -> Cmd.CmdL ()
-dump_blocks fname = do
-    state <- Simple.dump_state
-    liftIO $ write_dump fname state
+dumpBlocks :: FilePath -> Cmd.CmdL ()
+dumpBlocks fname = do
+    state <- Simple.dumpState
+    liftIO $ writeDump fname state
 
 -- | Like 'dump_blocks', but only dump a single block.
-dump_block :: FilePath -> BlockId -> Cmd.CmdL ()
-dump_block fname block_id = do
+dumpBlock :: FilePath -> BlockId -> Cmd.CmdL ()
+dumpBlock fname blockId = do
     state <- Ui.get
-    block <- Ui.get_block block_id
-    state <- Ui.eval_rethrow "dump_block"
-        (state { Ui.state_blocks = Map.singleton block_id block })
-        Simple.dump_state
-    liftIO $ write_dump fname state
+    block <- Ui.getBlock blockId
+    state <- Ui.evalRethrow "dump_block"
+        (state { Ui.stateBlocks = Map.singleton blockId block })
+        Simple.dumpState
+    liftIO $ writeDump fname state
 
-write_dump :: FilePath -> Simple.State -> IO ()
-write_dump fname = writeFile fname . PPrint.pshow
+writeDump :: FilePath -> Simple.State -> IO ()
+writeDump fname = writeFile fname . PPrint.pshow
 
 -- * perf events
 
-dump_block_perf_events :: FilePath -> BlockId -> Cmd.CmdL ()
-dump_block_perf_events fname block_id = do
-    events <- LPerf.midi_convert . LEvent.events_of
-        =<< LPerf.block_events block_id
-    dump_perf_events fname (LEvent.events_of events)
+dumpBlockPerfEvents :: FilePath -> BlockId -> Cmd.CmdL ()
+dumpBlockPerfEvents fname blockId = do
+    events <- LPerf.midiConvert . LEvent.eventsOf
+        =<< LPerf.blockEvents blockId
+    dumpPerfEvents fname (LEvent.eventsOf events)
 
-dump_perf_events :: FilePath -> [Types.Event] -> Cmd.CmdL ()
-dump_perf_events fname events = liftIO $ IO.writeFile fname $
-    PPrint.pshow (map Simple.dump_exact_perf_event events)
+dumpPerfEvents :: FilePath -> [Types.Event] -> Cmd.CmdL ()
+dumpPerfEvents fname events = liftIO $ IO.writeFile fname $
+    PPrint.pshow (map Simple.dumpExactPerfEvent events)
 
 -- * undo
 
-show_history :: Cmd.CmdL Text
-show_history = do
-    save_file <- ("save file: "<>) . showt <$> Cmd.gets Cmd.state_save_file
-    hist <- Pretty.formatted <$> Cmd.gets Cmd.state_history
-    config <- Pretty.formatted <$> Cmd.gets Cmd.state_history_config
-    collect <- Pretty.formatted <$> Cmd.gets Cmd.state_history_collect
-    pure $ Text.unlines $ map Text.strip [save_file, hist, config, collect]
+showHistory :: Cmd.CmdL Text
+showHistory = do
+    saveFile <- ("save file: "<>) . showt <$> Cmd.gets Cmd.stateSaveFile
+    hist <- Pretty.formatted <$> Cmd.gets Cmd.stateHistory
+    config <- Pretty.formatted <$> Cmd.gets Cmd.stateHistoryConfig
+    collect <- Pretty.formatted <$> Cmd.gets Cmd.stateHistoryCollect
+    pure $ Text.unlines $ map Text.strip [saveFile, hist, config, collect]
 
 -- * extract from Performance
 
-track_signal :: Cmd.CmdL (Maybe Track.TrackSignal)
-track_signal = do
-    (block_id, _, track_id, _) <- Selection.get_insert
-    perf <- LPerf.get block_id
-    pure $ Map.lookup (block_id, track_id) (Cmd.perf_track_signals perf)
+trackSignal :: Cmd.CmdL (Maybe Track.TrackSignal)
+trackSignal = do
+    (blockId, _, trackId, _) <- Selection.getInsert
+    perf <- LPerf.get blockId
+    pure $ Map.lookup (blockId, trackId) (Cmd.perfTrackSignals perf)
 
 -- | Get collected warps of a specific track.
-get_warps :: Cmd.M m => BlockId -> TrackId -> m [TrackWarp.TrackWarp]
-get_warps block_id track_id = do
-    perf <- LPerf.get_root
-    let track_warps = Cmd.perf_warps perf
-        warps = [tw | tw <- track_warps, TrackWarp.tw_block tw == block_id,
-            Set.member track_id (TrackWarp.tw_tracks tw)]
-    pure $ map (\w -> w { TrackWarp.tw_warp = Warp.identity }) warps
+getWarps :: Cmd.M m => BlockId -> TrackId -> m [TrackWarp.TrackWarp]
+getWarps blockId trackId = do
+    perf <- LPerf.getRoot
+    let trackWarps = Cmd.perfWarps perf
+        warps = [tw | tw <- trackWarps, TrackWarp.twBlock tw == blockId,
+            Set.member trackId (TrackWarp.twTracks tw)]
+    pure $ map (\w -> w { TrackWarp.twWarp = Warp.identity }) warps
 
 -- | Get all raw uncollected TrackWarps from the root, and strip out the
 -- signals so they don't take up tons of space.
-get_track_warps :: Cmd.M m => m (Map Stack.Stack TrackWarp.Track)
-get_track_warps = do
-    result <- LPerf.derive =<< Ui.get_root_id
-    let wmap = Derive.collect_warp_map $ Derive.state_collect $
-            Derive.r_state result
+getTrackWarps :: Cmd.M m => m (Map Stack.Stack TrackWarp.Track)
+getTrackWarps = do
+    result <- LPerf.derive =<< Ui.getRootId
+    let wmap = Derive.collectWarpMap $ Derive.stateCollect $
+            Derive.rState result
     let strip (TrackWarp.Track s e _warp bid tid) =
             TrackWarp.Track s e Warp.identity bid tid
     pure $ strip <$> wmap
@@ -125,51 +125,51 @@ get_track_warps = do
 -- ** cache
 
 -- | Extract the cache logs, with no summarizing.
-cache_logs :: BlockId -> Cmd.CmdL Text
-cache_logs block_id = do
-    perf <- Cmd.get_performance block_id
-    let logs = filter wanted $ Cmd.perf_logs perf
+cacheLogs :: BlockId -> Cmd.CmdL Text
+cacheLogs blockId = do
+    perf <- Cmd.getPerformance blockId
+    let logs = filter wanted $ Cmd.perfLogs perf
     pure $ Text.unlines
-        [ Texts.join2 ": " (format_stack msg) (Log.msg_text msg)
+        [ Texts.join2 ": " (formatStack msg) (Log.msgText msg)
         | msg <- logs
         ]
     where
-    wanted log = Cache.is_cache_log log || PlayUtil.is_score_damage_log log
-    format_stack = maybe "" Stack.pretty_ui_ . Log.msg_stack
+    wanted log = Cache.isCacheLog log || PlayUtil.isScoreDamageLog log
+    formatStack = maybe "" Stack.prettyUi_ . Log.msgStack
 
 -- | Stats for both block and track caches from the given block.
-cache_stats :: BlockId -> Cmd.CmdL String
-cache_stats block_id = do
-    block <- block_cache block_id
-    track <- track_cache block_id
+cacheStats :: BlockId -> Cmd.CmdL String
+cacheStats blockId = do
+    block <- blockCache blockId
+    track <- trackCache blockId
     pure $ unlines
-        ["block:", format_stats block, "track:", format_stats track]
+        ["block:", formatStats block, "track:", formatStats track]
 
 -- | Get summarized stats for cached blocks.
-block_cache :: BlockId -> Cmd.CmdL ([(Text, [BlockId])], [(BlockId, Int)])
-block_cache block_id =
-    Play.extract_cache_stats Play.get_block_id . Cmd.perf_logs <$>
-        Cmd.get_performance block_id
+blockCache :: BlockId -> Cmd.CmdL ([(Text, [BlockId])], [(BlockId, Int)])
+blockCache blockId =
+    Play.extractCacheStats Play.getBlockId . Cmd.perfLogs <$>
+        Cmd.getPerformance blockId
 
 -- | Get summarized stats for cached tracks on the given block.
-track_cache :: BlockId -> Cmd.CmdL ([(Text, [TrackId])], [(TrackId, Int)])
-track_cache block_id = do
-    (rederived, cached) <- (bimap rederived_block cached_block)
-        . Play.extract_cache_stats Play.get_track_id . Cmd.perf_logs
-        <$> Cmd.get_performance block_id
+trackCache :: BlockId -> Cmd.CmdL ([(Text, [TrackId])], [(TrackId, Int)])
+trackCache blockId = do
+    (rederived, cached) <- (bimap rederivedBlock cachedBlock)
+        . Play.extractCacheStats Play.getTrackId . Cmd.perfLogs
+        <$> Cmd.getPerformance blockId
     pure (rederived, cached)
     where
-    rederived_block = map (second $ map snd . filter ((==block_id) . fst))
-    cached_block = map (first snd) . filter ((==block_id) . fst . fst)
+    rederivedBlock = map (second $ map snd . filter ((==blockId) . fst))
+    cachedBlock = map (first snd) . filter ((==blockId) . fst . fst)
 
-format_stats :: Id.Ident id => ([(Text, [id])], [(id, Int)]) -> String
-format_stats (rederived, cached) =
-    "cached: " <> format_cached cached <> "\n"
-        <> unlines (map format_rederived rederived)
+formatStats :: Id.Ident id => ([(Text, [id])], [(id, Int)]) -> String
+formatStats (rederived, cached) =
+    "cached: " <> formatCached cached <> "\n"
+        <> unlines (map formatRederived rederived)
     where
-    format_rederived (because, ids) =
+    formatRederived (because, ids) =
         untxt because <> ": [" <> show (length ids) <> "] "
-        <> unwords (map (untxt . Id.ident_name) ids)
-    format_cached cached =
+        <> unwords (map (untxt . Id.identName) ids)
+    formatCached cached =
         show (length cached) <> " [" <> show (Num.sum (map snd cached)) <> "] "
-        <> unwords (map (untxt . Id.ident_name . fst) cached)
+        <> unwords (map (untxt . Id.identName . fst) cached)

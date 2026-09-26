@@ -39,12 +39,12 @@ sync :: Sync
     -> IO ([Update.UiUpdate], Ui.State)
     -- ^ Sync uses 'Update.DisplayUpdate's, but the diff also produces
     -- UiUpdates, which are needed for incremental save and score damage.
-sync sync_func ui_from ui_to cmd_to ui_damage play_monitor_state = do
-    ui_to <- case Ui.quick_verify ui_damage ui_to of
+sync syncFunc uiFrom uiTo cmdTo uiDamage playMonitorState = do
+    uiTo <- case Ui.quickVerify uiDamage uiTo of
         Left err -> do
             Log.error $ "cmd caused a verify error, rejecting state change: "
                 <> txt err
-            pure ui_from
+            pure uiFrom
         Right (state, warns) -> do
             unless (null warns) $
                 Log.warn $ "verify fixed issues: "
@@ -52,52 +52,52 @@ sync sync_func ui_from ui_to cmd_to ui_damage play_monitor_state = do
             pure state
     Trace.trace "sync.verify"
 
-    let (ui_updates, display_updates) = Diff.diff ui_damage ui_from ui_to
-    Trace.force (ui_updates, display_updates)
+    let (uiUpdates, displayUpdates) = Diff.diff uiDamage uiFrom uiTo
+    Trace.force (uiUpdates, displayUpdates)
     Trace.trace "sync.diff"
     -- Debug.fullM (Debug.putp "ui_damage") ui_damage
     -- Debug.fullM (Debug.putp "ui_updates") ui_updates
     -- Debug.fullM (Debug.putp "display_updates") display_updates
 
-    (ui_to, ui_updates, display_updates) <-
-        case Integrate.score_integrate ui_updates ui_to of
+    (uiTo, uiUpdates, displayUpdates) <-
+        case Integrate.scoreIntegrate uiUpdates uiTo of
             Left err -> do
                 Log.error $ "score_integrate failed: " <> pretty err
-                pure (ui_from, ui_updates, display_updates)
+                pure (uiFrom, uiUpdates, displayUpdates)
             Right (logs, state, updates) -> do
                 mapM_ Log.write logs
-                let (ui_updates', display_updates') =
-                        Diff.diff updates ui_to state
+                let (uiUpdates', displayUpdates') =
+                        Diff.diff updates uiTo state
                 pure
                     ( state
-                    , ui_updates ++ ui_updates'
-                    , display_updates ++ display_updates'
+                    , uiUpdates ++ uiUpdates'
+                    , displayUpdates ++ displayUpdates'
                     )
-    Trace.force (ui_updates, display_updates)
+    Trace.force (uiUpdates, displayUpdates)
     Trace.trace "sync.score_integrate"
 
-    when (any modified_view ui_updates) $
-        MVar.modifyMVar_ play_monitor_state (const (pure ui_to))
-    when (Cmd.state_debug cmd_to && not (null display_updates)) $
-        Debug.putp "updates" display_updates
-    err <- sync_func (get_track_signals cmd_to) Internal.set_style
-        ui_to display_updates
+    when (any modifiedView uiUpdates) $
+        MVar.modifyMVar_ playMonitorState (const (pure uiTo))
+    when (Cmd.stateDebug cmdTo && not (null displayUpdates)) $
+        Debug.putp "updates" displayUpdates
+    err <- syncFunc (getTrackSignals cmdTo) Internal.setStyle
+        uiTo displayUpdates
     Trace.trace "sync.sync"
     whenJust err $ \err ->
         Log.error $ "syncing updates: " <> pretty err
-    pure (ui_updates, ui_to)
+    pure (uiUpdates, uiTo)
 
 -- | Get all track signals already derived.  TrackSignals are only collected
 -- for top level derives, so there should only be signals for visible windows.
 -- If the derive is still in progress, there may not be signals, but they will
 -- be directly when the DeriveComplete is received.
-get_track_signals :: Cmd.State -> Track.TrackSignals
-get_track_signals = mconcatMap Cmd.perf_track_signals . Map.elems
-    . Cmd.state_performance . Cmd.state_play
+getTrackSignals :: Cmd.State -> Track.TrackSignals
+getTrackSignals = mconcatMap Cmd.perfTrackSignals . Map.elems
+    . Cmd.statePerformance . Cmd.statePlay
 
-modified_view :: Update.UiUpdate -> Bool
-modified_view (Update.View _ update) = case update of
+modifiedView :: Update.UiUpdate -> Bool
+modifiedView (Update.View _ update) = case update of
     Update.CreateView {} -> True
     Update.DestroyView {} -> True
     _ -> False
-modified_view _ = False
+modifiedView _ = False

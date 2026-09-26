@@ -6,15 +6,15 @@
 {-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE ViewPatterns #-}
 module Cmd.ControlTrack (
-    cmd_val_edit, cmd_tempo_val_edit
-    , cmd_method_edit
+    cmdValEdit, cmdTempoValEdit
+    , cmdMethodEdit
     -- * edit
-    , val_edit_at
-    , modify_val
+    , valEditAt
+    , modifyVal
     -- * Partial
     , Partial(..)
     , parse, unparse
-    , parse_general, unparse_general
+    , parseGeneral, unparseGeneral
 #ifdef TESTING
     , module Cmd.ControlTrack
 #endif
@@ -57,23 +57,23 @@ import           Types
     The @'@ key will enter a @'@ call, which repeats the last value.  This is
     useful to extend a constant pitch value to the desired breakpoint.
 -}
-cmd_val_edit :: Cmd.M m => Msg.Msg -> m Cmd.Status
-cmd_val_edit msg = suppress "control track val edit" $ do
+cmdValEdit :: Cmd.M m => Msg.Msg -> m Cmd.Status
+cmdValEdit msg = suppress "control track val edit" $ do
     EditUtil.fallthrough EditUtil.WantBackspace msg
-    (_, _, track_id, _) <- Selection.get_insert
-    ifM (infer_normalized track_id)
-        (edit_normalized msg) (edit_non_normalized msg)
+    (_, _, trackId, _) <- Selection.getInsert
+    ifM (inferNormalized trackId)
+        (editNormalized msg) (editNonNormalized msg)
     pure Cmd.Done
-    where suppress = Cmd.suppress_history Cmd.ValEdit
+    where suppress = Cmd.suppressHistory Cmd.ValEdit
 
 -- | Editing a tempo track is just like editing a normal control track, except
 -- that it doesn't do the hex entry thing.
-cmd_tempo_val_edit :: Cmd.M m => Msg.Msg -> m Cmd.Status
-cmd_tempo_val_edit msg = suppress "tempo track val edit" $ do
+cmdTempoValEdit :: Cmd.M m => Msg.Msg -> m Cmd.Status
+cmdTempoValEdit msg = suppress "tempo track val edit" $ do
     EditUtil.fallthrough EditUtil.WantBackspace msg
-    edit_non_normalized msg
+    editNonNormalized msg
     pure Cmd.Done
-    where suppress = Cmd.suppress_history Cmd.ValEdit
+    where suppress = Cmd.suppressHistory Cmd.ValEdit
 
 -- | A track is assumed to be normalized if its first event has a @`0x`@ in it.
 -- If the track has no first event, then it defaults to normalized.
@@ -82,48 +82,48 @@ cmd_tempo_val_edit msg = suppress "tempo track val edit" $ do
 -- for a substring.  A better check would be to see if the event being edited
 -- can have a normalized number extracted from it, and fall back on this only
 -- if there is no existing event.
-infer_normalized :: Ui.M m => TrackId -> m Bool
-infer_normalized =
+inferNormalized :: Ui.M m => TrackId -> m Bool
+inferNormalized =
     -- Don't get fooled by the ' call, which is fairly common.
     fmap (maybe True normal . Lists.head . dropWhile (=="'") . map Event.text
         . Events.ascending)
-    . Ui.get_events
+    . Ui.getEvents
     where
-    normal event = any (`Text.isInfixOf` event) normalized_prefixes
+    normal event = any (`Text.isInfixOf` event) normalizedPrefixes
 
-normalized_prefixes :: [Text]
-normalized_prefixes = ["`0x`", "0x"]
+normalizedPrefixes :: [Text]
+normalizedPrefixes = ["`0x`", "0x"]
 
-edit_non_normalized :: Cmd.M m => Msg.Msg -> m ()
-edit_non_normalized = \case
-    (EditUtil.num_key -> Just key) -> modify_event (modify_num key)
-    (Msg.key_down -> Just (Key.Char '\'')) -> EditUtil.soft_insert "'"
+editNonNormalized :: Cmd.M m => Msg.Msg -> m ()
+editNonNormalized = \case
+    (EditUtil.numKey -> Just key) -> modifyEvent (modifyNum key)
+    (Msg.keyDown -> Just (Key.Char '\'')) -> EditUtil.softInsert "'"
     _ -> Cmd.abort
 
-edit_normalized :: Cmd.M m => Msg.Msg -> m ()
-edit_normalized = \case
-    (EditUtil.hex_key -> Just key) -> modify_event (modify_hex key)
-    (Msg.key_down -> Just (Key.Char '\'')) -> EditUtil.soft_insert "'"
+editNormalized :: Cmd.M m => Msg.Msg -> m ()
+editNormalized = \case
+    (EditUtil.hexKey -> Just key) -> modifyEvent (modifyHex key)
+    (Msg.keyDown -> Just (Key.Char '\'')) -> EditUtil.softInsert "'"
     -- AsciiKbd won't have an interesting velocity.
     Msg.InputNote (InputNote.NoteOn _ (Pitch.Input Pitch.PianoKbd _ _) vel) ->
-        insert_val False vel
-    Msg.InputNote (InputNote.Control _ _ val) -> insert_val True val
+        insertVal False vel
+    Msg.InputNote (InputNote.Control _ _ val) -> insertVal True val
     _ -> Cmd.abort
     where
-    insert_val control_input val = do
-        pos <- EditUtil.get_pos
-        val_edit_at pos val
+    insertVal controlInput val = do
+        pos <- EditUtil.getPos
+        valEditAt pos val
         -- Never advance for control input, because there are usually a lot
         -- of those at once.
-        whenM (andM [pure (not control_input),
-                Cmd.gets (Cmd.state_advance . Cmd.state_edit)])
+        whenM (andM [pure (not controlInput),
+                Cmd.gets (Cmd.stateAdvance . Cmd.stateEdit)])
             Selection.advance
 
-modify_num :: EditUtil.Key -> Modify
-modify_num key partial =
-    case EditUtil.modify_text_key [] key (_val partial) of
+modifyNum :: EditUtil.Key -> Modify
+modifyNum key partial =
+    case EditUtil.modifyTextKey [] key (_val partial) of
         Nothing -> (Nothing, Text.null $ _val partial)
-        Just new_val -> (Just $ partial { _val = new_val }, False)
+        Just newVal -> (Just $ partial { _val = newVal }, False)
 
 {- | This is tricky because the editing mode is different depending on whether
     the val is hex or not.
@@ -140,24 +140,24 @@ modify_num key partial =
     event being edited.  TODO perhaps I should go further and catch alphanum
     for the tempo track too, for consistency.
 -}
-modify_hex :: EditUtil.Key -> Modify
-modify_hex key partial
-    | Just new_val <- update_hex (_val partial) key = case new_val of
+modifyHex :: EditUtil.Key -> Modify
+modifyHex key partial
+    | Just newVal <- updateHex (_val partial) key = case newVal of
         Nothing -> (Nothing, True)
         Just val -> (Just $ partial { _val = val }, False)
-    | EditUtil.is_num_key key = modify_num key partial
+    | EditUtil.isNumKey key = modifyNum key partial
     | otherwise = (Just partial, False)
 
 -- | Nothing if the val is not a hex number, Just Nothing if it was but the key
 -- was Backspace, and Just Just if it should get a new value.
-update_hex :: Text -> EditUtil.Key -> Maybe (Maybe Text)
-update_hex val_ key
+updateHex :: Text -> EditUtil.Key -> Maybe (Maybe Text)
+updateHex val_ key
     | Text.null val = case key of
         EditUtil.Backspace -> Just Nothing
         EditUtil.Key c
-            | higit c -> Just $ Just $ ShowVal.hex_prefix <> Text.pack ['0', c]
+            | higit c -> Just $ Just $ ShowVal.hexPrefix <> Text.pack ['0', c]
             | otherwise -> Nothing
-    | Just c2 <- parse_val val = case key of
+    | Just c2 <- parseVal val = case key of
         EditUtil.Backspace -> Just Nothing
         EditUtil.Key c
             | c == '-' -> Just $ Just $ if negative then val else "-" <> val
@@ -166,24 +166,24 @@ update_hex val_ key
             | otherwise -> Just (Just val)
     | otherwise = Nothing -- not hex at all
     where
-    prefix = (if negative then "-" else "") <> ShowVal.hex_prefix
+    prefix = (if negative then "-" else "") <> ShowVal.hexPrefix
     negative = "-" `Text.isPrefixOf` val_
     val = if negative then Text.drop 1 val_ else val_
     higit c = '0' <= c && c <= '9' || 'a' <= c && c <= 'f'
-    parse_val t = case Text.unpack <$> strip t of
+    parseVal t = case Text.unpack <$> strip t of
         Just [c1, c2] | higit c1 && higit c2 -> Just c2
         _ -> Nothing
-        where strip t = msum $ map (($t) . Text.stripPrefix) normalized_prefixes
+        where strip t = msum $ map (($t) . Text.stripPrefix) normalizedPrefixes
 
-cmd_method_edit :: Cmd.M m => Msg.Msg -> m Cmd.Status
-cmd_method_edit msg =
-    Cmd.suppress_history Cmd.MethodEdit "control track method edit" $ do
+cmdMethodEdit :: Cmd.M m => Msg.Msg -> m Cmd.Status
+cmdMethodEdit msg =
+    Cmd.suppressHistory Cmd.MethodEdit "control track method edit" $ do
     EditUtil.fallthrough EditUtil.WantBackspace msg
     case msg of
-        (EditUtil.method_key -> Just key) -> modify_event $ \partial ->
+        (EditUtil.methodKey -> Just key) -> modifyEvent $ \partial ->
             ( Just $ partial
                 { _method = fromMaybe "" $
-                    EditUtil.modify_text_key [] key (_method partial)
+                    EditUtil.modifyTextKey [] key (_method partial)
                 }
             , False
             )
@@ -193,38 +193,38 @@ cmd_method_edit msg =
 
 -- * implementation
 
-val_edit_at :: Cmd.M m => EditUtil.Pos -> Signal.Y -> m ()
-val_edit_at pos val = modify_event_at pos $ \partial ->
-    (Just $ partial { _val = ShowVal.show_hex_val val }, False)
+valEditAt :: Cmd.M m => EditUtil.Pos -> Signal.Y -> m ()
+valEditAt pos val = modifyEventAt pos $ \partial ->
+    (Just $ partial { _val = ShowVal.showHexVal val }, False)
 
 -- | old -> (new, advance?)
 type Modify = Partial -> (Maybe Partial, Bool)
 
-modify_event :: Cmd.M m => Modify -> m ()
-modify_event f = do
-    pos <- EditUtil.get_pos
-    modify_event_at pos f
+modifyEvent :: Cmd.M m => Modify -> m ()
+modifyEvent f = do
+    pos <- EditUtil.getPos
+    modifyEventAt pos f
 
-modify_event_at :: Cmd.M m => EditUtil.Pos -> Modify -> m ()
-modify_event_at pos f = EditUtil.modify_event_at pos True False
+modifyEventAt :: Cmd.M m => EditUtil.Pos -> Modify -> m ()
+modifyEventAt pos f = EditUtil.modifyEventAt pos True False
     (first (fmap unparse) . f . parse . fromMaybe "")
 
 -- | Try to figure out where the note part is in event text and modify that
 -- with the given function.
 --
 -- If the val was hex, keep it hex.
-modify_val :: (Signal.Y -> Signal.Y) -> Text -> Maybe Text
+modifyVal :: (Signal.Y -> Signal.Y) -> Text -> Maybe Text
     -- ^ Nothing if I couldn't parse out a constant number.
-modify_val f text = case Parse.parse_val (_val partial) of
-    Right val | Just num <- DeriveT.constant_val val ->
-        Just $ unparse $ partial { _val = show_val (f <$> num) }
+modifyVal f text = case Parse.parseVal (_val partial) of
+    Right val | Just num <- DeriveT.constantVal val ->
+        Just $ unparse $ partial { _val = showVal (f <$> num) }
     _ -> Nothing
     where
     partial = parse text
-    show_val num
+    showVal num
         | ScoreT.Typed ScoreT.Untyped n <- num
-        , ShowVal.is_hex_val (_val partial) = ShowVal.show_hex_val n
-        | otherwise = ShowVal.show_val num
+        , ShowVal.isHexVal (_val partial) = ShowVal.showHexVal n
+        | otherwise = ShowVal.showVal num
 
 -- * Partial
 
@@ -254,11 +254,11 @@ data Partial = Partial
 --
 -- I use a trailing space to tell the difference between a method and a val.
 parse :: Text -> Partial
-parse = parse_general (\method val args -> (method, val, args))
+parse = parseGeneral (\method val args -> (method, val, args))
 
-parse_general :: (Text -> Text -> [Text] -> (Text, Text, [Text]))
+parseGeneral :: (Text -> Text -> [Text] -> (Text, Text, [Text]))
     -> Text -> Partial
-parse_general split_expr = make . Lists.unsnoc . Parse.split_pipeline
+parseGeneral splitExpr = make . Lists.unsnoc . Parse.splitPipeline
     where
     make Nothing = Partial [] "" "" [] ""
     make (Just (transform, expr)) = Partial
@@ -274,24 +274,24 @@ parse_general split_expr = make . Lists.unsnoc . Parse.split_pipeline
                 (expr, comment)
             _ -> (expr, "")
         (method, val, args) = case expr2 of
-            method : val : args -> split_expr method val args
+            method : val : args -> splitExpr method val args
             [arg]
                 | " " `Text.isSuffixOf` arg -> (arg, "", [])
                 | otherwise -> ("", arg, [])
             [] -> ("", "", [])
 
-unparse_general :: (Text -> Text -> [Text] -> [Text]) -> Partial -> Text
-unparse_general join_expr (Partial transform method val args comment) =
-    Parse.join_pipeline $
+unparseGeneral :: (Text -> Text -> [Text] -> [Text]) -> Partial -> Text
+unparseGeneral joinExpr (Partial transform method val args comment) =
+    Parse.joinPipeline $
         transform ++ [Lists.mapInit (<>" ") (expr ++ comments)]
     where
     comments = if Text.null comment then [] else [comment]
-    expr = join_expr method val args
+    expr = joinExpr method val args
 
 unparse :: Partial -> Text
-unparse = unparse_general join_expr
+unparse = unparseGeneral joinExpr
     where
-    join_expr method val args
+    joinExpr method val args
         | Text.null method && Text.null val = args
         | Text.null method = val : args
         | otherwise = [method, Text.unwords (val : args)]

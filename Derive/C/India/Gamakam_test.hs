@@ -16,7 +16,7 @@ import Types
 
 test_kampita :: Test
 test_kampita = do
-    let run call end = DeriveTest.extract DeriveTest.e_nns_old $ derive_tracks
+    let run call end = DeriveTest.extract DeriveTest.eNnsOld $ deriveTracks
             [ (">", [(0, 4, "")])
             , ("*", [(0, 0, call), (end, 0, "3c")])
             ]
@@ -29,8 +29,8 @@ test_kampita = do
 
 test_kampita_c :: Test
 test_kampita_c = do
-    let run = run_diatonic (map snd . DeriveTest.e_nns_old)
-        run2 = run_diatonic DeriveTest.e_nns_old
+    let run = runDiatonic (map snd . DeriveTest.eNnsOld)
+        run2 = runDiatonic DeriveTest.eNnsOld
     -- Trill goes to the last time, but won't create a short cycle.
     equal (run2 "kam 1 1 1" 2) ([[(0, 60), (1, 62), (2, 60)]], [])
     equal (run2 "kam 1 1 1" 2.5) ([[(0, 60), (1, 62), (2, 60)]], [])
@@ -58,8 +58,8 @@ test_kampita_c = do
 
 test_nkampita_c :: Test
 test_nkampita_c = do
-    let run = run_diatonic DeriveTest.e_nns_old
-    strings_like (snd (run "nkam 1 0" 2)) ["cycles: expected Signal (>0)"]
+    let run = runDiatonic DeriveTest.eNnsOld
+    stringsLike (snd (run "nkam 1 0" 2)) ["cycles: expected Signal (>0)"]
     equal (run "nkam 1 1" 3) ([[(0, 60), (1, 62), (2, 60)]], [])
     equal (run "nkam 1 1" 6) ([[(0, 60), (2, 62), (4, 60)]], [])
     equal (run "transition = 2 | nkam 1 1" 9)
@@ -72,11 +72,11 @@ test_nkampita_c = do
 
 test_dip :: Test
 test_dip = do
-    let run ex call end = DeriveTest.extract ex $ derive_tracks
+    let run ex call end = DeriveTest.extract ex $ deriveTracks
             [(">", [(0, 4, "")]), ("*", [(0, 0, call), (end, 0, "3c")])]
-    equal (run DeriveTest.e_nns_old "dip (4c) 1 -1 1" 4)
+    equal (run DeriveTest.eNnsOld "dip (4c) 1 -1 1" 4)
         ([[(0, NN.d4), (1, NN.b3), (2, NN.d4), (3, NN.b3), (4, NN.c3)]], [])
-    equal (run DeriveTest.e_dyn_rounded "dip (4c) 1 -1 1 .5" 4)
+    equal (run DeriveTest.eDynRounded "dip (4c) 1 -1 1 .5" 4)
         ( [ [ (0, 1), (0.96, 1), (1, 0.5), (1.96, 0.5), (2, 1)
             , (2.96, 1), (3, 0.5), (4, 0.5), (4, 1)
             ]
@@ -86,17 +86,17 @@ test_dip = do
 
 test_jaru :: Test
 test_jaru = do
-    let run call = DeriveTest.extract DeriveTest.e_nns $
-            derive_tracks [(">", [(0, 4, "")]), ("*", [(0, 0, call)])]
+    let run call = DeriveTest.extract DeriveTest.eNns $
+            deriveTracks [(">", [(0, 4, "")]), ("*", [(0, 0, call)])]
     equal (run "sgr (3c) 2") ([[(0, 47), (2, 50), (4, 48)]], [])
 
-run_diatonic :: (Score.Event -> a) -> Text -> ScoreTime -> ([a], [Text])
-run_diatonic extract call end =
-    DeriveTest.extract extract $ derive_tracks
+runDiatonic :: (Score.Event -> a) -> Text -> ScoreTime -> ([a], [Text])
+runDiatonic extract call end =
+    DeriveTest.extract extract $ deriveTracks
         [ (">", [(0, end, "")])
         , ("*", [(0, 0, "4c")])
         , ("t-dia", [(0, 0, call), (end, 0, "--|")])
         ]
 
-derive_tracks :: [UiTest.TrackSpec] -> Derive.Result
-derive_tracks = DeriveTest.derive_tracks "import india.gamakam"
+deriveTracks :: [UiTest.TrackSpec] -> Derive.Result
+deriveTracks = DeriveTest.deriveTracks "import india.gamakam"

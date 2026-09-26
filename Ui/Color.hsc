@@ -52,8 +52,8 @@ rgba :: Double -> Double -> Double -> Double -> Color
 rgba r g b a = let c = Num.clamp 0 1 in Color (c r) (c g) (c b) (c a)
 
 -- | Make a Color from an RGBA word.
-rgba_word :: Word32 -> Color
-rgba_word word = rgba (d 24) (d 16) (d 8) (d 0)
+rgbaWord :: Word32 -> Color
+rgbaWord word = rgba (d 24) (d 16) (d 8) (d 0)
     where d = (/0xff) . fromIntegral . (.&. 0xff) . shiftR word
 
 black = rgb 0 0 0
@@ -105,4 +105,4 @@ instance CStorable Color where
         (#poke Color, g) colorp (c g)
         (#poke Color, b) colorp (c b)
         (#poke Color, a) colorp (c a)
-        where c double = FFI.c_uchar (floor (double*255))
+        where c double = FFI.cUchar (floor (double*255))

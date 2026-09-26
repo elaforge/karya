@@ -14,11 +14,11 @@ import qualified Ui.KeycapsT as KeycapsT
 import           Global
 
 
-mac_labels :: Map Key.Key Rect.Rect
-mac_labels = Map.fromList $ concat label_rects ++ arrows
+macLabels :: Map Key.Key Rect.Rect
+macLabels = Map.fromList $ concat labelRects ++ arrows
     where
-    label_rects = zipWith mkrow ys qwerty_rows
-    qwerty_rows =
+    labelRects = zipWith mkrow ys qwertyRows
+    qwertyRows =
         [ cs "`1234567890-=" ++ [(30, Key.Delete)]
         , (30, Key.Tab) : cs "qwertyuiop[]\\"
         , (37, Key.KCapsLock) : cs "asdfghjkl;'" ++ [(37, Key.Enter)]
@@ -39,8 +39,8 @@ mac_labels = Map.fromList $ concat label_rects ++ arrows
         xn n = lx + gap + (w+gap) * n
         y2 = ly + h2
     (lx, ly) =
-        ( maximum $ map (Rect.r . snd) (last label_rects)
-        , Rect.y $ snd $ head $ last label_rects
+        ( maximum $ map (Rect.r . snd) (last labelRects)
+        , Rect.y $ snd $ head $ last labelRects
         )
     mkrow y row =
         [ (key, Rect.xywh x y w h)
@@ -53,29 +53,29 @@ mac_labels = Map.fromList $ concat label_rects ++ arrows
     h2 = h `div` 2
     gap = 5
 
-make_layout :: Map Key.Key Rect.Rect -> KeycapsT.Layout
-make_layout labels = KeycapsT.Layout
-    { lt_size = (w, h)
-    , lt_bg_color = Color.white
-    , lt_keycap_color = Color.gray8
-    , lt_highlight_color = Color.rgb 0.85 0.85 1
-    , lt_label_color = Color.gray5
-    , lt_binding_color = Color.black
-    , lt_labels = Map.mapKeys Key.to_mac_label labels
+makeLayout :: Map Key.Key Rect.Rect -> KeycapsT.Layout
+makeLayout labels = KeycapsT.Layout
+    { ltSize = (w, h)
+    , ltBgColor = Color.white
+    , ltKeycapColor = Color.gray8
+    , ltHighlightColor = Color.rgb 0.85 0.85 1
+    , ltLabelColor = Color.gray5
+    , ltBindingColor = Color.black
+    , ltLabels = Map.mapKeys Key.toMacLabel labels
     }
     where
     w = 5 + maximum (0 : map Rect.r (Map.elems labels))
     h = 5 + maximum (0 : map Rect.b (Map.elems labels))
 
-resolve_bindings :: KeycapsT.Layout -> KeycapsT.Bindings -> KeycapsT.RawBindings
-resolve_bindings layout bindings =
-    KeycapsT.RawBindings $ map make $ Map.toAscList $ KeycapsT.lt_labels layout
+resolveBindings :: KeycapsT.Layout -> KeycapsT.Bindings -> KeycapsT.RawBindings
+resolveBindings layout bindings =
+    KeycapsT.RawBindings $ map make $ Map.toAscList $ KeycapsT.ltLabels layout
     where
     make (label, rect) =
-        KeycapsT.RawBinding (second (+offset) (Rect.upper_left rect)) $
-            Map.findWithDefault KeycapsT.no_binding label bindings
+        KeycapsT.RawBinding (second (+offset) (Rect.upperLeft rect)) $
+            Map.findWithDefault KeycapsT.noBinding label bindings
         where
         offset
-            | label `elem` map Key.to_mac_label arrows = 5
+            | label `elem` map Key.toMacLabel arrows = 5
             | otherwise = 15
     arrows = [Key.Left, Key.Up, Key.Down, Key.Right]

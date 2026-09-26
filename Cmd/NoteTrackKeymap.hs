@@ -15,21 +15,21 @@ import Global
 
 keymap :: Cmd.Keymap Cmd.CmdId
 errors :: [Text]
-(keymap, errors) = Keymap.make_keymap $ concat $
-    map add_transform
+(keymap, errors) = Keymap.makeKeymap $ concat $
+    map addTransform
         [('.', "."), ('v', "v"), ('6', "^"), ('=', "+"), ('-', "-")]
     where
-    add_transform (c, name) = Keymap.bind_key [Keymap.SecondaryCommand]
-        (Key.Char c) ("add " <> name) (add_transform_generator name)
+    addTransform (c, name) = Keymap.bindKey [Keymap.SecondaryCommand]
+        (Key.Char c) ("add " <> name) (addTransformGenerator name)
 
 -- | Add a call that works both as a transformer and generator, as long as
 -- it isn't already there.
-add_transform_generator :: Cmd.M m => Text -> m ()
-add_transform_generator text = do
-    ModifyEvents.selection_visible $
-        ModifyEvents.tracks_named ParseTitle.is_note_track $
+addTransformGenerator :: Cmd.M m => Text -> m ()
+addTransformGenerator text = do
+    ModifyEvents.selectionVisible $
+        ModifyEvents.tracksNamed ParseTitle.isNoteTrack $
         ModifyEvents.text $ ModifyEvents.pipeline add
-    ModifyEvents.advance_if_point
+    ModifyEvents.advanceIfPoint
     where
     add [] = [[text]]
     add calls

@@ -15,7 +15,7 @@ import qualified Cmd.ViewConfig as ViewConfig
 test_horizontal_tile_rects :: Test
 test_horizontal_tile_rects = do
     let f screen rs = map extract $
-            ViewConfig.horizontal_tile_rects (mkrect screen) (map mkrect rs)
+            ViewConfig.horizontalTileRects (mkrect screen) (map mkrect rs)
         mkrect (x, y, w, h) = Rect.xywh x y w h
         extract r = (Rect.x r, Rect.y r, Rect.w r, Rect.h r)
     equal (f (8, 8, 8, 8) []) []
@@ -31,8 +31,8 @@ test_horizontal_tile_rects = do
 
 test_fit_rects :: Test
 test_fit_rects = do
-    let f = List.sort . map (\(ident, r) -> (Id.ident_name ident, unrect r))
-            . ViewConfig.fit_rects (Rect.xywh 0 0 100 100)
+    let f = List.sort . map (\(ident, r) -> (Id.identName ident, unrect r))
+            . ViewConfig.fitRects (Rect.xywh 0 0 100 100)
             . map (\(ident, r) -> (UiTest.vid ident, rect r))
     equal (f [("a", (4, 4, 1, 1))]) [("a", (0, 0, 1, 1))]
     equal (f [("a", (0, 0, 2, 2)), ("b", (1, 2, 2, 2))])
@@ -40,7 +40,7 @@ test_fit_rects = do
 
 test_corners_of :: Test
 test_corners_of = do
-    let f = ViewConfig.corners_of (Rect.xywh 0 0 100 100)
+    let f = ViewConfig.cornersOf (Rect.xywh 0 0 100 100)
     equal (f []) [(0, 0)]
     equal (f [Rect.xywh 0 0 1 1]) [(0, 1), (1, 0)]
     --   0 1

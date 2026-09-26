@@ -8,15 +8,15 @@ module Perform.Sc.Play (
     State(..)
     , play
     -- * stop
-    , force_stop
+    , forceStop
     -- * thru
-    , osc_thru
-    , note_on, note_off
-    , set_control, pitch_change
+    , oscThru
+    , noteOn, noteOff
+    , setControl, pitchChange
     -- * initialize
     , version
-    , add_default_group
-    , initialize_patch
+    , addDefaultGroup
+    , initializePatch
     , sync
 #ifdef TESTING
     , module Perform.Sc.Play
@@ -58,17 +58,17 @@ import           Types
 
 
 -- | Talk to sclang IDE.  Use with OSCFunc.trace(true).
-lang_port :: Socket.PortNumber
-lang_port = 57120
+langPort :: Socket.PortNumber
+langPort = 57120
 
 -- | sclang starts the server with this port by default.  This is hardcoded for
 -- now, but could be configured if necessary.
-server_port :: Socket.PortNumber
-server_port = 57110
+serverPort :: Socket.PortNumber
+serverPort = 57110
 
 data State = State
     -- | Communicate into the player.
-    { _play_control :: Transport.PlayControl
+    { _playControl :: Transport.PlayControl
     -- | Communicate out from the player.
     , _players :: Transport.ActivePlayers
     }
@@ -78,15 +78,15 @@ data State = State
 newtype NodeId = NodeId Int.Int32
     deriving (Eq, Show)
 
-node_ids_from :: NodeId -> [NodeId]
-node_ids_from (NodeId start) =
-    NodeId start : node_ids_from (NodeId next)
-    where next = if start == maxBound then min_node_id else start + 1
+nodeIdsFrom :: NodeId -> [NodeId]
+nodeIdsFrom (NodeId start) =
+    NodeId start : nodeIdsFrom (NodeId next)
+    where next = if start == maxBound then minNodeId else start + 1
 
 -- I can't choose 1 because that's the default group.  I don't know if
 -- there's some cutoff for
-min_node_id :: Int.Int32
-min_node_id = 10
+minNodeId :: Int.Int32
+minNodeId = 10
 
 -- * play
 
@@ -94,51 +94,51 @@ min_node_id = 10
 play :: State -> Note.PlayNotes -> Maybe RealTime
     -- ^ If given, loop back to the beginning when this time is reached.
     -> IO ()
-play state pnotes repeat_at_ = do
+play state pnotes repeatAt_ = do
     now <- Time.getCurrentTime
-    Transport.player_started (_players state)
-    let start_id = time_to_id now
+    Transport.playerStarted (_players state)
+    let startId = timeToId now
     -- repeat_at_ has already had the shift and stretch applied, which is
     -- confusing.  TODO stop doing that.  But on the other hand, all the other
     -- stuff in PlayArgs had shift and stretch applied...
-    let repeat_at = (+ Note.shift pnotes) . (/ Note.stretch pnotes) <$>
-            repeat_at_
+    let repeatAt = (+ Note.shift pnotes) . (/ Note.stretch pnotes) <$>
+            repeatAt_
     Thread.startLogged "render sc" $
-        player_thread state (convert tweak now start_id pnotes repeat_at)
-            `Exception.finally` Transport.player_stopped (_players state)
+        playerThread state (convert tweak now startId pnotes repeatAt)
+            `Exception.finally` Transport.playerStopped (_players state)
     pure ()
 
 convert :: RealTime -> Time.UTCTime -> NodeId -> Note.PlayNotes
     -> Maybe RealTime -> [LEvent.LEvent OSC.OSCBundle]
-convert tweak now start_id pnotes repeat_at =
-    to_bundles now $ map (fmap (first place)) $
-    notes_to_osc start_id $
-    maybe (map (fmap (0,))) (cycle_messages (Note.shift pnotes)) repeat_at $
+convert tweak now startId pnotes repeatAt =
+    toBundles now $ map (fmap (first place)) $
+    notesToOsc startId $
+    maybe (map (fmap (0,))) (cycleMessages (Note.shift pnotes)) repeatAt $
     Note.notes pnotes
     where
     place = (* Note.stretch pnotes) . subtract (Note.shift pnotes - tweak)
 
-cycle_messages :: RealTime -> RealTime -> [LEvent.LEvent Note.Note]
+cycleMessages :: RealTime -> RealTime -> [LEvent.LEvent Note.Note]
     -> [LEvent.LEvent (RealTime, Note.Note)]
-cycle_messages start repeat_at notes
+cycleMessages start repeatAt notes
     | null chunk = []
     | otherwise = concat $ chunk : chunks
     where
-    chunk = map (fmap ((0,) . trim_note repeat_at)) $
-        takeWhile (LEvent.log_or ((<repeat_at) . Note.start)) notes
+    chunk = map (fmap ((0,) . trimNote repeatAt)) $
+        takeWhile (LEvent.logOr ((<repeatAt) . Note.start)) notes
     chunks = tail $ iterate shift stripped
-    shift = map (fmap (first (+ (repeat_at - start))))
-    stripped = map LEvent.Event (LEvent.events_of chunk)
+    shift = map (fmap (first (+ (repeatAt - start))))
+    stripped = map LEvent.Event (LEvent.eventsOf chunk)
 
-trim_note :: RealTime -> Note.Note -> Note.Note
-trim_note end note =
+trimNote :: RealTime -> Note.Note -> Note.Note
+trimNote end note =
     note { Note.controls = Map.mapWithKey trim (Note.controls note) }
     where
     trim control sig
         | maybe True ((<=end) . fst) $ MSignal.last sig = sig
-        | control == Note.gate_id =
-            MSignal.drop_at_after end sig <> MSignal.from_pairs [(end, 0)]
-        | otherwise = MSignal.drop_at_after end sig
+        | control == Note.gateId =
+            MSignal.dropAtAfter end sig <> MSignal.fromPairs [(end, 0)]
+        | otherwise = MSignal.dropAtAfter end sig
 
 -- | For some reason, sc sound winds up slightly before MIDI, but I can't be
 -- bothered to track down why.  This delays the OSC by enough to sound close
@@ -155,50 +155,50 @@ tweak = 0.03
 -- play.  /noid is supposed to be used for this, but it doesn't work on groups,
 -- so without knowing everyone's decay time, I can't know how many IDs to
 -- remember to cancel.
-time_to_id :: Time.UTCTime -> NodeId
-time_to_id now = NodeId $ min_node_id + fromIntegral (ms Bits..&. 0xffffff)
+timeToId :: Time.UTCTime -> NodeId
+timeToId now = NodeId $ minNodeId + fromIntegral (ms Bits..&. 0xffffff)
     where ms = Time.diffTimeToPicoseconds (Time.utctDayTime now) `div` 1000000
 
-player_thread :: State -> [LEvent.LEvent OSC.OSCBundle] -> IO ()
-player_thread state bundles = do
-    play_loop state bundles
+playerThread :: State -> [LEvent.LEvent OSC.OSCBundle] -> IO ()
+playerThread state bundles = do
+    playLoop state bundles
         `Exception.catch` \(exc :: Exception.SomeException) ->
             Log.warn ("player died: " <> showt exc) -- game over
 
-play_loop :: State -> [LEvent.LEvent OSC.OSCBundle] -> IO ()
-play_loop state = flip Control.loop1 $ \loop bundles -> do
+playLoop :: State -> [LEvent.LEvent OSC.OSCBundle] -> IO ()
+playLoop state = flip Control.loop1 $ \loop bundles -> do
     now <- Time.getCurrentTime
-    let until = Time.addUTCTime (write_ahead * 2) now
+    let until = Time.addUTCTime (writeAhead * 2) now
     let ((chunk, logs), rest) = first LEvent.partition $
-            span ((<= OSC.timestampFromUTC until) . ltime_of) bundles
+            span ((<= OSC.timestampFromUTC until) . ltimeOf) bundles
     mapM_ Log.write logs
     -- unless (null chunk) $ do
     --     putStrLn "osc chunk: "
     --     mapM_ print chunk
-    mapM_ (send server_port . OSC.encodeOSCBundle) chunk
+    mapM_ (send serverPort . OSC.encodeOSCBundle) chunk
     let timeout = if null rest
-            then maybe now (OSC.timestampToUTC . time_of) (Lists.last chunk)
+            then maybe now (OSC.timestampToUTC . timeOf) (Lists.last chunk)
                 `Time.diffUTCTime` now
-            else write_ahead
-    stop <- Transport.poll_stop_player timeout (_play_control state)
+            else writeAhead
+    stop <- Transport.pollStopPlayer timeout (_playControl state)
     case (stop, rest) of
-        (True, _) -> mapM_ send_osc stop_all
+        (True, _) -> mapM_ sendOsc stopAll
         (_, []) -> pure ()
         _ -> loop rest
     where
-    ltime_of (LEvent.Log _) = OSC.Timestamp 0
-    ltime_of (LEvent.Event e) = time_of e
-    time_of (OSC.OSCBundle ts _) = ts
+    ltimeOf (LEvent.Log _) = OSC.Timestamp 0
+    ltimeOf (LEvent.Event e) = timeOf e
+    timeOf (OSC.OSCBundle ts _) = ts
 
-write_ahead :: Time.NominalDiffTime
-write_ahead = 1
+writeAhead :: Time.NominalDiffTime
+writeAhead = 1
 
 
 -- * perform
 
-to_bundles :: Time.UTCTime -> [LEvent.LEvent (RealTime, OSC.OSC)]
+toBundles :: Time.UTCTime -> [LEvent.LEvent (RealTime, OSC.OSC)]
     -> [LEvent.LEvent OSC.OSCBundle]
-to_bundles start = concatMap make . Lists.keyedGroupAdjacent time_of
+toBundles start = concatMap make . Lists.keyedGroupAdjacent timeOf
     where
     make (time, events) =
         map LEvent.Log logs ++ if null oscs then []
@@ -207,62 +207,62 @@ to_bundles start = concatMap make . Lists.keyedGroupAdjacent time_of
         t = Time.addUTCTime (realToFrac time) start
         (oscs, logs) = LEvent.partition events
 
-notes_to_osc :: NodeId -> [LEvent.LEvent (RealTime, Note.Note)]
+notesToOsc :: NodeId -> [LEvent.LEvent (RealTime, Note.Note)]
     -> [LEvent.LEvent (RealTime, OSC.OSC)]
-notes_to_osc start_id =
-    Lists.mergeAscLists time_of . map (apply (uncurry note_to_osc))
-        . LEvent.zip node_ids
+notesToOsc startId =
+    Lists.mergeAscLists timeOf . map (apply (uncurry noteToOsc))
+        . LEvent.zip nodeIds
     where
-    node_ids = node_ids_from start_id
+    nodeIds = nodeIdsFrom startId
     apply f = \case
         LEvent.Event e -> map LEvent.Event (f e)
         LEvent.Log a -> [LEvent.Log a]
 
-time_of :: LEvent.LEvent (RealTime, x) -> RealTime
-time_of (LEvent.Log _) = -1/0
-time_of (LEvent.Event (t, _)) = t
+timeOf :: LEvent.LEvent (RealTime, x) -> RealTime
+timeOf (LEvent.Log _) = -1/0
+timeOf (LEvent.Event (t, _)) = t
 
-note_to_osc :: NodeId -> (RealTime, Note.Note) -> [(RealTime, OSC.OSC)]
-note_to_osc node_id (offset, Note.Note patch start controls) =
-    map (first (offset+)) $ (start, s_new patch node_id initial)
-        : dropWhile ((<=start) . fst) (control_oscs node_id controls)
+noteToOsc :: NodeId -> (RealTime, Note.Note) -> [(RealTime, OSC.OSC)]
+noteToOsc nodeId (offset, Note.Note patch start controls) =
+    map (first (offset+)) $ (start, sNew patch nodeId initial)
+        : dropWhile ((<=start) . fst) (controlOscs nodeId controls)
     where initial = map (second (MSignal.at start)) (Map.toAscList controls)
 
 -- | Precondition: signals have already been trimmed to the right time range.
-control_oscs :: NodeId -> Map Note.ControlId MSignal.Signal
+controlOscs :: NodeId -> Map Note.ControlId MSignal.Signal
     -> [(RealTime, OSC.OSC)]
-control_oscs node_id =
-    map (second (n_set node_id)) . Lists.groupAdjacentFst
+controlOscs nodeId =
+    map (second (nSet nodeId)) . Lists.groupAdjacentFst
         . Lists.mergeLists fst . map extract . Map.toAscList
     where
     extract (control, sig) =
-        [(x, (control, y)) | (x, y) <- MSignal.to_pairs sig]
+        [(x, (control, y)) | (x, y) <- MSignal.toPairs sig]
 
-s_new :: Note.PatchName -> NodeId -> [(Note.ControlId, Double)] -> OSC.OSC
-s_new name (NodeId node_id) controls = OSC.OSC "/s_new" $
+sNew :: Note.PatchName -> NodeId -> [(Note.ControlId, Double)] -> OSC.OSC
+sNew name (NodeId nodeId) controls = OSC.OSC "/s_new" $
     [ OSC_S name
-    , OSC_I node_id
+    , OSC_I nodeId
     , OSC_I (fromIntegral (fromEnum Head))
-    , let NodeId id = default_group in OSC_I id
-    ] ++ controls_to_osc controls
+    , let NodeId id = defaultGroup in OSC_I id
+    ] ++ controlsToOsc controls
 
 -- | sclang sets up this as the default group.  I think if I launch scsynth
 -- standalone I'll have to create it.
-default_group :: NodeId
-default_group = NodeId 1
+defaultGroup :: NodeId
+defaultGroup = NodeId 1
 
-n_set :: NodeId -> [(Note.ControlId, Double)] -> OSC.OSC
-n_set (NodeId node_id) controls = OSC.OSC "/n_set" $
-    OSC_I node_id : controls_to_osc controls
+nSet :: NodeId -> [(Note.ControlId, Double)] -> OSC.OSC
+nSet (NodeId nodeId) controls = OSC.OSC "/n_set" $
+    OSC_I nodeId : controlsToOsc controls
 
-clear_sched :: OSC.OSC
-clear_sched = OSC.OSC "/clearSched" []
+clearSched :: OSC.OSC
+clearSched = OSC.OSC "/clearSched" []
 
-s_noid :: NodeId -> OSC.OSC
-s_noid (NodeId id) = OSC.OSC "/s_noid" [OSC_I id]
+sNoid :: NodeId -> OSC.OSC
+sNoid (NodeId id) = OSC.OSC "/s_noid" [OSC_I id]
 
-controls_to_osc :: [(Note.ControlId, Double)] -> [OSCDatum]
-controls_to_osc controls =
+controlsToOsc :: [(Note.ControlId, Double)] -> [OSCDatum]
+controlsToOsc controls =
     [ a | (Note.ControlId control, val) <- controls
     , a <- [OSC_I control, OSC_F (Num.d2f val)]
     ]
@@ -275,20 +275,20 @@ data AddAction = Head | Tail | Before | After | Replace
 
 -- * stop
 
-stop_all :: [OSC.OSC]
-stop_all =
-    [ clear_sched
-    , n_set default_group [(Note.gate_id, 0)]
+stopAll :: [OSC.OSC]
+stopAll =
+    [ clearSched
+    , nSet defaultGroup [(Note.gateId, 0)]
     ]
 
-force_stop :: IO ()
-force_stop = mapM_ send_osc
-    [ clear_sched
-    , g_freeAll default_group
+forceStop :: IO ()
+forceStop = mapM_ sendOsc
+    [ clearSched
+    , gFreeAll defaultGroup
     ]
 
-g_freeAll :: NodeId -> OSC.OSC
-g_freeAll (NodeId id) = OSC.OSC "/g_freeAll" [OSC_I id]
+gFreeAll :: NodeId -> OSC.OSC
+gFreeAll (NodeId id) = OSC.OSC "/g_freeAll" [OSC_I id]
 
 -- * thru
 
@@ -300,56 +300,56 @@ g_freeAll (NodeId id) = OSC.OSC "/g_freeAll" [OSC_I id]
 type NoteId = Int
 type Triggered = Bool
 
-note_to_node :: NoteId -> NodeId
-note_to_node = NodeId . (+min_node_id) . fromIntegral
+noteToNode :: NoteId -> NodeId
+noteToNode = NodeId . (+minNodeId) . fromIntegral
 
-osc_thru :: [OSC.OSC] -> IO ()
-osc_thru = mapM_ send_osc
+oscThru :: [OSC.OSC] -> IO ()
+oscThru = mapM_ sendOsc
 
-note_on :: Patch.Patch -> Triggered -> NoteId -> Pitch.NoteNumber -> Double
+noteOn :: Patch.Patch -> Triggered -> NoteId -> Pitch.NoteNumber -> Double
     -> [OSC.OSC]
-note_on patch triggered note_id nn dyn =
-    ( s_new (Patch.name patch) (note_to_node note_id) $
-        (Note.gate_id, 1) : mapMaybe convert
-            [ (Patch.c_pitch, Pitch.nn_to_double nn)
+noteOn patch triggered noteId nn dyn =
+    ( sNew (Patch.name patch) (noteToNode noteId) $
+        (Note.gateId, 1) : mapMaybe convert
+            [ (Patch.cPitch, Pitch.nnToDouble nn)
             , (Controls.dynamic, dyn)
             ]
     ) : if triggered
         -- TODO Should osc_thru should put a bit of space in between these?
         -- Or is separate packets enough separation for sc?
-        then [n_set (note_to_node note_id) [(Note.gate_id, 0)]]
+        then [nSet (noteToNode noteId) [(Note.gateId, 0)]]
         else []
     where
     convert (control, val) =
         (, val) <$> Map.lookup control (Patch.controls patch)
 
-note_off :: Triggered -> NoteId -> [OSC.OSC]
-note_off triggered note_id = concat
+noteOff :: Triggered -> NoteId -> [OSC.OSC]
+noteOff triggered noteId = concat
     [ if triggered then []
-        else [n_set (note_to_node note_id) [(Note.gate_id, 0)]]
-    , [s_noid (note_to_node note_id)]
+        else [nSet (noteToNode noteId) [(Note.gateId, 0)]]
+    , [sNoid (noteToNode noteId)]
     ]
 
-set_control :: Patch.Patch -> NoteId -> ScoreT.Control -> Double -> [OSC.OSC]
-set_control patch note_id control val =
+setControl :: Patch.Patch -> NoteId -> ScoreT.Control -> Double -> [OSC.OSC]
+setControl patch noteId control val =
     case Map.lookup control (Patch.controls patch) of
         Nothing -> []
-        Just c -> [n_set (note_to_node note_id) [(c, val)]]
+        Just c -> [nSet (noteToNode noteId) [(c, val)]]
 
-pitch_change :: Patch.Patch -> NoteId -> Pitch.NoteNumber -> [OSC.OSC]
-pitch_change patch note_id nn =
-    case Map.lookup Patch.c_pitch (Patch.controls patch) of
+pitchChange :: Patch.Patch -> NoteId -> Pitch.NoteNumber -> [OSC.OSC]
+pitchChange patch noteId nn =
+    case Map.lookup Patch.cPitch (Patch.controls patch) of
         Nothing -> []
-        Just c -> [n_set (note_to_node note_id) [(c, Pitch.nn_to_double nn)]]
+        Just c -> [nSet (noteToNode noteId) [(c, Pitch.nnToDouble nn)]]
 
 -- * initialize
 
 -- | Left error if a valid server wasn't detected, Right msg if it was.
 version :: IO (Either Text Text)
-version = query server_port (OSC.OSC "/version" []) >>= pure . \case
-    Nothing -> Left $ "scsynth not running on " <> showt server_port
+version = query serverPort (OSC.OSC "/version" []) >>= pure . \case
+    Nothing -> Left $ "scsynth not running on " <> showt serverPort
     Just (Left err) -> Left $
-        "unparseable response from scsynth on " <> showt server_port <> ": "
+        "unparseable response from scsynth on " <> showt serverPort <> ": "
         <> txt err
     Just (Right (OSC.OSC "/version.reply"
             (OSC_S name : OSC_I major : OSC_I minor : OSC_S patch : _))) ->
@@ -358,40 +358,40 @@ version = query server_port (OSC.OSC "/version" []) >>= pure . \case
             , Texts.toText patch
             ]
     Just (Right osc) -> Left $
-        "unexpected response from scsynth on " <> showt server_port <> ": "
+        "unexpected response from scsynth on " <> showt serverPort <> ": "
         <> showt osc
 
 -- | The sclang IDE does this, but I have to do it myself for a standalone
 -- scserver.
-add_default_group :: IO ()
-add_default_group = send_osc $ OSC.OSC "/g_new"
+addDefaultGroup :: IO ()
+addDefaultGroup = sendOsc $ OSC.OSC "/g_new"
     [OSC_I id, OSC_I (fromIntegral (fromEnum Head)), OSC_I 0]
     where
-    NodeId id = default_group
+    NodeId id = defaultGroup
 
-initialize_patch :: Patch.Patch -> IO ()
-initialize_patch = load_patch . Patch.filename
+initializePatch :: Patch.Patch -> IO ()
+initializePatch = loadPatch . Patch.filename
 
 -- | Wait for patches to load.
 sync :: IO ()
-sync = void $ query server_port (OSC.OSC "/sync" [])
+sync = void $ query serverPort (OSC.OSC "/sync" [])
 
-load_patch :: FilePath -> IO ()
-load_patch = send_osc . d_load
+loadPatch :: FilePath -> IO ()
+loadPatch = sendOsc . dLoad
 
-d_load :: FilePath -> OSC.OSC
-d_load path = OSC.OSC "/d_load" [OSC_S (Texts.toByteString path)]
+dLoad :: FilePath -> OSC.OSC
+dLoad path = OSC.OSC "/d_load" [OSC_S (Texts.toByteString path)]
 
 -- | Unfortunately this is kind of useless, because scsynth doesn't let you
 -- unload all, and doesn't seem to have any way to see what's loaded.
-d_free :: Note.PatchName -> OSC.OSC
-d_free name = OSC.OSC "/d_free" [OSC_S (Texts.toByteString name)]
+dFree :: Note.PatchName -> OSC.OSC
+dFree name = OSC.OSC "/d_free" [OSC_S (Texts.toByteString name)]
 
 
 -- * low level
 
-send_osc :: OSC.OSC -> IO ()
-send_osc = send server_port . OSC.encodeOSC
+sendOsc :: OSC.OSC -> IO ()
+sendOsc = send serverPort . OSC.encodeOSC
 
 send :: Socket.PortNumber -> ByteString.ByteString -> IO ()
 send port bytes = Network.withConnection (Network.UDP port) $ \socket ->

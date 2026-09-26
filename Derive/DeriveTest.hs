@@ -93,19 +93,19 @@ import           Types
 --
 -- Drops the first sample to make this match output from the derive call
 -- interpolators.
-signal_interpolate :: RealTime -> Signal.Y -> RealTime -> Signal.Y
+signalInterpolate :: RealTime -> Signal.Y -> RealTime -> Signal.Y
     -> [(RealTime, Signal.Y)]
-signal_interpolate x0 y0 x1 y1 =
+signalInterpolate x0 y0 x1 y1 =
     drop 1 [(x, project x) | x <- Lists.rangeEnd x0 x1 1]
     where
-    project = Num.scale y0 y1 . Num.normalize (to_y x0) (to_y x1) . to_y
-    to_y = RealTime.to_seconds
+    project = Num.scale y0 y1 . Num.normalize (toY x0) (toY x1) . toY
+    toY = RealTime.toSeconds
 
 -- * run
 
 run :: Ui.State -> Derive.Deriver a
     -> Either Text (a, Derive.State, [Log.Msg])
-run ui_state m = run_ ui_state (Internal.with_stack_block bid m)
+run uiState m = run_ uiState (Internal.withStackBlock bid m)
     where
     -- Make sure Derive.get_current_block_id, called by add_new_track_warp,
     -- doesn't throw.
@@ -114,121 +114,121 @@ run ui_state m = run_ ui_state (Internal.with_stack_block bid m)
 -- | Run without a fake stack.
 run_ :: Ui.State -> Derive.Deriver a
     -> Either Text (a, Derive.State, [Log.Msg])
-run_ ui_state m = case Derive.run derive_state m of
+run_ uiState m = case Derive.run deriveState m of
     (Left err, _, _logs) -> Left (pretty err)
     (Right val, state, logs) -> Right (val, state, logs)
     where
-    derive_state = Derive.initial_state
-        (default_constant ui_state mempty mempty) default_dynamic
+    deriveState = Derive.initialState
+        (defaultConstant uiState mempty mempty) defaultDynamic
 
-extract_run :: (a -> b) -> Either Text (a, Derive.State, [Log.Msg])
+extractRun :: (a -> b) -> Either Text (a, Derive.State, [Log.Msg])
     -> Either Text b
-extract_run _ (Left err) = Left err
-extract_run extract (Right (val, _, msgs)) =
-    Right $ trace_logs msgs (extract val)
+extractRun _ (Left err) = Left err
+extractRun extract (Right (val, _, msgs)) =
+    Right $ traceLogs msgs (extract val)
 
-run_events :: (a -> b)
+runEvents :: (a -> b)
     -> Either Text ([LEvent.LEvent a], Derive.State, [Log.Msg])
     -> Either Text ([b], [Text])
-run_events extract = extract_run $ extract_levents extract
+runEvents extract = extractRun $ extractLevents extract
 
 eval :: Ui.State -> Derive.Deriver a -> Either Text a
-eval ui_state m = extract_run id (run ui_state m)
+eval uiState m = extractRun id (run uiState m)
 
 -- * perform
 
-perform_block :: [UiTest.TrackSpec] -> ([Midi.WriteMessage], [Text])
-perform_block tracks = perform_blocks [(UiTest.default_block_name, tracks)]
+performBlock :: [UiTest.TrackSpec] -> ([Midi.WriteMessage], [Text])
+performBlock tracks = performBlocks [(UiTest.defaultBlockName, tracks)]
 
-perform_blocks :: [UiTest.BlockSpec] -> ([Midi.WriteMessage], [Text])
-perform_blocks blocks = (mmsgs, map show_log (filter interesting_log logs))
+performBlocks :: [UiTest.BlockSpec] -> ([Midi.WriteMessage], [Text])
+performBlocks blocks = (mmsgs, map showLog (filter interestingLog logs))
     where
-    ((_, mmsgs), logs) = perform default_convert_lookup
-        UiTest.default_allocations (Derive.r_events result)
-    result = derive_blocks blocks
+    ((_, mmsgs), logs) = perform defaultConvertLookup
+        UiTest.defaultAllocations (Derive.rEvents result)
+    result = deriveBlocks blocks
 
 -- TODO this tosses the logs from the stream, shouldn't I collect them into
 -- the output?
 perform :: Lookup -> UiConfig.Allocations -> Stream.Stream Score.Event
     -> (([Midi.Types.Event], [Midi.WriteMessage]), [Log.Msg])
 perform lookup allocs stream =
-    ((fst (LEvent.partition perf_events), mmsgs), logs)
+    ((fst (LEvent.partition perfEvents), mmsgs), logs)
     where
-    (perf_events, perf) = perform_stream lookup allocs stream
-    (mmsgs, logs) = extract_logs perf
+    (perfEvents, perf) = performStream lookup allocs stream
+    (mmsgs, logs) = extractLogs perf
 
-perform_defaults :: Stream.Stream Score.Event
+performDefaults :: Stream.Stream Score.Event
     -> (([Midi.Types.Event], [Midi.WriteMessage]), [Log.Msg])
-perform_defaults = perform default_convert_lookup UiTest.default_allocations
+performDefaults = perform defaultConvertLookup UiTest.defaultAllocations
 
-perform_stream :: Lookup -> UiConfig.Allocations -> Stream.Stream Score.Event
+performStream :: Lookup -> UiConfig.Allocations -> Stream.Stream Score.Event
     -> ([LEvent.LEvent Midi.Types.Event], [LEvent.LEvent Midi.WriteMessage])
-perform_stream (lookup_inst, lookup) allocs stream = (perf_events, midi)
+performStream (lookupInst, lookup) allocs stream = (perfEvents, midi)
     where
-    perf_events = Convert.convert 1 lookup lookup_inst (Stream.events_of stream)
-    (midi, _) = Perform.perform Perform.initial_state midi_allocs perf_events
-    midi_allocs = Perform.config <$> PlayUtil.midi_configs allocs
+    perfEvents = Convert.convert 1 lookup lookupInst (Stream.eventsOf stream)
+    (midi, _) = Perform.perform Perform.initialState midiAllocs perfEvents
+    midiAllocs = Perform.config <$> PlayUtil.midiConfigs allocs
 
 -- | Perform events with the given instrument db.
-perform_synths :: UiConfig.Allocations -> [MidiInst.Synth]
+performSynths :: UiConfig.Allocations -> [MidiInst.Synth]
     -> Stream.Stream Score.Event
     -> (([Midi.Types.Event], [Midi.WriteMessage]), [Log.Msg])
-perform_synths allocs synths =
-    perform (synths_to_convert_lookup allocs synths) allocs
+performSynths allocs synths =
+    perform (synthsToConvertLookup allocs synths) allocs
 
-perform_synths_simple :: SimpleAllocations -> [MidiInst.Synth]
+performSynthsSimple :: SimpleAllocations -> [MidiInst.Synth]
     -> Stream.Stream Score.Event
     -> (([Midi.Types.Event], [Midi.WriteMessage]), [Log.Msg])
-perform_synths_simple allocs_ synths =
-    perform (make_convert_lookup allocs db) allocs
+performSynthsSimple allocs_ synths =
+    perform (makeConvertLookup allocs db) allocs
     where
-    db = synths_to_db synths
-    allocs = simple_allocs allocs_
+    db = synthsToDb synths
+    allocs = simpleAllocs allocs_
 
 -- | Chain a 'perform' from a Derive.Result.
-perform_result :: (Stream.Stream Score.Event -> (a, [Log.Msg]))
+performResult :: (Stream.Stream Score.Event -> (a, [Log.Msg]))
     -> Derive.Result -> (a, [Text])
-perform_result perform result = (val, map show_log (derive_logs ++ perf_logs))
+performResult perform result = (val, map showLog (deriveLogs ++ perfLogs))
     where
-    (events, derive_logs) = extract_logs $ Stream.to_list $
-        Derive.r_events result
-    (val, perf_logs) = perform (Stream.from_events events)
+    (events, deriveLogs) = extractLogs $ Stream.toList $
+        Derive.rEvents result
+    (val, perfLogs) = perform (Stream.fromEvents events)
 
 -- ** perform im
 
-perform_im_synths :: SimpleAllocations -> [MidiInst.Synth]
+performImSynths :: SimpleAllocations -> [MidiInst.Synth]
     -> Stream.Stream Score.Event -> ([Note.Note], [Text])
-perform_im_synths allocs synths =
-    perform_im (fst $ make_convert_lookup ui_allocs db)
+performImSynths allocs synths =
+    performIm (fst $ makeConvertLookup uiAllocs db)
     where
-    db = synths_to_db synths
-    ui_allocs = im_allocs allocs
+    db = synthsToDb synths
+    uiAllocs = imAllocs allocs
 
 -- | Unlike 'perform', this includes the logs from the stream in the output.
 -- TODO change perform?
-perform_im :: (ScoreT.Instrument -> Maybe Cmd.ResolvedInstrument)
+performIm :: (ScoreT.Instrument -> Maybe Cmd.ResolvedInstrument)
     -> Stream.Stream Score.Event -> ([Note.Note], [Text])
-perform_im lookup_inst stream =
-    (perf_events, mapMaybe show_interesting_log $ derive_logs ++ perf_logs)
+performIm lookupInst stream =
+    (perfEvents, mapMaybe showInterestingLog $ deriveLogs ++ perfLogs)
     where
-    (events, derive_logs) = Stream.partition stream
-    (perf_events, perf_logs) = LEvent.partition $
-        Im.Convert.convert UiTest.default_block_id lookup_inst events
+    (events, deriveLogs) = Stream.partition stream
+    (perfEvents, perfLogs) = LEvent.partition $
+        Im.Convert.convert UiTest.defaultBlockId lookupInst events
 
 -- * derive
 
-derive_tracks :: Text -> [UiTest.TrackSpec] -> Derive.Result
-derive_tracks = derive_tracks_setup mempty
+deriveTracks :: Text -> [UiTest.TrackSpec] -> Derive.Result
+deriveTracks = deriveTracksSetup mempty
 
 -- | Derive tracks but with a linear skeleton.  Good for testing note
 -- transformers since the default skeleton parsing won't create those.
-derive_tracks_linear :: Text -> [UiTest.TrackSpec] -> Derive.Result
-derive_tracks_linear = derive_tracks_setup with_linear
+deriveTracksLinear :: Text -> [UiTest.TrackSpec] -> Derive.Result
+deriveTracksLinear = deriveTracksSetup withLinear
 
 -- | Variant that lets you run setup on various states.
-derive_tracks_setup :: Setup -> Text -> [UiTest.TrackSpec] -> Derive.Result
-derive_tracks_setup setup title tracks = derive_blocks_setup setup
-    [(UiTest.default_block_name <> " -- " <> title, tracks)]
+deriveTracksSetup :: Setup -> Text -> [UiTest.TrackSpec] -> Derive.Result
+deriveTracksSetup setup title tracks = deriveBlocksSetup setup
+    [(UiTest.defaultBlockName <> " -- " <> title, tracks)]
 
 -- ** derive block variations
 
@@ -236,71 +236,71 @@ derive_tracks_setup setup title tracks = derive_blocks_setup setup
 -- specialized.
 
 -- | Create multiple blocks, and derive the first one.
-derive_blocks :: [UiTest.BlockSpec] -> Derive.Result
-derive_blocks = derive_blocks_setup mempty
+deriveBlocks :: [UiTest.BlockSpec] -> Derive.Result
+deriveBlocks = deriveBlocksSetup mempty
 
-derive_block :: Ui.State -> BlockId -> Derive.Result
-derive_block = derive_block_setup mempty
+deriveBlock :: Ui.State -> BlockId -> Derive.Result
+deriveBlock = deriveBlockSetup mempty
 
-derive_blocks_setup :: Setup -> [UiTest.BlockSpec] -> Derive.Result
-derive_blocks_setup setup block_tracks = derive_block_setup setup ui_state bid
-    where (bid : _, ui_state) = UiTest.run_mkblocks block_tracks
+deriveBlocksSetup :: Setup -> [UiTest.BlockSpec] -> Derive.Result
+deriveBlocksSetup setup blockTracks = deriveBlockSetup setup uiState bid
+    where (bid : _, uiState) = UiTest.runMkblocks blockTracks
 
 -- | Derive a block with the testing environ.
-derive_block_setup :: Setup -> Ui.State -> BlockId -> Derive.Result
-derive_block_setup setup =
-    derive_block_standard (with_environ default_environ <> setup)
-        default_cmd_state mempty mempty
+deriveBlockSetup :: Setup -> Ui.State -> BlockId -> Derive.Result
+deriveBlockSetup setup =
+    deriveBlockStandard (withEnviron defaultEnviron <> setup)
+        defaultCmdState mempty mempty
 
 -- | Like 'derive_block_setup', but exec the StateId.
-derive_block_setup_m :: Setup -> Ui.StateId a -> BlockId -> Derive.Result
-derive_block_setup_m setup create =
-    derive_block_standard (with_environ default_environ <> setup)
-        default_cmd_state mempty mempty (UiTest.exec Ui.empty create)
+deriveBlockSetupM :: Setup -> Ui.StateId a -> BlockId -> Derive.Result
+deriveBlockSetupM setup create =
+    deriveBlockStandard (withEnviron defaultEnviron <> setup)
+        defaultCmdState mempty mempty (UiTest.exec Ui.empty create)
 
 -- | Derive the results of a "Cmd.Repl.LDebug".dump_block.
-derive_dump :: [MidiInst.Synth] -> Simple.State -> BlockId -> Derive.Result
-derive_dump synths dump@(_, simple_allocs, _) =
-    derive_block_setup (with_synths allocs synths) state
+deriveDump :: [MidiInst.Synth] -> Simple.State -> BlockId -> Derive.Result
+deriveDump synths dump@(_, simpleAllocs, _) =
+    deriveBlockSetup (withSynths allocs synths) state
     where
-    allocs = Simple.allocations simple_allocs
-    state = UiTest.eval Ui.empty (Simple.load_state dump)
+    allocs = Simple.allocations simpleAllocs
+    state = UiTest.eval Ui.empty (Simple.loadState dump)
 
 -- | Derive a block in the same way that the app does.
-derive_block_standard :: Setup -> Cmd.State -> Derive.Cache
+deriveBlockStandard :: Setup -> Cmd.State -> Derive.Cache
     -> Derive.ScoreDamage -> Ui.State -> BlockId -> Derive.Result
-derive_block_standard setup cmd_state cache damage ui_state_ block_id =
-    run_cmd ui_state (setup_cmd setup cmd_state) cmd
+deriveBlockStandard setup cmdState cache damage uiState_ blockId =
+    runCmd uiState (setupCmd setup cmdState) cmd
     where
-    cmd = Derive.extract_result <$> PlayUtil.run cache damage deriver
-    ui_state = setup_ui setup ui_state_
-    deriver = setup_deriver setup $ Prelude.Block.eval_root_block block_id
+    cmd = Derive.extractResult <$> PlayUtil.run cache damage deriver
+    uiState = setupUi setup uiState_
+    deriver = setupDeriver setup $ Prelude.Block.evalRootBlock blockId
 
-perform_dump :: [MidiInst.Synth] -> Simple.State -> Derive.Result
+performDump :: [MidiInst.Synth] -> Simple.State -> Derive.Result
     -> (([Midi.Types.Event], [Midi.WriteMessage]), [Log.Msg])
-perform_dump synths (_, simple_allocs, _) =
-    perform lookup allocs . Derive.r_events
+performDump synths (_, simpleAllocs, _) =
+    perform lookup allocs . Derive.rEvents
     where
-    db = synths_to_db synths
-    lookup = make_convert_lookup allocs db
-    allocs = Simple.allocations simple_allocs
+    db = synthsToDb synths
+    lookup = makeConvertLookup allocs db
+    allocs = Simple.allocations simpleAllocs
 
 derive :: Ui.State -> Derive.NoteDeriver -> Derive.Result
-derive ui_state deriver = Derive.extract_result $
-    Derive.derive (default_constant ui_state mempty mempty)
-        default_dynamic deriver
+derive uiState deriver = Derive.extractResult $
+    Derive.derive (defaultConstant uiState mempty mempty)
+        defaultDynamic deriver
 
 -- * cmd
 
 -- | CmdTest also has this, but I can't import it because it imports
 -- DeriveTest.
-run_cmd :: HasCallStack => Ui.State -> Cmd.State -> Cmd.CmdId a -> a
-run_cmd ui_state cmd_state cmd = case result of
+runCmd :: HasCallStack => Ui.State -> Cmd.State -> Cmd.CmdId a -> a
+runCmd uiState cmdState cmd = case result of
     Right (Just result, _, _) -> result
     Right (Nothing, _, _) -> error "DeriveTest.run_cmd: Cmd aborted"
     Left err -> error $ "DeriveTest.run_cmd: Cmd error: " <> show err
     where
-    (_cstate, _midi_msgs, _logs, result) = Cmd.run_id ui_state cmd_state cmd
+    (_cstate, _midiMsgs, _logs, result) = Cmd.runId uiState cmdState cmd
 
 -- * setup
 
@@ -310,9 +310,9 @@ type Setup = SetupA (Stream.Stream Score.Event)
 -- @with_*@ functions in a polymorphic way, I can use SetupA and pull them back
 -- out with setup_deriver.
 data SetupA a = Setup
-    { setup_ui :: Ui.State -> Ui.State
-    , setup_cmd :: Cmd.State -> Cmd.State
-    , setup_deriver :: Derive.Deriver a -> Derive.Deriver a
+    { setupUi :: Ui.State -> Ui.State
+    , setupCmd :: Cmd.State -> Cmd.State
+    , setupDeriver :: Derive.Deriver a -> Derive.Deriver a
     }
 
 instance Semigroup (SetupA a) where
@@ -322,180 +322,180 @@ instance Monoid (SetupA a) where
     mempty = Setup id id id
     mappend = (<>)
 
-with_ui :: (Ui.State -> Ui.State) -> Setup
-with_ui ui = mempty { setup_ui = ui }
+withUi :: (Ui.State -> Ui.State) -> Setup
+withUi ui = mempty { setupUi = ui }
 
-with_cmd :: (Cmd.State -> Cmd.State) -> Setup
-with_cmd cmd = mempty { setup_cmd = cmd }
+withCmd :: (Cmd.State -> Cmd.State) -> Setup
+withCmd cmd = mempty { setupCmd = cmd }
 
-with_deriver :: (Derive.Deriver a -> Derive.Deriver a) -> SetupA a
-with_deriver deriver = mempty { setup_deriver = deriver }
+withDeriver :: (Derive.Deriver a -> Derive.Deriver a) -> SetupA a
+withDeriver deriver = mempty { setupDeriver = deriver }
 
 -- ** setup_ui
 
 -- | Set the skeleton of the tracks to be linear, i.e. each track is the child
 -- of the one to the left.  This overrides the default behaviour of figuring
 -- out a skeleton by making note tracks start their own branches.
-with_linear :: Setup
-with_linear = with_linear_block UiTest.default_block_id
+withLinear :: Setup
+withLinear = withLinearBlock UiTest.defaultBlockId
 
-with_linear_block :: BlockId -> Setup
-with_linear_block block_id =
-    with_ui $ \state -> setup_ui (with_skel_block block_id (skel state)) state
+withLinearBlock :: BlockId -> Setup
+withLinearBlock blockId =
+    withUi $ \state -> setupUi (withSkelBlock blockId (skel state)) state
     where
     -- Start at 1 to exclude the ruler.
     skel state =
         [(x, y) | (x, Just y) <- Lists.zipNext [1 .. ntracks state  - 1]]
-    ntracks state = length $ maybe [] Block.block_tracks $
-        Map.lookup block_id (Ui.state_blocks state)
+    ntracks state = length $ maybe [] Block.blockTracks $
+        Map.lookup blockId (Ui.stateBlocks state)
 
-with_skel :: [Skeleton.Edge] -> Setup
-with_skel = with_skel_block UiTest.default_block_id
+withSkel :: [Skeleton.Edge] -> Setup
+withSkel = withSkelBlock UiTest.defaultBlockId
 
-with_skel_block :: BlockId -> [Skeleton.Edge] -> Setup
-with_skel_block block_id skel = with_ui $ \state -> UiTest.exec state $
-    Ui.set_skeleton block_id (Skeleton.make skel)
+withSkelBlock :: BlockId -> [Skeleton.Edge] -> Setup
+withSkelBlock blockId skel = withUi $ \state -> UiTest.exec state $
+    Ui.setSkeleton blockId (Skeleton.make skel)
 
-with_default_ruler :: Ruler.Ruler -> Setup
-with_default_ruler ruler = with_ui $
-    Ui.rulers %= Map.insert UiTest.default_ruler_id ruler
+withDefaultRuler :: Ruler.Ruler -> Setup
+withDefaultRuler ruler = withUi $
+    Ui.rulers %= Map.insert UiTest.defaultRulerId ruler
 
 -- | Set the ruler on the given block.
-with_ruler :: BlockId -> Ruler.Ruler -> Setup
-with_ruler block_id ruler = with_ui $ \state -> UiTest.exec state make
-    where make = Create.new_ruler block_id (Id.ident_name block_id) ruler
+withRuler :: BlockId -> Ruler.Ruler -> Setup
+withRuler blockId ruler = withUi $ \state -> UiTest.exec state make
+    where make = Create.newRuler blockId (Id.identName blockId) ruler
 
-with_tsigs :: [TrackId] -> Setup
-with_tsigs = with_tsig_sources . map (, Nothing)
+withTsigs :: [TrackId] -> Setup
+withTsigs = withTsigSources . map (, Nothing)
 
-with_tsig_tracknums :: [TrackNum] -> Setup
-with_tsig_tracknums = with_tsigs . map UiTest.mk_tid
+withTsigTracknums :: [TrackNum] -> Setup
+withTsigTracknums = withTsigs . map UiTest.mkTid
 
-with_tsig_sources :: [(TrackId, Maybe Track.RenderSource)] -> Setup
-with_tsig_sources track_ids = with_ui $ Ui.tracks %= Map.mapWithKey enable
+withTsigSources :: [(TrackId, Maybe Track.RenderSource)] -> Setup
+withTsigSources trackIds = withUi $ Ui.tracks %= Map.mapWithKey enable
     where
-    enable track_id track = case lookup track_id track_ids of
-        Just source -> track { Track.track_render =
+    enable trackId track = case lookup trackId trackIds of
+        Just source -> track { Track.trackRender =
             Track.RenderConfig (Track.Line source) Color.blue }
         Nothing -> track
 
-with_midi_config :: ScoreT.Instrument -> Text -> Common.Config -> Patch.Config
+withMidiConfig :: ScoreT.Instrument -> Text -> Common.Config -> Patch.Config
     -> Setup
-with_midi_config inst qualified common_config midi_config = with_ui $
-    Ui.config#UiConfig.allocations_map %= Map.insert inst
-        (UiConfig.Allocation (InstT.parse_qualified qualified)
-            common_config (UiConfig.Midi midi_config))
+withMidiConfig inst qualified commonConfig midiConfig = withUi $
+    Ui.config#UiConfig.allocationsMap %= Map.insert inst
+        (UiConfig.Allocation (InstT.parseQualified qualified)
+            commonConfig (UiConfig.Midi midiConfig))
 
 -- * setup_deriver
 
-with_key :: Text -> SetupA a
-with_key key = with_deriver $ Derive.with_val EnvKey.key key
+withKey :: Text -> SetupA a
+withKey key = withDeriver $ Derive.withVal EnvKey.key key
 
-with_environ :: Env.Environ -> SetupA a
-with_environ env =
-    with_deriver $ Internal.local $ \st -> st { Derive.state_environ = env }
+withEnviron :: Env.Environ -> SetupA a
+withEnviron env =
+    withDeriver $ Internal.local $ \st -> st { Derive.stateEnviron = env }
 
 -- | I'm not really supposed to do this, but should be *mostly* ok for tests.
 -- It's not entirely ok because some values are baked in to e.g. lookup
 -- functions.
-modify_constant :: (Derive.Constant -> Derive.Constant) -> SetupA a
-modify_constant f = with_deriver $ \deriver -> do
+modifyConstant :: (Derive.Constant -> Derive.Constant) -> SetupA a
+modifyConstant f = withDeriver $ \deriver -> do
     Derive.modify $ \st ->
-        st { Derive.state_constant = f (Derive.state_constant st) }
+        st { Derive.stateConstant = f (Derive.stateConstant st) }
     deriver
     -- TODO replace with safe specific ones, e.g. with_damage
 
 -- | Not supposed to do this in general, but it's ok for tests.
-modify_dynamic :: (Derive.Dynamic -> Derive.Dynamic) -> Derive.Deriver ()
-modify_dynamic f = Derive.modify $ \st ->
-    st { Derive.state_dynamic = f (Derive.state_dynamic st) }
+modifyDynamic :: (Derive.Dynamic -> Derive.Dynamic) -> Derive.Deriver ()
+modifyDynamic f = Derive.modify $ \st ->
+    st { Derive.stateDynamic = f (Derive.stateDynamic st) }
 
 -- * setup multiple
 
-with_scale :: Scale.Scale -> Setup
-with_scale scale = modify_constant $ \c ->
-    c { Derive.state_lookup_scale = Derive.LookupScale lookup }
+withScale :: Scale.Scale -> Setup
+withScale scale = modifyConstant $ \c ->
+    c { Derive.stateLookupScale = Derive.LookupScale lookup }
     where
-    lookup env scale_id
-        | scale_id == Scale.scale_id scale = Just (Right scale)
+    lookup env scaleId
+        | scaleId == Scale.scaleId scale = Just (Right scale)
         -- Fall back on the old lookup.  This is important because *twelve is
         -- the default scale so I want it to keep working.
-        | otherwise = deflt env scale_id
-        where Derive.LookupScale deflt = default_lookup_scale
+        | otherwise = deflt env scaleId
+        where Derive.LookupScale deflt = defaultLookupScale
 
 -- | Derive with a bit of a real instrument db.  Useful for testing instrument
 -- calls.
-with_synths :: UiConfig.Allocations -> [MidiInst.Synth] -> Setup
-with_synths allocs synths = with_instrument_db allocs (synths_to_db synths)
+withSynths :: UiConfig.Allocations -> [MidiInst.Synth] -> Setup
+withSynths allocs synths = withInstrumentDb allocs (synthsToDb synths)
 
-with_synths_im :: SimpleAllocations -> [MidiInst.Synth] -> Setup
-with_synths_im allocs synths =
-    with_instrument_db (im_allocs allocs) db
-    where db = synths_to_db synths
+withSynthsIm :: SimpleAllocations -> [MidiInst.Synth] -> Setup
+withSynthsIm allocs synths =
+    withInstrumentDb (imAllocs allocs) db
+    where db = synthsToDb synths
 
-with_synths_simple :: SimpleAllocations -> [MidiInst.Synth] -> Setup
-with_synths_simple allocs synths =
-    with_instrument_db (simple_allocs allocs) db
-    where db = synths_to_db synths
+withSynthsSimple :: SimpleAllocations -> [MidiInst.Synth] -> Setup
+withSynthsSimple allocs synths =
+    withInstrumentDb (simpleAllocs allocs) db
+    where db = synthsToDb synths
 
 -- | Add a single instrument with a MIDI patch.
-with_patch :: (MidiInst.Patch -> MidiInst.Patch) -> Text -> Setup
-with_patch configure_patch name =
-    with_synths_simple [(name, name <> "/")] [synth]
+withPatch :: (MidiInst.Patch -> MidiInst.Patch) -> Text -> Setup
+withPatch configurePatch name =
+    withSynthsSimple [(name, name <> "/")] [synth]
     where
-    synth = UiTest.make_synth name [patch]
-    patch = configure_patch $ MidiInst.make_patch $ UiTest.make_patch ""
+    synth = UiTest.makeSynth name [patch]
+    patch = configurePatch $ MidiInst.makePatch $ UiTest.makePatch ""
 
-with_instrument_db :: UiConfig.Allocations -> Cmd.InstrumentDb -> Setup
-with_instrument_db allocs db = with_allocations allocs <> with_db
+withInstrumentDb :: UiConfig.Allocations -> Cmd.InstrumentDb -> Setup
+withInstrumentDb allocs db = withAllocations allocs <> withDb
     where
-    with_db = with_cmd $ set_cmd_config $ \state -> state
-        { Cmd.config_instrument_db = db }
+    withDb = withCmd $ setCmdConfig $ \state -> state
+        { Cmd.configInstrumentDb = db }
 
 -- | A further-simplified version of 'Simple.Allocations' for tests:
 -- [(Instrument, Qualified)]
 type SimpleAllocations = [(Text, Text)]
 
-simple_allocs :: SimpleAllocations -> UiConfig.Allocations
-simple_allocs allocs = Simple.allocations
+simpleAllocs :: SimpleAllocations -> UiConfig.Allocations
+simpleAllocs allocs = Simple.allocations
     [ (inst, (qual, Simple.Midi [("wdev", chan)]))
     | (chan, (inst, qual)) <- zip [0..] allocs
     ]
 
-im_allocs :: SimpleAllocations -> UiConfig.Allocations
-im_allocs allocs =
+imAllocs :: SimpleAllocations -> UiConfig.Allocations
+imAllocs allocs =
     Simple.allocations [(inst, (qual, Simple.Im)) | (inst, qual) <- allocs]
 
-lookup_qualified :: Cmd.InstrumentDb -> InstT.Qualified
+lookupQualified :: Cmd.InstrumentDb -> InstT.Qualified
     -> Maybe Cmd.Inst
-lookup_qualified db qual = Inst.lookup qual db
+lookupQualified db qual = Inst.lookup qual db
 
-with_allocations :: UiConfig.Allocations -> Setup
-with_allocations allocs =
-    with_ui $ Ui.config#UiConfig.allocations %= (allocs <>)
+withAllocations :: UiConfig.Allocations -> Setup
+withAllocations allocs =
+    withUi $ Ui.config#UiConfig.allocations %= (allocs <>)
 
-set_cmd_config :: (Cmd.Config -> Cmd.Config) -> Cmd.State -> Cmd.State
-set_cmd_config f state = state { Cmd.state_config = f (Cmd.state_config state) }
+setCmdConfig :: (Cmd.Config -> Cmd.Config) -> Cmd.State -> Cmd.State
+setCmdConfig f state = state { Cmd.stateConfig = f (Cmd.stateConfig state) }
 
 -- ** defaults
 
-default_cmd_state :: Cmd.State
-default_cmd_state = Cmd.initial_state (cmd_config UiTest.default_db)
+defaultCmdState :: Cmd.State
+defaultCmdState = Cmd.initialState (cmdConfig UiTest.defaultDb)
 
 -- | Config to initialize the Cmd.State.
-cmd_config :: Cmd.InstrumentDb -> Cmd.Config
-cmd_config inst_db = Cmd.Config
-    { config_app_dir = Path.AppDir "."
-    , config_save_dir = Path.make_canonical "."
-    , config_midi_interface = Unsafe.unsafePerformIO StubMidi.interface
-    , config_ky_paths = []
-    , config_rdev_map = mempty
-    , config_wdev_map = mempty
-    , config_instrument_db = inst_db
-    , config_builtins = C.All.builtins
-    , config_highlight_colors = Config.highlight_colors
-    , config_im = Shared.Config.Config
-        { imDir = Testing.tmp_base_dir </> "im"
+cmdConfig :: Cmd.InstrumentDb -> Cmd.Config
+cmdConfig instDb = Cmd.Config
+    { configAppDir = Path.AppDir "."
+    , configSaveDir = Path.makeCanonical "."
+    , configMidiInterface = Unsafe.unsafePerformIO StubMidi.interface
+    , configKyPaths = []
+    , configRdevMap = mempty
+    , configWdevMap = mempty
+    , configInstrumentDb = instDb
+    , configBuiltins = C.All.builtins
+    , configHighlightColors = Config.highlightColors
+    , configIm = Shared.Config.Config
+        { imDir = Testing.tmpBaseDir </> "im"
         , synths = Map.fromList
             [ ("im-synth", Shared.Config.Synth
                 { synthName = "test-synth"
@@ -503,395 +503,395 @@ cmd_config inst_db = Cmd.Config
                 })
             ]
         }
-    , config_git_user = SaveGitT.User "name" "email"
-    , config_im_play_direct = False
-    , config_play_cache = Nothing
+    , configGitUser = SaveGitT.User "name" "email"
+    , configImPlayDirect = False
+    , configPlayCache = Nothing
     }
 
-default_im_synth :: Inst.SynthDecl Cmd.InstrumentCode
-default_im_synth = im_synth "im-synth"
+defaultImSynth :: Inst.SynthDecl Cmd.InstrumentCode
+defaultImSynth = imSynth "im-synth"
 
-im_synth :: InstT.SynthName -> Inst.SynthDecl Cmd.InstrumentCode
-im_synth name = Inst.SynthDecl
-    { synthd_name = name
-    , synthd_doc = name
-    , synthd_patches = [(Patch.default_name, inst)]
-    , synthd_warns = []
+imSynth :: InstT.SynthName -> Inst.SynthDecl Cmd.InstrumentCode
+imSynth name = Inst.SynthDecl
+    { synthdName = name
+    , synthdDoc = name
+    , synthdPatches = [(Patch.defaultName, inst)]
+    , synthdWarns = []
     }
     where
     inst = Inst.Inst
-        { inst_backend = Inst.Im $ Im.Patch.patch
-            { Im.Patch.patch_controls = Map.fromList
+        { instBackend = Inst.Im $ Im.Patch.patch
+            { Im.Patch.patchControls = Map.fromList
                 [ (Control.pitch, "pitch doc")
                 , (Control.dynamic, "dyn doc")
                 ]
             }
-        , inst_common = Common.common Cmd.empty_code
+        , instCommon = Common.common Cmd.emptyCode
         }
 
-default_lookup_scale :: Derive.LookupScale
-default_lookup_scale = Cmd.lookup_scale
+defaultLookupScale :: Derive.LookupScale
+defaultLookupScale = Cmd.lookupScale
 
-default_builtins :: Derive.Builtins
-default_builtins = C.All.builtins
+defaultBuiltins :: Derive.Builtins
+defaultBuiltins = C.All.builtins
 
-default_constant :: Ui.State -> Derive.Cache -> Derive.ScoreDamage
+defaultConstant :: Ui.State -> Derive.Cache -> Derive.ScoreDamage
     -> Derive.Constant
-default_constant ui_state cache damage = Derive.initial_constant ui_state
-    default_builtins default_lookup_scale Scale.All2.scales
+defaultConstant uiState cache damage = Derive.initialConstant uiState
+    defaultBuiltins defaultLookupScale Scale.All2.scales
         (const (Left "DeriveTest.default_constant has no inst db")) cache
         damage
 
-default_dynamic :: Derive.Dynamic
-default_dynamic = Derive.initial_dynamic default_environ
+defaultDynamic :: Derive.Dynamic
+defaultDynamic = Derive.initialDynamic defaultEnviron
 
 -- | This will replace Monad.initial_dynamic state_environ entirely.
-default_environ :: Env.Environ
-default_environ = Env.from_list
+defaultEnviron :: Env.Environ
+defaultEnviron = Env.fromList
     -- tests are easier to write and read with integral interpolation
     [ (EnvKey.srate, DeriveT.num 1)
-    , (EnvKey.scale, DeriveT.VStr (Expr.scale_id_to_str Twelve.scale_id))
+    , (EnvKey.scale, DeriveT.VStr (Expr.scaleIdToStr Twelve.scaleId))
     , (EnvKey.attributes, DeriveT.VAttributes mempty)
-    ] <> Derive.initial_environ
+    ] <> Derive.initialEnviron
 
 -- *** instrument defaults
 
-default_convert_lookup :: Lookup
-default_convert_lookup =
-    make_convert_lookup UiTest.default_allocations UiTest.default_db
+defaultConvertLookup :: Lookup
+defaultConvertLookup =
+    makeConvertLookup UiTest.defaultAllocations UiTest.defaultDb
 
-synths_lookup_qualified :: [MidiInst.Synth] -> InstT.Qualified
+synthsLookupQualified :: [MidiInst.Synth] -> InstT.Qualified
     -> Maybe Cmd.Inst
-synths_lookup_qualified synth = \qualified -> Inst.lookup qualified db
-    where db = synths_to_db synth
+synthsLookupQualified synth = \qualified -> Inst.lookup qualified db
+    where db = synthsToDb synth
 
-synths_to_convert_lookup :: UiConfig.Allocations -> [MidiInst.Synth] -> Lookup
-synths_to_convert_lookup allocs = make_convert_lookup allocs . synths_to_db
+synthsToConvertLookup :: UiConfig.Allocations -> [MidiInst.Synth] -> Lookup
+synthsToConvertLookup allocs = makeConvertLookup allocs . synthsToDb
 
-synths_to_db :: [MidiInst.Synth] -> Cmd.InstrumentDb
-synths_to_db synths = trace_logs (map (Log.msg Log.Warn Nothing) warns) db
+synthsToDb :: [MidiInst.Synth] -> Cmd.InstrumentDb
+synthsToDb synths = traceLogs (map (Log.msg Log.Warn Nothing) warns) db
     where (db, warns) = Inst.db synths
 
 type Lookup =
     (ScoreT.Instrument -> Maybe Cmd.ResolvedInstrument, Convert.MidiLookup)
 
 -- | Make a Lookp for a single patch.
-make_convert_lookup_for :: ScoreT.Instrument -> Patch.Config -> Patch.Patch
+makeConvertLookupFor :: ScoreT.Instrument -> Patch.Config -> Patch.Patch
     -> Lookup
-make_convert_lookup_for inst patch_config patch =
-    make_convert_lookup allocs inst_db
+makeConvertLookupFor inst patchConfig patch =
+    makeConvertLookup allocs instDb
     where
-    allocs = UiConfig.midi_allocations
-        [(inst, (InstT.Qualified "s" "1", patch_config))]
-    inst_db = UiTest.make_db [("s", [patch { Patch.patch_name = "1" }])]
+    allocs = UiConfig.midiAllocations
+        [(inst, (InstT.Qualified "s" "1", patchConfig))]
+    instDb = UiTest.makeDb [("s", [patch { Patch.patchName = "1" }])]
 
-make_convert_lookup :: UiConfig.Allocations -> Cmd.InstrumentDb -> Lookup
-make_convert_lookup allocs db =
-    run_cmd (setup_ui setup Ui.empty) (setup_cmd setup default_cmd_state) $ do
-        lookup_inst <- Cmd.get_lookup_instrument
-        pure (lookup_inst, PlayUtil.make_midi_lookup lookup_inst)
-    where setup = with_instrument_db allocs db
+makeConvertLookup :: UiConfig.Allocations -> Cmd.InstrumentDb -> Lookup
+makeConvertLookup allocs db =
+    runCmd (setupUi setup Ui.empty) (setupCmd setup defaultCmdState) $ do
+        lookupInst <- Cmd.getLookupInstrument
+        pure (lookupInst, PlayUtil.makeMidiLookup lookupInst)
+    where setup = withInstrumentDb allocs db
 
 -- ** extract
 
 -- *** log msgs
 
-trace_logs :: [Log.Msg] -> a -> a
-trace_logs = trace_all_logs . filter interesting_log
+traceLogs :: [Log.Msg] -> a -> a
+traceLogs = traceAllLogs . filter interestingLog
 
 -- | Write log msgs with 'Debug.traceStr', for debugging.
-trace_all_logs :: [Log.Msg] -> a -> a
-trace_all_logs logs val
+traceAllLogs :: [Log.Msg] -> a -> a
+traceAllLogs logs val
     | null logs = val
     | otherwise = Debug.traceStr
-        (Text.stripEnd $ Text.unlines $ "\tlogged:" : map Log.format_msg logs)
+        (Text.stripEnd $ Text.unlines $ "\tlogged:" : map Log.formatMsg logs)
         val
 
 -- | Filter out low-priority logs and trace them.
-trace_low_prio :: [Log.Msg] -> [Log.Msg]
-trace_low_prio msgs = trace_all_logs low high
-    where (high, low) = List.partition interesting_log msgs
+traceLowPrio :: [Log.Msg] -> [Log.Msg]
+traceLowPrio msgs = traceAllLogs low high
+    where (high, low) = List.partition interestingLog msgs
 
 -- | Tests generally shouldn't depend on logs below a certain priority since
 -- those don't indicate anything interesting.
-interesting_log :: Log.Msg -> Bool
-interesting_log = (>=Log.Warn) . Log.msg_priority
+interestingLog :: Log.Msg -> Bool
+interestingLog = (>=Log.Warn) . Log.msgPriority
 
-quiet_filter_logs :: [Log.Msg] -> [Log.Msg]
-quiet_filter_logs = filter ((>=Log.Warn) . Log.msg_priority)
+quietFilterLogs :: [Log.Msg] -> [Log.Msg]
+quietFilterLogs = filter ((>=Log.Warn) . Log.msgPriority)
 
 -- ** extract
 
 extract :: (Score.Event -> a) -> Derive.Result -> ([a], [Text])
-extract e_event = extract_levents e_event . Stream.to_list . Derive.r_events
+extract eEvent = extractLevents eEvent . Stream.toList . Derive.rEvents
 
-filter_events :: (Score.Event -> Bool) -> Derive.Result -> Derive.Result
-filter_events f result =
-    result { Derive.r_events = filt (Derive.r_events result) }
+filterEvents :: (Score.Event -> Bool) -> Derive.Result -> Derive.Result
+filterEvents f result =
+    result { Derive.rEvents = filt (Derive.rEvents result) }
     where
-    filt = Stream.from_sorted_list . filter (LEvent.log_or f) . Stream.to_list
+    filt = Stream.fromSortedList . filter (LEvent.logOr f) . Stream.toList
 
-filter_events_range :: RealTime -> RealTime -> Derive.Result -> Derive.Result
-filter_events_range start end = filter_events $ \e ->
-    start <= Score.event_start e && Score.event_start e < end
+filterEventsRange :: RealTime -> RealTime -> Derive.Result -> Derive.Result
+filterEventsRange start end = filterEvents $ \e ->
+    start <= Score.eventStart e && Score.eventStart e < end
 
-extract_events :: (Score.Event -> a) -> Derive.Result -> [a]
-extract_events e_event result = trace_all_logs logs (map e_event events)
-    where (events, logs) = r_split result
+extractEvents :: (Score.Event -> a) -> Derive.Result -> [a]
+extractEvents eEvent result = traceAllLogs logs (map eEvent events)
+    where (events, logs) = rSplit result
 
-extract_levents :: (a -> b) -> [LEvent.LEvent a] -> ([b], [Text])
-extract_levents e_event = bimap (map e_event) (map show_log) . extract_logs
+extractLevents :: (a -> b) -> [LEvent.LEvent a] -> ([b], [Text])
+extractLevents eEvent = bimap (map eEvent) (map showLog) . extractLogs
 
-extract_logs :: [LEvent.LEvent a] -> ([a], [Log.Msg])
-extract_logs = second (filter interesting_log) . LEvent.partition
+extractLogs :: [LEvent.LEvent a] -> ([a], [Log.Msg])
+extractLogs = second (filter interestingLog) . LEvent.partition
 
-extract_stream :: (Score.Event -> a) -> Derive.Result -> [Either a Text]
-extract_stream e_event = mapMaybe extract . Stream.to_list . Derive.r_events
+extractStream :: (Score.Event -> a) -> Derive.Result -> [Either a Text]
+extractStream eEvent = mapMaybe extract . Stream.toList . Derive.rEvents
     where
     extract (LEvent.Log log)
-        | interesting_log log = Just $ Right $ show_log log
+        | interestingLog log = Just $ Right $ showLog log
         | otherwise = Nothing
-    extract (LEvent.Event e) = Just $ Left $ e_event e
+    extract (LEvent.Event e) = Just $ Left $ eEvent e
 
-r_split :: Derive.Result -> ([Score.Event], [Log.Msg])
-r_split = second (filter interesting_log) . Stream.partition . Derive.r_events
+rSplit :: Derive.Result -> ([Score.Event], [Log.Msg])
+rSplit = second (filter interestingLog) . Stream.partition . Derive.rEvents
 
-r_logs :: Derive.Result -> [Log.Msg]
-r_logs = snd . r_split
+rLogs :: Derive.Result -> [Log.Msg]
+rLogs = snd . rSplit
 
-stack_to_ui :: Stack.Stack -> [Text]
-stack_to_ui = map Stack.unparse_ui_frame . Stack.to_ui
+stackToUi :: Stack.Stack -> [Text]
+stackToUi = map Stack.unparseUiFrame . Stack.toUi
 
-r_log_strings :: Derive.Result -> [Text]
-r_log_strings = snd . extract id
+rLogStrings :: Derive.Result -> [Text]
+rLogStrings = snd . extract id
 
-e_event :: Score.Event -> (RealTime, RealTime, Text)
-e_event e = (Score.event_start e, Score.event_duration e, Score.event_text e)
+eEvent :: Score.Event -> (RealTime, RealTime, Text)
+eEvent e = (Score.eventStart e, Score.eventDuration e, Score.eventText e)
 
-e_start_dur :: Score.Event -> (RealTime, RealTime)
-e_start_dur e = (Score.event_start e, Score.event_duration e)
+eStartDur :: Score.Event -> (RealTime, RealTime)
+eStartDur e = (Score.eventStart e, Score.eventDuration e)
 
-e_instrument :: Score.Event -> Text
-e_instrument = ScoreT.instrument_name . Score.event_instrument
+eInstrument :: Score.Event -> Text
+eInstrument = ScoreT.instrumentName . Score.eventInstrument
 
-e_control :: ScoreT.Control -> Score.Event -> [(RealTime, Signal.Y)]
-e_control control = Lists.dropDups id
-    . maybe [] (Signal.to_pairs . ScoreT.val_of)
-    . Score.event_control control
+eControl :: ScoreT.Control -> Score.Event -> [(RealTime, Signal.Y)]
+eControl control = Lists.dropDups id
+    . maybe [] (Signal.toPairs . ScoreT.valOf)
+    . Score.eventControl control
 
-e_controls :: Score.Event -> [(ScoreT.Control, [(Signal.X, Signal.Y)])]
-e_controls = map (second (Signal.to_pairs . ScoreT.val_of)) . Map.toList
-    . Score.event_controls
+eControls :: Score.Event -> [(ScoreT.Control, [(Signal.X, Signal.Y)])]
+eControls = map (second (Signal.toPairs . ScoreT.valOf)) . Map.toList
+    . Score.eventControls
 
-lookup_control :: ScoreT.Control -> Derive.Dynamic -> Maybe ScoreT.TypedSignal
-lookup_control (ScoreT.Control c) =
-    to_signal <=< Env.lookup c . Derive.state_environ
+lookupControl :: ScoreT.Control -> Derive.Dynamic -> Maybe ScoreT.TypedSignal
+lookupControl (ScoreT.Control c) =
+    toSignal <=< Env.lookup c . Derive.stateEnviron
     where
-    to_signal val = case Typecheck.val_to_signal val of
+    toSignal val = case Typecheck.valToSignal val of
         Just (Right sig) -> Just sig
         _ -> Nothing
 
-e_control_vals :: ScoreT.Control -> Score.Event -> [Signal.Y]
-e_control_vals control = map snd . Lists.dropInitialDups fst . e_control control
+eControlVals :: ScoreT.Control -> Score.Event -> [Signal.Y]
+eControlVals control = map snd . Lists.dropInitialDups fst . eControl control
 
-e_control_constant :: ScoreT.Control -> Score.Event -> Maybe Signal.Y
-e_control_constant control = Signal.constant_val . ScoreT.val_of
-    <=< Map.lookup control . Score.event_controls
+eControlConstant :: ScoreT.Control -> Score.Event -> Maybe Signal.Y
+eControlConstant control = Signal.constantVal . ScoreT.valOf
+    <=< Map.lookup control . Score.eventControls
 
-e_initial_control :: ScoreT.Control -> Score.Event -> Maybe Signal.Y
-e_initial_control control event = ScoreT.val_of <$>
-    Score.control_at (Score.event_start event) control event
+eInitialControl :: ScoreT.Control -> Score.Event -> Maybe Signal.Y
+eInitialControl control event = ScoreT.valOf <$>
+    Score.controlAt (Score.eventStart event) control event
 
-e_dyn :: Score.Event -> [(RealTime, Signal.Y)]
-e_dyn = Lists.dropDups id . e_control Controls.dynamic
+eDyn :: Score.Event -> [(RealTime, Signal.Y)]
+eDyn = Lists.dropDups id . eControl Controls.dynamic
 
-e_dyn_rounded :: Score.Event -> [(RealTime, Signal.Y)]
-e_dyn_rounded = Lists.dropDups id . map (second (Num.roundDigits 2))
-    . e_control Controls.dynamic
+eDynRounded :: Score.Event -> [(RealTime, Signal.Y)]
+eDynRounded = Lists.dropDups id . map (second (Num.roundDigits 2))
+    . eControl Controls.dynamic
 
 -- | Like 'e_nns', but drop discontinuities.
 --
 -- TODO don't use this for new tests, this is just left over from pre-linear
 -- segments so I don't have to update a million tests.
-e_nns_old :: HasCallStack => Score.Event -> [(RealTime, Pitch.NoteNumber)]
-e_nns_old e
+eNnsOld :: HasCallStack => Score.Event -> [(RealTime, Pitch.NoteNumber)]
+eNnsOld e
     | not (null errs) = error $ "errors flattening signal: " <> show errs
     | otherwise = Lists.dropDups snd $ Lists.dropInitialDups fst sig
-    where (sig, errs) = e_nns_errors e
+    where (sig, errs) = eNnsErrors e
 
 -- | Like 'e_nns_errors', but throw an exception if there are errors.
-e_nns :: HasCallStack => Score.Event -> [(RealTime, Pitch.NoteNumber)]
-e_nns e
+eNns :: HasCallStack => Score.Event -> [(RealTime, Pitch.NoteNumber)]
+eNns e
     | not (null errs) = error $ "errors flattening signal: " <> show errs
     | otherwise = Lists.dropDups id sig
-    where (sig, errs) = e_nns_errors e
+    where (sig, errs) = eNnsErrors e
 
 -- | Like 'e_nns', but round to cents to make comparison easier.
-e_nns_rounded :: Score.Event -> [(RealTime, Pitch.NoteNumber)]
-e_nns_rounded = map (second (Num.roundDigits 2)) . e_nns
+eNnsRounded :: Score.Event -> [(RealTime, Pitch.NoteNumber)]
+eNnsRounded = map (second (Num.roundDigits 2)) . eNns
 
-e_nn_rounded :: Score.Event -> Pitch.NoteNumber
-e_nn_rounded = maybe 0 (Num.roundDigits 2) . Score.initial_nn
+eNnRounded :: Score.Event -> Pitch.NoteNumber
+eNnRounded = maybe 0 (Num.roundDigits 2) . Score.initialNn
 
 -- | Extract pitch signal and any errors flattening it.
-e_nns_errors :: Score.Event -> ([(RealTime, Pitch.NoteNumber)], [Text])
-e_nns_errors =
-    bimap (map (second Pitch.nn) . Signal.to_pairs) (map pretty)
-    . PSignal.to_nn . Score.event_pitch . Score.normalize
+eNnsErrors :: Score.Event -> ([(RealTime, Pitch.NoteNumber)], [Text])
+eNnsErrors =
+    bimap (map (second Pitch.nn) . Signal.toPairs) (map pretty)
+    . PSignal.toNn . Score.eventPitch . Score.normalize
 
-flat_segments :: [(x, y)] -> [(x, y)]
-flat_segments = concatMap make . Lists.zipNext
+flatSegments :: [(x, y)] -> [(x, y)]
+flatSegments = concatMap make . Lists.zipNext
     where
     make ((x0, y), Just (x1, _)) = [(x0, y), (x1, y)]
     make (xy, Nothing) = [xy]
 
-e_pitch :: Score.Event -> Text
-e_pitch e = maybe "?" Pitch.note_text (Score.initial_note e)
+ePitch :: Score.Event -> Text
+ePitch e = maybe "?" Pitch.noteText (Score.initialNote e)
 
 -- | (start, dur, pitch), the melodic essentials of a note.
-e_note :: Score.Event -> (RealTime, RealTime, Text)
-e_note e = (Score.event_start e, Score.event_duration e, e_pitch e)
+eNote :: Score.Event -> (RealTime, RealTime, Text)
+eNote e = (Score.eventStart e, Score.eventDuration e, ePitch e)
 
-e_start_note :: Score.Event -> (RealTime, Text)
-e_start_note e = (Score.event_start e, e_pitch e)
+eStartNote :: Score.Event -> (RealTime, Text)
+eStartNote e = (Score.eventStart e, ePitch e)
 
-e_attributes :: Score.Event -> Text
-e_attributes = ShowVal.show_val . Score.event_attributes
+eAttributes :: Score.Event -> Text
+eAttributes = ShowVal.showVal . Score.eventAttributes
 
-e_environ :: Env.Key -> Score.Event -> Maybe Text
-e_environ name = fmap ShowVal.show_val . Env.lookup name . Score.event_environ
+eEnviron :: Env.Key -> Score.Event -> Maybe Text
+eEnviron name = fmap ShowVal.showVal . Env.lookup name . Score.eventEnviron
 
-e_environ_like :: (Text -> Bool) -> Score.Event -> [(Env.Key, Text)]
-e_environ_like f event =
-    [ (k, ShowVal.show_val v)
-    | (k, v) <- Env.to_list (Score.event_environ event), f k
+eEnvironLike :: (Text -> Bool) -> Score.Event -> [(Env.Key, Text)]
+eEnvironLike f event =
+    [ (k, ShowVal.showVal v)
+    | (k, v) <- Env.toList (Score.eventEnviron event), f k
     ]
 
-e_environ_val :: Typecheck.Typecheck a => Env.Key -> Score.Event -> Maybe a
-e_environ_val name = Env.maybe_val name . Score.event_environ
+eEnvironVal :: Typecheck.Typecheck a => Env.Key -> Score.Event -> Maybe a
+eEnvironVal name = Env.maybeVal name . Score.eventEnviron
 
-e_tsigs :: Derive.Result -> [((BlockId, TrackId), [(Signal.X, Signal.Y)])]
-e_tsigs =
+eTsigs :: Derive.Result -> [((BlockId, TrackId), [(Signal.X, Signal.Y)])]
+eTsigs =
     filter (not . null . snd) . Map.toList . Map.map tsig
-        . Derive.r_track_signals
-    where tsig t = Signal.to_pairs $ Track.ts_signal t
+        . Derive.rTrackSignals
+    where tsig t = Signal.toPairs $ Track.tsSignal t
 
-e_tsig_logs :: Derive.Result -> [Text]
-e_tsig_logs = filter ("Track signal: " `Text.isPrefixOf`) . map show_log
-    . Stream.logs_of . Derive.r_events
+eTsigLogs :: Derive.Result -> [Text]
+eTsigLogs = filter ("Track signal: " `Text.isPrefixOf`) . map showLog
+    . Stream.logsOf . Derive.rEvents
 
 -- ** extract log msgs
 
-show_log_stack :: Log.Msg -> Text
-show_log_stack msg = show_stack (Log.msg_stack msg) <> ": " <> show_log msg
+showLogStack :: Log.Msg -> Text
+showLogStack msg = showStack (Log.msgStack msg) <> ": " <> showLog msg
 
 -- | Show an abbreviated stack from the log.  This is meant to be similar to
 -- how LogView does it, so that in tests I get an accurate idea of the actual
 -- error.
-show_stack :: Maybe Stack.Stack -> Text
-show_stack =  show_stack_ True
+showStack :: Maybe Stack.Stack -> Text
+showStack =  showStack_ True
 
-show_stack_ :: Bool -> Maybe Stack.Stack -> Text
-show_stack_ _ Nothing = ""
-show_stack_ with_call (Just stack)
+showStack_ :: Bool -> Maybe Stack.Stack -> Text
+showStack_ _ Nothing = ""
+showStack_ withCall (Just stack)
     | null ui = "<no stack>"
     -- This uses ': ' so 'x: *' works regardless of where in the stack x is.
-    | otherwise = Text.intercalate ": " (map Stack.unparse_ui_frame_ ui)
-        <> maybe "" (": "<>) (last_call stack)
+    | otherwise = Text.intercalate ": " (map Stack.unparseUiFrame_ ui)
+        <> maybe "" (": "<>) (lastCall stack)
     where
-    ui = Stack.to_ui stack
-    last_call
-        | with_call = fmap (\c -> if Text.null c then "''" else c) . Lists.head
-            . mapMaybe Stack.call_of . Stack.innermost
+    ui = Stack.toUi stack
+    lastCall
+        | withCall = fmap (\c -> if Text.null c then "''" else c) . Lists.head
+            . mapMaybe Stack.callOf . Stack.innermost
         | otherwise = const Nothing
 
-show_log :: Log.Msg -> Text
-show_log = Log.msg_text
+showLog :: Log.Msg -> Text
+showLog = Log.msgText
 
-show_interesting_log :: Log.Msg -> Maybe Text
-show_interesting_log msg
-    | interesting_log msg = Just (Log.msg_text msg)
+showInterestingLog :: Log.Msg -> Maybe Text
+showInterestingLog msg
+    | interestingLog msg = Just (Log.msgText msg)
     | otherwise = Nothing
 
 -- ** extract midi msgs
 
-note_on_vel :: [Midi.WriteMessage] -> [(Integer, Midi.Key, Midi.Velocity)]
-note_on_vel msgs =
+noteOnVel :: [Midi.WriteMessage] -> [(Integer, Midi.Key, Midi.Velocity)]
+noteOnVel msgs =
     [ (ts, nn, vel)
-    | (ts, Midi.ChannelMessage _ (Midi.NoteOn nn vel)) <- extract_midi msgs
+    | (ts, Midi.ChannelMessage _ (Midi.NoteOn nn vel)) <- extractMidi msgs
     ]
 
-note_on :: [Midi.WriteMessage] -> [Midi.Key]
-note_on msgs = [nn | (_, nn, _) <- note_on_vel msgs]
+noteOn :: [Midi.WriteMessage] -> [Midi.Key]
+noteOn msgs = [nn | (_, nn, _) <- noteOnVel msgs]
 
-note_on_cc :: [Midi.WriteMessage]
+noteOnCc :: [Midi.WriteMessage]
     -> [Either Midi.Key (Midi.Control, Midi.ControlValue)]
-note_on_cc = mapMaybe (extract . snd) . extract_midi
+noteOnCc = mapMaybe (extract . snd) . extractMidi
     where
     extract (Midi.ChannelMessage _ (Midi.NoteOn nn _)) = Just $ Left nn
     extract (Midi.ChannelMessage _ (Midi.ControlChange cc val)) =
         Just $ Right (cc, val)
     extract _ = Nothing
 
-midi_channel :: [Midi.WriteMessage] -> [(Midi.Channel, Midi.ChannelMessage)]
-midi_channel midi =
+midiChannel :: [Midi.WriteMessage] -> [(Midi.Channel, Midi.ChannelMessage)]
+midiChannel midi =
     [ (chan, msg)
-    | Midi.ChannelMessage chan msg <- map Midi.wmsg_msg (interesting_midi midi)
+    | Midi.ChannelMessage chan msg <- map Midi.wmsgMsg (interestingMidi midi)
     ]
 
-extract_midi :: [Midi.WriteMessage] -> [(Integer, Midi.Message)]
-extract_midi midi =
-    [ (RealTime.to_milliseconds ts, msg)
-    | Midi.WriteMessage _ ts msg <- interesting_midi midi
+extractMidi :: [Midi.WriteMessage] -> [(Integer, Midi.Message)]
+extractMidi midi =
+    [ (RealTime.toMilliseconds ts, msg)
+    | Midi.WriteMessage _ ts msg <- interestingMidi midi
     ]
 
-extract_midi_msg :: [Midi.WriteMessage] -> [Midi.Message]
-extract_midi_msg = map snd . extract_midi
+extractMidiMsg :: [Midi.WriteMessage] -> [Midi.Message]
+extractMidiMsg = map snd . extractMidi
 
 -- | Filter out boring msgs that I don't want tests to rely on.
-interesting_midi :: [Midi.WriteMessage] -> [Midi.WriteMessage]
-interesting_midi = filter $ \wmsg -> case Midi.wmsg_msg wmsg of
+interestingMidi :: [Midi.WriteMessage] -> [Midi.WriteMessage]
+interestingMidi = filter $ \wmsg -> case Midi.wmsgMsg wmsg of
     Midi.ChannelMessage _ (Midi.PitchBend 0) -> False
     _ -> True
 
 -- ** ui state
 
-e_state :: Derive.Result -> Ui.State
-e_state = Derive.state_ui . Derive.state_constant . Derive.r_state
+eState :: Derive.Result -> Ui.State
+eState = Derive.stateUi . Derive.stateConstant . Derive.rState
 
 -- * call
 
-passed_args :: Derive.CallName -> [DeriveT.Val] -> Derive.PassedArgs derived
-passed_args name vals = Derive.PassedArgs
-    { Derive.passed_vals = vals
-    , Derive.passed_call_name = name
-    , Derive.passed_ctx = Derive.dummy_context 0 1 "DeriveTest"
+passedArgs :: Derive.CallName -> [DeriveT.Val] -> Derive.PassedArgs derived
+passedArgs name vals = Derive.PassedArgs
+    { Derive.passedVals = vals
+    , Derive.passedCallName = name
+    , Derive.passedCtx = Derive.dummyContext 0 1 "DeriveTest"
     }
 
-c_note :: ScoreTime -> ScoreTime -> Derive.NoteDeriver
-c_note s_start dur = do
-    start <- Derive.real s_start
-    end <- Derive.real (s_start + dur)
-    inst <- Derive.get_val EnvKey.instrument
-    environ <- Derive.get_environ
-    st <- Derive.gets Derive.state_dynamic
-    cmap <- Derive.get_control_map
-    pure $! Stream.from_event $! Score.empty_event
-        { Score.event_start = start
-        , Score.event_duration = end - start
-        , Score.event_text = "evt"
-        , Score.event_pitch = Derive.state_pitch st
-        , Score.event_instrument = inst
-        , Score.event_environ = environ <> Env.from_controls cmap
+cNote :: ScoreTime -> ScoreTime -> Derive.NoteDeriver
+cNote sStart dur = do
+    start <- Derive.real sStart
+    end <- Derive.real (sStart + dur)
+    inst <- Derive.getVal EnvKey.instrument
+    environ <- Derive.getEnviron
+    st <- Derive.gets Derive.stateDynamic
+    cmap <- Derive.getControlMap
+    pure $! Stream.fromEvent $! Score.emptyEvent
+        { Score.eventStart = start
+        , Score.eventDuration = end - start
+        , Score.eventText = "evt"
+        , Score.eventPitch = Derive.statePitch st
+        , Score.eventInstrument = inst
+        , Score.eventEnviron = environ <> Env.fromControls cmap
         }
 
 -- * scale
 
 mkscale :: Pitch.ScaleId -> [(Text, Pitch.NoteNumber)] -> Scale.Scale
-mkscale scale_id notes =
-    Scales.make_scale scale_id dmap "pattern" "simple test scale"
+mkscale scaleId notes =
+    Scales.makeScale scaleId dmap "pattern" "simple test scale"
     where
-    dmap = Scales.degree_map 8 0 0 (map (Pitch.Note . fst) notes)
+    dmap = Scales.degreeMap 8 0 0 (map (Pitch.Note . fst) notes)
         (map snd notes)
 
 -- * mkevents
@@ -902,35 +902,35 @@ type Controls = [(ScoreT.Control, [(RealTime, Signal.Y)])]
 type ControlVals = [(ScoreT.Control, Signal.Y)]
 
 mkevent :: HasCallStack => EventSpec -> Score.Event
-mkevent = mkevent_scale Twelve.scale
+mkevent = mkeventScale Twelve.scale
 
 -- | Make an event with a non-twelve scale.
-mkevent_scale :: HasCallStack => Scale.Scale -> EventSpec -> Score.Event
-mkevent_scale scale = mkevent_scale_key scale Nothing
+mkeventScale :: HasCallStack => Scale.Scale -> EventSpec -> Score.Event
+mkeventScale scale = mkeventScaleKey scale Nothing
 
-mkevent_scale_key :: HasCallStack => Scale.Scale -> Maybe Text
+mkeventScaleKey :: HasCallStack => Scale.Scale -> Maybe Text
     -> EventSpec -> Score.Event
-mkevent_scale_key scale key (start, dur, pitch, controls, inst) =
-    maybe id (\k -> Score.modify_environ (Env.insert_val EnvKey.key k)) key $
-    Score.empty_event
-        { Score.event_start = start
-        , Score.event_duration = dur
-        , Score.event_text = ""
-        , Score.event_environ = Env.from_controls $ mkcontrols controls
-        , Score.event_pitch = PSignal.from_sample start (mkpitch scale pitch)
-        , Score.event_stack = fake_stack
-        , Score.event_instrument = inst
+mkeventScaleKey scale key (start, dur, pitch, controls, inst) =
+    maybe id (\k -> Score.modifyEnviron (Env.insertVal EnvKey.key k)) key $
+    Score.emptyEvent
+        { Score.eventStart = start
+        , Score.eventDuration = dur
+        , Score.eventText = ""
+        , Score.eventEnviron = Env.fromControls $ mkcontrols controls
+        , Score.eventPitch = PSignal.fromSample start (mkpitch scale pitch)
+        , Score.eventStack = fakeStack
+        , Score.eventInstrument = inst
         }
 
 psignal :: [(RealTime, Text)] -> PSignal.PSignal
-psignal = PSignal.from_pairs . map (second mkpitch12)
+psignal = PSignal.fromPairs . map (second mkpitch12)
 
 mkcontrols :: Controls -> ScoreT.ControlMap
 mkcontrols cs = Map.fromList
-    [(c, ScoreT.untyped (Signal.from_pairs sig)) | (c, sig) <- cs]
+    [(c, ScoreT.untyped (Signal.fromPairs sig)) | (c, sig) <- cs]
 
-mkcontrols_const :: ControlVals -> ScoreT.ControlMap
-mkcontrols_const cs = mkcontrols [(c, [(0, val)]) | (c, val) <- cs]
+mkcontrolsConst :: ControlVals -> ScoreT.ControlMap
+mkcontrolsConst cs = mkcontrols [(c, [(0, val)]) | (c, val) <- cs]
 
 mkpitch12 :: Text -> PSignal.Pitch
 mkpitch12 = mkpitch Twelve.scale
@@ -940,14 +940,14 @@ mkpitch scale p = case eval Ui.empty deriver of
     Left err -> error $ "mkpitch " <> show p <> ": " <> untxt err
     Right pitch -> pitch
     where
-    deriver = Derive.with_scale scale $
-        Eval.eval_pitch 0 $ Expr.call0 (Expr.Symbol p)
+    deriver = Derive.withScale scale $
+        Eval.evalPitch 0 $ Expr.call0 (Expr.Symbol p)
 
-default_scale :: Scale.Scale
-default_scale = Twelve.scale
+defaultScale :: Scale.Scale
+defaultScale = Twelve.scale
 
-fake_stack :: Stack.Stack
-fake_stack = Stack.from_outermost
+fakeStack :: Stack.Stack
+fakeStack = Stack.fromOutermost
     [ Stack.Block (UiTest.bid "fakeblock")
     , Stack.Track (UiTest.tid "faketrack")
     , Stack.Region 42 43
@@ -955,8 +955,8 @@ fake_stack = Stack.from_outermost
 
 -- * create misc
 
-make_damage :: Text -> TrackNum -> ScoreTime -> ScoreTime
+makeDamage :: Text -> TrackNum -> ScoreTime -> ScoreTime
     -> Derive.ScoreDamage
-make_damage block tracknum s e = Derive.ScoreDamage
-    (Map.singleton (UiTest.mk_tid_name block tracknum) (Ranges.range s e))
+makeDamage block tracknum s e = Derive.ScoreDamage
+    (Map.singleton (UiTest.mkTidName block tracknum) (Ranges.range s e))
     (Set.singleton (UiTest.bid block)) mempty

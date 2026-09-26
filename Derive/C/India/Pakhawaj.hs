@@ -28,65 +28,65 @@ import           Types
 
 
 library :: Library.Library
-library = Library.generators [("bols", c_bols)]
+library = Library.generators [("bols", cBols)]
 
 -- * calls
 
-c_bols :: Derive.Generator Derive.Note
-c_bols = Derive.generator ("india" <> "pakhawaj") "bols"
+cBols :: Derive.Generator Derive.Note
+cBols = Derive.generator ("india" <> "pakhawaj") "bols"
     (Tags.inst <> Tags.subs)
     ("Interpret pakhawaj bols in sub events.  Bols: "
-        <> Texts.join " / " (map (Doc.Doc . Text.unwords . fst) all_bols))
+        <> Texts.join " / " (map (Doc.Doc . Text.unwords . fst) allBols))
     $ Sig.call (
         Sig.defaulted "flam" (0.15 :: Double)
             "Time between flam type bols like `kre`."
-    ) $ \flam_dur  args -> do
-        args <- Derive.require_right id $
-            Sub.modify_notes (realize_events (Args.end args) flam_dur) args
-        events <- Sub.sub_events args
+    ) $ \flamDur  args -> do
+        args <- Derive.requireRight id $
+            Sub.modifyNotes (realizeEvents (Args.end args) flamDur) args
+        events <- Sub.subEvents args
         mconcatMap Sub.derive events
 
-realize_events :: ScoreTime -> ScoreTime -> [SubT.EventT Text]
+realizeEvents :: ScoreTime -> ScoreTime -> [SubT.EventT Text]
     -> Either Text [SubT.EventT Text]
-realize_events end flam_dur =
-    fmap (map to . bols_to_attribute flam_dur) . realize_bols end . map from
+realizeEvents end flamDur =
+    fmap (map to . bolsToAttribute flamDur) . realizeBols end . map from
     where
     from e = (SubT._start e, SubT._note e)
     -- TODO this is a bit sketchy since I'm relying on the +attr lookup call.
     -- But to directly add the call I would have to be able to return
     -- a NoteDeriver, not just text.  Of course, if I wind up using a score
     -- integrate, then of course I'd need text again.
-    to (t, attrs) = SubT.EventT t 0 (ShowVal.show_val attrs)
+    to (t, attrs) = SubT.EventT t 0 (ShowVal.showVal attrs)
 
-bols_to_attribute :: ScoreTime -> [(ScoreTime, Bol)]
+bolsToAttribute :: ScoreTime -> [(ScoreTime, Bol)]
     -> [(ScoreTime, Attrs.Attributes)]
-bols_to_attribute flam notes =
-    concat $ zipWith (bol_to_attribute flam) ts (infer_tette bols)
+bolsToAttribute flam notes =
+    concat $ zipWith (bolToAttribute flam) ts (inferTette bols)
     where (ts, bols) = unzip notes
 
-realize_bols :: ScoreTime -- ^ End time, which is used for the duration of the
+realizeBols :: ScoreTime -- ^ End time, which is used for the duration of the
     -- final note.  This is needed if the last bol is a sequence.
     -> [(ScoreTime, Text)] -> Either Text [(ScoreTime, Bol)]
-realize_bols end = fmap realize_notes . match_syllables
+realizeBols end = fmap realizeNotes . matchSyllables
     where
-    realize_notes = concatMap realize_note . Lists.zipNext
-    realize_note ((t, note), next) = case note of
+    realizeNotes = concatMap realizeNote . Lists.zipNext
+    realizeNote ((t, note), next) = case note of
         Rest -> []
         Note bol -> [(t, bol)]
-        Notes notes -> realize_notes $ zip ts notes
+        Notes notes -> realizeNotes $ zip ts notes
             where ts = Lists.range_ t (dur / fromIntegral (length notes))
         where dur = maybe end fst next - t
 
-bol_to_attribute :: ScoreTime -> ScoreTime -> Bol
+bolToAttribute :: ScoreTime -> ScoreTime -> Bol
     -> [(ScoreTime, Attrs.Attributes)]
-bol_to_attribute flam t bol = case bol of
-    One s -> [(t, stroke_to_attribute s)]
-    Together s1 s2 -> [(t, stroke_to_attribute s1), (t, stroke_to_attribute s2)]
+bolToAttribute flam t bol = case bol of
+    One s -> [(t, strokeToAttribute s)]
+    Together s1 s2 -> [(t, strokeToAttribute s1), (t, strokeToAttribute s2)]
     Flam s1 s2 ->
-        [(t, stroke_to_attribute s1), (t + flam, stroke_to_attribute s2)]
+        [(t, strokeToAttribute s1), (t + flam, strokeToAttribute s2)]
 
-stroke_to_attribute :: Stroke -> Attrs.Attributes
-stroke_to_attribute s = case s of
+strokeToAttribute :: Stroke -> Attrs.Attributes
+strokeToAttribute s = case s of
     -- This should have already been eliminated by 'infer_tette'.
     Tette -> Attrs.attr "tet"
     _ -> Attrs.attr (Text.toLower (showt s))
@@ -111,14 +111,14 @@ data Bol = One Stroke | Together Stroke Stroke | Flam Stroke Stroke
 data Note a = Rest | Note a | Notes [Note a]
     deriving (Show, Eq, Functor, Foldable, Traversable)
 
-map_stroke :: (Stroke -> Stroke) -> Bol -> Bol
-map_stroke f bol = case bol of
+mapStroke :: (Stroke -> Stroke) -> Bol -> Bol
+mapStroke f bol = case bol of
     One b -> One (f b)
     Together b1 b2 -> Together (f b1) (f b2)
     Flam b1 b2 -> Flam (f b1) (f b2)
 
-strokes_of :: Bol -> [Stroke]
-strokes_of bol = case bol of
+strokesOf :: Bol -> [Stroke]
+strokesOf bol = case bol of
     One b -> [b]
     Together b1 b2 -> [b1, b2]
     Flam b1 b2 -> [b1, b2]
@@ -137,14 +137,14 @@ instance Pretty a => Pretty (Note a) where
 -- | Textual representation of a bol.
 type Syllable = Text
 
-all_bols :: [([Syllable], [Note Bol])]
-all_bols =
-    [([name], [Note bol]) | (names, bol) <- single_bols, name <- names]
+allBols :: [([Syllable], [Note Bol])]
+allBols =
+    [([name], [Note bol]) | (names, bol) <- singleBols, name <- names]
     ++ sequences
 
 -- Single strokes.
-single_bols :: [([Syllable], Bol)]
-single_bols =
+singleBols :: [([Syllable], Bol)]
+singleBols =
     [ (["tet"], One Tet)
     , (["te"], One Te)
     , (["ne", "re"], One Ne)
@@ -185,52 +185,52 @@ sequences =
 
 -- | Parse scores from "Derive.Call.India.PakhawajScore".
 parse :: ScoreTime -> Text -> Either Text [(ScoreTime, Bol)]
-parse dur = fmap infer . realize_bols dur . zip (Lists.range_ 0 dur)
+parse dur = fmap infer . realizeBols dur . zip (Lists.range_ 0 dur)
     . Text.words . Text.replace "|" " " . Text.toLower
     where
-    infer notes = zip ts (infer_tette bols)
+    infer notes = zip ts (inferTette bols)
         where (ts, bols) = unzip notes
 
-match_syllables :: [(a, Syllable)] -> Either Text [(a, Note Bol)]
-match_syllables = go
+matchSyllables :: [(a, Syllable)] -> Either Text [(a, Note Bol)]
+matchSyllables = go
     where
     go [] = Right []
     go syllables@((annot, w) : ws)
         | w == "-" = ((annot, Rest) :) <$> go ws
-        | Just (rest, bols) <- best_match syllables = (bols++) <$> go rest
+        | Just (rest, bols) <- bestMatch syllables = (bols++) <$> go rest
         | otherwise = Left $ "unknown bol: " <> showt w
-    best_match syllables = fmap snd $
-        Lists.maximumOn fst $ mapMaybe (match_bols syllables) all_bols
-    match_bols :: [(a, Syllable)] -> ([Syllable], [Note Bol])
+    bestMatch syllables = fmap snd $
+        Lists.maximumOn fst $ mapMaybe (matchBols syllables) allBols
+    matchBols :: [(a, Syllable)] -> ([Syllable], [Note Bol])
         -> Maybe (Int, ([(a, Syllable)], [(a, Note Bol)]))
-    match_bols syllables (bol_syllables, bols)
-        | pre == bol_syllables =
-            Just (length bol_syllables, (post, zip annots bols))
+    matchBols syllables (bolSyllables, bols)
+        | pre == bolSyllables =
+            Just (length bolSyllables, (post, zip annots bols))
         | otherwise = Nothing
         where
         ((annots, pre), post) = first unzip $
-            splitAt (length bol_syllables) syllables
+            splitAt (length bolSyllables) syllables
 
 -- | Replace 'Tette' with either Tet or Te, based on its neighbors.
-infer_tette :: [Bol] -> [Bol]
-infer_tette = map_neighbors infer
+inferTette :: [Bol] -> [Bol]
+inferTette = mapNeighbors infer
     where
     infer prev bol next
-        | Tette `elem` strokes_of bol = map_stroke (replace replacement) bol
+        | Tette `elem` strokesOf bol = mapStroke (replace replacement) bol
         | otherwise = bol
         where
         replacement = case (prev, next) of
-            (Just p, _) | Tet `elem` strokes_of p -> Te
-            (_, Just n) | Tet  `elem` strokes_of n -> Te
+            (Just p, _) | Tet `elem` strokesOf p -> Te
+            (_, Just n) | Tet  `elem` strokesOf n -> Te
             _ -> Tet
     replace stroke Tette = stroke
     replace _ stroke = stroke
 
 -- | This is different from @map f . Lists.zipNeighbors@ in that you can see
 -- whatever change @f@ made to the previous value.
-map_neighbors :: Traversable t => (Maybe b -> a -> Maybe a -> b)
+mapNeighbors :: Traversable t => (Maybe b -> a -> Maybe a -> b)
     -> t a -> t b
-map_neighbors f xs =
+mapNeighbors f xs =
     snd $ Traversable.mapAccumL go (Nothing, drop 1 (Foldable.toList xs)) xs
     where
     go (prev, nexts) x = ((Just y, drop 1 nexts), y)

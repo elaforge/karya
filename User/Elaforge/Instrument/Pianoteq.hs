@@ -30,20 +30,20 @@ synth = MidiInst.synth "pianoteq" "Modartt Pianoteq" patches
 
 patches :: [MidiInst.Patch]
 patches =
-    [ MidiInst.default_patch pb_range
+    [ MidiInst.defaultPatch pbRange
         [ (67, "soft-pedal")
         , (69, "harmonic-pedal")
         , (66, "sost-pedal")
         , (64, Controls.pedal)
         -- whole bunch more
         ]
-    , MidiInst.code #= Bali.pasang_code $ patch "pasang" []
-    , MidiInst.nn_range (NN.g2, NN.a6) $ patch "yangqin" []
+    , MidiInst.code #= Bali.pasangCode $ patch "pasang" []
+    , MidiInst.nnRange (NN.g2, NN.a6) $ patch "yangqin" []
     , harp
     ]
 
-pb_range :: Patch.PbRange
-pb_range = (-24, 24)
+pbRange :: Patch.PbRange
+pbRange = (-24, 24)
 
 harp :: MidiInst.Patch
 harp = MidiInst.code #= code $ MidiInst.common#Common.doc #= doc $
@@ -53,7 +53,7 @@ harp = MidiInst.code #= code $ MidiInst.common#Common.doc #= doc $
     -- channel allocated.  Otherwise it will just go on a different channel and
     -- the performer doesn't know that pianoteq's channels are actually not
     -- independent WRT controls.
-    MidiInst.control_defaults [(gliss, 0), (harmonic, 0), (lute, 0)] $
+    MidiInst.controlDefaults [(gliss, 0), (harmonic, 0), (lute, 0)] $
     patch "harp"
         [ (67, gliss)
         , (69, harmonic)
@@ -62,10 +62,10 @@ harp = MidiInst.code #= code $ MidiInst.common#Common.doc #= doc $
         ]
     where
     code :: MidiInst.Code
-    code = MidiInst.note_calls
-        [ MidiInst.both "o" $ Make.control_note Module.instrument "o" harmonic 1
-        , MidiInst.both "m" $ Make.control_note Module.instrument "m" lute 1
-        , MidiInst.generator "g" c_grace
+    code = MidiInst.noteCalls
+        [ MidiInst.both "o" $ Make.controlNote Module.instrument "o" harmonic 1
+        , MidiInst.both "m" $ Make.controlNote Module.instrument "m" lute 1
+        , MidiInst.generator "g" cGrace
         ]
     -- TODO add diatonic gliss call, like zheng
     harmonic = "harmonic"
@@ -78,11 +78,11 @@ harp = MidiInst.code #= code $ MidiInst.common#Common.doc #= doc $
 gliss :: ScoreT.Control
 gliss = "gliss"
 
-c_grace :: Derive.Generator Derive.Note
-c_grace = GraceUtil.make_grace Module.instrument
+cGrace :: Derive.Generator Derive.Note
+cGrace = GraceUtil.makeGrace Module.instrument
     ("This is just like the standard `g` call, except it sets "
         <> ShowVal.doc gliss <> " and doesn't use `(`.")
-    (Derive.with_constant_control gliss 1) (\_args events -> Sub.derive events)
+    (Derive.withConstantControl gliss 1) (\_args events -> Sub.derive events)
 
 patch :: InstT.Name -> [(Midi.Control, ScoreT.Control)] -> MidiInst.Patch
-patch = MidiInst.named_patch pb_range
+patch = MidiInst.namedPatch pbRange

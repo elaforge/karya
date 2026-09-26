@@ -9,7 +9,7 @@ import qualified User.Elaforge.Instrument.Kontakt.Util as Util
 
 test_make_stop_groups :: Test
 test_make_stop_groups = do
-    let f stops = Util.make_stop_groups stops ["g1", "g2"]
+    let f stops = Util.makeStopGroups stops ["g1", "g2"]
     equal (f []) (Right [-1, -1, -1, -1])
     equal (f [("g1", ["g2"])]) (Right [1, -1, -1, -1])
     equal (f [("g1", ["g2"])]) (Right [1, -1, -1, -1])

@@ -28,7 +28,7 @@ import           Types
 
 
 get :: Ui.M m => TrackId -> m Events.Events
-get = fmap Track.track_events . Ui.get_track
+get = fmap Track.trackEvents . Ui.getTrack
 
 events :: Ui.M m => TrackId -> m [Event.Event]
 events = fmap Events.ascending . get
@@ -36,46 +36,46 @@ events = fmap Events.ascending . get
 stretch :: ScoreTime -> Cmd.CmdL ()
 stretch factor = do
     start <- Selection.start
-    ModifyEvents.selection $ ModifyEvents.event $ stretch_event start factor
+    ModifyEvents.selection $ ModifyEvents.event $ stretchEvent start factor
 
-stretch_event :: ScoreTime -> ScoreTime -> Event.Event -> Event.Event
-stretch_event start factor event
+stretchEvent :: ScoreTime -> ScoreTime -> Event.Event -> Event.Event
+stretchEvent start factor event
     | Event.start event < start = event
     | otherwise = Event.start_ %= (\p -> (p - start) * factor + start) $
         Event.duration_ %= (*factor) $ event
 
 -- | Stretch events to fit in the given duration.
-stretch_to :: TrackTime -> Cmd.CmdL ()
-stretch_to dur = do
+stretchTo :: TrackTime -> Cmd.CmdL ()
+stretchTo dur = do
     selected <- Selection.events
     start <- Selection.start
-    let maybe_end = Lists.maximum $
+    let maybeEnd = Lists.maximum $
             mapMaybe (fmap Event.end . Lists.last . snd) selected
-    whenJust maybe_end $ \end ->
+    whenJust maybeEnd $ \end ->
         ModifyEvents.selection $ ModifyEvents.event $
-            stretch_event start (dur / (end - start))
+            stretchEvent start (dur / (end - start))
 
 -- | Duration of the current selection, e.g. @stretch_to =<< sel_dur@.
-sel_dur :: Cmd.M m => m TrackTime
-sel_dur = do
+selDur :: Cmd.M m => m TrackTime
+selDur = do
     sel <- Selection.get
     pure $ Sel.duration sel
 
-modify_dur :: Cmd.M m => (ScoreTime -> ScoreTime) -> m ()
-modify_dur = Edit.modify_dur
+modifyDur :: Cmd.M m => (ScoreTime -> ScoreTime) -> m ()
+modifyDur = Edit.modifyDur
 
 -- | Find all events containing the given substring.  Call with 'pp' to get
 -- copy-pastable 's' codes.
 find :: Text -> Cmd.CmdL [(Ui.Range, Text)]
-find substr = find_f (substr `Text.isInfixOf`)
+find substr = findF (substr `Text.isInfixOf`)
 
-find_f :: (Text -> Bool) -> Cmd.CmdL [(Ui.Range, Text)]
-find_f matches = fmap concat . concatMapM search =<< Ui.all_block_track_ids
+findF :: (Text -> Bool) -> Cmd.CmdL [(Ui.Range, Text)]
+findF matches = fmap concat . concatMapM search =<< Ui.allBlockTrackIds
     where
-    search (block_id, track_ids) = forM track_ids $ \track_id -> do
-        events <- Events.ascending . Track.track_events
-            <$> Ui.get_track track_id
-        let range e = Ui.Range (Just block_id) track_id
+    search (blockId, trackIds) = forM trackIds $ \trackId -> do
+        events <- Events.ascending . Track.trackEvents
+            <$> Ui.getTrack trackId
+        let range e = Ui.Range (Just blockId) trackId
                 (Event.start e) (Event.end e)
         pure [(range event, Event.text event) |
             event <- events, matches (Event.text event)]
@@ -85,16 +85,16 @@ find_f matches = fmap concat . concatMapM search =<< Ui.all_block_track_ids
 replace :: Monad m => Text -> Text -> ModifyEvents.Track m
 replace from to = ModifyEvents.text (Text.replace from to)
 
-replace_exact :: Monad m => Text -> Text -> ModifyEvents.Track m
-replace_exact from to = ModifyEvents.text $ \t -> if t == from then to else t
+replaceExact :: Monad m => Text -> Text -> ModifyEvents.Track m
+replaceExact from to = ModifyEvents.text $ \t -> if t == from then to else t
 
 -- | Multiple replacements.  This is simultaneous replacement, so
 -- [(a, b), (b, a)] will swap @a@ and @b@ as expected.
-replace_many :: Monad m => [(Text, Text)] -> ModifyEvents.Track m
-replace_many = ModifyEvents.text . Texts.replaceMany
+replaceMany :: Monad m => [(Text, Text)] -> ModifyEvents.Track m
+replaceMany = ModifyEvents.text . Texts.replaceMany
 
-replace_many_exact :: Monad m => [(Text, Text)] -> ModifyEvents.Track m
-replace_many_exact repl = ModifyEvents.text $ \t -> fromMaybe t (lookup t repl)
+replaceManyExact :: Monad m => [(Text, Text)] -> ModifyEvents.Track m
+replaceManyExact repl = ModifyEvents.text $ \t -> fromMaybe t (lookup t repl)
 
 -- -- | Upgrade thoppi on the right to thoppi on the left.  Delete when I don't
 -- -- have any more scores like that.
@@ -115,10 +115,10 @@ replace_many_exact repl = ModifyEvents.text $ \t -> fromMaybe t (lookup t repl)
 --
 -- 'w' is a word, 'ws' is >=0 words, 'ws1' is >=1 words, and a string matches
 -- literal text.
-replace_pattern :: Cmd.M m => ModifyEvents.Parser
+replacePattern :: Cmd.M m => ModifyEvents.Parser
     -> [ModifyEvents.Replacement] -> ModifyEvents.Track m
-replace_pattern from to =
-    ModifyEvents.failable_text (ModifyEvents.substitute from to)
+replacePattern from to =
+    ModifyEvents.failableText (ModifyEvents.substitute from to)
 
 -- | Modify event text with 'Regex.substituteGroups'.
 --
@@ -126,8 +126,8 @@ replace_pattern from to =
 --
 -- > ModifyEvents.control_tracks $ LEvent.replace_regex
 -- >    "si (\\W+) (\\W+)" (\[f0 f1] -> f1 <> " | i " <> f0)
-replace_regex :: Monad m => String -> ([Text] -> Text) -> ModifyEvents.Track m
-replace_regex regex modify =
+replaceRegex :: Monad m => String -> ([Text] -> Text) -> ModifyEvents.Track m
+replaceRegex regex modify =
     ModifyEvents.text (Regex.substituteGroups reg (const modify))
     where reg = Regex.compileUnsafe regex
 
@@ -136,54 +136,54 @@ replace_regex regex modify =
 -- | Which end of the event to quantize.
 data Mode = Start | End | Both
 
-quantize_sel :: Cmd.M m => Text -> m ()
-quantize_sel = ModifyEvents.selection . quantize_timestep Both
+quantizeSel :: Cmd.M m => Text -> m ()
+quantizeSel = ModifyEvents.selection . quantizeTimestep Both
 
 -- | Quantize to a TimeStep's duration.  What this does is snap the edges of
 -- the event to the nearest timestep.
-quantize_timestep :: Ui.M m => Mode -> Text -> ModifyEvents.Track m
-quantize_timestep mode step block_id track_id events = do
-    step <- Ui.require_right ("parsing timestep: "<>) $
-        TimeStep.parse_time_step step
-    tracknum <- Ui.get_tracknum_of block_id track_id
-    points <- TimeStep.get_points_from TimeStep.Advance block_id tracknum 0 step
-    pure $ Just $ resolve_conflicts points $
-        snd $ List.mapAccumL (quantize_event mode) points events
+quantizeTimestep :: Ui.M m => Mode -> Text -> ModifyEvents.Track m
+quantizeTimestep mode step blockId trackId events = do
+    step <- Ui.requireRight ("parsing timestep: "<>) $
+        TimeStep.parseTimeStep step
+    tracknum <- Ui.getTracknumOf blockId trackId
+    points <- TimeStep.getPointsFrom TimeStep.Advance blockId tracknum 0 step
+    pure $ Just $ resolveConflicts points $
+        snd $ List.mapAccumL (quantizeEvent mode) points events
 
 -- | Quantize can put two events in the same spot.  Resolve the conflicts by
 -- bumping events back until they don't conflict.  If I run out of timesteps,
 -- bump by 1.
-resolve_conflicts :: [TrackTime] -> [Event.Event] -> [Event.Event]
-resolve_conflicts _ [] = []
-resolve_conflicts points (event : events) =
-    event : resolve_conflicts points_after
+resolveConflicts :: [TrackTime] -> [Event.Event] -> [Event.Event]
+resolveConflicts _ [] = []
+resolveConflicts points (event : events) =
+    event : resolveConflicts pointsAfter
         (map (Event.start_ #= bump) group ++ rest)
     where
     (group, rest) = span ((== Event.start event) . Event.start) events
-    bump = fromMaybe (Event.start event + 1) (Lists.head points_after)
-    points_after = dropWhile (<= Event.start event) points
+    bump = fromMaybe (Event.start event + 1) (Lists.head pointsAfter)
+    pointsAfter = dropWhile (<= Event.start event) points
 
 -- | Zero-duration events will remain zero duration, and not be affected by
 -- End quantization.  Non-zero-duration events will never be quantized to zero
 -- duration.
-quantize_event :: Mode -> [TrackTime] -> Event.Event
+quantizeEvent :: Mode -> [TrackTime] -> Event.Event
     -> ([TrackTime], Event.Event)
-quantize_event mode points_ event = (start_points, quantize_event event)
+quantizeEvent mode points_ event = (startPoints, quantizeEvent event)
     where
-    quantize_event = case mode of
-        Start -> quantize_start
+    quantizeEvent = case mode of
+        Start -> quantizeStart
         End
             | zero -> id
-            | otherwise -> quantize_end
+            | otherwise -> quantizeEnd
         Both
-            | zero -> quantize_start
-            | otherwise -> quantize_end . quantize_start
-    quantize_start = Event.start_ %= quantize start_points
-    quantize_end event = Event.end_ %= quantize (end_points event) $ event
+            | zero -> quantizeStart
+            | otherwise -> quantizeEnd . quantizeStart
+    quantizeStart = Event.start_ %= quantize startPoints
+    quantizeEnd event = Event.end_ %= quantize (endPoints event) $ event
     zero = Event.duration event == 0
-    start_points = Lists.dropBefore id (Event.start event) points_
-    end_points e = dropWhile (<= Event.start e) $
-        Lists.dropBefore id (Event.end e) start_points
+    startPoints = Lists.dropBefore id (Event.start event) points_
+    endPoints e = dropWhile (<= Event.start e) $
+        Lists.dropBefore id (Event.end e) startPoints
 
 quantize :: [TrackTime] -> TrackTime -> TrackTime
 quantize points t = case points of
@@ -198,6 +198,6 @@ quantize points t = case points of
 -- | Insert an event directly.
 insert :: Cmd.M m => [(ScoreTime, ScoreTime, Text)] -> m ()
 insert events = do
-    (_, _, track_id, pos) <- Selection.get_insert
-    Ui.insert_events track_id
+    (_, _, trackId, pos) <- Selection.getInsert
+    Ui.insertEvents trackId
         [Event.event (start + pos) dur text | (start, dur, text) <- events]

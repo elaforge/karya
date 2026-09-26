@@ -4,12 +4,12 @@
 
 -- | Functions to tail a log file, even if it gets rotated.
 module LogView.Tail (
-    log_filename
+    logFilename
     -- * tail
     , Handle, open, tail
-    , deserialize_line
+    , deserializeLine
     -- * magic
-    , starting_msg, quitting_msg
+    , startingMsg, quittingMsg
 ) where
 import           Prelude hiding (read, tail)
 import qualified Control.Exception as Exception
@@ -28,10 +28,10 @@ import qualified App.Path as Path
 import           Global
 
 
-log_filename :: IO FilePath
-log_filename = do
-    app_dir <- Path.get_app_dir
-    pure $ Path.to_absolute app_dir (Config.log_dir Path.</> "seq.log")
+logFilename :: IO FilePath
+logFilename = do
+    appDir <- Path.getAppDir
+    pure $ Path.toAbsolute appDir (Config.logDir Path.</> "seq.log")
 
 -- * tail
 
@@ -60,11 +60,11 @@ open filename seek = do
 
 tail :: Handle -> IO (Log.Msg, Handle)
 tail hdl = do
-    (line, hdl) <- read_line hdl
-    pure (deserialize_line line, hdl)
+    (line, hdl) <- readLine hdl
+    pure (deserializeLine line, hdl)
 
-deserialize_line :: ByteString.ByteString -> Log.Msg
-deserialize_line line = case Log.deserialize (Lazy.fromStrict line) of
+deserializeLine :: ByteString.ByteString -> Log.Msg
+deserializeLine line = case Log.deserialize (Lazy.fromStrict line) of
     Left err -> Log.msg Log.Error Nothing $ "error parsing " <> showt line
         <> ": " <> txt err
     Right msg -> msg
@@ -72,17 +72,17 @@ deserialize_line line = case Log.deserialize (Lazy.fromStrict line) of
 -- | (handle, file size)
 type TailState = (IO.Handle, Integer)
 
-read_line :: Handle -> IO (ByteString.ByteString, Handle)
-read_line (Handle filename hdl size) = go (hdl, size)
+readLine :: Handle -> IO (ByteString.ByteString, Handle)
+readLine (Handle filename hdl size) = go (hdl, size)
     where
     go state@(hdl, size) = IO.hIsEOF hdl >>= \case
         True -> do
-            new_size <- IO.hFileSize hdl
+            newSize <- IO.hFileSize hdl
             -- Check if the file was truncated.
-            state <- if new_size < size
+            state <- if newSize < size
                 then IO.hSeek hdl IO.AbsoluteSeek 0 >> pure state
-                else ifM (file_renamed filename new_size)
-                    (reopen hdl new_size filename)
+                else ifM (fileRenamed filename newSize)
+                    (reopen hdl newSize filename)
                     (Thread.delay 2 >> pure state)
             go state
         False -> do
@@ -90,8 +90,8 @@ read_line (Handle filename hdl size) = go (hdl, size)
             -- impossible to tell if this is a complete line or not.  I'll set
             -- LineBuffering and hope for the best.
             line <- ByteString.Char8.hGetLine hdl
-            new_size <- IO.hFileSize hdl
-            pure (line, Handle filename hdl new_size)
+            newSize <- IO.hFileSize hdl
+            pure (line, Handle filename hdl newSize)
 
 -- | If the filename exists, open it and close the old file.
 reopen :: IO.Handle -> Integer -> FilePath -> IO TailState
@@ -117,18 +117,18 @@ ignoreException name action = Exception.try action >>= \result -> case result of
     Right val -> pure $ Just val
 
 -- | Check if it looks like the file has been renamed.
-file_renamed :: FilePath -> Integer -> IO Bool
-file_renamed filename size = do
+fileRenamed :: FilePath -> Integer -> IO Bool
+fileRenamed filename size = do
     -- I should really use inode, but ghc's crummy IO libs make that a pain,
     -- since handleToFd closes the handle.
-    file_size <- maybe 0 Posix.fileSize <$>
+    fileSize <- maybe 0 Posix.fileSize <$>
         ignoreException "file_renamed" (Posix.getFileStatus filename)
-    pure $ fromIntegral file_size /= size && file_size /= 0
+    pure $ fromIntegral fileSize /= size && fileSize /= 0
 
 -- * magic
 
-starting_msg :: Text
-starting_msg = "app starting"
+startingMsg :: Text
+startingMsg = "app starting"
 
-quitting_msg :: Text
-quitting_msg = "app quitting"
+quittingMsg :: Text
+quittingMsg = "app quitting"

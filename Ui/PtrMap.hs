@@ -8,10 +8,10 @@ module Ui.PtrMap (
     -- * error
     FltkException(..), throw
     -- * views
-    , CView, modify, get_map, get, lookup, lookup_id
-    , view_exists
+    , CView, modify, getMap, get, lookup, lookupId
+    , viewExists
     -- * keycaps
-    , lookup_keycaps, set_keycaps
+    , lookupKeycaps, setKeycaps
 ) where
 import           Prelude hiding (lookup)
 import qualified Control.Concurrent.MVar as MVar
@@ -47,9 +47,9 @@ data CView
 -- | Global map of view IDs to their windows.  This is global mutable state,
 -- but I don't feel too bad about it because the underlying window system
 -- state is also global mutable state, and this is just a handle on that.
-{-# NOINLINE global_windows #-}
-global_windows :: MVar.MVar Windows
-global_windows = Unsafe.unsafePerformIO $ MVar.newMVar $ Windows
+{-# NOINLINE globalWindows #-}
+globalWindows :: MVar.MVar Windows
+globalWindows = Unsafe.unsafePerformIO $ MVar.newMVar $ Windows
     { _blocks = Map.empty
     , _keycaps = Nothing
     }
@@ -60,42 +60,42 @@ data Windows = Windows
     }
 
 modify :: (Map ViewId (Ptr CView) -> IO (Map ViewId (Ptr CView))) -> IO ()
-modify modify = MVar.modifyMVar_ global_windows $ \windows -> do
+modify modify = MVar.modifyMVar_ globalWindows $ \windows -> do
     blocks <- modify (_blocks windows)
     pure $ windows { _blocks = blocks }
 
-get_map :: IO (Map ViewId (Ptr CView))
-get_map = _blocks <$> MVar.readMVar global_windows
+getMap :: IO (Map ViewId (Ptr CView))
+getMap = _blocks <$> MVar.readMVar globalWindows
 
 get :: ViewId -> IO (Ptr CView)
-get view_id = do
-    blocks <- _blocks <$> MVar.readMVar global_windows
-    case Map.lookup view_id blocks of
-        Nothing -> throw $ show view_id ++ " not in displayed view list: "
+get viewId = do
+    blocks <- _blocks <$> MVar.readMVar globalWindows
+    case Map.lookup viewId blocks of
+        Nothing -> throw $ show viewId ++ " not in displayed view list: "
             ++ show (Map.assocs blocks)
         Just viewp -> pure viewp
 
 lookup :: ViewId -> IO (Maybe (Ptr CView))
-lookup view_id = do
-    blocks <- _blocks <$> MVar.readMVar global_windows
-    pure $ Map.lookup view_id blocks
+lookup viewId = do
+    blocks <- _blocks <$> MVar.readMVar globalWindows
+    pure $ Map.lookup viewId blocks
 
 -- | Nothing indicates that the UI returned a view ptr I didn't know I had.
 -- It's rare, but it can happen if I close a window but a msg about it is still
 -- in the queue.
-lookup_id :: Ptr CView -> IO (Maybe ViewId)
-lookup_id viewp = do
-    blocks <- _blocks <$> MVar.readMVar global_windows
+lookupId :: Ptr CView -> IO (Maybe ViewId)
+lookupId viewp = do
+    blocks <- _blocks <$> MVar.readMVar globalWindows
     pure $ fst <$> List.find ((==viewp) . snd) (Map.toList blocks)
 
-view_exists :: ViewId -> IO Bool
-view_exists = fmap Maybe.isJust . lookup
+viewExists :: ViewId -> IO Bool
+viewExists = fmap Maybe.isJust . lookup
 
 -- * keycaps
 
-lookup_keycaps :: IO (Maybe (Ptr KeycapsT.CWindow))
-lookup_keycaps = _keycaps <$> MVar.readMVar global_windows
+lookupKeycaps :: IO (Maybe (Ptr KeycapsT.CWindow))
+lookupKeycaps = _keycaps <$> MVar.readMVar globalWindows
 
-set_keycaps :: Maybe (Ptr KeycapsT.CWindow) -> IO ()
-set_keycaps keycaps = MVar.modifyMVar_ global_windows $ \windows ->
+setKeycaps :: Maybe (Ptr KeycapsT.CWindow) -> IO ()
+setKeycaps keycaps = MVar.modifyMVar_ globalWindows $ \windows ->
     pure $ windows { _keycaps = keycaps }

@@ -51,24 +51,24 @@ test_basic :: Test
 test_basic = do
     -- verify the three phases of derivation
     -- 1: derivation to score events
-    let res = DeriveTest.derive_tracks ""
+    let res = DeriveTest.deriveTracks ""
             [ (">i1", [(0, 16, ""), (16, 16, "")])
             , ("*", [(0, 0, "4c"), (16, 0, "4c#")])
             , ("dyn", [(0, 0, "1"), (16, 0, ".5")])
             ]
-    let ((perf_events, mmsgs), logs) =
-            DeriveTest.perform_defaults (Derive.r_events res)
-    equal (e_events res) ([(0, 16, ""), (16, 16, "")], [])
+    let ((perfEvents, mmsgs), logs) =
+            DeriveTest.performDefaults (Derive.rEvents res)
+    equal (eEvents res) ([(0, 16, ""), (16, 16, "")], [])
 
     -- 2: conversion to midi perf events
     let evt = (,,,) "i1"
-    equal (map extract_perf_event perf_events)
+    equal (map extractPerfEvent perfEvents)
         [ evt 0 16 (mkstack (0, 16))
         , evt 16 16 (mkstack (16, 32))
         ]
 
     -- 3: performance to midi protocol events
-    equal (DeriveTest.note_on_vel mmsgs) [(0, 60, 127), (16000, 61, 64)]
+    equal (DeriveTest.noteOnVel mmsgs) [(0, 60, 127), (16000, 61, 64)]
     equal logs []
     where
     {-
@@ -82,33 +82,33 @@ test_basic = do
         |           |
         v           v
     -}
-    mkstack (s, e) = Stack.from_outermost
-        [ block_call UiTest.default_block_id
+    mkstack (s, e) = Stack.fromOutermost
+        [ blockCall UiTest.defaultBlockId
         , Stack.Serial 0
-        , Stack.Block UiTest.default_block_id
-        , Stack.Track (UiTest.mk_tid 1)
+        , Stack.Block UiTest.defaultBlockId
+        , Stack.Track (UiTest.mkTid 1)
         -- track title and event for note track
         , Stack.Call "note-track"
         , Stack.Region s e
         , Stack.Call "note"
         , Stack.Serial 0
-        , Stack.Track (UiTest.mk_tid 2)
-        , Stack.Track (UiTest.mk_tid 3)
+        , Stack.Track (UiTest.mkTid 2)
+        , Stack.Track (UiTest.mkTid 3)
         -- t1 shows up again inverted
-        , Stack.Track (UiTest.mk_tid 1)
+        , Stack.Track (UiTest.mkTid 1)
         , Stack.Call "note-track" -- inverted note track is >
         , Stack.Region s e
         ]
-    block_call bid = Stack.Call $ "block " <> showt bid
-    extract_perf_event (Midi.Types.Event start dur patch _controls _pitch
+    blockCall bid = Stack.Call $ "block " <> showt bid
+    extractPerfEvent (Midi.Types.Event start dur patch _controls _pitch
             _svel _evel stack) =
-        (Midi.Types.patch_name patch, RealTime.to_seconds start,
-            RealTime.to_seconds dur, stack)
+        (Midi.Types.patchName patch, RealTime.toSeconds start,
+            RealTime.toSeconds dur, stack)
 
 test_qualified_symbol :: Test
 test_qualified_symbol = do
-    let run = DeriveTest.extract DeriveTest.e_attributes
-            . DeriveTest.derive_tracks ""
+    let run = DeriveTest.extract DeriveTest.eAttributes
+            . DeriveTest.deriveTracks ""
     equal (run [(">", [(0, 2, "bali.gong.cycle \"(+a) 1")])])
         (["+a", "+a"], [])
 
@@ -116,16 +116,16 @@ test_round_pitch :: Test
 test_round_pitch = do
     -- A note sufficiently close to 4c becomes 4c.
     let ((_, mmsgs), _) =
-            DeriveTest.perform_result DeriveTest.perform_defaults $
-            DeriveTest.derive_tracks ""
+            DeriveTest.performResult DeriveTest.performDefaults $
+            DeriveTest.deriveTracks ""
                 [(">i1", [(0, 1, "")]), ("*", [(0, 0, "3b 99.99")])]
     -- 100 means it's not getting a dyn, and is using the default
-    equal (DeriveTest.note_on_vel mmsgs) [(0, Key.c4, 127)]
+    equal (DeriveTest.noteOnVel mmsgs) [(0, Key.c4, 127)]
 
 test_override_default_pitch :: Test
 test_override_default_pitch = do
-    let f title pitch = DeriveTest.extract DeriveTest.e_nns $
-            DeriveTest.derive_tracks title [(">", [(4, 4, "")]), ("*", pitch)]
+    let f title pitch = DeriveTest.extract DeriveTest.eNns $
+            DeriveTest.deriveTracks title [(">", [(4, 4, "")]), ("*", pitch)]
     equal (f "" [(4, 0, "4c"), (6, 0, "4d")])
         ([[(4, NN.c4), (6, NN.c4), (6, NN.d4)]], [])
     -- Both overriding PITCH works, and it picks up defaults properly.
@@ -137,68 +137,68 @@ test_override_default_pitch = do
 test_attributes :: Test
 test_attributes = do
     -- Test that attributes work, through derivation and performance.
-    let convert_lookup = DeriveTest.make_convert_lookup allocs db
+    let convertLookup = DeriveTest.makeConvertLookup allocs db
         allocs = Simple.allocations
             [("i1", ("s/i1", Simple.Midi [("wdev", 0)]))]
-        db = UiTest.make_db [("s", [patch])]
+        db = UiTest.makeDb [("s", [patch])]
             where
-            patch = Patch.attribute_map #= attr_map $ Patch.patch (-1, 1) "i1"
-        keyswitches = Patch.single_keyswitches $ map (first Attrs.attrs)
+            patch = Patch.attributeMap #= attrMap $ Patch.patch (-1, 1) "i1"
+        keyswitches = Patch.singleKeyswitches $ map (first Attrs.attrs)
             [ (["a1", "a2"], 0)
             , (["a0"], 1)
             , (["a1"], 2)
             , (["a2"], 3)
             ]
-        keymap = Patch.unpitched_keymap [(Attrs.attr "km", 42)]
-        attr_map = Common.AttributeMap $ case (keyswitches, keymap) of
+        keymap = Patch.unpitchedKeymap [(Attrs.attr "km", 42)]
+        attrMap = Common.AttributeMap $ case (keyswitches, keymap) of
             (Common.AttributeMap a, Common.AttributeMap b) -> a ++ b
-    let res = DeriveTest.derive_tracks ""
+    let res = DeriveTest.deriveTracks ""
             [ (">i1 | +a1", [(0, 1, "+a0"), (1, 1, "+a2")])
             , ("*twelve", [(0, 0, "4c")])
             ]
-        ((_, mmsgs), logs) = DeriveTest.perform convert_lookup
-            allocs (Derive.r_events res)
+        ((_, mmsgs), logs) = DeriveTest.perform convertLookup
+            allocs (Derive.rEvents res)
 
     -- Attribute inheritance thing works.
-    equal (DeriveTest.extract DeriveTest.e_attributes res)
+    equal (DeriveTest.extract DeriveTest.eAttributes res)
         (["+a0+a1", "+a1+a2"], [])
-    equal (map DeriveTest.show_log logs)
+    equal (map DeriveTest.showLog logs)
         -- TODO re-enable when Convert.warn_unused_attributes is configurable
         -- ["attrs have no match in keyswitches or keymap of >s/ks: +a1"]
         []
     -- Attrs get the proper keyswitches and keymap keys.
-    equal (note_on_keys mmsgs) [1, Key.c4, 0, Key.c4]
+    equal (noteOnKeys mmsgs) [1, Key.c4, 0, Key.c4]
 
-note_on_keys :: [Midi.WriteMessage] -> [Midi.Key]
-note_on_keys msgs =
-    [nn | Midi.ChannelMessage _ (Midi.NoteOn nn _) <- map Midi.wmsg_msg msgs]
+noteOnKeys :: [Midi.WriteMessage] -> [Midi.Key]
+noteOnKeys msgs =
+    [nn | Midi.ChannelMessage _ (Midi.NoteOn nn _) <- map Midi.wmsgMsg msgs]
 
 test_stack :: Test
 test_stack = do
-    let extract = fst . DeriveTest.extract Score.event_stack
-    let stacks = extract $ DeriveTest.derive_blocks
+    let extract = fst . DeriveTest.extract Score.eventStack
+    let stacks = extract $ DeriveTest.deriveBlocks
             [ ("b0", [(">i1", [(0, 1, ""), (1, 1, "sub")])])
             , ("sub", [(">", [(0, 1, ""), (1, 1, "")])])
             ]
     let block = Stack.Block . UiTest.bid
-        block_call bid = Stack.Call $ "block " <> showt (UiTest.bid bid)
-        track name num = Stack.Track (UiTest.mk_tid_name name num)
+        blockCall bid = Stack.Call $ "block " <> showt (UiTest.bid bid)
+        track name num = Stack.Track (UiTest.mkTidName name num)
         call = Stack.Call
-    equal (map (map Stack.unparse_ui_frame . Stack.to_ui) stacks)
+    equal (map (map Stack.unparseUiFrame . Stack.toUi) stacks)
         [ ["test/b0 test/b0.t1 0-1"]
         , ["test/b0 test/b0.t1 1-2", "test/sub test/sub.t1 0-1"]
         , ["test/b0 test/b0.t1 1-2", "test/sub test/sub.t1 1-2"]
         ]
 
     let b0 s e =
-            [ block_call "b0", Stack.Serial 0, block "b0", track "b0" 1
+            [ blockCall "b0", Stack.Serial 0, block "b0", track "b0" 1
             , call "note-track", Stack.Region s e
             ]
         sub s e =
-            [ block_call "sub", Stack.Serial 0, block "sub", track "sub" 1
+            [ blockCall "sub", Stack.Serial 0, block "sub", track "sub" 1
             , call "note-track", Stack.Region s e, call "note", Stack.Serial 0
             ]
-    equal stacks $ map Stack.from_outermost
+    equal stacks $ map Stack.fromOutermost
         [ b0 0 1 ++ [Stack.Call "note", Stack.Serial 0]
         , b0 1 2 ++ sub 0 1
         , b0 1 2 ++ sub 1 2
@@ -211,24 +211,24 @@ test_stack_after_exception = do
     -- which is more directly tested in "Derive.EvalTrack_test".  Amazingly,
     -- it didn't for a very long time, and the bug was only revealed in this
     -- way.
-    let result = DeriveTest.derive_blocks
+    let result = DeriveTest.deriveBlocks
             [ ("top -- >>i1 = \"(%dyn = set .8)",
                 [(">", [(0, 4, "b1"), (4, 4, "b2")])])
             , ("b1", [(">i1", [])])
             , ("b2", [(">i1", [])])
             ]
-    let extract = fmap Stack.pretty_ui_ . Log.msg_stack
-    equal (mapMaybe extract $ DeriveTest.r_logs result)
+    let extract = fmap Stack.prettyUi_ . Log.msgStack
+    equal (mapMaybe extract $ DeriveTest.rLogs result)
         [ "top top.t1 0-4 / b1 b1.t1 *"
         , "top top.t1 4-8 / b2 b2.t1 *"
         ]
 
 test_simple_subderive :: Test
 test_simple_subderive = do
-    let (events, msgs) = DeriveTest.extract DeriveTest.e_note $
-            DeriveTest.derive_blocks
+    let (events, msgs) = DeriveTest.extract DeriveTest.eNote $
+            DeriveTest.deriveBlocks
             [ ("parent", [(">i1", [(0, 2, "sub"), (2, 1, "sub")])])
-            , ("sub=ruler", UiTest.regular_notes 2)
+            , ("sub=ruler", UiTest.regularNotes 2)
             ]
     equal msgs []
     equal events
@@ -238,7 +238,7 @@ test_simple_subderive = do
 
 test_subderive :: Test
 test_subderive = do
-    let run evts = DeriveTest.derive_blocks
+    let run evts = DeriveTest.deriveBlocks
             [ ("b0",
                 [ ("tempo", [(0, 0, "2")])
                 , (">i1", evts)
@@ -249,25 +249,25 @@ test_subderive = do
     -- I used to test recursive call, but now that the block call doesn't
     -- catch that explicitly it means I get random crap before it finally
     -- aborts due to the call stack limit.
-    let (events, msgs) = DeriveTest.r_split $ run
+    let (events, msgs) = DeriveTest.rSplit $ run
             [(0, 1, "nosuch"), (1, 1, "empty"), (3, 1, "--x")]
     -- errors don't stop derivation, and an empty sub-block is ignored
-    equal (map DeriveTest.e_event events) [(1.5, 0.5, "--x")]
-    strings_like (map DeriveTest.show_log msgs) ["not found: nosuch"]
-    equal (map (DeriveTest.show_stack . Log.msg_stack) msgs)
+    equal (map DeriveTest.eEvent events) [(1.5, 0.5, "--x")]
+    stringsLike (map DeriveTest.showLog msgs) ["not found: nosuch"]
+    equal (map (DeriveTest.showStack . Log.msgStack) msgs)
         ["b0 b0.t2 0-1: note-track"]
 
     let res = run [(0, 8, "--b1"), (8, 8, "sub"), (16, 1, "--b2")]
-        (events, msgs) = DeriveTest.r_split res
-    equal (map DeriveTest.e_event events)
+        (events, msgs) = DeriveTest.rSplit res
+    equal (map DeriveTest.eEvent events)
         [(0, 4, "--b1"), (6, 2, "--sub1"), (8, 0.5, "--b2")]
-    equal (map Score.event_instrument events) ["i1", "i2", "i1"]
+    equal (map Score.eventInstrument events) ["i1", "i2", "i1"]
     equal msgs []
 
-    let b0 pos = (UiTest.bid "b0", [(UiTest.mk_tid_name "b0" 1, pos),
-            (UiTest.mk_tid_name "b0" 2, pos)])
-        sub pos = (UiTest.bid "sub", [(UiTest.mk_tid_name "sub" 1, pos)])
-    equal (map (inv_tempo res) (Lists.range 0 10 2))
+    let b0 pos = (UiTest.bid "b0", [(UiTest.mkTidName "b0" 1, pos),
+            (UiTest.mkTidName "b0" 2, pos)])
+        sub pos = (UiTest.bid "sub", [(UiTest.mkTidName "sub" 1, pos)])
+    equal (map (invTempo res) (Lists.range 0 10 2))
         [[b0 0], [b0 4], [b0 8, sub 0], [b0 12, sub 1], [b0 16, sub 2], []]
 
     -- For eyeball verification.
@@ -278,7 +278,7 @@ test_subderive = do
 test_subderive_timing :: Test
 test_subderive_timing = do
     -- Just make sure that sub-blocks stretch to the correct times.
-    let (events, logs) = e_events $ DeriveTest.derive_blocks
+    let (events, logs) = eEvents $ DeriveTest.deriveBlocks
             [ ("p",
                 [ ("tempo", [(0, 0, ".5")])
                 , (">i1", [(0, 2, "sub"), (5, 1, "sub")])
@@ -293,20 +293,20 @@ test_subderive_timing = do
 
 test_subderive_error :: Test
 test_subderive_error = do
-    let run evts = e_events $ DeriveTest.derive_blocks
+    let run evts = eEvents $ DeriveTest.deriveBlocks
             [ ("b0", [ (">i1", evts) ])
             , ("sub", [("blah *error syntax", [(1, 1, "--sub1")]), (">", [])])
             ]
     let (events, logs) = run [(0, 1, "sub")]
     equal events []
-    strings_like logs ["track title: parse error"]
+    stringsLike logs ["track title: parse error"]
 
 test_subderive_multiple :: Test
 test_subderive_multiple = do
     -- make sure subderiving a block with multiple tracks works correctly
     let ((_, mmsgs), logs) =
-            DeriveTest.perform_result DeriveTest.perform_defaults $
-            DeriveTest.derive_blocks
+            DeriveTest.performResult DeriveTest.performDefaults $
+            DeriveTest.deriveBlocks
                 [ ("b0",
                     [ ("tempo", [(0, 0, "2")])
                     , ("dyn", [(0, 0, "1"), (8, 0, "i 0")])
@@ -319,7 +319,7 @@ test_subderive_multiple = do
                     , ("*twelve", [(0, 0, "5c"), (1, 0, "5d")])
                     ])
                 ]
-    equal (DeriveTest.note_on_vel mmsgs)
+    equal (DeriveTest.noteOnVel mmsgs)
         [ (0, Key.c5, 127), (0, Key.c4, 127)
         , (2000, Key.d5, 64), (2000, Key.d4, 64)
         ]
@@ -328,20 +328,20 @@ test_subderive_multiple = do
 test_multiple_subderive :: Test
 test_multiple_subderive = do
     -- make sure a sequence of sub calls works
-    let res = DeriveTest.derive_blocks
+    let res = DeriveTest.deriveBlocks
             [ ("b0", [(">i1", [(0, 2, "sub"), (2, 2, "sub"), (4, 2, "sub")])])
             , ("sub=ruler", [(">", [(0, 1, "--sub1")])])
             ]
-    equal (e_events res)
+    equal (eEvents res)
         ([(0, 2, "--sub1"), (2, 2, "--sub1"), (4, 2, "--sub1")], [])
 
     -- Empty inst inherits calling inst.
-    equal (fst (DeriveTest.extract Score.event_instrument res))
+    equal (fst (DeriveTest.extract Score.eventInstrument res))
         (replicate 3 "i1")
 
-    let pos = map (inv_tempo res) (Lists.range 0 6 1)
-    let b0 pos = (UiTest.bid "b0", [(UiTest.mk_tid_name "b0" 1, pos)])
-        sub pos = (UiTest.bid "sub", [(UiTest.mk_tid_name "sub" 1, pos)])
+    let pos = map (invTempo res) (Lists.range 0 6 1)
+    let b0 pos = (UiTest.bid "b0", [(UiTest.mkTidName "b0" 1, pos)])
+        sub pos = (UiTest.bid "sub", [(UiTest.mkTidName "sub" 1, pos)])
     equal (map List.sort pos)
         [ [b0 0, sub 0], [b0 1, sub 0.5], [b0 2, sub 0, sub 1]
         , [b0 3, sub 0.5] , [b0 4, sub 0, sub 1]
@@ -350,10 +350,10 @@ test_multiple_subderive = do
 
 test_tempo_compose :: Test
 test_tempo_compose = do
-    let run tempo events sub_tempo = e_events $ DeriveTest.derive_blocks
+    let run tempo events subTempo = eEvents $ DeriveTest.deriveBlocks
             [ ("b0", [("tempo", tempo), (">i1", events)])
             , ("sub=ruler",
-                [ ("tempo", sub_tempo)
+                [ ("tempo", subTempo)
                 , (">", [(0, 1, ""), (1, 1, "")])
                 ])
             ]
@@ -399,8 +399,8 @@ test_warp_ops = do
     equal (run (Derive.place 1 2)) $ Right [1, 5]
 
     -- test compose
-    let plain = Warp.from_signal $ Signal.from_pairs [(0, 0), (100, 100)]
-        slow = Warp.from_signal $ Signal.from_pairs [(0, 0), (100, 200)]
+    let plain = Warp.fromSignal $ Signal.fromPairs [(0, 0), (100, 100)]
+        slow = Warp.fromSignal $ Signal.fromPairs [(0, 0), (100, 200)]
 
     equal (run (Internal.warp plain)) $ Right [0, 2]
     equal (run (Derive.at 2 . Internal.warp plain)) $ Right [2, 4]
@@ -429,9 +429,9 @@ test_warp_ops = do
 
 test_real_to_score_round_trip :: Test
 test_real_to_score_round_trip = do
-    let f do_warp = DeriveTest.eval Ui.empty $
-            do_warp (Derive.real_to_score =<< Derive.score_to_real 1)
-    let slow = Warp.from_signal $ Signal.from_pairs [(0, 0), (100, 200)]
+    let f doWarp = DeriveTest.eval Ui.empty $
+            doWarp (Derive.realToScore =<< Derive.scoreToReal 1)
+    let slow = Warp.fromSignal $ Signal.fromPairs [(0, 0), (100, 200)]
     equal (f id) (Right 1)
     equal (f (Derive.at 5)) (Right 1)
     equal (f (Derive.stretch 5)) (Right 1)
@@ -441,70 +441,70 @@ test_real_to_score_round_trip = do
 
 test_shift_controls :: Test
 test_shift_controls = do
-    let set_controls = DeriveTest.modify_dynamic $ \st -> st
-            { Derive.state_environ = Env.from_list
+    let setControls = DeriveTest.modifyDynamic $ \st -> st
+            { Derive.stateEnviron = Env.fromList
                 [ ( "cont"
-                  , to_signal $ Signal.from_pairs [(0, 1), (2, 2), (4, 0)]
+                  , toSignal $ Signal.fromPairs [(0, 1), (2, 2), (4, 0)]
                   )
                 ]
-            , Derive.state_pitch = DeriveTest.psignal [(0, "4c")]
+            , Derive.statePitch = DeriveTest.psignal [(0, "4c")]
             }
-    let run op = DeriveTest.extract_run extract $
-            DeriveTest.run Ui.empty (set_controls >> op get)
+    let run op = DeriveTest.extractRun extract $
+            DeriveTest.run Ui.empty (setControls >> op get)
             where
             get = do
-                conts <- Derive.get_control_map
-                psig <- Internal.get_dynamic Derive.state_pitch
+                conts <- Derive.getControlMap
+                psig <- Internal.getDynamic Derive.statePitch
                 pure (conts, psig)
             extract (conts, pitch) =
-                (unsignal conts, first Signal.to_pairs (PSignal.to_nn pitch))
+                (unsignal conts, first Signal.toPairs (PSignal.toNn pitch))
             unsignal =
-                Signal.to_pairs . ScoreT.val_of . snd . head . Map.toList
+                Signal.toPairs . ScoreT.valOf . snd . head . Map.toList
     equal (run id) $ Right ([(0, 1), (2, 2), (4, 0)], ([(0, 60)], []))
-    equal (run $ Derive.shift_controls 2) $
+    equal (run $ Derive.shiftControls 2) $
         Right ([(2, 1), (4, 2), (6, 0)], ([(2, 60)], []))
 
-to_signal :: Signal.Control -> DeriveT.Val
-to_signal = DeriveT.VSignal . ScoreT.untyped
+toSignal :: Signal.Control -> DeriveT.Val
+toSignal = DeriveT.VSignal . ScoreT.untyped
 
 test_tempo_funcs1 :: Test
 test_tempo_funcs1 = do
-    let ([t_tid, tid1], ui_state) = UiTest.run_mkblock
+    let ([tTid, tid1], uiState) = UiTest.runMkblock
             [ ("tempo", [(0, 0, "2")])
             , (">i1", [(0, 8, "--b1"), (8, 8, "--b2"), (16, 1, "--b3")])
             ]
-        bid = UiTest.default_block_id
-    let res = DeriveTest.derive_block ui_state bid
-    equal (DeriveTest.r_log_strings res) []
+        bid = UiTest.defaultBlockId
+    let res = DeriveTest.deriveBlock uiState bid
+    equal (DeriveTest.rLogStrings res) []
 
     -- [(BlockId, [(TrackId, ScoreTime)])]
-    let b0 pos = (bid, [(t_tid, pos), (tid1, pos)])
-    equal (map (inv_tempo res) [0, 2, 4, 6]) [[b0 0], [b0 4], [b0 8], [b0 12]]
-    equal (inv_tempo res (RealTime.from_score UiTest.default_block_end)) []
+    let b0 pos = (bid, [(tTid, pos), (tid1, pos)])
+    equal (map (invTempo res) [0, 2, 4, 6]) [[b0 0], [b0 4], [b0 8], [b0 12]]
+    equal (invTempo res (RealTime.fromScore UiTest.defaultBlockEnd)) []
 
-    equal (map (r_tempo res bid t_tid) (Lists.range 0 10 2))
+    equal (map (rTempo res bid tTid) (Lists.range 0 10 2))
         (map ((:[]) . RealTime.seconds) (Lists.range 0 5 1))
 
 test_tempo_funcs2 :: Test
 test_tempo_funcs2 = do
-    let ([t_tid1, tid1, t_tid2, tid2], ui_state) =
-            UiTest.run_mkblock
+    let ([tTid1, tid1, tTid2, tid2], uiState) =
+            UiTest.runMkblock
             -- UiTest.run Ui.empty $ UiTest.mkblocks $ (:[]) $ ("b0",) $
                 [ ("tempo", [(0, 0, "2")])
                 , (">i1", [(0, 8, "--b1"), (8, 8, "--b2"), (16, 1, "--b3")])
                 , ("tempo", [(0, 0, "1")])
                 , (">i2", [(0, 16, "--2b1")])
                 ]
-        bid = UiTest.default_block_id
-    let res = DeriveTest.derive_block ui_state bid
-    equal (DeriveTest.r_log_strings res) []
-    equal (map (r_tempo res bid t_tid1) (Lists.range 0 10 2))
+        bid = UiTest.defaultBlockId
+    let res = DeriveTest.deriveBlock uiState bid
+    equal (DeriveTest.rLogStrings res) []
+    equal (map (rTempo res bid tTid1) (Lists.range 0 10 2))
         (map ((:[]) . RealTime.seconds) (Lists.range 0 5 1))
-    equal (map (r_tempo res bid t_tid2) (Lists.range 0 10 2))
+    equal (map (rTempo res bid tTid2) (Lists.range 0 10 2))
         (map ((:[]) . RealTime.seconds) (Lists.range 0 10 2))
-    let b0 pos = (bid, [(t_tid1, pos), (tid1, pos)])
-        b1 pos = (bid, [(t_tid2, pos), (tid2, pos)])
-    equal (map (inv_tempo res) [0, 2, 4, 6])
+    let b0 pos = (bid, [(tTid1, pos), (tid1, pos)])
+        b1 pos = (bid, [(tTid2, pos), (tid2, pos)])
+    equal (map (invTempo res) [0, 2, 4, 6])
         [[b0 0, b1 0], [b0 4, b1 2], [b0 8, b1 4], [b0 12, b1 6]]
 
     -- test multiple tempo
@@ -512,18 +512,18 @@ test_tempo_funcs2 = do
 
 -- | Map through inv tempo and sort the results since their order isn't
 -- relevant.
-inv_tempo :: Derive.Result -> RealTime -> [(BlockId, [(TrackId, ScoreTime)])]
-inv_tempo res =
-    map (second List.sort) . List.sort . r_inv_tempo res Transport.StopAtEnd
+invTempo :: Derive.Result -> RealTime -> [(BlockId, [(TrackId, ScoreTime)])]
+invTempo res =
+    map (second List.sort) . List.sort . rInvTempo res Transport.StopAtEnd
 
 test_tempo_funcs_multiple_subblocks :: Test
 test_tempo_funcs_multiple_subblocks = do
     -- A single score time can imply multiple real times.
-    let res = DeriveTest.derive_blocks
+    let res = DeriveTest.deriveBlocks
             [ ("parent", [(">i1", [(0, 1, "sub"), (1, 1, "sub")])])
             , ("sub=ruler", [(">i1", [(0, 1, "")])])
             ]
-    equal (r_tempo res (UiTest.bid "sub") (UiTest.mk_tid_name "sub" 1) 0.5)
+    equal (rTempo res (UiTest.bid "sub") (UiTest.mkTidName "sub" 1) 0.5)
         [0.5, 1.5]
 
 test_fractional_pitch :: Test
@@ -532,23 +532,23 @@ test_fractional_pitch = do
     -- channels.  Yes, this is also tested in Perform.Midi.Perform, but this
     -- also tests that the pitch signal is trimmed properly by
     -- Note.trim_pitches.
-    let ((_perf_events, mmsgs), logs) =
-            DeriveTest.perform_result DeriveTest.perform_defaults $
-                DeriveTest.derive_tracks ""
+    let ((_perfEvents, mmsgs), logs) =
+            DeriveTest.performResult DeriveTest.performDefaults $
+                DeriveTest.deriveTracks ""
                     [ (">i1", [(0, 16, ""), (16, 16, "")])
                     , ("*just", [(0, 16, "4c"), (16, 16, "4d")])
                     ]
 
     equal logs []
     equal [(chan, nn) | Midi.ChannelMessage chan (Midi.NoteOn nn _)
-            <- map Midi.wmsg_msg mmsgs]
+            <- map Midi.wmsgMsg mmsgs]
         [(1, Key.c4), (2, Key.d4)]
 
 test_control :: Test
 test_control = do
-    let ((perf_events, mmsgs), logs) =
-            DeriveTest.perform_result DeriveTest.perform_defaults res
-        res = DeriveTest.derive_tracks ""
+    let ((perfEvents, mmsgs), logs) =
+            DeriveTest.performResult DeriveTest.performDefaults res
+        res = DeriveTest.deriveTracks ""
             [ (">i1", [(0, 1, ""), (1, 1, "")])
             , ("*", [(0, 1, "4c"), (1, 1, "4c#")])
             , ("cc1", [(0, 0, "1"), (1, 0, "i .75"), (2, 0, "i 0")])
@@ -557,37 +557,37 @@ test_control = do
     -- Cursory checks, more detailed checks are in more Note_test and
     -- Control_test.
     equal logs []
-    equal (fst $ e_events res) [(0, 1, ""), (1, 1, "")]
-    equal (length perf_events) 2
+    equal (fst $ eEvents res) [(0, 1, ""), (1, 1, "")]
+    equal (length perfEvents) 2
 
     -- Just make sure it did in fact emit ccs.
     check ("has cc: " <> pretty mmsgs) $
-        any Midi.is_cc (map Midi.wmsg_msg mmsgs)
+        any Midi.isCc (map Midi.wmsgMsg mmsgs)
 
 test_make_inverse_tempo_func :: Test
 test_make_inverse_tempo_func = do
     -- This is actually also tested in test_subderive.
     -- TODO and it belongs in TrackWarp_test now
-    let track_id = Id.TrackId (UiTest.mkid "warp")
-        warp = Tempo.tempo_to_warp (Signal.constant 2)
-        track_warps = [TrackWarp.TrackWarp
-                0 2 UiTest.default_block_id (Set.singleton track_id) warp]
-    let f = TrackWarp.inverse_tempo_func track_warps Transport.StopAtEnd
-        with_block pos = [(UiTest.default_block_id, [(track_id, pos)])]
+    let trackId = Id.TrackId (UiTest.mkid "warp")
+        warp = Tempo.tempoToWarp (Signal.constant 2)
+        trackWarps = [TrackWarp.TrackWarp
+                0 2 UiTest.defaultBlockId (Set.singleton trackId) warp]
+    let f = TrackWarp.inverseTempoFunc trackWarps Transport.StopAtEnd
+        withBlock pos = [(UiTest.defaultBlockId, [(trackId, pos)])]
     -- Fast tempo means ScoreTime passes quickly relative to Timestamps.
     -- Second 2 at tempo 2 is trackpos 4, which is at the end of the block.
     equal (map (f . RealTime.seconds) [0..3])
-        [with_block 0, with_block 2, with_block 4, []]
+        [withBlock 0, withBlock 2, withBlock 4, []]
 
 test_tempo_roundtrip :: Test
 test_tempo_roundtrip = do
-    let track_id = Id.TrackId (UiTest.mkid "warp")
-        warp = Tempo.tempo_to_warp (Signal.constant 0.987)
-        track_warps = [TrackWarp.TrackWarp
-                0 10 UiTest.default_block_id (Set.singleton track_id) warp]
-    let inv = TrackWarp.inverse_tempo_func track_warps Transport.StopAtEnd
-        tempo = TrackWarp.tempo_func track_warps
-    let rtimes = concatMap (tempo UiTest.default_block_id track_id)
+    let trackId = Id.TrackId (UiTest.mkid "warp")
+        warp = Tempo.tempoToWarp (Signal.constant 0.987)
+        trackWarps = [TrackWarp.TrackWarp
+                0 10 UiTest.defaultBlockId (Set.singleton trackId) warp]
+    let inv = TrackWarp.inverseTempoFunc trackWarps Transport.StopAtEnd
+        tempo = TrackWarp.tempoFunc trackWarps
+    let rtimes = concatMap (tempo UiTest.defaultBlockId trackId)
             (Lists.range 0 3 1)
         stimes = concatMap inv rtimes
     pprint rtimes
@@ -597,18 +597,18 @@ test_tempo_roundtrip = do
 
 test_named_pitch :: Test
 test_named_pitch = do
-    let run op = DeriveTest.eval Ui.empty (op $ Derive.named_nn_at "psig" 2)
+    let run op = DeriveTest.eval Ui.empty (op $ Derive.namedNnAt "psig" 2)
         pitch = DeriveTest.mkpitch12 "4c"
-        with_const pname = Derive.with_named_pitch pname
+        withConst pname = Derive.withNamedPitch pname
             (PSignal.constant pitch)
-    equal (run (with_const "psig")) (Right (Just 60))
-    left_like (run (with_const "bad")) "no named pitch #psig"
+    equal (run (withConst "psig")) (Right (Just 60))
+    leftLike (run (withConst "bad")) "no named pitch #psig"
 
 test_block_end :: Test
 test_block_end = do
     -- Make sure the pitch for the sub block event is trimmed to the end
     -- of the block, since there's no next event for it.
-    let res = DeriveTest.extract DeriveTest.e_nns $ DeriveTest.derive_blocks
+    let res = DeriveTest.extract DeriveTest.eNns $ DeriveTest.deriveBlocks
             [ ("p",
                 [ (">i1", [(0, 1, "sub"), (1, 1, "")])
                 , ("*twelve", [(0, 0, "5d"), (1, 0, "5e")])
@@ -628,15 +628,15 @@ test_regress_pedal :: Test
 test_regress_pedal = do
     -- Make sure a pedal halfway through a note really only turns on halfway
     -- through the note.
-    let ((_perf_events, mmsgs), _logs) = DeriveTest.perform_result
-            DeriveTest.perform_defaults (derive_blocks blocks)
-    let pedal_on =
+    let ((_perfEvents, mmsgs), _logs) = DeriveTest.performResult
+            DeriveTest.performDefaults (deriveBlocks blocks)
+    let pedalOn =
             [ (ts, c)
             | (ts, Midi.ChannelMessage _ (Midi.ControlChange 64 c))
-                <- DeriveTest.extract_midi mmsgs
+                <- DeriveTest.extractMidi mmsgs
             , c /= 0
             ]
-    equal pedal_on [(12500, 127)]
+    equal pedalOn [(12500, 127)]
     where
     blocks = [(("b10",
         [("pedal", [(12.5, 2, "`ped`")]),
@@ -649,9 +649,9 @@ test_regress_event_end1 = do
     -- Ensure that notes get the proper next event even when it has been
     -- sliced off.  Previously it extended to the block end and the notes
     -- wound up with too much pitch signal.
-    let res = derive_blocks blocks
-        extract e = (Score.event_start e, Score.event_duration e,
-                DeriveTest.e_nns e)
+    let res = deriveBlocks blocks
+        extract e = (Score.eventStart e, Score.eventDuration e,
+                DeriveTest.eNns e)
     equal (DeriveTest.extract extract res)
         ( [ (0, 2, [(0, 60), (2, 60)])
           , (2, 2, [(2, 62)])
@@ -668,9 +668,9 @@ test_regress_event_end1 = do
 
 test_regress_event_end2 :: Test
 test_regress_event_end2 = do
-    let res = derive_blocks blocks
-        extract e = (Score.event_start e, Score.event_duration e,
-                DeriveTest.e_nns e)
+    let res = deriveBlocks blocks
+        extract e = (Score.eventStart e, Score.eventDuration e,
+                DeriveTest.eNns e)
     equal (DeriveTest.extract extract res)
         ( [ (5, 2, [(5, 60), (7, 60)])
           , (7, 2, [(7, 62)])
@@ -685,19 +685,19 @@ test_regress_event_end2 = do
         ]),
       [(1, 2), (2, 3)])]
 
-derive_blocks :: [(UiTest.BlockSpec, [Skeleton.Edge])] -> Derive.Result
-derive_blocks blocks = DeriveTest.derive_block state (UiTest.bid block_name)
+deriveBlocks :: [(UiTest.BlockSpec, [Skeleton.Edge])] -> Derive.Result
+deriveBlocks blocks = DeriveTest.deriveBlock state (UiTest.bid blockName)
     where
-    state = UiTest.exec Ui.empty (UiTest.mkblocks_skel blocks)
-    ((block_name, _), _) : _ = blocks
+    state = UiTest.exec Ui.empty (UiTest.mkblocksSkel blocks)
+    ((blockName, _), _) : _ = blocks
 
 -- * util
 
-r_tempo :: Derive.Result -> Transport.TempoFunction
-r_tempo = TrackWarp.tempo_func . Derive.r_track_warps
+rTempo :: Derive.Result -> Transport.TempoFunction
+rTempo = TrackWarp.tempoFunc . Derive.rTrackWarps
 
-r_inv_tempo :: Derive.Result -> Transport.InverseTempoFunction
-r_inv_tempo = TrackWarp.inverse_tempo_func . Derive.r_track_warps
+rInvTempo :: Derive.Result -> Transport.InverseTempoFunction
+rInvTempo = TrackWarp.inverseTempoFunc . Derive.rTrackWarps
 
-e_events :: Derive.Result -> ([(RealTime, RealTime, Text)], [Text])
-e_events = DeriveTest.extract DeriveTest.e_event
+eEvents :: Derive.Result -> ([(RealTime, RealTime, Text)], [Text])
+eEvents = DeriveTest.extract DeriveTest.eEvent

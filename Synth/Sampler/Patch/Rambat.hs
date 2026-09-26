@@ -55,14 +55,14 @@ patches :: [Patch.Patch]
 patches = pasang : map make [Umbang, Isep]
     where
     pasang = Patch.patchKarya "rambat" $
-        ImInst.dummy Bali.pasang_msg . setRange
+        ImInst.dummy Bali.pasangMsg . setRange
     make tuning =
         (Patch.patch $ Text.intercalate "-" ["rambat", Util.showtLower tuning])
         { Patch._dir = dir
         , Patch._convert = convert tuning
         , Patch._karyaPatch = ImInst.code #= code tuning $
             setRange $ setTuning tuning $
-            ImInst.make_patch $
+            ImInst.makePatch $
             Lib.Bali.supportVariableMute $
             Util.patchPitchDynVar attributeMap
         , Patch._allFilenames = allFilenames tuning
@@ -71,14 +71,14 @@ patches = pasang : map make [Umbang, Isep]
         dir = "rambat" </> Util.showLower tuning
         code tuning = Lib.Bali.zeroDurMute 0.65
             <> Util.thru dir (convert tuning)
-            <> ImInst.postproc DUtil.with_symbolic_pitch
-    setRange = ImInst.range Legong.rambat_range
+            <> ImInst.postproc DUtil.withSymbolicPitch
+    setRange = ImInst.range Legong.rambatRange
     setTuning tuning = ImInst.environ EnvKey.tuning (tuningVal tuning :: Text)
     tuningVal Umbang = "umbang"
     tuningVal Isep = "isep"
 
 attributeMap :: Common.AttributeMap Articulation
-attributeMap = Common.attribute_map
+attributeMap = Common.attributeMap
     [ (calung <> mute, MuteCalung)
     , (calung, Calung)
     , (mute <> gangsa, MuteGangsa)

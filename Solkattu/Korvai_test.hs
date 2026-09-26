@@ -25,7 +25,7 @@ test_realize :: Test
 test_realize = do
     let f = fmap (first extract) . head
             . Korvai.realize Korvai.IMridangam
-            . korvai [] (Tala.Tala "eka" Tala.eka_anga 2) . (:[])
+            . korvai [] (Tala.Tala "eka" Tala.ekaAnga 2) . (:[])
         extract notes =
             [ pretty tempo <> ":" <> pretty stroke
             | (tempo, stroke) <- S.tempoNotes notes

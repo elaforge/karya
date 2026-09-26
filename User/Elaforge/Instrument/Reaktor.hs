@@ -24,13 +24,13 @@ import           Global
 synth :: MidiInst.Synth
 synth = MidiInst.synth "reaktor" "Native Instruments Reaktor" patches
 
-resonant_filter :: MidiInst.Code
-resonant_filter = MidiInst.null_call $
-    DUtil.double_pitch "res" mempty "res"
+resonantFilter :: MidiInst.Code
+resonantFilter = MidiInst.nullCall $
+    DUtil.doublePitch "res" mempty "res"
         (Set.fromList ["mix", "q", "lp-hp", "2-4-pole"])
 
 patch :: InstT.Name -> [(Midi.Control, ScoreT.Control)] -> MidiInst.Patch
-patch = MidiInst.named_patch (-96, 96)
+patch = MidiInst.namedPatch (-96, 96)
 
 patches :: [MidiInst.Patch]
 patches =
@@ -91,7 +91,7 @@ patches =
         -- useful.
         MidiInst.pressure $ patch "herald"
             [ (CC.mod, Controls.vib)
-            , (CC.vib_speed, Controls.vib_speed)
+            , (CC.vibSpeed, Controls.vibSpeed)
             , (CC.cc14, "atk") -- tongue attack
             , (CC.cc15, "buzz") -- tongue buzz
             , (CC.cc16, "buzz-len") -- tongue buzz length
@@ -117,11 +117,11 @@ patches =
         -- probably has minimal affect on the sound.  If dropping to
         -- 0 momentarily sounds like a direction change then that's good
         -- enough.
-        MidiInst.patch # Patch.attribute_map #=
-            Patch.cc_keyswitches [(CC.cc20, [(Attrs.pizz, 127), (mempty, 0)])] $
-        MidiInst.pressure $ MidiInst.named_patch (-24, 24) "serenade"
+        MidiInst.patch # Patch.attributeMap #=
+            Patch.ccKeyswitches [(CC.cc20, [(Attrs.pizz, 127), (mempty, 0)])] $
+        MidiInst.pressure $ MidiInst.namedPatch (-24, 24) "serenade"
             [ (CC.mod, Controls.vib)
-            , (CC.vib_speed, Controls.vib_speed)
+            , (CC.vibSpeed, Controls.vibSpeed)
             , (CC.cc14, "bow-speed")
             , (CC.cc15, "bow-force")
             , (CC.cc16, "bow-pos")
@@ -131,7 +131,7 @@ patches =
             , (CC.cc22, "pizz-time")
             , (CC.cc23, "pizz-level")
             ]
-    ] ++ silverwood_patches
+    ] ++ silverwoodPatches
 
 {- | Downloaded from NI, SilverwoodV3.2.ens.
     Modifications: add AR envelope to kbd gate multiplied with breath, so key
@@ -162,8 +162,8 @@ patches =
 
     Nothing for organ model yet, I don't really care much about organs.
 -}
-silverwood_patches :: [MidiInst.Patch]
-silverwood_patches =
+silverwoodPatches :: [MidiInst.Patch]
+silverwoodPatches =
     [ mk "clarinet" [(CC.cc16, "register")]
     , mk "flute" [(CC.cc17, "embouch")]
     , mk "brass" [(CC.cc17, "embouch")]
@@ -176,7 +176,7 @@ silverwood_patches =
             ("Silverwood woodwind physical model: " <> Doc.Doc name) $
         MidiInst.pressure $ patch ("sw-" <> name) $
             [ (CC.mod, Controls.vib)
-            , (CC.vib_speed, Controls.vib_speed)
+            , (CC.vibSpeed, Controls.vibSpeed)
             , (CC.cc14, "trem") -- brightness "vibrato", destination 1
             , (CC.cc15, "growl")
             ] ++ controls

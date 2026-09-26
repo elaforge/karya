@@ -29,25 +29,25 @@ import           Types
 
 library :: Library.Library
 library = mconcat
-    [ Library.transformers [("solo", c_solo)]
-    , Library.poly_generators
-        [ ("if-e", c_if_e)
-        , ("if-c<", c_if_c (<))
-        , ("if-c>", c_if_c (>))
-        , ("on-repeat", c_on_repeat)
+    [ Library.transformers [("solo", cSolo)]
+    , Library.polyGenerators
+        [ ("if-e", cIfE)
+        , ("if-c<", cIfC (<))
+        , ("if-c>", cIfC (>))
+        , ("on-repeat", cOnRepeat)
         ]
-    , Library.poly_transformers
-        [ ("when-c", c_when_c False)
-        , ("unless-c", c_when_c True)
-        , ("when-e", c_when_e False)
-        , ("unless-e", c_when_e True)
+    , Library.polyTransformers
+        [ ("when-c", cWhenC False)
+        , ("unless-c", cWhenC True)
+        , ("when-e", cWhenE False)
+        , ("unless-e", cWhenE True)
         ]
     ]
 
 -- * generator
 
-c_if_e :: Derive.CallableExpr d => Derive.Generator d
-c_if_e = Derive.generator Module.prelude "if-e" mempty
+cIfE :: Derive.CallableExpr d => Derive.Generator d
+cIfE = Derive.generator Module.prelude "if-e" mempty
     "Derive based on the value of an environment variable."
     $ Sig.call ((,,,)
     <$> Sig.required "name" "Environ key."
@@ -56,29 +56,29 @@ c_if_e = Derive.generator Module.prelude "if-e" mempty
         \ only that the environ key is set."
     <*> Sig.required "true" "Eval if true."
     <*> Sig.required "false" "Eval if false."
-    ) $ \(name, maybe_value, true, false) args ->
-        ifM (has_environ name maybe_value)
-            (Eval.eval_quoted (Args.context args) true)
-            (Eval.eval_quoted (Args.context args) false)
+    ) $ \(name, maybeValue, true, false) args ->
+        ifM (hasEnviron name maybeValue)
+            (Eval.evalQuoted (Args.context args) true)
+            (Eval.evalQuoted (Args.context args) false)
 
-c_if_c :: Derive.CallableExpr d => (Signal.Y -> Signal.Y -> Bool)
+cIfC :: Derive.CallableExpr d => (Signal.Y -> Signal.Y -> Bool)
     -> Derive.Generator d
-c_if_c cmp = Derive.generator Module.prelude "if-c<" mempty
+cIfC cmp = Derive.generator Module.prelude "if-c<" mempty
     "Derive based on the value of a control."
     $ Sig.call ((,)
     <$> Sig.required "control" "Test this control."
     <*> Sig.many1 "tests" "(value, expr) pairs."
     ) $ \(control, tests) args -> do
         val <- fromMaybe 0 <$>
-            (Derive.untyped_control_at control =<< Args.real_start args)
-        (tests, final) <- typecheck_tests (Args.start args)
+            (Derive.untypedControlAt control =<< Args.realStart args)
+        (tests, final) <- typecheckTests (Args.start args)
             (NonEmpty.toList tests)
-        Eval.eval_quoted (Args.context args) $ maybe final snd $
+        Eval.evalQuoted (Args.context args) $ maybe final snd $
             List.find (cmp val . fst) tests
 
-typecheck_tests :: ScoreTime -> [DeriveT.Val]
+typecheckTests :: ScoreTime -> [DeriveT.Val]
     -> Derive.Deriver ([(Signal.Y, DeriveT.Quoted)], DeriveT.Quoted)
-typecheck_tests start = go
+typecheckTests start = go
     where
     go [] = Derive.throw "not enough values"
     go [x] = do
@@ -91,13 +91,13 @@ typecheck_tests start = go
     typecheck :: Typecheck.Typecheck a => DeriveT.Val -> Derive.Deriver a
     typecheck = Typecheck.typecheck "" start
 
-c_on_repeat :: Derive.CallableExpr d => Derive.Generator d
-c_on_repeat = Derive.generator Module.prelude "on-repeat" mempty
+cOnRepeat :: Derive.CallableExpr d => Derive.Generator d
+cOnRepeat = Derive.generator Module.prelude "on-repeat" mempty
     "Derive the argument indexed by the `repeat` variable, where an out of\
     \ range index is clamped to be in range."
     $ Sig.call (Sig.many1 "repeat" "Eval on nth repeat.") $ \repeats args -> do
-        repeat <- Derive.lookup_val "repeat"
-        Eval.eval_quoted (Args.context args) (at repeats (fromMaybe 0 repeat))
+        repeat <- Derive.lookupVal "repeat"
+        Eval.evalQuoted (Args.context args) (at repeats (fromMaybe 0 repeat))
 
 at :: NonEmpty a -> Int -> a
 at (x0 :| x1: xs) i
@@ -107,18 +107,18 @@ at (x0 :| []) _ = x0
 
 -- * transformer
 
-c_solo :: Derive.Transformer Derive.Note
-c_solo = Derive.transformer Module.prelude "solo" mempty
+cSolo :: Derive.Transformer Derive.Note
+cSolo = Derive.transformer Module.prelude "solo" mempty
     "Only derive if `inst` is set to the given value. This is a specialized\
     \ version of `when-e`."
     $ Sig.callt (Sig.required "inst" "Instrument.")
     $ \inst _args deriver ->
-        ifM (has_environ EnvKey.instrument
-                (Just (Typecheck.to_val (inst :: ScoreT.Instrument))))
+        ifM (hasEnviron EnvKey.instrument
+                (Just (Typecheck.toVal (inst :: ScoreT.Instrument))))
             deriver mempty
 
-c_when_c :: Derive.Taggable d => Bool -> Derive.Transformer d
-c_when_c inverted = Derive.transformer Module.prelude "when-c" mempty
+cWhenC :: Derive.Taggable d => Bool -> Derive.Transformer d
+cWhenC inverted = Derive.transformer Module.prelude "when-c" mempty
     "Only derive if the control has the given value. E.g., you can use a\
     \ `%var` control to select among different variations."
     $ Sig.callt ((,)
@@ -129,8 +129,8 @@ c_when_c inverted = Derive.transformer Module.prelude "when-c" mempty
             then deriver else pure Stream.empty
     where invert = if inverted then not else id
 
-c_when_e :: Derive.Taggable d => Bool -> Derive.Transformer d
-c_when_e inverted = Derive.transformer Module.prelude "when-e" mempty
+cWhenE :: Derive.Taggable d => Bool -> Derive.Transformer d
+cWhenE inverted = Derive.transformer Module.prelude "when-e" mempty
     "Only derive if environ value is set to the given value. In a block\
     \ derived multiple times by different instruments, this can be used to\
     \ solo a bit of score to one particular instrument."
@@ -139,17 +139,17 @@ c_when_e inverted = Derive.transformer Module.prelude "when-e" mempty
     <*> Sig.defaulted "value" (Nothing :: Maybe DeriveT.Val)
         "Environ value. If not given, require\
         \ only that the environ key is set."
-    ) $ \(name, maybe_value) _args deriver ->
-        ifM (invert $ has_environ name maybe_value) deriver
+    ) $ \(name, maybeValue) _args deriver ->
+        ifM (invert $ hasEnviron name maybeValue) deriver
             (pure Stream.empty)
     where invert = if inverted then (not <$>) else id
 
-has_environ :: Env.Key -> Maybe DeriveT.Val -> Derive.Deriver Bool
-has_environ name maybe_val = Derive.lookup_val name >>= \case
+hasEnviron :: Env.Key -> Maybe DeriveT.Val -> Derive.Deriver Bool
+hasEnviron name maybeVal = Derive.lookupVal name >>= \case
     Nothing -> pure False
-    Just env_val -> case maybe_val of
+    Just envVal -> case maybeVal of
         Nothing -> pure True
-        Just val -> case DeriveT.vals_equal val env_val of
+        Just val -> case DeriveT.valsEqual val envVal of
             Nothing -> Derive.throw $ "vals can't be compared: "
-                <> ShowVal.show_val val <> " " <> ShowVal.show_val env_val
+                <> ShowVal.showVal val <> " " <> ShowVal.showVal envVal
             Just t -> pure t

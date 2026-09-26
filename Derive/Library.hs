@@ -9,9 +9,9 @@ module Derive.Library (
     Library, library, generators, transformers, vals, pattern
     , ToLibrary, Entry(..)
     , Calls(..), both
-    , poly_generators, poly_transformers
+    , polyGenerators, polyTransformers
     -- * compile
-    , Shadowed, show_shadowed, compile, compile_log
+    , Shadowed, showShadowed, compile, compileLog
 ) where
 import qualified Data.Either as Either
 import qualified Data.Map.Strict as Map
@@ -53,13 +53,13 @@ data Entry call
 instance Show Library where show _ = "((Library))"
 instance Pretty (Entry call) where
     pretty (Single sym _) = Expr.unsym sym
-    pretty (Pattern pattern) = "pattern:" <> Derive.pat_description pattern
+    pretty (Pattern pattern) = "pattern:" <> Derive.patDescription pattern
 
 -- * make
 
 library :: ToLibrary call => [(Expr.Symbol, call)] -> Library
 library [] = mempty
-library calls = to_library (map (uncurry Single) calls) mempty
+library calls = toLibrary (map (uncurry Single) calls) mempty
 
 -- | This is just a specialization of 'library', just for documentation.
 generators :: ToLibrary (Derive.Generator call) =>
@@ -76,7 +76,7 @@ vals :: [(Expr.Symbol, Derive.ValCall)] -> Library
 vals = library
 
 pattern :: ToLibrary call => Derive.PatternCall call -> Library
-pattern c = to_library [Pattern c] mempty
+pattern c = toLibrary [Pattern c] mempty
 
 -- | Bundle a generator and transformer together, so I can define them
 -- together.  Functions to create these are in "Derive.Call.Make".
@@ -87,29 +87,29 @@ data Calls d = Calls
 
 both :: (ToLibrary (Derive.Generator d), ToLibrary (Derive.Transformer d)) =>
     [(Expr.Symbol, Calls d)] -> Library
-both sym_calls =
+both symCalls =
     generators (zip syms (map generator calls))
         <> transformers (zip syms (map transformer calls))
-    where (syms, calls) = unzip sym_calls
+    where (syms, calls) = unzip symCalls
 
 -- | Add a polymorphic generator to all call types.
 --
 -- The Callable constraint is not needed here, but callers will have it, and
 -- for some reason you can't coerce a parametric variable into a constrained
 -- one.
-poly_generators ::
+polyGenerators ::
     (forall d. Derive.CallableExpr d => [(Expr.Symbol, Derive.Generator d)])
     -> Library
-poly_generators calls = mconcat
+polyGenerators calls = mconcat
     [ generators (calls :: [(Expr.Symbol, Derive.Generator Derive.Note)])
     , generators (calls :: [(Expr.Symbol, Derive.Generator Derive.Control)])
     , generators (calls :: [(Expr.Symbol, Derive.Generator Derive.Pitch)])
     ]
 
-poly_transformers ::
+polyTransformers ::
     (forall d. Derive.CallableExpr d => [(Expr.Symbol, Derive.Transformer d)])
     -> Library
-poly_transformers calls = mconcat
+polyTransformers calls = mconcat
     [ transformers (calls :: [(Expr.Symbol, Derive.Transformer Derive.Note)])
     , transformers (calls :: [(Expr.Symbol, Derive.Transformer Derive.Control)])
     , transformers (calls :: [(Expr.Symbol, Derive.Transformer Derive.Pitch)])
@@ -118,31 +118,31 @@ poly_transformers calls = mconcat
 -- ** ToLibrary
 
 class ToLibrary call where
-    to_library :: [Entry call] -> Library -> Library
+    toLibrary :: [Entry call] -> Library -> Library
 
 instance ToLibrary (Derive.Generator Derive.Note) where
-    to_library = (Derive.s_generator#Derive.s_note #=)
+    toLibrary = (Derive.sGenerator#Derive.sNote #=)
 instance ToLibrary (Derive.Generator Derive.Control) where
-    to_library = (Derive.s_generator#Derive.s_control #=)
+    toLibrary = (Derive.sGenerator#Derive.sControl #=)
 instance ToLibrary (Derive.Generator Derive.Pitch) where
-    to_library = (Derive.s_generator#Derive.s_pitch #=)
+    toLibrary = (Derive.sGenerator#Derive.sPitch #=)
 
 instance ToLibrary (Derive.Transformer Derive.Note) where
-    to_library = (Derive.s_transformer#Derive.s_note #=)
+    toLibrary = (Derive.sTransformer#Derive.sNote #=)
 instance ToLibrary (Derive.Transformer Derive.Control) where
-    to_library = (Derive.s_transformer#Derive.s_control #=)
+    toLibrary = (Derive.sTransformer#Derive.sControl #=)
 instance ToLibrary (Derive.Transformer Derive.Pitch) where
-    to_library = (Derive.s_transformer#Derive.s_pitch #=)
+    toLibrary = (Derive.sTransformer#Derive.sPitch #=)
 
 instance ToLibrary (Derive.TrackCall Derive.Note) where
-    to_library = (Derive.s_track#Derive.s_note #=)
+    toLibrary = (Derive.sTrack#Derive.sNote #=)
 instance ToLibrary (Derive.TrackCall Derive.Control) where
-    to_library = (Derive.s_track#Derive.s_control #=)
+    toLibrary = (Derive.sTrack#Derive.sControl #=)
 instance ToLibrary (Derive.TrackCall Derive.Pitch) where
-    to_library = (Derive.s_track#Derive.s_pitch #=)
+    toLibrary = (Derive.sTrack#Derive.sPitch #=)
 
 instance ToLibrary Derive.ValCall where
-    to_library = (Derive.s_val #=)
+    toLibrary = (Derive.sVal #=)
 
 -- * compile
 
@@ -150,8 +150,8 @@ instance ToLibrary Derive.ValCall where
 type Shadowed = ((Text, Module.Module), [(Expr.Symbol, [Derive.CallName])])
 -- type Shadowed = ((Text, Module.Module), [Expr.Symbol])
 
-show_shadowed :: Shadowed -> Text
-show_shadowed ((name, Module.Module module_), calls) = Text.unwords $ mconcat
+showShadowed :: Shadowed -> Text
+showShadowed ((name, Module.Module module_), calls) = Text.unwords $ mconcat
     [ ["shadowed", name, "calls in module", module_ <> ":"]
     , [ Expr.unsym sym <> " bound by ["
         <> Text.unwords (map unname names) <> "]"
@@ -164,40 +164,40 @@ show_shadowed ((name, Module.Module module_), calls) = Text.unwords $ mconcat
 -- a place to emit warnings about duplicate symbol names.
 compile :: Library -> (Derive.Builtins, [Shadowed])
 compile (Derive.Scopes lgen ltrans ltrack lval) = Logger.runId $ Derive.Scopes
-    <$> compile_scope lgen
-    <*> compile_scope ltrans
-    <*> compile_scope ltrack
-    <*> compile_entries "val" lval
+    <$> compileScope lgen
+    <*> compileScope ltrans
+    <*> compileScope ltrack
+    <*> compileEntries "val" lval
     where
-    compile_scope (Derive.Scope note control pitch) = Derive.Scope
-        <$> compile_entries "note" note
-        <*> compile_entries "control" control
-        <*> compile_entries "pitch" pitch
-    compile_entries kind =
+    compileScope (Derive.Scope note control pitch) = Derive.Scope
+        <$> compileEntries "note" note
+        <*> compileEntries "control" control
+        <*> compileEntries "pitch" pitch
+    compileEntries kind =
         fmap Map.fromAscList
         . traverse (compile1 kind)
-        . Lists.keyedGroupSort (Derive.cdoc_module . entry_doc)
+        . Lists.keyedGroupSort (Derive.cdocModule . entryDoc)
         where
-        entry_doc (Single _ call) = Derive.call_doc call
-        entry_doc (Pattern pattern) = Derive.pat_call_doc pattern
+        entryDoc (Single _ call) = Derive.callDoc call
+        entryDoc (Pattern pattern) = Derive.patCallDoc pattern
     compile1 kind (module_, entries) = do
         let (singles, patterns) = partition entries
         let (cmap, dups) = Maps.unique2 singles
         unless (null dups) $ Logger.log
             ( (kind, module_)
-            , map (second (map Derive.call_name)) dups
+            , map (second (map Derive.callName)) dups
             )
         pure $ (module_,) $ Derive.CallMap
-            { call_map = cmap
-            , call_patterns = patterns
+            { callMap = cmap
+            , callPatterns = patterns
             }
     partition = Either.partitionEithers . map partition1
     partition1 (Single sym call) = Left (sym, call)
     partition1 (Pattern pattern) = Right pattern
 
-compile_log :: Log.LogMonad m => Library -> m Derive.Builtins
-compile_log lib = do
+compileLog :: Log.LogMonad m => Library -> m Derive.Builtins
+compileLog lib = do
     let (builtins, shadows) = compile lib
-    forM_ shadows $ \((call_type, _module), calls) ->
-        Log.warn $ call_type <> " shadowed: " <> pretty calls
+    forM_ shadows $ \((callType, _module), calls) ->
+        Log.warn $ callType <> " shadowed: " <> pretty calls
     pure builtins

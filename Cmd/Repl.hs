@@ -17,9 +17,9 @@
     https://groupoid.moe/posts/ghc-api-tutorial.html
 -}
 module Cmd.Repl (
-    with_socket
-    , Session, make_session, interpreter, respond
-    , accept_msg
+    withSocket
+    , Session, makeSession, interpreter, respond
+    , acceptMsg
 ) where
 import qualified Control.DeepSeq as DeepSeq
 import qualified Control.Exception as Exception
@@ -57,28 +57,28 @@ import qualified Cmd.ReplStub as ReplImpl
 -- the previous strategy of unconditionally deleting and recreating the single
 -- socket meant that accidentally starting the app twice in the same directory
 -- would make the first one unreachable.
-with_socket :: (Socket.Socket -> IO a) -> IO a
-with_socket app = do
-    (fname, socket) <- try_socket $
-        Config.repl_socket_name
-        : [Config.repl_socket_name <> "." <> show n | n <- [1..4]]
+withSocket :: (Socket.Socket -> IO a) -> IO a
+withSocket app = do
+    (fname, socket) <- trySocket $
+        Config.replSocketName
+        : [Config.replSocketName <> "." <> show n | n <- [1..4]]
     app socket `Exception.finally`
         Exceptions.ignoreEnoent (Directory.removeFile fname)
     where
     -- Let the exception through on the last try.
-    try_socket [fname] = (fname,) <$> Network.listenUnix fname
-    try_socket (fname : fnames) =
+    trySocket [fname] = (fname,) <$> Network.listenUnix fname
+    trySocket (fname : fnames) =
         Exceptions.ignoreIOError (Network.listenUnix fname) >>= \case
-            Nothing -> try_socket fnames
+            Nothing -> trySocket fnames
             Just socket -> pure (fname, socket)
-    try_socket [] = errorIO "no socket files?"
+    trySocket [] = errorIO "no socket files?"
 
 -- | This is the persistent interpreter session which is stored in the global
 -- state.
 type Session = ReplImpl.Session
 
-make_session :: IO Session
-make_session = ReplImpl.make_session
+makeSession :: IO Session
+makeSession = ReplImpl.makeSession
 
 -- | This is the interpreter thread, which should be started when the app
 -- starts.  It's in a separate thread so it can run in its own monad.
@@ -87,13 +87,13 @@ interpreter = ReplImpl.interpreter
 
 respond :: Session -> Msg.Msg -> Cmd.CmdT IO Cmd.Status
 respond session msg = do
-    (response_hdl, query) <- case msg of
+    (responseHdl, query) <- case msg of
         Msg.Socket hdl s -> pure (hdl, s)
         _ -> Cmd.abort
-    (mb_response, status) <- case query of
+    (mbResponse, status) <- case query of
         ReplProtocol.QSaveFile -> do
-            save_file <- fmap (name_of . snd) <$> Cmd.gets Cmd.state_save_file
-            pure (Just $ ReplProtocol.RSaveFile save_file, Cmd.Done)
+            saveFile <- fmap (nameOf . snd) <$> Cmd.gets Cmd.stateSaveFile
+            pure (Just $ ReplProtocol.RSaveFile saveFile, Cmd.Done)
         ReplProtocol.QCommand expr -> command session (Text.strip expr)
         ReplProtocol.QCompletion prefix -> do
             words <- liftIO $ ReplImpl.complete session prefix
@@ -101,54 +101,54 @@ respond session msg = do
         ReplProtocol.QNotify notify -> do
             case notify of
                 ReplProtocol.NEditorOpened -> Cmd.modify $ \st -> st
-                    { Cmd.state_saved = (Cmd.state_saved st)
-                        { Cmd._editor_open = True }
+                    { Cmd.stateSaved = (Cmd.stateSaved st)
+                        { Cmd._editorOpen = True }
                     }
                 ReplProtocol.NEditorClosed -> Cmd.modify $ \st -> st
-                    { Cmd.state_saved = (Cmd.state_saved st)
-                        { Cmd._editor_open = False }
+                    { Cmd.stateSaved = (Cmd.stateSaved st)
+                        { Cmd._editorOpen = False }
                     }
             pure (Nothing, Cmd.Done)
-    liftIO $ Exception.handle warn_io_errors $ do
-        whenJust mb_response $ ReplProtocol.seq_send response_hdl
-        IO.hClose response_hdl
+    liftIO $ Exception.handle warnIoErrors $ do
+        whenJust mbResponse $ ReplProtocol.seqSend responseHdl
+        IO.hClose responseHdl
     pure status
     where
-    name_of (Cmd.SaveState fname) = Path.to_path fname
-    name_of (Cmd.SaveRepo fname) = Path.to_path fname
-    warn_io_errors (exc :: IOError) =
+    nameOf (Cmd.SaveState fname) = Path.toPath fname
+    nameOf (Cmd.SaveRepo fname) = Path.toPath fname
+    warnIoErrors (exc :: IOError) =
         Log.warn $ "caught exception from socket write: " <> showt exc
 
 command :: ReplImpl.Session -> Text
     -> Cmd.CmdT IO (Maybe ReplProtocol.Response, Cmd.Status)
 command session expr = do
-    ns <- Ui.get_namespace
-    expr <- Cmd.require_right ("expand_macros: "<>) $ expand_macros ns expr
+    ns <- Ui.getNamespace
+    expr <- Cmd.requireRight ("expand_macros: "<>) $ expandMacros ns expr
     Log.debug $ "repl input: " <> showt expr
-    cmd <- case Fast.fast_interpret (untxt expr) of
+    cmd <- case Fast.fastInterpret (untxt expr) of
         Just cmd -> pure cmd
         Nothing -> liftIO $ ReplImpl.interpret session expr
-    (response, status) <- run_cmdio $ Cmd.name ("repl: " <> expr) cmd
+    (response, status) <- runCmdio $ Cmd.name ("repl: " <> expr) cmd
     pure (Just $ ReplProtocol.RCommand response, status)
 
 -- | Replace \@some-id with @(make_id ns \"some-id\")@
-expand_macros :: Id.Namespace -> Text -> Either Text Text
-expand_macros namespace expr = Parse.expand_macros replace expr
+expandMacros :: Id.Namespace -> Text -> Either Text Text
+expandMacros namespace expr = Parse.expandMacros replace expr
     where
-    replace ident = "(make_id " <> showt (Id.un_namespace namespace) <> " "
+    replace ident = "(make_id " <> showt (Id.unNamespace namespace) <> " "
         <> showt ident <> ")"
 
 -- | Run the Cmd under an IO exception handler.
-run_cmdio :: Cmd.CmdT IO ReplProtocol.CmdResult
+runCmdio :: Cmd.CmdT IO ReplProtocol.CmdResult
     -> Cmd.CmdT IO (ReplProtocol.CmdResult, Cmd.Status)
-run_cmdio cmd = do
-    ui_state <- Ui.get
-    cmd_state <- Cmd.get
-    run_result <- liftIO $ Exception.try $ do
-        (cmd_state, midi, logs, cmd_result) <-
-            Cmd.run (ReplProtocol.raw "<aborted>") ui_state
-                (cmd_state { Cmd.state_repl_status = Cmd.Done }) cmd
-        case cmd_result of
+runCmdio cmd = do
+    uiState <- Ui.get
+    cmdState <- Cmd.get
+    runResult <- liftIO $ Exception.try $ do
+        (cmdState, midi, logs, cmdResult) <-
+            Cmd.run (ReplProtocol.raw "<aborted>") uiState
+                (cmdState { Cmd.stateReplStatus = Cmd.Done }) cmd
+        case cmdResult of
             Left _ -> pure ()
             -- Try to force out any async exceptions.  UI state may also have
             -- some, but I try to force those out in Ui.State functions.
@@ -156,34 +156,34 @@ run_cmdio cmd = do
             -- the responder when serializes the value for the socket.
             Right (val, _state, _updates) -> val `DeepSeq.deepseq` pure ()
         mapM_ Log.write logs
-        pure (cmd_state, midi, cmd_result, logs)
-    case run_result of
+        pure (cmdState, midi, cmdResult, logs)
+    case runResult of
         Left (exc :: Exception.SomeException) -> pure
             (ReplProtocol.raw $ "IO exception: " <> showt exc, Cmd.Done)
-        Right (cmd_state, thru, cmd_result, logs) -> case cmd_result of
+        Right (cmdState, thru, cmdResult, logs) -> case cmdResult of
             Left err -> pure
                 (ReplProtocol.raw $ "State error: " <> pretty err, Cmd.Done)
-            Right (ReplProtocol.CmdResult response eval_logs, ui_state,
+            Right (ReplProtocol.CmdResult response evalLogs, uiState,
                     damage) -> do
-                mapM_ Cmd.write_thru thru
-                Cmd.put $ cmd_state { Cmd.state_repl_status = Cmd.Continue }
+                mapM_ Cmd.writeThru thru
+                Cmd.put $ cmdState { Cmd.stateReplStatus = Cmd.Continue }
                 -- Should be safe, because I'm writing the damage.
-                Ui.unsafe_put ui_state
+                Ui.unsafePut uiState
                 Ui.damage damage
-                mapM_ Log.write eval_logs
+                mapM_ Log.write evalLogs
                 pure
-                    ( ReplProtocol.CmdResult response (eval_logs ++ logs)
-                    , Cmd.state_repl_status cmd_state
+                    ( ReplProtocol.CmdResult response (evalLogs ++ logs)
+                    , Cmd.stateReplStatus cmdState
                     )
 
 -- | Block and read a single message from the REPL client, and return it
 -- along with a response handle.  The Query should eventually make it's way to
 -- 'respond'.
-accept_msg :: Socket.Socket -> IO (Maybe (IO.Handle, ReplProtocol.Query))
-accept_msg socket = Exception.handle handle $ do
+acceptMsg :: Socket.Socket -> IO (Maybe (IO.Handle, ReplProtocol.Query))
+acceptMsg socket = Exception.handle handle $ do
     (socket, _peer) <- Socket.accept socket
     hdl <- Socket.socketToHandle socket IO.ReadWriteMode
-    msg <- ReplProtocol.seq_receive hdl
+    msg <- ReplProtocol.seqReceive hdl
     pure $ Just (hdl, msg)
     where
     handle (exc :: IOError) = do

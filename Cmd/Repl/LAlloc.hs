@@ -31,27 +31,27 @@ import           Global
 -- | Convert Allocations into ky and paste from here into instrument: section.
 ky :: UiConfig.Allocations -> Cmd.CmdL Text
 ky allocs = do
-    lookup_inst <- Cmd.get_lookup_inst_env <$> Cmd.get
+    lookupInst <- Cmd.getLookupInstEnv <$> Cmd.get
     either (pure . ("ERROR: "<>)) pure $
-        Instruments.un_instruments lookup_inst allocs
+        Instruments.unInstruments lookupInst allocs
 
 ky_ :: UiConfig.Allocations -> IO ()
 ky_ allocs =
     either (Text.IO.putStrLn . ("ERROR: "<>)) Text.IO.putStr $
-        Instruments.un_instruments (const Nothing) allocs
+        Instruments.unInstruments (const Nothing) allocs
 
 -- * bali
 
-rambat_im :: UiConfig.Allocations
-rambat_im =
-    pasang_im Short "ra" BaliScales.Umbang
+rambatIm :: UiConfig.Allocations
+rambatIm =
+    pasangIm Short "ra" BaliScales.Umbang
         sampler "rambat" "rambat-umbang" "rambat-isep"
 
-wayang_im :: Text -> Text -> UiConfig.Allocations
-wayang_im pemade kantilan =
-    pasang_im Short pemade BaliScales.Umbang
+wayangIm :: Text -> Text -> UiConfig.Allocations
+wayangIm pemade kantilan =
+    pasangIm Short pemade BaliScales.Umbang
         sampler "wayang-pemade" "wayang-pemade-umbang" "wayang-pemade-isep"
-    <> pasang_im Short kantilan BaliScales.Umbang
+    <> pasangIm Short kantilan BaliScales.Umbang
         sampler "wayang-kantilan"
         "wayang-kantilan-umbang" "wayang-kantilan-isep"
 
@@ -62,14 +62,14 @@ sampler = InstT.Qualified "sampler"
 --
 -- There are two pasang instruments, which then rely on the kotekan calls to
 -- split into inst-polos and inst-sangsih.  Polos has umbang.
-wayang_midi :: Text -> Text -> Text -> UiConfig.Allocations
-wayang_midi dev_ pemade kantilan =
-    pasang_midi Short dev 0 pemade BaliScales.Umbang
+wayangMidi :: Text -> Text -> Text -> UiConfig.Allocations
+wayangMidi dev_ pemade kantilan =
+    pasangMidi Short dev 0 pemade BaliScales.Umbang
         kontakt "wayang-pemade" "wayang-umbang" "wayang-isep"
-    <> pasang_midi Short dev 2 kantilan BaliScales.Umbang
+    <> pasangMidi Short dev 2 kantilan BaliScales.Umbang
         kontakt "wayang-kantilan" "wayang-umbang" "wayang-isep"
     where
-    dev = Midi.write_device dev_
+    dev = Midi.writeDevice dev_
 
 kontakt :: Text -> InstT.Qualified
 kontakt = InstT.Qualified "kontakt"
@@ -77,14 +77,14 @@ kontakt = InstT.Qualified "kontakt"
 data Verbosity = Long | Short deriving (Eq, Show)
 
 -- | Set up a umbang isep pair.
-pasang_im :: Verbosity -> Text -> BaliScales.Tuning -> (Text -> InstT.Qualified)
+pasangIm :: Verbosity -> Text -> BaliScales.Tuning -> (Text -> InstT.Qualified)
     -> Text -> Text -> Text -> UiConfig.Allocations
-pasang_im verbosity base polos_tuning
-        qualify pasang_qual umbang_qual isep_qual =
+pasangIm verbosity base polosTuning
+        qualify pasangQual umbangQual isepQual =
     ImInst.allocations
-        [ (inst base, qualify pasang_qual, pasang, UiConfig.Dummy "")
-        , (umbang, qualify umbang_qual, id, UiConfig.Im)
-        , (isep, qualify isep_qual, id, UiConfig.Im)
+        [ (inst base, qualify pasangQual, pasang, UiConfig.Dummy "")
+        , (umbang, qualify umbangQual, id, UiConfig.Im)
+        , (isep, qualify isepQual, id, UiConfig.Im)
         ]
     where
     umbang = inst $ base <> case verbosity of
@@ -93,18 +93,18 @@ pasang_im verbosity base polos_tuning
     isep = inst $ base <> case verbosity of
         Long -> "-isep"
         Short -> "i"
-    pasang = make_pasang polos_tuning umbang isep
+    pasang = makePasang polosTuning umbang isep
     inst = ScoreT.Instrument
 
-pasang_midi :: Verbosity -> Midi.WriteDevice -> Midi.Channel -> Text
+pasangMidi :: Verbosity -> Midi.WriteDevice -> Midi.Channel -> Text
     -> BaliScales.Tuning -> (Text -> InstT.Qualified) -> Text -> Text -> Text
     -> UiConfig.Allocations
-pasang_midi verbosity dev chan base polos_tuning
-        qualify pasang_qual umbang_qual isep_qual =
+pasangMidi verbosity dev chan base polosTuning
+        qualify pasangQual umbangQual isepQual =
     MidiInst.allocations
-        [ (inst base, qualify pasang_qual, pasang, UiConfig.Dummy "")
-        , (umbang, qualify umbang_qual, id, midi_channel 0)
-        , (isep, qualify isep_qual, id, midi_channel 1)
+        [ (inst base, qualify pasangQual, pasang, UiConfig.Dummy "")
+        , (umbang, qualify umbangQual, id, midiChannel 0)
+        , (isep, qualify isepQual, id, midiChannel 1)
         ]
     where
     umbang = inst $ base <> case verbosity of
@@ -113,36 +113,36 @@ pasang_midi verbosity dev chan base polos_tuning
     isep = inst $ base <> case verbosity of
         Long -> "-isep"
         Short -> "i"
-    pasang = make_pasang polos_tuning umbang isep
-    midi_channel relative_chan =
-        UiConfig.Midi (MidiInst.config1 dev (chan + relative_chan))
+    pasang = makePasang polosTuning umbang isep
+    midiChannel relativeChan =
+        UiConfig.Midi (MidiInst.config1 dev (chan + relativeChan))
     inst = ScoreT.Instrument
 
-make_pasang :: BaliScales.Tuning -> ScoreT.Instrument -> ScoreT.Instrument
+makePasang :: BaliScales.Tuning -> ScoreT.Instrument -> ScoreT.Instrument
     -> Common.Config -> Common.Config
-make_pasang polos_tuning umbang isep =
-    Common.add_cenviron Gangsa.inst_polos polos
-    . Common.add_cenviron Gangsa.inst_sangsih sangsih
+makePasang polosTuning umbang isep =
+    Common.addCenviron Gangsa.instPolos polos
+    . Common.addCenviron Gangsa.instSangsih sangsih
     where
-    (polos, sangsih) = case polos_tuning of
+    (polos, sangsih) = case polosTuning of
         BaliScales.Umbang -> (umbang, isep)
         BaliScales.Isep -> (isep, umbang)
 
 type Device = Text
 
 kebyar :: Device -> UiConfig.Allocations
-kebyar = ScGamelan.kebyar_allocations
+kebyar = ScGamelan.kebyarAllocations
 
-kendang_kontakt :: Device -> UiConfig.Allocations
-kendang_kontakt = KendangBali.allocations "k"
+kendangKontakt :: Device -> UiConfig.Allocations
+kendangKontakt = KendangBali.allocations "k"
 
-kendang_im :: UiConfig.Allocations
-kendang_im = Sampler.Patch.KendangBali.allocations "k"
+kendangIm :: UiConfig.Allocations
+kendangIm = Sampler.Patch.KendangBali.allocations "k"
 
-legong_umbang :: Patch.Scale
-legong_umbang = Legong.complete_instrument_scale Legong.laras_rambat
+legongUmbang :: Patch.Scale
+legongUmbang = Legong.completeInstrumentScale Legong.larasRambat
     BaliScales.Umbang
 
-legong_isep :: Patch.Scale
-legong_isep = Legong.complete_instrument_scale Legong.laras_rambat
+legongIsep :: Patch.Scale
+legongIsep = Legong.completeInstrumentScale Legong.larasRambat
     BaliScales.Isep

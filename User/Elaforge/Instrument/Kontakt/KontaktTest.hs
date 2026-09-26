@@ -19,15 +19,15 @@ import           Global
 
 
 derive :: UiConfig.Allocations -> Text -> [UiTest.TrackSpec] -> Derive.Result
-derive = DeriveTest.derive_tracks_setup . with_synth
+derive = DeriveTest.deriveTracksSetup . withSynth
 
-with_synth :: UiConfig.Allocations -> DeriveTest.Setup
-with_synth allocs = DeriveTest.with_synths allocs [Kontakt.synth]
+withSynth :: UiConfig.Allocations -> DeriveTest.Setup
+withSynth allocs = DeriveTest.withSynths allocs [Kontakt.synth]
 
 perform :: UiConfig.Allocations -> Stream.Stream Score.Event
     -> (([Midi.Types.Event], [Midi.WriteMessage]), [Log.Msg])
-perform allocs = DeriveTest.perform_synths allocs [Kontakt.synth]
+perform allocs = DeriveTest.performSynths allocs [Kontakt.synth]
 
-perform_synth :: UiConfig.Allocations -> Stream.Stream Score.Event
+performSynth :: UiConfig.Allocations -> Stream.Stream Score.Event
     -> (([Midi.Types.Event], [Midi.WriteMessage]), [Log.Msg])
-perform_synth allocs = DeriveTest.perform_synths allocs [Kontakt.synth]
+performSynth allocs = DeriveTest.performSynths allocs [Kontakt.synth]

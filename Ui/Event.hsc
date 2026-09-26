@@ -25,21 +25,21 @@ module Ui.Event (
     -- * types
     Event
     , Stack(..), IndexKey, event
-    , clear_integration
+    , clearIntegration
     -- * access
     , start, duration, text, style, stack
     , start_, duration_, text_, style_, stack_, end_
-    , set_text_raw
+    , setTextRaw
     , end, range, overlaps, min, max
     -- ** Orientation
-    , orientation, orientation_of
-    , is_negative, is_positive
+    , orientation, orientationOf
+    , isNegative, isPositive
     -- * modify
     , unmodified
-    , set_start, set_end
+    , setStart, setEnd
     , place, round
     -- * misc
-    , intern_event
+    , internEvent
     -- * style
     , EventStyle
 ) where
@@ -91,12 +91,12 @@ data Event = Event
 data Stack = Stack
     -- | The stack is used so the event retains a reference to its generating
     -- event.
-    { stack_stack :: !Stack.Stack
-    , stack_key :: !IndexKey
+    { stackStack :: !Stack.Stack
+    , stackKey :: !IndexKey
     } deriving (Eq, Ord, Show)
 
 instance DeepSeq.NFData Stack where
-    rnf = DeepSeq.rnf . stack_stack
+    rnf = DeepSeq.rnf . stackStack
 
 {- | This is the original position of the event on its integrated track.  I can
     use this to find the (hopefully) equivalent event from the next integration
@@ -127,13 +127,13 @@ event start dur text = Event
     { _start = start
     , _duration = dur
     , _text = text
-    , _style = Config.default_style
+    , _style = Config.defaultStyle
     , _stack = Nothing
     }
 
 -- | Recreate the event without the integrated-from metadata.
-clear_integration :: Event -> Event
-clear_integration e = event (start e) (duration e) (text e)
+clearIntegration :: Event -> Event
+clearIntegration e = event (start e) (duration e) (text e)
 
 -- * access
 
@@ -155,26 +155,26 @@ stack :: Event -> Maybe Stack
 stack = _stack
 
 start_ :: Lens Event TrackTime
-start_ = event_lens True _start (\val event -> event { _start = val })
+start_ = eventLens True _start (\val event -> event { _start = val })
 
 duration_ :: Lens Event TrackTime
 duration_ =
-    event_lens_eq eq True _duration (\val event -> event { _duration = val })
-    where eq a b = a == b && ScoreTime.is_negative a == ScoreTime.is_negative b
+    eventLensEq eq True _duration (\val event -> event { _duration = val })
+    where eq a b = a == b && ScoreTime.isNegative a == ScoreTime.isNegative b
 
 text_ :: Lens Event Text
-text_ = event_lens True _text (\val event -> event { _text = val })
+text_ = eventLens True _text (\val event -> event { _text = val })
 
-set_text_raw :: Text -> Event -> Event
-set_text_raw t event = event { _text = t }
+setTextRaw :: Text -> Event -> Event
+setTextRaw t event = event { _text = t }
 
 style_ :: Lens Event Style.StyleId
-style_ = event_lens False _style (\val event -> event { _style = val })
+style_ = eventLens False _style (\val event -> event { _style = val })
     -- It was counterproductive when setting the style would also cause
     -- 'modified' to set the style to something else!
 
 stack_ :: Lens Event (Maybe Stack)
-stack_ = event_lens False _stack (\val event -> event { _stack = val })
+stack_ = eventLens False _stack (\val event -> event { _stack = val })
     -- Stack sets the event as integrated, which is only done by integration,
     -- and hence not considered 'modified'.
 
@@ -192,7 +192,7 @@ range e = (min e, max e)
 overlaps :: ScoreTime -> Event -> Bool
 overlaps p event
     | start event == p = True
-    | is_positive event = start event <= p && p < end event
+    | isPositive event = start event <= p && p < end event
     | otherwise = end event < p && p <= start event
 
 min, max :: Event -> ScoreTime
@@ -201,54 +201,54 @@ max e = Prelude.max (start e) (end e)
 
 -- ** lens
 
-event_lens :: Eq a => Bool -> (Event -> a) -> (a -> Event -> Event)
+eventLens :: Eq a => Bool -> (Event -> a) -> (a -> Event -> Event)
     -> Lens.Lens Event a
-event_lens = event_lens_eq (==)
+eventLens = eventLensEq (==)
 
-event_lens_eq :: (a -> a -> Bool) -> Bool -> (Event -> a)
+eventLensEq :: (a -> a -> Bool) -> Bool -> (Event -> a)
     -> (a -> Event -> Event) -> Lens.Lens Event a
-event_lens_eq eq set_modified field set = Lens.lens field update
+eventLensEq eq setModified field set = Lens.lens field update
     where
     update event val
         | field event `eq` val = event
-        | set_modified = modified (set val event)
+        | setModified = modified (set val event)
         | otherwise = set val event
 
 -- ** Orientation
 
 orientation :: Event -> Types.Orientation
-orientation = orientation_of . duration
+orientation = orientationOf . duration
 
-orientation_of :: TrackTime -> Types.Orientation
-orientation_of t
-    | ScoreTime.is_negative t = Types.Negative
+orientationOf :: TrackTime -> Types.Orientation
+orientationOf t
+    | ScoreTime.isNegative t = Types.Negative
     | otherwise = Types.Positive
 
-is_negative :: Event -> Bool
-is_negative = ScoreTime.is_negative . duration
+isNegative :: Event -> Bool
+isNegative = ScoreTime.isNegative . duration
 
-is_positive :: Event -> Bool
-is_positive = not . is_negative
+isPositive :: Event -> Bool
+isPositive = not . isNegative
 
 -- * modify
 
 -- | If this was an integrated event, it might have the unmodified style.
 -- Set it to modified now so I don't have to wait for the next integration.
 modified :: Event -> Event
-modified = style_ %= Config.modified_style
+modified = style_ %= Config.modifiedStyle
 
 -- | Mark this is a generated event, which has not yet been modified.
 unmodified :: Event -> Event
-unmodified = style_ %= Config.unmodified_style
+unmodified = style_ %= Config.unmodifiedStyle
 
 -- | Move the start only.  This could invert the duration if the start moves
 -- past the end.
-set_start :: ScoreTime -> Event -> Event
-set_start p event = place p (end event - p) event
+setStart :: ScoreTime -> Event -> Event
+setStart p event = place p (end event - p) event
 
 -- | Redundant with the 'end_' lens, but here for symmetry with 'set_start'.
-set_end :: ScoreTime -> Event -> Event
-set_end = (end_ #=)
+setEnd :: ScoreTime -> Event -> Event
+setEnd = (end_ #=)
 
 place :: ScoreTime -> ScoreTime -> Event -> Event
 place start dur event = modified $ event { _start = start, _duration = dur }
@@ -267,9 +267,9 @@ round event = event
 
 -- * misc
 
-intern_event :: Map.Map Text (Text, Int) -> Event
+internEvent :: Map.Map Text (Text, Int) -> Event
     -> (Map.Map Text (Text, Int), Event)
-intern_event table event = case Map.lookup (text event) table of
+internEvent table event = case Map.lookup (text event) table of
     Nothing -> (Map.insert (text event) (text event, 1) table, event)
     Just (interned, count) ->
         ( Map.insert interned (interned, count+1) table
@@ -311,15 +311,15 @@ instance Serialize.Serialize Stack where
 instance CStorable Event where
     sizeOf _ = #size Event
     alignment _ = alignment (0 :: CDouble)
-    poke = poke_event
+    poke = pokeEvent
     peek = error "Event peek unimplemented"
 
-poke_event :: Ptr Event -> Event -> IO ()
-poke_event eventp (Event start dur text (Style.StyleId style_id) _) = do
+pokeEvent :: Ptr Event -> Event -> IO ()
+pokeEvent eventp (Event start dur text (Style.StyleId styleId) _) = do
     -- Must be freed by the caller, EventTrack::draw_area.
     textp <- if Text.null text
         then return nullPtr else FFI.newCString0 text
     (#poke Event, start) eventp start
     (#poke Event, duration) eventp dur
     (#poke Event, text) eventp textp
-    (#poke Event, style_id) eventp style_id
+    (#poke Event, style_id) eventp styleId

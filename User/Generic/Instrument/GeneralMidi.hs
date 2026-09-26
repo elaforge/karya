@@ -20,30 +20,30 @@ import           Global
 synth :: MidiInst.Synth
 synth =
     MidiInst.synth "gm" "Yes it's General MIDI." $
-        MidiInst.synth_controls controls $
-        MidiInst.default_patch pb_range [] : patches
+        MidiInst.synthControls controls $
+        MidiInst.defaultPatch pbRange [] : patches
     where
     controls = []
 
 -- Who knows really, but fluidsynth seems to hardcode this.
-pb_range :: (Int, Int)
-pb_range = (-2, 2)
+pbRange :: (Int, Int)
+pbRange = (-2, 2)
 
 patches :: [MidiInst.Patch]
-patches = percussion : map (uncurry make_patch) (zip [0..] patch_names)
+patches = percussion : map (uncurry makePatch) (zip [0..] patchNames)
 
 percussion :: MidiInst.Patch
 percussion =
     MidiInst.doc #= "This must be allocated on channel 10, GM says so." $
-    CUtil.simple_drum CUtil.MidiThru Nothing stroke_keys $
-    MidiInst.named_patch pb_range "percussion" []
+    CUtil.simpleDrum CUtil.MidiThru Nothing strokeKeys $
+    MidiInst.namedPatch pbRange "percussion" []
 
-make_patch :: Midi.Program -> Text -> MidiInst.Patch
-make_patch pgm name = set_pgm pgm $ MidiInst.named_patch pb_range name []
+makePatch :: Midi.Program -> Text -> MidiInst.Patch
+makePatch pgm name = setPgm pgm $ MidiInst.namedPatch pbRange name []
 
-set_pgm :: Midi.Program -> MidiInst.Patch -> MidiInst.Patch
-set_pgm pgm = MidiInst.patch#Patch.initialize
-    #= Patch.initialize_midi [Midi.ProgramChange pgm]
+setPgm :: Midi.Program -> MidiInst.Patch -> MidiInst.Patch
+setPgm pgm = MidiInst.patch#Patch.initialize
+    #= Patch.initializeMidi [Midi.ProgramChange pgm]
 
 clean :: Text -> Text
 clean = Text.replace ")" "" . Text.replace "(" "" . Text.replace " " "-"
@@ -51,8 +51,8 @@ clean = Text.replace ")" "" . Text.replace "(" "" . Text.replace " " "-"
 
 -- Copied and pasted from wikipedia.
 
-patch_names :: [Text]
-patch_names = map clean
+patchNames :: [Text]
+patchNames = map clean
     -- Piano
     [ "Acoustic Grand Piano"
     , "Bright Acoustic Piano"
@@ -199,8 +199,8 @@ patch_names = map clean
     , "Gunshot"
     ]
 
-stroke_keys :: [(Drums.Stroke, Midi.Key)]
-stroke_keys = map make
+strokeKeys :: [(Drums.Stroke, Midi.Key)]
+strokeKeys = map make
     -- Clearly more of these could be mapped.  I'll do it someday if I need it.
     [ (27, "High Q",            Nothing)
     , (28, "Slap",              Nothing)
@@ -210,25 +210,25 @@ stroke_keys = map make
     , (32, "Square Click",      Nothing)
     , (33, "Metronome Click",   Nothing)
     , (34, "Metronome Bell",    Nothing)
-    , (35, "Acoustic Bass Drum", Just Drums.c_bd)
-    , (36, "Electric Bass Drum", Just Drums.c_bd2)
+    , (35, "Acoustic Bass Drum", Just Drums.cBd)
+    , (36, "Electric Bass Drum", Just Drums.cBd2)
     , (37, "Side Stick",        Nothing)
-    , (38, "Acoustic Snare",    Just Drums.c_sn)
+    , (38, "Acoustic Snare",    Just Drums.cSn)
     , (39, "Hand Clap",         Nothing)
-    , (40, "Electric Snare",    Just Drums.c_sn2)
+    , (40, "Electric Snare",    Just Drums.cSn2)
     , (41, "Low Floor Tom",     Nothing)
-    , (42, "Closed Hi-hat",     Just Drums.c_hh)
+    , (42, "Closed Hi-hat",     Just Drums.cHh)
     , (43, "High Floor Tom",    Nothing)
-    , (44, "Pedal Hi-hat",      Just Drums.c_phh)
-    , (45, "Low Tom",           Just Drums.c_ltom)
-    , (46, "Open Hi-hat",       Just Drums.c_ohh)
-    , (47, "Low-Mid Tom",       Just Drums.c_mtom)
-    , (48, "Hi-Mid Tom",        Just Drums.c_hmtom)
-    , (49, "Crash Cymbal 1",    Just Drums.c_crash)
-    , (50, "High Tom",          Just Drums.c_htom)
-    , (51, "Ride Cymbal 1",     Just Drums.c_ride)
+    , (44, "Pedal Hi-hat",      Just Drums.cPhh)
+    , (45, "Low Tom",           Just Drums.cLtom)
+    , (46, "Open Hi-hat",       Just Drums.cOhh)
+    , (47, "Low-Mid Tom",       Just Drums.cMtom)
+    , (48, "Hi-Mid Tom",        Just Drums.cHmtom)
+    , (49, "Crash Cymbal 1",    Just Drums.cCrash)
+    , (50, "High Tom",          Just Drums.cHtom)
+    , (51, "Ride Cymbal 1",     Just Drums.cRide)
     , (52, "Chinese Cymbal",    Nothing)
-    , (53, "Ride Bell",         Just Drums.c_bell)
+    , (53, "Ride Bell",         Just Drums.cBell)
     , (54, "Tambourine",        Nothing)
     , (55, "Splash Cymbal",     Nothing)
     , (56, "Cowbell",           Nothing)
@@ -265,6 +265,6 @@ stroke_keys = map make
     , (87, "Open Surdo",        Nothing)
     ]
     where
-    make (key, name, mb_stroke) = (fromMaybe (generic name) mb_stroke, key)
+    make (key, name, mbStroke) = (fromMaybe (generic name) mbStroke, key)
     -- Make a generic unbound stroke.
     generic name = Drums.stroke ' ' (Expr.Symbol name) (Attrs.attr name)

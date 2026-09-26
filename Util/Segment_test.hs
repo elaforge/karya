@@ -28,7 +28,7 @@ type Y = Double
 
 test_from_pairs :: Test
 test_from_pairs = do
-    let f = to_segments . from_pairs
+    let f = toSegments . fromPairs
     equal (f [(0, 0), (1, 1), (2, 0)])
         [((0, 0), (1, 1)), ((1, 1), (2, 0)), ((2, 0), (large, 0))]
     equal (f [(0, 0), (1, 0), (1, 1)])
@@ -42,14 +42,14 @@ test_from_pairs = do
 
 test_constant_val_from :: Test
 test_constant_val_from = do
-    let f = Segment.constant_val_from
-    equal (f 0 $ from_pairs [(2, 1)]) Nothing
-    equal (f 0 $ Segment.shift (-2) (from_pairs [(2, 1)])) (Just 1)
-    equal (f 0 $ Segment.shift (-2) (from_pairs [(2, 1), (4, 1)])) (Just 1)
+    let f = Segment.constantValFrom
+    equal (f 0 $ fromPairs [(2, 1)]) Nothing
+    equal (f 0 $ Segment.shift (-2) (fromPairs [(2, 1)])) (Just 1)
+    equal (f 0 $ Segment.shift (-2) (fromPairs [(2, 1), (4, 1)])) (Just 1)
 
 test_concat :: Test
 test_concat = do
-    let f = to_pairs . num_concat . map from_pairs
+    let f = toPairs . numConcat . map fromPairs
     equal (f []) []
     -- Extend final segment.
     equal (f [[(0, 1)], [(4, 2)]]) [(0, 1), (4, 1), (4, 2)]
@@ -70,21 +70,21 @@ test_concat = do
 
 test_concat_ascending :: Test
 test_concat_ascending = hedgehog $ property $ do
-    (s1, s2) <- Hedgehog.forAll $ (,) <$> gen_signal <*> gen_signal
-    let xs = map fst $ to_pairs $ num_concat [s1, s2]
+    (s1, s2) <- Hedgehog.forAll $ (,) <$> genSignal <*> genSignal
+    let xs = map fst $ toPairs $ numConcat [s1, s2]
     xs === List.sort xs
 
 test_concat_dups :: Test
 test_concat_dups = hedgehog $ Hedgehog.withTests 500 $ property $ do
-    sigs <- Hedgehog.forAll $ Gen.list (Range.linear 0 4) gen_signal
-    let xs = map fst $ to_pairs $ num_concat sigs
+    sigs <- Hedgehog.forAll $ Gen.list (Range.linear 0 4) genSignal
+    let xs = map fst $ toPairs $ numConcat sigs
     filter ((>2) . length) (List.group xs) === []
 
 test_prepend :: Test
 test_prepend = do
-    let f sig1 sig2 = to_pairs $
-            Segment.prepend (Just (==)) Segment.num_interpolate
-                (from_pairs sig1) (from_pairs sig2)
+    let f sig1 sig2 = toPairs $
+            Segment.prepend (Just (==)) Segment.numInterpolate
+                (fromPairs sig1) (fromPairs sig2)
     equal (f [] []) []
     equal (f [] [(0, 0), (1, 1)]) [(0, 0), (1, 1)]
     equal (f [(0, 10), (1, 1)] [(0, 0), (1, 1), (2, 2)])
@@ -92,7 +92,7 @@ test_prepend = do
 
 test_segment_at :: Test
 test_segment_at = do
-    let f sig = Segment.segment_at_orientation Types.Positive (from_pairs sig)
+    let f sig = Segment.segmentAtOrientation Types.Positive (fromPairs sig)
     equal (f [] 0) Nothing
     equal (f [(1, 1)] 0) Nothing
     equal (f [(1, 1)] 1) $ Just (Segment 1 1 large 1)
@@ -102,13 +102,13 @@ test_segment_at = do
     -- Positive bias.
     equal (f [(0, 0), (2, 0), (2, 2)] 2) $ Just (Segment 2 2 large 2)
     -- Shift.
-    equal (Segment.segment_at
-            (Segment.shift 3 (from_pairs [(0, 0), (2, 2)])) 4) $
+    equal (Segment.segmentAt
+            (Segment.shift 3 (fromPairs [(0, 0), (2, 2)])) 4) $
         Just (Segment 3 0 5 2)
 
 test_segment_at_negative :: Test
 test_segment_at_negative = do
-    let f sig = Segment.segment_at_orientation Types.Negative (from_pairs sig)
+    let f sig = Segment.segmentAtOrientation Types.Negative (fromPairs sig)
     equal (f [] 0) Nothing
     equal (f [(1, 1)] 0) Nothing
     equal (f [(1, 1)] 1) $ Just (Segment 1 1 large 1)
@@ -120,38 +120,38 @@ test_segment_at_negative = do
 
 test_at :: Test
 test_at = do
-    let f = Segment.at Segment.num_interpolate
-            (from_pairs [(1, 1), (2, 2), (2, 3)])
+    let f = Segment.at Segment.numInterpolate
+            (fromPairs [(1, 1), (2, 2), (2, 3)])
     equal (map f [0, 1, 1.5, 2, 3, 4])
         [Nothing, Just 1, Just 1.5, Just 3, Just 3, Just 3]
 
 test_shift :: Test
 test_shift = do
     let shift = Segment.shift
-    let at = Segment.at Segment.num_interpolate
-    equal (at (from_pairs [(2, 2)]) 2) (Just 2)
-    equal (at (shift 2 (from_pairs [(2, 2)])) 2) Nothing
-    equal (at (shift (-2) (from_pairs [(2, 2)])) 0) (Just 2)
-    equal (at (shift (-1) (from_pairs [(1, 1), (2, 0.5)])) 0) (Just 1)
-    equal (at (shift (-1) (from_pairs [(1, 1), (2, 0.5)])) 0.5) (Just 0.75)
+    let at = Segment.at Segment.numInterpolate
+    equal (at (fromPairs [(2, 2)]) 2) (Just 2)
+    equal (at (shift 2 (fromPairs [(2, 2)])) 2) Nothing
+    equal (at (shift (-2) (fromPairs [(2, 2)])) 0) (Just 2)
+    equal (at (shift (-1) (fromPairs [(1, 1), (2, 0.5)])) 0) (Just 1)
+    equal (at (shift (-1) (fromPairs [(1, 1), (2, 0.5)])) 0.5) (Just 0.75)
 
-    let shifted = shift 2 (from_pairs [(2, 2)])
-    equal (to_pairs shifted) [(4, 2)]
+    let shifted = shift 2 (fromPairs [(2, 2)])
+    equal (toPairs shifted) [(4, 2)]
     equal (Segment.head shifted) (Just (4, 2))
     equal (Segment.last shifted) (Just (4, 2))
-    equal (Segment.drop_after 3 shifted) Segment.empty
-    equal (Segment.drop_after 4 shifted) shifted
+    equal (Segment.dropAfter 3 shifted) Segment.empty
+    equal (Segment.dropAfter 4 shifted) shifted
 
-    let shifted = shift 2 (from_pairs [(2, 2), (3, 3)])
-    equal (to_pairs $ Segment.drop_before 5 shifted) [(5, 3)]
-    equal (Segment.drop_before 4 shifted) shifted
+    let shifted = shift 2 (fromPairs [(2, 2), (3, 3)])
+    equal (toPairs $ Segment.dropBefore 5 shifted) [(5, 3)]
+    equal (Segment.dropBefore 4 shifted) shifted
 
 test_drop_after_clip_after :: Test
 test_drop_after_clip_after = do
     let f x sig =
-            ( to_pairs $ Segment.drop_after x $ from_pairs sig
-            , to_pairs $ Segment.clip_after Segment.num_interpolate x $
-                from_pairs sig
+            ( toPairs $ Segment.dropAfter x $ fromPairs sig
+            , toPairs $ Segment.clipAfter Segment.numInterpolate x $
+                fromPairs sig
             )
     let s124 = [(1, 1), (2, 2), (4, 4)]
     equal (f 4 s124) ([(1, 1), (2, 2), (4, 4)], [(1, 1), (2, 2), (4, 4)])
@@ -163,20 +163,20 @@ test_drop_after_clip_after = do
 
 test_num_clip_after :: Test
 test_num_clip_after = do
-    let f x = to_pairs . Segment.num_clip_after False x . from_pairs
+    let f x = toPairs . Segment.numClipAfter False x . fromPairs
     equal (f 2 [(0, 0), (1, 1), (4, 1)]) [(0, 0), (1, 1)]
     equal (f 2 [(0, 0), (2, 0), (2, 2)]) [(0, 0)]
     equal (f 2 [(0, 0), (4, 4)]) [(0, 0), (2, 2)]
     equal (f 2 [(2, 1)]) []
-    let f2 = Segment.num_clip_after False
+    let f2 = Segment.numClipAfter False
     equal (at (f2 2 (Segment.constant 1)) 0) (Just 1)
 
 test_drop_before_clip_before :: Test
 test_drop_before_clip_before = do
     let f x sig =
-            ( to_pairs $ Segment.drop_before x $ from_pairs sig
-            , to_pairs $ Segment.clip_before Segment.num_interpolate x $
-                from_pairs sig
+            ( toPairs $ Segment.dropBefore x $ fromPairs sig
+            , toPairs $ Segment.clipBefore Segment.numInterpolate x $
+                fromPairs sig
             )
     let s124 = [(1, 1), (2, 2), (4, 4)]
     equal (f 5 s124) ([(4, 4)], [(5, 4)])
@@ -189,25 +189,25 @@ test_drop_before_clip_before = do
 
 test_integrate :: Test
 test_integrate = do
-    let f = to_pairs . Segment.integrate 1 . from_pairs
+    let f = toPairs . Segment.integrate 1 . fromPairs
     equal (f []) []
-    equal (f [(0, 1)]) [(0, 0), (large, large_y)]
+    equal (f [(0, 1)]) [(0, 0), (large, largeY)]
     equal (f [(0, 0), (4, 4)])
         [ (0, 0), (1, 0.5), (2, 2), (3, 4.5), (4, 8)
-        , (large, 8 + 4 * (large_y - 4))
+        , (large, 8 + 4 * (largeY - 4))
         ]
     equal (f [(0, 1), (3, 2)])
         [ (0, 0), (1, 1+1/6), (2, 2+2/3), (3, 3+3/2)
-        , (large, 3+3/2 + 2 * (large_y - 3))
+        , (large, 3+3/2 + 2 * (largeY - 3))
         ]
     equal (f [(0, 0), (1, 1), (2, 2), (4, 2)])
         [ (0, 0), (1, 0.5), (2, 2), (4, 6), (4, 6)
-        , (large, 6 + 2 * (large_y - 4))
+        , (large, 6 + 2 * (largeY - 4))
         ]
 
 test_resample_rate :: Test
 test_resample_rate = do
-    let f = to_pairs . Segment.resample_rate 1 . from_pairs
+    let f = toPairs . Segment.resampleRate 1 . fromPairs
     equal (f [(0, 2), (4, 2), (4, 1)]) [(0, 2), (4, 2), (4, 1)]
     equal (f [(0, 0), (4, 4)]) [(0, 0), (1, 1), (2, 2), (3, 3), (4, 4)]
     equal (f [(0, 0), (2, 2), (2, 0), (4, 2)])
@@ -215,14 +215,14 @@ test_resample_rate = do
 
 test_map_y :: Test
 test_map_y = do
-    let f = to_pairs . Segment.map_y 1 (1/) . from_pairs
+    let f = toPairs . Segment.mapY 1 (1/) . fromPairs
     equal (f [(0, 5), (4, 1)]) [(0, 1/5), (1, 1/4), (2, 1/3), (3, 1/2), (4, 1)]
     equal (f [(0, 2), (4, 2), (4, 1)]) [(0, 1/2), (4, 1/2), (4, 1)]
 
 test_linear_operator :: Test
 test_linear_operator = do
-    let f s1 s2 = to_segments $
-            Segment.linear_operator (+) (from_pairs s1) (from_pairs s2)
+    let f s1 s2 = toSegments $
+            Segment.linearOperator (+) (fromPairs s1) (fromPairs s2)
     -- Degenerate.
     equal (f [] []) []
     equal (f [(0, 1)] []) [((0, 1), (large, 1))]
@@ -238,16 +238,16 @@ test_linear_operator = do
 
 test_linear_operator_constant :: Test
 test_linear_operator_constant = do
-    let f s1 s2 = Segment.linear_operator (+) s1 s2
+    let f s1 s2 = Segment.linearOperator (+) s1 s2
     equal (f (Segment.constant 1) (Segment.constant 2))
         (Segment.Constant 3)
-    equal (f (Segment.constant 1) (from_pairs [(1, 3)]))
-        (from_pairs [(Segment.beginning, 1), (1, 1), (1, 4)])
+    equal (f (Segment.constant 1) (fromPairs [(1, 3)]))
+        (fromPairs [(Segment.beginning, 1), (1, 1), (1, 4)])
 
 test_linear_operator2 :: Test
 test_linear_operator2 = do
-    let f s1 s2 = to_segments $
-            Segment._linear_operator2 Num.sum (from_pairs s1) (from_pairs s2)
+    let f s1 s2 = toSegments $
+            Segment._linearOperator2 Num.sum (fromPairs s1) (fromPairs s2)
     -- Degenerate.
     equal (f [] []) []
     equal (f [(0, 1)] []) [((0, 1), (large, 1))]
@@ -263,7 +263,7 @@ test_linear_operator2 = do
 
 test_to_piecewise_constant :: Test
 test_to_piecewise_constant = do
-    let f = TimeVector.to_pairs . Segment.to_piecewise_constant 1 . from_pairs
+    let f = TimeVector.toPairs . Segment.toPiecewiseConstant 1 . fromPairs
     equal (f []) []
     equal (f [(4, 2)]) [(4, 2)]
     equal (f [(2, 2), (4, 2), (4, 4)]) [(2, 2), (4, 4)]
@@ -272,7 +272,7 @@ test_to_piecewise_constant = do
 
 test_drop_discontinuity_at :: Test
 test_drop_discontinuity_at = do
-    let f x = to_pairs . Segment.drop_discontinuity_at x . from_pairs
+    let f x = toPairs . Segment.dropDiscontinuityAt x . fromPairs
     equal (f 1 [(0, 0), (1, 0), (1, 1), (2, 1)])
         [(0, 0), (2, 0), (2, 1)]
     -- Don't get >2 2s in a row.
@@ -281,9 +281,9 @@ test_drop_discontinuity_at = do
 
 test_invert :: Test
 test_invert = do
-    let f = to_pairs . Segment.invert
-    equal (f $ from_pairs [(0, 1), (1, 2)]) [(1, 0), (2, 1)]
-    equal (f $ Segment.shift (-2) $ from_pairs [(2, 1), (3, 2)])
+    let f = toPairs . Segment.invert
+    equal (f $ fromPairs [(0, 1), (1, 2)]) [(1, 0), (2, 1)]
+    equal (f $ Segment.shift (-2) $ fromPairs [(2, 1), (3, 2)])
         [(1, 0), (2, 1)]
 
 -- * hedgehog
@@ -291,50 +291,50 @@ test_invert = do
 -- | Xs are ascending.
 test_from_samples_ascending :: Test
 test_from_samples_ascending = hedgehog $ property $ do
-    samples <- Hedgehog.forAll gen_samples
-    let xs = map fst $ to_pairs $ from_pairs samples
+    samples <- Hedgehog.forAll genSamples
+    let xs = map fst $ toPairs $ fromPairs samples
     xs === List.sort xs
 
 -- | Never more than 2 Xs with the same value.
 test_from_samples_dups :: Test
 test_from_samples_dups = hedgehog $ property $ do
-    samples <- Hedgehog.forAll gen_samples
-    let xs = map fst $ to_pairs $ from_pairs samples
+    samples <- Hedgehog.forAll genSamples
+    let xs = map fst $ toPairs $ fromPairs samples
     Hedgehog.annotateShow xs
     filter ((>2) . length) (List.group xs) === []
 
-gen_samples :: Hedgehog.Gen [(X, Y)]
-gen_samples = Gen.list (Range.linear 0 16) $
-    (,) <$> gen_integral_x <*> Gen.element [-1, 1]
+genSamples :: Hedgehog.Gen [(X, Y)]
+genSamples = Gen.list (Range.linear 0 16) $
+    (,) <$> genIntegralX <*> Gen.element [-1, 1]
 
 -- | Integral RealTimes to encourage collisions.
-gen_integral_x :: Hedgehog.Gen RealTime
-gen_integral_x = RealTime.seconds . fromIntegral <$>
+genIntegralX :: Hedgehog.Gen RealTime
+genIntegralX = RealTime.seconds . fromIntegral <$>
     Gen.int (Range.linear (-4) 4)
 
-gen_signal :: Hedgehog.Gen Segment.NumSignal
-gen_signal = from_pairs . Lists.sortOn fst <$> gen_samples
+genSignal :: Hedgehog.Gen Segment.NumSignal
+genSignal = fromPairs . Lists.sortOn fst <$> genSamples
 
 -- * util
 
 at :: Segment.NumSignal -> X -> Maybe Y
-at = Segment.at Segment.num_interpolate
+at = Segment.at Segment.numInterpolate
 
-large_y :: Y
-large_y = RealTime.to_seconds large
+largeY :: Y
+largeY = RealTime.toSeconds large
 
-to_segments :: Segment.NumSignal -> [((X, Y), (X, Y))]
-to_segments = map (\(Segment.Segment x1 y1 x2 y2) -> ((x1, y1), (x2, y2)))
-    . Segment.to_segments
+toSegments :: Segment.NumSignal -> [((X, Y), (X, Y))]
+toSegments = map (\(Segment.Segment x1 y1 x2 y2) -> ((x1, y1), (x2, y2)))
+    . Segment.toSegments
 
-from_pairs :: [(X, Y)] -> Segment.NumSignal
-from_pairs = Segment.from_pairs
+fromPairs :: [(X, Y)] -> Segment.NumSignal
+fromPairs = Segment.fromPairs
 
-to_pairs :: Segment.NumSignal -> [(X, Y)]
-to_pairs = Segment.to_pairs
+toPairs :: Segment.NumSignal -> [(X, Y)]
+toPairs = Segment.toPairs
 
 constant :: Y -> Segment.NumSignal
 constant = Segment.constant
 
-num_concat :: [Segment.NumSignal] -> Segment.NumSignal
-num_concat = Segment.concat (Just (==)) Segment.num_interpolate
+numConcat :: [Segment.NumSignal] -> Segment.NumSignal
+numConcat = Segment.concat (Just (==)) Segment.numInterpolate

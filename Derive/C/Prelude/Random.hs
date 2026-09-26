@@ -33,28 +33,28 @@ import           Types
 
 library :: Library.Library
 library = mconcat
-    [ Library.poly_generators
-        [ ("alt", c_alternate)
-        , ("alt-w", c_alternate_weighted)
+    [ Library.polyGenerators
+        [ ("alt", cAlternate)
+        , ("alt-w", cAlternateWeighted)
         ]
-    , Library.poly_transformers
-        [ ("omit", c_omit)
-        , ("log-seed", c_log_seed)
+    , Library.polyTransformers
+        [ ("omit", cOmit)
+        , ("log-seed", cLogSeed)
         ]
     , Library.generators
-        [ ("alt-t", c_alternate_tracks)
-        , ("t-alt", c_tempo_alternate)
-        , ("t-alt-c", c_tempo_alternate_continuous)
+        [ ("alt-t", cAlternateTracks)
+        , ("t-alt", cTempoAlternate)
+        , ("t-alt-c", cTempoAlternateContinuous)
         ]
     , Library.vals
-        [ ("alt", c_val_alternate) -- or ?
-        , ("alt-w", c_val_alternate_weighted)
-        , ("range", c_range) -- or -?
+        [ ("alt", cValAlternate) -- or ?
+        , ("alt-w", cValAlternateWeighted)
+        , ("range", cRange) -- or -?
         ]
     ]
 
-c_omit :: Derive.CallableExpr d => Derive.Transformer d
-c_omit = Derive.transformer Module.prelude "omit" Tags.random
+cOmit :: Derive.CallableExpr d => Derive.Transformer d
+cOmit = Derive.transformer Module.prelude "omit" Tags.random
     "Omit the derived call a certain percentage of the time."
     $ Sig.callt
     (Sig.defaulted "chance" (0.5 :: Double)
@@ -62,49 +62,49 @@ c_omit = Derive.transformer Module.prelude "omit" Tags.random
     ) $ \omit _args deriver ->
         ifM (Call.chance omit) (pure Stream.empty) deriver
 
-c_log_seed :: Derive.CallableExpr d => Derive.Transformer d
-c_log_seed = Derive.transformer Module.prelude "log-seed" mempty
+cLogSeed :: Derive.CallableExpr d => Derive.Transformer d
+cLogSeed = Derive.transformer Module.prelude "log-seed" mempty
     "Emit a log message with the seed at this point. If you like how a\
     \ generator realized, and want to freeze it, then you can use this to\
     \ get the seed, and then hardcode it with `seed=xyz`."
     $ Sig.call0t $ \_args deriver -> do
-        seed <- fromMaybe 0 <$> Derive.lookup_val EnvKey.seed
+        seed <- fromMaybe 0 <$> Derive.lookupVal EnvKey.seed
         Log.warn $ "log-seed: " <> showt (seed :: Int)
         deriver
 
-c_alternate :: Derive.CallableExpr d => Derive.Generator d
-c_alternate = Derive.generator Module.prelude "alternate" Tags.random
+cAlternate :: Derive.CallableExpr d => Derive.Generator d
+cAlternate = Derive.generator Module.prelude "alternate" Tags.random
     "Pick one of several expressions and evaluate it."
     $ Sig.call (Sig.many1 "expr" "Expression to evaluate.") $
     \exprs args -> do
         quoted <- Call.pick exprs <$> Call.random
-        Eval.eval_quoted (Args.context args) quoted
+        Eval.evalQuoted (Args.context args) quoted
 
-c_alternate_weighted :: Derive.CallableExpr d => Derive.Generator d
-c_alternate_weighted =
+cAlternateWeighted :: Derive.CallableExpr d => Derive.Generator d
+cAlternateWeighted =
     Derive.generator Module.prelude "alternate-weighted" Tags.random
     "Pick one of several expressions and evaluate it."
-    $ Sig.call (Sig.many1_pairs "expr" "(weight, expr) pairs.") $
+    $ Sig.call (Sig.many1Pairs "expr" "(weight, expr) pairs.") $
     \pairs args ->
-        Eval.eval_quoted (Args.context args) . Call.pick_weighted pairs
+        Eval.evalQuoted (Args.context args) . Call.pickWeighted pairs
             =<< Call.random
 
-c_alternate_tracks :: Derive.Generator Derive.Note
-c_alternate_tracks = Derive.generator Module.prelude "alternate-tracks"
+cAlternateTracks :: Derive.Generator Derive.Note
+cAlternateTracks = Derive.generator Module.prelude "alternate-tracks"
     (Tags.random <> Tags.subs) "Evaluate notes from one of the sub-tracks."
     $ Sig.call
     (Sig.many "weight" "Likelihood to choose each child track. Each number is\
         \ a relative weight, and tracks without a number default to 1. It's\
         \ an error to have more numbers than tracks.") $
     \weights args -> do
-        subs <- Sub.sub_events args
+        subs <- Sub.subEvents args
         let err =  "more weights than tracks: " <> showt (length weights)
                 <> " > " <> showt (length subs) <> " tracks"
-        sub_weights <- mapM (pair err) $ Lists.zipPadded weights subs
-        case NonEmpty.nonEmpty sub_weights of
+        subWeights <- mapM (pair err) $ Lists.zipPadded weights subs
+        case NonEmpty.nonEmpty subWeights of
             Nothing -> pure mempty
-            Just sub_weights ->
-                Sub.derive . Call.pick_weighted sub_weights =<< Call.random
+            Just subWeights ->
+                Sub.derive . Call.pickWeighted subWeights =<< Call.random
     where
     pair _ (Lists.Both weight sub) = pure (weight, sub)
     pair err (Lists.First _) = Derive.throw err
@@ -113,48 +113,48 @@ c_alternate_tracks = Derive.generator Module.prelude "alternate-tracks"
 -- TODO This doesn't really belong in here since it's not random.  Also not in
 -- NoteTransformer since it's not a transformer.  Maybe all this stuff should
 -- move to an Alternate module?
-c_tempo_alternate :: Derive.Generator Derive.Note
-c_tempo_alternate = Derive.generator Module.prelude "tempo-alternate"
-    mempty tempo_alternate_doc $ Sig.call ((,)
-    <$> breakpoints_arg
+cTempoAlternate :: Derive.Generator Derive.Note
+cTempoAlternate = Derive.generator Module.prelude "tempo-alternate"
+    mempty tempoAlternateDoc $ Sig.call ((,)
+    <$> breakpointsArg
     <*> Sig.environ "timestep" Sig.Prefixed Meter.E
         "Use the duration of this timestep, in seconds."
     ) $ \((bottom, pairs), timestep) args -> do
-        dur <- Derive.real =<< Call.meter_duration (Args.start args) timestep 1
-        Eval.eval_quoted (Args.context args) $ under_threshold bottom pairs dur
+        dur <- Derive.real =<< Call.meterDuration (Args.start args) timestep 1
+        Eval.evalQuoted (Args.context args) $ underThreshold bottom pairs dur
 
-under_threshold :: Ord key => val -> [(key, val)] -> key -> val
-under_threshold bottom ((threshold, expr) : rest) dur
+underThreshold :: Ord key => val -> [(key, val)] -> key -> val
+underThreshold bottom ((threshold, expr) : rest) dur
     | dur < threshold = bottom
-    | otherwise = under_threshold expr rest dur
-under_threshold bottom [] _ = bottom
+    | otherwise = underThreshold expr rest dur
+underThreshold bottom [] _ = bottom
 
-tempo_alternate_doc :: Doc.Doc
-tempo_alternate_doc =
+tempoAlternateDoc :: Doc.Doc
+tempoAlternateDoc =
     "Derive alternate calls depending on the tempo, for Javanese-style wirama\
     \ transitions. For instance, `a 1/8 b 1/4 c` will play `a` when an 8th\
     \ note is between 0 and 1/8s, `b` when it's between 1/8s and 1/4s, and\
     \ `c` when it's above 1/4s."
 
-c_tempo_alternate_continuous :: Derive.Generator Derive.Note
-c_tempo_alternate_continuous =
+cTempoAlternateContinuous :: Derive.Generator Derive.Note
+cTempoAlternateContinuous =
     Derive.generator Module.prelude "tempo-alternate-continuous" mempty
-        (tempo_alternate_doc <> "\nThis variant will\
+        (tempoAlternateDoc <> "\nThis variant will\
         \ switch between the alternates even in the middle of the call.\
         \ Long notes will be clipped at the transition point.")
     $ Sig.call ((,,)
-    <$> breakpoints_arg
+    <$> breakpointsArg
     <*> Sig.environ "timestep" Sig.Prefixed Meter.E
         "Use the duration of this timestep, in seconds."
     <*> Sig.environ "interval" Sig.Prefixed Meter.Q
         "Switch between alternates at this time interval."
     ) $ \((bottom, pairs), timestep, interval) args ->
-        tempo_alternate_continuous bottom pairs timestep interval args
+        tempoAlternateContinuous bottom pairs timestep interval args
 
-breakpoints_arg :: Sig.Parser (DeriveT.Quoted, [(RealTime, DeriveT.Quoted)])
-breakpoints_arg = Sig.check check $ (,)
-    <$> Sig.required_env "bottom" Sig.None "Default alternate."
-    <*> Sig.many_pairs "threshold,expr"
+breakpointsArg :: Sig.Parser (DeriveT.Quoted, [(RealTime, DeriveT.Quoted)])
+breakpointsArg = Sig.check check $ (,)
+    <$> Sig.requiredEnv "bottom" Sig.None "Default alternate."
+    <*> Sig.manyPairs "threshold,expr"
         "Evaluate the expr if the tempo is above the threshold.\
         \ The thresholds should be in ascending order, so the fastest alternate\
         \ is at the left."
@@ -164,20 +164,20 @@ breakpoints_arg = Sig.check check $ (,)
         | otherwise = Just $ "thresholds should be in ascending order: "
             <> pretty (map fst pairs)
 
-tempo_alternate_continuous :: DeriveT.Quoted -> [(RealTime, DeriveT.Quoted)]
+tempoAlternateContinuous :: DeriveT.Quoted -> [(RealTime, DeriveT.Quoted)]
     -> Meter.Rank -> Meter.Rank -> Derive.NoteArgs -> Derive.NoteDeriver
-tempo_alternate_continuous bottom pairs timestep interval args = do
-    interval <- Call.meter_duration (Args.start args) interval 1
+tempoAlternateContinuous bottom pairs timestep interval args = do
+    interval <- Call.meterDuration (Args.start args) interval 1
     let starts = Lists.range (Args.start args) (Args.end args) interval
-    indices <- alternate_indices starts timestep (map fst pairs)
-    let (alts, alt_indices) = select_indices (bottom : map snd pairs) indices
-    alts <- mapM (Eval.eval_quoted (Args.context args)) alts
-    real_starts <- mapM Derive.real starts
-    let breakpoints = Lists.dropDups snd (zip real_starts alt_indices)
+    indices <- alternateIndices starts timestep (map fst pairs)
+    let (alts, altIndices) = selectIndices (bottom : map snd pairs) indices
+    alts <- mapM (Eval.evalQuoted (Args.context args)) alts
+    realStarts <- mapM Derive.real starts
+    let breakpoints = Lists.dropDups snd (zip realStarts altIndices)
     -- Debug.tracepM "breakpoints" (starts, zip real_starts alt_indices)
     pure $ case breakpoints of
         -- Optimize a single breakpoint at the start.
-        [(t, i)] | [t] == take 1 real_starts -> alts !! i
+        [(t, i)] | [t] == take 1 realStarts -> alts !! i
         _ -> switch alts breakpoints
 
 -- | Switch between note streams when the index changes.  Sounding notes
@@ -190,42 +190,42 @@ switch streams bps = mconcatMap select (Lists.zipNext bps)
     -- This is a little bit inefficient because it scans from the beginning of
     -- each stream, but the number of events and streams is likely small.
     select ((t, i), next) = case next of
-        Nothing -> Stream.drop_while ((<t) . Score.event_start) (streams !! i)
-        Just (next_t, _) -> extrect t next_t (streams !! i)
+        Nothing -> Stream.dropWhile ((<t) . Score.eventStart) (streams !! i)
+        Just (nextT, _) -> extrect t nextT (streams !! i)
     extrect start end =
-        fmap (clip end) . Stream.take_while ((<end) . Score.event_start)
-            . Stream.drop_while ((<start) . Score.event_start)
+        fmap (clip end) . Stream.takeWhile ((<end) . Score.eventStart)
+            . Stream.dropWhile ((<start) . Score.eventStart)
     clip end event
-        | Score.event_end event <= end = event
+        | Score.eventEnd event <= end = event
         | otherwise =
-            Score.set_duration (max 0 (end - Score.event_start event)) event
+            Score.setDuration (max 0 (end - Score.eventStart event)) event
 
-alternate_indices :: [ScoreTime] -> Meter.Rank -> [RealTime]
+alternateIndices :: [ScoreTime] -> Meter.Rank -> [RealTime]
     -> Derive.Deriver [Int]
     -- ^ time to switch to which index
-alternate_indices starts timestep thresholds = do
+alternateIndices starts timestep thresholds = do
     -- reals <- mapM Derive.real starts
     -- Debug.tracepM "reals" (zip starts reals)
     -- Get tempo at each start, in the duration of the timestep at each start.
-    durs <- mapM (timestep_dur_at timestep) starts
+    durs <- mapM (timestepDurAt timestep) starts
     pure $ -- Debug.traceRetp "alt_indices" (thresholds, zip starts durs) $
-        map (index_under_threshold thresholds) durs
+        map (indexUnderThreshold thresholds) durs
 
-timestep_dur_at :: Meter.Rank -> ScoreTime -> Derive.Deriver RealTime
-timestep_dur_at timestep p = do
-    Call.real_duration p =<< Call.meter_duration p timestep 1
+timestepDurAt :: Meter.Rank -> ScoreTime -> Derive.Deriver RealTime
+timestepDurAt timestep p = do
+    Call.realDuration p =<< Call.meterDuration p timestep 1
 
 -- | Select the given indices from the list, and return a list with just the
 -- indexed elements, and the original indices packed so they index into the
 -- dense list.
-select_indices :: [a] -> [Int] -> ([a], [Int])
-select_indices xs is = (map (xs!!) unique, map pack is)
+selectIndices :: [a] -> [Int] -> ([a], [Int])
+selectIndices xs is = (map (xs!!) unique, map pack is)
     where
     unique = Lists.uniqueSort is
     pack i = fromMaybe 0 $ List.elemIndex i unique
 
-index_under_threshold :: Ord a => [a] -> a -> Int
-index_under_threshold ts val = go 0 ts
+indexUnderThreshold :: Ord a => [a] -> a -> Int
+indexUnderThreshold ts val = go 0 ts
     where
     go i (t:ts)
         | val <= t = i
@@ -234,24 +234,24 @@ index_under_threshold ts val = go 0 ts
 
 -- * val calls
 
-c_val_alternate :: Derive.ValCall
-c_val_alternate = Derive.val_call Module.prelude "alternate" Tags.random
+cValAlternate :: Derive.ValCall
+cValAlternate = Derive.valCall Module.prelude "alternate" Tags.random
     "Pick one of the arguments randomly."
     $ Sig.call (Sig.many1 "val" "Value of any type.") $ \vals _ ->
         Call.pick (vals :: NonEmpty DeriveT.Val) <$> Call.random
 
-c_val_alternate_weighted :: Derive.ValCall
-c_val_alternate_weighted = Derive.val_call Module.prelude "alternate-weighted"
+cValAlternateWeighted :: Derive.ValCall
+cValAlternateWeighted = Derive.valCall Module.prelude "alternate-weighted"
     Tags.random "Pick one of the arguments randomly."
-    $ Sig.call (Sig.many1_pairs "val" "(weight, val) pairs.") $
+    $ Sig.call (Sig.many1Pairs "val" "(weight, val) pairs.") $
     \pairs _args -> do
         let vals :: NonEmpty DeriveT.Val
             (weights, vals) = NonEmpty.unzip pairs
-        Call.pick_weighted (NonEmpty.zip weights vals) <$> Call.random
+        Call.pickWeighted (NonEmpty.zip weights vals) <$> Call.random
 
-c_range :: Derive.ValCall
-c_range = Derive.val_call Module.prelude "range" Tags.random
+cRange :: Derive.ValCall
+cRange = Derive.valCall Module.prelude "range" Tags.random
     "Pick a random number within a range." $ Sig.call ((,)
     <$> Sig.defaulted "low" (0 :: Int) "Bottom of range, inclusive."
     <*> Sig.defaulted "high" (1 :: Int) "Top of range, inclusive."
-    ) $ \(low, high) _args -> Call.random_in low high :: Derive.Deriver Double
+    ) $ \(low, high) _args -> Call.randomIn low high :: Derive.Deriver Double

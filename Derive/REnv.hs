@@ -7,7 +7,7 @@
 -- It omits pitches, which are code and can't be serialized.
 module Derive.REnv (
     Environ(..)
-    , to_map, from_list, convert, lookup, null
+    , toMap, fromList, convert, lookup, null
     -- * val
     , promote, demote
     , Val(..)
@@ -50,11 +50,11 @@ instance Pretty Environ where
     format (Environ env) = Pretty.formatMap
         . map (bimap Pretty.text Pretty.format) . Map.toList $ env
 
-to_map :: Environ -> Map EnvKey.Key Val
-to_map (Environ m) = m
+toMap :: Environ -> Map EnvKey.Key Val
+toMap (Environ m) = m
 
-from_list :: [(EnvKey.Key, Val)] -> Environ
-from_list = Environ . Map.fromList
+fromList :: [(EnvKey.Key, Val)] -> Environ
+fromList = Environ . Map.fromList
 
 convert :: Environ -> DeriveT.Environ
 convert (Environ env) = DeriveT.Environ $ promote <$> env
@@ -89,18 +89,18 @@ promote = \case
     VNum a -> DeriveT.VSignal $ Signal.constant <$> a
     VAttributes a -> DeriveT.VAttributes a
     VControlRef a -> DeriveT.VControlRef a
-    VConstantPitch (ConstantPitch scale_id note nn) ->
+    VConstantPitch (ConstantPitch scaleId note nn) ->
         DeriveT.VPSignal $ PSignal.constant $
-            PSignal.constant_pitch scale_id note nn
+            PSignal.constantPitch scaleId note nn
     VNotePitch a -> DeriveT.VNotePitch a
     VStr a -> DeriveT.VStr a
-    VQuoted a -> DeriveT.VQuoted $ DeriveT.Quoted $ Expr.map_literals promote a
+    VQuoted a -> DeriveT.VQuoted $ DeriveT.Quoted $ Expr.mapLiterals promote a
     VList a -> DeriveT.VList $ map promote a
 
 demote :: DeriveT.Val -> Maybe Val
 demote = \case
     DeriveT.VSignal (ScoreT.Typed ty sig)
-        | Just a <- Signal.constant_val sig -> Just $ VNum (ScoreT.Typed ty a)
+        | Just a <- Signal.constantVal sig -> Just $ VNum (ScoreT.Typed ty a)
         | otherwise -> Nothing
     DeriveT.VPSignal _ -> Nothing
     DeriveT.VAttributes a -> Just $ VAttributes a
@@ -117,7 +117,7 @@ demote = \case
     DeriveT.VList as -> VList <$> mapM demote as
 
 instance Pretty Val where format = Pretty.format . promote
-instance ShowVal.ShowVal Val where show_val = ShowVal.show_val . promote
+instance ShowVal.ShowVal Val where showVal = ShowVal.showVal . promote
 
 -- | This duplicates 'TrackLang.Typecheck', but then so does this whole module.
 -- In any case, it's convenient for creaing 'Environ's.
@@ -125,44 +125,44 @@ instance ShowVal.ShowVal Val where show_val = ShowVal.show_val . promote
 -- TODO But I wish I could reuse Typecheck.ToVal, otherwise I have to add an
 -- extra instance declaration for each type.
 class ToVal a where
-    to_val :: a -> Val
-    default to_val :: ShowVal.ShowVal a => a -> Val
-    to_val = VStr . Expr.Str . ShowVal.show_val
+    toVal :: a -> Val
+    default toVal :: ShowVal.ShowVal a => a -> Val
+    toVal = VStr . Expr.Str . ShowVal.showVal
 
 -- ** VNum
 
-instance ToVal Val where to_val = id
-instance ToVal Double where to_val = VNum . ScoreT.untyped
-instance ToVal Int where to_val = VNum . ScoreT.untyped . fromIntegral
+instance ToVal Val where toVal = id
+instance ToVal Double where toVal = VNum . ScoreT.untyped
+instance ToVal Int where toVal = VNum . ScoreT.untyped . fromIntegral
 instance ToVal Pitch.NoteNumber where
-    to_val = VNum . ScoreT.Typed ScoreT.Nn . Pitch.nn_to_double
+    toVal = VNum . ScoreT.Typed ScoreT.Nn . Pitch.nnToDouble
 instance ToVal Pitch.Transpose where
-    to_val n = case n of
+    toVal n = case n of
         Pitch.Diatonic n -> VNum $ ScoreT.Typed ScoreT.Diatonic n
         Pitch.Chromatic n -> VNum $ ScoreT.Typed ScoreT.Chromatic n
         Pitch.Nn n -> VNum $ ScoreT.Typed ScoreT.Nn n
 instance ToVal ScoreTime where
-    to_val = VNum . ScoreT.Typed ScoreT.Score . ScoreTime.to_double
+    toVal = VNum . ScoreT.Typed ScoreT.Score . ScoreTime.toDouble
 instance ToVal RealTime where
-    to_val = VNum . ScoreT.Typed ScoreT.Real . RealTime.to_seconds
+    toVal = VNum . ScoreT.Typed ScoreT.Real . RealTime.toSeconds
 
-instance ToVal a => ToVal [a] where to_val = VList . map to_val
+instance ToVal a => ToVal [a] where toVal = VList . map toVal
 
 -- ** rest
 
-instance ToVal Attrs.Attributes where to_val = VAttributes
-instance ToVal DeriveT.ControlRef where to_val = VControlRef
-instance ToVal Pitch.Pitch where to_val = VNotePitch
+instance ToVal Attrs.Attributes where toVal = VAttributes
+instance ToVal DeriveT.ControlRef where toVal = VControlRef
+instance ToVal Pitch.Pitch where toVal = VNotePitch
 instance ToVal ScoreT.Instrument where
-    to_val (ScoreT.Instrument a) = VStr (Expr.Str a)
-instance ToVal Expr.Str where to_val = VStr
-instance ToVal Text where to_val = VStr . Expr.Str
-instance ToVal Expr where to_val = VQuoted
+    toVal (ScoreT.Instrument a) = VStr (Expr.Str a)
+instance ToVal Expr.Str where toVal = VStr
+instance ToVal Text where toVal = VStr . Expr.Str
+instance ToVal Expr where toVal = VQuoted
 
 data ConstantPitch = ConstantPitch !Pitch.ScaleId !Pitch.Note !Pitch.NoteNumber
     deriving (Show, Eq)
 
-instance ToVal ConstantPitch where to_val = VConstantPitch
+instance ToVal ConstantPitch where toVal = VConstantPitch
 
 -- * call
 
@@ -172,18 +172,18 @@ type Term = Expr.Term Val
 
 instance Serialize.Serialize Val where
     put val = case val of
-        VNum v -> Serialize.put_tag 0 >> put v
-        VAttributes v -> Serialize.put_tag 1 >> put v
-        VControlRef v -> Serialize.put_tag 2 >> put v
-        VNotePitch v -> Serialize.put_tag 3 >> put v
+        VNum v -> Serialize.putTag 0 >> put v
+        VAttributes v -> Serialize.putTag 1 >> put v
+        VControlRef v -> Serialize.putTag 2 >> put v
+        VNotePitch v -> Serialize.putTag 3 >> put v
         -- tag 4 was VInstrument
-        VStr v -> Serialize.put_tag 5 >> put v
-        VQuoted v -> Serialize.put_tag 6 >> put v
-        VList v -> Serialize.put_tag 7 >> put v
-        VConstantPitch (ConstantPitch scale_id note nn) -> Serialize.put_tag 8
-            >> put scale_id >> put note >> put nn
+        VStr v -> Serialize.putTag 5 >> put v
+        VQuoted v -> Serialize.putTag 6 >> put v
+        VList v -> Serialize.putTag 7 >> put v
+        VConstantPitch (ConstantPitch scaleId note nn) -> Serialize.putTag 8
+            >> put scaleId >> put note >> put nn
     get = do
-        tag <- Serialize.get_tag
+        tag <- Serialize.getTag
         case tag of
             0 -> VNum <$> get
             1 -> VAttributes <$> get
@@ -194,7 +194,7 @@ instance Serialize.Serialize Val where
             6 -> VQuoted <$> get
             7 -> VList <$> get
             8 -> fmap VConstantPitch $ ConstantPitch <$> get <*> get <*> get
-            _ -> Serialize.bad_tag "REnv.Val" tag
+            _ -> Serialize.badTag "REnv.Val" tag
 
 instance Serialize.Serialize Call where
     put (Expr.Call a b) = put a >> put b
@@ -202,9 +202,9 @@ instance Serialize.Serialize Call where
 
 instance Serialize.Serialize Term where
     put term = case term of
-        Expr.ValCall v -> Serialize.put_tag 0 >> put v
-        Expr.Literal v -> Serialize.put_tag 1 >> put v
-    get = Serialize.get_tag >>= \case
+        Expr.ValCall v -> Serialize.putTag 0 >> put v
+        Expr.Literal v -> Serialize.putTag 1 >> put v
+    get = Serialize.getTag >>= \case
         0 -> Expr.ValCall <$> get
         1 -> Expr.Literal <$> get
-        n -> Serialize.bad_tag "REnv.Term" n
+        n -> Serialize.badTag "REnv.Term" n

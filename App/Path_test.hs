@@ -9,7 +9,7 @@ import           Util.Test
 
 test_in_dir :: Test
 test_in_dir = do
-    let f = Path.in_dir
+    let f = Path.inDir
     equal (f "a/b" "a") True
     equal (f "ab" "a") False
     equal (f "a" "a") False

@@ -29,18 +29,18 @@ simple name chars = Symbol name True [glyph chars]
 
 glyph :: Text -> Glyph
 glyph text = Glyph
-    { glyph_text = text
-    , glyph_font = Nothing
-    , glyph_size = 0
-    , glyph_align = (0, 0)
-    , glyph_rotate = 0
+    { glyphText = text
+    , glyphFont = Nothing
+    , glyphSize = 0
+    , glyphAlign = (0, 0)
+    , glyphRotate = 0
     }
 
 size :: Int -> Glyph -> Glyph
-size n g = g { glyph_size = n }
+size n g = g { glyphSize = n }
 
-glyph_at :: Int -> (Double, Double) -> Glyph -> Glyph
-glyph_at size align glyph = glyph { glyph_size = size, glyph_align = align }
+glyphAt :: Int -> (Double, Double) -> Glyph -> Glyph
+glyphAt size align glyph = glyph { glyphSize = size, glyphAlign = align }
 
 type Font = String
 
@@ -54,21 +54,21 @@ data Symbol = Symbol
     -- | Turn on absolute y placement, disabling automatic y placement.  If
     -- the glyphs have descenders and you want them to actually descend, turn
     -- this on.
-    , absolute_y :: Bool
+    , absoluteY :: Bool
     , glyphs :: [Glyph]
     } deriving (Show)
 
 data Glyph = Glyph
     -- | Unicode characters that make up the glyph.
-    { glyph_text :: Text
-    , glyph_font :: Maybe Font
+    { glyphText :: Text
+    , glyphFont :: Maybe Font
     -- | Relative size.  This is added to the font size when the glyph is
     -- drawn.
-    , glyph_size :: Int
+    , glyphSize :: Int
     -- | This is scaled by the font size and added to the position of the
     -- glyph.  In a symbol with only one glyph, automatic y placement will
     -- defeat a y value here unless you set 'sym_absolute_y'.
-    , glyph_align :: (Double, Double)
+    , glyphAlign :: (Double, Double)
     -- | Rotate the glyph in degrees.
-    , glyph_rotate :: Int
+    , glyphRotate :: Int
     } deriving (Show)

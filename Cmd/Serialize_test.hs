@@ -27,49 +27,49 @@ import           Util.Test
 test_serialize :: Test
 test_serialize = do
     let (_, state) =
-            UiTest.run_mkview [("track", [(0, 1, "e0"), (1, 1, "e1")])]
+            UiTest.runMkview [("track", [(0, 1, "e0"), (1, 1, "e1")])]
     let run f = (recode (f state), f state)
-    uncurry right_equal $ run $
-        (\c -> c { UiConfig.config_allocations = mempty }) . Ui.state_config
+    uncurry rightEqual $ run $
+        (\c -> c { UiConfig.configAllocations = mempty }) . Ui.stateConfig
         -- config_allocations is now a cache where the source of truth is
         -- the ky file, so it isn't saved.
-    uncurry right_equal $ run Ui.state_views
-    uncurry right_equal $ run Ui.state_blocks
-    uncurry right_equal $ run Ui.state_tracks
-    uncurry right_equal $ run Ui.state_rulers
-    uncurry right_equal $
-        run (Ruler.get_meter . head . Map.elems . Ui.state_rulers)
-    right_equal (recode Ui.empty) Ui.empty
+    uncurry rightEqual $ run Ui.stateViews
+    uncurry rightEqual $ run Ui.stateBlocks
+    uncurry rightEqual $ run Ui.stateTracks
+    uncurry rightEqual $ run Ui.stateRulers
+    uncurry rightEqual $
+        run (Ruler.getMeter . head . Map.elems . Ui.stateRulers)
+    rightEqual (recode Ui.empty) Ui.empty
 
     -- Performance
     now <- Time.getCurrentTime
     let perf = UiConfig.Performance msgs now "patch-tag"
         msgs = Vector.fromList
-            [Midi.WriteMessage (Midi.write_device "wdev") 42 msg]
+            [Midi.WriteMessage (Midi.writeDevice "wdev") 42 msg]
         msg = Midi.ChannelMessage 1 (Midi.NoteOn 2 3)
-    right_equal (recode perf) perf
+    rightEqual (recode perf) perf
 
     let tdest = Block.NoteDestination "key" (UiTest.tid "tid", mempty) mempty
-    right_equal (recode tdest) tdest
+    rightEqual (recode tdest) tdest
     let flags = [minBound .. maxBound] :: [Block.TrackFlag]
-    right_equal (recode flags) flags
+    rightEqual (recode flags) flags
     let sel = Sel.Selection 1 2 3 4 Sel.Positive
-    right_equal (recode sel) sel
+    rightEqual (recode sel) sel
 
     let rstyle =
             [ Track.Filled (Just (Track.Control "hi"))
             , Track.Line (Just (Track.Pitch "there"))
             ]
-    right_equal (recode rstyle) rstyle
+    rightEqual (recode rstyle) rstyle
     let config = Patch.config []
-    right_equal (recode config) config
-    right_equal (recode Lilypond.empty_staff_config) Lilypond.empty_staff_config
+    rightEqual (recode config) config
+    rightEqual (recode Lilypond.emptyStaffConfig) Lilypond.emptyStaffConfig
 
 test_negative_zero :: Test
 test_negative_zero = do
     -- make sure negative zero is encoded properly
-    right_equal (recode (0 :: ScoreTime)) 0
-    right_equal (recode (-0 :: ScoreTime)) (-0.0)
+    rightEqual (recode (0 :: ScoreTime)) 0
+    rightEqual (recode (-0 :: ScoreTime)) (-0.0)
 
 recode :: Util.Serialize.Serialize a => a -> Either String a
 recode = Util.Serialize.decode . Util.Serialize.encode

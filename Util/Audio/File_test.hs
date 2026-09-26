@@ -11,14 +11,14 @@ import qualified Util.Audio.Audio as Audio
 import qualified Util.Audio.File as File
 
 
-t_mix out = write out $ Audio.mix
+tMix out = write out $ Audio.mix
     [ File.read44k "g1.wav"
     , Audio.takeS 0.5 Audio.silence <> File.read44k "g1.wav"
     ]
 
-t_sine = write "sine.wav" $ Audio.takeS 1 $ Audio.sine 440
+tSine = write "sine.wav" $ Audio.takeS 1 $ Audio.sine 440
 
-t_multiply = write "multiply.wav" $ Audio.multiply
+tMultiply = write "multiply.wav" $ Audio.multiply
     (Audio.mergeChannels
         (Audio.linear True [(0, 0), (1, 1), (3, 0)])
         (Audio.linear True [(0, 0), (1, 1), (2, 0)]))

@@ -19,14 +19,14 @@ import qualified Cmd.Cmd as Cmd
 import           Global
 
 
-read_process :: FilePath -> [String] -> Cmd.CmdT IO Text
-read_process cmd args = do
+readProcess :: FilePath -> [String] -> Cmd.CmdT IO Text
+readProcess cmd args = do
     (exit, stdout, stderr) <- liftIO $
         Processes.readProcessWithExitCode Nothing cmd args ""
     case exit of
         Exit.ExitFailure code -> Cmd.throw $ "cmd failed: " <> showt code
-            <> ", stderr: " <> decode_utf8 stderr
-        _ -> pure $ decode_utf8 stdout
+            <> ", stderr: " <> decodeUtf8 stderr
+        _ -> pure $ decodeUtf8 stdout
 
-decode_utf8 :: ByteString.ByteString -> Text
-decode_utf8 = Encoding.decodeUtf8With Encoding.Error.lenientDecode
+decodeUtf8 :: ByteString.ByteString -> Text
+decodeUtf8 = Encoding.decodeUtf8With Encoding.Error.lenientDecode

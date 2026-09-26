@@ -31,69 +31,69 @@ import Types
 
 test_insert_call :: Test
 test_insert_call = do
-    let note_on key = Midi.ChannelMessage 0 (Midi.NoteOn key 127)
-        note_off key = Midi.ChannelMessage 0 (Midi.NoteOff key 127)
-        empty_tracks = [(">i1", [])]
+    let noteOn key = Midi.ChannelMessage 0 (Midi.NoteOn key 127)
+        noteOff key = Midi.ChannelMessage 0 (Midi.NoteOff key 127)
+        emptyTracks = [(">i1", [])]
     -- NoEdit means midi but no note.
-    io_equal (insert_call empty_tracks 1 False (CmdTest.key_down 'a'))
-        (Right empty_tracks, [note_on Key.c2])
-    io_equal (insert_call empty_tracks 1 True (CmdTest.key_down 'a'))
-        (Right [(">i1", [(0, 0, "anote")])], [note_on Key.c2])
-    io_equal (insert_call empty_tracks 1 True (CmdTest.key_up 'a'))
-        (Right [(">i1", [])], [note_off Key.c2])
+    ioEqual (insertCall emptyTracks 1 False (CmdTest.keyDown 'a'))
+        (Right emptyTracks, [noteOn Key.c2])
+    ioEqual (insertCall emptyTracks 1 True (CmdTest.keyDown 'a'))
+        (Right [(">i1", [(0, 0, "anote")])], [noteOn Key.c2])
+    ioEqual (insertCall emptyTracks 1 True (CmdTest.keyUp 'a'))
+        (Right [(">i1", [])], [noteOff Key.c2])
 
-insert_call :: [UiTest.TrackSpec] -> TrackNum -> Bool -> Msg.Msg
+insertCall :: [UiTest.TrackSpec] -> TrackNum -> Bool -> Msg.Msg
     -> IO (Either Text [UiTest.TrackSpec], [Midi.Message])
-insert_call tracks tracknum val_edit msg =
-    fmap extract $ CmdTest.run_with_performance ustate cstate $ do
-        Cmd.modify_edit_state (set_edit_mode val_edit)
-        CmdTest.set_sel tracknum 0 tracknum 0
-        Cmd.call (CUtil.insert_call CUtil.MidiThru char_to_call) msg
+insertCall tracks tracknum valEdit msg =
+    fmap extract $ CmdTest.runWithPerformance ustate cstate $ do
+        Cmd.modifyEditState (setEditMode valEdit)
+        CmdTest.setSel tracknum 0 tracknum 0
+        Cmd.call (CUtil.insertCall CUtil.MidiThru charToCall) msg
     where
-    (ustate, cstate) = CmdTest.set_synths_simple [make_synth stroke_keys]
-        [("i1", "synth/1")] (CmdTest.make_tracks tracks)
-        CmdTest.default_cmd_state
-    char_to_call = CUtil.strokes_to_calls (map fst stroke_keys)
-    stroke_keys =
+    (ustate, cstate) = CmdTest.setSynthsSimple [makeSynth strokeKeys]
+        [("i1", "synth/1")] (CmdTest.makeTracks tracks)
+        CmdTest.defaultCmdState
+    charToCall = CUtil.strokesToCalls (map fst strokeKeys)
+    strokeKeys =
         [ (Drums.stroke 'a' "anote" (Attrs.attr "a"), Key.c2)
         , (Drums.stroke 'b' "bnote" (Attrs.attr "b"), Key.d2)
         ]
-    extract r = (CmdTest.trace_logs (CmdTest.e_tracks r), CmdTest.e_midi r)
+    extract r = (CmdTest.traceLogs (CmdTest.eTracks r), CmdTest.eMidi r)
 
-set_edit_mode :: Bool -> Cmd.EditState -> Cmd.EditState
-set_edit_mode val_edit state = state
-    { Cmd.state_edit_mode = if val_edit then Cmd.ValEdit else Cmd.NoEdit
-    , Cmd.state_kbd_entry = True
+setEditMode :: Bool -> Cmd.EditState -> Cmd.EditState
+setEditMode valEdit state = state
+    { Cmd.stateEditMode = if valEdit then Cmd.ValEdit else Cmd.NoEdit
+    , Cmd.stateKbdEntry = True
     }
 
 test_drum_instrument :: Test
 test_drum_instrument = do
-    let run = DeriveTest.derive_tracks_setup
-            (DeriveTest.with_synths_simple allocs [drum_synth]) ""
+    let run = DeriveTest.deriveTracksSetup
+            (DeriveTest.withSynthsSimple allocs [drumSynth]) ""
         allocs = [("x", "synth/1")]
-        extract = DeriveTest.extract DeriveTest.e_attributes
-    let perform = DeriveTest.perform_synths_simple allocs [drum_synth]
-            . Derive.r_events
+        extract = DeriveTest.extract DeriveTest.eAttributes
+    let perform = DeriveTest.performSynthsSimple allocs [drumSynth]
+            . Derive.rEvents
     let result = run [(">x", [(0, 0, "bd"), (1, 0, "sn")])]
     equal (extract result) (["+bd", "+snare"], [])
 
     let ((_, midi), logs) = perform result
     equal logs []
-    let e_midi = Lists.mapMaybeSnd Midi.channel_message
-            . filter (Midi.is_note . snd) . DeriveTest.extract_midi
-    equal (e_midi midi)
+    let eMidi = Lists.mapMaybeSnd Midi.channelMessage
+            . filter (Midi.isNote . snd) . DeriveTest.extractMidi
+    equal (eMidi midi)
         [ (0, NoteOn Key.c2 127), (20, NoteOff Key.c2 127)
         , (1000, NoteOn Key.d2 127), (1020, NoteOff Key.d2 127)
         ]
 
     -- Ensure the generated calls invert.
-    equal (DeriveTest.extract Score.initial_dynamic $
+    equal (DeriveTest.extract Score.initialDynamic $
             run [(">x", [(0, 0, "bd")]), ("dyn", [(0, 0, ".5")])])
         ([0.5], [])
 
 test_make_cc_keymap :: Test
 test_make_cc_keymap = do
-    let f = CUtil.make_cc_keymap
+    let f = CUtil.makeCcKeymap
         cw = Patch.ControlSwitch
     equal (f 0 12 Key.c4
         [[Attrs.left, Attrs.right], [Attrs.open], [Attrs.low, Attrs.high]]) $
@@ -105,15 +105,15 @@ test_make_cc_keymap = do
             , (Attrs.high, ([cw 103 1], Key.c1, Key.b1, Key.c4))
             ]
 
-drum_synth :: MidiInst.Synth
-drum_synth = make_synth [(Drums.c_bd, Key.c2), (Drums.c_sn, Key.d2)]
+drumSynth :: MidiInst.Synth
+drumSynth = makeSynth [(Drums.cBd, Key.c2), (Drums.cSn, Key.d2)]
 
-make_synth :: [(Drums.Stroke, Midi.Key)] -> MidiInst.Synth
-make_synth stroke_keys = UiTest.make_synth "synth" [patch]
+makeSynth :: [(Drums.Stroke, Midi.Key)] -> MidiInst.Synth
+makeSynth strokeKeys = UiTest.makeSynth "synth" [patch]
     where
     patch = MidiInst.code #= code $
-        CUtil.drum_patch stroke_keys $ MidiInst.named_patch (-24, 24) "1" []
+        CUtil.drumPatch strokeKeys $ MidiInst.namedPatch (-24, 24) "1" []
     code =
-        MidiInst.note_generators
-            (CUtil.drum_calls (map ((,CUtil.call_config) . fst) stroke_keys))
-        <> MidiInst.cmd (CUtil.drum_cmd [] CUtil.MidiThru (map fst stroke_keys))
+        MidiInst.noteGenerators
+            (CUtil.drumCalls (map ((,CUtil.callConfig) . fst) strokeKeys))
+        <> MidiInst.cmd (CUtil.drumCmd [] CUtil.MidiThru (map fst strokeKeys))

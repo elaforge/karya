@@ -30,38 +30,38 @@ create :: (Int, Int) -> Layout -> Fltk.Fltk ()
 create (x, y) layout = Fltk.fltk $ do
     destroy_
     layoutp <- FFI.new layout -- The widget will take ownership.
-    win <- c_create (i x) (i y) (i w) (i h) layoutp
-    PtrMap.set_keycaps $ Just win
+    win <- cCreate (i x) (i y) (i w) (i h) layoutp
+    PtrMap.setKeycaps $ Just win
     where
-    (w, h) = lt_size layout
-    i = FFI.c_int
+    (w, h) = ltSize layout
+    i = FFI.cInt
 
 -- KeycapsWindow *keycaps_create(
 --     int x, int y, int w, int h, const Keycaps::Layout *layout);
 foreign import ccall "keycaps_create"
-    c_create :: CInt -> CInt -> CInt -> CInt -> Ptr Layout -> IO (Ptr CWindow)
+    cCreate :: CInt -> CInt -> CInt -> CInt -> Ptr Layout -> IO (Ptr CWindow)
 
 destroy :: Fltk.Fltk ()
 destroy = Fltk.fltk destroy_
 
 destroy_ :: IO ()
-destroy_ = whenJustM PtrMap.lookup_keycaps $ \win -> do
-    c_destroy win
-    PtrMap.set_keycaps Nothing
+destroy_ = whenJustM PtrMap.lookupKeycaps $ \win -> do
+    cDestroy win
+    PtrMap.setKeycaps Nothing
 
-foreign import ccall "keycaps_destroy" c_destroy :: Ptr CWindow -> IO ()
+foreign import ccall "keycaps_destroy" cDestroy :: Ptr CWindow -> IO ()
 
 update :: RawBindings -> Fltk.Fltk ()
 update (RawBindings bindings) = Fltk.fltk $
-    whenJustM PtrMap.lookup_keycaps $ \win -> do
-        withArrayLen bindings $ \bindings_len bindingsp ->
-            c_update win bindingsp (FFI.c_int bindings_len)
+    whenJustM PtrMap.lookupKeycaps $ \win -> do
+        withArrayLen bindings $ \bindingsLen bindingsp ->
+            cUpdate win bindingsp (FFI.cInt bindingsLen)
 
 -- void keycaps_update(
 --     KeycapsWindow *window, const Keycaps::Binding *bindings,
 --     int bindings_len);
 foreign import ccall "keycaps_update"
-    c_update :: Ptr CWindow -> Ptr RawBinding -> CInt -> IO ()
+    cUpdate :: Ptr CWindow -> Ptr RawBinding -> CInt -> IO ()
 
 
 -- * instances
@@ -86,30 +86,30 @@ instance CStorable Layout where
     sizeOf _ = #size Keycaps::Layout
     alignment _ = alignment nullPtr
     poke p (Layout
-            { lt_bg_color, lt_keycap_color, lt_highlight_color
-            , lt_label_color, lt_binding_color
-            , lt_labels
+            { ltBgColor, ltKeycapColor, ltHighlightColor
+            , ltLabelColor, ltBindingColor
+            , ltLabels
             }) = do
-        let rects = Map.elems lt_labels
-            labels = Map.keys lt_labels
+        let rects = Map.elems ltLabels
+            labels = Map.keys ltLabels
             points =
-                [ (x + fst label_offset, y + snd label_offset)
-                | (x, y) <- map Rect.upper_left rects
+                [ (x + fst labelOffset, y + snd labelOffset)
+                | (x, y) <- map Rect.upperLeft rects
                 ]
-        (#poke Keycaps::Layout, bg_color) p lt_bg_color
-        (#poke Keycaps::Layout, keycap_color) p lt_keycap_color
-        (#poke Keycaps::Layout, highlight_color) p lt_highlight_color
-        (#poke Keycaps::Layout, label_color) p lt_label_color
-        (#poke Keycaps::Layout, binding_color) p lt_binding_color
+        (#poke Keycaps::Layout, bg_color) p ltBgColor
+        (#poke Keycaps::Layout, keycap_color) p ltKeycapColor
+        (#poke Keycaps::Layout, highlight_color) p ltHighlightColor
+        (#poke Keycaps::Layout, label_color) p ltLabelColor
+        (#poke Keycaps::Layout, binding_color) p ltBindingColor
         (#poke Keycaps::Layout, rects) p =<< newArray rects
-        (#poke Keycaps::Layout, rects_len) p $ FFI.c_int (Map.size lt_labels)
+        (#poke Keycaps::Layout, rects_len) p $ FFI.cInt (Map.size ltLabels)
         labelps <- mapM FFI.newCStringNull0 labels
         (#poke Keycaps::Layout, labels_points) p =<< newArray points
         (#poke Keycaps::Layout, labels_texts) p =<< newArray labelps
-        (#poke Keycaps::Layout, labels_len) p $ FFI.c_int (length lt_labels)
+        (#poke Keycaps::Layout, labels_len) p $ FFI.cInt (length ltLabels)
 
-label_offset :: (Int, Int)
-label_offset = (1, 8)
+labelOffset :: (Int, Int)
+labelOffset = (1, 8)
 
 {-
     struct Binding {
@@ -125,10 +125,10 @@ label_offset = (1, 8)
 instance CStorable RawBinding where
     sizeOf _ = #size Keycaps::Binding
     alignment _ = alignment nullPtr
-    poke p (RawBinding point (Binding { b_text, b_doc, b_color })) = do
+    poke p (RawBinding point (Binding { bText, bDoc, bColor })) = do
         (#poke Keycaps::Binding, point) p point
-        (#poke Keycaps::Binding, text) p =<< FFI.newCStringNull0 b_text
-        (#poke Keycaps::Binding, doc) p =<< FFI.newCStringNull0 b_doc
-        (#poke Keycaps::Binding, color) p $ fromMaybe Color.black b_color
+        (#poke Keycaps::Binding, text) p =<< FFI.newCStringNull0 bText
+        (#poke Keycaps::Binding, doc) p =<< FFI.newCStringNull0 bDoc
+        (#poke Keycaps::Binding, color) p $ fromMaybe Color.black bColor
 
 ##endif

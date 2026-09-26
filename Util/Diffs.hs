@@ -109,7 +109,7 @@ char first second
     tooDifferent ranges = length ranges > 2
 
 toRanges :: [Int] -> [(Int, Int)]
-toRanges xs = Ranges.merge_sorted [(n, n+1) | n <- xs]
+toRanges xs = Ranges.mergeSorted [(n, n+1) | n <- xs]
 
 data Numbered a = Numbered
     { numbered :: !Int

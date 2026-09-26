@@ -5,21 +5,21 @@
 -- | The 'Tala' type, which describes a Carnatic tala.
 module Solkattu.Tala (
     Akshara
-    , anga_aksharas
-    , tala_angas
-    , tala_aksharas
-    , tala_labels
+    , angaAksharas
+    , talaAngas
+    , talaAksharas
+    , talaLabels
     , Tala(..)
-    , tala_name
+    , talaName
     , Anga(..)
     -- * talas
-    , dhruva_anga, matya_anga, rupaka_anga, jhampa_anga, triputa_anga
-    , ata_anga, eka_anga
+    , dhruvaAnga, matyaAnga, rupakaAnga, jhampaAnga, triputaAnga
+    , ataAnga, ekaAnga
     , dhruva, matya, rupaka, jhampa, triputa, ata, eka, adi
-    , misra_chapu
-    , kanda_chapu
-    , rupaka_fast
-    , any_beats
+    , misraChapu
+    , kandaChapu
+    , rupakaFast
+    , anyBeats
     , beats
 ) where
 import qualified Data.Map as Map
@@ -33,30 +33,30 @@ import           Global
 -- | An akshara is one count of the talam.
 type Akshara = Int
 
-anga_aksharas :: Jati -> Anga -> Akshara
-anga_aksharas jati anga = case anga of
+angaAksharas :: Jati -> Anga -> Akshara
+angaAksharas jati anga = case anga of
     Clap n -> n
     Wave n -> n
     I -> jati
     O -> 2
     U -> 1
 
-anga_labels :: Jati -> Anga -> [Text]
-anga_labels jati = \case
+angaLabels :: Jati -> Anga -> [Text]
+angaLabels jati = \case
     Clap n -> "X" : replicate (n-1) "-"
     Wave n -> "O" : replicate (n-1) "-"
     I -> take jati (map showt [0..])
     O -> ["X", "O"]
     U -> ["X"]
 
-tala_angas :: Tala -> [Akshara]
-tala_angas tala = map (anga_aksharas (_jati tala)) (_angas tala)
+talaAngas :: Tala -> [Akshara]
+talaAngas tala = map (angaAksharas (_jati tala)) (_angas tala)
 
-tala_aksharas :: Tala -> Akshara
-tala_aksharas = Num.sum . tala_angas
+talaAksharas :: Tala -> Akshara
+talaAksharas = Num.sum . talaAngas
 
-tala_labels :: Tala -> [Text]
-tala_labels tala = concatMap (anga_labels (_jati tala)) (_angas tala)
+talaLabels :: Tala -> [Text]
+talaLabels tala = concatMap (angaLabels (_jati tala)) (_angas tala)
 
 data Tala = Tala
     { _name :: !Text
@@ -66,8 +66,8 @@ data Tala = Tala
 
 instance Pretty Tala where pretty = showt
 
-tala_name :: Tala -> Text
-tala_name tala
+talaName :: Tala -> Text
+talaName tala
     | tala == adi = "adi"
     | _angas tala == [I] = showt (_jati tala) <> " beats"
     | _jati tala == 0 = _name tala -- chapu talams don't have jati
@@ -93,44 +93,44 @@ instance Pretty Anga where pretty = showt
 
 type Jati = Int
 
-dhruva_anga, matya_anga, rupaka_anga, jhampa_anga, triputa_anga, ata_anga,
-    eka_anga :: [Anga]
-dhruva_anga = [I, O, I, I]
-matya_anga = [I, O, I]
-rupaka_anga = [O, I]
-jhampa_anga = [I, U, O]
-triputa_anga = [I, O, O]
-ata_anga = [I, I, O, O]
-eka_anga = [I]
+dhruvaAnga, matyaAnga, rupakaAnga, jhampaAnga, triputaAnga, ataAnga,
+    ekaAnga :: [Anga]
+dhruvaAnga = [I, O, I, I]
+matyaAnga = [I, O, I]
+rupakaAnga = [O, I]
+jhampaAnga = [I, U, O]
+triputaAnga = [I, O, O]
+ataAnga = [I, I, O, O]
+ekaAnga = [I]
 
 -- | Talas with default jati.
 dhruva, matya, rupaka, jhampa, triputa, ata, eka :: Tala
-dhruva = Tala "dhruva" dhruva_anga 4
-matya = Tala "matya" matya_anga 4
-rupaka = Tala "rupaka" rupaka_anga 4
-jhampa = Tala "jhampa" jhampa_anga 7
-triputa = Tala "triputa" triputa_anga 3
-ata = Tala "ata" ata_anga 5
-eka = Tala "eka" eka_anga 4
+dhruva = Tala "dhruva" dhruvaAnga 4
+matya = Tala "matya" matyaAnga 4
+rupaka = Tala "rupaka" rupakaAnga 4
+jhampa = Tala "jhampa" jhampaAnga 7
+triputa = Tala "triputa" triputaAnga 3
+ata = Tala "ata" ataAnga 5
+eka = Tala "eka" ekaAnga 4
 
 adi :: Tala
-adi = Tala "adi" triputa_anga 4 -- chatusra jati triputa tala
+adi = Tala "adi" triputaAnga 4 -- chatusra jati triputa tala
 
-misra_chapu :: Tala
-misra_chapu = Tala "misra chapu" [Wave 1, Wave 2, Clap 2, Clap 2] 0
+misraChapu :: Tala
+misraChapu = Tala "misra chapu" [Wave 1, Wave 2, Clap 2, Clap 2] 0
     -- These have no laghu, so jati doesn't matter.
 
-kanda_chapu :: Tala
-kanda_chapu = Tala "kanda chapu" [Clap 2, Clap 1, Clap 2] 0
+kandaChapu :: Tala
+kandaChapu = Tala "kanda chapu" [Clap 2, Clap 1, Clap 2] 0
 
-rupaka_fast :: Tala
-rupaka_fast = Tala "rupaka" [Clap 1, Clap 1, Wave 1] 0
+rupakaFast :: Tala
+rupakaFast = Tala "rupaka" [Clap 1, Clap 1, Wave 1] 0
 
 -- | A special "tala" that just counts beats and turns off alignment checking.
 -- I use 4 beats just to get a nice wrapping, but I should do wrapping
 -- automatically.
-any_beats :: Tala
-any_beats = Tala "any beats" [I] 4
+anyBeats :: Tala
+anyBeats = Tala "any beats" [I] 4
 
 -- | For a fragment which fits a certain number of beats.
 beats :: Akshara -> Tala

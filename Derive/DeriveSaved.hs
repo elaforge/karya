@@ -51,146 +51,146 @@ import           Global
 import           Types
 
 
-perform_file :: Cmd.Config -> FilePath -> IO [Midi.WriteMessage]
-perform_file cmd_config fname = do
-    (ui_state, cmd_state) <- load_score_states cmd_config fname
-    root_id <- maybe (errorIO $ txt fname <> ": no root block") pure $
-        Ui.config#UiConfig.root #$ ui_state
-    ((events, logs), _cpu) <- timed_derive fname ui_state cmd_state root_id
+performFile :: Cmd.Config -> FilePath -> IO [Midi.WriteMessage]
+performFile cmdConfig fname = do
+    (uiState, cmdState) <- loadScoreStates cmdConfig fname
+    rootId <- maybe (errorIO $ txt fname <> ": no root block") pure $
+        Ui.config#UiConfig.root #$ uiState
+    ((events, logs), _cpu) <- timedDerive fname uiState cmdState rootId
     mapM_ Log.write logs
-    ((msgs, logs), _cpu) <- timed_perform cmd_state ("perform " ++ fname)
-        ui_state events
+    ((msgs, logs), _cpu) <- timedPerform cmdState ("perform " ++ fname)
+        uiState events
     mapM_ Log.write logs
     pure msgs
 
-timed_perform :: Cmd.State -> FilePath -> Ui.State
+timedPerform :: Cmd.State -> FilePath -> Ui.State
     -> Vector.Vector Score.Event -> IO (([Midi.WriteMessage], [Log.Msg]), CPU)
-timed_perform cmd_state fname state events =
-    time ("perform " <> txt fname) (timer_msg (length . fst)) $ do
+timedPerform cmdState fname state events =
+    time ("perform " <> txt fname) (timerMsg (length . fst)) $ do
         let (msgs, logs) = LEvent.partition $
-                perform_midi cmd_state state events
+                performMidi cmdState state events
         Testing.force (msgs, logs)
         pure (msgs, logs)
 
-timed_derive :: FilePath -> Ui.State -> Cmd.State -> BlockId
+timedDerive :: FilePath -> Ui.State -> Cmd.State -> BlockId
     -> IO ((Vector.Vector Score.Event, [Log.Msg]), CPU)
-timed_derive fname ui_state cmd_state block_id = do
-    let (perf, logs) = Performance.derive ui_state cmd_state block_id
-    (_, cpu) <- time ("derive " <> txt fname) (timer_msg Vector.length) $ do
-        () <- pure $ Msg.force_performance perf
-        pure $! Cmd.perf_events perf
-    let warns = filter ((>=Log.Warn) . Log.msg_priority) (Cmd.perf_logs perf)
-    pure ((Cmd.perf_events perf, warns ++ logs), cpu)
+timedDerive fname uiState cmdState blockId = do
+    let (perf, logs) = Performance.derive uiState cmdState blockId
+    (_, cpu) <- time ("derive " <> txt fname) (timerMsg Vector.length) $ do
+        () <- pure $ Msg.forcePerformance perf
+        pure $! Cmd.perfEvents perf
+    let warns = filter ((>=Log.Warn) . Log.msgPriority) (Cmd.perfLogs perf)
+    pure ((Cmd.perfEvents perf, warns ++ logs), cpu)
 
 -- | This is like 'timed_derive', except that it does more work itself
 -- rather than calling Performance.derive.  This can be more convenient to
 -- look at derivation results.
-timed_derive2 :: FilePath -> Ui.State -> Cmd.State -> BlockId
+timedDerive2 :: FilePath -> Ui.State -> Cmd.State -> BlockId
     -> IO ((Vector.Vector Score.Event, [Log.Msg]), CPU)
-timed_derive2 fname ui_state cmd_state block_id =
-    case derive_block ui_state cmd_state block_id of
+timedDerive2 fname uiState cmdState blockId =
+    case deriveBlock uiState cmdState blockId of
         Left err -> pure ((mempty, [Log.msg Log.Warn Nothing err]), 0)
-        Right (result, cmd_logs) -> do
-            let (events, derive_logs) = first Vector.fromList $
-                    Stream.partition $ Derive.r_events result
-                msg = "derive " <> txt fname <> " " <> pretty block_id
-            (events, cpu) <- time msg (timer_msg Vector.length)
+        Right (result, cmdLogs) -> do
+            let (events, deriveLogs) = first Vector.fromList $
+                    Stream.partition $ Derive.rEvents result
+                msg = "derive " <> txt fname <> " " <> pretty blockId
+            (events, cpu) <- time msg (timerMsg Vector.length)
                 (pure $! events)
             pure
-                ( (events, cmd_logs ++ filter (not . boring) derive_logs)
+                ( (events, cmdLogs ++ filter (not . boring) deriveLogs)
                 , cpu
                 )
     where
-    boring = Cache.is_cache_log
-    derive_block :: Ui.State -> Cmd.State -> BlockId
+    boring = Cache.isCacheLog
+    deriveBlock :: Ui.State -> Cmd.State -> BlockId
         -> Either Text (Derive.Result, [Log.Msg])
-    derive_block ui_state cmd_state block_id =
-        run_cmd ui_state cmd_state $ PlayUtil.uncached_derive block_id
+    deriveBlock uiState cmdState blockId =
+        runCmd uiState cmdState $ PlayUtil.uncachedDerive blockId
 
-timed_lilypond :: FilePath -> Ui.State -> Cmd.State -> BlockId
+timedLilypond :: FilePath -> Ui.State -> Cmd.State -> BlockId
     -> IO ((Either Log.Msg Text, [Log.Msg]), CPU)
-timed_lilypond fname ui_state cmd_state block_id = case result of
+timedLilypond fname uiState cmdState blockId = case result of
     Left err -> pure ((Left $ Log.msg Log.Warn Nothing err, []), 0)
-    Right (levents, cmd_logs) -> do
-        let (events, derive_logs) = Stream.partition levents
+    Right (levents, cmdLogs) -> do
+        let (events, deriveLogs) = Stream.partition levents
         (events, cpu) <- time ("lilypond " <> txt fname)
-            (timer_msg length) (pure $! events)
-        let (result, ly_logs) = Cmd.Lilypond.extract_movements
+            (timerMsg length) (pure $! events)
+        let (result, lyLogs) = Cmd.Lilypond.extractMovements
                 config "title" events
-        let logs = cmd_logs ++ filter (not . boring) derive_logs ++ ly_logs
+        let logs = cmdLogs ++ filter (not . boring) deriveLogs ++ lyLogs
         pure ((Lazy.toStrict <$> result, logs), cpu)
     where
-    result = run_cmd ui_state cmd_state $
-        Derive.r_events <$> Cmd.Lilypond.derive_block block_id
-    config = Ui.config#UiConfig.lilypond #$ ui_state
-    boring = Cache.is_cache_log
+    result = runCmd uiState cmdState $
+        Derive.rEvents <$> Cmd.Lilypond.deriveBlock blockId
+    config = Ui.config#UiConfig.lilypond #$ uiState
+    boring = Cache.isCacheLog
 
-timer_msg :: (a -> Int) -> Thread.Metric Thread.Seconds -> a -> String
-timer_msg len (Thread.Metric cpu_secs wall_secs) events =
+timerMsg :: (a -> Int) -> Thread.Metric Thread.Seconds -> a -> String
+timerMsg len (Thread.Metric cpuSecs wallSecs) events =
     Printf.printf "events: %d (%d / cpu, %d / sec)"
-        events_len (per cpu_secs) (per wall_secs)
+        eventsLen (per cpuSecs) (per wallSecs)
     where
-    events_len = len events
+    eventsLen = len events
     per :: Thread.Seconds -> Int
-    per secs = round (fromIntegral events_len / toSecs secs)
+    per secs = round (fromIntegral eventsLen / toSecs secs)
 
-run_cmd :: Ui.State -> Cmd.State -> Cmd.CmdId a -> Either Text (a, [Log.Msg])
-run_cmd ui_state cmd_state cmd = case result of
+runCmd :: Ui.State -> Cmd.State -> Cmd.CmdId a -> Either Text (a, [Log.Msg])
+runCmd uiState cmdState cmd = case result of
     Left err -> Left $ pretty err
     Right (val, _, _) -> case val of
         Nothing -> Left "cmd had no result"
         Just val -> Right (val, logs)
-    where (_, _, logs, result) = Cmd.run_id ui_state cmd_state cmd
+    where (_, _, logs, result) = Cmd.runId uiState cmdState cmd
 
 perform :: Cmd.State -> Ui.State -> Vector.Vector Score.Event
     -> ( ([LEvent.LEvent Midi.WriteMessage], [LEvent.LEvent Sc.Note.Note])
        , [Log.Msg]
        )
-perform cmd_state ui_state =
-    extract . run_cmd ui_state cmd_state . PlayUtil.perform_from 0
+perform cmdState uiState =
+    extract . runCmd uiState cmdState . PlayUtil.performFrom 0
     where
     extract = either (\err -> (([], []), [Log.msg Log.Error Nothing err])) id
 
-perform_midi :: Cmd.State -> Ui.State -> Vector.Vector Score.Event
+performMidi :: Cmd.State -> Ui.State -> Vector.Vector Score.Event
     -> [LEvent.LEvent Midi.WriteMessage]
-perform_midi cmd_state ui_state events =
-    extract $ run_cmd ui_state cmd_state $ PlayUtil.perform_raw $
+performMidi cmdState uiState events =
+    extract $ runCmd uiState cmdState $ PlayUtil.performRaw $
         Vector.toList events
     where
     extract (Left err) = [LEvent.Log $ Log.msg Log.Error Nothing err]
     extract (Right (levents, logs)) = map LEvent.Log logs ++ levents
 
-load_score_states :: Cmd.Config -> FilePath -> IO (Ui.State, Cmd.State)
-load_score_states cmd_config fname = do
-    (ui_state, library, aliases) <- either errorIO pure
-        =<< load_score fname
-    pure (ui_state, add_library library aliases cmd_state)
+loadScoreStates :: Cmd.Config -> FilePath -> IO (Ui.State, Cmd.State)
+loadScoreStates cmdConfig fname = do
+    (uiState, library, aliases) <- either errorIO pure
+        =<< loadScore fname
+    pure (uiState, addLibrary library aliases cmdState)
     where
-    cmd_state = Cmd.initial_state cmd_config
+    cmdState = Cmd.initialState cmdConfig
 
-add_library :: Derive.Builtins -> Derive.InstrumentAliases
+addLibrary :: Derive.Builtins -> Derive.InstrumentAliases
     -> Cmd.State -> Cmd.State
-add_library builtins aliases state =
-    state { Cmd.state_ky_cache = Just $ Cmd.PermanentKy (builtins, aliases) }
+addLibrary builtins aliases state =
+    state { Cmd.stateKyCache = Just $ Cmd.PermanentKy (builtins, aliases) }
 
 -- | Load a score and its accompanying local definitions library, if it has one.
-load_score :: FilePath
+loadScore :: FilePath
     -> IO (Either Text (Ui.State, Derive.Builtins, Derive.InstrumentAliases))
-load_score fname =
+loadScore fname =
     fmap fst $ time ("load " <> txt fname) (\_ _ -> "") $ Except.runExceptT $ do
-        save <- require_right $ Save.infer_save_type fname
+        save <- requireRight $ Save.inferSaveType fname
         (state, dir) <- case save of
             Cmd.SaveRepo repo -> do
-                (state, _, _) <- require_right $
-                    SaveGit.load (Path.to_path repo) Nothing
-                pure (state, FilePath.takeDirectory (Path.to_path repo))
+                (state, _, _) <- requireRight $
+                    SaveGit.load (Path.toPath repo) Nothing
+                pure (state, FilePath.takeDirectory (Path.toPath repo))
             Cmd.SaveState fname -> do
-                state <- require_right $ first pretty <$>
-                    Save.read_state_ (Path.to_path fname)
-                pure (state, FilePath.takeDirectory (Path.to_path fname))
-        app_dir <- liftIO Path.get_app_dir
-        let paths = dir : map (Path.to_absolute app_dir) Config.ky_paths
-        (builtins, aliases, allocs) <- require_right $
+                state <- requireRight $ first pretty <$>
+                    Save.readState_ (Path.toPath fname)
+                pure (state, FilePath.takeDirectory (Path.toPath fname))
+        appDir <- liftIO Path.getAppDir
+        let paths = dir : map (Path.toAbsolute appDir) Config.kyPaths
+        (builtins, aliases, allocs) <- requireRight $
             Ky.load paths (Ui.config#UiConfig.ky #$ state)
         pure
             ( Ui.config#UiConfig.allocations #= allocs $ state
@@ -198,37 +198,37 @@ load_score fname =
             , aliases
             )
 
-require_right :: IO (Either Text a) -> Except.ExceptT Text IO a
-require_right io = tryRight =<< liftIO io
+requireRight :: IO (Either Text a) -> Except.ExceptT Text IO a
+requireRight io = tryRight =<< liftIO io
 
 -- | Load cmd config, which basically means the inst db.
-load_cmd_config :: IO Cmd.Config
-load_cmd_config = do
-    config <- Local.Config.load_static_config
-    cmd_config (StaticConfig.instrument_db config)
+loadCmdConfig :: IO Cmd.Config
+loadCmdConfig = do
+    config <- Local.Config.loadStaticConfig
+    cmdConfig (StaticConfig.instrumentDb config)
 
-cmd_config :: Cmd.InstrumentDb -> IO Cmd.Config
-cmd_config inst_db = do
+cmdConfig :: Cmd.InstrumentDb -> IO Cmd.Config
+cmdConfig instDb = do
     interface <- StubMidi.interface
-    app_dir <- Path.get_app_dir
-    save_dir <- Path.canonical $ Path.to_absolute app_dir Config.save_dir
+    appDir <- Path.getAppDir
+    saveDir <- Path.canonical $ Path.toAbsolute appDir Config.saveDir
     pure $ Cmd.Config
-        { config_app_dir = app_dir
-        , config_save_dir = save_dir
-        , config_midi_interface = interface
-        , config_ky_paths = map (Path.to_absolute app_dir) Config.ky_paths
-        , config_rdev_map = mempty
-        , config_wdev_map = mempty
-        , config_instrument_db = inst_db
-        , config_builtins = C.All.builtins
-        , config_highlight_colors = mempty
-        , config_im = Shared.Config.config app_dir
+        { configAppDir = appDir
+        , configSaveDir = saveDir
+        , configMidiInterface = interface
+        , configKyPaths = map (Path.toAbsolute appDir) Config.kyPaths
+        , configRdevMap = mempty
+        , configWdevMap = mempty
+        , configInstrumentDb = instDb
+        , configBuiltins = C.All.builtins
+        , configHighlightColors = mempty
+        , configIm = Shared.Config.config appDir
         -- You shouldn't be saving any checkpoints from here, so I can use
         -- dummy values.
-        , config_git_user = SaveGitT.User "name" "email"
-        , config_im_play_direct = False
+        , configGitUser = SaveGitT.User "name" "email"
+        , configImPlayDirect = False
         -- TODO This could mean tscore must have play-cache explicitly?
-        , config_play_cache = Nothing
+        , configPlayCache = Nothing
         }
 
 -- * timer
@@ -240,7 +240,7 @@ type CPU = Thread.Seconds
 -- the timing info in the msg.
 time :: Text -> (Thread.Metric Thread.Seconds -> a -> String) -> IO a
     -> IO (a, CPU)
-time msg show_val op = do
+time msg showVal op = do
     Text.IO.putStr $ msg <> " - "
     IO.hFlush IO.stdout
     result <- Exception.try $ Thread.timeAction $ do
@@ -248,7 +248,7 @@ time msg show_val op = do
         pure val
     case result of
         Right (val, metric) -> do
-            putStrLn $ show_val metric val
+            putStrLn $ showVal metric val
             pure (val, Thread.metricCpu metric)
         Left (exc :: Exception.SomeException) -> do
             -- Complete the line so the exception doesn't interrupt it.  This

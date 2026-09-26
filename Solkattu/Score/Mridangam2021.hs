@@ -82,7 +82,7 @@ e_nd_d = date 2021 1 31 $ ganesh $ exercise $ korvaiS adi
     nd_ktpk_ = su $ n.o.od.__.ktok
 
 e_fours :: Korvai
-e_fours = date 2021 2 15 $ ganesh $ exercise $ korvaiS Tala.rupaka_fast $
+e_fours = date 2021 2 15 $ ganesh $ exercise $ korvaiS Tala.rupakaFast $
     map make
     [ on.od.__.k
     , on.od.su ktpk

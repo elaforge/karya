@@ -21,12 +21,12 @@ test_convert_source = do
             "%laras = slendro-manyura\n\
             \%instrument = gender-barung\n\
             \%irama = tanggung\n"
-    let f = fmap fst . convert_source . (header <>)
+    let f = fmap fst . convertSource . (header <>)
     let events es =
             [ (t, -0, "-- " <> Text.singleton e)
             | (t, e) <- zip (Lists.range_ 1 1) es
             ]
-    right_equal (f
+    rightEqual (f
         "3231 dualolo [\n\
         \    > 5555 | 5555\n\
         \    > 1111 | 1111\n\
@@ -35,7 +35,7 @@ test_convert_source = do
         [ (">", events "3231")
         , (">gb", [(0, 4, "gb-t-dll")])
         ]
-    right_equal (f
+    rightEqual (f
         "3231 dualolo [\n\
         \    > 5555 | 5555\n\
         \    > 1111 | 1111\n\
@@ -45,7 +45,7 @@ test_convert_source = do
         [ (">", events "32315321")
         , (">gb", [(0, 4, "gb-t-dll"), (4, 4, "gb-t-dll")])
         ]
-    left_like (f
+    leftLike (f
         "3231 dualolo [\n\
         \    > 5555 | 5555\n\
         \    > 1111 | 1111\n\
@@ -53,7 +53,7 @@ test_convert_source = do
         \5321 tumurun\n"
         )
         "empty block gb-t-tm has no matches"
-    right_equal (f
+    rightEqual (f
         "3211 tumurun [\n\
         \    > 5555 | 5555\n\
         \    > 1111 | 1111\n\
@@ -71,7 +71,7 @@ test_convert_source = do
         , (">gb", [(0, 4, "gb-t-tm"), (4, 4, "gb-t-tm"), (8, 4, "gb-t-tm")])
         ]
     -- Same tracks get unified.
-    right_equal (f
+    rightEqual (f
         "3211 tumurun [\n\
         \    > 5555 | 5555\n\
         \    > 1111 | 1111\n\
@@ -92,7 +92,7 @@ test_convert_source = do
             , (8, 4, "gb-t-tm-5311")
             ])
         ]
-    right_equal (f
+    rightEqual (f
         "1111 tumurun [\n\
         \    > 5555 | 5555\n\
         \    > 1111 | 1111\n\
@@ -113,7 +113,7 @@ test_convert_source = do
             , (8, 4, "gb-t-tm-1111")
             ])
         ]
-    right_equal (f
+    rightEqual (f
         "1111 tumurun [\n\
         \    > 5555 | 5555\n\
         \    > 1111 | 1111\n\
@@ -131,7 +131,7 @@ test_convert_source = do
         ]
 
     -- Different instruments.
-    right_equal (f
+    rightEqual (f
         "3231 dualolo [\n\
         \    > 5653 | .6.56 1\n\
         \    > .12_ | 6 2 321\n\
@@ -146,7 +146,7 @@ test_convert_source = do
         , (">gb", [(0, 4, "gb-t-dll")])
         , (">gp", [(0, 4, "gp-t-seleh-1")])
         ]
-    left_like (f
+    leftLike (f
         "3231 dualolo [\n\
         \    > 5653 | .6.56 1\n\
         \    > .12_ | 6 2 321\n\
@@ -162,18 +162,18 @@ test_convert_source = do
 type Track = (Text, [Event])
 type Event = (TrackTime, TrackTime, Text)
 
-convert_source :: Text -> Either Text ([Track], [[Track]])
-convert_source = bimap (Text.intercalate "; ") extract . JScore.convert_source
+convertSource :: Text -> Either Text ([Track], [[Track]])
+convertSource = bimap (Text.intercalate "; ") extract . JScore.convertSource
     where
-    extract (top, bs) = (e_block top, map e_block bs)
-    e_block = map (e_track . fst) . JScore.block_tracks
-    e_track track =
-        (Convert.track_title track, map e_event (Convert.track_events track))
-    e_event e = (Event.start e, Event.duration e, Event.text e)
+    extract (top, bs) = (eBlock top, map eBlock bs)
+    eBlock = map (eTrack . fst) . JScore.blockTracks
+    eTrack track =
+        (Convert.trackTitle track, map eEvent (Convert.trackEvents track))
+    eEvent e = (Event.start e, Event.duration e, Event.text e)
 
 test_collect_columns :: Test
 test_collect_columns = do
-    let f = Map.toList . fmap (map snd) . JScore.collect_columns fst
+    let f = Map.toList . fmap (map snd) . JScore.collectColumns fst
     equal (f
         [ [(1, 'a'), (2, 'b')]
         , [(2, 'c')]

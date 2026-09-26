@@ -14,7 +14,7 @@ import           Util.Test
 
 test_modify_text_key :: Test
 test_modify_text_key = do
-    let f c = EditUtil.modify_text_key [] (EditUtil.Key c)
+    let f c = EditUtil.modifyTextKey [] (EditUtil.Key c)
     equal (f 'c' "a") (Just "ac")
     equal (f ' ' "a") (Just "a ")
     equal (f ' ' "") (Just "")
@@ -28,13 +28,13 @@ test_backspace = do
 
 test_input_to_note :: Test
 test_input_to_note = do
-    let run cmd = CmdTest.extract id $ CmdTest.run_sel 1 note_tracks cmd
-        note_tracks = [(">i", [(0, 1, "")]), ("*", [(0, 0, "4d")])]
+    let run cmd = CmdTest.extract id $ CmdTest.runSel 1 noteTracks cmd
+        noteTracks = [(">i", [(0, 1, "")]), ("*", [(0, 0, "4d")])]
 
     -- Fake up a Performance that overrides the default *twelve.
-    let set_env = CmdTest.set_scale UiTest.default_block_id
-            UiTest.default_block_id (UiTest.mk_tid 2) Wayang.scale_id
-    let f = EditUtil.input_to_note
-    let input = Pitch.Input Pitch.PianoKbd Pitch.middle_c 0
+    let setEnv = CmdTest.setScale UiTest.defaultBlockId
+            UiTest.defaultBlockId (UiTest.mkTid 2) Wayang.scaleId
+    let f = EditUtil.inputToNote
+    let input = Pitch.Input Pitch.PianoKbd Pitch.middleC 0
     equal (run (f input)) (Right (Just "4c", []))
-    equal (run (set_env >> f input)) (Right (Just "4i", []))
+    equal (run (setEnv >> f input)) (Right (Just "4i", []))

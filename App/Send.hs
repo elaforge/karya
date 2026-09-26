@@ -71,7 +71,7 @@ substitute args
     | otherwise = pure args
 
 query :: Text -> IO Text
-query = ReplProtocol.query_cmd_simple
+query = ReplProtocol.queryCmdSimple
 
 timed :: DeepSeq.NFData a => IO a -> IO (a, Double)
 timed action = do

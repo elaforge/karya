@@ -19,25 +19,25 @@ import qualified Perform.Midi.Patch as Patch
 import           Global
 
 
-synth_name :: InstT.SynthName
-synth_name = "morpheus"
+synthName :: InstT.SynthName
+synthName = "morpheus"
 
 load :: Path.AppDir -> IO (Maybe MidiInst.Synth)
-load = MidiInstDb.load_synth (const mempty) synth_name "E-mu Morpheus"
+load = MidiInstDb.loadSynth (const mempty) synthName "E-mu Morpheus"
 
-make_db :: Path.AppDir -> IO ()
-make_db app_dir = do
-    let fname = Path.to_absolute app_dir Config.instrument_dir
-            </> untxt synth_name
-    patches <- map MidiInst.patch_from_pair <$> Parse.patch_file fname
+makeDb :: Path.AppDir -> IO ()
+makeDb appDir = do
+    let fname = Path.toAbsolute appDir Config.instrumentDir
+            </> untxt synthName
+    patches <- map MidiInst.patchFromPair <$> Parse.patchFile fname
     patches <- pure $
-        map (MidiInst.patch#Patch.defaults#Patch.pitch_bend_range
+        map (MidiInst.patch#Patch.defaults#Patch.pitchBendRange
                 #= Just (-12, 12))
             patches
-    MidiInstDb.save_synth app_dir synth_name patches
+    MidiInstDb.saveSynth appDir synthName patches
 
-synth_controls :: [(Midi.Control, ScoreT.Control)]
-synth_controls =
+synthControls :: [(Midi.Control, ScoreT.Control)]
+synthControls =
     -- Definitions depend on the preset.
     [ (1, "a"), (2, "b"), (3, "c"), (4, "d")
     , (64, "switch1"), (65, "switch2"), (66, "switch3")

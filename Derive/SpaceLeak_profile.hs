@@ -13,15 +13,15 @@ import qualified Derive.ScoreT as ScoreT
 import qualified Derive.Stream as Stream
 
 
-profile_cancel = do
-    let f = Postproc.group_and_cancel
-            (Postproc.cancel_strong_weak Postproc.infer_duration_merged)
-            Post.hand_key 2
-        make = Stream.from_sorted_events . map DeriveTest.mkevent
+profileCancel = do
+    let f = Postproc.groupAndCancel
+            (Postproc.cancelStrongWeak Postproc.inferDurationMerged)
+            Post.handKey 2
+        make = Stream.fromSortedEvents . map DeriveTest.mkevent
         inst = ScoreT.Instrument "i1"
     let events = make
             [(s, 1, "4c", [], inst) | s <- Lists.range 0 (1024 * 50) 1]
     -- With force, run with -K2905K
     Thread.force events
     Thread.printTimer "force" ("done: "<>) $
-        pure $! either show (show . length . Stream.to_list) $ f events
+        pure $! either show (show . length . Stream.toList) $ f events

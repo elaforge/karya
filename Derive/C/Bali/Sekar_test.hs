@@ -17,10 +17,10 @@ import           Util.Test
 
 test_sekar :: Test
 test_sekar = do
-    let run sekar_event notes = extract $ DeriveTest.derive_tracks_linear
+    let run sekarEvent notes = extract $ DeriveTest.deriveTracksLinear
             "import bali.sekar | sekar-arrive=f" $
-            (">", [sekar_event]) : UiTest.note_track notes
-        extract = DeriveTest.extract DeriveTest.e_note
+            (">", [sekarEvent]) : UiTest.noteTrack notes
+        extract = DeriveTest.extract DeriveTest.eNote
     let cd = [(2, 2, "4c"), (4, 2, "4d")]
 
     equal (run (2, 4, "sekar 'a b'") [])
@@ -70,11 +70,11 @@ test_sekar = do
 
 test_sekar_multiple :: Test
 test_sekar_multiple = do
-    let run dur notes = extract $ DeriveTest.derive_tracks_linear
+    let run dur notes = extract $ DeriveTest.deriveTracksLinear
             "import bali.sekar | sekar-arrive=f" $
             (">", [(0, dur, "sekar (list AaAa abab abac abcd)")])
-                : UiTest.note_track notes
-        extract = DeriveTest.extract DeriveTest.e_note
+                : UiTest.noteTrack notes
+        extract = DeriveTest.extract DeriveTest.eNote
     equal (run 8 [(0, 4, "4c"), (4, 4, "4d")])
         ([(0, 2, "4c"), (2, 2, "4d"), (4, 2, "4c"), (6, 2, "4d")], [])
     equal (run 6 [(0, 3, "4c"), (3, 1.5, "4d"), (4.5, 1.5, "4e")])
@@ -82,16 +82,16 @@ test_sekar_multiple = do
 
 test_sekar_arrive :: Test
 test_sekar_arrive = do
-    let run e = DeriveTest.extract DeriveTest.e_note . run_ e
-        run_ sekar_event notes = DeriveTest.derive_tracks_linear
+    let run e = DeriveTest.extract DeriveTest.eNote . run_ e
+        run_ sekarEvent notes = DeriveTest.deriveTracksLinear
             "import bali.sekar | sekar-arrive=t | cancel 4" $
-            (">", [sekar_event]) : UiTest.note_track notes
+            (">", [sekarEvent]) : UiTest.noteTrack notes
 
-    equal (run (2, 4, "sekar ab") (make_notes [2, 2, 2]))
+    equal (run (2, 4, "sekar ab") (makeNotes [2, 2, 2]))
         ([(4, 2, "4a"), (6, 2, "4b")], [])
-    equal (run (2, 4, "sekar abab") (make_notes [2, 2, 2]))
+    equal (run (2, 4, "sekar abab") (makeNotes [2, 2, 2]))
         ([(3, 1, "4a"), (4, 1, "4b"), (5, 1, "4a"), (6, 2, "4b")], [])
-    equal (run (2, 8, "sekar abab") (make_notes [2, 2, 2, 2, 2]))
+    equal (run (2, 8, "sekar abab") (makeNotes [2, 2, 2, 2, 2]))
         ([ (3, 1, "4a"), (4, 1, "4b"), (5, 1, "4a"), (6, 1, "4b")
          , (7, 1, "4c"), (8, 1, "4d"), (9, 1, "4c"), (10, 2, "4d")
          ], [])
@@ -101,52 +101,52 @@ test_sekar_arrive = do
     --     |---------->
     --     g---a-------b-->
     --       a---b-a---b--- - -
-    equal (run (2, 6, "sekar abab") (make_notes [2, 4, 2]))
+    equal (run (2, 6, "sekar abab") (makeNotes [2, 4, 2]))
         ([(3, 2, "4a"), (5, 1, "4b"), (6, 2, "4a"), (8, 2, "4b")], [])
 
     -- 0   2   4   6   8   10  12
     --     |---------->
     --     c-------a---b-->
     --         a-b---a-b--- - -
-    equal (run (2, 6, "sekar abab") (make_notes [4, 2, 2]))
+    equal (run (2, 6, "sekar abab") (makeNotes [4, 2, 2]))
         ([(4, 1, "4a"), (5, 2, "4b"), (7, 1, "4a"), (8, 2, "4b")], [])
 
     -- 0   2   4   6   8   10  12
     --     |------>
     --     c---a---b---------->
     --       a-b-a-b--- - -
-    equal (run (2, 4, "sekar abab") (make_notes [2, 2, 6]))
+    equal (run (2, 4, "sekar abab") (makeNotes [2, 2, 6]))
         ([(3, 1, "4a"), (4, 1, "4b"), (5, 1, "4a"), (6, 6, "4b")], [])
-    equal (run (2, 4, "sekar abab") (make_notes [2, 2]))
+    equal (run (2, 4, "sekar abab") (makeNotes [2, 2]))
         ([(4, 1, "4a"), (6, 4, "4a")], [])
 
-make_notes :: [ScoreTime] -> [UiTest.EventSpec]
-make_notes durs = zip3 starts durs pitches
+makeNotes :: [ScoreTime] -> [UiTest.EventSpec]
+makeNotes durs = zip3 starts durs pitches
     where
     starts = scanl (+) 2 durs
     pitches = map ("4"<>) ["g", "a", "b", "c", "d", "e", "f"]
 
 test_sekar_regular_arrive :: Test
 test_sekar_regular_arrive = do
-    let run sekar_event notes =
-            DeriveTest.extract DeriveTest.e_note $ run_ sekar_event notes
-        run2 sekar_event notes =
-            DeriveTest.extract DeriveTest.e_start_note $ run_ sekar_event notes
-        run_ sekar_event notes = DeriveTest.derive_tracks_linear
+    let run sekarEvent notes =
+            DeriveTest.extract DeriveTest.eNote $ run_ sekarEvent notes
+        run2 sekarEvent notes =
+            DeriveTest.extract DeriveTest.eStartNote $ run_ sekarEvent notes
+        run_ sekarEvent notes = DeriveTest.deriveTracksLinear
             "import bali.sekar | sekar-arrive=t | cancel 4" $
-            (">", [sekar_event]) : UiTest.note_track notes
+            (">", [sekarEvent]) : UiTest.noteTrack notes
     -- 0   2   4   6   8   10
     --     |------>
     --     g---a---b-->
     --       a-b-a-b--
-    equal (run (2, 4, "sekar-e abab") (make_notes [2, 2, 2]))
+    equal (run (2, 4, "sekar-e abab") (makeNotes [2, 2, 2]))
         ([(3, 1, "4a"), (4, 1, "4b"), (5, 1, "4a"), (6, 2, "4b")], [])
 
     -- 012345678
     --   |---->
     --   g-a-b-c-
     --    a ab c
-    equal (run2 (2, 6, "sekar-e aCabAc") (make_notes [2, 2, 2, 2]))
+    equal (run2 (2, 6, "sekar-e aCabAc") (makeNotes [2, 2, 2, 2]))
         ([(3, "4a"), (5, "4a"), (6, "4b"), (8, "4c")], [])
 
     -- 012345678
@@ -178,7 +178,7 @@ test_sekar_regular_arrive = do
 
 test_drop_until_next :: Test
 test_drop_until_next = do
-    let f t = Sekar.drop_until_next (>t)
+    let f t = Sekar.dropUntilNext (>t)
     equal (f 1 [0..4]) [1..4]
     equal (f 2.5 [0..4]) [2..4]
     equal (f 4 [0..4]) [4]
@@ -186,7 +186,7 @@ test_drop_until_next = do
 
 test_div_extract :: Test
 test_div_extract = do
-    let f events = Sekar.div_extract (map mkevent events)
+    let f events = Sekar.divExtract (map mkevent events)
         mkevent (s, d, n) = SubT.EventT s d n
     -- 0   2   4   6   8   10  12
     -- a----b--_---c---d--

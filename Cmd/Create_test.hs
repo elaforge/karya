@@ -24,10 +24,10 @@ import Types
 
 test_track_ruler :: Test
 test_track_ruler = do
-    let f tracknum = Create.track_events UiTest.default_block_id
-            Ui.no_ruler tracknum 20 Track.empty
-        run track_specs cmd = CmdTest.trace_logs $ CmdTest.e_tracks $
-            CmdTest.run_tracks track_specs cmd
+    let f tracknum = Create.trackEvents UiTest.defaultBlockId
+            Ui.noRuler tracknum 20 Track.empty
+        run trackSpecs cmd = CmdTest.traceLogs $ CmdTest.eTracks $
+            CmdTest.runTracks trackSpecs cmd
     equal (run [] (f 1)) $ Right [("", [])]
     equal (run [] (f 10)) $ Right [("", [])]
     equal (run [("1", [])] (f 10)) $ Right [("1", []), ("", [])]
@@ -51,7 +51,7 @@ test_track_ruler = do
 
 test_splice_above_ancestors :: Test
 test_splice_above_ancestors = do
-    let run = run_skel Create.splice_above_ancestors
+    let run = runSkel Create.spliceAboveAncestors
     equal (run 2 [(1, 2)] (2, 2)) $ Right ([('x', '1'), ('1', '2')], [])
     equal (run 4 [(1, 2), (3, 4)] (4, 4)) $
         Right ([('1', '2'), ('x', '3'), ('3', '4')], [])
@@ -60,18 +60,18 @@ test_splice_above_ancestors = do
 
 test_splice_below :: Test
 test_splice_below = do
-    let run = run_skel_point Create.splice_below
+    let run = runSkelPoint Create.spliceBelow
     equal (run 2 [] 2) (Right ([('2', 'x')], []))
     equal (run 4 [(2, 1), (2, 4)] 2)
         (Right ([('2', 'x'), ('x', '1'), ('x', '4')], []))
 
 test_insert_branch :: Test
 test_insert_branch = do
-    let run titles skel sel_track = CmdTest.extract_ui_state extract $
-            run_cmd titles skel (CmdTest.set_point_sel sel_track 0
-                >> Create.insert_branch)
-        extract state = (map fst $ UiTest.extract_tracks state,
-            UiTest.extract_skeleton state)
+    let run titles skel selTrack = CmdTest.extractUiState extract $
+            runCmd titles skel (CmdTest.setPointSel selTrack 0
+                >> Create.insertBranch)
+        extract state = (map fst $ UiTest.extractTracks state,
+            UiTest.extractSkeleton state)
     equal (run ["tempo", ">inst", "dyn"] [(1, 2), (2, 3)] 2) $ Right
         ( (["tempo", ">inst", "dyn", ">inst", "dyn"],
             [(1, 2), (1, 4), (2, 3), (4, 5)])
@@ -85,55 +85,55 @@ test_insert_branch = do
 
 test_make_tracks :: Test
 test_make_tracks = do
-    let f tracknum = Create.make_tracks tracknum . make_tree
-        make_tree :: [Tree.Tree Text] -> TrackTree.TrackTree
-        make_tree = map $ fmap $ \title -> Ui.TrackInfo title
-            (UiTest.mk_tid 1) 1 (UiTest.btrack (UiTest.mk_tid 1))
+    let f tracknum = Create.makeTracks tracknum . makeTree
+        makeTree :: [Tree.Tree Text] -> TrackTree.TrackTree
+        makeTree = map $ fmap $ \title -> Ui.TrackInfo title
+            (UiTest.mkTid 1) 1 (UiTest.btrack (UiTest.mkTid 1))
     equal (f 1
             [ Tree.Node "1" [Tree.Node "11" [], Tree.Node "12" []]
             , Tree.Node "2" []
             ])
         ([(1, "1"), (2, "11"), (3, "12"), (4, "2")], [(1, 2), (1, 3)])
 
-run_cmd :: [Text] -> [(TrackNum, TrackNum)] -> Cmd.CmdId a -> CmdTest.Result a
-run_cmd titles skel cmd = CmdTest.run state CmdTest.default_cmd_state cmd
+runCmd :: [Text] -> [(TrackNum, TrackNum)] -> Cmd.CmdId a -> CmdTest.Result a
+runCmd titles skel cmd = CmdTest.run state CmdTest.defaultCmdState cmd
     where
     state = UiTest.exec Ui.empty $ do
-        UiTest.mkblocks_skel [((UiTest.default_block_name,
+        UiTest.mkblocksSkel [((UiTest.defaultBlockName,
             [(title, []) | title <- titles]), skel)]
-        UiTest.mkview UiTest.default_block_id
+        UiTest.mkview UiTest.defaultBlockId
 
-run_skel_point :: Cmd.CmdId a -> Int -> [Skeleton.Edge] -> TrackNum
+runSkelPoint :: Cmd.CmdId a -> Int -> [Skeleton.Edge] -> TrackNum
     -> Either Text ([(Char, Char)], [Text])
-run_skel_point m ntracks skel track = run_skel m ntracks skel (track, track)
+runSkelPoint m ntracks skel track = runSkel m ntracks skel (track, track)
 
 -- | Put the selection on the given track, create a block with the given
 -- skeleton, and run the cmd.  Return the skeleton as a list of edges,
 -- replacing the tracknums with the track titles.  Tracks with no title (likely
 -- new tracks) get an 'x'.
-run_skel :: Cmd.CmdId a -> Int -> [Skeleton.Edge] -> (TrackNum, TrackNum)
+runSkel :: Cmd.CmdId a -> Int -> [Skeleton.Edge] -> (TrackNum, TrackNum)
     -> Either Text ([(Char, Char)], [Text])
     -- ^ (edges as titles, logs)
-run_skel m ntracks skel (start_track, end_track) =
-    extract $ CmdTest.run_tracks tracks $ do
-        Ui.set_skeleton UiTest.default_block_id (Skeleton.make skel)
-        CmdTest.set_sel start_track 0 end_track 0
+runSkel m ntracks skel (startTrack, endTrack) =
+    extract $ CmdTest.runTracks tracks $ do
+        Ui.setSkeleton UiTest.defaultBlockId (Skeleton.make skel)
+        CmdTest.setSel startTrack 0 endTrack 0
         m
     where
     tracks = [(showt (n+1), []) | n <- [0..ntracks-1]]
-    extract = CmdTest.extract_ui_state extract_skel
-    extract_skel ustate = UiTest.eval ustate $ do
-        skel <- Skeleton.flatten <$> Ui.get_skeleton UiTest.default_block_id
+    extract = CmdTest.extractUiState extractSkel
+    extractSkel ustate = UiTest.eval ustate $ do
+        skel <- Skeleton.flatten <$> Ui.getSkeleton UiTest.defaultBlockId
         mapM (\(t1, t2) -> (,) <$> replace t1 <*> replace t2) skel
     replace n = do
-        tid <- Ui.get_event_track_at UiTest.default_block_id n
-        title <- Track.track_title <$> Ui.get_track tid
+        tid <- Ui.getEventTrackAt UiTest.defaultBlockId n
+        title <- Track.trackTitle <$> Ui.getTrack tid
         pure $ Text.head $
             if Text.null (Text.strip title) then "x" else title
 
 test_find_rect :: Test
 test_find_rect = do
-    let f w = Create.find_rect (Just (Rect.xywh 0 0 10 10)) (w, 0) . map rect
+    let f w = Create.findRect (Just (Rect.xywh 0 0 10 10)) (w, 0) . map rect
         rect (x1, x2) = Rect.xywh x1 0 (x2-x1) 10
     equal (f 2 []) (0, 0)
     equal (f 2 [(0, 2)]) (2, 0)

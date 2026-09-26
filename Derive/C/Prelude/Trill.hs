@@ -40,19 +40,19 @@
 -}
 module Derive.C.Prelude.Trill (
     library
-    , c_note_trill, c_tremolo_generator
-    , hold_env, tremolo_starts_curve
+    , cNoteTrill, cTremoloGenerator
+    , holdEnv, tremoloStartsCurve
     -- * transitions
-    , trill_transitions, adjusted_transitions
+    , trillTransitions, adjustedTransitions
     -- * types
     , Config(..)
-    , Direction(..), direction_affix
+    , Direction(..), directionAffix
     , AbsoluteMode(..)
-    , Adjust(..), adjust_env
-    , get_trill_control_smooth
+    , Adjust(..), adjustEnv
+    , getTrillControlSmooth
 
     -- testing
-    , full_notes, chord_tremolo, get_trill_control, xcut_control
+    , fullNotes, chordTremolo, getTrillControl, xcutControl
 ) where
 import qualified Data.List as List
 import qualified Data.Maybe as Maybe
@@ -103,37 +103,37 @@ import           Types
 library :: Library.Library
 library = mconcat
     -- Note
-    [ make_trills "tr" (c_note_trill False)
-    , Library.generators [("trem", c_tremolo_generator Nothing)]
-    , Library.transformers [("trem", c_tremolo_transformer)]
+    [ makeTrills "tr" (cNoteTrill False)
+    , Library.generators [("trem", cTremoloGenerator Nothing)]
+    , Library.transformers [("trem", cTremoloTransformer)]
     -- Pitch
-    , make_trills "tr" c_pitch_trill
-    , make_trills "trs" c_pitch_trill_smooth
+    , makeTrills "tr" cPitchTrill
+    , makeTrills "trs" cPitchTrillSmooth
     , Library.generators
-        [ ("xcut", c_xcut_pitch False)
-        , ("xcut-h", c_xcut_pitch True)
+        [ ("xcut", cXcutPitch False)
+        , ("xcut-h", cXcutPitch True)
         ]
     -- Control
-    , make_trills "tr" c_control_trill
-    , make_trills "trs" c_control_trill_smooth
+    , makeTrills "tr" cControlTrill
+    , makeTrills "trs" cControlTrillSmooth
     , Library.generators $
-        [ ("saw", c_saw)
-        , ("sine", c_sine Bipolar)
-        , ("sine+", c_sine Positive)
-        , ("sine-", c_sine Negative)
-        , ("xcut", c_xcut_control False)
-        , ("xcut-h", c_xcut_control True)
+        [ ("saw", cSaw)
+        , ("sine", cSine Bipolar)
+        , ("sine+", cSine Positive)
+        , ("sine-", cSine Negative)
+        , ("xcut", cXcutControl False)
+        , ("xcut-h", cXcutControl True)
         ]
     ]
     where
-    make_trills prefix make = Library.generators
-        [(name, make start end) | (name, start, end) <- trill_variations prefix]
+    makeTrills prefix make = Library.generators
+        [(name, make start end) | (name, start, end) <- trillVariations prefix]
 
 -- * note calls
 
-c_note_trill :: Bool -> Maybe Direction -> Maybe Direction
+cNoteTrill :: Bool -> Maybe Direction -> Maybe Direction
     -> Derive.Generator Derive.Note
-c_note_trill use_attributes hardcoded_start hardcoded_end =
+cNoteTrill useAttributes hardcodedStart hardcodedEnd =
     Derive.generator Module.prelude "tr" Tags.ly
     ("Generate a note with a trill.\
     \\nUnlike a trill on a pitch track, this generates events for each\
@@ -142,41 +142,41 @@ c_note_trill use_attributes hardcoded_start hardcoded_end =
     \\nInstruments that support +trill attributes should enable the attributes\
     \ version, which emits a single note with `+trill+half`, `+trill+whole`, or\
     \ all the notes with `+trill`, depending on the interval."
-    <> direction_doc hardcoded_start hardcoded_end
+    <> directionDoc hardcodedStart hardcodedEnd
     ) $ Sig.call ((,,)
-    <$> neighbor_arg
-    <*> config_arg hardcoded_start hardcoded_end
-    <*> Sig.environ_key "tr-style" Tr
+    <$> neighborArg
+    <*> configArg hardcodedStart hardcodedEnd
+    <*> Sig.environKey "tr-style" Tr
         "Notation variant: tr symbol, tr~, or tremolo."
     ) $ \(neighbor, config, style) -> Sub.inverting $ \args ->
-    Ly.when_lilypond (note_trill_ly style args neighbor)
-        (note_trill use_attributes neighbor config args)
+    Ly.whenLilypond (noteTrillLy style args neighbor)
+        (noteTrill useAttributes neighbor config args)
 
 type Neighbor = Either Typecheck.DiatonicTransposeFunctionT PSignal.Pitch
 
-neighbor_arg :: Sig.Parser Neighbor
-neighbor_arg = Sig.defaulted "neighbor" (Left 1 :: Either Int Sig.Dummy)
+neighborArg :: Sig.Parser Neighbor
+neighborArg = Sig.defaulted "neighbor" (Left 1 :: Either Int Sig.Dummy)
     "Alternate with an interval or pitch."
 
-note_trill :: Bool -> Neighbor -> Config
+noteTrill :: Bool -> Neighbor -> Config
     -> Derive.PassedArgs a -> Derive.NoteDeriver
-note_trill use_attributes neighbor config args
-    | use_attributes = trill_attributes neighbor (Args.start args) >>= \case
+noteTrill useAttributes neighbor config args
+    | useAttributes = trillAttributes neighbor (Args.start args) >>= \case
         Just attr ->
-            Call.add_attributes (Attrs.trill <> attr) (Call.placed_note args)
-        Nothing -> Call.add_attributes Attrs.trill trill_notes
-    | otherwise = trill_notes
+            Call.addAttributes (Attrs.trill <> attr) (Call.placedNote args)
+        Nothing -> Call.addAttributes Attrs.trill trillNotes
+    | otherwise = trillNotes
     where
-    trill_notes = do
-        (neighbor, control) <- neighbor_to_function (Args.start args) neighbor
-        transpose <- get_trill_control config (Args.range_or_next args) neighbor
+    trillNotes = do
+        (neighbor, control) <- neighborToFunction (Args.start args) neighbor
+        transpose <- getTrillControl config (Args.rangeOrNext args) neighbor
         Sub.derive =<< mapM (note control) (Lists.zipNext transpose)
     note control ((x, transpose), next) = do
         start <- Derive.score x
         let end = snd $ Args.range args
         next <- maybe (pure end) (Derive.score . fst) next
         pure $ SubT.EventT start (next-start) $
-            Call.add_constant control transpose Call.note
+            Call.addConstant control transpose Call.note
     -- trill_notes = do
     --     neighbor <- neighbor_to_signal2 (Args.start args) neighbor
     --     (transpose, control) <- get_trill_control2
@@ -213,25 +213,25 @@ note_trill use_attributes neighbor config args
         --     let next = fromMaybe (snd (Args.range args)) maybe_next
         --     return $ SubT.EventT x (next-x) (Call.pitched_note pitch)
 
-neighbor_to_function :: ScoreTime -> Neighbor
+neighborToFunction :: ScoreTime -> Neighbor
     -> Derive.Deriver (ScoreT.Function, ScoreT.Control)
-neighbor_to_function _ (Left (Typecheck.DiatonicTransposeFunctionT typ f)) =
-    pure (f, Typecheck.transpose_control typ)
-neighbor_to_function start (Right neighbor) = do
+neighborToFunction _ (Left (Typecheck.DiatonicTransposeFunctionT typ f)) =
+    pure (f, Typecheck.transposeControl typ)
+neighborToFunction start (Right neighbor) = do
     start <- Derive.real start
-    base <- Call.get_pitch start
-    diff <- Call.nn_difference start neighbor base
-    pure (const (realToFrac diff), Typecheck.transpose_control ScoreT.TNn)
+    base <- Call.getPitch start
+    diff <- Call.nnDifference start neighbor base
+    pure (const (realToFrac diff), Typecheck.transposeControl ScoreT.TNn)
 
-trill_attributes :: Neighbor -> ScoreTime
+trillAttributes :: Neighbor -> ScoreTime
     -> Derive.Deriver (Maybe Attrs.Attributes)
-trill_attributes neighbor start = do
+trillAttributes neighbor start = do
     start <- Derive.real start
-    (pitch, neighbor) <- pitch_and_neighbor neighbor start
-    diff <- Call.nn_difference start neighbor pitch
+    (pitch, neighbor) <- pitchAndNeighbor neighbor start
+    diff <- Call.nnDifference start neighbor pitch
     pure $ if
-        | Pitch.nns_equal diff 1 -> Just Attrs.half
-        | Pitch.nns_equal diff 2 -> Just Attrs.whole
+        | Pitch.nnsEqual diff 1 -> Just Attrs.half
+        | Pitch.nnsEqual diff 2 -> Just Attrs.whole
         | otherwise -> Nothing
 
 data TrillStyle = Tr | Span | Tremolo
@@ -241,26 +241,26 @@ instance Typecheck.Typecheck TrillStyle
 instance Typecheck.ToVal TrillStyle
 instance ShowVal.ShowVal TrillStyle
 
-note_trill_ly :: TrillStyle -> Derive.PassedArgs a -> Neighbor
+noteTrillLy :: TrillStyle -> Derive.PassedArgs a -> Neighbor
     -> Derive.NoteDeriver
-note_trill_ly style args neighbor = do
-    start <- Args.real_start args
-    (pitch, neighbor) <- pitch_and_neighbor neighbor start
-    diff <- Call.nn_difference start neighbor pitch
-    let tremolo = tremolo_trill_ly pitch neighbor (Args.start args)
+noteTrillLy style args neighbor = do
+    start <- Args.realStart args
+    (pitch, neighbor) <- pitchAndNeighbor neighbor start
+    diff <- Call.nnDifference start neighbor pitch
+    let tremolo = tremoloTrillLy pitch neighbor (Args.start args)
             (Args.duration args)
-    env <- Derive.get_environ
-    let ly_pitch = Derive.require_right id . Lilypond.Convert.pitch_to_lily env
-            =<< Derive.resolve_pitch start neighbor
+    env <- Derive.getEnviron
+    let lyPitch = Derive.requireRight id . Lilypond.Convert.pitchToLily env
+            =<< Derive.resolvePitch start neighbor
     case style of
-        _ | not (Pitch.nns_equal diff 1) && not (Pitch.nns_equal diff 2) ->
+        _ | not (Pitch.nnsEqual diff 1) && not (Pitch.nnsEqual diff 2) ->
             tremolo
         Tremolo -> tremolo
         Tr -> do
-            npitch@(Types.Pitch _ _ acc) <- ly_pitch
-            in_key <- pitch_in_key npitch
+            npitch@(Types.Pitch _ _ acc) <- lyPitch
+            inKey <- pitchInKey npitch
             let code = case acc of
-                    _ | in_key -> "\\trill"
+                    _ | inKey -> "\\trill"
                     Types.FlatFlat -> "^\\trFlatFlat"
                     Types.Flat -> "^\\trFlat"
                     Types.Natural -> "^\\trNatural"
@@ -268,146 +268,146 @@ note_trill_ly style args neighbor = do
                     Types.SharpSharp -> "^\\trSharpSharp"
             -- TODO this should by Ly.note_append, but I can't put the \trFlat
             -- macros on a single pitch.
-            Ly.add_first (Ly.append Constants.All, code)
-                (Call.placed_note args)
+            Ly.addFirst (Ly.append Constants.All, code)
+                (Call.placedNote args)
         Span -> do
-            npitch <- ly_pitch
-            Ly.add_first (Ly.prepend, "\\pitchedTrill") $
-                Ly.add_first (Ly.append Constants.First, "\\startTrillSpan "
-                    <> Types.to_lily npitch) $
-                Ly.add_first (Ly.append Constants.Last, "\\stopTrillSpan") $
-                Call.placed_note args
+            npitch <- lyPitch
+            Ly.addFirst (Ly.prepend, "\\pitchedTrill") $
+                Ly.addFirst (Ly.append Constants.First, "\\startTrillSpan "
+                    <> Types.toLily npitch) $
+                Ly.addFirst (Ly.append Constants.Last, "\\stopTrillSpan") $
+                Call.placedNote args
 
-pitch_in_key :: Types.Pitch -> Derive.Deriver Bool
-pitch_in_key ly_pitch = do
-    key <- get_key
-    pure $ in_key key (Pitch.pitch_degree (Types.to_pitch ly_pitch))
+pitchInKey :: Types.Pitch -> Derive.Deriver Bool
+pitchInKey lyPitch = do
+    key <- getKey
+    pure $ inKey key (Pitch.pitchDegree (Types.toPitch lyPitch))
 
-get_key :: Derive.Deriver Theory.Key
-get_key = do
-    maybe_key <- Call.lookup_key
-    Derive.require ("unrecognized key: " <> pretty maybe_key) $
-        Twelve.lookup_key maybe_key
+getKey :: Derive.Deriver Theory.Key
+getKey = do
+    maybeKey <- Call.lookupKey
+    Derive.require ("unrecognized key: " <> pretty maybeKey) $
+        Twelve.lookupKey maybeKey
 
-in_key :: Theory.Key -> Pitch.Degree -> Bool
-in_key key (Pitch.Degree pc acc) = Theory.accidentals_at_pc key pc == acc
+inKey :: Theory.Key -> Pitch.Degree -> Bool
+inKey key (Pitch.Degree pc acc) = Theory.accidentalsAtPc key pc == acc
 
-pitch_and_neighbor :: Neighbor -> RealTime
+pitchAndNeighbor :: Neighbor -> RealTime
     -> Derive.Deriver (PSignal.Pitch, PSignal.Pitch)
-pitch_and_neighbor (Right neighbor) start =
-    (, neighbor) <$> Call.get_pitch start
-pitch_and_neighbor (Left (Typecheck.DiatonicTransposeFunctionT typ f))
+pitchAndNeighbor (Right neighbor) start =
+    (, neighbor) <$> Call.getPitch start
+pitchAndNeighbor (Left (Typecheck.DiatonicTransposeFunctionT typ f))
         start = do
-    base <- Call.get_pitch start
+    base <- Call.getPitch start
     let width = f start
     case (typ, width) of
         (ScoreT.TChromatic, 1) ->
-            (base,) <$> (chromatic_neighbor =<< Derive.resolve_pitch start base)
+            (base,) <$> (chromaticNeighbor =<< Derive.resolvePitch start base)
         _ -> pure
-            (base, Pitches.transpose (Typecheck.to_transpose typ width) base)
+            (base, Pitches.transpose (Typecheck.toTranspose typ width) base)
 
 -- | Given a pitch, find the enharmonic one chromatic step above it which is
 -- at pitch class + 1.  This is because trills should alternate with the next
 -- pitch class, so c to d flat, not c to c#.
-chromatic_neighbor :: PSignal.Transposed -> Derive.Deriver PSignal.Pitch
-chromatic_neighbor pitch = do
+chromaticNeighbor :: PSignal.Transposed -> Derive.Deriver PSignal.Pitch
+chromaticNeighbor pitch = do
     -- TODO this is way too complicated
-    (parse, unparse, transpose) <- Call.get_pitch_functions
-    pitch <- Call.parse_pitch parse pitch
-    key <- get_key
+    (parse, unparse, transpose) <- Call.getPitchFunctions
+    pitch <- Call.parsePitch parse pitch
+    key <- getKey
     neighbor <- Derive.require "transpose" $ transpose Scale.Chromatic 1 pitch
     neighbor <- Derive.require "enharmonic" $
-        List.find ((== Pitch.pitch_pc pitch + 1) . Pitch.pitch_pc) $
-            Theory.enharmonics_of (Theory.key_layout key) neighbor
+        List.find ((== Pitch.pitchPc pitch + 1) . Pitch.pitchPc) $
+            Theory.enharmonicsOf (Theory.keyLayout key) neighbor
     note <- Derive.require "unparse" $ unparse neighbor
-    scale <- Call.get_scale
-    Eval.eval_note scale note
+    scale <- Call.getScale
+    Eval.evalNote scale note
 
 -- | Emit the magic events to trigger lilypond's tremolo processing.
-tremolo_trill_ly :: PSignal.Pitch -> PSignal.Pitch -> ScoreTime -> ScoreTime
+tremoloTrillLy :: PSignal.Pitch -> PSignal.Pitch -> ScoreTime -> ScoreTime
     -> Derive.NoteDeriver
-tremolo_trill_ly pitch1 pitch2 start dur =
+tremoloTrillLy pitch1 pitch2 start dur =
     Derive.place start dur $ mconcat
-        [ Ly.add_first (Ly.SetEnviron Constants.v_tremolo, "") Call.note
-        , Call.pitched_note pitch1
-        , Call.pitched_note pitch2
+        [ Ly.addFirst (Ly.SetEnviron Constants.vTremolo, "") Call.note
+        , Call.pitchedNote pitch1
+        , Call.pitchedNote pitch2
         ]
 
-c_tremolo_generator :: Maybe ([Attrs.Attributes], Attrs.Attributes)
+cTremoloGenerator :: Maybe ([Attrs.Attributes], Attrs.Attributes)
     -> Derive.Generator Derive.Note
-c_tremolo_generator attrs_unless =
+cTremoloGenerator attrsUnless =
     Derive.generator Module.prelude "trem" Tags.ly
     ("Repeat a single note. Or, if there are sub-notes, alternate with each of\
-    \ the sub-notes in turn." <> case attrs_unless of
+    \ the sub-notes in turn." <> case attrsUnless of
         Nothing -> ""
-        Just (unless, _) -> if attrs_unless == Nothing then "" else
+        Just (unless, _) -> if attrsUnless == Nothing then "" else
             "\nThis version just derives plain notes with the "
             <> ShowVal.doc Attrs.trem <> " attribute, unless any of these\
             \ attributes are present: " <> ShowVal.doc unless <> ".")
-    $ Sig.call ((,) <$> Speed.arg <*> hold_env) $ \(speed, hold) args -> do
-        starts <- tremolo_starts hold speed (Args.range_or_next args)
-        notes <- Sub.sub_events args
-        attrs <- Call.get_attributes
-        let use_attrs = maybe False (not . any (Attrs.contain attrs). fst)
-                attrs_unless
-        let trem_attrs = maybe mempty snd attrs_unless
+    $ Sig.call ((,) <$> Speed.arg <*> holdEnv) $ \(speed, hold) args -> do
+        starts <- tremoloStarts hold speed (Args.rangeOrNext args)
+        notes <- Sub.subEvents args
+        attrs <- Call.getAttributes
+        let useAttrs = maybe False (not . any (Attrs.contain attrs). fst)
+                attrsUnless
+        let tremAttrs = maybe mempty snd attrsUnless
         case filter (not . null) notes of
-            [] -> Sub.inverting_args args $ \args -> Ly.note_code code args $
-                if use_attrs
-                    then Call.add_attributes Attrs.trem Call.note
-                    else Call.add_attributes trem_attrs $
-                        simple_tremolo starts [Call.note]
-            notes -> Ly.notes_code code args $ if use_attrs
-                then Call.add_attributes Attrs.trem $ Sub.derive_tracks notes
-                else Call.add_attributes trem_attrs $
-                    Sub.derive $ chord_tremolo starts notes
+            [] -> Sub.invertingArgs args $ \args -> Ly.noteCode code args $
+                if useAttrs
+                    then Call.addAttributes Attrs.trem Call.note
+                    else Call.addAttributes tremAttrs $
+                        simpleTremolo starts [Call.note]
+            notes -> Ly.notesCode code args $ if useAttrs
+                then Call.addAttributes Attrs.trem $ Sub.deriveTracks notes
+                else Call.addAttributes tremAttrs $
+                    Sub.derive $ chordTremolo starts notes
     where
     code = (Ly.append Constants.All, ":32")
 
-c_tremolo_transformer :: Derive.Transformer Derive.Note
-c_tremolo_transformer = Derive.transformer Module.prelude "trem" Tags.subs
+cTremoloTransformer :: Derive.Transformer Derive.Note
+cTremoloTransformer = Derive.transformer Module.prelude "trem" Tags.subs
     "Repeat the transformed note. The generator is creating the notes so it\
     \ can set them to the appropriate duration, but this one has to stretch\
-    \ them to fit." $ Sig.callt ((,) <$> Speed.arg <*> hold_env) $
+    \ them to fit." $ Sig.callt ((,) <$> Speed.arg <*> holdEnv) $
     \(speed, hold) args deriver -> do
-        starts <- tremolo_starts hold speed (Args.range_or_next args)
-        simple_tremolo starts [Args.normalized args deriver]
+        starts <- tremoloStarts hold speed (Args.rangeOrNext args)
+        simpleTremolo starts [Args.normalized args deriver]
 
-tremolo_starts :: DeriveT.Duration -> Typecheck.RealTimeFunctionT
+tremoloStarts :: DeriveT.Duration -> Typecheck.RealTimeFunctionT
     -> (ScoreTime, ScoreTime) -> Derive.Deriver [ScoreTime]
     -- ^ start time for each note, and one for the end of the last one
-tremolo_starts hold (Typecheck.RealTimeFunctionT ttype speed) (start, end) = do
-    hold <- Call.score_duration start hold
-    add_hold (start, end) hold <$> case ttype of
+tremoloStarts hold (Typecheck.RealTimeFunctionT ttype speed) (start, end) = do
+    hold <- Call.scoreDuration start hold
+    addHold (start, end) hold <$> case ttype of
         ScoreT.TReal -> do
             start <- Derive.real (start + hold)
             end <- Derive.real end
-            mapM Derive.score . full_notes end
-                =<< Speed.real_starts speed start end
+            mapM Derive.score . fullNotes end
+                =<< Speed.realStarts speed start end
         ScoreT.TScore -> do
-            starts <- Speed.score_starts speed (start + hold) end
-            pure $ full_notes end starts
+            starts <- Speed.scoreStarts speed (start + hold) end
+            pure $ fullNotes end starts
 
 -- | This is like 'tremolo_starts', but takes a start and end speed instead
 -- of a speed signal.  In exchange, it can have start and end be different
 -- time types, which a signal can't express.  Of course I could make the
 -- signal into duration and then do the reciprocal in the score as a val call,
 -- but that seems too complicated for tracklang.
-tremolo_starts_curve :: ControlUtil.CurveF -> DeriveT.Duration
+tremoloStartsCurve :: ControlUtil.CurveF -> DeriveT.Duration
     -> Speed.Speed -> Speed.Speed -> (ScoreTime, ScoreTime)
     -> Derive.Deriver [ScoreTime]
     -- ^ start time for each note, and one for the end of the last one
-tremolo_starts_curve curvef hold start_speed end_speed (start, end) = do
-    hold <- Call.score_duration start hold
-    real_range <- (,) <$> Derive.real start <*> Derive.real end
-    (add_hold (start, end) hold . full_notes end <$>) $
-        mapM Derive.score =<< Speed.starts_curve curvef start_speed end_speed
-            real_range include_end
-    where include_end = True -- because the end time is also included.
+tremoloStartsCurve curvef hold startSpeed endSpeed (start, end) = do
+    hold <- Call.scoreDuration start hold
+    realRange <- (,) <$> Derive.real start <*> Derive.real end
+    (addHold (start, end) hold . fullNotes end <$>) $
+        mapM Derive.score =<< Speed.startsCurve curvef startSpeed endSpeed
+            realRange includeEnd
+    where includeEnd = True -- because the end time is also included.
 
 -- | Add the hold time to the first tremolo note.
-add_hold :: (ScoreTime, ScoreTime) -> ScoreTime -> [ScoreTime] -> [ScoreTime]
-add_hold (start, end) hold starts
+addHold :: (ScoreTime, ScoreTime) -> ScoreTime -> [ScoreTime] -> [ScoreTime]
+addHold (start, end) hold starts
     | hold >= end - start = [start, end]
     | hold > 0 = start : starts
     | otherwise = starts
@@ -417,30 +417,30 @@ add_hold (start, end) hold starts
 --
 -- This doesn't restart the tremolo when a new note enters, if you want that
 -- you can have multiple tremolo events.
-chord_tremolo :: forall a. [ScoreTime] -> [[SubT.EventT a]] -> [SubT.EventT a]
-chord_tremolo starts note_tracks =
+chordTremolo :: forall a. [ScoreTime] -> [[SubT.EventT a]] -> [SubT.EventT a]
+chordTremolo starts noteTracks =
     Maybe.catMaybes $ snd $
-        List.mapAccumL emit (-1, by_track) $ zip starts (drop 1 starts)
+        List.mapAccumL emit (-1, byTrack) $ zip starts (drop 1 starts)
     where
-    emit (last_tracknum, notes_) (pos, next_pos) = case chosen of
-        Nothing -> ((last_tracknum, notes), Nothing)
+    emit (lastTracknum, notes_) (pos, nextPos) = case chosen of
+        Nothing -> ((lastTracknum, notes), Nothing)
         Just (tracknum, note) -> ((tracknum, notes),
-            Just $ SubT.EventT pos (next_pos-pos) (SubT._note note))
+            Just $ SubT.EventT pos (nextPos-pos) (SubT._note note))
         where
         chosen =
-            Lists.minimumOn fst (filter ((>last_tracknum) . fst) overlapping)
+            Lists.minimumOn fst (filter ((>lastTracknum) . fst) overlapping)
                 <|> Lists.minimumOn fst overlapping
         overlapping = filter (SubT.overlaps pos . snd) notes
         notes = dropWhile ((<=pos) . SubT.end . snd) notes_
-    by_track :: [(TrackNum, SubT.EventT a)]
-    by_track = Lists.sortOn (SubT.end . snd)
+    byTrack :: [(TrackNum, SubT.EventT a)]
+    byTrack = Lists.sortOn (SubT.end . snd)
         [ (tracknum, event)
-        | (tracknum, track) <- zip [0..] note_tracks, event <- track
+        | (tracknum, track) <- zip [0..] noteTracks, event <- track
         ]
 
 -- | Just cycle the given notes.
-simple_tremolo :: [ScoreTime] -> [Derive.NoteDeriver] -> Derive.NoteDeriver
-simple_tremolo starts notes = Sub.derive
+simpleTremolo :: [ScoreTime] -> [Derive.NoteDeriver] -> Derive.NoteDeriver
+simpleTremolo starts notes = Sub.derive
     [ SubT.EventT start (end - start) note
     | (start, end, note) <- zip3 starts (drop 1 starts) $
         if null notes then [] else cycle notes
@@ -451,11 +451,11 @@ simple_tremolo starts notes = Sub.derive
 -- emits both the starts and ends, and therefore the last sample will be at the
 -- end time, rather than before it.  It should always emit an even number of
 -- elements.
-full_notes :: Ord a => a -> [a] -> [a]
-full_notes end [t]
+fullNotes :: Ord a => a -> [a] -> [a]
+fullNotes end [t]
     | t < end = [t, end]
     | otherwise = []
-full_notes end ts = go ts
+fullNotes end ts = go ts
     where
     go [] = []
     go (t1:ts) = case ts of
@@ -468,49 +468,49 @@ full_notes end ts = go ts
 
 -- * pitch calls
 
-c_pitch_trill :: Maybe Direction -> Maybe Direction
+cPitchTrill :: Maybe Direction -> Maybe Direction
     -> Derive.Generator Derive.Pitch
-c_pitch_trill hardcoded_start hardcoded_end =
+cPitchTrill hardcodedStart hardcodedEnd =
     Derive.generator1 Module.prelude "tr" mempty
     ("Generate a pitch signal of alternating pitches."
-    <> direction_doc hardcoded_start hardcoded_end
+    <> directionDoc hardcodedStart hardcodedEnd
     ) $ Sig.call ((,,,,)
     <$> Sig.required "note" "Base pitch."
-    <*> neighbor_arg
-    <*> config_arg hardcoded_start hardcoded_end
-    <*> ControlUtil.curve_env
-    <*> transition_env
+    <*> neighborArg
+    <*> configArg hardcodedStart hardcodedEnd
+    <*> ControlUtil.curveEnv
+    <*> transitionEnv
     ) $ \(note, neighbor, config, curve, transition) args -> do
-        (neighbor, control) <- neighbor_to_function (Args.start args) neighbor
-        transpose <- get_trill_control config (Args.range_or_next args) neighbor
-        transpose <- smooth_trill transition curve transpose
-        start <- Args.real_start args
-        pure $ PSignal.apply_control control (ScoreT.untyped transpose) $
-            PSignal.from_sample start note
+        (neighbor, control) <- neighborToFunction (Args.start args) neighbor
+        transpose <- getTrillControl config (Args.rangeOrNext args) neighbor
+        transpose <- smoothTrill transition curve transpose
+        start <- Args.realStart args
+        pure $ PSignal.applyControl control (ScoreT.untyped transpose) $
+            PSignal.fromSample start note
 
-c_pitch_trill_smooth :: Maybe Direction -> Maybe Direction
+cPitchTrillSmooth :: Maybe Direction -> Maybe Direction
     -> Derive.Generator Derive.Pitch
-c_pitch_trill_smooth hardcoded_start hardcoded_end =
+cPitchTrillSmooth hardcodedStart hardcodedEnd =
     Derive.generator1 Module.prelude "trs" mempty
     ("Generate a pitch signal of alternating pitches. Like `tr`, but with\
     \ defaults for smooth transitions."
-    <> direction_doc hardcoded_start hardcoded_end
+    <> directionDoc hardcodedStart hardcodedEnd
     ) $ Sig.call ((,,)
     <$> Sig.required "note" "Base pitch."
-    <*> neighbor_arg
-    <*> config_arg hardcoded_start hardcoded_end
+    <*> neighborArg
+    <*> configArg hardcodedStart hardcodedEnd
     ) $ \(note, neighbor, config) args -> do
-        (neighbor, control) <- neighbor_to_function (Args.start args) neighbor
-        transpose <- get_trill_control_smooth config curve
-            (Args.range_or_next args) neighbor
-        start <- Args.real_start args
-        pure $ PSignal.apply_control control (ScoreT.untyped transpose) $
-            PSignal.from_sample start note
+        (neighbor, control) <- neighborToFunction (Args.start args) neighbor
+        transpose <- getTrillControlSmooth config curve
+            (Args.rangeOrNext args) neighbor
+        start <- Args.realStart args
+        pure $ PSignal.applyControl control (ScoreT.untyped transpose) $
+            PSignal.fromSample start note
     where
     curve = ControlUtil.Function $ ControlUtil.sigmoid 0.5 0.5
 
-c_xcut_pitch :: Bool -> Derive.Generator Derive.Pitch
-c_xcut_pitch hold = Derive.generator1 Module.prelude "xcut" mempty
+cXcutPitch :: Bool -> Derive.Generator Derive.Pitch
+cXcutPitch hold = Derive.generator1 Module.prelude "xcut" mempty
     "Cross-cut between two pitches.  The `-h` variant holds the value at the\
     \ beginning of each transition."
     $ Sig.call ((,,)
@@ -518,54 +518,54 @@ c_xcut_pitch hold = Derive.generator1 Module.prelude "xcut" mempty
     <*> Sig.required "snd" "Second pitch."
     <*> Sig.defaulted "speed" (14 :: Int) "Speed."
     ) $ \(xcut1, xcut2, speed) args -> do
-        transitions <- Speed.starts speed (Args.range_or_next args) False
-        pure $ xcut_pitch hold xcut1 xcut2 transitions
+        transitions <- Speed.starts speed (Args.rangeOrNext args) False
+        pure $ xcutPitch hold xcut1 xcut2 transitions
 
-xcut_pitch :: Bool -> PSignal.PSignal -> PSignal.PSignal -> [RealTime]
+xcutPitch :: Bool -> PSignal.PSignal -> PSignal.PSignal -> [RealTime]
     -> PSignal.PSignal
-xcut_pitch hold val1 val2 = mconcat . map slice . zip (cycle [val1, val2])
+xcutPitch hold val1 val2 = mconcat . map slice . zip (cycle [val1, val2])
     where
     slice (val, t)
-        | hold = maybe mempty (PSignal.from_sample t) (PSignal.at val t)
-        | otherwise = PSignal.clip_before t val
+        | hold = maybe mempty (PSignal.fromSample t) (PSignal.at val t)
+        | otherwise = PSignal.clipBefore t val
 
 
 -- * control calls
 
-c_control_trill :: Maybe Direction -> Maybe Direction
+cControlTrill :: Maybe Direction -> Maybe Direction
     -> Derive.Generator Derive.Control
-c_control_trill hardcoded_start hardcoded_end =
+cControlTrill hardcodedStart hardcodedEnd =
     Derive.generator1 Module.prelude "tr" mempty
     ("The control version of the pitch trill. It generates a signal of values\
     \ alternating with 0, which can be used as a transposition signal."
-    <> direction_doc hardcoded_start hardcoded_end
+    <> directionDoc hardcodedStart hardcodedEnd
     ) $ Sig.call ((,,)
     <$> Sig.defaulted "neighbor" (1 :: Int) "Alternate with this value."
-    <*> config_arg hardcoded_start hardcoded_end
-    <*> transition_env
+    <*> configArg hardcodedStart hardcodedEnd
+    <*> transitionEnv
     ) $ \(neighbor, config, transition) args -> do
-        transpose <- get_trill_control config (Args.range_or_next args) neighbor
-        smooth_trill transition ControlUtil.Linear transpose
+        transpose <- getTrillControl config (Args.rangeOrNext args) neighbor
+        smoothTrill transition ControlUtil.Linear transpose
 
-c_control_trill_smooth :: Maybe Direction -> Maybe Direction
+cControlTrillSmooth :: Maybe Direction -> Maybe Direction
     -> Derive.Generator Derive.Control
-c_control_trill_smooth hardcoded_start hardcoded_end =
+cControlTrillSmooth hardcodedStart hardcodedEnd =
     Derive.generator1 Module.prelude "tr" mempty
     ("The control version of the pitch trill. It generates a signal of values\
     \ alternating with 0, which can be used as a transposition signal."
-    <> direction_doc hardcoded_start hardcoded_end
+    <> directionDoc hardcodedStart hardcodedEnd
     ) $ Sig.call ((,)
     <$> Sig.defaulted "neighbor" (1 :: Int) "Alternate with this value."
-    <*> config_arg hardcoded_start hardcoded_end
+    <*> configArg hardcodedStart hardcodedEnd
     ) $ \(neighbor, config) args -> do
-        transpose <- get_trill_control_smooth config curve
-            (Args.range_or_next args) neighbor
+        transpose <- getTrillControlSmooth config curve
+            (Args.rangeOrNext args) neighbor
         pure transpose
     where
     curve = ControlUtil.Function $ ControlUtil.sigmoid 0.5 0.5
 
-c_saw :: Derive.Generator Derive.Control
-c_saw = Derive.generator1 Module.prelude "saw" mempty
+cSaw :: Derive.Generator Derive.Control
+cSaw = Derive.generator1 Module.prelude "saw" mempty
     "Emit a sawtooth.  By default it has a downward slope, but you can make\
     \ an upward slope by setting `from` and `to`."
     $ Sig.call ((,,)
@@ -573,8 +573,8 @@ c_saw = Derive.generator1 Module.prelude "saw" mempty
     <*> Sig.defaulted "from" (1 :: Double) "Start from this value."
     <*> Sig.defaulted "to" (0 :: Double) "End at this value."
     ) $ \(speed, from, to) args -> do
-        starts <- Speed.starts speed (Args.range_or_next args) True
-        srate <- Call.get_srate
+        starts <- Speed.starts speed (Args.rangeOrNext args) True
+        srate <- Call.getSrate
         pure $ saw srate starts from to
 
 saw :: RealTime -> [RealTime] -> Double -> Double -> Signal.Control
@@ -587,41 +587,41 @@ data SineMode = Bipolar | Negative | Positive deriving (Show)
 
 -- | This is probably not terribly convenient to use on its own, I should
 -- have some more specialized calls based on this.
-c_sine :: SineMode -> Derive.Generator Derive.Control
-c_sine mode = Derive.generator1 Module.prelude "sine" mempty
+cSine :: SineMode -> Derive.Generator Derive.Control
+cSine mode = Derive.generator1 Module.prelude "sine" mempty
     "Emit a sine wave. The default version is centered on the `offset`,\
     \ and the `+` and `-` variants are above and below it, respectively."
     $ Sig.call ((,,)
     <$> Sig.defaulted "speed" (1 :: RealTime) "Frequency."
     <*> Sig.defaulted "amp" (1 :: Double) "Amplitude, measured center to peak."
     <*> Sig.defaulted "offset" (0 :: Double) "Center point."
-    ) $ \(Typecheck.RealTimeFunctionT time_type speed, amp, offset) args -> do
-        case time_type of
+    ) $ \(Typecheck.RealTimeFunctionT timeType speed, amp, offset) args -> do
+        case timeType of
             ScoreT.TScore -> Derive.throw "RealTime signal required"
             _ -> pure ()
-        srate <- Call.get_srate
+        srate <- Call.getSrate
         let sign = case mode of
                 Bipolar -> 0
                 Negative -> -amp
                 Positive -> amp
-        (start, end) <- Args.real_range_or_next args
-        pure $ Signal.map_y_linear ((+(offset+sign)) . (*amp)) $
+        (start, end) <- Args.realRangeOrNext args
+        pure $ Signal.mapYLinear ((+(offset+sign)) . (*amp)) $
             sine srate start end speed
 
 sine :: RealTime -> RealTime -> RealTime -> ScoreT.Function -> Signal.Control
-sine srate start end freq_sig = Signal.unfoldr go (start, 0)
+sine srate start end freqSig = Signal.unfoldr go (start, 0)
     where
     go (pos, phase)
         | pos >= end = Nothing
-        | otherwise = Just ((pos, sin phase), (pos + 1/srate, next_phase))
+        | otherwise = Just ((pos, sin phase), (pos + 1/srate, nextPhase))
         where
-        next_phase = phase + 1 / RealTime.to_seconds srate * 2*pi * freq_sig pos
+        nextPhase = phase + 1 / RealTime.toSeconds srate * 2*pi * freqSig pos
 
 
 -- ** xcut
 
-c_xcut_control :: Bool -> Derive.Generator Derive.Control
-c_xcut_control hold = Derive.generator1 Module.prelude "xcut" mempty
+cXcutControl :: Bool -> Derive.Generator Derive.Control
+cXcutControl hold = Derive.generator1 Module.prelude "xcut" mempty
     "Cross-cut between two signals.  The `-h` variant holds the value at the\
     \ beginning of each transition."
     $ Sig.call ((,,)
@@ -629,22 +629,22 @@ c_xcut_control hold = Derive.generator1 Module.prelude "xcut" mempty
     <*> Sig.defaulted "snd" (0 :: Int) "Second value."
     <*> Sig.defaulted "speed" (14 :: Int) "Speed."
     ) $ \(xcut1, xcut2, speed) args -> do
-        transitions <- Speed.starts speed (Args.range_or_next args) False
-        pure $ xcut_control hold xcut1 xcut2 transitions
+        transitions <- Speed.starts speed (Args.rangeOrNext args) False
+        pure $ xcutControl hold xcut1 xcut2 transitions
 
 -- TODO(polymorphic-signals) This is the same as 'xcut_pitch'
-xcut_control :: Bool -> Signal.Control -> Signal.Control -> [RealTime]
+xcutControl :: Bool -> Signal.Control -> Signal.Control -> [RealTime]
     -> Signal.Control
-xcut_control hold val1 val2 = mconcat . map slice . zip (cycle [val1, val2])
+xcutControl hold val1 val2 = mconcat . map slice . zip (cycle [val1, val2])
     where
     slice (val, t)
-        | hold = Signal.from_sample t (Signal.at val t)
-        | otherwise = Signal.clip_before t val
+        | hold = Signal.fromSample t (Signal.at val t)
+        | otherwise = Signal.clipBefore t val
 
 -- * util
 
-trill_speed_arg :: Sig.Parser Typecheck.RealTimeFunctionT
-trill_speed_arg =
+trillSpeedArg :: Sig.Parser Typecheck.RealTimeFunctionT
+trillSpeedArg =
     Sig.defaulted "speed" (14 :: Int)
     "Trill at this speed. If it's a RealTime, the value is the number of\
     \ cycles per second, which will be unaffected by the tempo. If it's\
@@ -668,38 +668,38 @@ instance Typecheck.ToVal Direction
 -- pitches, instead of high and low.
 data AbsoluteMode = Unison | Neighbor deriving (Bounded, Eq, Enum, Show)
 
-transition_env :: Sig.Parser ScoreT.Function
-transition_env =
+transitionEnv :: Sig.Parser ScoreT.Function
+transitionEnv =
     Sig.environ "tr-transition" Sig.Unprefixed (0 :: Int)
     "Take this long to reach the neighbor, as a proportion of time available."
 
 -- | A bundle of standard configuration for trills.
-config_arg :: Maybe Direction -> Maybe Direction -> Sig.Parser Config
-config_arg start_dir end_dir =
-    Config <$> trill_speed_arg <*> start <*> end <*> hold_env <*> adjust_env
+configArg :: Maybe Direction -> Maybe Direction -> Sig.Parser Config
+configArg startDir endDir =
+    Config <$> trillSpeedArg <*> start <*> end <*> holdEnv <*> adjustEnv
         <*> bias <*> pure False
     where
-    start = case start_dir of
+    start = case startDir of
         Nothing -> Sig.environ "tr-start" Sig.Unprefixed
             (Nothing :: Maybe Direction)
             "Which note the trill starts with. If not given, it will start\
             \ the unison note, which means it may move up or down."
         Just dir -> pure $ Just dir
-    end = case end_dir of
+    end = case endDir of
         Nothing -> Sig.environ "tr-end" Sig.Unprefixed
             (Nothing :: Maybe Direction)
             "Which note the trill ends with. If not given, it can end with\
             \ either."
         Just dir -> pure $ Just dir
-    bias = Typecheck.normalized_bipolar <$>
+    bias = Typecheck.normalizedBipolar <$>
         Sig.environ "tr-bias" Sig.Unprefixed (Typecheck.NormalizedBipolar 0)
             "Offset every other transition by this amount."
 
 data Config = Config
     -- | transition speed
     { _speed :: !Typecheck.RealTimeFunctionT
-    , _start_dir :: !(Maybe Direction)
-    , _end_dir :: !(Maybe Direction)
+    , _startDir :: !(Maybe Direction)
+    , _endDir :: !(Maybe Direction)
     -- | extend the first transition by this amount
     , _hold :: !DeriveT.Duration
     -- | how to fit the transitions into the time range
@@ -707,35 +707,35 @@ data Config = Config
     -- | offset every other transition by this amount, from -1--1
     , _bias :: !Double
     -- | include a transition at the end time
-    , _include_end :: !Bool
+    , _includeEnd :: !Bool
     }
 
 -- Its default is both prefixed and unprefixed so you can put in a tr-hold
 -- globally, and so you can have a short @hold=n |@ for a single call.
-hold_env :: Sig.Parser DeriveT.Duration
-hold_env = Typecheck._real <$>
+holdEnv :: Sig.Parser DeriveT.Duration
+holdEnv = Typecheck._real <$>
     Sig.environ (Derive.ArgName EnvKey.hold) Sig.Both
         (Typecheck.real 0) "Time to hold the first note."
 
-trill_variations :: Text -> [(Expr.Symbol, Maybe Direction, Maybe Direction)]
-trill_variations prefix =
+trillVariations :: Text -> [(Expr.Symbol, Maybe Direction, Maybe Direction)]
+trillVariations prefix =
     [ (Expr.Symbol $ prefix
             <> (if start == Nothing && end /= Nothing
-                then "-" else direction_affix start)
-            <> direction_affix end,
+                then "-" else directionAffix start)
+            <> directionAffix end,
         start, end)
     | start <- dirs, end <- dirs
     ]
     where dirs = [Nothing, Just High, Just Low]
 
-direction_affix :: Maybe Direction -> Text
-direction_affix Nothing = ""
-direction_affix (Just High) = "^"
-direction_affix (Just Low) = "_"
+directionAffix :: Maybe Direction -> Text
+directionAffix Nothing = ""
+directionAffix (Just High) = "^"
+directionAffix (Just Low) = "_"
 
-direction_doc :: Maybe a -> Maybe a -> Doc.Doc
-direction_doc Nothing Nothing = ""
-direction_doc _ _ = "\nA `^` suffix makes the trill starts on the higher value,\
+directionDoc :: Maybe a -> Maybe a -> Doc.Doc
+directionDoc Nothing Nothing = ""
+directionDoc _ _ = "\nA `^` suffix makes the trill starts on the higher value,\
     \ while `_` makes it start on the lower value. A second suffix causes it\
     \ to end on the higher or lower value, e.g. `^_` starts high and ends low.\
     \ `-_` has start unspecified, and ends low.\
@@ -753,125 +753,125 @@ instance ShowVal.ShowVal Adjust
 instance Typecheck.Typecheck Adjust
 instance Typecheck.ToVal Adjust
 
-adjust_env :: Sig.Parser Adjust
-adjust_env = Sig.environ "adjust" Sig.Both Shorten
+adjustEnv :: Sig.Parser Adjust
+adjustEnv = Sig.environ "adjust" Sig.Both Shorten
     "How to adjust a trill to fulfill its start and end pitch restrictions."
 
 -- ** transitions
 
 -- | A signal that alternates between the base and neighbor values.
-get_trill_control :: Config -> (ScoreTime, ScoreTime)
+getTrillControl :: Config -> (ScoreTime, ScoreTime)
     -> ScoreT.Function -> Derive.Deriver [(RealTime, Signal.Y)]
-get_trill_control config (start, end) neighbor = do
-    real_start <- Derive.real start
-    let neighbor_low = neighbor real_start < 0
-    (who_first, transitions) <- get_trill_transitions config (start, end)
-        neighbor_low
-    let (val1, val2) = case who_first of
+getTrillControl config (start, end) neighbor = do
+    realStart <- Derive.real start
+    let neighborLow = neighbor realStart < 0
+    (whoFirst, transitions) <- getTrillTransitions config (start, end)
+        neighborLow
+    let (val1, val2) = case whoFirst of
             Unison -> (const 0, neighbor)
             Neighbor -> (neighbor, const 0)
-    pure $ trill_from_transitions val1 val2 real_start transitions
+    pure $ trillFromTransitions val1 val2 realStart transitions
 
 -- | Like 'get_trill_control', but for a curved trill.
-get_trill_control_smooth :: Config
+getTrillControlSmooth :: Config
     -> ControlUtil.Curve -> (ScoreTime, ScoreTime) -> ScoreT.Function
     -> Derive.Deriver Signal.Control
-get_trill_control_smooth config curve range neighbor = do
-    transpose <- get_trill_control
+getTrillControlSmooth config curve range neighbor = do
+    transpose <- getTrillControl
         -- Trills usually omit the transition that coincides with the end
         -- because that would create a zero duration note.  But these
         -- trills are smoothed and thus will still have a segment leading
         -- to the cut-off transition.
-        (config { _include_end = True })
+        (config { _includeEnd = True })
         range neighbor
-    signal <- smooth_trill (const 1) curve transpose
+    signal <- smoothTrill (const 1) curve transpose
     pure signal
 
 
 -- | The points in time where the trill should transition between pitches.
-get_trill_transitions :: Config -> (ScoreTime, ScoreTime) -> Bool
+getTrillTransitions :: Config -> (ScoreTime, ScoreTime) -> Bool
     -> Derive.Deriver (AbsoluteMode, [RealTime])
-get_trill_transitions config (start, end) neighbor_low = do
-    let (who_first, even_transitions) =
-            convert_direction neighbor_low (_start_dir config) (_end_dir config)
-    hold <- Call.score_duration start (_hold config)
-    (who_first,) <$>
-        adjusted_transitions config 0 even_transitions (start + hold, end)
+getTrillTransitions config (start, end) neighborLow = do
+    let (whoFirst, evenTransitions) =
+            convertDirection neighborLow (_startDir config) (_endDir config)
+    hold <- Call.scoreDuration start (_hold config)
+    (whoFirst,) <$>
+        adjustedTransitions config 0 evenTransitions (start + hold, end)
 
 -- | Resolve start and end Directions to the first and second trill notes.
-convert_direction :: Bool -> Maybe Direction -> Maybe Direction
+convertDirection :: Bool -> Maybe Direction -> Maybe Direction
     -> (AbsoluteMode, Maybe Bool)
     -- ^ Who starts the trill.  The boolean indicates whether the transitions
     -- should be even to end on the expected end Direction, and Nothing if it
     -- doesn't matter.
-convert_direction neighbor_low start end = (first, even_transitions)
+convertDirection neighborLow start end = (first, evenTransitions)
     where
     first = case start of
         Nothing -> Unison
-        Just Low -> if neighbor_low then Neighbor else Unison
-        Just High -> if neighbor_low then Unison else Neighbor
+        Just Low -> if neighborLow then Neighbor else Unison
+        Just High -> if neighborLow then Unison else Neighbor
     -- If I end Low, and neighbor is low, and I started with Unison, then val2
     -- is low, so I want even transitions.  Why is it so complicated just to
     -- get a trill to end high or low?
-    first_low = case first of
-        Unison -> not neighbor_low
-        Neighbor -> neighbor_low
-    even_transitions = case end of
+    firstLow = case first of
+        Unison -> not neighborLow
+        Neighbor -> neighborLow
+    evenTransitions = case end of
         Nothing -> Nothing
-        Just Low -> Just (not first_low)
-        Just High -> Just first_low
+        Just Low -> Just (not firstLow)
+        Just High -> Just firstLow
 
 -- | Turn transition times into a trill control.
-smooth_trill :: ScoreT.Function -- ^ time to take make the transition,
+smoothTrill :: ScoreT.Function -- ^ time to take make the transition,
     -- where 0 is instant and 1 is all available time
     -> ControlUtil.Curve
     -> [(RealTime, Signal.Y)]
     -> Derive.Deriver Signal.Control
-smooth_trill time curve transitions = do
-    srate <- Call.get_srate
+smoothTrill time curve transitions = do
+    srate <- Call.getSrate
     -- I used to optimize sig_function == const 0, but it probably doesn't make
     -- much difference.
-    pure $ ControlUtil.smooth_relative curve srate time transitions
+    pure $ ControlUtil.smoothRelative curve srate time transitions
 
 -- | Get trill transition times, adjusted for all the various fancy parameters
 -- that trills have.
-adjusted_transitions :: Config
+adjustedTransitions :: Config
     -> ScoreTime
     -> Maybe Bool -- ^ emit an even number of transitions, or Nothing for
     -- however many will fit
     -> (ScoreTime, ScoreTime) -> Derive.Deriver [RealTime]
-adjusted_transitions config hold even (start, end) = do
-    real_end <- Derive.real end
-    add_hold . add_bias (_bias config)
-        . adjust_transitions real_end (_adjust config)
+adjustedTransitions config hold even (start, end) = do
+    realEnd <- Derive.real end
+    addHold . addBias (_bias config)
+        . adjustTransitions realEnd (_adjust config)
         . trim
-        =<< trill_transitions (start + hold, end)
-            (_include_end config) (_speed config)
+        =<< trillTransitions (start + hold, end)
+            (_includeEnd config) (_speed config)
     where
-    add_hold transitions
+    addHold transitions
         | hold > 0 = (: drop 1 transitions) <$> Derive.real start
         | otherwise = pure transitions
     trim = case even of
         Nothing -> id
-        Just even -> if even then take_even else take_odd
-    take_even (x:y:zs) = x : y : take_even zs
-    take_even _ = []
-    take_odd [x, _] = [x]
-    take_odd (x:y:zs) = x : y : take_odd zs
-    take_odd xs = xs
+        Just even -> if even then takeEven else takeOdd
+    takeEven (x:y:zs) = x : y : takeEven zs
+    takeEven _ = []
+    takeOdd [x, _] = [x]
+    takeOdd (x:y:zs) = x : y : takeOdd zs
+    takeOdd xs = xs
 
-adjust_transitions :: RealTime -> Adjust -> [RealTime] -> [RealTime]
-adjust_transitions _ Shorten ts = ts
-adjust_transitions end Stretch ts@(_:_:_) = zipWith (+) offsets ts
+adjustTransitions :: RealTime -> Adjust -> [RealTime] -> [RealTime]
+adjustTransitions _ Shorten ts = ts
+adjustTransitions end Stretch ts@(_:_:_) = zipWith (+) offsets ts
     where
     -- (_:_:_) above means both the last and division are safe.
     stretch = max 0 (end - last ts) / fromIntegral (length ts - 1)
     offsets = Lists.range_ 0 stretch
-adjust_transitions _ Stretch ts = ts
+adjustTransitions _ Stretch ts = ts
 
-add_bias :: Double -> [RealTime] -> [RealTime]
-add_bias _ [] = []
-add_bias bias (t:ts)
+addBias :: Double -> [RealTime] -> [RealTime]
+addBias _ [] = []
+addBias bias (t:ts)
     | bias == 0 = t : ts
     | bias > 0 = t : positive (min 1 (RealTime.seconds bias)) ts
     | otherwise = negative (min 1 (RealTime.seconds (abs bias))) (t:ts)
@@ -883,9 +883,9 @@ add_bias bias (t:ts)
 
 -- | Make a trill signal from a list of transition times.  It will alternate
 -- between values from the given Functions.
-trill_from_transitions :: ScoreT.Function -> ScoreT.Function
+trillFromTransitions :: ScoreT.Function -> ScoreT.Function
     -> RealTime -> [RealTime] -> [(RealTime, Signal.Y)]
-trill_from_transitions val1 val2 start transitions =
+trillFromTransitions val1 val2 start transitions =
     initial ++ [(x, sig x) | (x, sig) <- zip transitions (cycle [val1, val2])]
     where
     -- Hold might have push the first transition forward, so make a flat
@@ -895,39 +895,39 @@ trill_from_transitions val1 val2 start transitions =
         _ -> []
 
 -- | Create trill transition points from a speed.
-trill_transitions :: (ScoreTime, ScoreTime) -> Bool
+trillTransitions :: (ScoreTime, ScoreTime) -> Bool
     -> Typecheck.RealTimeFunctionT -> Derive.Deriver [RealTime]
-trill_transitions range include_end (Typecheck.RealTimeFunctionT ttype speed) =
+trillTransitions range includeEnd (Typecheck.RealTimeFunctionT ttype speed) =
     case ttype of
-        ScoreT.TReal -> real_transitions range include_end speed
-        ScoreT.TScore -> score_transitions range include_end speed
+        ScoreT.TReal -> realTransitions range includeEnd speed
+        ScoreT.TScore -> scoreTransitions range includeEnd speed
 
-real_transitions :: (ScoreTime, ScoreTime) -> Bool -> ScoreT.Function
+realTransitions :: (ScoreTime, ScoreTime) -> Bool -> ScoreT.Function
     -> Derive.Deriver [RealTime]
-real_transitions (start, end) include_end speed = do
+realTransitions (start, end) includeEnd speed = do
     start <- Derive.real start
     end <- Derive.real end
-    full_cycles RealTime.eta end include_end <$>
-        Speed.real_starts speed start end
+    fullCycles RealTime.eta end includeEnd <$>
+        Speed.realStarts speed start end
 
-score_transitions :: (ScoreTime, ScoreTime) -> Bool -> ScoreT.Function
+scoreTransitions :: (ScoreTime, ScoreTime) -> Bool -> ScoreT.Function
     -> Derive.Deriver [RealTime]
-score_transitions (start, end) include_end speed = do
-    all_transitions <- Speed.score_starts speed start end
-    mapM Derive.real $ full_cycles ScoreTime.eta end include_end all_transitions
+scoreTransitions (start, end) includeEnd speed = do
+    allTransitions <- Speed.scoreStarts speed start end
+    mapM Derive.real $ fullCycles ScoreTime.eta end includeEnd allTransitions
 
 -- | Given a list of trill transition times, take only ones with a complete
 -- duration.  Otherwise a trill can wind up with a short note at the end, which
 -- sounds funny.  However it's ok if the note is slightly too short, as tends
 -- to happen with floating point.
-full_cycles :: (Ord a, Num a) => a -> a -> Bool -> [a] -> [a]
-full_cycles eta end include_end vals
+fullCycles :: (Ord a, Num a) => a -> a -> Bool -> [a] -> [a]
+fullCycles eta end includeEnd vals
     | null cycles = take 1 vals
     | otherwise = cycles
     where
     cycles = go vals
     go (x1 : xs) = case xs of
         x2 : _ | x2 <= end + eta -> x1 : go xs
-        _ | include_end && x1 - eta <= end -> [x1]
+        _ | includeEnd && x1 - eta <= end -> [x1]
         _ -> []
     go [] = []

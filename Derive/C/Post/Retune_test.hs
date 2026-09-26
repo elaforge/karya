@@ -11,10 +11,10 @@ import qualified Perform.NN as NN
 
 test_retune :: Test
 test_retune = do
-    let run = DeriveTest.extract DeriveTest.e_nns_rounded
-            . DeriveTest.derive_tracks
+    let run = DeriveTest.extract DeriveTest.eNnsRounded
+            . DeriveTest.deriveTracks
                 "import retune | realize-retune | retune-time=2 | retune-dist=4"
-            . UiTest.note_track
+            . UiTest.noteTrack
     equal (run [(0, 4, "retune | -- 4c")]) ([[(0, NN.c4)]], [])
     equal (run [(0, 1, "4c"), (1, 4, "retune | -- 4c")])
         ([[(0, NN.c4), (1, NN.c4)], [(1, NN.c4)]], [])

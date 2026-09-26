@@ -9,9 +9,9 @@
 -}
 module Ui.Diff (
     run
-    , diff, derive_diff, track_diff
-    , score_changed
-    , diff_views
+    , diff, deriveDiff, trackDiff
+    , scoreChanged
+    , diffViews
 ) where
 import qualified Control.Monad.Identity as Identity
 import qualified Control.Monad.Writer as Writer
@@ -52,8 +52,8 @@ change = Logger.logs . (:[]) . Left
 changes :: [Update.UiUpdate] -> DiffM ()
 changes = Logger.logs . map Left
 
-change_display :: Update.DisplayUpdate -> DiffM ()
-change_display = Logger.logs . (:[]) . Right
+changeDisplay :: Update.DisplayUpdate -> DiffM ()
+changeDisplay = Logger.logs . (:[]) . Right
 
 run :: DiffM () -> ([Update.UiUpdate], [Update.DisplayUpdate])
 run = Either.partitionEithers . Identity.runIdentity . Logger.exec
@@ -64,15 +64,15 @@ diff :: Update.UiDamage -> Ui.State -> Ui.State
 diff damage st1 st2 = postproc damage st2 $ run $ do
     let intersect get keys =
             damaged Maps.zipIntersection st1 st2 get (keys damage)
-    diff_views st1 st2 damage
-    mapM_ (Control.uncurry3 diff_block) $
-        intersect Ui.state_blocks Update._blocks
-    mapM_ (Control.uncurry3 (diff_track st2)) $
-        intersect Ui.state_tracks (Map.keysSet . Update._tracks)
+    diffViews st1 st2 damage
+    mapM_ (Control.uncurry3 diffBlock) $
+        intersect Ui.stateBlocks Update._blocks
+    mapM_ (Control.uncurry3 (diffTrack st2)) $
+        intersect Ui.stateTracks (Map.keysSet . Update._tracks)
     -- I don't diff rulers, since they have lots of things in them and rarely
     -- change.  But that means I need the UiDamage hack, and modifications
     -- must be done through Ui.modify_ruler.
-    diff_state damage st1 st2
+    diffState damage st1 st2
 
 -- | Here's where the three different kinds of updates come together.
 -- CmdUpdates are converted into UiUpdates, and then all of them converted
@@ -80,36 +80,36 @@ diff damage st1 st2 = postproc damage st2 $ run $ do
 postproc :: Update.UiDamage -> Ui.State
     -> ([Update.UiUpdate], [Update.DisplayUpdate])
     -> ([Update.UiUpdate], [Update.DisplayUpdate])
-postproc damage to_state (ui_updates, display_updates) =
-    (cancel_updates ui, display ++ refresh_selections to_state display)
+postproc damage toState (uiUpdates, displayUpdates) =
+    (cancelUpdates ui, display ++ refreshSelections toState display)
     where
-    ui = Update.to_ui damage ++ ui_updates
-    display = display_updates ++ to_display (merge_updates to_state ui)
-    to_display = mapMaybe Update.to_display
+    ui = Update.toUi damage ++ uiUpdates
+    display = displayUpdates ++ toDisplay (mergeUpdates toState ui)
+    toDisplay = mapMaybe Update.toDisplay
 
 -- | If the updates have InsertTrack or RemoveTrack the selections may have
 -- been moved or deleted.  Emit updates for all selections for all views of
 -- blocks with added or removed tracks.
-refresh_selections :: Ui.State -> [Update.DisplayUpdate]
+refreshSelections :: Ui.State -> [Update.DisplayUpdate]
     -> [Update.DisplayUpdate]
-refresh_selections state updates = concatMap selections view_ids
+refreshSelections state updates = concatMap selections viewIds
     where
-    view_ids =
-        [ view_id | (view_id, view) <- Map.toList (Ui.state_views state)
-        , Set.member (Block.view_block view) block_ids
+    viewIds =
+        [ viewId | (viewId, view) <- Map.toList (Ui.stateViews state)
+        , Set.member (Block.viewBlock view) blockIds
         ]
-    block_ids = Set.fromList [block_id |
-        Update.Block block_id update <-updates, is_track update]
-    is_track (Update.RemoveTrack {}) = True
-    is_track (Update.InsertTrack {}) = True
-    is_track _ = False
+    blockIds = Set.fromList [blockId |
+        Update.Block blockId update <-updates, isTrack update]
+    isTrack (Update.RemoveTrack {}) = True
+    isTrack (Update.InsertTrack {}) = True
+    isTrack _ = False
 
-    selections view_id = fromMaybe [] $ do
-        view <- Map.lookup view_id (Ui.state_views state)
-        let update selnum = Update.View view_id $
+    selections viewId = fromMaybe [] $ do
+        view <- Map.lookup viewId (Ui.stateViews state)
+        let update selnum = Update.View viewId $
                 Update.Selection selnum
-                    (Map.lookup selnum (Block.view_selections view))
-        pure $ map update [0 .. Config.max_selnums - 1]
+                    (Map.lookup selnum (Block.viewSelections view))
+        pure $ map update [0 .. Config.maxSelnums - 1]
 
 -- | DestroyView, DestroyBlock, DestroyTrack, and DestroyRuler cancel out
 -- previous updates.
@@ -117,23 +117,23 @@ refresh_selections state updates = concatMap selections view_ids
 -- This isn't technically necessary since callers should be robust against that,
 -- but cancelling means less work for them and their warnings are more likely
 -- to indicate a real problem.
-cancel_updates :: [Update.UiUpdate] -> [Update.UiUpdate]
-cancel_updates updates = map fst $ filter (not . destroyed) $
+cancelUpdates :: [Update.UiUpdate] -> [Update.UiUpdate]
+cancelUpdates updates = map fst $ filter (not . destroyed) $
     zip updates (drop 1 (List.tails updates))
     where
     destroyed (update, future) = case update of
         Update.View vid view -> case view of
             Update.DestroyView -> False
             _ -> any (== Update.View vid Update.DestroyView) future
-        Update.Block bid _ -> future_has (Update.DestroyBlock bid)
-        Update.Track tid _ -> future_has (Update.DestroyTrack tid)
-        Update.Ruler rid -> future_has (Update.DestroyRuler rid)
+        Update.Block bid _ -> futureHas (Update.DestroyBlock bid)
+        Update.Track tid _ -> futureHas (Update.DestroyTrack tid)
+        Update.Ruler rid -> futureHas (Update.DestroyRuler rid)
         Update.State update -> case update of
-            Update.CreateBlock bid _ -> future_has (Update.DestroyBlock bid)
-            Update.CreateTrack tid _ -> future_has (Update.DestroyTrack tid)
-            Update.CreateRuler rid _ -> future_has (Update.DestroyRuler rid)
+            Update.CreateBlock bid _ -> futureHas (Update.DestroyBlock bid)
+            Update.CreateTrack tid _ -> futureHas (Update.DestroyTrack tid)
+            Update.CreateRuler rid _ -> futureHas (Update.DestroyRuler rid)
             _ -> False
-        where future_has destroy = any (== Update.State destroy) future
+        where futureHas destroy = any (== Update.State destroy) future
 
 -- | Given the track updates, figure out which other tracks have those tracks
 -- merged and should also be updated.
@@ -141,80 +141,80 @@ cancel_updates updates = map fst $ filter (not . destroyed) $
 -- The track diff doesn't generate event updates at all, they are expected to
 -- be collected as a side-effect of the event insertion and deletion functions.
 -- But that doesn't take into account merged tracks.
-merge_updates :: Ui.State -> [Update.UiUpdate] -> [Update.UiUpdate]
-merge_updates state updates = updates ++ concatMap propagate updates
+mergeUpdates :: Ui.State -> [Update.UiUpdate] -> [Update.UiUpdate]
+mergeUpdates state updates = updates ++ concatMap propagate updates
     where
-    propagate (Update.Track track_id update)
-        | is_event_update update =
-            map (\tid -> Update.Track tid update) merges_this
+    propagate (Update.Track trackId update)
+        | isEventUpdate update =
+            map (\tid -> Update.Track tid update) mergesThis
         | otherwise = []
-        where merges_this = Map.findWithDefault [] track_id merged_to_track
+        where mergesThis = Map.findWithDefault [] trackId mergedToTrack
     propagate _ = []
     -- For each track update, find tracks that have it in merged
-    track_to_merged = mapMaybe merged_ids_of
-        (concatMap Block.block_tracks (Map.elems (Ui.state_blocks state)))
-    merged_ids_of track = case Block.tracklike_id track of
-        Block.TId track_id _ -> Just (track_id, Block.track_merged track)
+    trackToMerged = mapMaybe mergedIdsOf
+        (concatMap Block.blockTracks (Map.elems (Ui.stateBlocks state)))
+    mergedIdsOf track = case Block.tracklikeId track of
+        Block.TId trackId _ -> Just (trackId, Block.trackMerged track)
         _ -> Nothing
     -- Map from a track to all tracks that merge it.
-    merged_to_track = Maps.multimap
-        [ (merged_id, track_id)
-        | (track_id, merged_ids) <- track_to_merged
-        , merged_id <- Set.toList merged_ids
+    mergedToTrack = Maps.multimap
+        [ (mergedId, trackId)
+        | (trackId, mergedIds) <- trackToMerged
+        , mergedId <- Set.toList mergedIds
         ]
-    is_event_update (Update.TrackEvents {}) = True
-    is_event_update Update.TrackAllEvents {} = True
-    is_event_update _ = False
+    isEventUpdate (Update.TrackEvents {}) = True
+    isEventUpdate Update.TrackAllEvents {} = True
+    isEventUpdate _ = False
 
 -- ** view
 
-diff_views :: Ui.State -> Ui.State -> Update.UiDamage -> DiffM ()
-diff_views st1 st2 damage =
-    mapM_ (uncurry (diff_view_pair st1 st2)) $
-        damaged Maps.pairs st1 st2 Ui.state_views (Update._views damage)
+diffViews :: Ui.State -> Ui.State -> Update.UiDamage -> DiffM ()
+diffViews st1 st2 damage =
+    mapM_ (uncurry (diffViewPair st1 st2)) $
+        damaged Maps.pairs st1 st2 Ui.stateViews (Update._views damage)
 
-diff_view_pair :: Ui.State -> Ui.State -> ViewId
+diffViewPair :: Ui.State -> Ui.State -> ViewId
     -> Lists.Paired Block.View Block.View -> DiffM ()
-diff_view_pair st1 st2 view_id = \case
-    Lists.Second _ -> change $ Update.View view_id Update.CreateView
-    Lists.First _ -> change $ Update.View view_id Update.DestroyView
+diffViewPair st1 st2 viewId = \case
+    Lists.Second _ -> change $ Update.View viewId Update.CreateView
+    Lists.First _ -> change $ Update.View viewId Update.DestroyView
     Lists.Both view1 view2
-        | Block.view_block view1 /= Block.view_block view2 -> do
-            change $ Update.View view_id Update.DestroyView
-            change $ Update.View view_id Update.CreateView
-        | otherwise -> diff_view st1 st2 view_id view1 view2
+        | Block.viewBlock view1 /= Block.viewBlock view2 -> do
+            change $ Update.View viewId Update.DestroyView
+            change $ Update.View viewId Update.CreateView
+        | otherwise -> diffView st1 st2 viewId view1 view2
 
-diff_view :: Ui.State -> Ui.State -> ViewId -> Block.View -> Block.View
+diffView :: Ui.State -> Ui.State -> ViewId -> Block.View -> Block.View
     -> DiffM ()
-diff_view st1 st2 view_id view1 view2 = do
-    let emit = change . Update.View view_id
-    let unequal f = unequal_on f view1 view2
-    when (unequal Block.view_rect) $
-        emit $ Update.ViewSize (Block.view_rect view2)
-    let color = status_color st2 view2
-    when (unequal Block.view_status || status_color st1 view1 /= color) $
-        emit $ Update.Status (Block.view_status view2) color
-    when (unequal Block.view_track_scroll) $
-        emit $ Update.TrackScroll (Block.view_track_scroll view2)
-    when (unequal Block.view_zoom) $
-        emit $ Update.Zoom (Block.view_zoom view2)
+diffView st1 st2 viewId view1 view2 = do
+    let emit = change . Update.View viewId
+    let unequal f = unequalOn f view1 view2
+    when (unequal Block.viewRect) $
+        emit $ Update.ViewSize (Block.viewRect view2)
+    let color = statusColor st2 view2
+    when (unequal Block.viewStatus || statusColor st1 view1 /= color) $
+        emit $ Update.Status (Block.viewStatus view2) color
+    when (unequal Block.viewTrackScroll) $
+        emit $ Update.TrackScroll (Block.viewTrackScroll view2)
+    when (unequal Block.viewZoom) $
+        emit $ Update.Zoom (Block.viewZoom view2)
 
     -- If the view doesn't have a block I should have failed long before here.
-    mapM_ (uncurry (diff_selection emit))
-        (Maps.pairs (Block.view_selections view1) (Block.view_selections view2))
+    mapM_ (uncurry (diffSelection emit))
+        (Maps.pairs (Block.viewSelections view1) (Block.viewSelections view2))
 
-status_color :: Ui.State -> Block.View -> Color.Color
-status_color state view =
-    case Map.lookup block_id (Ui.state_blocks state) of
-        Just block -> Block.status_color block_id block
-            (UiConfig.config_root (Ui.state_config state))
-        Nothing -> Config.status_default
-    where block_id = Block.view_block view
+statusColor :: Ui.State -> Block.View -> Color.Color
+statusColor state view =
+    case Map.lookup blockId (Ui.stateBlocks state) of
+        Just block -> Block.statusColor blockId block
+            (UiConfig.configRoot (Ui.stateConfig state))
+        Nothing -> Config.statusDefault
+    where blockId = Block.viewBlock view
 
-diff_selection :: (Update.View -> DiffM ())
+diffSelection :: (Update.View -> DiffM ())
     -> Sel.Num -> Lists.Paired Sel.Selection Sel.Selection -> DiffM ()
-diff_selection _ _ (Lists.Both sel1 sel2) | sel1 == sel2 = pure ()
-diff_selection emit selnum paired = case paired of
+diffSelection _ _ (Lists.Both sel1 sel2) | sel1 == sel2 = pure ()
+diffSelection emit selnum paired = case paired of
     Lists.Both sel1 sel2
         | sel1 /= sel2 -> emit $ Update.Selection selnum (Just sel2)
     Lists.Second sel2 -> emit $ Update.Selection selnum (Just sel2)
@@ -223,28 +223,28 @@ diff_selection emit selnum paired = case paired of
 
 -- ** block / track / ruler
 
-diff_block :: BlockId -> Block.Block -> Block.Block -> DiffM ()
-diff_block block_id block1 block2 = do
-    let emit = change . Update.Block block_id
-    let unequal f = unequal_on f block1 block2
-    when (unequal Block.block_title) $
-        emit $ Update.BlockTitle (Block.block_title block2)
-    when (unequal Block.block_config) $
-        emit $ Update.BlockConfig (Block.block_config block2)
+diffBlock :: BlockId -> Block.Block -> Block.Block -> DiffM ()
+diffBlock blockId block1 block2 = do
+    let emit = change . Update.Block blockId
+    let unequal f = unequalOn f block1 block2
+    when (unequal Block.blockTitle) $
+        emit $ Update.BlockTitle (Block.blockTitle block2)
+    when (unequal Block.blockConfig) $
+        emit $ Update.BlockConfig (Block.blockConfig block2)
 
-    let dtracks1 = Block.block_display_tracks block1
-        dtracks2 = Block.block_display_tracks block2
-    let int_skel1 = Block.integrate_skeleton block1
-        int_skel2 = Block.integrate_skeleton block2
-    when (unequal Block.block_skeleton || int_skel1 /= int_skel2) $ do
-        emit $ Update.BlockSkeleton (Block.block_skeleton block2) int_skel2
+    let dtracks1 = Block.blockDisplayTracks block1
+        dtracks2 = Block.blockDisplayTracks block2
+    let intSkel1 = Block.integrateSkeleton block1
+        intSkel2 = Block.integrateSkeleton block2
+    when (unequal Block.blockSkeleton || intSkel1 /= intSkel2) $ do
+        emit $ Update.BlockSkeleton (Block.blockSkeleton block2) intSkel2
         -- Changing the skeleton may change event styles.
-        changes [Update.Track track_id Update.TrackAllEvents
-            | track_id <- Block.block_track_ids block2]
+        changes [Update.Track trackId Update.TrackAllEvents
+            | trackId <- Block.blockTrackIds block2]
 
-    let btracks1 = Block.block_tracks block1
-        btracks2 = Block.block_tracks block2
-    let bpairs = Lists.diffIndexOn Block.tracklike_id btracks1 btracks2
+    let btracks1 = Block.blockTracks block1
+        btracks2 = Block.blockTracks block2
+    let bpairs = Lists.diffIndexOn Block.tracklikeId btracks1 btracks2
     forM_ bpairs $ \(i2, paired) -> case paired of
         Lists.First _ -> emit $ Update.RemoveTrack i2
         Lists.Second track -> emit $ Update.InsertTrack i2 track
@@ -252,73 +252,73 @@ diff_block block_id block1 block2 = do
             emit $ Update.BlockTrack i2 track2
         _ -> pure ()
 
-    let dpairs = Lists.diffIndexOn Block.dtracklike_id dtracks1 dtracks2
+    let dpairs = Lists.diffIndexOn Block.dtracklikeId dtracks1 dtracks2
     forM_ dpairs $ \(i2, paired) -> case paired of
         -- Insert and remove are emitted for UiDamage above, but
         -- the Update.to_display conversion filters them out.
-        Lists.First _ -> change_display $
-            Update.Block block_id (Update.RemoveTrack i2)
-        Lists.Second dtrack -> change_display $
-            Update.Block block_id (Update.InsertTrack i2 dtrack)
-        Lists.Both dtrack1 dtrack2 | dtrack1 /= dtrack2 -> change_display $
-            Update.Block block_id (Update.BlockTrack i2 dtrack2)
+        Lists.First _ -> changeDisplay $
+            Update.Block blockId (Update.RemoveTrack i2)
+        Lists.Second dtrack -> changeDisplay $
+            Update.Block blockId (Update.InsertTrack i2 dtrack)
+        Lists.Both dtrack1 dtrack2 | dtrack1 /= dtrack2 -> changeDisplay $
+            Update.Block blockId (Update.BlockTrack i2 dtrack2)
         _ -> pure ()
 
-diff_track :: Ui.State -> TrackId -> Track.Track -> Track.Track -> DiffM ()
-diff_track state track_id track1 track2 = do
+diffTrack :: Ui.State -> TrackId -> Track.Track -> Track.Track -> DiffM ()
+diffTrack state trackId track1 track2 = do
     -- Track events updates are collected directly by the Ui.State functions
     -- as they happen.
-    let emit = change . Update.Track track_id
-    let unequal f = unequal_on f track1 track2
-    when (unequal Track.track_title) $ do
-        emit $ Update.TrackTitle (Track.track_title track2)
+    let emit = change . Update.Track trackId
+    let unequal f = unequalOn f track1 track2
+    when (unequal Track.trackTitle) $ do
+        emit $ Update.TrackTitle (Track.trackTitle track2)
         -- Changing the title may change the type of the track, which may
         -- change event styles.  If it's going from non-note to note track, it
         -- can also change style of siblings since has_note_children becomes
         -- true.
         changes [Update.Track tid Update.TrackAllEvents
-            | tid <- sibling_tracks state track_id]
+            | tid <- siblingTracks state trackId]
 
-    when (unequal Track.track_bg) $
-        emit $ Update.TrackBg (Track.track_bg track2)
-    when (unequal Track.track_render) $
-        emit $ Update.TrackRender (Track.track_render track2)
+    when (unequal Track.trackBg) $
+        emit $ Update.TrackBg (Track.trackBg track2)
+    when (unequal Track.trackRender) $
+        emit $ Update.TrackRender (Track.trackRender track2)
 
-sibling_tracks :: Ui.State -> TrackId -> [TrackId]
-sibling_tracks state track_id = either (const []) id $ Ui.eval state $ do
-    blocks <- Ui.blocks_with_track_id track_id
+siblingTracks :: Ui.State -> TrackId -> [TrackId]
+siblingTracks state trackId = either (const []) id $ Ui.eval state $ do
+    blocks <- Ui.blocksWithTrackId trackId
     pure [tid | (_, tracks) <- blocks, (_, Block.TId tid _) <- tracks]
 
 -- ** state
 
-diff_state :: Update.UiDamage -> Ui.State -> Ui.State -> DiffM ()
-diff_state damage st1 st2 = do
+diffState :: Update.UiDamage -> Ui.State -> Ui.State -> DiffM ()
+diffState damage st1 st2 = do
     let emit = change . Update.State
     let pairs get keys = damaged Maps.pairs st1 st2 get (keys damage)
-    when (Ui.state_config st1 /= Ui.state_config st2) $
-        emit $ Update.Config (Ui.state_config st2)
-    forM_ (pairs Ui.state_blocks Update._blocks) $ \(block_id, paired) ->
+    when (Ui.stateConfig st1 /= Ui.stateConfig st2) $
+        emit $ Update.Config (Ui.stateConfig st2)
+    forM_ (pairs Ui.stateBlocks Update._blocks) $ \(blockId, paired) ->
         case paired of
-            Lists.Second block -> emit $ Update.CreateBlock block_id block
-            Lists.First _ -> emit $ Update.DestroyBlock block_id
+            Lists.Second block -> emit $ Update.CreateBlock blockId block
+            Lists.First _ -> emit $ Update.DestroyBlock blockId
             _ -> pure ()
-    forM_ (pairs Ui.state_tracks (Map.keysSet . Update._tracks)) $
-        \(track_id, paired) -> case paired of
-            Lists.Second track -> emit $ Update.CreateTrack track_id track
-            Lists.First _ -> emit $ Update.DestroyTrack track_id
+    forM_ (pairs Ui.stateTracks (Map.keysSet . Update._tracks)) $
+        \(trackId, paired) -> case paired of
+            Lists.Second track -> emit $ Update.CreateTrack trackId track
+            Lists.First _ -> emit $ Update.DestroyTrack trackId
             _ -> pure ()
-    forM_ (pairs Ui.state_rulers Update._rulers) $ \(ruler_id, paired) ->
+    forM_ (pairs Ui.stateRulers Update._rulers) $ \(rulerId, paired) ->
         case paired of
-            Lists.Second ruler -> emit $ Update.CreateRuler ruler_id ruler
-            Lists.First _ -> emit $ Update.DestroyRuler ruler_id
+            Lists.Second ruler -> emit $ Update.CreateRuler rulerId ruler
+            Lists.First _ -> emit $ Update.DestroyRuler rulerId
             _ -> pure ()
 
 -- * derive diff
 
 type DeriveDiffM a = Writer.WriterT Derive.ScoreDamage Identity.Identity a
 
-run_derive_diff :: DeriveDiffM () -> Derive.ScoreDamage
-run_derive_diff = snd . Identity.runIdentity . Writer.runWriterT
+runDeriveDiff :: DeriveDiffM () -> Derive.ScoreDamage
+runDeriveDiff = snd . Identity.runIdentity . Writer.runWriterT
 
 -- | This diff is meant to determine score damage for the block, which
 -- determines what will have to be rederived, if anything.
@@ -326,31 +326,31 @@ run_derive_diff = snd . Identity.runIdentity . Writer.runWriterT
 -- This is repeating some work done in 'diff', but is fundamentally different
 -- because it cares about nonvisible changes, e.g. track title change on
 -- a block without a view.
-derive_diff :: Ui.State -> Ui.State -> Update.UiDamage -> [Update.UiUpdate]
+deriveDiff :: Ui.State -> Ui.State -> Update.UiDamage -> [Update.UiUpdate]
     -> Derive.ScoreDamage
-derive_diff st1 st2 damage updates = postproc $ run_derive_diff $
+deriveDiff st1 st2 damage updates = postproc $ runDeriveDiff $
     -- If the config has changed, then everything is damaged.
-    if unequal_on Ui.state_config st1 st2
+    if unequalOn Ui.stateConfig st1 st2
     then Writer.tell $ mempty
-        { Derive.sdamage_blocks =
-            Map.keysSet (Ui.state_blocks st1)
-            <> Map.keysSet (Ui.state_blocks st2)
+        { Derive.sdamageBlocks =
+            Map.keysSet (Ui.stateBlocks st1)
+            <> Map.keysSet (Ui.stateBlocks st2)
         }
     else do
-        mapM_ (uncurry derive_diff_block) $
-            damaged Maps.pairs st1 st2 Ui.state_blocks (Update._blocks damage)
+        mapM_ (uncurry deriveDiffBlock) $
+            damaged Maps.pairs st1 st2 Ui.stateBlocks (Update._blocks damage)
         -- This doesn't check for added or removed tracks, because for them to
         -- have any effect they must be added to or removed from a block, which
         -- 'derive_diff_block' will catch.
-        mapM_ (Control.uncurry3 derive_diff_track) $
-            damaged Maps.zipIntersection st1 st2 Ui.state_tracks
+        mapM_ (Control.uncurry3 deriveDiffTrack) $
+            damaged Maps.zipIntersection st1 st2 Ui.stateTracks
                 (Map.keysSet (Update._tracks damage))
     where
-    postproc = postproc_damage st2 . (updates_damage block_rulers updates <>)
-    block_rulers = Maps.multimap
-        [ (ruler_id, block_id)
-        | (block_id, block) <- Map.toList (Ui.state_blocks st2)
-        , ruler_id <- Block.block_ruler_ids block
+    postproc = postprocDamage st2 . (updatesDamage blockRulers updates <>)
+    blockRulers = Maps.multimap
+        [ (rulerId, blockId)
+        | (blockId, block) <- Map.toList (Ui.stateBlocks st2)
+        , rulerId <- Block.blockRulerIds block
         ]
 
 -- | Apply a function to only the damaged parts of the state, as expressed
@@ -361,65 +361,65 @@ damaged f st1 st2 get keys =
     f (Map.restrictKeys (get st1) keys) (Map.restrictKeys (get st2) keys)
 
 -- | Fill in 'Derive.sdamage_track_blocks'.
-postproc_damage :: Ui.State -> Derive.ScoreDamage -> Derive.ScoreDamage
-postproc_damage state (Derive.ScoreDamage tracks _ blocks) =
-    Derive.ScoreDamage tracks track_blocks blocks
+postprocDamage :: Ui.State -> Derive.ScoreDamage -> Derive.ScoreDamage
+postprocDamage state (Derive.ScoreDamage tracks _ blocks) =
+    Derive.ScoreDamage tracks trackBlocks blocks
     where
-    track_blocks = Set.fromList $ map fst $ Ui.find_tracks track_of_block
-        (Ui.state_blocks state)
-    track_of_block (Block.TId tid _) = Map.member tid tracks
-    track_of_block _ = False
+    trackBlocks = Set.fromList $ map fst $ Ui.findTracks trackOfBlock
+        (Ui.stateBlocks state)
+    trackOfBlock (Block.TId tid _) = Map.member tid tracks
+    trackOfBlock _ = False
 
 -- | Derive damage from UiUpdates.
-updates_damage :: Map RulerId [BlockId] -> [Update.UiUpdate]
+updatesDamage :: Map RulerId [BlockId] -> [Update.UiUpdate]
     -> Derive.ScoreDamage
-updates_damage block_rulers updates = mempty
-    { Derive.sdamage_tracks = tracks
-    , Derive.sdamage_blocks = blocks
+updatesDamage blockRulers updates = mempty
+    { Derive.sdamageTracks = tracks
+    , Derive.sdamageBlocks = blocks
     }
     where
-    tracks = Map.fromListWith (<>) $ mapMaybe Update.track_changed updates
+    tracks = Map.fromListWith (<>) $ mapMaybe Update.trackChanged updates
     blocks = Set.fromList
-        [ block_id
-        | Update.Ruler ruler_id <- updates
-        , block_id <- Map.findWithDefault [] ruler_id block_rulers
+        [ blockId
+        | Update.Ruler rulerId <- updates
+        , blockId <- Map.findWithDefault [] rulerId blockRulers
         ]
 
-derive_diff_block :: BlockId -> Lists.Paired Block.Block Block.Block
+deriveDiffBlock :: BlockId -> Lists.Paired Block.Block Block.Block
     -> DeriveDiffM ()
-derive_diff_block block_id = \case
+deriveDiffBlock blockId = \case
     Lists.Both block1 block2 -> do
-        let unequal f = unequal_on f block1 block2
-        when (unequal (Text.strip . Block.block_title)
-                || unequal Block.block_skeleton)
+        let unequal f = unequalOn f block1 block2
+        when (unequal (Text.strip . Block.blockTitle)
+                || unequal Block.blockSkeleton)
                 -- I could check (Block.config_skeleton . Block.block_config),
                 -- but it's indirect, the skeleton change is the direct affect
                 -- on derivation.
-            block_damage
-        let (ts1, ts2) = (Block.block_tracks block1, Block.block_tracks block2)
-        let tpairs = Lists.diffIndexOn Block.tracklike_id ts1 ts2
+            blockDamage
+        let (ts1, ts2) = (Block.blockTracks block1, Block.blockTracks block2)
+        let tpairs = Lists.diffIndexOn Block.tracklikeId ts1 ts2
         forM_ tpairs $ \(_, pair) -> case pair of
             Lists.Both track1 track2
-                | flags_differ track1 track2 -> block_damage
+                | flagsDiffer track1 track2 -> blockDamage
                 | otherwise -> pure ()
-            _ -> block_damage
+            _ -> blockDamage
     -- This means I wind up with damage on a block that is gone.  I think this
     -- is correct, since the cache will still have recorded dependencies on
     -- that block, which will cause its dependents to be rederived, as
     -- expected.
-    Lists.First _ -> block_damage
-    Lists.Second _ -> block_damage
+    Lists.First _ -> blockDamage
+    Lists.Second _ -> blockDamage
     where
-    block_damage =
-        Writer.tell $ mempty { Derive.sdamage_blocks = Set.singleton block_id }
+    blockDamage =
+        Writer.tell $ mempty { Derive.sdamageBlocks = Set.singleton blockId }
 
 -- | True if the tracks flags differ in an a way that will require
 -- rederivation.
-flags_differ :: Block.Track -> Block.Track -> Bool
-flags_differ track1 track2 = relevant track1 /= relevant track2
+flagsDiffer :: Block.Track -> Block.Track -> Bool
+flagsDiffer track1 track2 = relevant track1 /= relevant track2
     where
-    relevant = Set.filter must_rederive . Block.track_flags
-    must_rederive flag = case flag of
+    relevant = Set.filter mustRederive . Block.trackFlags
+    mustRederive flag = case flag of
         -- If this was an uncollapse, I may need a track signal for it now.
         -- Another way to solve this would be to emit track signals for
         -- collapsed tracks, but lots of tracks are collapsed and usually not
@@ -431,47 +431,47 @@ flags_differ track1 track2 = relevant track1 /= relevant track2
         Block.Mute -> False
         Block.Disable -> True
 
-derive_diff_track :: TrackId -> Track.Track -> Track.Track -> DeriveDiffM ()
-derive_diff_track track_id track1 track2 =
-    when (unequal (Text.strip . Track.track_title)
-            || unequal Track.track_render) $
+deriveDiffTrack :: TrackId -> Track.Track -> Track.Track -> DeriveDiffM ()
+deriveDiffTrack trackId track1 track2 =
+    when (unequal (Text.strip . Track.trackTitle)
+            || unequal Track.trackRender) $
         Writer.tell $ mempty
-            { Derive.sdamage_tracks = Map.singleton track_id Ranges.everything }
+            { Derive.sdamageTracks = Map.singleton trackId Ranges.everything }
     where
-    unequal f = unequal_on f track1 track2
+    unequal f = unequalOn f track1 track2
 
 -- * score_changed
 
 -- | This is like 'derive_diff', but it only needs to return a Bool.  It's also
 -- more sensitive in that it's looking for any change that you might want to
 -- save to disk, not just changes that could require rederivation.
-score_changed :: Ui.State -> Ui.State -> Update.UiDamage -> Bool
-score_changed st1 st2 damage = or
-    [ Update.is_score_damage damage
-    , unequal Ui.state_config
+scoreChanged :: Ui.State -> Ui.State -> Update.UiDamage -> Bool
+scoreChanged st1 st2 damage = or
+    [ Update.isScoreDamage damage
+    , unequal Ui.stateConfig
     ]
-    where unequal f = unequal_on f st1 st2
+    where unequal f = unequalOn f st1 st2
 
 -- * events diff
 
 -- | Diff the events on one track.  This will only emit track damage, and won't
 -- emit anything if the track title changed, or was created or deleted.  Those
 -- diffs should be picked up by the main 'diff'.
-track_diff :: Ui.State -> Ui.State -> TrackId -> Update.UiDamage
-track_diff st1 st2 tid = case (Map.lookup tid t1, Map.lookup tid t2) of
+trackDiff :: Ui.State -> Ui.State -> TrackId -> Update.UiDamage
+trackDiff st1 st2 tid = case (Map.lookup tid t1, Map.lookup tid t2) of
     -- TODO why does it compare track_title here?
-    (Just t1, Just t2) | Track.track_title t1 == Track.track_title t2 -> mempty
+    (Just t1, Just t2) | Track.trackTitle t1 == Track.trackTitle t2 -> mempty
         { Update._tracks = Map.singleton tid $
-            diff_track_events (Track.track_events t1) (Track.track_events t2)
+            diffTrackEvents (Track.trackEvents t1) (Track.trackEvents t2)
         }
     _ -> mempty
     where
-    t1 = Ui.state_tracks st1
-    t2 = Ui.state_tracks st2
+    t1 = Ui.stateTracks st1
+    t2 = Ui.stateTracks st2
 
-diff_track_events :: Events.Events -> Events.Events -> Ranges.Ranges TrackTime
-diff_track_events e1 e2 =
-    Ranges.sorted_ranges $ mapMaybe diff $
+diffTrackEvents :: Events.Events -> Events.Events -> Ranges.Ranges TrackTime
+diffTrackEvents e1 e2 =
+    Ranges.sortedRanges $ mapMaybe diff $
         Lists.pairSortedOn1 Event.start
             (Events.ascending e1) (Events.ascending e2)
     where
@@ -484,5 +484,5 @@ diff_track_events e1 e2 =
 
 -- * util
 
-unequal_on :: Eq k => (a -> k) -> a -> a -> Bool
-unequal_on key a b = key a /= key b
+unequalOn :: Eq k => (a -> k) -> a -> a -> Bool
+unequalOn key a b = key a /= key b

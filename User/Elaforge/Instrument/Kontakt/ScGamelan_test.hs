@@ -16,17 +16,17 @@ import Global
 test_wrap_octaves :: Test
 test_wrap_octaves = do
     let run extract title = DeriveTest.extract extract
-            . derive ("scale=legong" <> title) . UiTest.note_track1
-    equal (run DeriveTest.e_pitch " | inst = calung-p"
+            . derive ("scale=legong" <> title) . UiTest.noteTrack1
+    equal (run DeriveTest.ePitch " | inst = calung-p"
             ["3u", "4i", "4u", "5i"])
         (["4u", "4i", "4u", "4i"], [])
     -- Ensure transposition isn't applied twice.
-    equal (run DeriveTest.e_pitch " | inst = calung-p | t-dia=1" ["4a"])
+    equal (run DeriveTest.ePitch " | inst = calung-p | t-dia=1" ["4a"])
         (["4i"], [])
     -- I can wrap even if it goes below the range of the scale itself.
-    equal (run DeriveTest.e_pitch " | inst = jegog-p | t-dia=-1" ["3i"])
+    equal (run DeriveTest.ePitch " | inst = jegog-p | t-dia=-1" ["3i"])
         (["3a"], [])
-    let extract e = (DeriveTest.e_instrument e, DeriveTest.e_pitch e)
+    let extract e = (DeriveTest.eInstrument e, DeriveTest.ePitch e)
     equal (run extract " | inst = calung | import bali.gangsa | unison"
         ["4u", "5i"])
         ( [ ("calung-p", "4u"), ("calung-s", "4u")
@@ -36,5 +36,5 @@ test_wrap_octaves = do
         )
 
 derive :: Text -> [UiTest.TrackSpec] -> Derive.Result
-derive = DeriveTest.derive_tracks_setup $
-    DeriveTest.with_synths (ScGamelan.kebyar_allocations "dev") [Kontakt.synth]
+derive = DeriveTest.deriveTracksSetup $
+    DeriveTest.withSynths (ScGamelan.kebyarAllocations "dev") [Kontakt.synth]

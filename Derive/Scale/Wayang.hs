@@ -41,33 +41,33 @@ import           Global
 
 
 scales :: [Scale.Definition]
-scales = map (Scale.Simple . Scales.add_doc "Saih gender wayang.")
-    [ BaliScales.make_scale scale_id $
-        BaliScales.scale_map (config laras_sawan)
-            BaliScales.ioeua_absolute Nothing
-    , BaliScales.make_scale "wayang-a" $
-        BaliScales.scale_map (rebase (Pitch.pitch 1 U) (config laras_sawan))
-            BaliScales.ioeua_absolute Nothing
-    , BaliScales.make_scale "wayang-srg" $
-        BaliScales.scale_map (rebase (Pitch.pitch 1 U) (config laras_sawan))
-            sargam_absolute Nothing
-    , Scales.add_doc
+scales = map (Scale.Simple . Scales.addDoc "Saih gender wayang.")
+    [ BaliScales.makeScale scaleId $
+        BaliScales.scaleMap (config larasSawan)
+            BaliScales.ioeuaAbsolute Nothing
+    , BaliScales.makeScale "wayang-a" $
+        BaliScales.scaleMap (rebase (Pitch.pitch 1 U) (config larasSawan))
+            BaliScales.ioeuaAbsolute Nothing
+    , BaliScales.makeScale "wayang-srg" $
+        BaliScales.scaleMap (rebase (Pitch.pitch 1 U) (config larasSawan))
+            sargamAbsolute Nothing
+    , Scales.addDoc
         "Pemade scale. This can be used to give the the same score to both\
             \ pemade and kantilan." $
-        BaliScales.make_scale "wayang-pemade"
-            (inst_scale_map laras_sawan_pemade pemade)
-    , Scales.add_doc
+        BaliScales.makeScale "wayang-pemade"
+            (instScaleMap larasSawanPemade pemade)
+    , Scales.addDoc
         "Kantilan scale. This can be used to give the the same score to both\
             \ pemade and kantilan." $
-        BaliScales.make_scale "wayang-kantilan"
-            (inst_scale_map laras_sawan_kantilan kantilan)
+        BaliScales.makeScale "wayang-kantilan"
+            (instScaleMap larasSawanKantilan kantilan)
     ]
     where
-    inst_scale_map laras = BaliScales.instrument_scale_map (config laras)
+    instScaleMap laras = BaliScales.instrumentScaleMap (config laras)
 
-sargam_absolute :: TheoryFormat.Format
-sargam_absolute = TheoryFormat.make_absolute_format "[1-9][srgpd]" $
-    TheoryFormat.make_degrees $ map Text.singleton "srgpd"
+sargamAbsolute :: TheoryFormat.Format
+sargamAbsolute = TheoryFormat.makeAbsoluteFormat "[1-9][srgpd]" $
+    TheoryFormat.makeDegrees $ map Text.singleton "srgpd"
 
 pemade :: BaliScales.Instrument
 pemade = instrument 4 (Pitch.pitch 3 O) (Pitch.pitch 5 I)
@@ -77,58 +77,58 @@ kantilan = instrument 5 (Pitch.pitch 4 O) (Pitch.pitch 6 I)
 
 instrument :: Pitch.Octave -> Pitch.Pitch -> Pitch.Pitch
     -> BaliScales.Instrument
-instrument = BaliScales.Instrument BaliScales.ioeua BaliScales.arrow_octaves
+instrument = BaliScales.Instrument BaliScales.ioeua BaliScales.arrowOctaves
 
 config :: BaliScales.Laras -> BaliScales.Config
-config default_laras = BaliScales.Config
-    { config_layout = layout
-    , config_keys = mempty
-    , config_default_key = default_key
-    , config_laras = laras
-    , config_default_laras = default_laras
+config defaultLaras = BaliScales.Config
+    { configLayout = layout
+    , configKeys = mempty
+    , configDefaultKey = defaultKey
+    , configLaras = laras
+    , configDefaultLaras = defaultLaras
     }
     where
-    layout = Theory.diatonic_layout 5
-    default_key = Theory.key (Pitch.Degree 0 0) "default" (replicate 5 1) layout
+    layout = Theory.diatonicLayout 5
+    defaultKey = Theory.key (Pitch.Degree 0 0) "default" (replicate 5 1) layout
 
 rebase :: Pitch.Pitch -> BaliScales.Config -> BaliScales.Config
 rebase base config = config
-    { BaliScales.config_laras = set <$> BaliScales.config_laras config
-    , BaliScales.config_default_laras =
-        set $ BaliScales.config_default_laras config
+    { BaliScales.configLaras = set <$> BaliScales.configLaras config
+    , BaliScales.configDefaultLaras =
+        set $ BaliScales.configDefaultLaras config
     }
     where
-    set laras = laras { BaliScales.laras_base = base }
+    set laras = laras { BaliScales.larasBase = base }
 
 -- | Start octave for the extended scale.
-base_oct :: Pitch.Octave
-base_oct = 1
+baseOct :: Pitch.Octave
+baseOct = 1
 
-scale_id :: Pitch.ScaleId
-scale_id = "wayang"
+scaleId :: Pitch.ScaleId
+scaleId = "wayang"
 
 -- * laras
 
 data Pitch = I | O | E | U | A deriving (Eq, Enum, Show)
 
 laras :: Map Text BaliScales.Laras
-laras = Map.fromList $ Lists.keyOn BaliScales.laras_name $
-    laras_sawan
-    : laras_sawan_pemade
-    : laras_sawan_kantilan
+laras = Map.fromList $ Lists.keyOn BaliScales.larasName $
+    larasSawan
+    : larasSawanPemade
+    : larasSawanKantilan
     : mcphee
 
-laras_sawan :: BaliScales.Laras
-laras_sawan = BaliScales.laras "sawan" (Pitch.pitch 1 I)
-    (extend (BaliScales.inst_low pemade))
+larasSawan :: BaliScales.Laras
+larasSawan = BaliScales.laras "sawan" (Pitch.pitch 1 I)
+    (extend (BaliScales.instLow pemade))
     "Tuning from my gender wayang, made in Sawan, Singaraja." $
     -- Of course the overlapping parts of the scales are a bit different, and
     -- I have to pick one.  So I choose the pemade version.
-    BaliScales.laras_nns laras_sawan_pemade
-    ++ drop 5 (BaliScales.laras_nns laras_sawan_kantilan)
+    BaliScales.larasNns larasSawanPemade
+    ++ drop 5 (BaliScales.larasNns larasSawanKantilan)
 
-laras_sawan_pemade :: BaliScales.Laras
-laras_sawan_pemade = BaliScales.laras "sawan-pemade" (Pitch.pitch 3 1) id
+larasSawanPemade :: BaliScales.Laras
+larasSawanPemade = BaliScales.laras "sawan-pemade" (Pitch.pitch 3 1) id
     "Sawan tuning for pemade."
     [ (52.27, 52.94)
     , (54.55, 55.15)
@@ -143,8 +143,8 @@ laras_sawan_pemade = BaliScales.laras "sawan-pemade" (Pitch.pitch 3 1) id
     , (74.66, 74.85) -- 5i
     ]
 
-laras_sawan_kantilan :: BaliScales.Laras
-laras_sawan_kantilan = BaliScales.laras "sawan-kantilan" (Pitch.pitch 4 1) id
+larasSawanKantilan :: BaliScales.Laras
+larasSawanKantilan = BaliScales.laras "sawan-kantilan" (Pitch.pitch 4 1) id
     "Sawan tuning for kantilan"
     [ (64.31, 64.70)
     , (67.13, 67.45)
@@ -160,7 +160,7 @@ laras_sawan_kantilan = BaliScales.laras "sawan-kantilan" (Pitch.pitch 4 1) id
     ]
 
 mcphee :: [BaliScales.Laras]
-mcphee = map (make . McPhee.extract low_pitch high_pitch) McPhee.slendro
+mcphee = map (make . McPhee.extract lowPitch highPitch) McPhee.slendro
     where
     make (name, (nns, doc)) =
         BaliScales.laras name (Pitch.pitch 1 0) id doc
@@ -170,36 +170,36 @@ mcphee = map (make . McPhee.extract low_pitch high_pitch) McPhee.slendro
 --
 -- pemade starts at 3o - 4i - 5i, kanti is 4o - 5i - 6i
 extend :: Pitch.Pitch -> [Pitch.NoteNumber] -> [Pitch.NoteNumber]
-extend from = Bali.extend_scale 5 low_pitch high_pitch from
+extend from = Bali.extendScale 5 lowPitch highPitch from
 
-low_pitch, high_pitch :: Pitch.Pitch
-low_pitch = Pitch.pitch 1 I
-high_pitch = Pitch.pitch 8 I
+lowPitch, highPitch :: Pitch.Pitch
+lowPitch = Pitch.pitch 1 I
+highPitch = Pitch.pitch 8 I
 
-undo_extend :: [a] -> [a]
-undo_extend = take 15 . drop (1 + 5 + 5)
+undoExtend :: [a] -> [a]
+undoExtend = take 15 . drop (1 + 5 + 5)
     -- take (kantilan_high - kantilan_low) . drop (pemade_low - 1 I)
 
 -- * instrument integration
 
-instrument_scale :: Bool -> BaliScales.Laras -> BaliScales.Tuning -> Patch.Scale
-instrument_scale extended laras tuning =
-    Patch.make_scale ("wayang-" <> ShowVal.show_val tuning) $
-        zip (midi_keys extended)
-            ((if extended then id else undo_extend) (Vector.toList nns))
+instrumentScale :: Bool -> BaliScales.Laras -> BaliScales.Tuning -> Patch.Scale
+instrumentScale extended laras tuning =
+    Patch.makeScale ("wayang-" <> ShowVal.showVal tuning) $
+        zip (midiKeys extended)
+            ((if extended then id else undoExtend) (Vector.toList nns))
     where
     nns = case tuning of
-        BaliScales.Umbang -> BaliScales.laras_umbang laras
-        BaliScales.Isep -> BaliScales.laras_isep laras
+        BaliScales.Umbang -> BaliScales.larasUmbang laras
+        BaliScales.Isep -> BaliScales.larasIsep laras
 
 -- | If extended is True, emit from i1 on up.  Otherwise, give pemade to
 -- kantilan range.
-midi_keys :: Bool -> [Midi.Key]
-midi_keys extended = trim $ concatMap keys [base_oct + 1 ..]
+midiKeys :: Bool -> [Midi.Key]
+midiKeys extended = trim $ concatMap keys [baseOct + 1 ..]
     -- base_oct + 1 because MIDI starts at octave -1
     where
     trim
         | extended = take (7*5 + 1)
         | otherwise = take (3*5) . drop (1 + 3*5)
-    keys oct = map (Midi.to_key (oct * 12) +) -- i o e u a
+    keys oct = map (Midi.toKey (oct * 12) +) -- i o e u a
         [Key2.e_2, Key2.f_2, Key2.a_2, Key2.b_2, Key2.c_1]

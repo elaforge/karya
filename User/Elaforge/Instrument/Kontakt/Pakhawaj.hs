@@ -22,16 +22,16 @@ import Global
 
 
 patches :: [MidiInst.Patch]
-patches = [MidiInst.code #= code $ patch "pakhawaj" pitched_strokes]
+patches = [MidiInst.code #= code $ patch "pakhawaj" pitchedStrokes]
     where
-    patch name strokes = CUtil.pitched_drum_patch strokes $
-        MidiInst.named_patch (-24, 24) name []
-    code = Mridangam.make_code CUtil.MidiThru pitched_attributes NN.c4 Nothing
-        all_strokes both_calls
+    patch name strokes = CUtil.pitchedDrumPatch strokes $
+        MidiInst.namedPatch (-24, 24) name []
+    code = Mridangam.makeCode CUtil.MidiThru pitchedAttributes NN.c4 Nothing
+        allStrokes bothCalls
 
-pitched_strokes :: CUtil.PitchedStrokes
-(pitched_strokes, _pitched_strokes) = CUtil.drum_pitched_strokes all_strokes $
-    CUtil.make_cc_keymap Key2.c_1 12 Key2.fs2
+pitchedStrokes :: CUtil.PitchedStrokes
+(pitchedStrokes, _pitchedStrokes) = CUtil.drumPitchedStrokes allStrokes $
+    CUtil.makeCcKeymap Key2.c_1 12 Key2.fs2
         [ [attr Ka]
         , [attr Ge]
         , [attr Tet]
@@ -42,82 +42,82 @@ pitched_strokes :: CUtil.PitchedStrokes
         , [attr Ta]
         , [attr Di]
         ]
-    where attr = Pakhawaj.stroke_to_attribute
+    where attr = Pakhawaj.strokeToAttribute
 
 -- | Create calls for all simultaneous left and right hand combinations, and
 -- key bindings for a few common ones.
-both_calls :: [(Expr.Symbol, [Expr.Symbol], Maybe Char)]
-both_calls = Mridangam.make_both left_strokes right_strokes special_names
+bothCalls :: [(Expr.Symbol, [Expr.Symbol], Maybe Char)]
+bothCalls = Mridangam.makeBoth leftStrokes rightStrokes specialNames
     [ ("D", 'c')
     , ("T", 'f')
     , ("E", 'v')
     ]
     where
-    special_names =
+    specialNames =
         [ ("D", ["o", "u"]) -- dha
         , ("E", ["o", "k"]) -- dhet
         , ("T", ["+", "k"]) -- thet
         ]
 
-write_ksp :: IO ()
-write_ksp = mapM_ (uncurry Util.write)
-    [ ("pakhawaj.ksp.txt", Util.drum_mute_ksp "pakhawaj" pitched_strokes stops)
+writeKsp :: IO ()
+writeKsp = mapM_ (uncurry Util.write)
+    [ ("pakhawaj.ksp.txt", Util.drumMuteKsp "pakhawaj" pitchedStrokes stops)
     ]
 
 -- | The symbols follow the same scheme as mridangam.
-left_strokes, right_strokes :: [Drums.Stroke]
+leftStrokes, rightStrokes :: [Drums.Stroke]
 stops :: Drums.Stops
-(left_strokes, right_strokes, stops) = (left_strokes, right_strokes, stops)
+(leftStrokes, rightStrokes, stops) = (leftStrokes, rightStrokes, stops)
     where
-    left_strokes = concat
-        [ group l_closed
+    leftStrokes = concat
+        [ group lClosed
             [ n 'a' "-" (attr Ka) 0.5
             , n 'z' "+" (attr Ka) 1
             ]
-        , group l_open
+        , group lOpen
             [ n 's' "." (attr Ge) 0.5
             , n 'x' "o" (attr Ge) 1
             ]
         ]
-    right_strokes = concat
-        [ group r_closed
+    rightStrokes = concat
+        [ group rClosed
             [ n '1' "l" (attr Tet) 0.5
             , n 'q' "k" (attr Tet) 1
             , n '2' "p" (attr Ne)  0.75
             , n 'w' "t" (attr Te)  1
             ]
-        , group r_syahi
+        , group rSyahi
             [ n '3' "m" nam 1
             , n 'e' "n" (attr Na) 1
             , n 'r' "d" din 1
             ]
-        , group r_syahi_open
+        , group rSyahiOpen
             [ n 't' "u" (attr Ta) 1
             ]
-        , group r_dheem [n 'y' "i" (attr Di) 1]
+        , group rDheem [n 'y' "i" (attr Di) 1]
         ]
 
     stops =
-        [ (l_closed, [l_open])
-        , (r_closed, [r_syahi, r_syahi_open, r_dheem])
-        , (r_syahi, [r_syahi_open, r_dheem])
-        , (r_syahi_open, [r_dheem])
+        [ (lClosed, [lOpen])
+        , (rClosed, [rSyahi, rSyahiOpen, rDheem])
+        , (rSyahi, [rSyahiOpen, rDheem])
+        , (rSyahiOpen, [rDheem])
         ]
-    r_closed = "r-closed"
-    r_syahi = "r-syahi"
-    r_syahi_open = "r-syahi_open"
-    r_dheem = "r-dheem"
-    l_closed = "l-closed"
-    l_open = "l-open"
+    rClosed = "r-closed"
+    rSyahi = "r-syahi"
+    rSyahiOpen = "r-syahi_open"
+    rDheem = "r-dheem"
+    lClosed = "l-closed"
+    lOpen = "l-open"
     group name = map $ \n -> n { Drums._group = name }
-    n = Drums.stroke_dyn
-    attr = Pakhawaj.stroke_to_attribute
+    n = Drums.strokeDyn
+    attr = Pakhawaj.strokeToAttribute
 
-pitched_attributes :: [Attrs.Attributes]
-pitched_attributes = map Pakhawaj.stroke_to_attribute [Ge, Na, Ta, Di]
+pitchedAttributes :: [Attrs.Attributes]
+pitchedAttributes = map Pakhawaj.strokeToAttribute [Ge, Na, Ta, Di]
 
-all_strokes :: [Drums.Stroke]
-all_strokes = left_strokes ++ right_strokes
+allStrokes :: [Drums.Stroke]
+allStrokes = leftStrokes ++ rightStrokes
 
 -- mridangam strokes
 din = Attrs.attr "din"

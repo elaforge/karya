@@ -46,9 +46,9 @@ sysex = "sysex"
 
 -- * categories
 
-c_strings, c_woodwinds, c_brass, c_percussion, c_synth :: Text
-c_strings = "strings"
-c_woodwinds = "woodwinds"
-c_brass = "brass"
-c_percussion = "percussion"
-c_synth = "synth"
+cStrings, cWoodwinds, cBrass, cPercussion, cSynth :: Text
+cStrings = "strings"
+cWoodwinds = "woodwinds"
+cBrass = "brass"
+cPercussion = "percussion"
+cSynth = "synth"

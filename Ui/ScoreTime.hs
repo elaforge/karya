@@ -3,9 +3,9 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Ui.ScoreTime (
-    ScoreTime, TrackTime, round, to_double, to_cdouble, from_double, suffix
+    ScoreTime, TrackTime, round, toDouble, toCdouble, fromDouble, suffix
     , eta, (==), (>), (<=)
-    , is_negative
+    , isNegative
 ) where
 import qualified Prelude
 import           Prelude hiding ((==), (>), (<=), round)
@@ -34,7 +34,7 @@ newtype ScoreTime = ScoreTime Double deriving
     )
 
 instance ShowVal.ShowVal ScoreTime where
-    show_val = (`Text.snoc` suffix) . Num.showFloat 3 . to_double
+    showVal = (`Text.snoc` suffix) . Num.showFloat 3 . toDouble
 
 {- | This is also ScoreTime, but it's relative to the beginning of the track.
     I.e., UI events are all in track time, but when they get shifted and
@@ -67,11 +67,11 @@ type TrackTime = ScoreTime
 -}
 round :: ScoreTime -> ScoreTime
 round t
-    | isNegativeZero (to_double t) = t
-    | otherwise = from_double . (/divisor) . fromIntegral . to_int $ t
+    | isNegativeZero (toDouble t) = t
+    | otherwise = fromDouble . (/divisor) . fromIntegral . toInt $ t
     where
-    to_int :: ScoreTime -> Integer
-    to_int = Prelude.round . (*divisor) . to_double
+    toInt :: ScoreTime -> Integer
+    toInt = Prelude.round . (*divisor) . toDouble
 
 divisor :: Double
 divisor = 2^7 * 3^3 * 5^2 * 7
@@ -81,8 +81,8 @@ divisor = 2^7 * 3^3 * 5^2 * 7
 instance C.CStorable ScoreTime where
     sizeOf _ = C.sizeOf (0 :: C.CDouble)
     alignment _ = C.alignment (0 :: C.CDouble)
-    poke p (ScoreTime d) = C.poke (C.castPtr p) (FFI.c_double d)
-    peek p = ScoreTime . FFI.hs_double <$> C.peek (C.castPtr p)
+    poke p (ScoreTime d) = C.poke (C.castPtr p) (FFI.cDouble d)
+    peek p = ScoreTime . FFI.hsDouble <$> C.peek (C.castPtr p)
 
 instance Show ScoreTime where show (ScoreTime n) = show n
 instance Read.Read ScoreTime where readPrec = ScoreTime <$> Read.readPrec
@@ -90,14 +90,14 @@ instance Read.Read ScoreTime where readPrec = ScoreTime <$> Read.readPrec
 instance Pretty ScoreTime where
     pretty (ScoreTime p) = Num.showFloatP False 3 p <> Text.singleton suffix
 
-to_double :: ScoreTime -> Double
-to_double (ScoreTime p) = p
+toDouble :: ScoreTime -> Double
+toDouble (ScoreTime p) = p
 
-to_cdouble :: ScoreTime -> C.CDouble
-to_cdouble = C.CDouble . to_double
+toCdouble :: ScoreTime -> C.CDouble
+toCdouble = C.CDouble . toDouble
 
-from_double :: Double -> ScoreTime
-from_double = ScoreTime
+fromDouble :: Double -> ScoreTime
+fromDouble = ScoreTime
 
 -- | t is for time, since RealTime uses s for seconds
 suffix :: Char
@@ -110,7 +110,7 @@ eta = 0.00000000000004
 
 -- | ScoreTimes are imprecise, so compare them with this instead of (==).
 (==) :: ScoreTime -> ScoreTime -> Bool
-(==) = ApproxEq.eq (to_double eta)
+(==) = ApproxEq.eq (toDouble eta)
 
 -- | True if the second is greater than the first - eta.  This can be used to
 -- determine if the start of an event has passed, while giving a little bit of
@@ -120,5 +120,5 @@ a > b = a - eta Prelude.> b
 a <= b = not (a > b)
 
 -- | Unlike <0, this counts -0 as negative.
-is_negative :: ScoreTime -> Bool
-is_negative (ScoreTime t) = t < 0 || isNegativeZero t
+isNegative :: ScoreTime -> Bool
+isNegative (ScoreTime t) = t < 0 || isNegativeZero t

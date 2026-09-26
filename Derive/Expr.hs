@@ -19,7 +19,7 @@ import qualified Util.Lists as Lists
 import qualified Util.Serialize as Serialize
 
 import qualified Derive.ScoreT as ScoreT
-import           Derive.ShowVal (ShowVal(show_val))
+import           Derive.ShowVal (ShowVal(showVal))
 import qualified Perform.Pitch as Pitch
 import qualified Perform.Signal as Signal
 
@@ -45,47 +45,47 @@ instance String.IsString (Expr val) where
 
 -- These ShowVal instances are tested in Derive.Parse_test:
 
-instance ShowVal (Expr Text) where show_val = show_val_expr
-instance ShowVal (Call Text) where show_val = show_val_call (Just . id)
-instance ShowVal (Term Text) where show_val = show_val_term
+instance ShowVal (Expr Text) where showVal = showValExpr
+instance ShowVal (Call Text) where showVal = showValCall (Just . id)
+instance ShowVal (Term Text) where showVal = showValTerm
 
-instance ShowVal (Expr MiniVal) where show_val = show_val_expr
+instance ShowVal (Expr MiniVal) where showVal = showValExpr
 instance ShowVal (Call MiniVal) where
-    show_val = show_val_call $ \case
+    showVal = showValCall $ \case
         VStr (Str op) -> Just op
         _ -> Nothing
-instance ShowVal (Term MiniVal) where show_val = show_val_term
+instance ShowVal (Term MiniVal) where showVal = showValTerm
 
-instance Pretty (Call Text) where pretty = show_val
-instance Pretty (Term Text) where pretty = show_val
-instance Pretty (Call MiniVal) where pretty = show_val
-instance Pretty (Term MiniVal) where pretty = show_val
+instance Pretty (Call Text) where pretty = showVal
+instance Pretty (Term Text) where pretty = showVal
+instance Pretty (Call MiniVal) where pretty = showVal
+instance Pretty (Term MiniVal) where pretty = showVal
 
 -- Previously I used 'instance ShowVal val => ShowVal (Expr val)', but that
 -- doesn't let me have a specialized version for Call Val, unless I want to do
 -- overlapping instances, which I don't.
 
-show_val_expr :: ShowVal (Call val) => Expr val -> Text
-show_val_expr = Text.strip . Text.intercalate " | " . map show_val
+showValExpr :: ShowVal (Call val) => Expr val -> Text
+showValExpr = Text.strip . Text.intercalate " | " . map showVal
     . NonEmpty.toList
 
-show_val_call :: ShowVal (Term val) => (val -> Maybe Text) -> Call val -> Text
-show_val_call literal_str_of = \case
+showValCall :: ShowVal (Term val) => (val -> Maybe Text) -> Call val -> Text
+showValCall literalStrOf = \case
     -- This inverts 'Derive.Parse.p_equal'.
     Call (Symbol "=") [lhs, rhs] ->
-        Text.unwords [show_val lhs, "=", show_val rhs]
+        Text.unwords [showVal lhs, "=", showVal rhs]
     Call (Symbol "=") [lhs, rhs, Literal op]
-        | Just op <- literal_str_of op -> Text.unwords
-            [ show_val lhs
+        | Just op <- literalStrOf op -> Text.unwords
+            [ showVal lhs
             , "=" <> op
-            , show_val rhs
+            , showVal rhs
             ]
-    Call (Symbol sym) terms -> Text.unwords $ sym : map show_val terms
+    Call (Symbol sym) terms -> Text.unwords $ sym : map showVal terms
 
-show_val_term :: (ShowVal val, ShowVal (Call val)) => Term val -> Text
-show_val_term = \case
-    ValCall call -> "(" <> show_val call <> ")"
-    Literal val -> show_val val
+showValTerm :: (ShowVal val, ShowVal (Call val)) => Term val -> Text
+showValTerm = \case
+    ValCall call -> "(" <> showVal call <> ")"
+    Literal val -> showVal val
 
 -- | Name of a call, used to look it up in the namespace.
 --
@@ -101,7 +101,7 @@ unsym :: Symbol -> Text
 unsym (Symbol sym) = sym
 
 instance ShowVal Symbol where
-    show_val (Symbol sym) = sym
+    showVal (Symbol sym) = sym
 
 expr :: [Call val] -> Call val -> Expr val
 expr trans gen = hd :| tl
@@ -125,8 +125,8 @@ call sym args = Call sym (map Literal args)
 call0 :: Symbol -> Call val
 call0 sym = Call sym []
 
-val_call :: Symbol -> [a] -> Term a
-val_call sym args = ValCall (call sym args)
+valCall :: Symbol -> [a] -> Term a
+valCall sym args = ValCall (call sym args)
 
 transform :: Call a -> Expr a -> Expr a
 transform call (hd :| tl) = call :| (hd : tl)
@@ -136,28 +136,28 @@ transform0 = transform . call0
 
 -- | Shortcut to transform an Expr.
 with :: ToExpr a => Symbol -> a -> Expr MiniVal
-with sym = transform0 sym . to_expr
+with sym = transform0 sym . toExpr
 
 -- ** transform
 
-str_to_scale_id :: Str -> Pitch.ScaleId
-str_to_scale_id = Pitch.ScaleId . unstr
+strToScaleId :: Str -> Pitch.ScaleId
+strToScaleId = Pitch.ScaleId . unstr
 
-scale_id_to_str :: Pitch.ScaleId -> Str
-scale_id_to_str (Pitch.ScaleId s) = Str s
+scaleIdToStr :: Pitch.ScaleId -> Str
+scaleIdToStr (Pitch.ScaleId s) = Str s
 
-map_symbol :: (Symbol -> Symbol) -> Call a -> Call a
-map_symbol f (Call call args) = Call (f call) args
+mapSymbol :: (Symbol -> Symbol) -> Call a -> Call a
+mapSymbol f (Call call args) = Call (f call) args
 
 -- | Transform the 'Literal's in an expression.
-map_literals :: (a -> b) -> Expr a -> Expr b
-map_literals = fmap . fmap
+mapLiterals :: (a -> b) -> Expr a -> Expr b
+mapLiterals = fmap . fmap
 
 -- | Transform only the Symbol in the generator position.
-map_generator :: (Symbol -> Symbol) -> Expr a -> Expr a
-map_generator f (call1 :| calls) = case calls of
-    [] -> map_symbol f call1 :| []
-    _ : _ -> call1 :| Lists.mapLast (map_symbol f) calls
+mapGenerator :: (Symbol -> Symbol) -> Expr a -> Expr a
+mapGenerator f (call1 :| calls) = case calls of
+    [] -> mapSymbol f call1 :| []
+    _ : _ -> call1 :| Lists.mapLast (mapSymbol f) calls
 
 -- * ToExpr
 
@@ -165,14 +165,14 @@ map_generator f (call1 :| calls) = case calls of
 -- For example, drum strokes might have a parsed form which can be turned into
 -- calls.
 class ToExpr a where
-    to_expr :: a -> Expr MiniVal
+    toExpr :: a -> Expr MiniVal
 
 -- * Str
 
 newtype Str = Str Text
     deriving (Eq, Ord, Read, Show, DeepSeq.NFData, String.IsString,
         Serialize.Serialize, ShowVal)
-instance Pretty Str where pretty = show_val
+instance Pretty Str where pretty = showVal
 
 unstr :: Str -> Text
 unstr (Str str) = str
@@ -189,21 +189,21 @@ instance String.IsString MiniVal where
     fromString = VStr. String.fromString
 
 instance ShowVal MiniVal where
-    show_val (VNum v) = show_val v
-    show_val (VStr v) = show_val v
+    showVal (VNum v) = showVal v
+    showVal (VStr v) = showVal v
 
-instance Pretty MiniVal where pretty = show_val
+instance Pretty MiniVal where pretty = showVal
 
 instance Serialize.Serialize MiniVal where
-    put (VNum a) = Serialize.put_tag 0 >> Serialize.put a
-    put (VStr a) = Serialize.put_tag 1 >> Serialize.put a
-    get = Serialize.get_tag >>= \case
+    put (VNum a) = Serialize.putTag 0 >> Serialize.put a
+    put (VStr a) = Serialize.putTag 1 >> Serialize.put a
+    get = Serialize.getTag >>= \case
         0 -> VNum <$> Serialize.get
         1 -> VStr <$> Serialize.get
-        tag -> Serialize.bad_tag "MiniVal" tag
+        tag -> Serialize.badTag "MiniVal" tag
 
-class ToVal a where to_val :: a -> MiniVal
+class ToVal a where toVal :: a -> MiniVal
 
-instance ToVal Int where to_val a = to_val (fromIntegral a :: Double)
-instance ToVal Double where to_val = VNum . ScoreT.untyped
-instance ToVal Text where to_val = VStr . Str
+instance ToVal Int where toVal a = toVal (fromIntegral a :: Double)
+instance ToVal Double where toVal = VNum . ScoreT.untyped
+instance ToVal Text where toVal = VStr . Str

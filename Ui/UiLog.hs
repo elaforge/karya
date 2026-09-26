@@ -20,13 +20,13 @@ run :: Monad m => Ui.State -> UiLogT m a
     -> m (Either Ui.Error (a, Ui.State, Update.UiDamage), [Log.Msg])
 run state = Log.run . Ui.run state
 
-run_id :: Ui.State -> UiLog a
+runId :: Ui.State -> UiLog a
     -> (Either Ui.Error (a, Ui.State, Update.UiDamage), [Log.Msg])
-run_id state = Identity.runIdentity . run state
+runId state = Identity.runIdentity . run state
 
-exec_id :: Ui.State -> UiLog a
+execId :: Ui.State -> UiLog a
     -> (Either Ui.Error (Ui.State, Update.UiDamage), [Log.Msg])
-exec_id state = first (fmap extract) . run_id state
+execId state = first (fmap extract) . runId state
     where extract (_, state, updates) = (state, updates)
 
 instance Monad m => Log.LogMonad (UiLogT m) where

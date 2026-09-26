@@ -66,7 +66,7 @@ tir_sam_adi_kirkalam = tirmanam $ date 2022 4 23 $ korvaiS adi
     ]
 
 tir_long_rupaka :: Korvai
-tir_long_rupaka = tirmanam $ korvaiS Tala.rupaka_fast
+tir_long_rupaka = tirmanam $ korvaiS Tala.rupakaFast
     -- 20:06
     [ tri (od.__.k) (su (ktkt.p.kt.p.hv k.t.kt.p.k).od.od.k)
     ]
@@ -112,7 +112,7 @@ tir_sivamani = tirmanam $ date 2023 1 20 $ korvaiS adi
 
 tir_icarnatic_guhan_kamalakiran_rupaka :: Korvai
 tir_icarnatic_guhan_kamalakiran_rupaka =
-    tirmanam $ date 2023 3 10 $ korvaiS Tala.rupaka_fast
+    tirmanam $ date 2023 3 10 $ korvaiS Tala.rupakaFast
     [ tri "D_o" (g $ su "ktpkpktp ktpkpk" . "DDk") -- at 26:00
     , tri "D_o" (g $ su "ktpktpkp tpktpk" . "DDk") -- alternate fingering
     ]

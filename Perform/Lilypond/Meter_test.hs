@@ -9,7 +9,7 @@ import           GHC.Stack (HasCallStack)
 
 import qualified Util.Lists as Lists
 import qualified Util.Test.Testing as Testing
-import           Perform.Lilypond.LilypondTest (parse_meter)
+import           Perform.Lilypond.LilypondTest (parseMeter)
 import qualified Perform.Lilypond.Meter as Meter
 import qualified Perform.Lilypond.Types as Types
 import           Perform.Lilypond.Types (Duration(..))
@@ -21,12 +21,12 @@ import           Util.Test
 
 test_allowed_duration :: Test
 test_allowed_duration = do
-    let f meter start dur = to_lily $
-            convert_duration (parse_meter meter) True start dur
-        to_lily = Text.intercalate "~" . map Types.to_lily
+    let f meter start dur = toLily $
+            convertDuration (parseMeter meter) True start dur
+        toLily = Text.intercalate "~" . map Types.toLily
     let nd = Types.NoteDuration
 
-    equal_durs "4/4" 0 (steps D4 D4 5)
+    equalDurs "4/4" 0 (steps D4 D4 5)
         [ [nd D4 False]
         , [nd D2 False]
         , [nd D2 True]
@@ -40,14 +40,14 @@ test_allowed_duration = do
 
     equal (f "4/4" (d D8) (d D4)) "4"
     equal (f "4/4" (d D8) (d D4 + d D16)) "8~8."
-    equal_durs "4/4" (d D8) (steps D8 D8 5)
+    equalDurs "4/4" (d D8) (steps D8 D8 5)
         [ [nd D8 False]
         , [nd D4 False]
         , [nd D4 True]
         , [nd D4 True, nd D8 False]
         , [nd D4 True, nd D4 False]
         ]
-    equal_durs "4/4" (d D16) (steps D16 D16 5)
+    equalDurs "4/4" (d D16) (steps D16 D16 5)
         [ [nd D16 False]
         , [nd D8 False]
         , [nd D8 True]
@@ -57,15 +57,15 @@ test_allowed_duration = do
     -- But if I have to break it, break at the quarter.
     equal (f "4/4" (d D8) (d D8 * 2 + d D16)) "8~8."
 
-    equal_durs "3/4" 0 (steps D4 D4 4)
+    equalDurs "3/4" 0 (steps D4 D4 4)
         [ [nd D4 False]
         , [nd D2 False]
         , [nd D2 True]
         , [nd D2 True, nd D4 False]
         ]
     equal (f "3/4" (d D8) (d D4)) "4"
-    equal_durs "3/4" (d D8) [d D8 * 3] [[nd D8 False, nd D4 False]]
-    equal_durs "3/4" (d D8) (steps D8 D8 5)
+    equalDurs "3/4" (d D8) [d D8 * 3] [[nd D8 False, nd D4 False]]
+    equalDurs "3/4" (d D8) (steps D8 D8 5)
         [ [nd D8 False]
         , [nd D4 False]
         , [nd D8 False, nd D4 False]
@@ -81,55 +81,55 @@ test_allowed_duration = do
 -- TODO this used to be in Meter, so I tested it.  It's no longer necessary,
 -- so I should probably move to directly testing Meter.allowed_duration, but
 -- it's too much bother right now.
-convert_duration :: Meter.Meter -> Bool -> Types.Time -> Types.Time
+convertDuration :: Meter.Meter -> Bool -> Types.Time -> Types.Time
     -> [Types.NoteDuration]
-convert_duration meter use_dot_ = go
+convertDuration meter useDot_ = go
     where
     go start dur
         | dur <= 0 = []
-        | allowed >= dur = [allowed_dur]
-        | otherwise = allowed_dur : go (start + allowed) (dur - allowed)
+        | allowed >= dur = [allowedDur]
+        | otherwise = allowedDur : go (start + allowed) (dur - allowed)
         where
-        allowed_dur = Meter.allowed_duration use_dot meter start dur
-        allowed = Types.note_dur_to_time allowed_dur
+        allowedDur = Meter.allowedDuration useDot meter start dur
+        allowed = Types.noteDurToTime allowedDur
     -- Dots are always allowed for non-binary meters.
-    use_dot = use_dot_ || not (Meter.is_binary meter)
+    useDot = useDot_ || not (Meter.isBinary meter)
 
 -- This is probably overkill.  "8~8" seems ok for single comparisons.
-equal_durs :: HasCallStack => Text -> Types.Time -> [Types.Time]
+equalDurs :: HasCallStack => Text -> Types.Time -> [Types.Time]
     -> [[Types.NoteDuration]] -> Test
-equal_durs meter_ start durs =
-    Testing.equal_fmt
-        ((fmt_meter meter <>) . Text.unlines . map (fmt_durs start))
-        (map (convert_duration meter True start) durs)
-    where meter = parse_meter meter_
+equalDurs meter_ start durs =
+    Testing.equalFmt
+        ((fmtMeter meter <>) . Text.unlines . map (fmtDurs start))
+        (map (convertDuration meter True start) durs)
+    where meter = parseMeter meter_
 
-fmt_meter :: Meter.Meter -> Text
-fmt_meter meter = Text.unlines $ map fmt_rank [0..3]
+fmtMeter :: Meter.Meter -> Text
+fmtMeter meter = Text.unlines $ map fmtRank [0..3]
     where
-    ranks = Vector.Unboxed.toList $ Meter.meter_ranks meter
-    fmt_rank r = mconcatMap (fmt r) $
+    ranks = Vector.Unboxed.toList $ Meter.meterRanks meter
+    fmtRank r = mconcatMap (fmt r) $
         dropWhile null $ Lists.splitBefore (<=r) ranks
-    fmt r g = Text.justifyLeft (to_spaces g) ' '  (showt r)
-    to_spaces = (`div` fromIntegral (Types.dur_to_time min_duration)) . length
+    fmt r g = Text.justifyLeft (toSpaces g) ' '  (showt r)
+    toSpaces = (`div` fromIntegral (Types.durToTime minDuration)) . length
 
-fmt_durs :: Types.Time -> [Types.NoteDuration] -> Text
-fmt_durs start durs =
-    Text.replicate (fromIntegral $ start `div` min_time) " "
-    <> mconcatMap fmt_dur durs
+fmtDurs :: Types.Time -> [Types.NoteDuration] -> Text
+fmtDurs start durs =
+    Text.replicate (fromIntegral $ start `div` minTime) " "
+    <> mconcatMap fmtDur durs
 
-fmt_dur :: Types.NoteDuration -> Text
-fmt_dur dur =
-    Text.justifyLeft (to_spaces dur - 1) '-' (Types.note_dur_char dur) <> ">"
+fmtDur :: Types.NoteDuration -> Text
+fmtDur dur =
+    Text.justifyLeft (toSpaces dur - 1) '-' (Types.noteDurChar dur) <> ">"
     where
-    to_spaces = fromIntegral . (`div` min_time) . Types.note_dur_to_time
+    toSpaces = fromIntegral . (`div` minTime) . Types.noteDurToTime
 
-min_duration :: Types.Duration
-min_duration = D32
-min_time = Types.dur_to_time min_duration
+minDuration :: Types.Duration
+minDuration = D32
+minTime = Types.durToTime minDuration
 
 d :: Duration -> Types.Time
-d = Types.dur_to_time
+d = Types.durToTime
 
 steps :: Duration -> Duration -> Int -> [Types.Time]
 steps start dur count = take count $ Lists.range_ (d start) (d dur)

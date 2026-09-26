@@ -45,9 +45,9 @@ resample srate input output = Resource.runResourceT $ do
 
 -- * split
 
-g12_1 = split 6 (velocityNames g12_keys)
+g121 = split 6 (velocityNames g12Keys)
     "ness-data/guitar/WQ4zOg/out.wav" "ness-data/g12-1"
-g12_2 = split 6 (velocityNames g12_keys)
+g122 = split 6 (velocityNames g12Keys)
     "ness-data/guitar/hxJpaw/out.wav" "ness-data/g12-2"
 
 splitPolos = split 6 (velocityNames legongKeys)
@@ -67,7 +67,7 @@ split dur names fname outDir = Resource.runResourceT $ do
 
 velocityNames keys =
     [ Lists.join "-"
-        ["str" <> show str, fmt (Midi.from_key key), fmt low, fmt high]
+        ["str" <> show str, fmt (Midi.fromKey key), fmt low, fmt high]
     | (str, key) <- zip [1..10] keys, (low, high) <- rangesFrom vels
     ]
 
@@ -78,7 +78,7 @@ rangesFrom xs =
 fmt :: Int -> String
 fmt = show -- Util.zeroPad 3
 
-g12_keys = [Key.e3, Key.a3, Key.d4, Key.g4, Key.b4, Key.e5]
+g12Keys = [Key.e3, Key.a3, Key.d4, Key.g4, Key.b4, Key.e5]
 
 legongKeys = Key2.c2 : oct ++ map (+12) oct
     where oct = [Key2.c3, Key2.d3, Key2.e3, Key2.g3, Key2.a3]

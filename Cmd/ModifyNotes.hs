@@ -76,54 +76,54 @@ import           Types
 
 -- | This represents a single event on a note track.
 data Note = Note
-    { note_start :: !TrackTime
-    , note_duration :: !TrackTime
-    , note_text :: !Text
+    { noteStart :: !TrackTime
+    , noteDuration :: !TrackTime
+    , noteText :: !Text
     -- | This is the contents of the child tracks, where they overlap this
     -- Note's range.
-    , note_controls :: !Controls
-    , note_index :: !Index
-    , note_control_track_ids :: ![TrackId]
+    , noteControls :: !Controls
+    , noteIndex :: !Index
+    , noteControlTrackIds :: ![TrackId]
     } deriving (Eq, Show)
 
-note_end :: Note -> TrackTime
-note_end note = note_start note + note_duration note
+noteEnd :: Note -> TrackTime
+noteEnd note = noteStart note + noteDuration note
 
-start = Lens.lens note_start (\r a -> r { note_start = a })
-duration = Lens.lens note_duration (\r a -> r { note_duration = a })
-text = Lens.lens note_text (\r a -> r { note_text = a })
-controls = Lens.lens note_controls (\r a -> r { note_controls = a })
-index = Lens.lens note_index (\r a -> r { note_index = a })
+start = Lens.lens noteStart (\r a -> r { noteStart = a })
+duration = Lens.lens noteDuration (\r a -> r { noteDuration = a })
+text = Lens.lens noteText (\r a -> r { noteText = a })
+controls = Lens.lens noteControls (\r a -> r { noteControls = a })
+index = Lens.lens noteIndex (\r a -> r { noteIndex = a })
 
-end = Lens.lens note_end (\r a -> r { note_start = a - note_duration r })
+end = Lens.lens noteEnd (\r a -> r { noteStart = a - noteDuration r })
 
-note_min :: Note -> TrackTime
-note_min n = min (note_start n) (note_end n)
+noteMin :: Note -> TrackTime
+noteMin n = min (noteStart n) (noteEnd n)
 
-note_max :: Note -> TrackTime
-note_max n = max (note_start n) (note_end n)
+noteMax :: Note -> TrackTime
+noteMax n = max (noteStart n) (noteEnd n)
 
-note_orientation :: Note -> Types.Orientation
-note_orientation = Event.orientation_of . note_duration
+noteOrientation :: Note -> Types.Orientation
+noteOrientation = Event.orientationOf . noteDuration
 
 -- | Each note has an Index, which indicates which of the selected note tracks
 -- it came from, or should be written to.
 type Index = Int
 
 instance Pretty Note where
-    format (Note start dur text controls index control_track_ids) =
+    format (Note start dur text controls index controlTrackIds) =
         Pretty.record title $
             (if text == mempty then [] else [("text", Pretty.format text)]) ++
             [ ("controls", Pretty.format controls)
             , ("index", Pretty.format index)
-            , ("control_track_ids", Pretty.format control_track_ids)
+            , ("control_track_ids", Pretty.format controlTrackIds)
             ]
         where
         title = Pretty.text "Note" <> Pretty.format (start, dur)
 
-notes_overlap :: Note -> Note -> Bool
-notes_overlap n1 n2 =
-    not $ note_min n1 >= note_max n2 || note_max n1 <= note_min n2
+notesOverlap :: Note -> Note -> Bool
+notesOverlap n1 n2 =
+    not $ noteMin n1 >= noteMax n2 || noteMax n1 <= noteMin n2
 
 -- * controls
 
@@ -137,26 +137,26 @@ data Control = Pitch Pitch.ScaleId | Control ScoreT.Control
     deriving (Eq, Ord, Show)
 
 instance Pretty Control where
-    pretty = control_to_title
+    pretty = controlToTitle
 
-control_to_title :: Control -> Text
-control_to_title control = case control of
-    Control c -> ParseTitle.control_to_title $ ScoreT.untyped c
-    Pitch scale_id -> ParseTitle.scale_to_title scale_id
+controlToTitle :: Control -> Text
+controlToTitle control = case control of
+    Control c -> ParseTitle.controlToTitle $ ScoreT.untyped c
+    Pitch scaleId -> ParseTitle.scaleToTitle scaleId
 
 type Error = Text
 
-title_to_control :: Text -> Either Error Control
-title_to_control title = ParseTitle.parse_control_type title >>= \case
+titleToControl :: Text -> Either Error Control
+titleToControl title = ParseTitle.parseControlType title >>= \case
     ParseTitle.Control (Right (ScoreT.Typed ScoreT.Untyped c)) Nothing ->
         pure $ Control c
-    ParseTitle.Pitch scale_id (Right pcontrol)
-        | pcontrol == ScoreT.default_pitch -> pure $ Pitch scale_id
+    ParseTitle.Pitch scaleId (Right pcontrol)
+        | pcontrol == ScoreT.defaultPitch -> pure $ Pitch scaleId
     _ -> Left $ "complicated controls unsupported: " <> title
 
 -- | Put the pitch tracks next to the note, the rest go in alphabetical order.
-sorted_controls :: Controls -> [(Control, Events.Events)]
-sorted_controls = Lists.sortOn (key . fst) . Map.toList
+sortedControls :: Controls -> [(Control, Events.Events)]
+sortedControls = Lists.sortOn (key . fst) . Map.toList
     where
     key c@(Pitch {}) = (0, c)
     key c@(Control {}) = (1, c)
@@ -183,103 +183,103 @@ note f _ = pure . map (f . fst)
 -- I verify that the transformation worked.  TODO revisit this if it's annoying
 selection :: Cmd.M m => ModifyNotes m -> m ()
 selection modify = do
-    old_notes <- selected_notes
-    block_id <- Cmd.get_focused_block
-    new_notes <- modify block_id old_notes
+    oldNotes <- selectedNotes
+    blockId <- Cmd.getFocusedBlock
+    newNotes <- modify blockId oldNotes
     -- Clear selected events before merging in new ones.
-    let ranges = remove_ranges old_notes
-    forM_ ranges $ \(track_id, range) ->
-        Ui.remove_events_range track_id range
-    write_tracks block_id (map fst ranges) (merge_notes new_notes)
+    let ranges = removeRanges oldNotes
+    forM_ ranges $ \(trackId, range) ->
+        Ui.removeEventsRange trackId range
+    writeTracks blockId (map fst ranges) (mergeNotes newNotes)
 
-remove_ranges :: [(Note, TrackId)] -> [(TrackId, Events.Range)]
-remove_ranges = concatMap range . Lists.groupSnd
+removeRanges :: [(Note, TrackId)] -> [(TrackId, Events.Range)]
+removeRanges = concatMap range . Lists.groupSnd
     where
     range ([], _) = [] -- shouldn't happen, per Lists.groupSnd's postcondition
-    range (notes@(note : _), track_id) =
-        (track_id, Events.Range start end)
-            : map (, Events.Range start end) (note_control_track_ids note)
+    range (notes@(note : _), trackId) =
+        (trackId, Events.Range start end)
+            : map (, Events.Range start end) (noteControlTrackIds note)
         where
-        start = minimum $ map note_min notes
-        end = maximum $ map note_max notes
+        start = minimum $ map noteMin notes
+        end = maximum $ map noteMax notes
         -- All Notes with the same TrackId should also have the same
         -- note_control_track_ids.
 
 -- | Find the top-level note tracks in the selection, and reduce them down to
 -- Notes.
-selected_notes :: Cmd.M m => m [(Note, TrackId)]
-selected_notes = do
-    let is_note = fmap ParseTitle.is_note_track . Ui.get_track_title . fst
-    sel <- filterM is_note =<< Selection.events
-    tree <- TrackTree.track_tree_of =<< Cmd.get_focused_block
-    slice_tracks tree sel
+selectedNotes :: Cmd.M m => m [(Note, TrackId)]
+selectedNotes = do
+    let isNote = fmap ParseTitle.isNoteTrack . Ui.getTrackTitle . fst
+    sel <- filterM isNote =<< Selection.events
+    tree <- TrackTree.trackTreeOf =<< Cmd.getFocusedBlock
+    sliceTracks tree sel
 
 -- ** annotated transformations
 
 type Annotated a m = [(Note, a)] -> m [Note]
 
-annotate_nns :: Cmd.M m => Annotated (Maybe Pitch.NoteNumber) m
+annotateNns :: Cmd.M m => Annotated (Maybe Pitch.NoteNumber) m
     -> ModifyNotes m
-annotate_nns modify = annotate_controls (modify . map (second (eval <=< fst)))
-    where eval = either (const Nothing) Just . PSignal.pitch_nn
+annotateNns modify = annotateControls (modify . map (second (eval <=< fst)))
+    where eval = either (const Nothing) Just . PSignal.pitchNn
 
-annotate_controls :: Cmd.M m
+annotateControls :: Cmd.M m
     => Annotated (Maybe PSignal.Transposed, ScoreT.ControlValMap) m
     -> ModifyNotes m
-annotate_controls modify block_id note_track_ids = do
-    events <- Cmd.perf_events <$> Cmd.get_performance block_id
-    modify $ find_controls note_track_ids events
+annotateControls modify blockId noteTrackIds = do
+    events <- Cmd.perfEvents <$> Cmd.getPerformance blockId
+    modify $ findControls noteTrackIds events
 
 -- | This finds the controls of each note by looking for its corresponding
 -- event in the performance.  TODO matching by stack seems like it could be
 -- inaccurate, and inefficient too.  Shouldn't I look up the signal directly
 -- from the performance?
-find_controls :: [(Note, TrackId)] -> Vector.Vector Score.Event
+findControls :: [(Note, TrackId)] -> Vector.Vector Score.Event
     -> [(Note, (Maybe PSignal.Transposed, ScoreT.ControlValMap))]
-find_controls note_track_ids events =
-    zip (map fst note_track_ids) $
-        map (extract . convert events) note_track_ids
+findControls noteTrackIds events =
+    zip (map fst noteTrackIds) $
+        map (extract . convert events) noteTrackIds
     where
-    convert events (note, track_id) = find_event track_id note events
+    convert events (note, trackId) = findEvent trackId note events
     extract Nothing = (Nothing, mempty)
     extract (Just event) =
-        ( Score.initial_pitch event
-        , Score.event_controls_at (Score.event_start event) event
+        ( Score.initialPitch event
+        , Score.eventControlsAt (Score.eventStart event) event
         )
 
-find_event :: TrackId -> Note -> Vector.Vector Score.Event -> Maybe Score.Event
-find_event track_id note = Vector.find $ \event ->
-    stack_matches track_id (note_start note) (note_end note) $
-        Score.event_stack event
+findEvent :: TrackId -> Note -> Vector.Vector Score.Event -> Maybe Score.Event
+findEvent trackId note = Vector.find $ \event ->
+    stackMatches trackId (noteStart note) (noteEnd note) $
+        Score.eventStack event
 
-stack_matches :: TrackId -> TrackTime -> TrackTime -> Stack.Stack -> Bool
-stack_matches track_id start end =
-    find_track . find_region start end . Stack.innermost
+stackMatches :: TrackId -> TrackTime -> TrackTime -> Stack.Stack -> Bool
+stackMatches trackId start end =
+    findTrack . findRegion start end . Stack.innermost
     where
-    find_region start end = drop 1 . dropWhile (/= Stack.Region start end)
+    findRegion start end = drop 1 . dropWhile (/= Stack.Region start end)
     -- Find the Track, but abort if I see a region or block
-    find_track frames = case frames of
-        Stack.Track tid : _ -> track_id == tid
-        Stack.Call {} : rest -> find_track rest
+    findTrack frames = case frames of
+        Stack.Track tid : _ -> trackId == tid
+        Stack.Call {} : rest -> findTrack rest
         _ -> False
 
 -- * read
 
-slice_tracks :: Ui.M m => TrackTree.TrackTree -> [(TrackId, [Event.Event])]
+sliceTracks :: Ui.M m => TrackTree.TrackTree -> [(TrackId, [Event.Event])]
     -> m [(Note, TrackId)]
-slice_tracks tree = concatMapM slice . zip [0..]
+sliceTracks tree = concatMapM slice . zip [0..]
     where
     slice :: Ui.M m => (Index, (TrackId, [Event.Event]))
         -> m [(Note, TrackId)]
-    slice (index, (track_id, events)) =
-        case Trees.find ((==track_id) . Ui.track_id) tree of
+    slice (index, (trackId, events)) =
+        case Trees.find ((==trackId) . Ui.trackId) tree of
             Nothing -> pure []
             Just (Tree.Node _track subs) -> do
-                subs <- mapM (traverse get_events) subs
-                notes <- Ui.require_right id $
-                    mapM (slice_note index subs) events
-                pure $ map (, track_id) notes
-    get_events track = (track,) <$> Ui.get_events (Ui.track_id track)
+                subs <- mapM (traverse getEvents) subs
+                notes <- Ui.requireRight id $
+                    mapM (sliceNote index subs) events
+                pure $ map (, trackId) notes
+    getEvents track = (track,) <$> Ui.getEvents (Ui.trackId track)
 
 -- | The whole thing fails if a title is unparseable or the control tracks have
 -- a fork in the skeleton.
@@ -287,34 +287,34 @@ slice_tracks tree = concatMapM slice . zip [0..]
 -- This is similar to 'Derive.Slice.slice' and I initially spent some time
 -- trying to reuse it, but it's different enough that most of the work that
 -- slice does doesn't apply here.
-slice_note :: Index -> [Tree.Tree (Ui.TrackInfo, Events.Events)]
+sliceNote :: Index -> [Tree.Tree (Ui.TrackInfo, Events.Events)]
     -> Event.Event -> Either Error Note
-slice_note index subs event = do
-    controls <- extract_controls (Event.range event) subs
+sliceNote index subs event = do
+    controls <- extractControls (Event.range event) subs
     pure $ Note
-        { note_start = Event.start event
-        , note_duration = Event.duration event
-        , note_text = Event.text event
-        , note_controls = Map.fromList controls
-        , note_index = index
-        , note_control_track_ids = map (Ui.track_id . fst) $
+        { noteStart = Event.start event
+        , noteDuration = Event.duration event
+        , noteText = Event.text event
+        , noteControls = Map.fromList controls
+        , noteIndex = index
+        , noteControlTrackIds = map (Ui.trackId . fst) $
             concatMap Tree.flatten subs
         }
 
-extract_controls :: (TrackTime, TrackTime)
+extractControls :: (TrackTime, TrackTime)
     -> [Tree.Tree (Ui.TrackInfo, Events.Events)]
     -> Either Error [(Control, Events.Events)]
-extract_controls range tracks = case tracks of
+extractControls range tracks = case tracks of
     [] -> pure []
     [Tree.Node (track, events) subs] -> do
-        control <- annotate (showt (Ui.track_id track)) $
-            title_to_control (Ui.track_title track)
-        rest <- extract_controls range subs
+        control <- annotate (showt (Ui.trackId track)) $
+            titleToControl (Ui.trackTitle track)
+        rest <- extractControls range subs
         pure $ (control, slice range events) : rest
     _ -> Left $ ">1 subtrack: "
-        <> showt (map (Ui.track_id . fst . Tree.rootLabel) tracks)
+        <> showt (map (Ui.trackId . fst . Tree.rootLabel) tracks)
     where
-    slice (start, end) e = Events.in_range (Events.Range start end) e
+    slice (start, end) e = Events.inRange (Events.Range start end) e
 
 annotate :: Text -> Either Error a -> Either Error a
 annotate prefix = first ((prefix <> ": ") <>)
@@ -331,103 +331,103 @@ instance Monoid NoteTrack where
     mempty = NoteTrack mempty mempty
     mappend = (<>)
 
-merge_notes :: [Note] -> [NoteTrack]
-merge_notes = map make_track . Lists.groupSort note_index
+mergeNotes :: [Note] -> [NoteTrack]
+mergeNotes = map makeTrack . Lists.groupSort noteIndex
     where
-    make_track :: [Note] -> NoteTrack
-    make_track = foldl' (<>) mempty . map note_track
-    note_track note = NoteTrack (Events.singleton event) (note_controls note)
+    makeTrack :: [Note] -> NoteTrack
+    makeTrack = foldl' (<>) mempty . map noteTrack
+    noteTrack note = NoteTrack (Events.singleton event) (noteControls note)
         where
-        event = Event.event (note_start note) (note_duration note)
-            (note_text note)
+        event = Event.event (noteStart note) (noteDuration note)
+            (noteText note)
 
 -- | Write NoteTracks to the given block.  It may create new tracks, but won't
 -- delete ones that are made empty.
-write_tracks :: Ui.M m => BlockId
+writeTracks :: Ui.M m => BlockId
     -> [TrackId] -- ^ The TrackIds are expected to line up with NoteTracks.
     -- If there are more NoteTracks than TrackIds, new tracks will be created.
     -> [NoteTrack] -> m ()
-write_tracks block_id track_ids tracks = do
-    old_tree <- extract_note_trees block_id track_ids
-    zipWithM_ merge old_tree tracks
-    next_tracknum <- tracknum_after block_id track_ids
-    create next_tracknum (drop (length old_tree) tracks)
+writeTracks blockId trackIds tracks = do
+    oldTree <- extractNoteTrees blockId trackIds
+    zipWithM_ merge oldTree tracks
+    nextTracknum <- tracknumAfter blockId trackIds
+    create nextTracknum (drop (length oldTree) tracks)
     where
     merge (Tree.Node track subs) (NoteTrack events controls) = do
-        Ui.insert_events (Ui.track_id track) (Events.ascending events)
-        merge_controls block_id (Ui.track_id track) subs $
-            sorted_controls controls
+        Ui.insertEvents (Ui.trackId track) (Events.ascending events)
+        mergeControls blockId (Ui.trackId track) subs $
+            sortedControls controls
     -- | Create new tracks.
     create _ [] = pure ()
     create tracknum (NoteTrack events controls : rest)
         | Events.null events = create tracknum rest
         | otherwise = do
             let tracks = (">", events)
-                    : map (first control_to_title) (sorted_controls controls)
+                    : map (first controlToTitle) (sortedControls controls)
             forM_ (zip [tracknum..] tracks) $ \(n, (title, events)) ->
-                Create.track block_id n title events
-            Ui.add_edges block_id $ take (length tracks - 1) $
+                Create.track blockId n title events
+            Ui.addEdges blockId $ take (length tracks - 1) $
                 zip [tracknum..] [tracknum+1..]
-            parent <- maybe (pure Nothing) (parent_of block_id)
-                (Lists.head track_ids)
+            parent <- maybe (pure Nothing) (parentOf blockId)
+                (Lists.head trackIds)
             whenJust parent $ \p ->
-                Ui.add_edges block_id [(Ui.track_tracknum p, tracknum)]
+                Ui.addEdges blockId [(Ui.trackTracknum p, tracknum)]
             create (tracknum + length tracks) rest
 
-extract_note_trees :: Ui.M m => BlockId -> [TrackId] -> m TrackTree.TrackTree
-extract_note_trees block_id track_ids =
-    Trees.findAll (wanted_track (Set.fromList track_ids)) <$>
-        TrackTree.track_tree_of block_id
+extractNoteTrees :: Ui.M m => BlockId -> [TrackId] -> m TrackTree.TrackTree
+extractNoteTrees blockId trackIds =
+    Trees.findAll (wantedTrack (Set.fromList trackIds)) <$>
+        TrackTree.trackTreeOf blockId
     where
     -- | Accept the top level note tracks.
-    wanted_track track_ids track =
-        ParseTitle.is_note_track (Ui.track_title track)
-        && Ui.track_id track `Set.member` track_ids
+    wantedTrack trackIds track =
+        ParseTitle.isNoteTrack (Ui.trackTitle track)
+        && Ui.trackId track `Set.member` trackIds
 
-merge_controls :: Ui.M m => BlockId -> TrackId -> TrackTree.TrackTree
+mergeControls :: Ui.M m => BlockId -> TrackId -> TrackTree.TrackTree
     -> [(Control, Events.Events)] -> m ()
-merge_controls block_id note_track_id tree controls = do
+mergeControls blockId noteTrackId tree controls = do
     -- Don't use Ui.track_tracknum because it will be out of date if
     -- an earlier merge inserted a new track.
-    next_tracknum <- tracknum_after block_id $
-        note_track_id : map Ui.track_id tracks
-    go next_tracknum controls
+    nextTracknum <- tracknumAfter blockId $
+        noteTrackId : map Ui.trackId tracks
+    go nextTracknum controls
     where
     go _ [] = pure ()
     go tracknum ((control, events) : controls) = case find control of
         Just track -> do
-            Ui.insert_events (Ui.track_id track) (Events.ascending events)
+            Ui.insertEvents (Ui.trackId track) (Events.ascending events)
             go tracknum controls
         Nothing -> do
-            Create.track block_id tracknum (control_to_title control) events
+            Create.track blockId tracknum (controlToTitle control) events
             -- Link the new track into the skeleton below the bottom control.
-            parent <- bottom_track block_id note_track_id
+            parent <- bottomTrack blockId noteTrackId
             whenJust parent $ \p ->
-                Ui.add_edges block_id [(Ui.track_tracknum p, tracknum)]
+                Ui.addEdges blockId [(Ui.trackTracknum p, tracknum)]
             go (tracknum+1) controls
     find control =
-        List.find ((== control_to_title control) . Ui.track_title) tracks
+        List.find ((== controlToTitle control) . Ui.trackTitle) tracks
     tracks = concatMap Tree.flatten tree
 
 -- | Get the tracknum after the given tracks.
-tracknum_after :: Ui.M m => BlockId -> [TrackId] -> m TrackNum
-tracknum_after block_id track_ids = do
-    tracknums <- mapM (Ui.get_tracknum_of block_id) track_ids
-    maybe (Ui.track_count block_id) (pure . (+1)) (Lists.maximum tracknums)
+tracknumAfter :: Ui.M m => BlockId -> [TrackId] -> m TrackNum
+tracknumAfter blockId trackIds = do
+    tracknums <- mapM (Ui.getTracknumOf blockId) trackIds
+    maybe (Ui.trackCount blockId) (pure . (+1)) (Lists.maximum tracknums)
 
 -- | Get the bottom track below the given TrackId.  If there are more than one,
 -- pick the one with the highest TrackNum.
-bottom_track :: Ui.M m => BlockId -> TrackId -> m (Maybe Ui.TrackInfo)
-bottom_track block_id track_id = do
-    tree <- TrackTree.track_tree_of block_id
-    pure $ Lists.maximumOn Ui.track_tracknum . Trees.leaves
-        =<< Trees.find ((==track_id) . Ui.track_id) tree
+bottomTrack :: Ui.M m => BlockId -> TrackId -> m (Maybe Ui.TrackInfo)
+bottomTrack blockId trackId = do
+    tree <- TrackTree.trackTreeOf blockId
+    pure $ Lists.maximumOn Ui.trackTracknum . Trees.leaves
+        =<< Trees.find ((==trackId) . Ui.trackId) tree
 
-parent_of :: Ui.M m => BlockId -> TrackId -> m (Maybe Ui.TrackInfo)
-parent_of block_id track_id = do
-    tree <- TrackTree.track_tree_of block_id
+parentOf :: Ui.M m => BlockId -> TrackId -> m (Maybe Ui.TrackInfo)
+parentOf blockId trackId = do
+    tree <- TrackTree.trackTreeOf blockId
     pure $ Lists.head
         [ track
         | (track, _, children) <- Trees.flatPaths tree
-        , track_id `elem` map Ui.track_id children
+        , trackId `elem` map Ui.trackId children
         ]

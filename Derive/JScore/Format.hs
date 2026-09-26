@@ -3,14 +3,14 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 {-# LANGUAGE StrictData #-}
 module Derive.JScore.Format (
-    format_file
-    , format_score
-    , format_block
-    , format_title
-    , format_gatra
-    , format_balungan
+    formatFile
+    , formatScore
+    , formatBlock
+    , formatTitle
+    , formatGatra
+    , formatBalungan
 
-    , transform_block
+    , transformBlock
 ) where
 import qualified Data.List as List
 import qualified Data.Text as Text
@@ -30,68 +30,68 @@ import           Global
 type Block tracks = T.Block T.Pitch tracks
 type Token pos dur rest = T.Token pos (T.Note T.Pitch dur) rest
 
-format_file :: Check.Transform -> FilePath -> IO ()
-format_file transform = print_score transform <=< Text.IO.readFile
+formatFile :: Check.Transform -> FilePath -> IO ()
+formatFile transform = printScore transform <=< Text.IO.readFile
 
-print_score :: Check.Transform -> Text -> IO ()
-print_score transform source = case Parse.parse_score source of
+printScore :: Check.Transform -> Text -> IO ()
+printScore transform source = case Parse.parseScore source of
     Left err -> Text.IO.putStrLn err
     Right score -> do
         mapM_ Text.IO.putStrLn lines
-        mapM_ (Text.IO.putStrLn . T.show_error source) errs
-        where (lines, errs) = format_score transform score
+        mapM_ (Text.IO.putStrLn . T.showError source) errs
+        where (lines, errs) = formatScore transform score
         -- TODO interleave the errs with the lines
 
 data FormatState = FormatState
-    { state_metas :: [T.Meta]
-    , state_prev_is_block :: Bool
-    , state_transform :: Check.Transform
+    { stateMetas :: [T.Meta]
+    , statePrevIsBlock :: Bool
+    , stateTransform :: Check.Transform
     }
 
 -- | Format a T.Score to print.  This is does some Checks but doesn't
 -- normalize down to Time, because it's more like normalization than lowering.
-format_score :: Check.Transform -> T.ParsedScore -> ([Text], [T.Error])
-format_score transform score =
-    ( concat $ snd $ List.mapAccumL format_toplevel state (map snd toplevels)
+formatScore :: Check.Transform -> T.ParsedScore -> ([Text], [T.Error])
+formatScore transform score =
+    ( concat $ snd $ List.mapAccumL formatToplevel state (map snd toplevels)
     , errs
     )
     where
     state = FormatState [] False transform
-    (T.Score toplevels, errs) = Logger.runId $ Check.format_score score
+    (T.Score toplevels, errs) = Logger.runId $ Check.formatScore score
 
-format_toplevel :: FormatState -> T.Toplevel Check.Block
+formatToplevel :: FormatState -> T.Toplevel Check.Block
     -> (FormatState, [Text])
-format_toplevel state = \case
+formatToplevel state = \case
     T.ToplevelMeta m ->
         ( state
-            { state_metas = m : state_metas state, state_prev_is_block = False }
-        , (if state_prev_is_block state then [""] else []) ++ [format_meta m]
+            { stateMetas = m : stateMetas state, statePrevIsBlock = False }
+        , (if statePrevIsBlock state then [""] else []) ++ [formatMeta m]
         )
     T.BlockDefinition block ->
-        ( state { state_prev_is_block = True }
-        , format_title_block state block
+        ( state { statePrevIsBlock = True }
+        , formatTitleBlock state block
         )
 
-format_title_block :: FormatState -> Check.Block -> [Text]
-format_title_block state block =
-    format_title block : format_block (const id) irama inst
-        (transform_block (state_transform state) block)
+formatTitleBlock :: FormatState -> Check.Block -> [Text]
+formatTitleBlock state block =
+    formatTitle block : formatBlock (const id) irama inst
+        (transformBlock (stateTransform state) block)
     where
     irama = Lists.head [i | T.Irama i <- metas]
     inst = Lists.head [i | T.Instrument i <- metas]
-    metas = state_metas state
+    metas = stateMetas state
 
-transform_block :: Check.Transform -> Block [[Token pos dur rest]]
+transformBlock :: Check.Transform -> Block [[Token pos dur rest]]
     -> Block [[Token pos dur rest]]
-transform_block trans block = block
-    { T.block_gatra = trans <$> T.block_gatra block
-    , T.block_tracks = map (T.map_pitch trans) (T.block_tracks block)
+transformBlock trans block = block
+    { T.blockGatra = trans <$> T.blockGatra block
+    , T.blockTracks = map (T.mapPitch trans) (T.blockTracks block)
     }
 
-format_block :: (pos -> Text -> Text) -> Maybe T.Irama -> Maybe T.Instrument
+formatBlock :: (pos -> Text -> Text) -> Maybe T.Irama -> Maybe T.Instrument
     -> Block [[Token pos dur T.Rest]] -> [Text]
-format_block fmt_pos irama inst block =
-    map (("    "<>) . format_tokens fmt_pos bias) (T.block_tracks block)
+formatBlock fmtPos irama inst block =
+    map (("    "<>) . formatTokens fmtPos bias) (T.blockTracks block)
     where
     -- This actually corresponds to parts which are written with every beat
     -- and which ones use overbars.  Or could say that the basic speed for
@@ -102,70 +102,70 @@ format_block fmt_pos irama inst block =
         | inst == Just T.GenderPanerus && irama >= Just T.Dadi = Check.BiasEnd
         | otherwise = Check.BiasStart
 
-format_title :: Block tracks -> Text
-format_title block =
-    Texts.join2 " " (format_gatra block_gatra) (Text.unwords block_names)
-    <> if null block_inferred then ""
-        else " [" <> Text.unwords block_inferred <> "]"
+formatTitle :: Block tracks -> Text
+formatTitle block =
+    Texts.join2 " " (formatGatra blockGatra) (Text.unwords blockNames)
+    <> if null blockInferred then ""
+        else " [" <> Text.unwords blockInferred <> "]"
     where
-    T.Block { block_gatra, block_names, block_inferred } = block
+    T.Block { blockGatra, blockNames, blockInferred } = block
 
-format_meta :: T.Meta -> Text
-format_meta = Text.drop 1 . Parse.unparse
+formatMeta :: T.Meta -> Text
+formatMeta = Text.drop 1 . Parse.unparse
     -- Input syntax uses a leading %.
 
-format_gatra :: T.Gatra T.Pitch -> Text
-format_gatra = mconcatMap format_balungan . T.gatra_notes
+formatGatra :: T.Gatra T.Pitch -> Text
+formatGatra = mconcatMap formatBalungan . T.gatraNotes
 
-format_balungan :: T.Balungan T.Pitch -> Text
-format_balungan (T.Balungan (Just (T.Pitch oct pc)) (Just T.Gong))
+formatBalungan :: T.Balungan T.Pitch -> Text
+formatBalungan (T.Balungan (Just (T.Pitch oct pc)) (Just T.Gong))
     -- The hardcoded circled digit looks better than the combining enclosing
     -- circle.
-    | oct == 0 = Text.singleton $ toEnum (circled_digit_one + fromEnum pc)
-    where circled_digit_one = 0x2460
-format_balungan (T.Balungan pitch annot) = mconcat
-    [ maybe "." format_pitch pitch
+    | oct == 0 = Text.singleton $ toEnum (circledDigitOne + fromEnum pc)
+    where circledDigitOne = 0x2460
+formatBalungan (T.Balungan pitch annot) = mconcat
+    [ maybe "." formatPitch pitch
     , case annot of
         Nothing -> ""
         Just T.Gong -> Text.singleton '\x20dd' -- COMBINING ENCLOSING CIRCLE
         Just T.Kenong -> Text.singleton '\x0302' -- COMBINING CIRCUMFLEX ACCENT
     ]
 
-format_tokens :: (pos -> Text -> Text) -> Check.Bias -> [Token pos dur T.Rest]
+formatTokens :: (pos -> Text -> Text) -> Check.Bias -> [Token pos dur T.Rest]
     -> Text
-format_tokens fmt_pos bias = mconcat . go
+formatTokens fmtPos bias = mconcat . go
     where
-    go ts = zipWith (format_token fmt_pos) beats pre ++ case post of
+    go ts = zipWith (formatToken fmtPos) beats pre ++ case post of
         [] -> []
-        bar : post -> format_token fmt_pos True bar : go post
+        bar : post -> formatToken fmtPos True bar : go post
         where
         beats
             | length pre >= 8 = cycle $ case bias of
                 Check.BiasStart -> [True, False]
                 Check.BiasEnd -> [False, True]
             | otherwise = repeat True
-        (pre, post) = break is_barline ts
-    is_barline (T.TBarline {}) = True
-    is_barline _ = False
+        (pre, post) = break isBarline ts
+    isBarline (T.TBarline {}) = True
+    isBarline _ = False
 
-format_token :: (pos -> Text -> Text) -> Bool -> Token pos dur T.Rest -> Text
-format_token fmt_pos on_beat = \case
+formatToken :: (pos -> Text -> Text) -> Bool -> Token pos dur T.Rest -> Text
+formatToken fmtPos onBeat = \case
     T.TBarline {} -> " | "
     -- T.TBarline {} -> " " <> vertical_line <> " "
-    T.TRest pos (T.Rest { rest_sustain })
-        | on_beat -> fmt_pos pos $ if rest_sustain then "." else "_"
+    T.TRest pos (T.Rest { restSustain })
+        | onBeat -> fmtPos pos $ if restSustain then "." else "_"
         | otherwise -> " "
-    T.TNote pos n -> fmt_pos pos $ format_pitch (T.note_pitch n)
-        <> if T.note_zero_duration n then slash else ""
+    T.TNote pos n -> fmtPos pos $ formatPitch (T.notePitch n)
+        <> if T.noteZeroDuration n then slash else ""
     where
     -- vertical_line = "\x007c" -- VERTICAL LINE
-    slash = if use_slash
+    slash = if useSlash
         then "\x0338" -- COMBINING LONG SOLIDUS OVERLAY
         else "\x0336" -- COMBINING LONG STROKE OVERLAY
-    use_slash = True
+    useSlash = True
 
-format_pitch :: T.Pitch -> Text
-format_pitch (T.Pitch oct pc) = Text.cons (T.pc_char pc) dots
+formatPitch :: T.Pitch -> Text
+formatPitch (T.Pitch oct pc) = Text.cons (T.pcChar pc) dots
     where
     dots = case oct of
         0 -> ""

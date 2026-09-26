@@ -80,15 +80,15 @@ import           Types
 main :: IO ()
 main = do
     Encoding.setLocaleEncoding Encoding.utf8
-    Log.configure $ \state -> state { Log.state_priority = Log.Notice }
+    Log.configure $ \state -> state { Log.statePriority = Log.Notice }
     (flags, args, errors) <- GetOpt.getOpt GetOpt.Permute options <$>
         Environment.getArgs
     unless (null errors) $ usage errors
-    if  | Check `elem` flags -> mapM_ check_score args
-        | Dump `elem` flags -> mapM_ dump_score args
-        | List `elem` flags -> list_devices
+    if  | Check `elem` flags -> mapM_ checkScore args
+        | Dump `elem` flags -> mapM_ dumpScore args
+        | List `elem` flags -> listDevices
         | otherwise -> case args of
-            [fname] -> play_score (Lists.last [d | Device d <- flags]) fname
+            [fname] -> playScore (Lists.last [d | Device d <- flags]) fname
             _ -> usage []
     where
     usage errors = die $ Text.stripEnd $ Text.unlines $ map txt errors ++
@@ -113,139 +113,139 @@ die msg = do
     Text.IO.hPutStrLn IO.stderr msg
     Exit.exitFailure
 
-get_device :: String -> IO StreamAudio.Device
-get_device name = do
+getDevice :: String -> IO StreamAudio.Device
+getDevice name = do
     (devs, _) <- StreamAudio.getDevices
     maybe (errorIO $ "unknown device: " <> showt name) (pure . snd) $
         List.find ((==name) . fst) devs
 
-initialize_midi :: (Interface.Interface -> IO a) -> IO a
-initialize_midi app = MidiDriver.initialize "tscore" (const False) $ \case
+initializeMidi :: (Interface.Interface -> IO a) -> IO a
+initializeMidi app = MidiDriver.initialize "tscore" (const False) $ \case
     Left err -> die $ "error initializing midi: " <> err
-    Right midi_interface -> app =<< Interface.track_interface midi_interface
+    Right midiInterface -> app =<< Interface.trackInterface midiInterface
 
-check_score :: FilePath -> IO ()
-check_score fname = do
+checkScore :: FilePath -> IO ()
+checkScore fname = do
     source <- Text.IO.readFile fname
-    cmd_config <- DeriveSaved.load_cmd_config
-    case TScore.parse_score cmd_config source of
+    cmdConfig <- DeriveSaved.loadCmdConfig
+    case TScore.parseScore cmdConfig source of
         Left err -> Text.IO.putStrLn $ txt fname <> ": " <> err
-        Right ui_state -> Text.IO.putStr $ Transform.show_stats ui_state
+        Right uiState -> Text.IO.putStr $ Transform.showStats uiState
 
-list_devices :: IO ()
-list_devices = PortAudio.initialize $ initialize_midi $ \midi_interface -> do
+listDevices :: IO ()
+listDevices = PortAudio.initialize $ initializeMidi $ \midiInterface -> do
     putStrLn "Audio devices:"
-    (devs, default_dev) <- StreamAudio.getDevices
+    (devs, defaultDev) <- StreamAudio.getDevices
     forM_ (map fst devs) $ \dev ->
-        putStrLn $ (if dev == default_dev then "* " else "  ") <> show dev
+        putStrLn $ (if dev == defaultDev then "* " else "  ") <> show dev
     putStrLn "Midi devices:"
-    wdevs <- Interface.write_devices midi_interface
-    static_config <- Local.Config.load_static_config
-    print_midi_devices wdevs
-        (StaticConfig.wdev_map (StaticConfig.midi static_config))
+    wdevs <- Interface.writeDevices midiInterface
+    staticConfig <- Local.Config.loadStaticConfig
+    printMidiDevices wdevs
+        (StaticConfig.wdevMap (StaticConfig.midi staticConfig))
 
-dump_score :: FilePath -> IO ()
-dump_score fname = do
+dumpScore :: FilePath -> IO ()
+dumpScore fname = do
     source <- Text.IO.readFile fname
-    cmd_config <- DeriveSaved.load_cmd_config
-    (ui_state, cmd_state) <- either die pure =<< load_score cmd_config source
-    dump <- either (die . pretty) pure $ Ui.eval ui_state Simple.dump_state
+    cmdConfig <- DeriveSaved.loadCmdConfig
+    (uiState, cmdState) <- either die pure =<< loadScore cmdConfig source
+    dump <- either (die . pretty) pure $ Ui.eval uiState Simple.dumpState
     Pretty.pprint dump
 
-    block_id <- maybe (die "no root block") pure $
-        Ui.config#UiConfig.root #$ ui_state
-    let (events, logs) = derive ui_state cmd_state block_id
+    blockId <- maybe (die "no root block") pure $
+        Ui.config#UiConfig.root #$ uiState
+    let (events, logs) = derive uiState cmdState blockId
     mapM_ Log.write logs
-    mapM_ (Text.IO.putStrLn . Score.short_event) events
+    mapM_ (Text.IO.putStrLn . Score.shortEvent) events
     putStrLn "\n\tscore events:"
     mapM_ Log.write logs
-    mapM_ (Text.IO.putStrLn . Score.short_event) events
+    mapM_ (Text.IO.putStrLn . Score.shortEvent) events
 
-    ((im_notes, logs), events) <-
-        pure $ convert_im ui_state cmd_state block_id events
-    unless (null im_notes && null logs) $ do
+    ((imNotes, logs), events) <-
+        pure $ convertIm uiState cmdState blockId events
+    unless (null imNotes && null logs) $ do
         putStrLn "\n\tim events:"
         mapM_ Log.write logs
-        mapM_ Pretty.pprint im_notes
+        mapM_ Pretty.pprint imNotes
 
-    let ((midi_msgs, sc_msgs), logs) =
-            DeriveSaved.perform cmd_state ui_state events
+    let ((midiMsgs, scMsgs), logs) =
+            DeriveSaved.perform cmdState uiState events
     mapM_ Log.write logs
-    unless (null midi_msgs) $ do
+    unless (null midiMsgs) $ do
         putStrLn "\n\tmidi msgs:"
-        mapM_ Pretty.pprint midi_msgs
-    unless (null sc_msgs) $ do
+        mapM_ Pretty.pprint midiMsgs
+    unless (null scMsgs) $ do
         putStrLn "\n\tsc msgs:"
-        mapM_ Pretty.pprint sc_msgs
+        mapM_ Pretty.pprint scMsgs
 
-convert_im :: Ui.State -> Cmd.State -> BlockId
+convertIm :: Ui.State -> Cmd.State -> BlockId
     -> Vector.Vector Score.Event
     -> (([Shared.Note.Note], [Log.Msg]), Vector.Vector Score.Event)
-convert_im ui_state cmd_state block_id events =
+convertIm uiState cmdState blockId events =
     ( LEvent.partition $
-        Im.Convert.convert block_id lookup_inst $ Vector.toList im_events
-    , rest_events
+        Im.Convert.convert blockId lookupInst $ Vector.toList imEvents
+    , restEvents
     )
     where
-    (im_events, rest_events) = Vector.partition is_im_event events
-    is_im_event =
-        maybe False (is_im . Cmd.inst_instrument) . lookup_inst
-            . Score.event_instrument
-    is_im (Inst.Inst (Inst.Im {}) _) = True
-    is_im _ = False
-    lookup_inst = either (const Nothing) Just
-        . Cmd.state_lookup_instrument ui_state cmd_state
+    (imEvents, restEvents) = Vector.partition isImEvent events
+    isImEvent =
+        maybe False (isIm . Cmd.instInstrument) . lookupInst
+            . Score.eventInstrument
+    isIm (Inst.Inst (Inst.Im {}) _) = True
+    isIm _ = False
+    lookupInst = either (const Nothing) Just
+        . Cmd.stateLookupInstrument uiState cmdState
 
-play_score :: Maybe String -> FilePath -> IO ()
-play_score mb_device fname = PortAudio.initialize $ initialize_midi $
-        \midi_interface -> do
+playScore :: Maybe String -> FilePath -> IO ()
+playScore mbDevice fname = PortAudio.initialize $ initializeMidi $
+        \midiInterface -> do
     source <- Text.IO.readFile fname
-    cmd_config <- load_cmd_config midi_interface
-    (ui_state, cmd_state) <- either die pure =<< load_score cmd_config source
-    initialize_instruments ui_state cmd_state
+    cmdConfig <- loadCmdConfig midiInterface
+    (uiState, cmdState) <- either die pure =<< loadScore cmdConfig source
+    initializeInstruments uiState cmdState
 
-    block_id <- maybe (die "no root block") pure $
-        Ui.config#UiConfig.root #$ ui_state
-    let (im_events, logs) = derive ui_state cmd_state block_id
+    blockId <- maybe (die "no root block") pure $
+        Ui.config#UiConfig.root #$ uiState
+    let (imEvents, logs) = derive uiState cmdState blockId
     mapM_ Log.write logs
 
     let start = 0 -- TODO from cmdline
 
-    let score_path = fname
-    (procs, events) <- perform_im score_path cmd_state ui_state im_events
-        block_id
-    play_ctl <- Transport.play_control
-    players <- Transport.active_players
+    let scorePath = fname
+    (procs, events) <- performIm scorePath cmdState uiState imEvents
+        blockId
+    playCtl <- Transport.playControl
+    players <- Transport.activePlayers
     unless (null procs) $ do
-        mb_device <- traverse get_device mb_device
-        play_im mb_device score_path players play_ctl block_id start im_events
-            (get_im_instruments ui_state) procs
+        mbDevice <- traverse getDevice mbDevice
+        playIm mbDevice scorePath players playCtl blockId start imEvents
+            (getImInstruments uiState) procs
 
-    let ((midi_msgs, sc_msgs), logs) =
-            DeriveSaved.perform cmd_state ui_state events
+    let ((midiMsgs, scMsgs), logs) =
+            DeriveSaved.perform cmdState uiState events
     mapM_ Log.write logs
-    unless (null sc_msgs) $ Sc.Play.play
-        (Sc.Play.State { _play_control = play_ctl, _players = players })
-        (Sc.Note.PlayNotes { shift = 0, stretch = 1, notes = sc_msgs })
+    unless (null scMsgs) $ Sc.Play.play
+        (Sc.Play.State { _playControl = playCtl, _players = players })
+        (Sc.Note.PlayNotes { shift = 0, stretch = 1, notes = scMsgs })
         Nothing
 
     -- TODO since I have to wait for im, I may have to bump MIDI forward.
     -- Of course they won't be very in sync anyway...
-    unless (null midi_msgs) $
-        play_midi play_ctl players midi_interface cmd_state ui_state midi_msgs
+    unless (null midiMsgs) $
+        playMidi playCtl players midiInterface cmdState uiState midiMsgs
 
     Thread.startLogged "kbd" $ do
         putStrLn "press return to stop player"
         _ <- IO.getLine
-        Transport.stop_player play_ctl
+        Transport.stopPlayer playCtl
     putStrLn "waiting for players to complete..."
-    Transport.wait_player_stopped players
+    Transport.waitPlayerStopped players
     Thread.delay 0.1 -- let threads print final logs before exiting
     putStrLn "done"
 
-initialize_instruments :: Ui.State -> Cmd.State -> IO ()
-initialize_instruments ui_state cmd_state = do
-    (result, logs) <- Cmd.eval ui_state cmd_state sc_initialize
+initializeInstruments :: Ui.State -> Cmd.State -> IO ()
+initializeInstruments uiState cmdState = do
+    (result, logs) <- Cmd.eval uiState cmdState scInitialize
     case result of
         Left err -> Log.warn $ txt err
         Right () -> pure ()
@@ -253,107 +253,107 @@ initialize_instruments ui_state cmd_state = do
 
 -- | Ask scsynth to load the patches.  TODO: if this gets slow, is there some
 -- way to detect if the server is up to date and skip this?
-sc_initialize :: Cmd.CmdT IO ()
-sc_initialize = do
-    insts <- Ui.get_config $ Map.keys . UiConfig.unallocations
-        . UiConfig.config_allocations
-    patches <- mapMaybe Cmd.sc_patch <$> mapM Cmd.get_instrument insts
+scInitialize :: Cmd.CmdT IO ()
+scInitialize = do
+    insts <- Ui.getConfig $ Map.keys . UiConfig.unallocations
+        . UiConfig.configAllocations
+    patches <- mapMaybe Cmd.scPatch <$> mapM Cmd.getInstrument insts
     unless (null patches) $ liftIO $ do
-        Sc.Play.add_default_group
-        sc_initialize_patches patches
+        Sc.Play.addDefaultGroup
+        scInitializePatches patches
 
-sc_initialize_patches :: [Sc.Patch.Patch] -> IO ()
-sc_initialize_patches patches = Sc.Play.version >>= \case
+scInitializePatches :: [Sc.Patch.Patch] -> IO ()
+scInitializePatches patches = Sc.Play.version >>= \case
     Left err -> errorIO $ "can't initialize sc patches: " <> err
     Right msg -> do
         Text.IO.putStrLn $ "found scsynth: " <> msg
         Text.IO.putStrLn $ "loading patches: "
             <> Text.unwords (map (Texts.toText . Sc.Patch.name) patches)
-        mapM_ Sc.Play.initialize_patch patches
+        mapM_ Sc.Play.initializePatch patches
         ((), dur) <- Thread.timeActionText $ Sc.Play.sync
         Text.IO.putStrLn $ "sync took: " <> dur
 
 -- * midi
 
-play_midi :: Transport.PlayControl -> Transport.ActivePlayers
+playMidi :: Transport.PlayControl -> Transport.ActivePlayers
     -> Interface.Interface -> Cmd.State -> Ui.State
     -> [LEvent.LEvent Midi.WriteMessage] -> IO ()
-play_midi play_ctl players midi_interface cmd_state ui_state midi_msgs = do
-    wdevs <- Interface.write_devices midi_interface
-    mapM_ (Interface.connect_write_device midi_interface) (map fst wdevs)
-    mvar <- MVar.newMVar ui_state
-    Midi.Play.play (midi_state mvar) Nothing "tscore" midi_msgs Nothing
+playMidi playCtl players midiInterface cmdState uiState midiMsgs = do
+    wdevs <- Interface.writeDevices midiInterface
+    mapM_ (Interface.connectWriteDevice midiInterface) (map fst wdevs)
+    mvar <- MVar.newMVar uiState
+    Midi.Play.play (midiState mvar) Nothing "tscore" midiMsgs Nothing
     where
-    midi_state mvar = Midi.Play.State
-        { _play_control = play_ctl
+    midiState mvar = Midi.Play.State
+        { _playControl = playCtl
         , _players = players
-        , _info = transport_info mvar
-        , _im_end = Nothing
+        , _info = transportInfo mvar
+        , _imEnd = Nothing
         }
-    transport_info mvar = Transport.Info
-        { info_send_status = \status -> print status -- TODO
-        , info_midi_writer = Cmd.state_midi_writer cmd_state
-        , info_midi_abort = Interface.abort midi_interface
-        , info_get_current_time = Interface.now midi_interface
+    transportInfo mvar = Transport.Info
+        { infoSendStatus = \status -> print status -- TODO
+        , infoMidiWriter = Cmd.stateMidiWriter cmdState
+        , infoMidiAbort = Interface.abort midiInterface
+        , infoGetCurrentTime = Interface.now midiInterface
         -- This is unused by midi player, but Midi.Play wants it anyway
-        , info_state = mvar
+        , infoState = mvar
         }
 
-print_midi_devices :: [(Midi.WriteDevice, [Midi.WriteDevice])]
+printMidiDevices :: [(Midi.WriteDevice, [Midi.WriteDevice])]
     -> Map Midi.WriteDevice Midi.WriteDevice -> IO ()
-print_midi_devices wdevs wdev_map =
+printMidiDevices wdevs wdevMap =
     forM_ wdevs $ \(wdev, aliases) -> Text.IO.putStrLn $ Text.unwords $
         [ "  " <> pretty wdev
         , if null aliases then "" else pretty aliases
         , maybe "" (("<- "<>) . Text.intercalate ", " . map pretty) $
-            Map.lookup wdev wdev_to_names
+            Map.lookup wdev wdevToNames
         ]
-    where wdev_to_names = Maps.multimap $ map Tuple.swap $ Map.toList wdev_map
+    where wdevToNames = Maps.multimap $ map Tuple.swap $ Map.toList wdevMap
 
 -- * derive
 
 derive :: Ui.State -> Cmd.State -> BlockId
     -> (Vector.Vector Score.Event, [Log.Msg])
-derive ui_state cmd_state block_id = (Cmd.perf_events perf, warns ++ logs)
+derive uiState cmdState blockId = (Cmd.perfEvents perf, warns ++ logs)
     where
-    (perf, logs) = Performance.derive ui_state cmd_state block_id
-    warns = filter ((>=Log.Warn) . Log.msg_priority) (Cmd.perf_logs perf)
+    (perf, logs) = Performance.derive uiState cmdState blockId
+    warns = filter ((>=Log.Warn) . Log.msgPriority) (Cmd.perfLogs perf)
 
 -- Derived from Solkattu.Play.derive_to_disk.
-perform_im :: FilePath -> Cmd.State -> Ui.State -> Vector.Vector Score.Event
+performIm :: FilePath -> Cmd.State -> Ui.State -> Vector.Vector Score.Event
     -> BlockId -> IO ([Performance.Process], Vector.Vector Score.Event)
-perform_im score_path cmd_state ui_state events block_id = do
-    let im_config = Cmd.config_im (Cmd.state_config cmd_state)
-        lookup_inst = either (const Nothing) Just
-            . Cmd.state_lookup_instrument ui_state cmd_state
-    (procs, non_im) <- Performance.evaluate_im im_config lookup_inst score_path
-        0 1 block_id events
-    pure (procs, non_im)
+performIm scorePath cmdState uiState events blockId = do
+    let imConfig = Cmd.configIm (Cmd.stateConfig cmdState)
+        lookupInst = either (const Nothing) Just
+            . Cmd.stateLookupInstrument uiState cmdState
+    (procs, nonIm) <- Performance.evaluateIm imConfig lookupInst scorePath
+        0 1 blockId events
+    pure (procs, nonIm)
 
-play_im :: Maybe StreamAudio.Device -> FilePath -> Transport.ActivePlayers
+playIm :: Maybe StreamAudio.Device -> FilePath -> Transport.ActivePlayers
     -> Transport.PlayControl -> BlockId -> RealTime
     -> Vector.Vector Score.Event -> Set ScoreT.Instrument
     -> [Performance.Process] -> IO ()
-play_im mb_device score_path players play_ctl block_id start events
-        im_instruments procs = do
+playIm mbDevice scorePath players playCtl blockId start events
+        imInstruments procs = do
     putStrLn $ "\nim render:"
     forM_ procs $ \(cmd, args) ->
         putStrLn $ unwords $ "%" : cmd : args
     ready <- MVar.newEmptyMVar
     Thread.startLogged "play_im" $ do
-        ok <- Performance.wait_for_subprocesses
+        ok <- Performance.waitForSubprocesses
             (MVar.putMVar ready ())
-            expected_instruments
+            expectedInstruments
             (Set.fromList procs)
         unless ok $ Log.warn "background render had a problem"
-    Log.debug $ "wait for instruments: " <> pretty expected_instruments
+    Log.debug $ "wait for instruments: " <> pretty expectedInstruments
     MVar.takeMVar ready
-    let Transport.PlayControl quit = play_ctl
+    let Transport.PlayControl quit = playCtl
     let muted = mempty
-    Transport.player_started players
+    Transport.playerStarted players
     Thread.startLogged "stream_audio" $
-        StreamAudio.play False mb_device quit score_path block_id muted start
-            `Exception.finally` Transport.player_stopped players
+        StreamAudio.play False mbDevice quit scorePath blockId muted start
+            `Exception.finally` Transport.playerStopped players
     pure ()
     where
     -- This is a bit too tricky.  I want to make sure all instruments have
@@ -362,37 +362,37 @@ play_im mb_device score_path players play_ctl block_id start events
     -- used.  I could filter on start, but since im emits empty chunks for
     -- instruments that haven't started, it should be harmless to wait for them
     -- all.
-    expected_instruments = Vector.foldl' add mempty $
-        Vector.filter ((`Set.member` im_instruments) . Score.event_instrument)
+    expectedInstruments = Vector.foldl' add mempty $
+        Vector.filter ((`Set.member` imInstruments) . Score.eventInstrument)
         events
-    add = flip $ Set.insert . Score.event_instrument
+    add = flip $ Set.insert . Score.eventInstrument
 
-get_im_instruments :: Ui.State -> Set ScoreT.Instrument
-get_im_instruments = Set.fromList . map fst
-    . filter (UiConfig.is_im_allocation . snd) . Map.toList
-    . (Ui.config#UiConfig.allocations_map #$)
+getImInstruments :: Ui.State -> Set ScoreT.Instrument
+getImInstruments = Set.fromList . map fst
+    . filter (UiConfig.isImAllocation . snd) . Map.toList
+    . (Ui.config#UiConfig.allocationsMap #$)
 
 -- * load
 
 type Error = Text
 
-load_cmd_config :: Interface.Interface -> IO Cmd.Config
-load_cmd_config midi_interface = do
-    static_config <- Local.Config.load_static_config
-    app_dir <- Path.get_app_dir
-    save_dir <- Path.canonical $ Path.to_absolute app_dir App.Config.save_dir
-    pure $ StaticConfig.cmd_config app_dir save_dir midi_interface
-        static_config (SaveGitT.User "user" "name")
+loadCmdConfig :: Interface.Interface -> IO Cmd.Config
+loadCmdConfig midiInterface = do
+    staticConfig <- Local.Config.loadStaticConfig
+    appDir <- Path.getAppDir
+    saveDir <- Path.canonical $ Path.toAbsolute appDir App.Config.saveDir
+    pure $ StaticConfig.cmdConfig appDir saveDir midiInterface
+        staticConfig (SaveGitT.User "user" "name")
 
-load_score :: Cmd.Config -> Text -> IO (Either Error (Ui.State, Cmd.State))
-load_score cmd_config source = Except.runExceptT $ do
-    ui_state <- tryRight $ TScore.parse_score cmd_config source
+loadScore :: Cmd.Config -> Text -> IO (Either Error (Ui.State, Cmd.State))
+loadScore cmdConfig source = Except.runExceptT $ do
+    uiState <- tryRight $ TScore.parseScore cmdConfig source
     -- TODO adjust starting line in error
     (builtins, aliases, allocs) <- tryRight . first ("parsing %ky: "<>)
-        =<< liftIO (Ky.load ky_paths (Ui.config#UiConfig.ky #$ ui_state))
-    let cmd_state = DeriveSaved.add_library builtins aliases $
-            Cmd.initial_state cmd_config
-    pure (Ui.config#UiConfig.allocations #= allocs $ ui_state, cmd_state)
+        =<< liftIO (Ky.load kyPaths (Ui.config#UiConfig.ky #$ uiState))
+    let cmdState = DeriveSaved.addLibrary builtins aliases $
+            Cmd.initialState cmdConfig
+    pure (Ui.config#UiConfig.allocations #= allocs $ uiState, cmdState)
     where
     -- For now, I don't support ky import.
-    ky_paths = []
+    kyPaths = []

@@ -48,7 +48,7 @@ test_actualDuration = do
 
 test_envelopeDur :: Test
 test_envelopeDur = do
-    let f start = RenderSample.envelopeDuration start . Signal.from_pairs
+    let f start = RenderSample.envelopeDuration start . Signal.fromPairs
     equal (f 0 [(0, 0), (1, 0), (2, 0)]) (Just 0)
     equal (f 0 [(0, 0), (1, 1)]) Nothing
     equal (f 0 [(0, 1), (1, 0), (2, 0)]) (Just 1)
@@ -58,7 +58,7 @@ test_envelopeDur = do
     equal (f 1 []) Nothing
 
 checkDuration = do
-    let ratios = Signal.shift (-42.5) $ Signal.from_pairs
+    let ratios = Signal.shift (-42.5) $ Signal.fromPairs
             [ (42.5, 0.9438743126816925)
             , (42.75, 0.9438743126816925)
             , (42.75, 0.9438743126816925)
@@ -74,7 +74,7 @@ checkDuration = do
 
 -- | Signal.from_pairs but on Frames instead of RealTime.
 signal :: [(Audio.Frames, Signal.Y)] -> Signal.Signal
-signal = Signal.from_pairs . map (first AUtil.toSeconds)
+signal = Signal.fromPairs . map (first AUtil.toSeconds)
 
 verify :: Resample.Quality -> Signal.Signal
     -> Audio.Frames -- ^ sample duration

@@ -19,23 +19,23 @@ import Global
 
 
 -- Run by hand to manually derive a score to see how long it takes.
-profile_file = do
-    cmd_config <- DeriveSaved.load_cmd_config
-    results <- perform cmd_config "save/wayang/speed-test"
-    let maybe_perf = CmdTest.e_performance (D.bid "wayang/top") $
-            ResponderTest.result_cmd (last results)
+profileFile = do
+    cmdConfig <- DeriveSaved.loadCmdConfig
+    results <- perform cmdConfig "save/wayang/speed-test"
+    let maybePerf = CmdTest.ePerformance (D.bid "wayang/top") $
+            ResponderTest.resultCmd (last results)
     putStrLn "perf:"
-    whenJust maybe_perf $ \perf -> do
-        putStrLn $ "events: " <> show (Vector.length (Cmd.perf_events perf))
+    whenJust maybePerf $ \perf -> do
+        putStrLn $ "events: " <> show (Vector.length (Cmd.perfEvents perf))
         putStrLn "logs:"
-        mapM_ prettyp $ filter (not . Cache.is_cache_log) (Cmd.perf_logs perf)
+        mapM_ prettyp $ filter (not . Cache.isCacheLog) (Cmd.perfLogs perf)
     pure ()
 
 perform :: Cmd.Config -> FilePath -> IO [ResponderTest.Result]
-perform cmd_config fname = do
-    let states = (Ui.empty, Cmd.initial_state cmd_config)
-    let continue = ResponderTest.continue_all [] 8
-    result <- ResponderTest.respond_cmd states $ Save.load fname
+perform cmdConfig fname = do
+    let states = (Ui.empty, Cmd.initialState cmdConfig)
+    let continue = ResponderTest.continueAll [] 8
+    result <- ResponderTest.respondCmd states $ Save.load fname
     results1 <- continue result
     -- The first one is cancelled because of loading the defs file.
     results2 <- continue (last results1)

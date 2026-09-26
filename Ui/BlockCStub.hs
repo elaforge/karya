@@ -27,116 +27,116 @@ import Types
 
 -- * query
 
-get_screens :: IO [Rect.Rect]
-get_screens = pure [Rect.xywh 0 0 800 600]
+getScreens :: IO [Rect.Rect]
+getScreens = pure [Rect.xywh 0 0 800 600]
 
 -- * view creation
 
-create_view :: ViewId -> Text -> Rect.Rect -> Block.Config -> Fltk ()
-create_view view_id window_title rect block_config = fltk $ pure ()
+createView :: ViewId -> Text -> Rect.Rect -> Block.Config -> Fltk ()
+createView viewId windowTitle rect blockConfig = fltk $ pure ()
 
-destroy_view :: ViewId -> Fltk ()
-destroy_view view_id = fltk $ pure ()
+destroyView :: ViewId -> Fltk ()
+destroyView viewId = fltk $ pure ()
 
-get_view_status :: ViewId -> Fltk (Rect.Rect, Zoom.Zoom, Int, Int)
-get_view_status view_id = fltk $ errorIO "unimplemented"
+getViewStatus :: ViewId -> Fltk (Rect.Rect, Zoom.Zoom, Int, Int)
+getViewStatus viewId = fltk $ errorIO "unimplemented"
 
-set_size :: ViewId -> Rect.Rect -> Fltk ()
-set_size view_id rect = fltk $ pure ()
+setSize :: ViewId -> Rect.Rect -> Fltk ()
+setSize viewId rect = fltk $ pure ()
 
-set_zoom :: ViewId -> Zoom.Zoom -> Fltk ()
-set_zoom view_id zoom = fltk $ pure ()
+setZoom :: ViewId -> Zoom.Zoom -> Fltk ()
+setZoom viewId zoom = fltk $ pure ()
 
-set_track_scroll :: ViewId -> Types.Width -> Fltk ()
-set_track_scroll view_id offset = fltk $ pure ()
+setTrackScroll :: ViewId -> Types.Width -> Fltk ()
+setTrackScroll viewId offset = fltk $ pure ()
 
-set_selection :: ViewId -> Sel.Num -> [TrackNum] -> [Selection] -> Fltk ()
-set_selection view_id selnum tracknums sels = fltk $ pure ()
+setSelection :: ViewId -> Sel.Num -> [TrackNum] -> [Selection] -> Fltk ()
+setSelection viewId selnum tracknums sels = fltk $ pure ()
 
-bring_to_front :: ViewId -> Fltk ()
-bring_to_front view_id = fltk $ pure ()
+bringToFront :: ViewId -> Fltk ()
+bringToFront viewId = fltk $ pure ()
 
 -- * Block operations
 
-set_config :: ViewId -> Block.Config -> Fltk ()
-set_config view_id config = fltk $ pure ()
+setConfig :: ViewId -> Block.Config -> Fltk ()
+setConfig viewId config = fltk $ pure ()
 
-set_skeleton :: ViewId -> Skeleton.Skeleton
+setSkeleton :: ViewId -> Skeleton.Skeleton
     -> [(Color.Color, [(TrackNum, TrackNum)])] -> Fltk ()
-set_skeleton view_id skel integrate_edges = fltk $ pure ()
+setSkeleton viewId skel integrateEdges = fltk $ pure ()
 
-set_title :: ViewId -> Text -> Fltk ()
-set_title view_id title = fltk $ pure ()
+setTitle :: ViewId -> Text -> Fltk ()
+setTitle viewId title = fltk $ pure ()
 
-set_status :: ViewId -> Text -> Color.Color -> Fltk ()
-set_status view_id status color = fltk $ pure ()
+setStatus :: ViewId -> Text -> Color.Color -> Fltk ()
+setStatus viewId status color = fltk $ pure ()
 
-set_display_track :: ViewId -> TrackNum -> Block.DisplayTrack -> Fltk ()
-set_display_track view_id tracknum dtrack = fltk $ pure ()
+setDisplayTrack :: ViewId -> TrackNum -> Block.DisplayTrack -> Fltk ()
+setDisplayTrack viewId tracknum dtrack = fltk $ pure ()
 
-floating_open :: ViewId -> TrackNum -> ScoreTime -> Text -> (Int, Int)
+floatingOpen :: ViewId -> TrackNum -> ScoreTime -> Text -> (Int, Int)
     -> Fltk ()
-floating_open view_id tracknum pos text (sel_start, sel_end) = fltk $ pure ()
+floatingOpen viewId tracknum pos text (selStart, selEnd) = fltk $ pure ()
 
-floating_insert :: [ViewId] -> Text -> Fltk ()
-floating_insert view_ids text = fltk $ pure ()
+floatingInsert :: [ViewId] -> Text -> Fltk ()
+floatingInsert viewIds text = fltk $ pure ()
 
 tracks :: ViewId -> Fltk TrackNum
-tracks view_id = fltk $ pure 0
+tracks viewId = fltk $ pure 0
 
-insert_track :: ViewId -> TrackNum -> Block.Tracklike -> [Events.Events]
+insertTrack :: ViewId -> TrackNum -> Block.Tracklike -> [Events.Events]
     -> Track.SetStyle -> Types.Width -> Fltk ()
-insert_track view_id tracknum tracklike merged set_style width =
+insertTrack viewId tracknum tracklike merged setStyle width =
     fltk $ pure ()
 
-remove_track :: ViewId -> TrackNum -> Fltk ()
-remove_track view_id tracknum = fltk $ pure ()
+removeTrack :: ViewId -> TrackNum -> Fltk ()
+removeTrack viewId tracknum = fltk $ pure ()
 
-update_track :: Bool -- ^ True if the ruler has changed and should be copied
+updateTrack :: Bool -- ^ True if the ruler has changed and should be copied
     -- over.  It's a bit of a hack to be a separate flag, but rulers are
     -- updated rarely and copied over entirely for efficiency.
     -> ViewId -> TrackNum -> Block.Tracklike
     -> [Events.Events] -> Track.SetStyle -> ScoreTime -> ScoreTime -> Fltk ()
-update_track update_ruler view_id tracknum tracklike merged set_style start
+updateTrack updateRuler viewId tracknum tracklike merged setStyle start
         end = fltk $ pure ()
 
 -- | Like 'update_track' except update everywhere.
-update_entire_track :: Bool -> ViewId -> TrackNum -> Block.Tracklike
+updateEntireTrack :: Bool -> ViewId -> TrackNum -> Block.Tracklike
     -> [Events.Events] -> Track.SetStyle -> Fltk ()
-update_entire_track update_ruler view_id tracknum tracklike merged set_style =
+updateEntireTrack updateRuler viewId tracknum tracklike merged setStyle =
     -- -1 is special cased in c++.
-    update_track update_ruler view_id tracknum tracklike merged set_style
+    updateTrack updateRuler viewId tracknum tracklike merged setStyle
         (-1) (-1)
 
 -- | Unlike other Fltk functions, this doesn't throw if the ViewId is not
 -- found.  That's because it's called asynchronously when derivation is
 -- complete.
-set_track_signal :: ViewId -> TrackNum -> Track.TrackSignal -> Fltk ()
-set_track_signal view_id tracknum tsig = fltk $ pure ()
+setTrackSignal :: ViewId -> TrackNum -> Track.TrackSignal -> Fltk ()
+setTrackSignal viewId tracknum tsig = fltk $ pure ()
 
-set_waveform :: ViewId -> TrackNum -> Track.WaveformChunk -> Fltk ()
-set_waveform _ _ _ = fltk $ pure ()
+setWaveform :: ViewId -> TrackNum -> Track.WaveformChunk -> Fltk ()
+setWaveform _ _ _ = fltk $ pure ()
 
-clear_waveforms :: ViewId -> Fltk ()
-clear_waveforms _ = fltk $ pure ()
+clearWaveforms :: ViewId -> Fltk ()
+clearWaveforms _ = fltk $ pure ()
 
-gc_waveforms :: Fltk ()
-gc_waveforms = fltk $ pure ()
+gcWaveforms :: Fltk ()
+gcWaveforms = fltk $ pure ()
 
-set_track_title :: ViewId -> TrackNum -> Text -> Fltk ()
-set_track_title view_id tracknum title = fltk $ pure ()
+setTrackTitle :: ViewId -> TrackNum -> Text -> Fltk ()
+setTrackTitle viewId tracknum title = fltk $ pure ()
 
-set_track_title_focus :: ViewId -> TrackNum -> Fltk ()
-set_track_title_focus view_id tracknum = fltk $ pure ()
+setTrackTitleFocus :: ViewId -> TrackNum -> Fltk ()
+setTrackTitleFocus viewId tracknum = fltk $ pure ()
 
-set_block_title_focus :: ViewId -> Fltk ()
-set_block_title_focus view_id = fltk $ pure ()
+setBlockTitleFocus :: ViewId -> Fltk ()
+setBlockTitleFocus viewId = fltk $ pure ()
 
 
 -- ** debugging
 
-print_debug :: ViewId -> Fltk ()
-print_debug view_id = pure ()
+printDebug :: ViewId -> Fltk ()
+printDebug viewId = pure ()
 
 dump :: IO [(ViewId, String)]
 dump = pure []
@@ -149,10 +149,10 @@ dump = pure []
 -- | This is the low level version of 'Sel.Selection'.  It only applies to
 -- a single track, and has an explicit color.
 data Selection = Selection
-    { sel_color :: !Color.Color
-    , sel_start :: !TrackTime
-    , sel_cur :: !TrackTime
-    , sel_orientation :: !SelectionOrientation
+    { selColor :: !Color.Color
+    , selStart :: !TrackTime
+    , selCur :: !TrackTime
+    , selOrientation :: !SelectionOrientation
     }
     deriving (Eq, Ord, Show)
 

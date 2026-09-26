@@ -22,12 +22,12 @@ test_offline_time = do
             fmap (Num.sum . map V.length) $ convert $
             Rubberband.offline (config 1 ratio) $
             Audio.expandChannels $ Audio.take frames $ Audio.sine 440
-    io_equal (f (toSamples @44100 @1) 1 600) 600
-    io_equal (f (toSamples @44100 @1) 2 600) 1200
-    io_equal (f (toSamples @44100 @1) 0.5 600) 300
-    io_equal (f (toSamples @44100 @2) 2 600) 2400
-    io_equal (f (toSamples @22050 @2) 2 600) 2400
-    io_equal (f (toSamples @22050 @2) 2 0) 0
+    ioEqual (f (toSamples @44100 @1) 1 600) 600
+    ioEqual (f (toSamples @44100 @1) 2 600) 1200
+    ioEqual (f (toSamples @44100 @1) 0.5 600) 300
+    ioEqual (f (toSamples @44100 @2) 2 600) 2400
+    ioEqual (f (toSamples @22050 @2) 2 600) 2400
+    ioEqual (f (toSamples @22050 @2) 2 0) 0
 
     -- This emits warnings like:
     --
@@ -37,8 +37,8 @@ test_offline_time = do
     -- I don't know why and the interaction seems correct.
     -- io_equal (f (toSamples @22050 @2) 0.5 600) 600
 
-manual_test :: IO ()
-manual_test = write "out.wav" $ Rubberband.offline (config 0.5 2) $
+manualTest :: IO ()
+manualTest = write "out.wav" $ Rubberband.offline (config 0.5 2) $
     Audio.takeS 0.5 $ Audio.sine 440
 
 toSamples :: forall rate chan. Audio.AudioIO rate chan

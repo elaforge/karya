@@ -37,291 +37,291 @@ test_undo :: Test
 test_undo = Git.initialize $ do
     let states = ResponderTest.mkstates [(">", [(0, 1, "1"), (1, 1, "2")])]
 
-    res <- ResponderTest.respond_cmd states $ Cmd.name "+z" $ insert_event 0 "z"
-    res <- next res $ Cmd.name "+q" $ insert_event 1 "q"
+    res <- ResponderTest.respondCmd states $ Cmd.name "+z" $ insertEvent 0 "z"
+    res <- next res $ Cmd.name "+q" $ insertEvent 1 "q"
 
-    equal (extract_ui res) "zq"
-    equal (e_updates res) [track_update 1 1 2]
+    equal (extractUi res) "zq"
+    equal (eUpdates res) [trackUpdate 1 1 2]
 
     res <- next res Undo.undo
     -- Make sure the past and future have the expected names and states.
-    equal (e_hist_names res) (["setup: 12"], "+z: z2", ["+q: zq"])
-    equal (extract_ui res) "z2"
-    equal (e_updates res) [track_update 1 1 2]
+    equal (eHistNames res) (["setup: 12"], "+z: z2", ["+q: zq"])
+    equal (extractUi res) "z2"
+    equal (eUpdates res) [trackUpdate 1 1 2]
 
     res <- next res Undo.undo
-    equal (e_hist_names res) ([], "setup: 12", ["+z: z2", "+q: zq"])
-    equal (extract_ui res) "12"
-    equal (e_updates res) [track_update 1 0 1]
+    equal (eHistNames res) ([], "setup: 12", ["+z: z2", "+q: zq"])
+    equal (extractUi res) "12"
+    equal (eUpdates res) [trackUpdate 1 0 1]
 
     -- no past to undo
     res <- next res Undo.undo
-    equal (extract_ui res) "12"
-    equal (e_updates res) []
+    equal (extractUi res) "12"
+    equal (eUpdates res) []
 
     res <- next res Undo.redo
-    equal (e_hist_names res) (["setup: 12"], "+z: z2", ["+q: zq"])
-    equal (extract_ui res) "z2"
-    equal (e_updates res) [track_update 1 0 1]
+    equal (eHistNames res) (["setup: 12"], "+z: z2", ["+q: zq"])
+    equal (extractUi res) "z2"
+    equal (eUpdates res) [trackUpdate 1 0 1]
 
     res <- next res Undo.redo
-    equal (extract_ui res) "zq"
-    equal (e_hist_names res) (["+z: z2", "setup: 12"], "+q: zq", [])
-    equal (e_updates res) [track_update 1 1 2]
+    equal (extractUi res) "zq"
+    equal (eHistNames res) (["+z: z2", "setup: 12"], "+q: zq", [])
+    equal (eUpdates res) [trackUpdate 1 1 2]
 
     -- no future to redo
     res <- next res Undo.redo
-    equal (extract_ui res) "zq"
-    equal (e_updates res) []
+    equal (extractUi res) "zq"
+    equal (eUpdates res) []
 
 test_suppress_history :: Test
 test_suppress_history = Git.initialize $ do
     let states = ResponderTest.mkstates [(">", [(0, 1, "1"), (1, 1, "2")])]
-    let suppress = Cmd.suppress_history Cmd.ValEdit
+    let suppress = Cmd.suppressHistory Cmd.ValEdit
 
-    res <- ResponderTest.respond_cmd states $
-        Cmd.name "toggle" Edit.cmd_toggle_val_edit
-    res <- next res $ suppress "+z" $ insert_event 0 "z"
-    equal (e_hist_names res) ([], "setup: 12", [])
-    res <- next res $ suppress "+q" $ insert_event 1 "q"
-    equal (e_hist_names res) ([], "setup: 12", [])
+    res <- ResponderTest.respondCmd states $
+        Cmd.name "toggle" Edit.cmdToggleValEdit
+    res <- next res $ suppress "+z" $ insertEvent 0 "z"
+    equal (eHistNames res) ([], "setup: 12", [])
+    res <- next res $ suppress "+q" $ insertEvent 1 "q"
+    equal (eHistNames res) ([], "setup: 12", [])
     -- A non-recording cmd will cause the suppressed cmds to be recorded.
-    res <- next res $ set_sel 1
-    res <- next res $ Cmd.name "toggle" Edit.cmd_toggle_val_edit
-    equal (e_hist_names res) (["setup: 12"], "+z: zq", [])
+    res <- next res $ setSel 1
+    res <- next res $ Cmd.name "toggle" Edit.cmdToggleValEdit
+    equal (eHistNames res) (["setup: 12"], "+z: zq", [])
 
 test_undo_while_suppressed :: Test
 test_undo_while_suppressed = Git.initialize $ do
     let states = ResponderTest.mkstates [(">", [(0, 1, "1"), (1, 1, "2")])]
-    let suppress = Cmd.suppress_history Cmd.ValEdit
+    let suppress = Cmd.suppressHistory Cmd.ValEdit
 
     -- Unsuppressed.
-    res <- ResponderTest.respond_cmd states $ Cmd.name "+a" $ insert_event 0 "a"
+    res <- ResponderTest.respondCmd states $ Cmd.name "+a" $ insertEvent 0 "a"
 
     -- Suppressed.
-    res <- next res $ Cmd.name "toggle" Edit.cmd_toggle_val_edit
-    res <- next res $ suppress "+b" $ insert_event 0 "b"
+    res <- next res $ Cmd.name "toggle" Edit.cmdToggleValEdit
+    res <- next res $ suppress "+b" $ insertEvent 0 "b"
     -- The 'b' cmd is buried in suppression.
-    equal (e_hist_names res) (["setup: 12"], "+a: a2", [])
-    equal (extract_ui res) "b2"
+    equal (eHistNames res) (["setup: 12"], "+a: a2", [])
+    equal (extractUi res) "b2"
     res <- next res Undo.undo
     -- Undo turns the suppressed cmd turns into a real cmd, and goes into the
     -- future.
-    equal (e_hist_names res) (["setup: 12"], "+a: a2", ["+b: b2"])
-    equal (extract_ui res) "a2"
+    equal (eHistNames res) (["setup: 12"], "+a: a2", ["+b: b2"])
+    equal (extractUi res) "a2"
 
     -- And I can go back to it.
     res <- next res Undo.redo
-    equal (e_hist_names res) (["+a: a2", "setup: 12"], "+b: b2", [])
-    equal (extract_ui res) "b2"
+    equal (eHistNames res) (["+a: a2", "setup: 12"], "+b: b2", [])
+    equal (extractUi res) "b2"
 
 test_undo_merge :: Test
 test_undo_merge = Git.initialize $ do
     let states = ResponderTest.mkstates [(">", [])]
-        vid = UiTest.default_view_id
-    res1 <- ResponderTest.respond_cmd states $ do
-        Ui.set_namespace (Id.namespace "oogabooga")
-        Ui.set_view_rect vid $ Rect.xywh 40 40 100 100
-        insert_event 0 "z"
-    res2 <- ResponderTest.respond_cmd (ResponderTest.result_states res1)
+        vid = UiTest.defaultViewId
+    res1 <- ResponderTest.respondCmd states $ do
+        Ui.setNamespace (Id.namespace "oogabooga")
+        Ui.setViewRect vid $ Rect.xywh 40 40 100 100
+        insertEvent 0 "z"
+    res2 <- ResponderTest.respondCmd (ResponderTest.resultStates res1)
         Undo.undo
     -- some things aren't affected by undo
-    equal (UiTest.eval (e_ui res1) (Block.view_rect <$> Ui.get_view vid))
+    equal (UiTest.eval (eUi res1) (Block.viewRect <$> Ui.getView vid))
         (Rect.xywh 40 40 100 100)
-    equal (UiTest.eval (e_ui res2) (Block.view_rect <$> Ui.get_view vid))
+    equal (UiTest.eval (eUi res2) (Block.viewRect <$> Ui.getView vid))
         (Rect.xywh 40 40 100 100)
 
-track_update :: TrackNum -> ScoreTime -> ScoreTime -> Update.DisplayUpdate
-track_update tracknum from to =
-    Update.Track (UiTest.mk_tid tracknum) (Update.TrackEvents from to)
+trackUpdate :: TrackNum -> ScoreTime -> ScoreTime -> Update.DisplayUpdate
+trackUpdate tracknum from to =
+    Update.Track (UiTest.mkTid tracknum) (Update.TrackEvents from to)
 
 test_load_previous_history :: Test
 test_load_previous_history = Git.initialize $ do
-    repo <- get_repo
+    repo <- getRepo
     -- Load a git repo and make sure its history comes with it.
-    res <- save_git repo $ ResponderTest.mkstates [(">", [(0, 1, "1")])]
-    res <- next res $ Cmd.name "+x" $ insert_event 0 "x"
-    res <- next res $ Cmd.name "+y" $ insert_event 1 "y"
+    res <- saveGit repo $ ResponderTest.mkstates [(">", [(0, 1, "1")])]
+    res <- next res $ Cmd.name "+x" $ insertEvent 0 "x"
+    res <- next res $ Cmd.name "+y" $ insertEvent 1 "y"
     -- pprint (e_commits res)
     -- pprint (e_hist_damage res)
 
-    equal (extract_ui res) "xy"
-    res <- ResponderTest.respond_cmd (ResponderTest.mkstates []) $
-        Save.load_git repo Nothing
-    equal (extract_ui res) "xy"
+    equal (extractUi res) "xy"
+    res <- ResponderTest.respondCmd (ResponderTest.mkstates []) $
+        Save.loadGit repo Nothing
+    equal (extractUi res) "xy"
 
     res <- next res Undo.undo
     -- Previous history was loaded, y deleted.
-    equal (e_hist_names res) ([], "+x: x", ["+y: xy"])
-    equal (extract_ui res) "x"
-    equal (e_updates res) [track_update 1 1 2]
+    equal (eHistNames res) ([], "+x: x", ["+y: xy"])
+    equal (extractUi res) "x"
+    equal (eUpdates res) [trackUpdate 1 1 2]
 
     res <- next res Undo.undo
     -- Previous history was loaded, x replaced with 1.
-    equal (e_hist_names res) ([], "save: 1", ["+x: x", "+y: xy"])
-    equal (extract_ui res) "1"
-    equal (e_updates res) [track_update 1 0 1]
+    equal (eHistNames res) ([], "save: 1", ["+x: x", "+y: xy"])
+    equal (extractUi res) "1"
+    equal (eUpdates res) [trackUpdate 1 0 1]
 
     -- out of past
     res <- next res Undo.undo
-    equal (extract_ui res) "1"
-    equal (e_updates res) []
+    equal (extractUi res) "1"
+    equal (eUpdates res) []
 
     res <- next res Undo.redo
-    equal (extract_ui res) "x"
-    equal (e_updates res) [track_update 1 0 1]
+    equal (extractUi res) "x"
+    equal (eUpdates res) [trackUpdate 1 0 1]
     res <- next res Undo.redo
-    equal (extract_ui res) "xy"
-    equal (e_updates res) [track_update 1 1 2]
+    equal (extractUi res) "xy"
+    equal (eUpdates res) [trackUpdate 1 1 2]
 
 test_load_next_history :: Test
 test_load_next_history = Git.initialize $ do
-    repo <- get_repo
-    res <- save_git repo $ ResponderTest.mkstates [(">", [(0, 1, "1")])]
-    res <- next res $ Cmd.name "+x" $ insert_event 0 "x"
-    res <- next res $ Cmd.name "+y" $ insert_event 1 "y"
-    pprint (e_commits res)
+    repo <- getRepo
+    res <- saveGit repo $ ResponderTest.mkstates [(">", [(0, 1, "1")])]
+    res <- next res $ Cmd.name "+x" $ insertEvent 0 "x"
+    res <- next res $ Cmd.name "+y" $ insertEvent 1 "y"
+    pprint (eCommits res)
     -- The creation state wasn't committed, and the save isn't recorded in the
     -- history even though it has a commit, so start at the second-to-last.
-    let ([ent, _], _, _) = e_commits res
+    let ([ent, _], _, _) = eCommits res
         (_, Just commit) = ent
-    res <- ResponderTest.respond_cmd (ResponderTest.mkstates []) $
-        Save.load_git repo (Just commit)
-    equal (e_hist_names res) ([], "+x: x", [])
-    equal (extract_ui res) "x"
+    res <- ResponderTest.respondCmd (ResponderTest.mkstates []) $
+        Save.loadGit repo (Just commit)
+    equal (eHistNames res) ([], "+x: x", [])
+    equal (extractUi res) "x"
 
     res <- next res Undo.redo
-    equal (extract_ui res) "xy"
-    equal (e_hist_names res) (["+x: x"], "+y: xy", [])
-    equal (e_updates res) [track_update 1 1 2]
+    equal (extractUi res) "xy"
+    equal (eHistNames res) (["+x: x"], "+y: xy", [])
+    equal (eUpdates res) [trackUpdate 1 1 2]
 
     -- No future to redo.
     res <- next res Undo.redo
-    equal (extract_ui res) "xy"
-    equal (e_updates res) []
+    equal (extractUi res) "xy"
+    equal (eUpdates res) []
 
     -- Make sure I can do back again.
     res <- next res Undo.undo
-    equal (extract_ui res) "x"
-    equal (e_updates res) [track_update 1 1 2]
+    equal (extractUi res) "x"
+    equal (eUpdates res) [trackUpdate 1 1 2]
 
     res <- next res Undo.undo
-    equal (extract_ui res) "1"
-    equal (e_updates res) [track_update 1 0 1]
+    equal (extractUi res) "1"
+    equal (eUpdates res) [trackUpdate 1 0 1]
 
 test_branching_history :: Test
 test_branching_history = Git.initialize $ do
-    repo <- get_repo
-    res <- save_git repo $ ResponderTest.mkstates [(">", [(0, 1, "1")])]
-    res <- next res $ Cmd.name "+x" $ insert_event 0 "x"
-    res <- next res $ Cmd.name "+y" $ insert_event 1 "y"
-    res <- next res $ Cmd.name "save" Save.save_git
+    repo <- getRepo
+    res <- saveGit repo $ ResponderTest.mkstates [(">", [(0, 1, "1")])]
+    res <- next res $ Cmd.name "+x" $ insertEvent 0 "x"
+    res <- next res $ Cmd.name "+y" $ insertEvent 1 "y"
+    res <- next res $ Cmd.name "save" Save.saveGit
     res <- next res $ Cmd.name "revert" $ Save.revert (Just "0")
-    equal (extract_ui res) "1"
-    res <- next res $ Cmd.name "+a" $ insert_event 0 "a"
-    res <- next res $ Cmd.name "+b" $ insert_event 1 "b"
-    res <- next res $ Cmd.name "save" Save.save_git
+    equal (extractUi res) "1"
+    res <- next res $ Cmd.name "+a" $ insertEvent 0 "a"
+    res <- next res $ Cmd.name "+b" $ insertEvent 1 "b"
+    res <- next res $ Cmd.name "save" Save.saveGit
 
     -- The second branch got 1.0 because 1 was taken.
-    refs <- Git.read_ref_map repo
+    refs <- Git.readRefMap repo
     equal (Map.keys refs) ["heads/master", "tags/0", "tags/1", "tags/1.0"]
 
     -- Each branch has its own history.
-    io_equal (read_log repo =<< Git.read_log repo "tags/1.0")
+    ioEqual (readLog repo =<< Git.readLog repo "tags/1.0")
         ["+b", "+a", "save"]
-    io_equal (read_log repo =<< Git.read_log_head repo)
+    ioEqual (readLog repo =<< Git.readLogHead repo)
         ["+b", "+a", "save"]
-    io_equal (read_log repo =<< Git.read_log repo "tags/1")
+    ioEqual (readLog repo =<< Git.readLog repo "tags/1")
         ["+y", "+x", "save"]
 
-    equal (extract_ui res) "ab"
+    equal (extractUi res) "ab"
     res <- next res $ Cmd.name "revert" $ Save.revert (Just "1")
-    equal (extract_ui res) "xy"
+    equal (extractUi res) "xy"
 
-read_log :: SaveGit.Repo -> [SaveGit.Commit] -> IO [Text]
-read_log repo commits = do
-    texts <- mapM (fmap Git.commit_text . Git.read_commit repo) commits
-    mapM (fmap head . SaveGit.parse_names) texts
+readLog :: SaveGit.Repo -> [SaveGit.Commit] -> IO [Text]
+readLog repo commits = do
+    texts <- mapM (fmap Git.commitText . Git.readCommit repo) commits
+    mapM (fmap head . SaveGit.parseNames) texts
 
-save_git :: SaveGit.Repo -> ResponderTest.States -> IO ResponderTest.Result
-save_git repo states = do
+saveGit :: SaveGit.Repo -> ResponderTest.States -> IO ResponderTest.Result
+saveGit repo states = do
     whenM (Directory.doesDirectoryExist repo) $
         Directory.removeDirectoryRecursive repo
-    ResponderTest.respond_cmd states (Save.save_git_as repo)
+    ResponderTest.respondCmd states (Save.saveGitAs repo)
 
-get_repo :: IO SaveGit.Repo
-get_repo = (++ SaveGit.git_suffix) <$> Testing.tmp_dir "git"
+getRepo :: IO SaveGit.Repo
+getRepo = (++ SaveGit.gitSuffix) <$> Testing.tmpDir "git"
 
 -- * implementation
 
 next :: ResponderTest.Result -> Cmd.CmdT IO a -> IO ResponderTest.Result
-next = ResponderTest.respond_cmd . ResponderTest.result_states
+next = ResponderTest.respondCmd . ResponderTest.resultStates
 
-insert_event :: Ui.M m => ScoreTime -> Text -> m ()
-insert_event pos text = UiTest.insert_event 1 (pos, 1, text)
+insertEvent :: Ui.M m => ScoreTime -> Text -> m ()
+insertEvent pos text = UiTest.insertEvent 1 (pos, 1, text)
 
-set_sel :: Cmd.M m => ScoreTime -> m ()
-set_sel pos = Cmd.name "select" $
-    Selection.set_current Config.insert_selnum $
+setSel :: Cmd.M m => ScoreTime -> m ()
+setSel pos = Cmd.name "select" $
+    Selection.setCurrent Config.insertSelnum $
         Just (Sel.point 1 pos Sel.Positive)
 
 
 -- ** extract
 
-e_hist_names :: ResponderTest.Result -> ([Text], Text, [Text])
-e_hist_names = extract_hist $ \(Cmd.HistoryEntry state _ names _) ->
-    Text.intercalate "+" names <> ": " <> txt (ui_notes 0 state)
+eHistNames :: ResponderTest.Result -> ([Text], Text, [Text])
+eHistNames = extractHist $ \(Cmd.HistoryEntry state _ names _) ->
+    Text.intercalate "+" names <> ": " <> txt (uiNotes 0 state)
 
-extract_hist :: (Cmd.HistoryEntry -> a) -> ResponderTest.Result -> ([a], a, [a])
-extract_hist extract res =
+extractHist :: (Cmd.HistoryEntry -> a) -> ResponderTest.Result -> ([a], a, [a])
+extractHist extract res =
     (map extract past, extract present, map extract future)
-    where Cmd.History past present future _ = e_hist res
+    where Cmd.History past present future _ = eHist res
 
 type Commit = ([Text], Maybe SaveGit.Commit)
 
-e_commits :: ResponderTest.Result -> ([Commit], Commit, [Commit])
-e_commits res = (map extract past, extract present, map extract future)
+eCommits :: ResponderTest.Result -> ([Commit], Commit, [Commit])
+eCommits res = (map extract past, extract present, map extract future)
     where
-    Cmd.History past present future _ = e_hist res
-    extract hist = (Cmd.hist_names hist, Cmd.hist_commit hist)
+    Cmd.History past present future _ = eHist res
+    extract hist = (Cmd.histNames hist, Cmd.histCommit hist)
 
-extract_ui :: ResponderTest.Result -> [Char]
-extract_ui = ui_notes 0 . e_ui
+extractUi :: ResponderTest.Result -> [Char]
+extractUi = uiNotes 0 . eUi
 
-ui_notes :: Int -> Ui.State -> [Char]
-ui_notes tracknum ui_state
+uiNotes :: Int -> Ui.State -> [Char]
+uiNotes tracknum uiState
     | not (">" `Text.isPrefixOf` title) =
         error $ "not a note track: " <> show title
     | otherwise = [Text.head text | (_, _, text) <- tracks]
-    where (title, tracks) = UiTest.extract_tracks ui_state !! tracknum
+    where (title, tracks) = UiTest.extractTracks uiState !! tracknum
 
-e_ui :: ResponderTest.Result -> Ui.State
-e_ui = CmdTest.result_ui_state . ResponderTest.result_cmd
+eUi :: ResponderTest.Result -> Ui.State
+eUi = CmdTest.resultUiState . ResponderTest.resultCmd
 
-e_hist_damage :: ResponderTest.Result
+eHistDamage :: ResponderTest.Result
     -> ([Update.UiDamage], Update.UiDamage, [Update.UiDamage])
-e_hist_damage = hist_damage . e_hist
+eHistDamage = histDamage . eHist
 
-e_hist :: ResponderTest.Result -> Cmd.History
-e_hist = Cmd.state_history . CmdTest.result_cmd_state . ResponderTest.result_cmd
+eHist :: ResponderTest.Result -> Cmd.History
+eHist = Cmd.stateHistory . CmdTest.resultCmdState . ResponderTest.resultCmd
 
-e_hist_collect :: ResponderTest.Result -> Cmd.HistoryCollect
-e_hist_collect = Cmd.state_history_collect . CmdTest.result_cmd_state
-    . ResponderTest.result_cmd
+eHistCollect :: ResponderTest.Result -> Cmd.HistoryCollect
+eHistCollect = Cmd.stateHistoryCollect . CmdTest.resultCmdState
+    . ResponderTest.resultCmd
 
-hist_damage :: Cmd.History
+histDamage :: Cmd.History
     -> ([Update.UiDamage], Update.UiDamage, [Update.UiDamage])
-hist_damage (Cmd.History past present future _undo_redo) =
-    ( map Cmd.hist_damage past
-    , Cmd.hist_damage present
-    , map Cmd.hist_damage future
+histDamage (Cmd.History past present future _undoRedo) =
+    ( map Cmd.histDamage past
+    , Cmd.histDamage present
+    , map Cmd.histDamage future
     )
 
-e_updates :: ResponderTest.Result -> [Update.DisplayUpdate]
-e_updates = filter (not . is_view_update) . ResponderTest.result_updates
+eUpdates :: ResponderTest.Result -> [Update.DisplayUpdate]
+eUpdates = filter (not . isViewUpdate) . ResponderTest.resultUpdates
 
 -- | Filter out \"side effect\" updates that I don't want to test.
-is_view_update :: Update.DisplayUpdate -> Bool
-is_view_update update = case update of
+isViewUpdate :: Update.DisplayUpdate -> Bool
+isViewUpdate update = case update of
     Update.Block _ (Update.BlockConfig _) -> True
     _ -> False

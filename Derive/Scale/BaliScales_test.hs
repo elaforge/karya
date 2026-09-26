@@ -11,8 +11,8 @@ import Global
 
 test_ombak :: Test
 test_ombak = do
-    let run trans pitch = DeriveTest.extract Score.initial_nn $
-            DeriveTest.derive_tracks ""
+    let run trans pitch = DeriveTest.extract Score.initialNn $
+            DeriveTest.deriveTracks ""
                 [("> " <> trans, [(0, 1, "")]), ("*wayang", [(0, 0, pitch)])]
     equal (run "" "4e") ([Just 67.29], [])
     equal (run "| tuning = umbang" "4e") ([Just 67.29], [])

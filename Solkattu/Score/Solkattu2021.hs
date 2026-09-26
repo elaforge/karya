@@ -16,7 +16,7 @@ import           Solkattu.Dsl.Solkattu
 
 kon_21_01_24 :: Korvai
 kon_21_01_24 = date 2021 1 24 $ ganesh $ exercise $
-    korvaiS1 Tala.misra_chapu mempty $ nadai 3 $ mconcat $ map (g • r3)
+    korvaiS1 Tala.misraChapu mempty $ nadai 3 $ mconcat $ map (g • r3)
     -- reduceToR 7 1 (tanga.tanga.takita.takadinna.__)
     [ tanga.tanga.takita.takadinna.__
     , tanga.tanga.takita.takadinna
@@ -30,7 +30,7 @@ kon_21_01_24 = date 2021 1 24 $ ganesh $ exercise $
 
 kon_21_02_21 :: Korvai
 kon_21_02_21 = date 2021 2 21 $ ganesh $ exercise $
-    korvaiS1 Tala.kanda_chapu mempty $ nadai 3 $ mconcat $ map (g • r3)
+    korvaiS1 Tala.kandaChapu mempty $ nadai 3 $ mconcat $ map (g • r3)
     [ tanga.tanga.takita.takadinna.din.__.ga
     , tanga.tanga.takita.takadinna.din.__
     , tanga.tanga.takita.takadinna.__
@@ -44,7 +44,7 @@ kon_21_02_21 = date 2021 2 21 $ ganesh $ exercise $
     ]
 
 kon_35_kanda, kon_35_misra :: Korvai
-(kon_35_kanda, kon_35_misra) = (make Tala.kanda_chapu, make Tala.misra_chapu)
+(kon_35_kanda, kon_35_misra) = (make Tala.kandaChapu, make Tala.misraChapu)
     where
     make tala = date 2021 2 21 $ ganesh $ exercise $ korvaiS tala mempty $
         map (nadai 3)

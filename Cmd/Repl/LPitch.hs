@@ -30,44 +30,44 @@ import           Global
 
 
 -- | Turn an nn back to a human-readable note name.
-nn_to_note :: Int -> Maybe Pitch.Note
-nn_to_note = Twelve.show_nn . fromIntegral
+nnToNote :: Int -> Maybe Pitch.Note
+nnToNote = Twelve.showNn . fromIntegral
 
 -- * scales
 
-patch_scale :: Cmd.M m => Pitch.ScaleId -> m Patch.Scale
-patch_scale scale_id = (Cmd.require_right id <=< Perf.derive) $ do
-    scale <- Derive.get_scale scale_id
-    nns <- Scale.note_numbers scale mempty
-    pure $ Scale.patch_scale scale_id nns
+patchScale :: Cmd.M m => Pitch.ScaleId -> m Patch.Scale
+patchScale scaleId = (Cmd.requireRight id <=< Perf.derive) $ do
+    scale <- Derive.getScale scaleId
+    nns <- Scale.noteNumbers scale mempty
+    pure $ Scale.patchScale scaleId nns
 
 
 -- * transpose
 
 -- | Chromatic transposition.
-transpose_c :: Cmd.M m => Pitch.Step -> ModifyEvents.Track m
-transpose_c = transpose Scale.Chromatic 0
+transposeC :: Cmd.M m => Pitch.Step -> ModifyEvents.Track m
+transposeC = transpose Scale.Chromatic 0
 
 -- | Diatonic transposition.
-transpose_d :: Cmd.M m => Pitch.Step -> ModifyEvents.Track m
-transpose_d = transpose Scale.Diatonic 0
+transposeD :: Cmd.M m => Pitch.Step -> ModifyEvents.Track m
+transposeD = transpose Scale.Diatonic 0
 
 -- | Octave transposition.
-transpose_o :: Cmd.M m => Pitch.Octave -> ModifyEvents.Track m
-transpose_o octaves = transpose Scale.Chromatic octaves 0
+transposeO :: Cmd.M m => Pitch.Octave -> ModifyEvents.Track m
+transposeO octaves = transpose Scale.Chromatic octaves 0
 
 transpose :: Cmd.M m => Scale.Transposition -> Pitch.Octave -> Pitch.Step
     -> ModifyEvents.Track m
 transpose transposition octs steps =
-    PitchTrack.pitch_tracks $ PitchTrack.transpose transposition octs steps
+    PitchTrack.pitchTracks $ PitchTrack.transpose transposition octs steps
 
 -- * modify pitches
 
-modify_pitch :: Cmd.M m => (Pitch.Pitch -> Pitch.Pitch)
+modifyPitch :: Cmd.M m => (Pitch.Pitch -> Pitch.Pitch)
     -> ModifyEvents.Track m
-modify_pitch modify = PitchTrack.pitch_tracks $ \scale env note -> do
-    pitch <- first pretty $ Scale.scale_read scale env note
-    first pretty $ Scale.scale_show scale env $ modify pitch
+modifyPitch modify = PitchTrack.pitchTracks $ \scale env note -> do
+    pitch <- first pretty $ Scale.scaleRead scale env note
+    first pretty $ Scale.scaleShow scale env $ modify pitch
 
 -- | Change notes from one scale to another.  This only makes sense if the
 -- scales have the same number of notes per octave.
@@ -75,53 +75,53 @@ modify_pitch modify = PitchTrack.pitch_tracks $ \scale env note -> do
 -- TODO it would be nice to change the track title too, but ModifyEvents.Track
 -- doesn't support that.  Of course, maybe I want the scale in the block or
 -- global transform.
-change_scale :: Cmd.M m => Pitch.ScaleId -> m (ModifyEvents.Track m)
-change_scale to_scale_id = do
+changeScale :: Cmd.M m => Pitch.ScaleId -> m (ModifyEvents.Track m)
+changeScale toScaleId = do
     track <- Selection.track
-    to_scale <- Cmd.require "scale not found"
-        =<< Perf.lookup_scale track to_scale_id
-    pure $ PitchTrack.pitch_tracks $ \from_scale env note -> do
-        pitch <- first pretty $ Scale.scale_read from_scale env note
-        first pretty $ Scale.scale_show to_scale env pitch
+    toScale <- Cmd.require "scale not found"
+        =<< Perf.lookupScale track toScaleId
+    pure $ PitchTrack.pitchTracks $ \fromScale env note -> do
+        pitch <- first pretty $ Scale.scaleRead fromScale env note
+        first pretty $ Scale.scaleShow toScale env pitch
 
 -- | Convert the selected absolute pitch track into a relative one by
 -- subtracting all the notes from the given base note.
 --
 -- TODO as above, would be nice to set thet track title.
-to_relative :: Cmd.M m => Bool -> Pitch.Note -> ModifyEvents.Track m
-to_relative diatonic base = PitchTrack.pitch_tracks $ \scale env note -> do
-    base <- first pretty $ Scale.scale_read scale env base
-    pitch <- first pretty $ Scale.scale_read scale env note
-    let layout = Scale.scale_layout scale
-    let d = if diatonic then Scale.diatonic_difference layout pitch base
-            else Scale.chromatic_difference layout pitch base
-    pure $ Pitch.Note $ ShowVal.show_val d
+toRelative :: Cmd.M m => Bool -> Pitch.Note -> ModifyEvents.Track m
+toRelative diatonic base = PitchTrack.pitchTracks $ \scale env note -> do
+    base <- first pretty $ Scale.scaleRead scale env base
+    pitch <- first pretty $ Scale.scaleRead scale env note
+    let layout = Scale.scaleLayout scale
+    let d = if diatonic then Scale.diatonicDifference layout pitch base
+            else Scale.chromaticDifference layout pitch base
+    pure $ Pitch.Note $ ShowVal.showVal d
 
 
 -- * enharmonics
 
 -- | Respell enharmonics according to the key.
 respell :: Cmd.M m => ModifyEvents.Track m
-respell = PitchTrack.pitch_tracks $ \scale env note -> first pretty $ do
-    pitch <- Scale.scale_read scale env note
-    Scale.scale_input_to_note scale env (to_piano_input pitch)
+respell = PitchTrack.pitchTracks $ \scale env note -> first pretty $ do
+    pitch <- Scale.scaleRead scale env note
+    Scale.scaleInputToNote scale env (toPianoInput pitch)
 
-to_piano_input :: Pitch.Pitch -> Pitch.Input
-to_piano_input pitch = Pitch.Input Pitch.PianoKbd (to_sharps pitch) 0
+toPianoInput :: Pitch.Pitch -> Pitch.Input
+toPianoInput pitch = Pitch.Input Pitch.PianoKbd (toSharps pitch) 0
     where
-    to_sharps = Theory.semis_to_pitch_sharps Theory.piano_layout
-        . Theory.pitch_to_semis Theory.piano_layout
+    toSharps = Theory.semisToPitchSharps Theory.pianoLayout
+        . Theory.pitchToSemis Theory.pianoLayout
 
 -- | Convert all sharps to their enharmonic flats.
-sharps_to_flats :: Cmd.M m => ModifyEvents.Track m
-sharps_to_flats = PitchTrack.pitch_tracks $ \scale env note -> first pretty $ do
-    pitch <- Scale.scale_read scale env note
-    if Pitch.pitch_accidentals pitch <= 0 then pure note else do
-        notes <- Scale.scale_enharmonics scale env note
-        pitches <- mapM (Scale.scale_read scale env) notes
+sharpsToFlats :: Cmd.M m => ModifyEvents.Track m
+sharpsToFlats = PitchTrack.pitchTracks $ \scale env note -> first pretty $ do
+    pitch <- Scale.scaleRead scale env note
+    if Pitch.pitchAccidentals pitch <= 0 then pure note else do
+        notes <- Scale.scaleEnharmonics scale env note
+        pitches <- mapM (Scale.scaleRead scale env) notes
         justErr (DeriveT.PitchError $ "no flats for " <> pretty note) $
-            e_sharps_to_flats (zip pitches notes)
+            eSharpsToFlats (zip pitches notes)
 
-e_sharps_to_flats :: [(Pitch.Pitch, a)] -> Maybe a
-e_sharps_to_flats = fmap snd . Lists.maximumOn accs . filter ((<0) . accs)
-    where accs = Pitch.pitch_accidentals . fst
+eSharpsToFlats :: [(Pitch.Pitch, a)] -> Maybe a
+eSharpsToFlats = fmap snd . Lists.maximumOn accs . filter ((<0) . accs)
+    where accs = Pitch.pitchAccidentals . fst

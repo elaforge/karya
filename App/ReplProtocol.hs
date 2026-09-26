@@ -8,21 +8,21 @@ module App.ReplProtocol (
     Query(..), NotifySeq(..)
     , Response(..)
     , CmdResult(..), Result(..), Editor(..), File(..)
-    , FileType(..), file_type_extension
-    , empty_result, error_result, raw
+    , FileType(..), fileTypeExtension
+    , emptyResult, errorResult, raw
 
     -- * repl protocol
     , initialize
-    , query_cmd, query_save_file, query_completion
+    , queryCmd, querySaveFile, queryCompletion
     , notify
-    , query_cmd_simple
+    , queryCmdSimple
 
     -- * seq protocol
-    , seq_receive, seq_send
+    , seqReceive, seqSend
 
     -- * format
-    , format_result
-    , abbreviate_package_loads
+    , formatResult
+    , abbreviatePackageLoads
 ) where
 import qualified Control.DeepSeq as DeepSeq
 import qualified Control.Exception as Exception
@@ -38,7 +38,7 @@ import qualified Util.Log as Log
 import qualified Util.Network as Network
 import qualified Util.PPrint as PPrint
 import qualified Util.Serialize as Serialize
-import           Util.Serialize (get, get_tag, put, put_tag)
+import           Util.Serialize (get, getTag, put, putTag)
 
 import qualified App.Config as Config
 
@@ -94,12 +94,12 @@ data Result
 data Editor = Editor
     { _file :: !File
     -- | Start editing on this line.
-    , _line_number :: !Int
+    , _lineNumber :: !Int
     -- | Send QCommands when the editor saves or quits.  A %s is replaced by
     -- the edited text.
-    , _on_save :: !(Maybe Text)
+    , _onSave :: !(Maybe Text)
     -- | Send on an explicit send cmd, @gs@ in vim.
-    , _on_send :: !(Maybe Text)
+    , _onSend :: !(Maybe Text)
     } deriving (Eq, Show)
 
 data File
@@ -110,17 +110,17 @@ data File
 data FileType = NoType | Ky | TScore
     deriving (Eq, Show, Bounded, Enum)
 
-file_type_extension :: FileType -> String
-file_type_extension = \case
+fileTypeExtension :: FileType -> String
+fileTypeExtension = \case
     NoType -> ""
     Ky -> ".ky"
     TScore -> ".tscore"
 
-empty_result :: Result
-empty_result = Raw ""
+emptyResult :: Result
+emptyResult = Raw ""
 
-error_result :: Text -> CmdResult
-error_result msg = CmdResult empty_result [Log.msg Log.Error Nothing msg]
+errorResult :: Text -> CmdResult
+errorResult msg = CmdResult emptyResult [Log.msg Log.Error Nothing msg]
 
 raw :: Text -> CmdResult
 raw msg = CmdResult (Raw msg) []
@@ -138,19 +138,19 @@ initialize app = Socket.withSocketsDo $ do
 -- | Client send and receive.
 query :: Network.Addr -> Query -> IO (Either Exception.IOException Response)
 query addr query = Exception.try $ Network.withHandle addr $ \hdl -> do
-    repl_send hdl query
+    replSend hdl query
     IO.hFlush hdl
-    repl_receive hdl
+    replReceive hdl
 
 -- | Like 'query', but don't expect a response.
 notify :: Network.Addr -> NotifySeq -> IO (Either Exception.IOException ())
 notify addr notify = Exception.try $ Network.withHandle addr $ \hdl -> do
-    repl_send hdl $ QNotify notify
+    replSend hdl $ QNotify notify
     IO.hFlush hdl
 
 -- | Send a 'QCommand'.
-query_cmd :: Network.Addr -> Text -> IO CmdResult
-query_cmd addr cmd = query addr (QCommand cmd) >>= pure . \case
+queryCmd :: Network.Addr -> Text -> IO CmdResult
+queryCmd addr cmd = query addr (QCommand cmd) >>= pure . \case
     Right (RCommand result) -> result
     Right response -> raw $ "unexpected response: " <> showt response
     Left exc
@@ -160,22 +160,22 @@ query_cmd addr cmd = query addr (QCommand cmd) >>= pure . \case
         | otherwise -> raw $ "exception: " <> showt exc
 
 -- | A simple one-shot 'query_cmd'.
-query_cmd_simple :: Text -> IO Text
-query_cmd_simple cmd =
-    format_result <$> query_cmd (Network.Unix Config.repl_socket_name) cmd
+queryCmdSimple :: Text -> IO Text
+queryCmdSimple cmd =
+    formatResult <$> queryCmd (Network.Unix Config.replSocketName) cmd
 
 -- | Ask for the current save filename.  Nothing for an error, and Just Nothing
 -- for no save file.
-query_save_file :: Network.Addr -> IO (Maybe (Maybe FilePath))
-query_save_file addr = query addr QSaveFile >>= \case
+querySaveFile :: Network.Addr -> IO (Maybe (Maybe FilePath))
+querySaveFile addr = query addr QSaveFile >>= \case
     Right (RSaveFile fname) -> pure (Just fname)
     Left exc | IO.Error.isDoesNotExistError exc -> pure Nothing
     response -> do
         Log.error $ "unexpected response to QSaveFile: " <> showt response
         pure Nothing
 
-query_completion :: Network.Addr -> Text -> IO [Text]
-query_completion addr prefix = query addr (QCompletion prefix) >>= \case
+queryCompletion :: Network.Addr -> Text -> IO [Text]
+queryCompletion addr prefix = query addr (QCompletion prefix) >>= \case
     Right (RCompletion words) -> pure words
     Left exc | IO.Error.isDoesNotExistError exc -> pure []
     response -> do
@@ -187,17 +187,17 @@ query_completion addr prefix = query addr (QCompletion prefix) >>= \case
 -- Specialize 'send' and 'receive' to keep types consistent between seq and
 -- repl.
 
-seq_receive :: IO.Handle -> IO Query
-seq_receive = receive
+seqReceive :: IO.Handle -> IO Query
+seqReceive = receive
 
-seq_send :: IO.Handle -> Response -> IO ()
-seq_send = send
+seqSend :: IO.Handle -> Response -> IO ()
+seqSend = send
 
-repl_send :: IO.Handle -> Query -> IO ()
-repl_send = send
+replSend :: IO.Handle -> Query -> IO ()
+replSend = send
 
-repl_receive :: IO.Handle -> IO Response
-repl_receive = receive
+replReceive :: IO.Handle -> IO Response
+replReceive = receive
 
 -- | Write a msg size and then the msg.
 send :: Serialize.Serialize a => IO.Handle -> a -> IO ()
@@ -208,8 +208,8 @@ send hdl msg = do
 
 receive :: Serialize.Serialize a => IO.Handle -> IO a
 receive hdl = do
-    let int_bytes = ByteString.length (Serialize.encode (0 :: Int))
-    size <- ByteString.hGet hdl int_bytes
+    let intBytes = ByteString.length (Serialize.encode (0 :: Int))
+    size <- ByteString.hGet hdl intBytes
     -- If the app just quit, say because it got a 'quit' cmd, the accept loop
     -- will continue to live long enough to accept another query, but then
     -- close the socket.  A proper fix might be to block the accept loop while
@@ -225,20 +225,20 @@ receive hdl = do
 -- * format
 
 -- | Format the response and strip trailing whitespace.
-format_result :: CmdResult -> Text
-format_result (CmdResult response logs_) =
+formatResult :: CmdResult -> Text
+formatResult (CmdResult response logs_) =
     Text.stripEnd $ Text.unlines $
         (if null logs then [] else "Logs:" : map pretty logs ++ [""])
             ++ [format response]
-    where logs = abbreviate_package_loads logs_
+    where logs = abbreviatePackageLoads logs_
 
 format :: Result -> Text
 format (Raw val) = val
-format (Format val) = txt $ PPrint.format_str $ untxt val
+format (Format val) = txt $ PPrint.formatStr $ untxt val
 format (Edit editors) = "Edit: " <> showt (fmap _file editors)
 
-abbreviate_package_loads :: [Log.Msg] -> [Log.Msg]
-abbreviate_package_loads logs = loaded ++ filter (not . package_log) logs
+abbreviatePackageLoads :: [Log.Msg] -> [Log.Msg]
+abbreviatePackageLoads logs = loaded ++ filter (not . packageLog) logs
     where
     loaded =
         [ Log.msg Log.Notice Nothing $
@@ -246,72 +246,72 @@ abbreviate_package_loads logs = loaded ++ filter (not . package_log) logs
         | packages > 0
         ]
     packages =
-        Lists.count (("Loading package" `Text.isPrefixOf`) . Log.msg_text) logs
-    package_log log = any (`Text.isPrefixOf` Log.msg_text log)
+        Lists.count (("Loading package" `Text.isPrefixOf`) . Log.msgText) logs
+    packageLog log = any (`Text.isPrefixOf` Log.msgText log)
         ["Loading package", "linking ...", "done."]
 
 -- * instances
 
 instance Serialize.Serialize Query where
-    put QSaveFile = put_tag 0
-    put (QCommand a) = put_tag 1 >> put a
-    put (QCompletion a) = put_tag 2 >> put a
-    put (QNotify a) = put_tag 3 >> put a
-    get = get_tag >>= \case
+    put QSaveFile = putTag 0
+    put (QCommand a) = putTag 1 >> put a
+    put (QCompletion a) = putTag 2 >> put a
+    put (QNotify a) = putTag 3 >> put a
+    get = getTag >>= \case
         0 -> pure QSaveFile
         1 -> QCommand <$> get
         2 -> QCompletion <$> get
         3 -> QNotify <$> get
-        tag -> Serialize.bad_tag "Query" tag
+        tag -> Serialize.badTag "Query" tag
 
 instance Serialize.Serialize NotifySeq where
     put = \case
-        NEditorOpened -> put_tag 0
-        NEditorClosed -> put_tag 1
-    get = get_tag >>= \case
+        NEditorOpened -> putTag 0
+        NEditorClosed -> putTag 1
+    get = getTag >>= \case
         0 -> pure NEditorOpened
         1 -> pure NEditorClosed
-        tag -> Serialize.bad_tag "NotifySeq" tag
+        tag -> Serialize.badTag "NotifySeq" tag
 
 instance Serialize.Serialize Response where
-    put (RSaveFile a) = put_tag 0 >> put a
-    put (RCommand a) = put_tag 1 >> put a
-    put (RCompletion a) = put_tag 2 >> put a
-    get = get_tag >>= \case
+    put (RSaveFile a) = putTag 0 >> put a
+    put (RCommand a) = putTag 1 >> put a
+    put (RCompletion a) = putTag 2 >> put a
+    get = getTag >>= \case
         0 -> RSaveFile <$> get
         1 -> RCommand <$> get
         2 -> RCompletion <$> get
-        tag -> Serialize.bad_tag "Response" tag
+        tag -> Serialize.badTag "Response" tag
 
 instance Serialize.Serialize CmdResult where
     put (CmdResult a b) = put a >> put b
     get = CmdResult <$> get <*> get
 
 instance Serialize.Serialize Result where
-    put (Raw a) = put_tag 0 >> put a
-    put (Format a) = put_tag 1 >> put a
-    put (Edit a) = put_tag 2 >> put a
-    get = get_tag >>= \case
+    put (Raw a) = putTag 0 >> put a
+    put (Format a) = putTag 1 >> put a
+    put (Edit a) = putTag 2 >> put a
+    get = getTag >>= \case
         0 -> Raw <$> get
         1 -> Format <$> get
         2 -> Edit <$> get
-        tag -> Serialize.bad_tag "Result" tag
+        tag -> Serialize.badTag "Result" tag
 
 instance Serialize.Serialize Editor where
     put (Editor a b c d) = put a >> put b >> put c >> put d
     get = Editor <$> get <*> get <*> get <*> get
 
 instance Serialize.Serialize File where
-    put (FileName a) = put_tag 0 >> put a
-    put (Text a b) = put_tag 1 >> put a >> put b
-    get = get_tag >>= \case
+    put (FileName a) = putTag 0 >> put a
+    put (Text a b) = putTag 1 >> put a >> put b
+    get = getTag >>= \case
         0 -> FileName <$> get
         1 -> Text <$> get <*> get
-        tag -> Serialize.bad_tag "File" tag
+        tag -> Serialize.badTag "File" tag
 
 instance Serialize.Serialize FileType where
-    put = Serialize.put_enum_unsafe
-    get = Serialize.get_enum_unsafe
+    put = Serialize.putEnumUnsafe
+    get = Serialize.getEnumUnsafe
 
 instance DeepSeq.NFData CmdResult where
     rnf (CmdResult a b) = a `seq` b `seq` ()

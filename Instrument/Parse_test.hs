@@ -18,9 +18,9 @@ import Global
 test_parse_annotations :: Test
 test_parse_annotations = do
     let f = second (map extract)
-            . Util.Parse.parseS () "" Parse.p_annotation_file
+            . Util.Parse.parseS () "" Parse.pAnnotationFile
         extract (qualified, annots) =
-            (InstT.show_qualified qualified, annots)
+            (InstT.showQualified qualified, annots)
     equal (f "s/1 there\n") $ Right [("s/1", [("there", "")])]
     equal (f "s/1\n") $ Right [("s/1", [])]
     equal (f "s/1 a=b c=d\n") $
@@ -28,37 +28,37 @@ test_parse_annotations = do
     equal (f "s/1 a=b c=d # comment\n") $
         Right [("s/1", [("a", "b"), ("c", "d")])]
     equal (f "# empty\n") $ Right []
-    left_like (f "bad inst\n") "unexpected 'b'"
+    leftLike (f "bad inst\n") "unexpected 'b'"
 
 test_parse_patch_file :: Test
 test_parse_patch_file = do
     let parse ex = extract ex
-            . Util.Parse.parseS Parse.empty_state "" Parse.p_patch_file
+            . Util.Parse.parseS Parse.emptyState "" Parse.pPatchFile
         extract ex = second (map ex)
 
-    let e_init (patch, _) = case Patch.patch_initialize patch of
+    let eInit (patch, _) = case Patch.patchInitialize patch of
             Patch.InitializeMidi msgs -> [m | Midi.ChannelMessage _ m <- msgs]
             init -> error $ "unexpected init: " ++ show init
-        e_tags = Common.common_tags . snd
+        eTags = Common.commonTags . snd
 
     let cc = Midi.ControlChange
-    right_equal (parse e_init patch_file)
+    rightEqual (parse eInit patchFile)
         [ [cc 0 0, cc 32 0, Midi.ProgramChange 0]
         , [cc 0 0, cc 32 0, Midi.ProgramChange 1]
         , [cc 0 0, cc 32 1, Midi.ProgramChange 0]
         , [cc 0 0, cc 32 1, Midi.ProgramChange 1]
         ]
-    equal (parse e_tags patch_file) $ Right $
+    equal (parse eTags patchFile) $ Right $
         replicate 3 [("category", "boring")] ++ [[("category", "interesting")]]
 
-    equal (parse e_tags "p1, tag\np2, tag2=b\n") $ Right
+    equal (parse eTags "p1, tag\np2, tag2=b\n") $ Right
         [[("tag", "")], [("tag2", "b")]]
-    left_like (parse e_tags "p0\np1, bad_tag=blah") "unexpected '_'"
-    left_like (parse e_tags "p, tag=") "unexpected end of input"
+    leftLike (parse eTags "p0\np1, bad_tag=blah") "unexpected '_'"
+    leftLike (parse eTags "p, tag=") "unexpected end of input"
 
 
-patch_file :: Text
-patch_file =
+patchFile :: Text
+patchFile =
     "# some synth\n\
     \\n\
     \*bank 0\n\

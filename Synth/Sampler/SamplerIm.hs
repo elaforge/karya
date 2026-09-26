@@ -72,8 +72,8 @@ main = do
     logFname <- Config.getLogFilename "sampler.log"
     logHdl <- Log.rotate logFname
     Log.configure $ const $ Log.State
-        { state_write_msg = Log.write_formatted logHdl
-        , state_priority = if Debug `elem` flags then Log.Debug else Log.Notice
+        { stateWriteMsg = Log.writeFormatted logHdl
+        , statePriority = if Debug `elem` flags then Log.Debug else Log.Notice
         }
     let quality = fromMaybe defaultQuality $
             Lists.last [quality | Quality quality <- flags]
@@ -168,7 +168,7 @@ calibrateVar outWav patchName start len = do
             (\n -> maybe 1 ((1+) . Util.dbToDyn) (Map.lookup n dynamicTweaks))
             fnames
     mapM_ Text.IO.putStrLn $ Texts.columns 2 $ ["time", "sample", "dyn"] :
-        [ [RealTime.show_units t, txt fn, pretty dyn]
+        [ [RealTime.showUnits t, txt fn, pretty dyn]
         | (t, (fn, dyn)) <- zip (Lists.range_ 0 dur) fnameDyns
         ]
     Calibrate.renderSequence outWav dur $
@@ -229,7 +229,7 @@ readTracks s =
     DumpTracks $ Set.fromList $ map readId . Text.splitOn "," $ Text.pack s
     where
     readId w = fromMaybe (error $ "can't parse TrackId: " <> show w) $
-        Id.text_ident w
+        Id.textIdent w
 
 type Error = Text
 
@@ -257,7 +257,7 @@ dump useShow range tracks db notes = do
     annotate note sample line = Text.unwords
         [ line, pretty s, "+", pretty dur, "=>", pretty (s+dur)
         , "[orig:", pretty (Note.start note, Note.duration note)
-        , maybe "<no-track>" Id.ident_text (Note.trackId note)
+        , maybe "<no-track>" Id.identText (Note.trackId note)
         , pretty (Note.instrument note) <> "]"
         ]
         where
@@ -278,7 +278,7 @@ dumpSamples db notes = do
             : map fmt sampleNotes
     where
     fmt (note, snote) =
-        [ RealTime.show_units start
+        [ RealTime.showUnits start
         , txt $ sampleName (Sample.filename sample)
         , pretty $ Note.initial0 Control.variation note
         , pretty $ Note.initial0 Control.dynamic note
@@ -374,7 +374,7 @@ getPatch db name = case Map.lookup name (Patch._patches db) of
     Nothing -> do
         Log.warn $ "patch not found: " <> name
         pure Nothing
-    Just patch | Just {} <- ImInst.patch_dummy (Patch._karyaPatch patch) -> do
+    Just patch | Just {} <- ImInst.patchDummy (Patch._karyaPatch patch) -> do
         Log.warn $ "dummy patch: " <> name
         pure Nothing
     Just patch -> case Patch._effect patch of
@@ -464,7 +464,7 @@ makeSampleNote emitMessage mbEffect prevStart (Right sample, logs, note) = do
             -- might round a note to start before its signal, at which point I
             -- get an extraneous 0.
             start = Audio.secondsToFramesCeil Config.samplingRate
-                (RealTime.to_seconds (Note.start note))
+                (RealTime.toSeconds (Note.start note))
 
 effectControls :: Maybe Render.InstrumentEffect -> Note.Note
     -> Map Control.Control Signal.Signal

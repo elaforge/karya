@@ -12,21 +12,21 @@ import qualified Perform.RealTime as RealTime
 
 
 initialize :: Interface.Initialize a
-initialize _app_name _want_message app = app . Right =<< interface
+initialize _appName _wantMessage app = app . Right =<< interface
 
 interface :: IO (Interface.RawInterface a)
 interface = do
     chan <- STM.newTChanIO
     pure $ Interface.Interface
         { Interface.name = "Stub"
-        , Interface.read_channel = chan
-        , Interface.read_devices = pure []
-        , Interface.write_devices = pure []
-        , Interface.connect_read_device = const (pure False)
-        , Interface.disconnect_read_device = const (pure False)
-        , Interface.connect_write_device = const (pure False)
+        , Interface.readChannel = chan
+        , Interface.readDevices = pure []
+        , Interface.writeDevices = pure []
+        , Interface.connectReadDevice = const (pure False)
+        , Interface.disconnectReadDevice = const (pure False)
+        , Interface.connectWriteDevice = const (pure False)
         -- Return no error, otherwise I get lots of spam in the logs.
-        , Interface.write_message = const (pure Nothing)
+        , Interface.writeMessage = const (pure Nothing)
         , Interface.abort = pure ()
         , Interface.now = do
             t <- Time.getCurrentTime

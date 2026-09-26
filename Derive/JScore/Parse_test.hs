@@ -10,8 +10,8 @@ import           Global
 import           Util.Test.Global
 
 
-everything_score :: Text
-everything_score =
+everythingScore :: Text
+everythingScore =
     "%irama = tanggung\n\
     \%instrument = gender-barung -- comment\n\
     \3231^ dualolo cilik [\n\
@@ -23,19 +23,19 @@ everything_score =
 
 test_roundtrip :: Test
 test_roundtrip = do
-    let trip = fmap Parse.unparse . Parse.parse_score
-    right_equal (trip "5321 -- seleh 1\n3216 -- seleh 6\n") "5321\n3216\n"
-    right_equal (trip "%piece = b") "%piece = b\n"
-    right_equal (trip "1235 [ > 5 6/. _ ]") "1235 [ > 5 6/. _ ]\n"
-    right_equal (trip "1235 gantung-2 seleh-5") "1235 gantung-2 seleh-5\n"
-    let normalized = trip everything_score
-    right_equal (const () <$> normalized) ()
+    let trip = fmap Parse.unparse . Parse.parseScore
+    rightEqual (trip "5321 -- seleh 1\n3216 -- seleh 6\n") "5321\n3216\n"
+    rightEqual (trip "%piece = b") "%piece = b\n"
+    rightEqual (trip "1235 [ > 5 6/. _ ]") "1235 [ > 5 6/. _ ]\n"
+    rightEqual (trip "1235 gantung-2 seleh-5") "1235 gantung-2 seleh-5\n"
+    let normalized = trip everythingScore
+    rightEqual (const () <$> normalized) ()
     equal normalized (trip =<< normalized)
     Text.IO.putStrLn $ either id id normalized
 
 test_unwrap :: Test
 test_unwrap = do
-    let trip = fmap Parse.unparse . Parse.parse_score
+    let trip = fmap Parse.unparse . Parse.parseScore
     let score =
             "1235 [\n\
             \    > 1235\n\
@@ -43,6 +43,6 @@ test_unwrap = do
             \    > 1235\n\
             \    > 2356\n\
             \]\n"
-    right_equal (trip score) "1235 [ > 1235 | 1235 > 2356 | 2356 ]\n"
-    right_equal (trip "1235 [ > 1235 > 2356 > 3567 ]")
+    rightEqual (trip score) "1235 [ > 1235 | 1235 > 2356 | 2356 ]\n"
+    rightEqual (trip "1235 [ > 1235 > 2356 > 3567 ]")
         "1235 [ > 1235 > 2356 > 3567 ]\n"

@@ -371,7 +371,7 @@ startSample config now mbState note = do
                         "no resample state, but ratios is not 1-ish: "
                         <> pretty (Sample.ratios sample)
                     where
-                    ratio = Signal.constant_val_from
+                    ratio = Signal.constantValFrom
                         (AUtil.toSeconds start) (Sample.ratios sample)
     let offset = case mbState of
             Just (Resample state) -> _offset state
@@ -469,14 +469,14 @@ instance Pretty PlayState where
     pretty (Resample state) = pretty state
 
 instance Serialize.Serialize PlayState where
-    put NoResample = Serialize.put_tag 0
-    put (Resample state) = Serialize.put_tag 1 >> Serialize.put state
-    put Complete = Serialize.put_tag 2
-    get = Serialize.get_tag >>= \case
+    put NoResample = Serialize.putTag 0
+    put (Resample state) = Serialize.putTag 1 >> Serialize.put state
+    put Complete = Serialize.putTag 2
+    get = Serialize.getTag >>= \case
         0 -> pure NoResample
         1 -> Resample <$> Serialize.get
         2 -> pure Complete
-        n -> Serialize.bad_tag "Render.PlayState" n
+        n -> Serialize.badTag "Render.PlayState" n
 
 -- | The saved state of a note that had to resample.
 data ResampleState = ResampleState

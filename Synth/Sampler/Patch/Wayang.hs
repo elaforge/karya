@@ -62,7 +62,7 @@ patches = pasang Pemade : pasang Kantilan
         ]
     where
     pasang inst = Patch.patchKarya ("wayang-" <> Util.showtLower inst) $
-        ImInst.dummy Bali.pasang_msg . setRange inst
+        ImInst.dummy Bali.pasangMsg . setRange inst
     make (inst, tuning) =
         (Patch.patch $ Text.intercalate "-"
             ["wayang", Util.showtLower inst, Util.showtLower tuning])
@@ -71,44 +71,44 @@ patches = pasang Pemade : pasang Kantilan
         , Patch._allFilenames = allFilenames inst tuning
         , Patch._karyaPatch = ImInst.code #= code inst tuning $
             setRange inst $ setTuning tuning $
-            ImInst.make_patch $
+            ImInst.makePatch $
             Lib.Bali.supportVariableMute $
             Util.patchPitchDynVar attributeMap
         }
         where
         code inst tuning = Lib.Bali.wayangCode
             <> Util.thru dir (convert inst tuning)
-            <> ImInst.postproc with_symbolic_pitch
+            <> ImInst.postproc withSymbolicPitch
         dir = "wayang" </> Util.showLower inst </> Util.showLower tuning
-    setRange inst = ImInst.range $ BaliScales.instrument_range $ case inst of
+    setRange inst = ImInst.range $ BaliScales.instrumentRange $ case inst of
         Pemade -> Wayang.pemade
         Kantilan -> Wayang.kantilan
-    setTuning tuning = ImInst.environ EnvKey.tuning (ShowVal.show_val tuning)
-    with_symbolic_pitch = DUtil.when_env "symbolic-pitch" (Just True) $
-        DUtil.add_symbolic_pitch_convert pitchConvert
+    setTuning tuning = ImInst.environ EnvKey.tuning (ShowVal.showVal tuning)
+    withSymbolicPitch = DUtil.whenEnv "symbolic-pitch" (Just True) $
+        DUtil.addSymbolicPitchConvert pitchConvert
 
 pitchConvert :: PSignal.Transposed -> Either Text Pitch.Note
 pitchConvert pitch = do
-    note <- first pretty $ PSignal.pitch_note pitch
-    if scale_id == "wayang-srg"
-        then Pitch.Note <$> pitchSrgpd (Pitch.note_text note)
+    note <- first pretty $ PSignal.pitchNote pitch
+    if scaleId == "wayang-srg"
+        then Pitch.Note <$> pitchSrgpd (Pitch.noteText note)
         else pure note
     where
-    scale_id = DeriveT.pscale_scale_id $ DeriveT.pitch_scale pitch
+    scaleId = DeriveT.pscaleScaleId $ DeriveT.pitchScale pitch
 
 -- | This is a hack to convert wayang-srg to ioeua notation so symbolic pitch
 -- recognizes it.  It would be better to go through Pitch.Pitch parsing to do
 -- the conversion, but better than that is if I make up my mind about what kind
 -- of notation I want.
 pitchSrgpd :: Text -> Either Text Text
-pitchSrgpd pitch = case Map.lookup pc to_ioe of
+pitchSrgpd pitch = case Map.lookup pc toIoe of
     Nothing -> Left $ "not in srgpd: " <> pitch
     Just (offset, pc) -> do
         let Right (octi, _) = Text.Read.signed Text.Read.decimal oct
         pure $ showt (octi + offset) <> pc
     where
     (oct, pc) = Text.span (\c -> c == '-' || Char.isDigit c) pitch
-    to_ioe = Map.fromList
+    toIoe = Map.fromList
         [ ("s", (-1, "e"))
         , ("r", (-1, "u"))
         , ("g", (-1, "a"))
@@ -117,7 +117,7 @@ pitchSrgpd pitch = case Map.lookup pc to_ioe of
         ]
 
 attributeMap :: Common.AttributeMap Articulation
-attributeMap = Common.attribute_map
+attributeMap = Common.attributeMap
     [ (calung <> mute, CalungMute)
     , (calung, Calung)
     , (mute <> Attrs.loose, LooseMute)
@@ -159,7 +159,7 @@ checkStarts = (makeSample reference,)
             [0 .. variationsOf articulation - 1]
     fst3 (a, _, _) = a
     makeSample fname = (Sample.make fname)
-        { Sample.envelope = Signal.from_pairs
+        { Sample.envelope = Signal.fromPairs
             [(0, 1), (0 + dur, 1), (0 + dur + muteTime, 0)]
         , Sample.ratios = Signal.constant 1
         }
@@ -363,12 +363,12 @@ instrumentKeys instrument tuning articulation =
 
 wayangKeys :: Int -> [(Midi.Key, Pitch.Note)]
 wayangKeys baseOct = take 10 $ drop 1
-    [ convert (o + Midi.to_key baseOct) key sym
+    [ convert (o + Midi.toKey baseOct) key sym
     | o <- [0..], (key, sym) <- baseKeys
     ]
     where
     convert oct key sym =
-        (key + oct*12, Pitch.Note (showt (Midi.from_key oct) <> sym))
+        (key + oct*12, Pitch.Note (showt (Midi.fromKey oct) <> sym))
     baseKeys =
         [ (Key.e_1, "i")
         , (Key.f_1, "o")

@@ -20,14 +20,14 @@ deriving instance Eq Record.RVal
 
 test_val :: Test
 test_val = do
-    let f = parse_rval
-    right_equal (f "[]") $ list []
-    right_equal (f "[ 12 ]") $ list [num 12]
-    right_equal (f "[1/2 , 'hi' ]") $ list [num 0.5, str "hi"]
-    right_equal (f "{ }") $ record []
-    right_equal (f "{ a : 13 }") $ record [("a", v $ num 13)]
-    right_equal (f "[ 1\n, -- blah\n 2]") $ list [num 1, num 2]
-    right_equal (f inst_val) $ record
+    let f = parseRval
+    rightEqual (f "[]") $ list []
+    rightEqual (f "[ 12 ]") $ list [num 12]
+    rightEqual (f "[1/2 , 'hi' ]") $ list [num 0.5, str "hi"]
+    rightEqual (f "{ }") $ record []
+    rightEqual (f "{ a : 13 }") $ record [("a", v $ num 13)]
+    rightEqual (f "[ 1\n, -- blah\n 2]") $ list [num 1, num 2]
+    rightEqual (f instVal) $ record
         [ ("initialization", v $ str "Tuning")
         , ( "settings"
           , record
@@ -41,8 +41,8 @@ test_val = do
           )
         ]
 
-inst_val :: Text
-inst_val =
+instVal :: Text
+instVal =
     "{ initialization: Tuning\n\
     \, settings:\n\
     \  { flags: [Pressure, HoldKeyswitch, ResumePlay]\n\
@@ -54,10 +54,10 @@ inst_val =
 
 test_val_error :: Test
 test_val_error = do
-    let f = parse_rval
-    left_like (f bad_val) "5:23:" -- carat should be under /
+    let f = parseRval
+    leftLike (f badVal) "5:23:" -- carat should be under /
     where
-    bad_val =
+    badVal =
         "{ initialization: Tuning\n\
         \, settings:\n\
         \  { flags: [Pressure, HoldKeyswitch, ResumePlay]\n\
@@ -84,22 +84,22 @@ record = Record.Record
 
 test_roundtrip :: Test
 test_roundtrip = do
-    let roundtrip t = (parse_rval (mconcat (Record.un_rval t)), t)
-    uncurry right_equal (roundtrip $ v $ str "hi")
-    uncurry right_equal (roundtrip $ v $ str "hi ' there")
-    uncurry right_equal (roundtrip $ v $ num 4)
-    uncurry right_equal (roundtrip $ list [str "a b", num 0])
-    uncurry right_equal (roundtrip $ record [("a", list []), ("b", record [])])
+    let roundtrip t = (parseRval (mconcat (Record.unRval t)), t)
+    uncurry rightEqual (roundtrip $ v $ str "hi")
+    uncurry rightEqual (roundtrip $ v $ str "hi ' there")
+    uncurry rightEqual (roundtrip $ v $ num 4)
+    uncurry rightEqual (roundtrip $ list [str "a b", num 0])
+    uncurry rightEqual (roundtrip $ record [("a", list []), ("b", record [])])
 
 test_roundtrip_text :: Test
 test_roundtrip_text = do
-    let roundtrip t = (mconcat . Record.un_rval <$> parse_rval t, Right t)
+    let roundtrip t = (mconcat . Record.unRval <$> parseRval t, Right t)
     uncurry equal (roundtrip "4")
     uncurry equal (roundtrip "[hi]")
     uncurry equal (roundtrip "['h i']")
 
-parse_rval :: Text -> Either Text Record.RVal
-parse_rval = Util.Parse.parse Record.p_rval
+parseRval :: Text -> Either Text Record.RVal
+parseRval = Util.Parse.parse Record.pRval
 
-parse_record :: Text -> Either Text [(Text, Record.RVal)]
-parse_record = Util.Parse.parse Record.p_record
+parseRecord :: Text -> Either Text [(Text, Record.RVal)]
+parseRecord = Util.Parse.parse Record.pRecord

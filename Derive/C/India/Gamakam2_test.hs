@@ -20,8 +20,8 @@ test_sequence = do
     -- TODO: these are kind of messed up because I should be using nns_literal.
     -- Can't be bothered at the moment though, because I probably won't keep
     -- this module.
-    let run = run_note_track ""
-    strings_like (snd (run [(0, 8, "@ ; no-call ; -- 4c")]))
+    let run = runNoteTrack ""
+    stringsLike (snd (run [(0, 8, "@ ; no-call ; -- 4c")]))
         ["generator not found"]
 
     -- Implicit hold.
@@ -66,13 +66,13 @@ test_sequence = do
 
 test_flat_start_end :: Test
 test_flat_start_end = do
-    let run = run_note_track ""
+    let run = runNoteTrack ""
     equal (run [(0, 4, "@ - 0 1 ; - 1 ; - -1 1 -- 4c")])
         ([[(0, 60), (1, 61), (3, 60)]], [])
 
 test_fade :: Test
 test_fade = do
-    let run = run_note_track_dyn ""
+    let run = runNoteTrackDyn ""
     equal (run [(0, 4, "@ ; ; -> 2 -- 4c")])
         ([( [(0, 60), (4, 60)]
           , [(-RealTime.larger, 1), (2, 1), (4, 0), (4, 1)]
@@ -82,7 +82,7 @@ test_fade = do
 
 test_jaru :: Test
 test_jaru = do
-    let run = run_note_track "| jaru-time=1 | jaru-transition=1"
+    let run = runNoteTrack "| jaru-time=1 | jaru-transition=1"
     equal (run [(0, 4, "@ J 1 -1 -- 4c")])
         ([[(0, 62), (1, 59)]], [])
     equal (run [(0, 2, "@ J 1 -1 1 -- 4c")])
@@ -92,7 +92,7 @@ test_jaru = do
 
 test_kampita :: Test
 test_kampita = do
-    let run = run_note_track "| kam-transition=0 | kam-speed=1"
+    let run = runNoteTrack "| kam-transition=0 | kam-speed=1"
     equal (run [(0, 2.5, "@ ; k 1 ; -- 4c")])
         ([[(0, 60), (1, 61), (2, 60)]], [])
     equal (run [(0, 2.5, "@ ; k^ 1 ; -- 4c")])
@@ -108,8 +108,8 @@ test_kampita = do
 
 test_nkampita :: Test
 test_nkampita = do
-    let run = run_note_track "| nkam-transition=0"
-    strings_like (snd (run [(0, 2, "@  ; nk 0 ; -- 4c")]))
+    let run = runNoteTrack "| nkam-transition=0"
+    stringsLike (snd (run [(0, 2, "@  ; nk 0 ; -- 4c")]))
         ["cycles: expected Signal (>0)"]
     equal (run [(0, 2, "@ ; nk 1 ; -- 4c")])
         ([[(0, 60), (1, 61), (2, 60)]], [])
@@ -124,15 +124,15 @@ test_nkampita = do
     equal (run [(0, 4, "nkam-transition=2 | @ ; nk^ 1 ; -- 4c")])
         ([[(0, 60), (4, 61)]], [])
 
-run_note_track_dyn :: Text -> [UiTest.EventSpec]
+runNoteTrackDyn :: Text -> [UiTest.EventSpec]
     -> ([([(RealTime, Pitch.NoteNumber)], [(RealTime, Signal.Y)])], [Text])
-run_note_track_dyn = run_ $ \e -> (DeriveTest.e_nns e, DeriveTest.e_dyn e)
+runNoteTrackDyn = run_ $ \e -> (DeriveTest.eNns e, DeriveTest.eDyn e)
 
-run_note_track :: Text -> [UiTest.EventSpec]
+runNoteTrack :: Text -> [UiTest.EventSpec]
     -> ([[(RealTime, Pitch.NoteNumber)]], [Text])
-run_note_track = run_ DeriveTest.e_nns_old
+runNoteTrack = run_ DeriveTest.eNnsOld
 
 run_ :: (Score.Event -> a) -> Text -> [UiTest.EventSpec] -> ([a], [Text])
 run_ extract transform = DeriveTest.extract extract
-    . DeriveTest.derive_tracks ("import india.gamakam2 " <> transform)
-    . UiTest.note_track
+    . DeriveTest.deriveTracks ("import india.gamakam2 " <> transform)
+    . UiTest.noteTrack

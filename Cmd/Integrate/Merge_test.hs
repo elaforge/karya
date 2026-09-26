@@ -31,7 +31,7 @@ test_diff :: Test
 test_diff = do
     let f old new = extract $ Merge.diff index (mkevent new)
             where index = mkindex [old]
-        extract (Merge.Add event) = Left (extract_event event)
+        extract (Merge.Add event) = Left (extractEvent event)
         extract (Merge.Edit key mods) = Right (key, mods)
     -- no mods
     equal (f (0, 1, "a", Just 0) (0, 1, "a", Just 0)) $
@@ -46,7 +46,7 @@ test_diff = do
 
 test_diff_event :: Test
 test_diff_event = do
-    let f old new = Merge.diff_event (mk old) (mk new)
+    let f old new = Merge.diffEvent (mk old) (mk new)
         mk (start, dur, text) = mkevent (start, dur, text, Nothing)
     equal (f (0, 1, "a") (1, 2, "b"))
         [Merge.Position 1, Merge.Duration 2, Merge.Set "b"]
@@ -85,27 +85,27 @@ test_apply = do
         [(1, 1, "q", Nothing)]
 
 apply :: [Event] -> [Event] -> [Event] -> [Event]
-apply last_integrate integrated events = map extract_event $ Events.ascending $
+apply lastIntegrate integrated events = map extractEvent $ Events.ascending $
     Merge.apply deletes edits (map mkevent integrated)
     where
-    (deletes, edits) = Merge.diff_events index (map mkevent events)
-    index = mkindex last_integrate
+    (deletes, edits) = Merge.diffEvents index (map mkevent events)
+    index = mkindex lastIntegrate
 
 -- * derive integrate
 
 test_derive_integrate :: Test
 test_derive_integrate = do
-    let f state integrated = pure $ derive_integrate state integrated
+    let f state integrated = pure $ deriveIntegrate state integrated
     let events cs =
             [(n, 1, Text.singleton c) | (n, c) <- zip (Lists.range_ 0 2) cs]
-        extract = UiTest.extract_tracks
+        extract = UiTest.extractTracks
 
     -- New tracks are appended.
     state <- f (mkblock [(">", events "ab")]) [((">a", events "cd"), [])]
     equal (extract state)
         [(">source", []), (">", events "ab"), (">a", events "cd")]
     -- Added events are merged into the reintegration.
-    state <- f (modify (UiTest.insert_event 3 (1, 1, "z")) state)
+    state <- f (modify (UiTest.insertEvent 3 (1, 1, "z")) state)
         [((">a", events "cf"), [])]
     equal (extract state)
         [ (">source", [])
@@ -118,94 +118,94 @@ test_derive_integrate = do
         [((">a", []), [("ca", events "12")]), ((">b", []), [])]
     equal (extract state)
         [(">source", []), (">a", []), ("ca", events "12"), (">b", [])]
-    equal (UiTest.extract_skeleton state) [(2, 3)]
+    equal (UiTest.extractSkeleton state) [(2, 3)]
     state <- f
-        (modify (Create.track UiTest.default_block_id 5 ">z" mempty) state)
+        (modify (Create.track UiTest.defaultBlockId 5 ">z" mempty) state)
         [((">a", []), []), ((">b", []), [("ba", [])])]
     -- It won't delete a track, but will clear the events out.
     equal (extract state)
         [ (">source", [])
         , (">a", []), ("ca", []), (">b", []), ("ba", []), (">z", [])
         ]
-    equal (UiTest.extract_skeleton state) [(2, 3), (4, 5)]
+    equal (UiTest.extractSkeleton state) [(2, 3), (4, 5)]
 
     -- Only non-generated events are cleared.
     state <- f (mkblock []) [((">a", events "ab"), [])]
-    state <- f (modify (UiTest.insert_event 2 (1, 1, "z")) state) []
+    state <- f (modify (UiTest.insertEvent 2 (1, 1, "z")) state) []
     equal (extract state) [(">source", []), (">a", [(1, 1, "z")])]
 
     -- Interacts properly with aded events.
     -- state <- f (mkblock []) [((">a", events "ab"), [])]
 
 mkblock :: [UiTest.TrackSpec] -> Ui.State
-mkblock = snd . UiTest.run_mkblock . ((">source", []):)
+mkblock = snd . UiTest.runMkblock . ((">source", []):)
     -- Add a track that 'derive_integrate' can set as the source since the
     -- integrated track source is required to exist.
 
-derive_integrate :: Ui.State -> [(UiTest.TrackSpec, [UiTest.TrackSpec])]
+deriveIntegrate :: Ui.State -> [(UiTest.TrackSpec, [UiTest.TrackSpec])]
     -> Ui.State
-derive_integrate state integrated = UiTest.exec state $ do
-    itracks <- Block.block_integrated_tracks <$> Ui.get_block block_id
-    let derive_itracks =
+deriveIntegrate state integrated = UiTest.exec state $ do
+    itracks <- Block.blockIntegratedTracks <$> Ui.getBlock blockId
+    let deriveItracks =
             [dests | (_, Block.DeriveDestinations dests) <- itracks]
-    dests <- Merge.merge_tracks Merge.KeepTitles block_id
-        (make_convert_tracks integrated)
-        (fromMaybe [] $ Lists.head derive_itracks)
-    Ui.modify_integrated_tracks block_id $
-        const [(UiTest.mk_tid 1, Block.DeriveDestinations dests)]
-    where block_id = UiTest.default_block_id
+    dests <- Merge.mergeTracks Merge.KeepTitles blockId
+        (makeConvertTracks integrated)
+        (fromMaybe [] $ Lists.head deriveItracks)
+    Ui.modifyIntegratedTracks blockId $
+        const [(UiTest.mkTid 1, Block.DeriveDestinations dests)]
+    where blockId = UiTest.defaultBlockId
 
-make_convert_tracks :: [(UiTest.TrackSpec, [UiTest.TrackSpec])]
+makeConvertTracks :: [(UiTest.TrackSpec, [UiTest.TrackSpec])]
     -> Convert.Tracks
-make_convert_tracks =
+makeConvertTracks =
     map $ \(note, controls) -> (convert note, map convert controls)
     where
     convert (title, events) = Convert.Track title
-        (map (add_stack title) $ map UiTest.make_event events)
-    add_stack title event = Event.stack_ #= Just stack $ event
+        (map (addStack title) $ map UiTest.makeEvent events)
+    addStack title event = Event.stack_ #= Just stack $ event
         where stack = Event.Stack (Stack.call title) (Event.start event)
 
 -- * score integrate
 
 test_score_integrate_delete :: Test
 test_score_integrate_delete = do
-    let run state m = pure $ run_score_integrate 1 (modify m state)
+    let run state m = pure $ runScoreIntegrate 1 (modify m state)
     let events cs =
             [(n, 1, Text.singleton c) | (n, c) <- zip (Lists.range_ 0 2) cs]
     state <- run Ui.empty $ UiTest.mkblock
         [(">", events "ab"), ("c1", events "12")]
-    equal (UiTest.extract_tracks state)
+    equal (UiTest.extractTracks state)
         [ (">", events "ab"), ("c1", events "12")
         , (">", events "ab"), ("c1", events "12")
         ]
-    equal (UiTest.extract_skeleton state) [(1, 2), (3, 4)]
-    equal (lookup (UiTest.mk_tid 3) (e_event_styles state)) $
+    equal (UiTest.extractSkeleton state) [(1, 2), (3, 4)]
+    equal (lookup (UiTest.mkTid 3) (eEventStyles state)) $
         Just [("a", Style.StyleId 1), ("b", Style.StyleId 1)]
 
     -- Deleting the source note track disowns the destinations.
     state <- pure $ UiTest.exec state $
-        mapM_ (Ui.remove_track UiTest.default_block_id) [2, 1]
-    equal (UiTest.extract_tracks state)
+        mapM_ (Ui.removeTrack UiTest.defaultBlockId) [2, 1]
+    equal (UiTest.extractTracks state)
         [ (">", events "ab"), ("c1", events "12")
         ]
-    equal (UiTest.extract_skeleton state) [(1, 2)]
-    equal (e_integrate_skeleton state) []
-    equal (lookup (UiTest.mk_tid 3) (e_event_styles state)) $
+    equal (UiTest.extractSkeleton state) [(1, 2)]
+    equal (eIntegrateSkeleton state) []
+    equal (lookup (UiTest.mkTid 3) (eEventStyles state)) $
         Just [("a", Style.StyleId 0), ("b", Style.StyleId 0)]
 
-e_event_styles :: Ui.State -> [(TrackId, [(Text, Style.StyleId)])]
-e_event_styles =
+eEventStyles :: Ui.State -> [(TrackId, [(Text, Style.StyleId)])]
+eEventStyles =
     map (second (map (\e -> (Event.text e, Event.style e))
-        . Events.ascending . Track.track_events))
-    . Map.toList . Ui.state_tracks
+        . Events.ascending . Track.trackEvents))
+    . Map.toList . Ui.stateTracks
 
 test_score_integrate :: Test
 test_score_integrate = do
     -- make a block with the source, then modify
-    let run state m = pure $ run_score_integrate 1 (modify m state)
+    let run state m = pure $ runScoreIntegrate 1 (modify m state)
     let events cs =
             [(n, 1, Text.singleton c) | (n, c) <- zip (Lists.range_ 0 2) cs]
-        extract = UiTest.extract_tracks
+        extract = UiTest.extractTracks
 
     state <- run Ui.empty $ UiTest.mkblock
         [(">", events "ab"), ("c1", events "12")]
@@ -213,23 +213,23 @@ test_score_integrate = do
         [ (">", events "ab"), ("c1", events "12")
         , (">", events "ab"), ("c1", events "12")
         ]
-    equal (UiTest.extract_skeleton state) [(1, 2), (3, 4)]
+    equal (UiTest.extractSkeleton state) [(1, 2), (3, 4)]
 
-    equal (e_integrate_skeleton state)
-        [(Config.score_integrate_skeleton, [(1, 3)])]
+    equal (eIntegrateSkeleton state)
+        [(Config.scoreIntegrateSkeleton, [(1, 3)])]
 
     -- Ensure a merge is happening.
-    state <- run state $ UiTest.insert_event 3 (4, 1, "z")
+    state <- run state $ UiTest.insertEvent 3 (4, 1, "z")
     equal (extract state)
         [ (">", events "ab"), ("c1", events "12")
         , (">", events "abz"), ("c1", events "12")
         ]
-    state <- run state $ UiTest.insert_event 1 (2, 1, "x")
+    state <- run state $ UiTest.insertEvent 1 (2, 1, "x")
     equal (extract state)
         [ (">", events "ax"), ("c1", events "12")
         , (">", events "axz"), ("c1", events "12")
         ]
-    equal (UiTest.extract_skeleton state) [(1, 2), (3, 4)]
+    equal (UiTest.extractSkeleton state) [(1, 2), (3, 4)]
 
     -- TODO score integrate is a bit broken, so the below doesn't work.
     -- let block_id = UiTest.default_block_id
@@ -263,21 +263,21 @@ test_score_integrate = do
     --     ]
     -- equal (UiTest.extract_skeleton state) [(1, 2), (3, 4)]
 
-e_integrate_skeleton :: Ui.State -> [(Color.Color, [(TrackNum, TrackNum)])]
-e_integrate_skeleton =
-    concatMap Block.integrate_skeleton . Map.elems . Ui.state_blocks
+eIntegrateSkeleton :: Ui.State -> [(Color.Color, [(TrackNum, TrackNum)])]
+eIntegrateSkeleton =
+    concatMap Block.integrateSkeleton . Map.elems . Ui.stateBlocks
 
 -- | Reproduce enough of the respond cycle for score integration to work.
 -- Hard coded to integrate track 1.
-run_score_integrate :: TrackNum -> Ui.State -> Ui.State
-run_score_integrate tracknum state = UiTest.exec state $ do
-    itracks <- Block.block_integrated_tracks <$> Ui.get_block block_id
-    let score_itracks = [dests | (_, Block.ScoreDestinations dests) <- itracks]
-    dests <- Merge.score_merge_tracks block_id (UiTest.mk_tid tracknum)
-        (fromMaybe [] $ Lists.head score_itracks)
-    Ui.modify_integrated_tracks block_id $
-        const [(UiTest.mk_tid 1, Block.ScoreDestinations dests)]
-    where block_id = UiTest.default_block_id
+runScoreIntegrate :: TrackNum -> Ui.State -> Ui.State
+runScoreIntegrate tracknum state = UiTest.exec state $ do
+    itracks <- Block.blockIntegratedTracks <$> Ui.getBlock blockId
+    let scoreItracks = [dests | (_, Block.ScoreDestinations dests) <- itracks]
+    dests <- Merge.scoreMergeTracks blockId (UiTest.mkTid tracknum)
+        (fromMaybe [] $ Lists.head scoreItracks)
+    Ui.modifyIntegratedTracks blockId $
+        const [(UiTest.mkTid 1, Block.ScoreDestinations dests)]
+    where blockId = UiTest.defaultBlockId
 
 -- * util
 
@@ -285,19 +285,19 @@ modify :: Ui.StateId a -> Ui.State -> Ui.State
 modify action state = UiTest.exec state action
 
 mkindex :: [Event] -> Block.EventIndex
-mkindex = Merge.make_index . map mkevent
+mkindex = Merge.makeIndex . map mkevent
 
 type Event = (ScoreTime, ScoreTime, Text, Maybe ScoreTime)
 
 mkevent :: Event -> Event.Event
-mkevent (start, dur, text, mb_stack) = add_stack (Event.event start dur text)
+mkevent (start, dur, text, mbStack) = addStack (Event.event start dur text)
     where
-    add_stack = case mb_stack of
+    addStack = case mbStack of
         Nothing -> id
         Just pos ->
             Event.stack_ #= Just (Event.Stack (Stack.call (showt pos)) pos)
 
-extract_event :: Event.Event -> Event
-extract_event event =
+extractEvent :: Event.Event -> Event
+extractEvent event =
     (Event.start event, Event.duration event, Event.text event,
-        Event.stack_key <$> Event.stack event)
+        Event.stackKey <$> Event.stack event)

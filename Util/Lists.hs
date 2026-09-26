@@ -466,11 +466,11 @@ groupSort key = map snd . keyedGroupSort key
 -- | Group each element with all the other elements that compare equal to it.
 -- The heads of the groups appear in their original order.
 groupStableWith :: (a -> a -> Bool) -> [a] -> [NonEmpty a]
-groupStableWith is_equal = go
+groupStableWith isEqual = go
     where
     go [] = []
     go (x:xs) = (x :| equal) : go inequal
-        where (equal, inequal) = List.partition (is_equal x) xs
+        where (equal, inequal) = List.partition (isEqual x) xs
 
 -- | 'groupStableWith' but with a key function.
 groupStable :: Eq key => (a -> key) -> [a] -> [NonEmpty a]
@@ -584,11 +584,11 @@ diff eq as bs = map convert $ Diff.getDiffBy eq as bs
 -- | Left if the val was in the left list but not the right, Right for the
 -- converse.
 diffEither :: (a -> b -> Bool) -> [a] -> [b] -> [Either a b]
-diffEither eq as bs = Maybe.mapMaybe to_either $ diff eq as bs
+diffEither eq as bs = Maybe.mapMaybe toEither $ diff eq as bs
     where
-    to_either (First a) = Just (Left a)
-    to_either (Second a) = Just (Right a)
-    to_either _ = Nothing
+    toEither (First a) = Just (Left a)
+    toEither (Second a) = Just (Right a)
+    toEither _ = Nothing
 
 -- | This is like 'diff', except that the index of each pair in the
 -- /right/ list is included.  So the index is where you should delete or

@@ -167,13 +167,13 @@ test_formatG :: Test
 test_formatG = do
     let rec1 = Rec1 1 2.5 'c' (Map.fromList [("hi", "there")])
     let rec2 = Rec2 rec1 "hi"
-    equal_fmt id (renderText 25 rec1)
+    equalFmt id (renderText 25 rec1)
         "Rec1\n\
         \  { int = 1, double = 2.5\n\
         \  , char = 'c'\n\
         \  , map = {\"hi\": \"there\"}\n\
         \  }\n"
-    equal_fmt id (renderText 25 rec2)
+    equalFmt id (renderText 25 rec2)
         "Rec2\n\
         \  { sub =\n\
         \    Rec1\n\
@@ -186,12 +186,12 @@ test_formatG = do
         \  , string = \"hi\"\n\
         \  }\n"
 
-_test_bug :: Test
-_test_bug = do
+_testBug :: Test
+_testBug = do
     let rec1 = Rec1 1 2.5 'c' (Map.fromList [("hi", "there")])
     -- TODO: bug:
     -- should wrap after "", not after Rec1
-    equal_fmt id (renderText 60 ("" :: String, rec1))
+    equalFmt id (renderText 60 ("" :: String, rec1))
         "( \"\"\n\
         \, Rec1\n\
         \    { int = 1, double = 2.5, char = 'c'\n\
@@ -199,7 +199,7 @@ _test_bug = do
         \    }\n\
         \)\n"
     -- parens are misaligned
-    equal_fmt id (renderText 60 [("" :: String, prettyRec1 rec1)])
+    equalFmt id (renderText 60 [("" :: String, prettyRec1 rec1)])
         "[ ( \"\"\n\
         \  , Rec1\n\
         \      { int = 1, double = 2.5, char = 'c'\n\

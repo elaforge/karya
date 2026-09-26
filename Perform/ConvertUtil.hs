@@ -25,10 +25,10 @@ import           Global
 convert :: (Score.Event -> Cmd.ResolvedInstrument -> [LEvent.LEvent a])
     -> (ScoreT.Instrument -> Maybe Cmd.ResolvedInstrument)
     -> [Score.Event] -> [LEvent.LEvent a]
-convert process lookup_inst = go Nothing Set.empty
+convert process lookupInst = go Nothing Set.empty
     where
     go _ _ [] = []
-    go maybe_prev warned (event : events) = increases $ case lookup_inst inst of
+    go maybePrev warned (event : events) = increases $ case lookupInst inst of
         Nothing
             -- Only warn the first time an instrument isn't seen, to avoid
             -- spamming the log.
@@ -36,25 +36,25 @@ convert process lookup_inst = go Nothing Set.empty
             | otherwise -> warn ("instrument not found: " <> pretty inst)
                 : go (Just event) (Set.insert inst warned) events
         Just resolved ->
-            map LEvent.Log postproc_logs ++ converted
+            map LEvent.Log postprocLogs ++ converted
                 ++ go (Just event) warned events
             where
-            code = Common.common_code $ Inst.inst_common $
-                Cmd.inst_instrument resolved
-            converted = map (LEvent.map_log (add_stack event)) $
+            code = Common.commonCode $ Inst.instCommon $
+                Cmd.instInstrument resolved
+            converted = map (LEvent.mapLog (addStack event)) $
                 process event' resolved
-            (event', postproc_logs) = Cmd.inst_postproc code event
+            (event', postprocLogs) = Cmd.instPostproc code event
         where
-        inst = Score.event_instrument event
+        inst = Score.eventInstrument event
         -- Sorted is a postcondition of the deriver, verify that.
         increases events
-            | Just prev <- maybe_prev,
-                    Score.event_start event < Score.event_start prev =
-                warn ("start of " <> Score.short_event event
-                    <> " less than previous " <> Score.short_event prev)
+            | Just prev <- maybePrev,
+                    Score.eventStart event < Score.eventStart prev =
+                warn ("start of " <> Score.shortEvent event
+                    <> " less than previous " <> Score.shortEvent prev)
                 : events
             | otherwise = events
-        warn = LEvent.Log . Log.msg Log.Warn (Just (Score.event_stack event))
+        warn = LEvent.Log . Log.msg Log.Warn (Just (Score.eventStack event))
 
-add_stack :: Score.Event -> Log.Msg -> Log.Msg
-add_stack event msg = msg { Log.msg_stack = Just (Score.event_stack event) }
+addStack :: Score.Event -> Log.Msg -> Log.Msg
+addStack event msg = msg { Log.msgStack = Just (Score.eventStack event) }

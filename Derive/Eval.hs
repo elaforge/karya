@@ -6,28 +6,28 @@
 -- | Evaluate tracklang expressions.
 module Derive.Eval (
     -- * eval / apply
-    eval_toplevel, eval_quoted, eval_quoted_normalized, eval_expr_val
+    evalToplevel, evalQuoted, evalQuotedNormalized, evalExprVal
     -- ** generator
-    , apply_generator
+    , applyGenerator
     -- ** transformer
-    , eval_transformers, eval_transform_expr
-    , apply_transformer, apply_transformers
-    , eval_quoted_transformers
+    , evalTransformers, evalTransformExpr
+    , applyTransformer, applyTransformers
+    , evalQuotedTransformers
     -- ** val calls
     , eval, apply
-    , get_val_call
+    , getValCall
 
     -- * lookup call
-    , get_generator, get_transformer, get_track_call
-    , unknown_symbol, call_to_block_id, block_id_to_call
+    , getGenerator, getTransformer, getTrackCall
+    , unknownSymbol, callToBlockId, blockIdToCall
     -- ** relative calls
-    , is_relative, make_relative, parse_relative_id
+    , isRelative, makeRelative, parseRelativeId
 
     -- * util
-    , eval_one, eval_one_call, eval_one_at
-    , eval_event, reapply_generator, reapply_generator_normalized
-    , reapply, reapply_call, eval_pitch, eval_note, apply_pitch
-    , eval_expr
+    , evalOne, evalOneCall, evalOneAt
+    , evalEvent, reapplyGenerator, reapplyGeneratorNormalized
+    , reapply, reapplyCall, evalPitch, evalNote, applyPitch
+    , evalExpr
 ) where
 import qualified Data.Char as Char
 import qualified Data.List.NonEmpty as NonEmpty
@@ -57,16 +57,16 @@ import           Types
 -- * eval / apply
 
 -- | Apply a toplevel expression.
-{-# SCC eval_toplevel #-}
-eval_toplevel :: Derive.CallableExpr d => Derive.Context d
+{-# SCC evalToplevel #-}
+evalToplevel :: Derive.CallableExpr d => Derive.Context d
     -> DeriveT.Expr -> Derive.Deriver (Stream.Stream d)
-eval_toplevel ctx expr =
-    eval_transformers ctx transform_calls (eval_generator ctx generator_call)
-    where (transform_calls, generator_call) = Expr.split expr
+evalToplevel ctx expr =
+    evalTransformers ctx transformCalls (evalGenerator ctx generatorCall)
+    where (transformCalls, generatorCall) = Expr.split expr
 
-eval_quoted :: Derive.CallableExpr d => Derive.Context d -> DeriveT.Quoted
+evalQuoted :: Derive.CallableExpr d => Derive.Context d -> DeriveT.Quoted
     -> Derive.Deriver (Stream.Stream d)
-eval_quoted ctx (DeriveT.Quoted expr) = eval_toplevel ctx expr
+evalQuoted ctx (DeriveT.Quoted expr) = evalToplevel ctx expr
 
 -- | This is like 'eval_quoted', except that the 'Derive.ctx_event' is set to
 -- (0, 1) normalized time.  This is important if you want to place the
@@ -75,134 +75,134 @@ eval_quoted ctx (DeriveT.Quoted expr) = eval_toplevel ctx expr
 --
 -- TODO this awkwardness is because events evaluate in track time, not in
 -- normalized time.  Details in "Derive.EvalTrack".
-eval_quoted_normalized :: Derive.CallableExpr d => Derive.Context d
+evalQuotedNormalized :: Derive.CallableExpr d => Derive.Context d
     -> DeriveT.Quoted -> Derive.Deriver (Stream.Stream d)
-eval_quoted_normalized = eval_quoted . normalize_event
+evalQuotedNormalized = evalQuoted . normalizeEvent
 
-normalize_event :: Derive.Context val -> Derive.Context val
-normalize_event ctx = ctx
-    { Derive.ctx_event = Event.place 0 1 (Derive.ctx_event ctx)
-    , Derive.ctx_prev_events = []
-    , Derive.ctx_next_events = []
+normalizeEvent :: Derive.Context val -> Derive.Context val
+normalizeEvent ctx = ctx
+    { Derive.ctxEvent = Event.place 0 1 (Derive.ctxEvent ctx)
+    , Derive.ctxPrevEvents = []
+    , Derive.ctxNextEvents = []
     }
 
 -- | Eval a Expr MiniVal, which is produced by 'Expr.ToExpr'.
-eval_expr_val :: Derive.CallableExpr d => Derive.Context d
+evalExprVal :: Derive.CallableExpr d => Derive.Context d
     -> Expr.Expr Expr.MiniVal -> Derive.Deriver (Stream.Stream d)
-eval_expr_val ctx expr = eval_toplevel ctx (convert_minival expr)
+evalExprVal ctx expr = evalToplevel ctx (convertMinival expr)
 
 -- TODO find a better place for this, or get rid of MiniVal
-convert_minival :: Expr.Expr Expr.MiniVal -> DeriveT.Expr
-convert_minival = fmap $ fmap $ \case
+convertMinival :: Expr.Expr Expr.MiniVal -> DeriveT.Expr
+convertMinival = fmap $ fmap $ \case
     Expr.VNum v -> DeriveT.VSignal $ Signal.constant <$> v
     Expr.VStr v -> DeriveT.VStr v
 
 -- ** generator
 
-{-# SCC eval_generator #-}
-eval_generator :: (Derive.Callable (Derive.Generator d), Derive.Taggable d)
+{-# SCC evalGenerator #-}
+evalGenerator :: (Derive.Callable (Derive.Generator d), Derive.Taggable d)
     => Derive.Context d -> DeriveT.Call -> Derive.Deriver (Stream.Stream d)
-eval_generator ctx (Expr.Call sym args) = do
+evalGenerator ctx (Expr.Call sym args) = do
     vals <- mapM (eval ctx) args
-    call <- get_generator sym
-    apply_generator ctx call vals
+    call <- getGenerator sym
+    applyGenerator ctx call vals
 
 -- | Like 'eval_generator', but for when the args are already parsed and
 -- evaluated.  This is useful when one generator wants to dispatch to another.
-{-# SCC apply_generator #-}
-apply_generator :: Derive.Context d -> Derive.Generator d -> [DeriveT.Val]
+{-# SCC applyGenerator #-}
+applyGenerator :: Derive.Context d -> Derive.Generator d -> [DeriveT.Val]
     -> Derive.Deriver (Stream.Stream d)
-apply_generator ctx call args = do
+applyGenerator ctx call args = do
     let passed = Derive.PassedArgs
-            { Derive.passed_vals = args
-            , Derive.passed_call_name = Derive.call_name call
-            , Derive.passed_ctx = ctx
+            { Derive.passedVals = args
+            , Derive.passedCallName = Derive.callName call
+            , Derive.passedCtx = ctx
             }
-    mode <- Derive.get_mode
-    Internal.with_stack_call (Derive.call_name call) $ case mode of
+    mode <- Derive.getMode
+    Internal.withStackCall (Derive.callName call) $ case mode of
         Derive.ScoreDurationQuery -> do
-            dur <- Derive.gfunc_score_duration (Derive.call_func call) passed
-            set_score_duration dur
+            dur <- Derive.gfuncScoreDuration (Derive.callFunc call) passed
+            setScoreDuration dur
             pure Stream.empty
         Derive.RealDurationQuery -> do
-            dur <- Derive.gfunc_real_duration (Derive.call_func call) passed
-            set_real_duration dur
+            dur <- Derive.gfuncRealDuration (Derive.callFunc call) passed
+            setRealDuration dur
             pure Stream.empty
         _ -> do
             -- Ensure a unique serial number for each generator call, as
             -- documneted in 'Stack.Serial'.
             serial <- Derive.gets $
-                Derive.state_event_serial . Derive.state_threaded
-            Internal.with_stack_serial serial $
-                Derive.gfunc_f (Derive.call_func call) passed
+                Derive.stateEventSerial . Derive.stateThreaded
+            Internal.withStackSerial serial $
+                Derive.gfuncF (Derive.callFunc call) passed
 
 -- | See 'Derive.CallDuration' for details.
-set_score_duration :: Derive.CallDuration ScoreTime -> Derive.Deriver ()
-set_score_duration dur = Internal.modify_collect $ \collect ->
-    collect { Derive.collect_score_duration = dur }
+setScoreDuration :: Derive.CallDuration ScoreTime -> Derive.Deriver ()
+setScoreDuration dur = Internal.modifyCollect $ \collect ->
+    collect { Derive.collectScoreDuration = dur }
 
-set_real_duration :: Derive.CallDuration RealTime -> Derive.Deriver ()
-set_real_duration dur = Internal.modify_collect $ \collect ->
-    collect { Derive.collect_real_duration = dur }
+setRealDuration :: Derive.CallDuration RealTime -> Derive.Deriver ()
+setRealDuration dur = Internal.modifyCollect $ \collect ->
+    collect { Derive.collectRealDuration = dur }
 
 -- ** transformer
 
-{-# SCC eval_transformers #-}
-eval_transformers :: (Derive.Callable (Derive.Transformer d), Derive.Taggable d)
+{-# SCC evalTransformers #-}
+evalTransformers :: (Derive.Callable (Derive.Transformer d), Derive.Taggable d)
     => Derive.Context d -> [DeriveT.Call] -> Derive.Deriver (Stream.Stream d)
     -> Derive.Deriver (Stream.Stream d)
-eval_transformers ctx calls deriver = go calls
+evalTransformers ctx calls deriver = go calls
     where
     go [] = deriver
     go (Expr.Call sym args : calls) = do
         vals <- mapM (eval ctx) args
-        call <- get_transformer sym
-        apply_transformer ctx call vals (go calls)
+        call <- getTransformer sym
+        applyTransformer ctx call vals (go calls)
 
 -- | Parse and apply a transformer expression.
-eval_transform_expr ::
+evalTransformExpr ::
     (Derive.Callable (Derive.Transformer d), Derive.Taggable d)
     => Text -> Text -> Derive.Deriver (Stream.Stream d)
     -> Derive.Deriver (Stream.Stream d)
-eval_transform_expr name expr_str deriver
-    | Text.all Char.isSpace expr_str = deriver
+evalTransformExpr name exprStr deriver
+    | Text.all Char.isSpace exprStr = deriver
     | otherwise = do
-        expr <- case Parse.parse_expr expr_str of
+        expr <- case Parse.parseExpr exprStr of
             Left err -> Derive.throw $ name <> ": " <> err
             Right expr -> pure expr
-        let ctx = Derive.dummy_context 0 1 name
-        eval_transformers ctx (NonEmpty.toList expr) deriver
+        let ctx = Derive.dummyContext 0 1 name
+        evalTransformers ctx (NonEmpty.toList expr) deriver
 
 -- | The same as 'eval_transformers', but get them out of a Quoted.
-eval_quoted_transformers ::
+evalQuotedTransformers ::
     (Derive.Callable (Derive.Transformer d), Derive.Taggable d)
     => Derive.Context d -> DeriveT.Quoted -> Derive.Deriver (Stream.Stream d)
     -> Derive.Deriver (Stream.Stream d)
-eval_quoted_transformers ctx (DeriveT.Quoted expr) =
-    eval_transformers ctx (NonEmpty.toList expr)
+evalQuotedTransformers ctx (DeriveT.Quoted expr) =
+    evalTransformers ctx (NonEmpty.toList expr)
 
 -- | The transformer version of 'apply_generator'.  Like 'eval_transformers',
 -- but apply only one, and apply to already evaluated 'DeriveT.Val's.  This
 -- is useful when you want to re-apply an already parsed set of vals.
-{-# SCC apply_transformer #-}
-apply_transformer :: Derive.Context d -> Derive.Transformer d -> [DeriveT.Val]
+{-# SCC applyTransformer #-}
+applyTransformer :: Derive.Context d -> Derive.Transformer d -> [DeriveT.Val]
     -> Derive.Deriver (Stream.Stream d) -> Derive.Deriver (Stream.Stream d)
-apply_transformer ctx call args deriver =
-    Internal.with_stack_call (Derive.call_name call) $
-        Derive.call_func call passed deriver
+applyTransformer ctx call args deriver =
+    Internal.withStackCall (Derive.callName call) $
+        Derive.callFunc call passed deriver
     where
     passed = Derive.PassedArgs
-        { passed_vals = args
-        , passed_call_name = Derive.call_name call
-        , passed_ctx = ctx
+        { passedVals = args
+        , passedCallName = Derive.callName call
+        , passedCtx = ctx
         }
 
 -- | A list version of 'apply_transformer'.
-apply_transformers :: Derive.Context d
+applyTransformers :: Derive.Context d
     -> [(Derive.Transformer d, [DeriveT.Val])]
     -> Derive.Deriver (Stream.Stream d) -> Derive.Deriver (Stream.Stream d)
-apply_transformers ctx calls deriver = foldr apply deriver calls
-    where apply (sym, args) = apply_transformer ctx sym args
+applyTransformers ctx calls deriver = foldr apply deriver calls
+    where apply (sym, args) = applyTransformer ctx sym args
 
 -- ** val call
 
@@ -211,8 +211,8 @@ eval :: Derive.Taggable a => Derive.Context a -> DeriveT.Term
     -> Derive.Deriver DeriveT.Val
 eval _ (Expr.Literal val) = pure val
 eval ctx (Expr.ValCall (Expr.Call sym terms)) = do
-    call <- get_val_call sym
-    apply (Derive.tag_context ctx) call terms
+    call <- getValCall sym
+    apply (Derive.tagContext ctx) call terms
 
 {-# SCC apply #-}
 apply :: Derive.Context Derive.Tagged -> Derive.ValCall
@@ -220,153 +220,153 @@ apply :: Derive.Context Derive.Tagged -> Derive.ValCall
 apply ctx call args = do
     vals <- mapM (eval ctx) args
     let passed = Derive.PassedArgs
-            { passed_vals = vals
-            , passed_call_name = Derive.call_name call
-            , passed_ctx = ctx
+            { passedVals = vals
+            , passedCallName = Derive.callName call
+            , passedCtx = ctx
             }
-    Internal.with_stack_call (Derive.call_name call) $
-        Derive.call_func call passed
+    Internal.withStackCall (Derive.callName call) $
+        Derive.callFunc call passed
 
 -- * lookup call
 
-get_val_call :: Expr.Symbol -> Derive.Deriver Derive.ValCall
-get_val_call sym = require_call False sym name =<< Derive.lookup_call sym
-    where name = Derive.callable_name (Proxy :: Proxy Derive.ValCall)
+getValCall :: Expr.Symbol -> Derive.Deriver Derive.ValCall
+getValCall sym = requireCall False sym name =<< Derive.lookupCall sym
+    where name = Derive.callableName (Proxy :: Proxy Derive.ValCall)
 
-get_generator :: forall d. Derive.Callable (Derive.Generator d) =>
+getGenerator :: forall d. Derive.Callable (Derive.Generator d) =>
     Expr.Symbol -> Derive.Deriver (Derive.Generator d)
-get_generator sym = require_call True sym name =<< Derive.lookup_call sym
-    where name = Derive.callable_name (Proxy :: Proxy (Derive.Generator d))
+getGenerator sym = requireCall True sym name =<< Derive.lookupCall sym
+    where name = Derive.callableName (Proxy :: Proxy (Derive.Generator d))
 
-get_transformer :: forall d. Derive.Callable (Derive.Transformer d) =>
+getTransformer :: forall d. Derive.Callable (Derive.Transformer d) =>
     Expr.Symbol -> Derive.Deriver (Derive.Transformer d)
-get_transformer sym =
-    require_call False sym name =<< Derive.lookup_call sym
-    where name = Derive.callable_name (Proxy :: Proxy (Derive.Transformer d))
+getTransformer sym =
+    requireCall False sym name =<< Derive.lookupCall sym
+    where name = Derive.callableName (Proxy :: Proxy (Derive.Transformer d))
 
-get_track_call :: forall d. Derive.Callable (Derive.TrackCall d) =>
+getTrackCall :: forall d. Derive.Callable (Derive.TrackCall d) =>
     Expr.Symbol -> Derive.Deriver (Derive.TrackCall d)
-get_track_call sym =
-    require_call False sym name =<< Derive.lookup_call sym
-    where name = Derive.callable_name (Proxy :: Proxy (Derive.TrackCall d))
+getTrackCall sym =
+    requireCall False sym name =<< Derive.lookupCall sym
+    where name = Derive.callableName (Proxy :: Proxy (Derive.TrackCall d))
 
-require_call :: Bool -> Expr.Symbol -> Text -> Maybe a -> Derive.Deriver a
-require_call _ _ _ (Just a) = pure a
-require_call is_generator sym name Nothing = do
+requireCall :: Bool -> Expr.Symbol -> Text -> Maybe a -> Derive.Deriver a
+requireCall _ _ _ (Just a) = pure a
+requireCall isGenerator sym name Nothing = do
     -- If the call wasn't found, it can be seen as a block call whose block
     -- doesn't exist yet.  If it is created later, I have to know that this
     -- block depends on it, otherwise it won't be rederived and hence won't
     -- realize that the bad call is now valid.
-    when is_generator $ do
-        caller <- Internal.lookup_current_block_id
-        ns <- Derive.get_ui_state $ UiConfig.config_namespace . Ui.state_config
-        whenJust (call_to_block_id ns caller sym) Internal.add_block_dep
-    Derive.throw $ unknown_symbol name sym
+    when isGenerator $ do
+        caller <- Internal.lookupCurrentBlockId
+        ns <- Derive.getUiState $ UiConfig.configNamespace . Ui.stateConfig
+        whenJust (callToBlockId ns caller sym) Internal.addBlockDep
+    Derive.throw $ unknownSymbol name sym
 
-unknown_symbol :: Text -> Expr.Symbol -> Text
-unknown_symbol name sym = name <> " not found: " <> ShowVal.show_val sym
+unknownSymbol :: Text -> Expr.Symbol -> Text
+unknownSymbol name sym = name <> " not found: " <> ShowVal.showVal sym
 
 -- | Given a Symbol, try to come up with the BlockId of the block it could be
 -- a call for.
-call_to_block_id :: Id.Namespace -> Maybe BlockId
+callToBlockId :: Id.Namespace -> Maybe BlockId
     -- ^ If the symbol starts with -, this block is prepended to it.
     -> Expr.Symbol -> Maybe BlockId
-call_to_block_id ns maybe_caller sym
+callToBlockId ns maybeCaller sym
     | sym == "" = Nothing
-    | otherwise = Just $ Id.BlockId $ Id.read_short ns relative
+    | otherwise = Just $ Id.BlockId $ Id.readShort ns relative
     where
     relative
-        | Just caller <- maybe_caller, is_relative sym =
-            Id.ident_text caller <> Expr.unsym sym
+        | Just caller <- maybeCaller, isRelative sym =
+            Id.identText caller <> Expr.unsym sym
         | otherwise = Expr.unsym sym
 
 -- | Create the symbol to call a given block.
-block_id_to_call :: Bool -> BlockId -> BlockId -> Text
-block_id_to_call relative parent child
-    | Id.ident_namespace parent /= Id.ident_namespace child =
-        Id.show_id (Id.unpack_id child)
+blockIdToCall :: Bool -> BlockId -> BlockId -> Text
+blockIdToCall relative parent child
+    | Id.identNamespace parent /= Id.identNamespace child =
+        Id.showId (Id.unpackId child)
     | relative, Just suffix <- Text.stripPrefix
-            (parent_name <> relative_separator) child_name =
-        relative_separator <> suffix
-    | otherwise = child_name
+            (parentName <> relativeSeparator) childName =
+        relativeSeparator <> suffix
+    | otherwise = childName
     where
-    child_name = Id.ident_name child
-    parent_name = Id.ident_name parent
+    childName = Id.identName child
+    parentName = Id.identName parent
 
 -- | True if this is a relative block call.
-is_relative :: Expr.Symbol -> Bool
-is_relative = (relative_separator `Text.isPrefixOf`) . Expr.unsym
+isRelative :: Expr.Symbol -> Bool
+isRelative = (relativeSeparator `Text.isPrefixOf`) . Expr.unsym
 
 -- | Make a block name relative to a parent block.
-make_relative :: BlockId -> Text -> Text
-make_relative block_id name =
-    Id.ident_name block_id <> relative_separator <> name
+makeRelative :: BlockId -> Text -> Text
+makeRelative blockId name =
+    Id.identName blockId <> relativeSeparator <> name
 
 -- | If it's a relative BlockId, return the parent and relative call.
-parse_relative_id :: BlockId -> Maybe (BlockId, Id.Id)
-parse_relative_id block_id
+parseRelativeId :: BlockId -> Maybe (BlockId, Id.Id)
+parseRelativeId blockId
     | Text.null post = Nothing
     | otherwise = Just
-        ( Id.BlockId $ Id.set_name pre (Id.unpack_id block_id)
-        , Id.id (Id.ident_namespace block_id) (Text.drop 1 post)
+        ( Id.BlockId $ Id.setName pre (Id.unpackId blockId)
+        , Id.id (Id.identNamespace blockId) (Text.drop 1 post)
         )
-    where (pre, post) = Text.breakOn relative_separator $ Id.ident_name block_id
+    where (pre, post) = Text.breakOn relativeSeparator $ Id.identName blockId
 
-relative_separator :: Text
-relative_separator = "-"
+relativeSeparator :: Text
+relativeSeparator = "-"
 
 -- * util
 
 -- | Evaluate a single note as a generator.  Fake up an event with no prev or
 -- next lists.
-eval_one :: Derive.CallableExpr d => Bool -> DeriveT.Expr
+evalOne :: Derive.CallableExpr d => Bool -> DeriveT.Expr
     -> Derive.Deriver (Stream.Stream d)
-eval_one collect = eval_one_at collect 0 1
+evalOne collect = evalOneAt collect 0 1
 
-eval_one_call :: Derive.CallableExpr d => Bool -> DeriveT.Call
+evalOneCall :: Derive.CallableExpr d => Bool -> DeriveT.Call
     -> Derive.Deriver (Stream.Stream d)
-eval_one_call collect = eval_one collect . (:| [])
+evalOneCall collect = evalOne collect . (:| [])
 
-eval_one_at :: Derive.CallableExpr d => Bool -> ScoreTime -> ScoreTime
+evalOneAt :: Derive.CallableExpr d => Bool -> ScoreTime -> ScoreTime
     -> DeriveT.Expr -> Derive.Deriver (Stream.Stream d)
-eval_one_at collect start dur expr = eval_expr collect ctx expr
+evalOneAt collect start dur expr = evalExpr collect ctx expr
     where
     -- Set the event start and duration instead of using Derive.place since
     -- this way I can have zero duration events.
-    ctx = Derive.dummy_context start dur $ ShowVal.show_val expr
+    ctx = Derive.dummyContext start dur $ ShowVal.showVal expr
 
 -- | Like 'Derive.EvalTrack.derive_event' but evaluate the event outside of its
 -- track context.  This is useful if you want to evaluate things out of order,
 -- i.e. evaluate the /next/ pitch.
-eval_event :: Derive.CallableExpr d => Event.Event
+evalEvent :: Derive.CallableExpr d => Event.Event
     -> Derive.Deriver (Either Text (Stream.Stream d))
-eval_event event = case Parse.parse_expr (Event.text event) of
+evalEvent event = case Parse.parseExpr (Event.text event) of
     Left err -> pure $ Left err
     Right expr -> Right <$>
         -- TODO eval it separately to catch any exception?
-        eval_one_at False (Event.start event) (Event.duration event) expr
+        evalOneAt False (Event.start event) (Event.duration event) expr
 
 -- | Evaluate a generator, reusing the passed args but replacing the Symbol.
 -- Generators can use this to delegate to other generators.
-reapply_generator :: Derive.Callable (Derive.Generator d)
+reapplyGenerator :: Derive.Callable (Derive.Generator d)
     => Derive.PassedArgs d -> Expr.Symbol -> Derive.Deriver (Stream.Stream d)
-reapply_generator args sym = do
-    let ctx = Derive.passed_ctx args
-    call <- get_generator sym
-    apply_generator ctx call (Derive.passed_vals args)
+reapplyGenerator args sym = do
+    let ctx = Derive.passedCtx args
+    call <- getGenerator sym
+    applyGenerator ctx call (Derive.passedVals args)
 
 -- | Like 'reapply_generator', but the note is given normalized time, 0--1,
 -- instead of inheriting the start and duration from the args.  This is
 -- essential if you want to shift or stretch the note.
-reapply_generator_normalized :: Derive.Callable (Derive.Generator d)
+reapplyGeneratorNormalized :: Derive.Callable (Derive.Generator d)
     => Derive.PassedArgs d -> Expr.Symbol -> Derive.Deriver (Stream.Stream d)
-reapply_generator_normalized args = reapply_generator $ args
-    { Derive.passed_ctx = ctx
-        { Derive.ctx_event = Event.place 0 1 (Derive.ctx_event ctx)
-        , Derive.ctx_event_end = 1
+reapplyGeneratorNormalized args = reapplyGenerator $ args
+    { Derive.passedCtx = ctx
+        { Derive.ctxEvent = Event.place 0 1 (Derive.ctxEvent ctx)
+        , Derive.ctxEventEnd = 1
         }
     }
-    where ctx = Derive.passed_ctx args
+    where ctx = Derive.passedCtx args
 
 -- | Apply an expr with an explicit Context.  You can use this to reuse the
 -- current call's Context, but be careful because it will also inherit the
@@ -375,46 +375,46 @@ reapply_generator_normalized args = reapply_generator $ args
 -- override any pitch you try to set.
 reapply :: Derive.CallableExpr d => Derive.Context d -> DeriveT.Expr
     -> Derive.Deriver (Stream.Stream d)
-reapply = eval_expr True
+reapply = evalExpr True
 
-reapply_call :: Derive.CallableExpr d => Derive.Context d -> Expr.Symbol
+reapplyCall :: Derive.CallableExpr d => Derive.Context d -> Expr.Symbol
     -> [DeriveT.Term] -> Derive.Deriver (Stream.Stream d)
-reapply_call ctx sym call_args =
-    reapply ctx (Expr.generator $ Expr.Call sym call_args)
+reapplyCall ctx sym callArgs =
+    reapply ctx (Expr.generator $ Expr.Call sym callArgs)
 
 -- | A version of 'eval' specialized to evaluate pitch calls.  It's unknown if
 -- this pitch has been transposed or not.
-eval_pitch :: ScoreTime -> DeriveT.PitchCall
+evalPitch :: ScoreTime -> DeriveT.PitchCall
     -> Derive.Deriver (PSignal.RawPitch a)
-eval_pitch pos call = do
-    pitch <- Typecheck.typecheck ("eval pitch " <> ShowVal.show_val call) pos
+evalPitch pos call = do
+    pitch <- Typecheck.typecheck ("eval pitch " <> ShowVal.showVal call) pos
         =<< eval ctx (Expr.ValCall call)
     pure $ PSignal.coerce (pitch :: PSignal.Pitch)
     where
     ctx :: Derive.Context Derive.Pitch
-    ctx = Derive.dummy_context pos 0 "<eval_pitch>"
+    ctx = Derive.dummyContext pos 0 "<eval_pitch>"
 
 -- | Get a Pitch from in a given scale.  Like 'eval_pitch', it's unknown if
 -- this pitch has been transposed or not.
-eval_note :: Derive.Scale -> Pitch.Note -> Derive.Deriver (PSignal.RawPitch a)
-eval_note scale note = case Derive.scale_note_to_call scale note of
+evalNote :: Derive.Scale -> Pitch.Note -> Derive.Deriver (PSignal.RawPitch a)
+evalNote scale note = case Derive.scaleNoteToCall scale note of
     Nothing -> Derive.throw $ pretty scale <> " has no note " <> pretty note
-    Just vcall -> apply_pitch 0 vcall
+    Just vcall -> applyPitch 0 vcall
 
 -- | This is like 'eval_pitch' when you already know the call, presumably
 -- because you asked 'Derive.scale_note_to_call'.
-apply_pitch :: ScoreTime -> Derive.ValCall
+applyPitch :: ScoreTime -> Derive.ValCall
     -> Derive.Deriver (PSignal.RawPitch a)
-apply_pitch pos call = do
+applyPitch pos call = do
     pitch <- Typecheck.typecheck msg pos =<< apply ctx call []
     pure $ PSignal.coerce (pitch :: PSignal.Pitch)
     where
-    msg = "apply pitch: " <> showt (Derive.call_name call)
-    ctx = Derive.dummy_context pos 0 "<apply_pitch>"
+    msg = "apply pitch: " <> showt (Derive.callName call)
+    ctx = Derive.dummyContext pos 0 "<apply_pitch>"
 
 -- | Evaluate a single expression, catching an exception if it throws.
-eval_expr :: Derive.CallableExpr d => Bool -- ^ See 'Derive.catch'.  This
+evalExpr :: Derive.CallableExpr d => Bool -- ^ See 'Derive.catch'.  This
     -- should be True for evals that generate notes for eventual output.
     -> Derive.Context d -> DeriveT.Expr -> Derive.Deriver (Stream.Stream d)
-eval_expr collect ctx expr =
-    fromMaybe Stream.empty <$> Derive.catch collect (eval_toplevel ctx expr)
+evalExpr collect ctx expr =
+    fromMaybe Stream.empty <$> Derive.catch collect (evalToplevel ctx expr)

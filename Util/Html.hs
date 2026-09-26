@@ -3,11 +3,11 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Util.Html (
-    Html(..), html, un_html
+    Html(..), html, unHtml
     -- ** create
-    , tag, tag_class, link, tag_attrs
-    , html_doc
-    , HtmlState, get_html_state
+    , tag, tagClass, link, tagAttrs
+    , htmlDoc
+    , HtmlState, getHtmlState
 ) where
 import qualified Data.Char as Char
 import qualified Data.Set as Set
@@ -37,29 +37,29 @@ html :: Text -> Html
 html = Html . Text.replace "<" "&lt;" . Text.replace ">" "&gt;"
     . Text.replace "&" "&amp;"
 
-un_html :: Html -> Text
-un_html (Html text) = text
+unHtml :: Html -> Text
+unHtml (Html text) = text
 
 -- ** create
 
 tag :: Text -> Html -> Html
-tag name content = tag_attrs name [] (Just content)
+tag name content = tagAttrs name [] (Just content)
 
-tag_class :: Text -> Text -> Html -> Html
-tag_class name class_ content =
-    tag_attrs name [("class", class_)] (Just content)
+tagClass :: Text -> Text -> Html -> Html
+tagClass name class_ content =
+    tagAttrs name [("class", class_)] (Just content)
 
 link :: Text -> Text -> Html
-link text url = tag_attrs "a" [("href", url)] (Just (html text))
+link text url = tagAttrs "a" [("href", url)] (Just (html text))
 
-tag_attrs :: Text -> [(Text, Text)] -> Maybe Html -> Html
-tag_attrs name attrs mb_content = mconcat $
-    "<" : html name : attrs_text : ">"
-    : (case mb_content of
+tagAttrs :: Text -> [(Text, Text)] -> Maybe Html -> Html
+tagAttrs name attrs mbContent = mconcat $
+    "<" : html name : attrsText : ">"
+    : (case mbContent of
         Nothing -> []
         Just content -> [content, "</", html name, ">"])
     where
-    attrs_text
+    attrsText
         | null attrs = ""
         | otherwise = (" "<>) $ Lists.join " "
             [ html name
@@ -72,31 +72,31 @@ tag_attrs name attrs mb_content = mconcat $
 -- for \<code\>, and newline for \<br\>.
 --
 -- TODO maybe support leading - for \<ol\>.
-html_doc :: HtmlState -> Doc.Doc -> Html
-html_doc (haddock_dir, files) (Doc.Doc doc) =
-    Html . postproc . un_html . html $ doc
+htmlDoc :: HtmlState -> Doc.Doc -> Html
+htmlDoc (haddockDir, files) (Doc.Doc doc) =
+    Html . postproc . unHtml . html $ doc
     where
     -- To keep the Text vs. Html type distinction I'd have to have [Either Text
     -- Html] and make mapDelimited return a list, and I couldn't use
     -- Text.replace.  It's doable, but would be more trouble than it's worth.
-    postproc = para . backticks . single_quotes
+    postproc = para . backticks . singleQuotes
     para = Text.replace "\n" "\n<br>"
     backticks = Texts.mapDelimited True '`'
         (\t -> "<code>" <> t <> "</code>")
-    single_quotes = Texts.mapDelimited False '\'' $ \text ->
-        case Texts.haddockUrl files haddock_dir text of
+    singleQuotes = Texts.mapDelimited False '\'' $ \text ->
+        case Texts.haddockUrl files haddockDir text of
             Nothing -> "'" <> text <> "'"
-            Just url -> un_html $ link text (Text.pack url)
+            Just url -> unHtml $ link text (Text.pack url)
 
 -- | (haddock_dir, directory_tree)
 type HtmlState = (FilePath, Set.Set FilePath)
 
-get_html_state :: FilePath -> Path.AppDir -> IO HtmlState
-get_html_state haddock_dir app_dir = do
-    files <- get_files app_dir
+getHtmlState :: FilePath -> Path.AppDir -> IO HtmlState
+getHtmlState haddockDir appDir = do
+    files <- getFiles appDir
     -- The eventual output is in build/doc.
-    pure (haddock_dir, files)
+    pure (haddockDir, files)
     where
-    get_files (Path.AppDir dir) = do
+    getFiles (Path.AppDir dir) = do
         files <- Files.listRecursive (maybe False Char.isUpper . Lists.head) dir
         pure $ Set.fromList files

@@ -62,11 +62,11 @@ convertNote :: Guitar.Instrument -> Note.Note -> Either Error Note
 convertNote inst note = first ((pretty note <> ": ")<>) $ do
     let get c = tryJust ("no " <> pretty c) $ Map.lookup c (Note.controls note)
     let getStart c = tryJust ("no value: " <> pretty c)
-            . flip Signal.at_maybe (Note.start note) =<< get c
+            . flip Signal.atMaybe (Note.start note) =<< get c
     pitch <- get Control.pitch
-    finger <- get Patch.c_finger
+    finger <- get Patch.cFinger
     dyn <- getStart Control.dynamic
-    loc <- getStart Patch.c_location
+    loc <- getStart Patch.cLocation
     string <- tryJust ("no string: " <> showt (Note.element note)) $
         List.find ((== Note.element note) . Guitar.sName)
             (Guitar.iStrings inst)
@@ -88,7 +88,7 @@ muteNote :: RealTime.RealTime -> Note -> Note
 muteNote start note = note
     { _start = start
     , _pitch = Signal.constant $
-        Signal.at (_pitch note) (_start note) + Pitch.nn_to_double muteOffset
+        Signal.at (_pitch note) (_start note) + Pitch.nnToDouble muteOffset
     , _finger = Signal.constant 0.01
     , _dynamic = 0
     , _location = 0
@@ -132,8 +132,8 @@ collectFingers = collect . Lists.keyedGroupStable _string
         unless (null overlaps) $
             Left $ "overlaps: "
                 <> pretty (map (bimap startDur startDur) overlaps)
-        let pitch = merge_segments [(_start n, _pitch n) | n <- notes]
-            fingerWeight = merge_segments [(_start n, _finger n) | n <- notes]
+        let pitch = mergeSegments [(_start n, _pitch n) | n <- notes]
+            fingerWeight = mergeSegments [(_start n, _finger n) | n <- notes]
         pure
             ( filter ((>0) . Guitar.nAmplitude) $ map (makeNote string) notes
             , makeFinger string notes pitch fingerWeight
@@ -141,7 +141,7 @@ collectFingers = collect . Lists.keyedGroupStable _string
     makeNote string note = Guitar.Note
         { nStrike = Guitar.Pluck
         , nString = Guitar.sName string
-        , nStart = RealTime.to_seconds (_start note)
+        , nStart = RealTime.toSeconds (_start note)
         , nDuration = 0.0013
         , nLocation = _location note
         , nAmplitude = _dynamic note * maxAmp
@@ -152,8 +152,8 @@ collectFingers = collect . Lists.keyedGroupStable _string
         , fMovement = fingerMovement string notes pitch fingerWeight
         }
 
-merge_segments :: [(RealTime.RealTime, Signal.Signal)] -> Signal.Signal
-merge_segments = mconcat . map (uncurry Signal.clip_before)
+mergeSegments :: [(RealTime.RealTime, Signal.Signal)] -> Signal.Signal
+mergeSegments = mconcat . map (uncurry Signal.clipBefore)
 
 deoverlap :: [Note] -> [Note]
 deoverlap = map trim . Lists.zipNext
@@ -166,7 +166,7 @@ deoverlap = map trim . Lists.zipNext
 fingerMovement :: Guitar.String -> [Note] -> Signal.Signal -> Signal.Signal
     -> [(Seconds, Location, Newtons)]
 fingerMovement string notes pitch fingerWeight =
-    concat $ snd $ List.mapAccumL note (Signal.to_pairs pitch)
+    concat $ snd $ List.mapAccumL note (Signal.toPairs pitch)
         (Lists.zipNext notes)
     where
     note pitches (note, nextNote) =
@@ -191,9 +191,9 @@ fingerMovement string notes pitch fingerWeight =
                 | otherwise -> pitches
             Nothing -> [(nextAttack, initial)]
     position t nn =
-        ( max 0 $ RealTime.to_seconds t
+        ( max 0 $ RealTime.toSeconds t
         , max 0 $ Guitar.pitchLocation stringNn (Pitch.nn nn)
-        , if Pitch.nns_equal (Pitch.nn nn) stringNn
+        , if Pitch.nnsEqual (Pitch.nn nn) stringNn
             then 0 else weightAt t * maxAmp
         )
         where stringNn = Guitar.sNn string

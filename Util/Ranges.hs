@@ -4,9 +4,9 @@
 
 -- | Ranges are half-open.
 module Util.Ranges (
-    Ranges, extract, extract1, pair_map
-    , ranges, sorted_ranges, merge_sorted, range, point, everything, nothing
-    , overlapping, overlapping_closed, intersection, invert
+    Ranges, extract, extract1, pairMap
+    , ranges, sortedRanges, mergeSorted, range, point, everything, nothing
+    , overlapping, overlappingClosed, intersection, invert
 ) where
 import qualified Control.DeepSeq as DeepSeq
 import qualified Data.List as List
@@ -48,27 +48,27 @@ extract1 (Ranges pairs) = case (Lists.head pairs, Lists.last pairs) of
     _ -> Nothing
 extract1 Everything = Just Nothing
 
-pair_map :: Ord b => ((a, a) -> (b, b)) -> Ranges a -> Ranges b
-pair_map f r = case extract r of
+pairMap :: Ord b => ((a, a) -> (b, b)) -> Ranges a -> Ranges b
+pairMap f r = case extract r of
     Nothing -> everything
-    Just pairs -> sorted_ranges (map f pairs)
+    Just pairs -> sortedRanges (map f pairs)
 
 -- * constructors
 
 -- | This doesn't ensure that, given @(s, e)@, s <= e.
 ranges :: Ord n => [(n, n)] -> Ranges n
-ranges = sorted_ranges . List.sort
+ranges = sortedRanges . List.sort
 
-sorted_ranges :: Ord n => [(n, n)] -> Ranges n
-sorted_ranges = Ranges . merge_sorted
+sortedRanges :: Ord n => [(n, n)] -> Ranges n
+sortedRanges = Ranges . mergeSorted
 
-merge_sorted :: Ord n => [(n, n)] -> [(n, n)]
-merge_sorted [] = []
-merge_sorted [x] = [x]
-merge_sorted ((s1, e1) : (s2, e2) : rest)
-    | e1 >= e2 = merge_sorted ((s1, e1) : rest)
-    | e1 >= s2 = merge_sorted ((s1, e2) : rest)
-    | otherwise = (s1, e1) : merge_sorted ((s2, e2) : rest)
+mergeSorted :: Ord n => [(n, n)] -> [(n, n)]
+mergeSorted [] = []
+mergeSorted [x] = [x]
+mergeSorted ((s1, e1) : (s2, e2) : rest)
+    | e1 >= e2 = mergeSorted ((s1, e1) : rest)
+    | e1 >= s2 = mergeSorted ((s1, e2) : rest)
+    | otherwise = (s1, e1) : mergeSorted ((s2, e2) : rest)
 
 range :: n -> n -> Ranges n
 range s e = Ranges [(s, e)]
@@ -85,17 +85,17 @@ nothing = Ranges []
 -- * functions
 
 overlapping :: Ord n => Ranges n -> Ranges n -> Bool
-overlapping = check_overlapping False
+overlapping = checkOverlapping False
 
 -- | This is like 'overlapping', except the ranges are closed instead of
 -- half-open.
-overlapping_closed :: Ord n => Ranges n -> Ranges n -> Bool
-overlapping_closed = check_overlapping True
+overlappingClosed :: Ord n => Ranges n -> Ranges n -> Bool
+overlappingClosed = checkOverlapping True
 
-check_overlapping :: Ord n => Bool -> Ranges n -> Ranges n -> Bool
-check_overlapping _ Everything r2 = r2 /= nothing
-check_overlapping _ r1 Everything = r1 /= nothing
-check_overlapping closed (Ranges r1) (Ranges r2) = go r1 r2
+checkOverlapping :: Ord n => Bool -> Ranges n -> Ranges n -> Bool
+checkOverlapping _ Everything r2 = r2 /= nothing
+checkOverlapping _ r1 Everything = r1 /= nothing
+checkOverlapping closed (Ranges r1) (Ranges r2) = go r1 r2
     where
     go [] _ = False
     go _ [] = False
@@ -123,7 +123,7 @@ intersection (Ranges r1) (Ranges r2) = Ranges (go r1 r2)
         where rest = if e1 < e2 then go rest1 r2 else go r1 rest2
 
 merge :: Ord n => [(n, n)] -> [(n, n)] -> [(n, n)]
-merge r1 r2 = merge_sorted (Lists.mergeOn fst r1 r2)
+merge r1 r2 = mergeSorted (Lists.mergeOn fst r1 r2)
 
 -- | Given a complete range, invert the ranges.
 invert :: Ord n => (n, n) -> Ranges n -> Ranges n

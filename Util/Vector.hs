@@ -16,10 +16,10 @@ count :: Generic.Vector v a => (a -> Bool) -> v a -> Int
 count f = Generic.foldl' (\c a -> if f a then succ c else c) 0
 
 -- | Like 'Generic.find', but from the end.
-{-# SPECIALIZE find_end :: (a -> Bool) -> V.Vector a -> Maybe a #-}
-{-# INLINEABLE find_end #-}
-find_end :: Generic.Vector v a => (a -> Bool) -> v a -> Maybe a
-find_end f vec = go (Generic.length vec - 1)
+{-# SPECIALIZE findEnd :: (a -> Bool) -> V.Vector a -> Maybe a #-}
+{-# INLINEABLE findEnd #-}
+findEnd :: Generic.Vector v a => (a -> Bool) -> v a -> Maybe a
+findEnd f vec = go (Generic.length vec - 1)
     where
     go i
         | i < 0 = Nothing
@@ -27,19 +27,19 @@ find_end f vec = go (Generic.length vec - 1)
         | otherwise = go (i-1)
         where val = Generic.unsafeIndex vec i
 
-to_reverse_list :: Generic.Vector v a => v a -> [a]
-to_reverse_list vec = map (Generic.unsafeIndex vec) [from, from-1 .. 0]
+toReverseList :: Generic.Vector v a => v a -> [a]
+toReverseList vec = map (Generic.unsafeIndex vec) [from, from-1 .. 0]
     where from = Generic.length vec - 1
 
-fold_abort :: Generic.Vector v a => (accum -> a -> Maybe accum) -> accum
+foldAbort :: Generic.Vector v a => (accum -> a -> Maybe accum) -> accum
     -> v a -> accum
-fold_abort f accum vec = go 0 accum
+foldAbort f accum vec = go 0 accum
     where go i accum = maybe accum (go (i+1)) $ f accum =<< vec Generic.!? i
 
 -- | Find the index of the last value whose running sum is still below the
 -- given number.
-find_before :: Generic.Vector v Int => Int -> v Int -> Int
-find_before n = fst . fold_abort go (0, 0)
+findBefore :: Generic.Vector v Int => Int -> v Int -> Int
+findBefore n = fst . foldAbort go (0, 0)
     where
     go (i, total) a
         | total + a <= n = Just (i+1, total+a)
@@ -61,14 +61,14 @@ bracket vec a = case Generic.findIndex (>=a) vec of
 --
 -- TODO this is likely the same as
 -- Data.Vector.Algorithms.Search.binarySearchLBy
-{-# SPECIALIZE lowest_index ::
+{-# SPECIALIZE lowestIndex ::
     Ord key => (a -> key) -> key -> V.Vector a -> Int #-}
-{-# SPECIALIZE lowest_index ::
+{-# SPECIALIZE lowestIndex ::
     (Generic.Vector Unboxed.Vector a, Ord key) => (a -> key) -> key
         -> Unboxed.Vector a -> Int #-}
-{-# INLINEABLE lowest_index #-}
-lowest_index :: (Ord key, Generic.Vector v a) => (a -> key) -> key -> v a -> Int
-lowest_index key x vec = go vec 0 (Generic.length vec)
+{-# INLINEABLE lowestIndex #-}
+lowestIndex :: (Ord key, Generic.Vector v a) => (a -> key) -> key -> v a -> Int
+lowestIndex key x vec = go vec 0 (Generic.length vec)
     where
     go vec low high
         | low == high = low
@@ -79,13 +79,13 @@ lowest_index key x vec = go vec 0 (Generic.length vec)
 -- | Binary search for the highest index of the given X.  So the next value is
 -- guaranteed to have a higher x, if it exists.  Return -1 if @x@ is before
 -- the first element.
-{-# SPECIALIZE highest_index ::
+{-# SPECIALIZE highestIndex ::
     (Generic.Vector Unboxed.Vector a, Ord key) => (a -> key) -> key
         -> Unboxed.Vector a -> Int #-}
-{-# INLINEABLE highest_index #-}
-highest_index :: (Ord key, Generic.Vector v a) => (a -> key) -> key -> v a
+{-# INLINEABLE highestIndex #-}
+highestIndex :: (Ord key, Generic.Vector v a) => (a -> key) -> key -> v a
     -> Int
-highest_index key x vec
+highestIndex key x vec
     | Generic.null vec = -1
     | otherwise = i - 1
     where
@@ -98,9 +98,9 @@ highest_index key x vec
 
 -- | Partition on a key.  This is the vector version of
 -- 'Util.Seq.keyed_group_stable'.
-partition_on :: (Eq key, Generic.Vector v a) => (a -> key) -> v a
+partitionOn :: (Eq key, Generic.Vector v a) => (a -> key) -> v a
     -> [(key, v a)]
-partition_on key = go
+partitionOn key = go
     where
     go v
         | Generic.null v = []

@@ -31,13 +31,13 @@ test_events_from = do
         i2 = UiTest.i2
         i3 = UiTest.i3
     let f pos = bimap (map extract) (map extract . Vector.toList)
-            . PlayUtil.events_from resume_insts pos
+            . PlayUtil.eventsFrom resumeInsts pos
             . Vector.fromList . map mkevent
-        resume_insts = Set.fromList [i1, i2]
+        resumeInsts = Set.fromList [i1, i2]
         mkevent (start, dur, inst) =
             DeriveTest.mkevent (start, dur, "4c", [], inst)
-        extract e = (Score.event_start e, Score.event_duration e,
-            Score.event_instrument e)
+        extract e = (Score.eventStart e, Score.eventDuration e,
+            Score.eventInstrument e)
     equal (f 0 []) ([], [])
     -- The one at means don't look for the previous one.
     equal (f 2 [(0, 1, i1), (1, 1, i1), (2, 1, i1)]) ([], [(2, 1, i1)])
@@ -55,11 +55,11 @@ test_events_from = do
 
 test_control_defaults :: Test
 test_control_defaults = do
-    let make = UiTest.set_instruments alloc_ky
-            . CmdTest.make_tracks . uncurry UiTest.inst_note_track
-        alloc_ky = ">i1 s/1 [ms] wdev 1 { control_defaults: {cc17: .5} }"
-        extract = first $ fmap (map snd . DeriveTest.midi_channel)
-    let run state = extract $ perform_events state UiTest.default_block_id
+    let make = UiTest.setInstruments allocKy
+            . CmdTest.makeTracks . uncurry UiTest.instNoteTrack
+        allocKy = ">i1 s/1 [ms] wdev 1 { control_defaults: {cc17: .5} }"
+        extract = first $ fmap (map snd . DeriveTest.midiChannel)
+    let run state = extract $ performEvents state UiTest.defaultBlockId
     let (midi, logs) = run $ make ("i1", [(0, 1, "4c")])
     equal logs []
     equal midi $
@@ -72,17 +72,17 @@ test_control_defaults = do
         Right [Midi.ControlChange 17 0, Midi.NoteOn Key.c4 127,
             Midi.NoteOff Key.c4 127]
 
-perform_events :: Ui.State -> BlockId
+performEvents :: Ui.State -> BlockId
     -> (Either Text [Midi.WriteMessage], [Text])
-perform_events ui_state block_id =
-    (midi, mapMaybe DeriveTest.show_interesting_log all_logs)
+performEvents uiState blockId =
+    (midi, mapMaybe DeriveTest.showInterestingLog allLogs)
     where
-    (midi, midi_logs) = case CmdTest.result_ok result of
+    (midi, midiLogs) = case CmdTest.resultOk result of
         Right events -> first Right $ LEvent.partition events
         Left err -> (Left err, [])
-    all_logs = Cmd.perf_logs perf ++ logs ++ CmdTest.result_logs result
-        ++ midi_logs
-    result = CmdTest.run ui_state cmd_state $
-        PlayUtil.perform_raw (Vector.toList (Cmd.perf_events perf))
-    (perf, logs) = Performance.derive ui_state cmd_state block_id
-    cmd_state = CmdTest.default_cmd_state
+    allLogs = Cmd.perfLogs perf ++ logs ++ CmdTest.resultLogs result
+        ++ midiLogs
+    result = CmdTest.run uiState cmdState $
+        PlayUtil.performRaw (Vector.toList (Cmd.perfEvents perf))
+    (perf, logs) = Performance.derive uiState cmdState blockId
+    cmdState = CmdTest.defaultCmdState

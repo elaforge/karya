@@ -23,9 +23,9 @@ import Global
 
 test_search :: Test
 test_search = do
-    let f = map InstT.show_qualified . Search.search index . Search.parse
-    equal (f "") t_all_insts
-    equal (f "synth=") t_all_insts
+    let f = map InstT.showQualified . Search.search index . Search.parse
+    equal (f "") tAllInsts
+    equal (f "synth=") tAllInsts
     equal (f "category=key control=comb") ["z1/comb-clav"]
     equal (f "category=key control=") ["z1/comb-clav", "z1/pulse-clav"]
     equal (f "name=delg name=comb") []
@@ -42,17 +42,17 @@ test_search = do
     equal (f "z1/sq") ["z1/square-hollow"]
 
 index :: Search.Index
-index = Search.make_index db
+index = Search.makeIndex db
 
 db :: Cmd.InstrumentDb
-db = make_db [("fm8", fm8_patches), ("z1", z1_patches)]
+db = makeDb [("fm8", fm8Patches), ("z1", z1Patches)]
 
-t_all_insts :: [Text]
-t_all_insts =
-    map InstT.show_qualified (Map.keys (Search.idx_instrument_tags index))
+tAllInsts :: [Text]
+tAllInsts =
+    map InstT.showQualified (Map.keys (Search.idxInstrumentTags index))
 
-z1_patches :: [(Patch.Patch, Text)]
-z1_patches =
+z1Patches :: [(Patch.Patch, Text)]
+z1Patches =
     [ (mkpatch "mr-delgado" [(14, "delgado")], "synth-lead")
     , (mkpatch "studio-ep" [], "epiano")
     , (mkpatch "square-hollow" [], "synth-soft")
@@ -62,20 +62,20 @@ z1_patches =
     , (mkpatch "pulse-clav" [(16, "pe1")], "keyboard")
     ]
 
-fm8_patches :: [(Patch.Patch, Text)]
-fm8_patches = [(mkpatch "" [], "fm")]
+fm8Patches :: [(Patch.Patch, Text)]
+fm8Patches = [(mkpatch "" [], "fm")]
 
 mkpatch :: InstT.Name -> [(Midi.Control, ScoreT.Control)] -> Patch.Patch
 mkpatch name controls = (Patch.patch (-2, 2) name)
-    { Patch.patch_control_map = Control.control_map controls }
+    { Patch.patchControlMap = Control.controlMap controls }
 
-make_db :: [(InstT.SynthName, [(Patch.Patch, Text)])] -> Cmd.InstrumentDb
-make_db synth_patches = fst $ Inst.db $ map make synth_patches
-    where make (name, patches) = make_synth name patches
+makeDb :: [(InstT.SynthName, [(Patch.Patch, Text)])] -> Cmd.InstrumentDb
+makeDb synthPatches = fst $ Inst.db $ map make synthPatches
+    where make (name, patches) = makeSynth name patches
 
-make_synth :: InstT.SynthName -> [(Patch.Patch, Text)] -> MidiInst.Synth
-make_synth name = MidiInst.synth name "Test Synth" . map make
+makeSynth :: InstT.SynthName -> [(Patch.Patch, Text)] -> MidiInst.Synth
+makeSynth name = MidiInst.synth name "Test Synth" . map make
     where
     make (patch, category) =
         MidiInst.common#Common.tags #= [(Tag.category, category)] $
-        MidiInst.make_patch patch
+        MidiInst.makePatch patch

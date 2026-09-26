@@ -24,26 +24,26 @@ import           Types
 
 -- | This is a pseudo-instrument used to mark notes which are actually global
 -- lilypond directives.  E.g., meter changes, page breaks, movement titles.
-ly_global :: ScoreT.Instrument
-ly_global = ScoreT.Instrument "ly-global"
+lyGlobal :: ScoreT.Instrument
+lyGlobal = ScoreT.Instrument "ly-global"
 
-ly_qualified :: InstT.Qualified
-ly_qualified = InstT.Qualified "ly" "global"
+lyQualified :: InstT.Qualified
+lyQualified = InstT.Qualified "ly" "global"
 
-ly_synth :: code -> Inst.SynthDecl code
-ly_synth code = Inst.SynthDecl
-    { synthd_name = "ly"
-    , synthd_doc = "Fake synth for fake lilypond instrument."
-    , synthd_patches =
+lySynth :: code -> Inst.SynthDecl code
+lySynth code = Inst.SynthDecl
+    { synthdName = "ly"
+    , synthdDoc = "Fake synth for fake lilypond instrument."
+    , synthdPatches =
         [ ("global"
-          , Inst.Inst (Inst.Dummy dummy_doc)
+          , Inst.Inst (Inst.Dummy dummyDoc)
             (Common.doc #= doc $ Common.common code)
           )
         ]
-    , synthd_warns = []
+    , synthdWarns = []
     }
     where
-    dummy_doc = "fake instrument for lilypond directives"
+    dummyDoc = "fake instrument for lilypond directives"
     doc = "The lilypond deriver will automatically allocate `>ly-global`, and\
         \ instruments with global lilypond directives will get this instrument."
 
@@ -57,8 +57,8 @@ instance Typecheck.Typecheck FreeCodePosition
 instance Typecheck.ToVal FreeCodePosition
 
 instance ShowVal.ShowVal FreeCodePosition where
-    show_val FreePrepend = "prepend"
-    show_val FreeAppend = "append"
+    showVal FreePrepend = "prepend"
+    showVal FreeAppend = "append"
 
 -- | A code fragment that has to be attached to notes.
 data CodePosition = CodePosition Attach Position Distribution
@@ -72,8 +72,8 @@ data Attach = Chord | Note
 data Position = Prepend | Append
     deriving (Eq, Ord, Show)
 
-all_positions :: [CodePosition]
-all_positions =
+allPositions :: [CodePosition]
+allPositions =
     [ CodePosition a p d
     | a <- [Chord, Note], p <- [Prepend, Append], d <- [First, Last, All]
     ]
@@ -86,8 +86,8 @@ data Distribution = First | Last | All
 instance Pretty FreeCodePosition where pretty = showt
 instance Pretty CodePosition where pretty = showt
 
-position_key :: CodePosition -> Env.Key
-position_key (CodePosition attach pos distribution) =
+positionKey :: CodePosition -> Env.Key
+positionKey (CodePosition attach pos distribution) =
     Text.intercalate "-" $ "ly" :
         [ case attach of
             Chord -> "chord"
@@ -101,41 +101,41 @@ position_key (CodePosition attach pos distribution) =
             All -> "all"
         ]
 
-key_position :: Env.Key -> Maybe CodePosition
-key_position k = Map.lookup k m
-    where m = Map.fromList $ Lists.keyOn position_key all_positions
+keyPosition :: Env.Key -> Maybe CodePosition
+keyPosition k = Map.lookup k m
+    where m = Map.fromList $ Lists.keyOn positionKey allPositions
 
-environ_code :: Env.Environ -> [(CodePosition, Text)]
-environ_code env =
+environCode :: Env.Environ -> [(CodePosition, Text)]
+environCode env =
     [ (code, val)
     | (Just code, Just val)
-        <- map (bimap key_position Typecheck.from_val_simple) (Env.to_list env)
+        <- map (bimap keyPosition Typecheck.fromValSimple) (Env.toList env)
     ]
 
-with_code :: CodePosition -> Text -> Env.Environ -> Env.Environ
-with_code pos code env = Env.insert_val key (old <> code) env
+withCode :: CodePosition -> Text -> Env.Environ -> Env.Environ
+withCode pos code env = Env.insertVal key (old <> code) env
     where
-    old = fromMaybe "" $ Env.maybe_val key env
-    key = position_key pos
+    old = fromMaybe "" $ Env.maybeVal key env
+    key = positionKey pos
 
-free_code_key :: FreeCodePosition -> Env.Key
-free_code_key FreePrepend = "ly-prepend"
-free_code_key FreeAppend = "ly-append"
+freeCodeKey :: FreeCodePosition -> Env.Key
+freeCodeKey FreePrepend = "ly-prepend"
+freeCodeKey FreeAppend = "ly-append"
 
-key_free_code :: Env.Key -> Maybe FreeCodePosition
-key_free_code "ly-prepend" = Just FreePrepend
-key_free_code "ly-append" = Just FreeAppend
-key_free_code _ = Nothing
+keyFreeCode :: Env.Key -> Maybe FreeCodePosition
+keyFreeCode "ly-prepend" = Just FreePrepend
+keyFreeCode "ly-append" = Just FreeAppend
+keyFreeCode _ = Nothing
 
-environ_free_code :: Env.Environ -> [(FreeCodePosition, Text)]
-environ_free_code env =
+environFreeCode :: Env.Environ -> [(FreeCodePosition, Text)]
+environFreeCode env =
     [ (code, val)
     | (Just code, Just val)
-        <- map (bimap key_free_code Typecheck.from_val_simple) (Env.to_list env)
+        <- map (bimap keyFreeCode Typecheck.fromValSimple) (Env.toList env)
     ]
 
-with_free_code :: FreeCodePosition -> Text -> Env.Environ -> Env.Environ
-with_free_code pos code = Env.insert_val (free_code_key pos) code
+withFreeCode :: FreeCodePosition -> Text -> Env.Environ -> Env.Environ
+withFreeCode pos code = Env.insertVal (freeCodeKey pos) code
 
 -- ** other env keys
 
@@ -143,57 +143,57 @@ with_free_code pos code = Env.insert_val (free_code_key pos) code
 -- pitch modifiers like reminder accidentals (!) and cautionary accidentals
 -- (?).  TODO this isn't integrated with 'CodePosition', but maybe could be.
 -- Would Prepend make any sense?
-v_append_pitch :: Env.Key
-v_append_pitch = "ly-append-pitch"
+vAppendPitch :: Env.Key
+vAppendPitch = "ly-append-pitch"
 
 -- | String: \"^\" or \"_\", manually sets tie direction, if this note is
 -- tied.
-v_tie_direction :: Env.Key
-v_tie_direction = "ly-tie-direction"
+vTieDirection :: Env.Key
+vTieDirection = "ly-tie-direction"
 
 -- * tuplet
 
 -- | Set the env vars that signals that the lilypond converter should make
 -- the following notes into a tuplet.
-set_tuplet :: RealTime -- ^ score_dur is the visible duration in the score
+setTuplet :: RealTime -- ^ score_dur is the visible duration in the score
     -> RealTime -- ^ real_dur is the duration it actually consumes, so
     -- 3 quarters into 1 whole will be 3/4.
     -> Env.Environ
-set_tuplet score_dur real_dur = Env.from_list
-    [ ("ly-tuplet-score-dur", Typecheck.to_val score_dur)
-    , ("ly-tuplet-real-dur", Typecheck.to_val real_dur)
+setTuplet scoreDur realDur = Env.fromList
+    [ ("ly-tuplet-score-dur", Typecheck.toVal scoreDur)
+    , ("ly-tuplet-real-dur", Typecheck.toVal realDur)
     ]
 
-get_tuplet :: Env.Environ -> Maybe (RealTime, RealTime)
-get_tuplet env = (,) <$> get "ly-tuplet-score-dur" <*> get "ly-tuplet-real-dur"
-    where get k = Env.maybe_val k env
+getTuplet :: Env.Environ -> Maybe (RealTime, RealTime)
+getTuplet env = (,) <$> get "ly-tuplet-score-dur" <*> get "ly-tuplet-real-dur"
+    where get k = Env.maybeVal k env
 
 -- * tremolo
 
 -- | This marks a tremolo event, which triggers special treatment for
 -- coincident notes.
-v_tremolo :: Env.Key
-v_tremolo = "ly-tremolo"
+vTremolo :: Env.Key
+vTremolo = "ly-tremolo"
 
 -- * ly-global
 
 -- | String: should be parseable by 'Meter.parse_meter',
 -- e.g. @\'3/4\'@.  Used only on @>ly-global@ events.
-v_meter :: Env.Key
-v_meter = "ly-meter"
+vMeter :: Env.Key
+vMeter = "ly-meter"
 
 -- | String: this has the same format as 'v_meter', but it affects the rhythmic
 -- spelling for the instrument.
-v_subdivision :: Env.Key
-v_subdivision = "ly-subdivision"
+vSubdivision :: Env.Key
+vSubdivision = "ly-subdivision"
 
 -- | String: Gives the title of a new movement.  An event with 'ly_global'
 -- instrument and this env val will cause a movement break.
-v_movement :: Env.Key
-v_movement = "ly-movement"
+vMovement :: Env.Key
+vMovement = "ly-movement"
 
 -- * common code
 
 -- | Emit Ped___^___/ style pedal markings.
-mixed_pedal_style :: Text
-mixed_pedal_style = "\\set Staff.pedalSustainStyle = #'mixed"
+mixedPedalStyle :: Text
+mixedPedalStyle = "\\set Staff.pedalSustainStyle = #'mixed"

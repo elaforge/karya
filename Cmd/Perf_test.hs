@@ -18,21 +18,21 @@ import Global
 
 test_derive_expr :: Test
 test_derive_expr = do
-    let run extract tracks cmd = CmdTest.extract (extract_events extract) <$>
-            CmdTest.run_tracks_with_performance tracks cmd
-        f tracknum pos expr = Perf.derive_expr UiTest.default_block_id
-            (UiTest.mk_tid tracknum) pos
-            (expect_right (Parse.parse_expr expr))
-        note_call e = (Score.event_start e, DeriveTest.e_attributes e)
-    io_equal (run note_call [(">i1", [])] (f 1 0 "+b | +a"))
+    let run extract tracks cmd = CmdTest.extract (extractEvents extract) <$>
+            CmdTest.runTracksWithPerformance tracks cmd
+        f tracknum pos expr = Perf.deriveExpr UiTest.defaultBlockId
+            (UiTest.mkTid tracknum) pos
+            (expectRight (Parse.parseExpr expr))
+        noteCall e = (Score.eventStart e, DeriveTest.eAttributes e)
+    ioEqual (run noteCall [(">i1", [])] (f 1 0 "+b | +a"))
         (Right (Just (Right [(0, "+a+b")], []), []))
 
-    let control_call :: Signal.Control -> [(Signal.X, Signal.Y)]
-        control_call = Signal.to_pairs :: Signal.Control
+    let controlCall :: Signal.Control -> [(Signal.X, Signal.Y)]
+        controlCall = Signal.toPairs :: Signal.Control
             -> [(Signal.X, Signal.Y)]
-    io_equal (run control_call [("c", []), (">", [])] (f 1 0 ".5"))
+    ioEqual (run controlCall [("c", []), (">", [])] (f 1 0 ".5"))
         (Right (Just (Right [[(0, 0.5)]], []), []))
 
-extract_events :: (d -> e) -> (Either Text [d], [Log.Msg])
+extractEvents :: (d -> e) -> (Either Text [d], [Log.Msg])
     -> (Either Text [e], [Text])
-extract_events f (val, logs) = (map f <$> val, map DeriveTest.show_log logs)
+extractEvents f (val, logs) = (map f <$> val, map DeriveTest.showLog logs)

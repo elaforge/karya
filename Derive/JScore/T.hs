@@ -8,7 +8,7 @@ module Derive.JScore.T (
 import qualified Data.Text as Text
 
 import           Derive.TScore.T
-    (Error(..), Pos(..), Time(..), fake_pos, find_pos, show_pos, show_error)
+    (Error(..), Pos(..), Time(..), fakePos, findPos, showPos, showError)
 
 import           Global
 
@@ -20,7 +20,7 @@ import           Global
 data ParsedPitch = ParsedPitch Int PitchClass
     deriving (Eq, Ord, Show)
 
-data Pitch = Pitch { pitch_octave :: Octave, pitch_pc :: PitchClass }
+data Pitch = Pitch { pitchOctave :: Octave, pitchPc :: PitchClass }
     deriving (Eq, Ord, Show)
 
 -- | This is the instrument relative octave.  Add the instrument's base octave
@@ -30,12 +30,12 @@ type Octave = Int
 data PitchClass = P1 | P2 | P3 | P4 | P5 | P6 | P7
     deriving (Eq, Ord, Show, Bounded, Enum)
 
-pc_char :: PitchClass -> Char
-pc_char = \case
+pcChar :: PitchClass -> Char
+pcChar = \case
     P1 -> '1'; P2 -> '2'; P3 -> '3'; P4 -> '4'; P5 -> '5'; P6 -> '6'; P7 -> '7'
 
-char_pc :: Char -> Maybe PitchClass
-char_pc = \case
+charPc :: Char -> Maybe PitchClass
+charPc = \case
     '1' -> Just P1
     '2' -> Just P2
     '3' -> Just P3
@@ -50,16 +50,16 @@ instance Pretty Pitch where
     pretty (Pitch oct pc) = showt oct <> pretty pc
 instance Pretty PitchClass where pretty = txt . drop 1 . show
 
-add_oct :: Octave -> Pitch -> Pitch
-add_oct oct (Pitch o pc) = Pitch (oct+o) pc
+addOct :: Octave -> Pitch -> Pitch
+addOct oct (Pitch o pc) = Pitch (oct+o) pc
 
-add_pc :: Laras -> Int -> Pitch -> Pitch
-add_pc laras steps = (!! abs steps) . iterate step
+addPc :: Laras -> Int -> Pitch -> Pitch
+addPc laras steps = (!! abs steps) . iterate step
     where
     up = steps >= 0
-    step pitch = add_pc_abs (step_at pitch) pitch
-    step_at pitch =
-        head $ drop (fromEnum (pitch_pc pitch)) (cycle transpositions)
+    step pitch = addPcAbs (stepAt pitch) pitch
+    stepAt pitch =
+        head $ drop (fromEnum (pitchPc pitch)) (cycle transpositions)
     -- Yet another awkward diatonic transposition function.  This time I do it
     -- manual and hard coded, since there are so few pathet.  Why is this so
     -- hard?
@@ -71,27 +71,27 @@ add_pc laras steps = (!! abs steps) . iterate step
         (_, True)            -> [1, 1, 2, 1, 1, 2, 1]
         (_, False)           -> [-2, -1, -1, -1, -2, -1, -1]
 
-add_pc_abs :: Int -> Pitch -> Pitch
-add_pc_abs steps (Pitch octave pc) = Pitch (octave + oct) pc2
+addPcAbs :: Int -> Pitch -> Pitch
+addPcAbs steps (Pitch octave pc) = Pitch (octave + oct) pc2
     where (oct, pc2) = toEnumBounded $ fromEnum pc + steps
 
-pitch_diff :: Pitch -> Pitch -> Int
-pitch_diff (Pitch oct1 pc1) (Pitch oct2 pc2) =
-    per_oct * (oct1 - oct2) + (fromEnum pc1 - fromEnum pc2)
+pitchDiff :: Pitch -> Pitch -> Int
+pitchDiff (Pitch oct1 pc1) (Pitch oct2 pc2) =
+    perOct * (oct1 - oct2) + (fromEnum pc1 - fromEnum pc2)
     where
-    per_oct = fromEnum (maxBound :: PitchClass) + 1
+    perOct = fromEnum (maxBound :: PitchClass) + 1
 
 data Gatra pitch =
     Gatra (Balungan pitch) (Balungan pitch) (Balungan pitch) (Balungan pitch)
     deriving (Eq, Show, Functor, Foldable, Traversable)
 
 instance Pretty pitch => Pretty (Gatra pitch) where
-    pretty = Text.intercalate "," . map pretty . gatra_notes
+    pretty = Text.intercalate "," . map pretty . gatraNotes
 instance Pretty pitch => Pretty (Balungan pitch) where
     pretty (Balungan mp _) = maybe "." pretty mp
 
-gatra_notes :: Gatra pitch -> [Balungan pitch]
-gatra_notes (Gatra n1 n2 n3 n4) = [n1, n2, n3, n4]
+gatraNotes :: Gatra pitch -> [Balungan pitch]
+gatraNotes (Gatra n1 n2 n3 n4) = [n1, n2, n3, n4]
 
 data Balungan pitch = Balungan (Maybe pitch) (Maybe BalunganAnnotation)
     deriving (Eq, Show, Functor, Foldable, Traversable)
@@ -100,10 +100,10 @@ data BalunganAnnotation = Gong | Kenong
     deriving (Eq, Show)
 
 seleh :: Gatra Pitch -> Maybe PitchClass
-seleh (Gatra n1 n2 n3 n4) = msum $ map pc_of [n4, n3, n2, n1]
+seleh (Gatra n1 n2 n3 n4) = msum $ map pcOf [n4, n3, n2, n1]
     where
-    pc_of (Balungan (Just (Pitch _ pc)) _) = Just pc
-    pc_of _ = Nothing
+    pcOf (Balungan (Just (Pitch _ pc)) _) = Just pc
+    pcOf _ = Nothing
 
 -- * score
 
@@ -140,27 +140,27 @@ data Bentuk = Gendhing | Ketawang | Ladrang | Lancaran
 type ParsedBlock = Block ParsedPitch (Maybe Tracks)
 
 data Block pitch tracks = Block
-    { block_gatra :: Gatra pitch
+    { blockGatra :: Gatra pitch
     -- | Usually zero or one name, possibly with a modifier such as gede or
     -- cilik.
-    , block_names :: [Text]
+    , blockNames :: [Text]
     -- | Like block_names, but inferred automatically.
-    , block_inferred :: [Text]
-    , block_tracks :: tracks
-    , block_pos :: Pos
+    , blockInferred :: [Text]
+    , blockTracks :: tracks
+    , blockPos :: Pos
     } deriving (Eq, Show, Functor)
 
 instance Pretty tracks => Pretty (Block Pitch tracks) where
-    pretty b = "Block " <> Text.intercalate "-" (block_names b)
-        <> " " <> pretty (block_gatra b)
-        <> " " <> pretty (block_tracks b)
+    pretty b = "Block " <> Text.intercalate "-" (blockNames b)
+        <> " " <> pretty (blockGatra b)
+        <> " " <> pretty (blockTracks b)
 
 newtype Tracks = Tracks [Track ParsedToken]
     deriving (Eq, Show)
 
 data Track token = Track
-    { track_tokens :: [token]
-    , track_pos :: Pos
+    { trackTokens :: [token]
+    , trackPos :: Pos
     } deriving (Eq, Show)
 
 data Token pos note rest = TBarline pos | TNote pos note | TRest pos rest
@@ -172,45 +172,45 @@ instance (Pretty note, Pretty rest) => Pretty (Token pos note rest) where
         TNote _ note -> pretty note
         TRest _ rest -> pretty rest
 
-token_note :: Token pos note rest -> Maybe note
-token_note = \case
+tokenNote :: Token pos note rest -> Maybe note
+tokenNote = \case
     TNote _ note -> Just note
     _ -> Nothing
 
-token_pos :: Token pos note rest -> pos
-token_pos = \case
+tokenPos :: Token pos note rest -> pos
+tokenPos = \case
     TBarline pos -> pos
     TNote pos _ -> pos
     TRest pos _ -> pos
 
-set_token_pos :: a -> Token pos note rest -> Token a note rest
-set_token_pos a = \case
+setTokenPos :: a -> Token pos note rest -> Token a note rest
+setTokenPos a = \case
     TBarline _ -> TBarline a
     TNote _ n -> TNote a n
     TRest _ r -> TRest a r
 
 type ParsedToken = Token Pos (Note ParsedPitch HasSpace) Rest
 
-map_note :: (n1 -> n2) -> Token pos n1 rest -> Token pos n2 rest
-map_note f = \case
+mapNote :: (n1 -> n2) -> Token pos n1 rest -> Token pos n2 rest
+mapNote f = \case
     TBarline pos -> TBarline pos
     TNote pos note -> TNote pos (f note)
     TRest pos rest -> TRest pos rest
 
-map_pitch :: (a -> b) -> [Token pos (Note a dur) rest]
+mapPitch :: (a -> b) -> [Token pos (Note a dur) rest]
     -> [Token pos (Note b dur) rest]
-map_pitch f = map $ map_note (\n -> n { note_pitch = f (note_pitch n) })
+mapPitch f = map $ mapNote (\n -> n { notePitch = f (notePitch n) })
 
 data Note pitch dur = Note
-    { note_pitch :: pitch
+    { notePitch :: pitch
     -- | The generated event should have 0 duration.
-    , note_zero_duration :: Bool
-    , note_duration :: dur
+    , noteZeroDuration :: Bool
+    , noteDuration :: dur
     } deriving (Eq, Ord, Show)
 
 instance (Pretty pitch, Pretty dur) => Pretty (Note pitch dur) where
-    pretty (Note pitch zero_dur dur) = mconcat
-        [ "Note ", pretty pitch, if zero_dur then "/" else ""
+    pretty (Note pitch zeroDur dur) = mconcat
+        [ "Note ", pretty pitch, if zeroDur then "/" else ""
         , " " <> pretty dur
         ]
 
@@ -223,12 +223,12 @@ instance Pretty HasSpace where
     pretty NoSpace = "X"
 
 data Rest = Rest
-    { rest_sustain :: Bool
-    , rest_space :: HasSpace
+    { restSustain :: Bool
+    , restSpace :: HasSpace
     } deriving (Eq, Ord, Show)
 
 instance Pretty Rest where
-    pretty r = if rest_sustain r then "." else "_"
+    pretty r = if restSustain r then "." else "_"
 
 -- * util
 

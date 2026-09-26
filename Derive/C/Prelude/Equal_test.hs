@@ -15,19 +15,19 @@ test_equal :: Test
 test_equal = do
     -- Test the '=' call, but also test the special parsing Derive.Note deriver
     -- eval in general.
-    let run title evts = DeriveTest.extract e_instrument $
-            DeriveTest.derive_tracks "" [(title, evts)]
-    strings_like (snd $ run ">" [(0, 1, "%c = i |")])
+    let run title evts = DeriveTest.extract eInstrument $
+            DeriveTest.deriveTracks "" [(title, evts)]
+    stringsLike (snd $ run ">" [(0, 1, "%c = i |")])
         ["tried to assign to invalid symbol name"]
     -- log stack should be at the track level
     let (evts, logs) = run "> | inst = 42" [(0, 1, "")]
     equal evts []
-    strings_like logs ["expected Str"]
+    stringsLike logs ["expected Str"]
 
     -- only the event with the error is omitted
     let (evts, logs) = run ">" [(0, 1, "inst = 42 |"), (1, 1, "")]
     equal evts [(1, "")]
-    strings_like logs ["expected Str"]
+    stringsLike logs ["expected Str"]
 
     equal (run ">i" [(0, 1, ""), (1, 1, "inst = i2 |"), (2, 1, "inst=i1 |")])
         ([(0, "i"), (1, "i2"), (2, "i1")], [])
@@ -41,11 +41,11 @@ test_equal = do
 
 test_equal_merge_env :: Test
 test_equal_merge_env = do
-    let run evt = DeriveTest.extract (fromMaybe "" . DeriveTest.e_environ "k")
-            (DeriveTest.derive_tracks "" [(">", [(0, 1, evt)])])
+    let run evt = DeriveTest.extract (fromMaybe "" . DeriveTest.eEnviron "k")
+            (DeriveTest.deriveTracks "" [(">", [(0, 1, evt)])])
     equal (run "k=1 | k=+1 |") (["2"], [])
-    strings_like (snd $ run "k=c | k=+1 |") ["k: can't modify Str as a signal"]
-    strings_like (snd $ run "k=1 | k=+c |")
+    stringsLike (snd $ run "k=c | k=+1 |") ["k: can't modify Str as a signal"]
+    stringsLike (snd $ run "k=1 | k=+c |")
         [ "merge is only supported for numeric types, tried to merge Str\
           \ with add"
         ]
@@ -55,8 +55,8 @@ test_equal_merge_env = do
 test_equal_merge_control :: Test
 test_equal_merge_control = do
     let run control evts =
-            DeriveTest.extract (DeriveTest.e_control_constant control) $
-            DeriveTest.derive_tracks "" [(">", evts)]
+            DeriveTest.extract (DeriveTest.eControlConstant control) $
+            DeriveTest.deriveTracks "" [(">", evts)]
     equal (run "c" [(0, 1, "c = .5 | c = .5 add |")]) ([Just 1], [])
     -- Default is multiply.
     equal (run "c" [(0, 1, "c = .5 | c = .25 default |")])
@@ -76,18 +76,18 @@ test_equal_merge_control = do
 
 test_equal_inst_alias :: Test
 test_equal_inst_alias = do
-    let run with_ui title track = DeriveTest.extract DeriveTest.e_instrument $
-            DeriveTest.derive_tracks_setup with_ui title
+    let run withUi title track = DeriveTest.extract DeriveTest.eInstrument $
+            DeriveTest.deriveTracksSetup withUi title
                 [(track, [(0, 1, "")])]
-    strings_like (snd $ run mempty ">new = 42" ">new")
+    stringsLike (snd $ run mempty ">new = 42" ">new")
         ["expected an instrument"]
     equal (run mempty ">new = i1" ">new") (["i1"], [])
     equal (run mempty ">new = i1 | >newer = new" ">newer") (["i1"], [])
 
 test_equal_note_transformer :: Test
 test_equal_note_transformer = do
-    let run events = DeriveTest.extract e_instrument $
-            DeriveTest.derive_tracks_linear ""
+    let run events = DeriveTest.extract eInstrument $
+            DeriveTest.deriveTracksLinear ""
                 [ (">", events)
                 , (">", [(0, 1, ""), (1, 1, ""), (2, 1, "")])
                 ]
@@ -99,14 +99,14 @@ test_equal_note_transformer = do
 
 test_equal_call :: Test
 test_equal_call = do
-    let run = DeriveTest.extract DeriveTest.e_note . DeriveTest.derive_tracks ""
+    let run = DeriveTest.extract DeriveTest.eNote . DeriveTest.deriveTracks ""
     -- Rebind a note call.
     equal (run [(">", [(0, 1, "^zzz = attr | zzz")])]) ([(0, 1, "?")], [])
     -- Bind to a instrument transformer, as called by note-track.
-    let run_env = DeriveTest.extract extract
-            . DeriveTest.derive_tracks ">>i1 = \"(v=1)"
-        extract e = (DeriveTest.e_instrument e, DeriveTest.e_environ "v" e)
-    equal (run_env [(">i1", [(0, 1, "")])]) ([("i1", Just "1")], [])
+    let runEnv = DeriveTest.extract extract
+            . DeriveTest.deriveTracks ">>i1 = \"(v=1)"
+        extract e = (DeriveTest.eInstrument e, DeriveTest.eEnviron "v" e)
+    equal (runEnv [(">i1", [(0, 1, "")])]) ([("i1", Just "1")], [])
 
     equal (run [("> | *zzz = set", [(0, 1, "")]), ("*", [(0, 0, "zzz (4c)")])])
         ([(0, 1, "4c")], [])
@@ -117,15 +117,15 @@ test_equal_call = do
         ([(0, 1, "4c")], [])
 
     -- RHS that's not a symbol.
-    let run2 = DeriveTest.extract DeriveTest.e_attributes
-            . DeriveTest.derive_tracks ""
+    let run2 = DeriveTest.extract DeriveTest.eAttributes
+            . DeriveTest.deriveTracks ""
     equal (run2 [("> | ^左 = +left", [(0, 1, "左")])]) (["+left"], [])
 
 test_equal_quoted :: Test
 test_equal_quoted = do
     let run title note = DeriveTest.extract extract $
-            DeriveTest.derive_tracks "" [(title, [(0, 1, note)])]
-        extract e = (DeriveTest.e_pitch e, DeriveTest.e_attributes e)
+            DeriveTest.deriveTracks "" [(title, [(0, 1, note)])]
+        extract e = (DeriveTest.ePitch e, DeriveTest.eAttributes e)
     -- Just make sure assigning to # works.
     equal (run ">" "# = (4c) |") ([("4c", "+")], [])
     -- Bind val call to (4c).
@@ -136,13 +136,13 @@ test_equal_quoted = do
     -- calls in the quoted text.
     let (vals, logs) = run "> | ^n = \"(n +a)" "n"
     equal vals []
-    strings_like logs ["too many arguments"]
+    stringsLike logs ["too many arguments"]
     equal (run "> | ^z = \"(# = (4c) |)" "z") ([("4c", "+")], [])
 
 test_default_merge :: Test
 test_default_merge = do
-    let run title = DeriveTest.extract (DeriveTest.e_control "c") $
-            DeriveTest.derive_tracks title
+    let run title = DeriveTest.extract (DeriveTest.eControl "c") $
+            DeriveTest.deriveTracks title
                 [ ("c", [(0, 0, ".5")])
                 , ("c", [(0, 0, ".5")])
                 , (">", [(0, 1, "")])
@@ -153,5 +153,5 @@ test_default_merge = do
     -- 'mul' is the default for most controls.
     equal (run "default-merge default c") ([[(0, 0.25)]], [])
 
-e_instrument :: Score.Event -> (RealTime, Text)
-e_instrument e = (Score.event_start e, DeriveTest.e_instrument e)
+eInstrument :: Score.Event -> (RealTime, Text)
+eInstrument e = (Score.eventStart e, DeriveTest.eInstrument e)

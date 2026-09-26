@@ -29,32 +29,32 @@ newtype Tree = Tree [(String, Val)] deriving (Show)
 data Val = Val String | Sub Tree deriving (Show)
 
 parse :: String -> Either Text Dump
-parse = fmap flatten . ParseText.parse1 p_tree . Text.pack
+parse = fmap flatten . ParseText.parse1 pTree . Text.pack
 
 flatten :: Tree -> Dump
 flatten (Tree pairs) = concatMap (go []) pairs
     where
-    go prefix (key, Val val) = [(flatten_key (key:prefix), val)]
+    go prefix (key, Val val) = [(flattenKey (key:prefix), val)]
     go prefix (key, Sub (Tree subs)) = concatMap (go (key:prefix)) subs
-    flatten_key = Lists.join "." . reverse
+    flattenKey = Lists.join "." . reverse
 
-p_tree :: A.Parser Tree
-p_tree = Tree <$> Applicative.many p_pair
+pTree :: A.Parser Tree
+pTree = Tree <$> Applicative.many pPair
 
-p_pair :: A.Parser (String, Val)
-p_pair = (,) <$> ParseText.lexeme p_word <*> ParseText.lexeme (p_sub <|> p_val)
+pPair :: A.Parser (String, Val)
+pPair = (,) <$> ParseText.lexeme pWord <*> ParseText.lexeme (pSub <|> pVal)
 
-p_sub :: A.Parser Val
-p_sub = Sub <$> ParseText.between (A.char '(') (A.char ')') p_tree
+pSub :: A.Parser Val
+pSub = Sub <$> ParseText.between (A.char '(') (A.char ')') pTree
 
-p_val :: A.Parser Val
-p_val = Val <$> p_word
+pVal :: A.Parser Val
+pVal = Val <$> pWord
 
-p_word :: A.Parser String
-p_word = Text.unpack <$> (p_str <|> A.takeWhile1 (`notElem` (" ()" :: [Char])))
+pWord :: A.Parser String
+pWord = Text.unpack <$> (pStr <|> A.takeWhile1 (`notElem` (" ()" :: [Char])))
 
-p_str :: A.Parser Text
-p_str = ParseText.between (A.char '"') (A.char '"')
+pStr :: A.Parser Text
+pStr = ParseText.between (A.char '"') (A.char '"')
         (mconcat <$> Applicative.many str)
     where
     str = do

@@ -92,7 +92,7 @@ import           Types
 -- * general purpose
 
 rename :: RulerId -> RulerId -> Cmd.CmdL ()
-rename = Create.rename_ruler
+rename = Create.renameRuler
 
 -- | List all rulers, along with the number of blocks each one appears in.
 listn :: Cmd.CmdL [(RulerId, Int)]
@@ -100,16 +100,16 @@ listn = map (second length) <$> list
 
 list :: Ui.M m => m [(RulerId, [BlockId])]
 list = do
-    ruler_ids <- Ui.all_ruler_ids
-    block_ids <- mapM Ui.blocks_with_ruler_id ruler_ids
-    pure $ zip ruler_ids (map (map fst) block_ids)
+    rulerIds <- Ui.allRulerIds
+    blockIds <- mapM Ui.blocksWithRulerId rulerIds
+    pure $ zip rulerIds (map (map fst) blockIds)
 
 -- | Destroy all unrefereced rulers, and return their now-invalid RulerIds.
 gc :: Ui.M m => m [RulerId]
 gc = do
-    ruler_ids <- Create.orphan_rulers
-    mapM_ Ui.destroy_ruler ruler_ids
-    pure ruler_ids
+    rulerIds <- Create.orphanRulers
+    mapM_ Ui.destroyRuler rulerIds
+    pure rulerIds
 
 -- | Group together rulers that are the same, replace all the duplicates with
 -- the first ruler in each group, then gc away the duplicates.  Return the
@@ -117,174 +117,174 @@ gc = do
 unify :: Ui.M m => m [[RulerId]]
 unify = do
     groups <- Lists.groupStable snd <$>
-        Ui.gets (Map.toAscList . Ui.state_rulers)
+        Ui.gets (Map.toAscList . Ui.stateRulers)
     mapM_ merge groups
     gc
     pure $ filter ((>1) . length) $ map (map fst . NonEmpty.toList) groups
     where
-    merge ((rid, _) :| dups) = forM_ (map fst dups) $ \dup_rid ->
-        replace_ruler_id dup_rid rid
+    merge ((rid, _) :| dups) = forM_ (map fst dups) $ \dupRid ->
+        replaceRulerId dupRid rid
 
 -- | After copying blocks around and fiddling with rulers, the RulerIds can
 -- wind up with names from other blocks.  Synchronize RulerIds along with their
 -- owning BlockIds.  A RulerId only on one BlockId is assumed to be local to
 -- that block, and will get its name.
-sync_ids :: Ui.M m => m Text
-sync_ids = do
+syncIds :: Ui.M m => m Text
+syncIds = do
     deleted <- unify
     let unified = if null deleted then "" else Text.unlines $
             "Unified:" : [pretty x <> " <- " <> pretty xs | x : xs <- deleted]
             ++ [""]
-    misnamed <- list_misnamed
-    let renames = [(ruler_id, RulerUtil.block_id_to_ruler block_id)
-            | (ruler_id, block_id) <- misnamed]
-    Create.rename_rulers renames
+    misnamed <- listMisnamed
+    let renames = [(rulerId, RulerUtil.blockIdToRuler blockId)
+            | (rulerId, blockId) <- misnamed]
+    Create.renameRulers renames
     let renamed = if null renames then "" else Text.unlines $
             "Renamed:" : [ pretty from <> " -> "
                 <> pretty (Id.RulerId to) | (from, to) <- renames]
     pure $ unified <> renamed
 
-list_misnamed :: Ui.M m => m [(RulerId, BlockId)]
-list_misnamed = go <$> list
+listMisnamed :: Ui.M m => m [(RulerId, BlockId)]
+listMisnamed = go <$> list
     where
-    go ruler_blocks =
-        [ (ruler_id, block_id)
-        | (ruler_id, Just block_id) <- map (second len1) ruler_blocks
-        , RulerUtil.block_id_to_ruler block_id /= Id.unpack_id ruler_id
+    go rulerBlocks =
+        [ (rulerId, blockId)
+        | (rulerId, Just blockId) <- map (second len1) rulerBlocks
+        , RulerUtil.blockIdToRuler blockId /= Id.unpackId rulerId
         ]
     len1 [x] = Just x
     len1 _ = Nothing
 
 -- | Blocks that contain the given ruler.
-blocks_of :: Ui.M m => RulerId -> m [BlockId]
-blocks_of = fmap (map fst) . Ui.blocks_with_ruler_id
+blocksOf :: Ui.M m => RulerId -> m [BlockId]
+blocksOf = fmap (map fst) . Ui.blocksWithRulerId
 
 -- | Set the rulers on a block to the given RulerId.
-set_ruler_id :: Ui.M m => RulerId -> BlockId -> m ()
-set_ruler_id ruler_id block_id = do
-    old <- Ui.block_ruler block_id
-    Ui.replace_ruler_id block_id old ruler_id
+setRulerId :: Ui.M m => RulerId -> BlockId -> m ()
+setRulerId rulerId blockId = do
+    old <- Ui.blockRuler blockId
+    Ui.replaceRulerId blockId old rulerId
 
 -- | Copy the ruler of the given block to the current one.
 copy :: Cmd.M m => BlockId -> m ()
-copy other_block = do
-    other_ruler <- Ui.ruler_of other_block
-    this_block <- Cmd.get_focused_block
-    this_ruler <- Ui.block_ruler this_block
-    Ui.replace_ruler_id this_block this_ruler other_ruler
+copy otherBlock = do
+    otherRuler <- Ui.rulerOf otherBlock
+    thisBlock <- Cmd.getFocusedBlock
+    thisRuler <- Ui.blockRuler thisBlock
+    Ui.replaceRulerId thisBlock thisRuler otherRuler
 
 -- | Set the ruler of the tracks in the given scope.
 set :: Ui.M m => RulerId -> BlockId -> RulerUtil.Scope -> m ()
-set ruler_id block_id scope = do
-    ruler_ids <- case scope of
+set rulerId blockId scope = do
+    rulerIds <- case scope of
         RulerUtil.Block -> do
-            count <- Ui.track_count block_id
-            pure $ replicate count (Just ruler_id)
-        RulerUtil.Section tracknum -> replace_tracknums
-            =<< map fst <$> RulerUtil.get_section block_id tracknum
-        RulerUtil.Tracks tracknums -> replace_tracknums tracknums
-    Ui.set_ruler_ids block_id ruler_ids
+            count <- Ui.trackCount blockId
+            pure $ replicate count (Just rulerId)
+        RulerUtil.Section tracknum -> replaceTracknums
+            =<< map fst <$> RulerUtil.getSection blockId tracknum
+        RulerUtil.Tracks tracknums -> replaceTracknums tracknums
+    Ui.setRulerIds blockId rulerIds
     where
-    replace_tracknums tracknums = do
-        old <- map Block.ruler_id_of . Block.block_tracklike_ids <$>
-                Ui.get_block block_id
-        let replace tracknum old_ruler
-                | tracknum `elem` tracknums = Just ruler_id
-                | otherwise = old_ruler
+    replaceTracknums tracknums = do
+        old <- map Block.rulerIdOf . Block.blockTracklikeIds <$>
+                Ui.getBlock blockId
+        let replace tracknum oldRuler
+                | tracknum `elem` tracknums = Just rulerId
+                | otherwise = oldRuler
         pure $ zipWith replace [0..] old
 
 -- | Replace the ruler.
 ruler :: Cmd.M m => Meter.Meter -> m Modify
 ruler meter = do
-    (block_id, tracknum) <- get_block_track
-    pure $ make_modify block_id tracknum $ const $ Right $
-        Ruler.meter_ruler meter
+    (blockId, tracknum) <- getBlockTrack
+    pure $ makeModify blockId tracknum $ const $ Right $
+        Ruler.meterRuler meter
 
 lruler :: Cmd.M m => Meter.Meter -> m [RulerId]
 lruler = local . ruler
 
 -- | Modify all rulers.
-modify_rulers :: Cmd.M m => (Ruler.Ruler -> Ruler.Ruler) -> m ()
-modify_rulers modify = do
-    ruler_ids <- Ui.all_ruler_ids
-    forM_ ruler_ids $ \ruler_id ->
-        Ui.modify_ruler ruler_id (Right . modify)
+modifyRulers :: Cmd.M m => (Ruler.Ruler -> Ruler.Ruler) -> m ()
+modifyRulers modify = do
+    rulerIds <- Ui.allRulerIds
+    forM_ rulerIds $ \rulerId ->
+        Ui.modifyRuler rulerId (Right . modify)
 
 -- | Replace all occurrences of one RulerId with another.
-replace_ruler_id :: Ui.M m => RulerId -> RulerId -> m ()
-replace_ruler_id old new = do
-    blocks <- Ui.blocks_with_ruler_id old
-    forM_ (map fst blocks) $ \block_id ->
-        Ui.replace_ruler_id block_id old new
+replaceRulerId :: Ui.M m => RulerId -> RulerId -> m ()
+replaceRulerId old new = do
+    blocks <- Ui.blocksWithRulerId old
+    forM_ (map fst blocks) $ \blockId ->
+        Ui.replaceRulerId blockId old new
 
 -- * query
 
-get_meter :: Ui.M m => BlockId -> m Meter.Meter
-get_meter block_id = Ruler.get_meter <$> (Ui.get_ruler =<< Ui.ruler_of block_id)
+getMeter :: Ui.M m => BlockId -> m Meter.Meter
+getMeter blockId = Ruler.getMeter <$> (Ui.getRuler =<< Ui.rulerOf blockId)
 
-get_sections :: Ui.M m => BlockId -> m [Meter.MSection]
-get_sections = fmap Meter.meter_sections . get_meter
+getSections :: Ui.M m => BlockId -> m [Meter.MSection]
+getSections = fmap Meter.meterSections . getMeter
 
-get_marks :: Ui.M m => BlockId -> m [(TrackTime, Mark.Mark)]
-get_marks block_id =
-    Mark.ascending 0 . Ruler.get_marklist Ruler.meter_name <$>
-        (Ui.get_ruler =<< Ui.ruler_of block_id)
+getMarks :: Ui.M m => BlockId -> m [(TrackTime, Mark.Mark)]
+getMarks blockId =
+    Mark.ascending 0 . Ruler.getMarklist Ruler.meterName <$>
+        (Ui.getRuler =<< Ui.rulerOf blockId)
 
 -- | Ruler under the selection having at least the given rank.
-selected_marks :: Cmd.M m => Meter.Rank -> m [(TrackTime, Mark.Mark)]
-selected_marks rank = do
-    ruler <- Ui.get_ruler =<< selected
-    (start, end) <- selection_range
-    pure $ filter ((<=rank) . Mark.mark_rank . snd) $
+selectedMarks :: Cmd.M m => Meter.Rank -> m [(TrackTime, Mark.Mark)]
+selectedMarks rank = do
+    ruler <- Ui.getRuler =<< selected
+    (start, end) <- selectionRange
+    pure $ filter ((<=rank) . Mark.markRank . snd) $
         takeWhile ((<=end) . fst) $ Mark.ascending start $
-        Ruler.get_marklist Ruler.meter_name ruler
+        Ruler.getMarklist Ruler.meterName ruler
 
 -- | Ruler of the track under the selection.
 selected :: Cmd.M m => m RulerId
 selected = do
-    (block_id, tracknum, _, _) <- Selection.get_insert
-    Cmd.require "no ruler" =<< Ui.ruler_track_at block_id tracknum
+    (blockId, tracknum, _, _) <- Selection.getInsert
+    Cmd.require "no ruler" =<< Ui.rulerTrackAt blockId tracknum
 
 -- * upgrade to Meter.Meter
 
-upgrade_infer :: Meter.AbstractMeter -> Upgrade
-upgrade_infer meter mlist =
-    ( RulerUtil.meter_until meter dur 4 end
+upgradeInfer :: Meter.AbstractMeter -> Upgrade
+upgradeInfer meter mlist =
+    ( RulerUtil.meterUntil meter dur 4 end
     , "measure " <> show dur <> " end: " <> show end
     )
-    where (dur, end) = (infer_measure_dur mlist, Mark.end mlist)
+    where (dur, end) = (inferMeasureDur mlist, Mark.end mlist)
 
-infer_measure_dur :: Mark.Marklist -> TrackTime
-infer_measure_dur mlist =
+inferMeasureDur :: Mark.Marklist -> TrackTime
+inferMeasureDur mlist =
     maybe 0 fst $ Lists.maximumOn snd $ map (second length) $
         Lists.keyedGroupSort id $ zipWith subtract starts (drop 1 starts)
     where
-    starts = map fst . filter ((<= Meter.W) . Mark.mark_rank . snd)
-        . Mark.to_list $ mlist
+    starts = map fst . filter ((<= Meter.W) . Mark.markRank . snd)
+        . Mark.toList $ mlist
 
-upgrade_gong :: Upgrade
-upgrade_gong mlist = (Gong.until (Mark.end mlist), "")
+upgradeGong :: Upgrade
+upgradeGong mlist = (Gong.until (Mark.end mlist), "")
 
 type Upgrade = Mark.Marklist -> (Meter.Meter, String)
 
 -- |
 -- > LRuler.replace_meters False LRuler.upgrade_gong
 -- > LRuler.replace_meters False (LRuler.upgrade_infer Meters.m44)
-replace_meters :: Ui.M m => Bool -> Upgrade -> m String
-replace_meters force upgrade = do
-    ruler_ids <- Ui.all_ruler_ids
-    fmap unlines $ forM ruler_ids $ \ruler_id ->
-        ((show ruler_id <> ": ") <>) <$> replace_meter force upgrade ruler_id
+replaceMeters :: Ui.M m => Bool -> Upgrade -> m String
+replaceMeters force upgrade = do
+    rulerIds <- Ui.allRulerIds
+    fmap unlines $ forM rulerIds $ \rulerId ->
+        ((show rulerId <> ": ") <>) <$> replaceMeter force upgrade rulerId
 
 -- | Add a Meter for the ruler if not already present.
-replace_meter :: Ui.M m => Bool -> Upgrade -> RulerId -> m String
-replace_meter force upgrade ruler_id = do
-    ruler <- Ui.get_ruler ruler_id
-    case Map.lookup Ruler.meter_name (Ruler.ruler_marklists ruler) of
-        Just (old_meter, mlist)
-            | force || old_meter == Nothing -> do
+replaceMeter :: Ui.M m => Bool -> Upgrade -> RulerId -> m String
+replaceMeter force upgrade rulerId = do
+    ruler <- Ui.getRuler rulerId
+    case Map.lookup Ruler.meterName (Ruler.rulerMarklists ruler) of
+        Just (oldMeter, mlist)
+            | force || oldMeter == Nothing -> do
                 let (meter, msg) = upgrade mlist
-                RulerUtil.set_meter ruler_id meter
+                RulerUtil.setMeter rulerId meter
                 pure $ "replaced: " <> msg
             | otherwise -> pure "already has meter"
         Nothing -> pure "no meter?"
@@ -294,37 +294,37 @@ replace_meter force upgrade ruler_id = do
 -- | Copy the meter under the selection and append it to the end of the ruler.
 append :: Cmd.M m => m Modify
 append = do
-    (start, end) <- selection_range
-    modify_selected $ Meter.modify_sections $ \ss ->
+    (start, end) <- selectionRange
+    modifySelected $ Meter.modifySections $ \ss ->
         ss <> RulerUtil.extract start end ss
 
 -- | Append another ruler to this one.
-append_ruler_id :: Cmd.M m => RulerId -> m Modify
-append_ruler_id ruler_id = do
-    other <- RulerUtil.get_meter ruler_id
-    modify_selected $ (<> other)
+appendRulerId :: Cmd.M m => RulerId -> m Modify
+appendRulerId rulerId = do
+    other <- RulerUtil.getMeter rulerId
+    modifySelected $ (<> other)
 
 -- | Remove the selected range of the ruler and shift the rest up.
 delete :: Cmd.M m => m Modify
 delete = do
-    (start, end) <- selection_range
-    modify_selected $ Meter.modify_sections $ RulerUtil.delete start end
+    (start, end) <- selectionRange
+    modifySelected $ Meter.modifySections $ RulerUtil.delete start end
 
 -- | Insert the selected meter range at the given time.
 insert :: Cmd.M m => TrackTime -> m Modify
 insert at = do
-    (start, end) <- selection_range
-    sections <- get_sections =<< Cmd.get_focused_block
-    modify_selected $ Meter.set_sections $
-        Meter.sections_take at sections
+    (start, end) <- selectionRange
+    sections <- getSections =<< Cmd.getFocusedBlock
+    modifySelected $ Meter.setSections $
+        Meter.sectionsTake at sections
         <> RulerUtil.extract start end sections
-        <> Meter.sections_drop at sections
+        <> Meter.sectionsDrop at sections
 
-replace_range :: TrackTime -> TrackTime -> [Meter.MSection] -> Meter.Meter
+replaceRange :: TrackTime -> TrackTime -> [Meter.MSection] -> Meter.Meter
     -> Meter.Meter
-replace_range start end insert = Meter.modify_sections $ \ss ->
-    let pre = Meter.sections_take start ss
-        post = Meter.sections_drop end ss
+replaceRange start end insert = Meter.modifySections $ \ss ->
+    let pre = Meter.sectionsTake start ss
+        post = Meter.sectionsDrop end ss
     in pre <> insert <> post
 
 -- -- | Replace the selected region with another marklist.
@@ -352,7 +352,7 @@ type Measures = Int
 -- > LRuler.local $ LRuler.measures Meters.m44 4 4
 -- > LRuler.modify $ LRuler.measures Meters.m34 4 8
 measures :: Cmd.M m => Meter.AbstractMeter -> Sections -> Measures -> m Modify
-measures meter sections measures = modify_sections $ const $
+measures meter sections measures = modifySections $ const $
     replicate sections $ Meter.MSection measures 1 meter
 
 -- | Create gongs with 'Gong.gongs'.
@@ -366,27 +366,27 @@ java lines = ruler $ Gong.java lines
 -- blocks.  This is like 'extract' except it doesn't infer the blocks from the
 -- calls and doesn't scale the extracted rulers.
 concat :: Cmd.M m => [BlockId] -> m Modify
-concat block_ids = do
-    sections <- mconcat <$> mapM get_sections block_ids
-    modify_sections (const sections)
+concat blockIds = do
+    sections <- mconcat <$> mapM getSections blockIds
+    modifySections (const sections)
 
 -- * pull_up, push_down
 
 -- | Extract the meter marklists from the sub-blocks called on the given
 -- track, concatenate them, and replace the current meter with it.
-pull_up :: Cmd.M m => m Modify
-pull_up = do
-    (block_id, tracknum, track_id, _) <- Selection.get_insert
-    meter <- Extract.pull_up block_id track_id
-    pure $ make_modify block_id tracknum $
-        const $ Right $ Ruler.meter_ruler meter
+pullUp :: Cmd.M m => m Modify
+pullUp = do
+    (blockId, tracknum, trackId, _) <- Selection.getInsert
+    meter <- Extract.pullUp blockId trackId
+    pure $ makeModify blockId tracknum $
+        const $ Right $ Ruler.meterRuler meter
 
-push_down :: Cmd.M m => Bool -> m ()
-push_down recursive = do
-    (block_id, _, track_id, _) <- Selection.get_insert
+pushDown :: Cmd.M m => Bool -> m ()
+pushDown recursive = do
+    (blockId, _, trackId, _) <- Selection.getInsert
     if recursive
-        then Extract.push_down_recursive False block_id track_id
-        else void $ Extract.push_down False block_id track_id
+        then Extract.pushDownRecursive False blockId trackId
+        else void $ Extract.pushDown False blockId trackId
 
 -- * modify
 
@@ -395,116 +395,116 @@ tracks :: Cmd.M m => m Modify -> m Modify
 tracks modify = do
     modify <- modify
     (_, tracknums, _, _) <- Selection.tracks
-    pure $ modify { m_scope = RulerUtil.Tracks tracknums }
+    pure $ modify { mScope = RulerUtil.Tracks tracknums }
 
 -- | Change a Modify so it modifies all rulers on the block.
 block :: Cmd.M m => m Modify -> m Modify
 block modify = do
     modify <- modify
-    pure $ modify { m_scope = RulerUtil.Block }
+    pure $ modify { mScope = RulerUtil.Block }
 
 -- | Enough information to modify a ruler.
 --
 -- TODO I could also include entire block, and then add_cue etc. could use it,
 -- in addition to being able to clip the entire block.
 data Modify = Modify
-    { m_block_id :: !BlockId
-    , m_scope :: !RulerUtil.Scope
-    , m_modify :: !RulerUtil.ModifyRuler
+    { mBlockId :: !BlockId
+    , mScope :: !RulerUtil.Scope
+    , mModify :: !RulerUtil.ModifyRuler
     }
 
-modify_sections :: Cmd.M m => ([Meter.MSection] -> [Meter.MSection]) -> m Modify
-modify_sections = modify_selected . Meter.modify_sections
+modifySections :: Cmd.M m => ([Meter.MSection] -> [Meter.MSection]) -> m Modify
+modifySections = modifySelected . Meter.modifySections
 
-set_start_measure :: Cmd.M m => Meter.Measures -> m Modify
-set_start_measure n = modify_selected $ Meter.modify_config $ \c ->
-    c { Meter.config_start_measure = n }
+setStartMeasure :: Cmd.M m => Meter.Measures -> m Modify
+setStartMeasure n = modifySelected $ Meter.modifyConfig $ \c ->
+    c { Meter.configStartMeasure = n }
 
-modify_selected :: Cmd.M m => (Meter.Meter -> Meter.Meter) -> m Modify
-modify_selected modify = do
-    (block_id, tracknum) <- get_block_track
-    pure $ make_modify block_id tracknum (Right . Ruler.modify_meter modify)
+modifySelected :: Cmd.M m => (Meter.Meter -> Meter.Meter) -> m Modify
+modifySelected modify = do
+    (blockId, tracknum) <- getBlockTrack
+    pure $ makeModify blockId tracknum (Right . Ruler.modifyMeter modify)
 
-make_modify :: BlockId -> TrackNum -> RulerUtil.ModifyRuler -> Modify
-make_modify block_id tracknum = Modify block_id (RulerUtil.Section tracknum)
+makeModify :: BlockId -> TrackNum -> RulerUtil.ModifyRuler -> Modify
+makeModify blockId tracknum = Modify blockId (RulerUtil.Section tracknum)
 
-get_block_track :: Cmd.M m => m (BlockId, TrackNum)
-get_block_track = do
-    (block_id, tracknum, _, _) <- Selection.get_insert
-    pure (block_id, tracknum)
+getBlockTrack :: Cmd.M m => m (BlockId, TrackNum)
+getBlockTrack = do
+    (blockId, tracknum, _, _) <- Selection.getInsert
+    pure (blockId, tracknum)
 
 local :: Cmd.M m => m Modify -> m [RulerId]
-local = (local_m =<<)
+local = (localM =<<)
 
 modify :: Cmd.M m => m Modify -> m ()
-modify = (modify_m =<<)
+modify = (modifyM =<<)
 
 -- | Modify a ruler or rulers, making a copy if they're shared with another
 -- block.
-local_m :: Cmd.M m => Modify -> m [RulerId]
-local_m (Modify block_id scope modify) = RulerUtil.local scope block_id modify
+localM :: Cmd.M m => Modify -> m [RulerId]
+localM (Modify blockId scope modify) = RulerUtil.local scope blockId modify
 
 -- | Modify the ruler on the focused block.  Other blocks with the same ruler
 -- will also be modified.
-modify_m :: Cmd.M m => Modify -> m ()
-modify_m (Modify block_id scope modify) = RulerUtil.modify scope block_id modify
+modifyM :: Cmd.M m => Modify -> m ()
+modifyM (Modify blockId scope modify) = RulerUtil.modify scope blockId modify
 
 -- | Modify a local copy of the main block ruler.
-local_ruler :: Ui.M m => BlockId -> (Ruler.Ruler -> Ruler.Ruler) -> m RulerId
-local_ruler block_id modify =
-    RulerUtil.local_section block_id 0 $ Right . modify
+localRuler :: Ui.M m => BlockId -> (Ruler.Ruler -> Ruler.Ruler) -> m RulerId
+localRuler blockId modify =
+    RulerUtil.localSection blockId 0 $ Right . modify
 
 -- * bounds
 
 -- | Set the block's logical start time to the selection.  Notes before this
 -- will play before the start of the calling event.
-set_start :: Cmd.M m => m RulerId
-set_start = do
-    (block_id, _, _, pos) <- Selection.get_insert
-    local_ruler block_id $ \ruler ->
-        let (_, e) = Ruler.get_bounds ruler
-        in Ruler.set_bounds (Just pos) e ruler
+setStart :: Cmd.M m => m RulerId
+setStart = do
+    (blockId, _, _, pos) <- Selection.getInsert
+    localRuler blockId $ \ruler ->
+        let (_, e) = Ruler.getBounds ruler
+        in Ruler.setBounds (Just pos) e ruler
 
 -- | Set the block's logical end time to the selection.  Notes after this will
 -- play after the end of the calling event.
-set_end :: Cmd.M m => m RulerId
-set_end = do
-    (block_id, _, _, pos) <- Selection.get_insert
-    local_ruler block_id $ \ruler ->
-        let (s, _) = Ruler.get_bounds ruler
-        in Ruler.set_bounds s (Just pos) ruler
+setEnd :: Cmd.M m => m RulerId
+setEnd = do
+    (blockId, _, _, pos) <- Selection.getInsert
+    localRuler blockId $ \ruler ->
+        let (s, _) = Ruler.getBounds ruler
+        in Ruler.setBounds s (Just pos) ruler
 
 -- * cue
 
 -- | Drop a mark at the selected point in the \"cue\" ruler.
-add_cue :: Text -> Cmd.CmdL RulerId
-add_cue label = do
-    (block_id, tracknum, _, pos) <- Selection.get_insert
-    add_cue_at block_id tracknum pos label
+addCue :: Text -> Cmd.CmdL RulerId
+addCue label = do
+    (blockId, tracknum, _, pos) <- Selection.getInsert
+    addCueAt blockId tracknum pos label
 
-remove_cues :: Cmd.CmdL ()
-remove_cues = do
-    block_id <- Cmd.get_focused_block
-    RulerUtil.modify_block block_id $ Right . Ruler.remove_marklist cue_name
+removeCues :: Cmd.CmdL ()
+removeCues = do
+    blockId <- Cmd.getFocusedBlock
+    RulerUtil.modifyBlock blockId $ Right . Ruler.removeMarklist cueName
 
-add_cue_at :: BlockId -> TrackNum -> ScoreTime -> Text -> Cmd.CmdL RulerId
-add_cue_at block_id tracknum pos label =
-    RulerUtil.local_section block_id tracknum $
-        Right . Ruler.modify_marklist cue_name
-            (Mark.insert_mark pos (cue_mark label))
+addCueAt :: BlockId -> TrackNum -> ScoreTime -> Text -> Cmd.CmdL RulerId
+addCueAt blockId tracknum pos label =
+    RulerUtil.localSection blockId tracknum $
+        Right . Ruler.modifyMarklist cueName
+            (Mark.insertMark pos (cueMark label))
 
-cue_mark :: Text -> Mark.Mark
-cue_mark label = Mark.Mark
-    { mark_rank = minBound
-    , mark_width = 2
-    , mark_color = Color.black
-    , mark_name = label
-    , mark_name_zoom_level = 0
-    , mark_zoom_level = 0
+cueMark :: Text -> Mark.Mark
+cueMark label = Mark.Mark
+    { markRank = minBound
+    , markWidth = 2
+    , markColor = Color.black
+    , markName = label
+    , markNameZoomLevel = 0
+    , markZoomLevel = 0
     }
 
-cue_name :: Ruler.Name
-cue_name = "cue"
+cueName :: Ruler.Name
+cueName = "cue"
 
 
 {-
@@ -561,5 +561,5 @@ meter_ranks =
 -- * util
 
 -- | Ruler operations don't care about selection orientation.
-selection_range :: Cmd.M m => m (TrackTime, TrackTime)
-selection_range = Events.range_times <$> Selection.range
+selectionRange :: Cmd.M m => m (TrackTime, TrackTime)
+selectionRange = Events.rangeTimes <$> Selection.range

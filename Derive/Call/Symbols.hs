@@ -15,7 +15,7 @@ symbols = misc ++ bravura
 misc :: [Symbol.Symbol]
 misc =
     [ Symbol.Symbol "0x" True
-        [Symbol.glyph_at (-2) (0, -0.4) (Symbol.glyph "x")]
+        [Symbol.glyphAt (-2) (0, -0.4) (Symbol.glyph "x")]
     , simple "up" "↑"
     , simple "^" "↑"
     , simple "right" "→"
@@ -38,12 +38,12 @@ bravura =
     , symbol "rmordent" "\xe56d" -- ornamentMordentInverted
     -- There is also "\xe634", but it's too tall and skinny.
     , Symbol.symbol "arp-up"
-        [ arp_glyph 90 (0, -0.25) "\xeaad" -- wiggleArpeggiatoUpArrow
-        , arp_glyph 90 (0, 0) "\xeaa9" -- wiggleArpeggiatoUp
+        [ arpGlyph 90 (0, -0.25) "\xeaad" -- wiggleArpeggiatoUpArrow
+        , arpGlyph 90 (0, 0) "\xeaa9" -- wiggleArpeggiatoUp
         ]
     , Symbol.symbol "arp-down" -- Or "\xe635".
-        [ arp_glyph (-90) (0, 0.25) "\xeaae" -- wiggleArpeggiatoDownArrow
-        , arp_glyph (-90) (0, 0) "\xeaaa" -- wiggleArpeggiatoDown
+        [ arpGlyph (-90) (0, 0.25) "\xeaae" -- wiggleArpeggiatoDownArrow
+        , arpGlyph (-90) (0, 0) "\xeaaa" -- wiggleArpeggiatoDown
         ]
     , symbol "ped" "\xe650" -- keyboardPedalPed
     , symbol "ped-up" "\xe655" -- keyboardPedalUp
@@ -55,10 +55,10 @@ bravura =
     , symbol "downbow" "\xe610" -- stringsDownBow
     ]
     where
-    arp_glyph rotate align str = (glyph str)
-        { Symbol.glyph_align = align
-        , Symbol.glyph_rotate = rotate
+    arpGlyph rotate align str = (glyph str)
+        { Symbol.glyphAlign = align
+        , Symbol.glyphRotate = rotate
         }
     glyph str = Symbol.Glyph str (Just Config.bravura) 8 (0, 0) 0
     symbol name str = Symbol.Symbol
-        { name = name, absolute_y = False, glyphs = [glyph str] }
+        { name = name, absoluteY = False, glyphs = [glyph str] }

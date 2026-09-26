@@ -30,8 +30,8 @@ import Global
 run :: IO ()
 run = do
     let synth = Kontakt.synth
-    let res = DeriveTest.derive_dump [synth] dump (UiTest.bid "thani-s")
-        ((pevents, msgs), logs) = DeriveTest.perform_dump [synth] dump res
+    let res = DeriveTest.deriveDump [synth] dump (UiTest.bid "thani-s")
+        ((pevents, msgs), logs) = DeriveTest.performDump [synth] dump res
     prettyp $ DeriveTest.extract id res
     prettyp pevents
     prettyp msgs
@@ -43,22 +43,22 @@ dump = undefined
 
 -- * cache
 
-run_cached = do
-    cmd_config <- DeriveSaved.load_cmd_config
-    let cstate = Cmd.initial_state cmd_config
-    (state, _builtins, _aliases) <- expect_right <$>
-        DeriveSaved.load_score (Cmd.config_instrument_db cmd_config) "bug/cache"
+runCached = do
+    cmdConfig <- DeriveSaved.loadCmdConfig
+    let cstate = Cmd.initialState cmdConfig
+    (state, _builtins, _aliases) <- expectRight <$>
+        DeriveSaved.loadScore (Cmd.configInstrumentDb cmdConfig) "bug/cache"
     let root = UiTest.bid "kendang-telek/telek1"
         tempot = UiTest.tid "kendang-telek/telek1.t1"
     let (uncached, logs) = Performance.derive state cstate root
     mapM_ Log.write logs
 
-    let cache = Cmd.perf_derive_cache uncached
+    let cache = Cmd.perfDeriveCache uncached
         damage = Derive.ScoreDamage
             (Map.fromList [(tempot, Ranges.range 200 200)])
             (Set.fromList [root]) mempty
-    let (cached, logs) = expect_right $
-            DeriveSaved.run_cmd state cstate $
-            PlayUtil.derive_block cache damage root
+    let (cached, logs) = expectRight $
+            DeriveSaved.runCmd state cstate $
+            PlayUtil.deriveBlock cache damage root
     mapM_ Log.write logs
-    prettyp (Cache_test.r_block_logs cached)
+    prettyp (Cache_test.rBlockLogs cached)

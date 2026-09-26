@@ -121,12 +121,12 @@ withControl control signal note =
     note { controls = Map.insert control signal (controls note) }
 
 withPitch :: Pitch.NoteNumber -> Note -> Note
-withPitch = withControl Control.pitch . Signal.constant . Pitch.nn_to_double
+withPitch = withControl Control.pitch . Signal.constant . Pitch.nnToDouble
 
 -- * serialize
 
 serialize :: FilePath -> [Note] -> IO Bool
-serialize = Serialize.serialize_rotate 4 notesMagic
+serialize = Serialize.serializeRotate 4 notesMagic
     -- Save more rotations, sometimes I need to debug im errors by replaying
     -- multiple changes.
 

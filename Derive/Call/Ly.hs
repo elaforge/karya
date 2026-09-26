@@ -35,98 +35,98 @@ import           Types
 
 -- * utils for ly calls
 
-when_lilypond :: Derive.Deriver a -- ^ Run if this is a lilypond derive.
+whenLilypond :: Derive.Deriver a -- ^ Run if this is a lilypond derive.
     -> Derive.Deriver a -- ^ Run if this is a normal derive.
     -> Derive.Deriver a
-when_lilypond lily = when_lilypond_config (const lily)
+whenLilypond lily = whenLilypondConfig (const lily)
 
-when_lilypond_config :: (Types.Config -> Derive.Deriver a)
+whenLilypondConfig :: (Types.Config -> Derive.Deriver a)
     -- ^ Run if this is a lilypond derive.
     -> Derive.Deriver a -- ^ Run if this is a normal derive.
     -> Derive.Deriver a
-when_lilypond_config lily not_lily =
-    maybe not_lily lily =<< Derive.lookup_lilypond_config
+whenLilypondConfig lily notLily =
+    maybe notLily lily =<< Derive.lookupLilypondConfig
 
 -- | Only emit the deriver if I'm in lilypond mode.
-only_lilypond :: Derive.NoteDeriver -> Derive.NoteDeriver
-only_lilypond deriver = ifM Derive.is_lilypond_mode deriver mempty
+onlyLilypond :: Derive.NoteDeriver -> Derive.NoteDeriver
+onlyLilypond deriver = ifM Derive.isLilypondMode deriver mempty
 
 -- | When in lilypond mode, generate a note with the given Code.
-note_code :: Code -> Derive.PassedArgs d -> Derive.NoteDeriver
+noteCode :: Code -> Derive.PassedArgs d -> Derive.NoteDeriver
     -> Derive.NoteDeriver
-note_code code args = when_lilypond $ add_first code $ Call.placed_note args
+noteCode code args = whenLilypond $ addFirst code $ Call.placedNote args
 
 -- ** transformer
 
 -- | Add the Code to all the events.
-add_all :: Code -> Derive.NoteDeriver -> Derive.NoteDeriver
-add_all code = fmap $ Post.emap1_ (add_note_code code)
+addAll :: Code -> Derive.NoteDeriver -> Derive.NoteDeriver
+addAll code = fmap $ Post.emap1_ (addNoteCode code)
 
 -- | Add Code to the first event.
-add_first :: Code -> Derive.NoteDeriver -> Derive.NoteDeriver
-add_first code deriver =
-    Stream.first (not . is_code) (add_note_code code) <$> deriver
+addFirst :: Code -> Derive.NoteDeriver -> Derive.NoteDeriver
+addFirst code deriver =
+    Stream.first (not . isCode) (addNoteCode code) <$> deriver
 
 prepend :: Position Constants.CodePosition
 prepend = Position $
     Constants.CodePosition Constants.Chord Constants.Prepend Constants.First
 
-append, note_append :: Constants.Distribution -> Position Constants.CodePosition
+append, noteAppend :: Constants.Distribution -> Position Constants.CodePosition
 append = Position . Constants.CodePosition Constants.Chord Constants.Append
-note_append = Position . Constants.CodePosition Constants.Note Constants.Append
+noteAppend = Position . Constants.CodePosition Constants.Note Constants.Append
 
 -- ** note parent
 
 -- | Replace a note parent with one that derives its sub-events as-is
 -- and adds lilypond code to them.
-notes_code :: Code -> Derive.PassedArgs d
+notesCode :: Code -> Derive.PassedArgs d
     -> Derive.NoteDeriver -> Derive.NoteDeriver
-notes_code code = notes_with (add_all code)
+notesCode code = notesWith (addAll code)
 
 -- | Like 'notes_code', but only apply the code to the first event, not all of
 -- them.
-first_note_code :: Code -> Derive.PassedArgs d
+firstNoteCode :: Code -> Derive.PassedArgs d
     -> Derive.NoteDeriver -> Derive.NoteDeriver
-first_note_code code args = when_lilypond $
-    add_first code $ Sub.derive_subs args
+firstNoteCode code args = whenLilypond $
+    addFirst code $ Sub.deriveSubs args
 
 -- | This is like 'notes_code', but the first event in each track gets the
 -- start code, and the last event in each track gets the end code.
-notes_around :: Code -> Code -> Derive.PassedArgs d
+notesAround :: Code -> Code -> Derive.PassedArgs d
     -> Derive.NoteDeriver -> Derive.NoteDeriver
-notes_around start end args =
-    when_lilypond $ mconcatMap around =<< Sub.sub_events args
+notesAround start end args =
+    whenLilypond $ mconcatMap around =<< Sub.subEvents args
     where
-    around notes = first_last
-        (add_note_code start) (add_note_code end) <$> Sub.derive notes
+    around notes = firstLast
+        (addNoteCode start) (addNoteCode end) <$> Sub.derive notes
 
 -- | Like 'notes_around', but for use when you already know you're in lilypond
 -- mode.
-notes_around_ly :: Code -> Code -> Derive.PassedArgs d -> Derive.NoteDeriver
-notes_around_ly start end = mconcatMap around <=< Sub.sub_events
+notesAroundLy :: Code -> Code -> Derive.PassedArgs d -> Derive.NoteDeriver
+notesAroundLy start end = mconcatMap around <=< Sub.subEvents
     where
-    around notes = first_last
-        (add_note_code start) (add_note_code end) <$> Sub.derive notes
+    around notes = firstLast
+        (addNoteCode start) (addNoteCode end) <$> Sub.derive notes
 
 -- | Like 'notes_around', but when I'm not in lilypond mode just derive the
 -- sub events unchanged.
-code_around :: FreeCode -> FreeCode -> Derive.PassedArgs d -> Derive.NoteDeriver
-code_around start end args = when_lilypond
+codeAround :: FreeCode -> FreeCode -> Derive.PassedArgs d -> Derive.NoteDeriver
+codeAround start end args = whenLilypond
     (code0 (Args.start args) start
-        <> Sub.derive_subs args <> code0 (Args.end args) end)
-    (Sub.derive_subs args)
+        <> Sub.deriveSubs args <> code0 (Args.end args) end)
+    (Sub.deriveSubs args)
 
 -- | Transform and evaluate the sub events.
-notes_with :: (Derive.NoteDeriver -> Derive.NoteDeriver)
+notesWith :: (Derive.NoteDeriver -> Derive.NoteDeriver)
     -> Derive.PassedArgs d
     -> Derive.NoteDeriver -> Derive.NoteDeriver
-notes_with f args = when_lilypond $
-    Sub.derive . map (fmap f) . concat =<< Sub.sub_events args
+notesWith f args = whenLilypond $
+    Sub.derive . map (fmap f) . concat =<< Sub.subEvents args
 
 -- | Apply a function to the first and last Events, which are not 'is_code0'.
-first_last :: (Score.Event -> Score.Event) -> (Score.Event -> Score.Event)
+firstLast :: (Score.Event -> Score.Event) -> (Score.Event -> Score.Event)
     -> Stream.Stream Score.Event -> Stream.Stream Score.Event
-first_last = Stream.first_last (not . is_code)
+firstLast = Stream.firstLast (not . isCode)
 
 -- ** code
 
@@ -145,22 +145,22 @@ instance Pretty pos => Pretty (Position pos) where
     pretty (Position p) = pretty p
 
 instance Typecheck.Typecheck (Position Constants.CodePosition) where
-    from_val = Typecheck.from_val_symbol code_position_names
-    to_type Proxy = Typecheck.to_type_symbol (Map.keys code_position_names)
+    fromVal = Typecheck.fromValSymbol codePositionNames
+    toType Proxy = Typecheck.toTypeSymbol (Map.keys codePositionNames)
 
-code_position_names :: Map Text (Position Constants.CodePosition)
-code_position_names =
-    Map.fromList $ Lists.keyOn ShowVal.show_val $
-        map Position Constants.all_positions
+codePositionNames :: Map Text (Position Constants.CodePosition)
+codePositionNames =
+    Map.fromList $ Lists.keyOn ShowVal.showVal $
+        map Position Constants.allPositions
 
 instance Typecheck.ToVal (Position Constants.CodePosition) where
-    to_val = DeriveT.VStr . Expr.Str . ShowVal.show_val
+    toVal = DeriveT.VStr . Expr.Str . ShowVal.showVal
 
 instance ShowVal.ShowVal (Position Constants.CodePosition) where
-    show_val = Texts.dropPrefix "ly-" . key_of
+    showVal = Texts.dropPrefix "ly-" . keyOf
         where
-        key_of (SetEnviron k) = k
-        key_of (Position pos) = Constants.position_key pos
+        keyOf (SetEnviron k) = k
+        keyOf (Position pos) = Constants.positionKey pos
 
 -- | Fragment of Lilypond code.
 type Ly = Text
@@ -173,78 +173,78 @@ type Note = Ly
 code0 :: ScoreTime -> FreeCode -> Derive.NoteDeriver
 code0 start code = do
     rstart <- Derive.real start
-    Post.emap1_ (code0_event rstart code) <$> Derive.place start 0 Call.note
+    Post.emap1_ (code0Event rstart code) <$> Derive.place start 0 Call.note
 
 -- | Make a code0 event directly.  Inherit instrument and environ from an
 -- existing note.  Otherwise, the lilypond backend doesn't know how to group
 -- the code event.
 --
 -- TODO aka free_code, maybe rename it?
-code0_event :: RealTime -> FreeCode -> Score.Event -> Score.Event
-code0_event start (pos, code) =
+code0Event :: RealTime -> FreeCode -> Score.Event -> Score.Event
+code0Event start (pos, code) =
     -- I don't use Score.move_event because I don't care about signals.
-    (\e -> e { Score.event_start = start })
-    . Score.add_flags Flags.ly_code
-    . Score.modify_environ modify
+    (\e -> e { Score.eventStart = start })
+    . Score.addFlags Flags.lyCode
+    . Score.modifyEnviron modify
     where
     modify = case pos of
-        SetEnviron key -> Env.insert_val key code
-        Position pos -> Constants.with_free_code pos code
+        SetEnviron key -> Env.insertVal key code
+        Position pos -> Constants.withFreeCode pos code
 
 -- | Derive with the 'Constants.ly_global' instrument.
 global :: Derive.Deriver a -> Derive.Deriver a
-global = Derive.with_val_raw EnvKey.instrument Constants.ly_global
+global = Derive.withValRaw EnvKey.instrument Constants.lyGlobal
 
 -- | Test if an event is a 0 duration lilypond code event.
-is_code0 :: Score.Event -> Bool
-is_code0 event = Score.event_duration event == 0
-    && Flags.has (Score.event_flags event) Flags.ly_code
+isCode0 :: Score.Event -> Bool
+isCode0 event = Score.eventDuration event == 0
+    && Flags.has (Score.eventFlags event) Flags.lyCode
 
-is_code :: Score.Event -> Bool
-is_code event = Flags.has (Score.event_flags event) Flags.ly_code
+isCode :: Score.Event -> Bool
+isCode event = Flags.has (Score.eventFlags event) Flags.lyCode
 
 -- *** low level
 
 -- | Add lilypond code to a note.  Skip 'is_code' events, since those aren't
 -- actual notes.
-add_note_code :: Code -> Score.Event -> Score.Event
-add_note_code (pos, code) event
-    | is_code event = event
-    | otherwise = (`Score.modify_environ` event) $ case pos of
-        SetEnviron key -> Env.insert_val key code
-        Position pos -> Constants.with_code pos code
+addNoteCode :: Code -> Score.Event -> Score.Event
+addNoteCode (pos, code) event
+    | isCode event = event
+    | otherwise = (`Score.modifyEnviron` event) $ case pos of
+        SetEnviron key -> Env.insertVal key code
+        Position pos -> Constants.withCode pos code
 
 -- ** convert
 
 -- | Round the RealTime to the nearest NoteDuration.
-note_duration :: Types.Config -> RealTime -> Types.NoteDuration
-note_duration config = Types.time_to_note_dur . to_time config
+noteDuration :: Types.Config -> RealTime -> Types.NoteDuration
+noteDuration config = Types.timeToNoteDur . toTime config
 
 -- | Like 'note_duration', but only succeeds if the RealTime is exactly
 -- a NoteDuration.
-is_note_duration :: Types.Config -> RealTime -> Maybe Types.NoteDuration
-is_note_duration config = Types.is_note_dur . to_time config
+isNoteDuration :: Types.Config -> RealTime -> Maybe Types.NoteDuration
+isNoteDuration config = Types.isNoteDur . toTime config
 
-is_duration :: Types.Config -> RealTime -> Maybe Types.Duration
-is_duration config t = case is_note_duration config t of
+isDuration :: Types.Config -> RealTime -> Maybe Types.Duration
+isDuration config t = case isNoteDuration config t of
     Just (Types.NoteDuration dur False) -> Just dur
     _ -> Nothing
 
-note_pitch :: Derive.NoteDeriver -> Derive.Deriver Note
-note_pitch deriver = do
+notePitch :: Derive.NoteDeriver -> Derive.Deriver Note
+notePitch deriver = do
     events <- deriver
-    event <- require "had no event" $ Lists.head (Stream.events_of events)
-    env <- Derive.get_environ
-    pitch_to_lily env
-        =<< require "note had no pitch" (Score.initial_pitch event)
+    event <- require "had no event" $ Lists.head (Stream.eventsOf events)
+    env <- Derive.getEnviron
+    pitchToLily env
+        =<< require "note had no pitch" (Score.initialPitch event)
     -- Wow, there are a lot of ways to fail.
     where
     require = Derive.require . (prefix <>)
     prefix = "Ly.note_pitch: "
 
-pitch_to_lily :: Env.Environ -> PSignal.Transposed -> Derive.Deriver Note
-pitch_to_lily env = fmap Types.to_lily
-    . Derive.require_right ("Ly.pitch_to_lily: "<>) . Convert.pitch_to_lily env
+pitchToLily :: Env.Environ -> PSignal.Transposed -> Derive.Deriver Note
+pitchToLily env = fmap Types.toLily
+    . Derive.requireRight ("Ly.pitch_to_lily: "<>) . Convert.pitchToLily env
 
-to_time :: Types.Config -> RealTime -> Types.Time
-to_time = Types.real_to_time . Types.config_quarter_duration
+toTime :: Types.Config -> RealTime -> Types.Time
+toTime = Types.realToTime . Types.configQuarterDuration

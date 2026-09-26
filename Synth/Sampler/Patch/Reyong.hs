@@ -40,10 +40,10 @@ import           Synth.Types
 patches :: [Patch.Patch]
 patches =
     [ makePatch "reyong-trompong" Nothing $ Scale.Range
-        (Scale.range_bottom Legong.trompong_range)
-        (Scale.range_top Legong.reyong_range)
-    , makePatch "reyong" (Just BaliScales.Isep) Legong.reyong_range
-    , makePatch "trompong" (Just BaliScales.Umbang) Legong.trompong_range
+        (Scale.rangeBottom Legong.trompongRange)
+        (Scale.rangeTop Legong.reyongRange)
+    , makePatch "reyong" (Just BaliScales.Isep) Legong.reyongRange
+    , makePatch "trompong" (Just BaliScales.Umbang) Legong.trompongRange
     ]
 
 makePatch :: Note.PatchName -> Maybe BaliScales.Tuning -> Scale.Range
@@ -54,24 +54,24 @@ makePatch name tuning range = (Patch.patch name)
     , Patch._allFilenames = allFilenames
     , Patch._preprocess = inferDuration
     , Patch._karyaPatch = ImInst.code #= code $ ImInst.range range $
-        maybe id (ImInst.environ EnvKey.tuning . ShowVal.show_val) tuning $
-        ImInst.make_patch $ Im.Patch.patch
-            { Im.Patch.patch_controls = mconcat
+        maybe id (ImInst.environ EnvKey.tuning . ShowVal.showVal) tuning $
+        ImInst.makePatch $ Im.Patch.patch
+            { Im.Patch.patchControls = mconcat
                 [ Control.supportPitch
                 , Control.supportDyn
                 , Control.supportVariation
                 ]
-            , Im.Patch.patch_attribute_map = const () <$> attributeMap
+            , Im.Patch.patchAttributeMap = const () <$> attributeMap
             }
     }
     where
     code = Lib.Bali.zeroDurMute 0.8
         <> Util.thru dir convert
-        <> ImInst.postproc DUtil.with_symbolic_pitch
+        <> ImInst.postproc DUtil.withSymbolicPitch
     dir = "reyong"
 
 attributeMap :: Common.AttributeMap Articulation
-attributeMap = Common.attribute_map
+attributeMap = Common.attributeMap
     [ (cek <> loose, CekOpen)
     , (cek, CekClosed)
     , (mute <> loose, MuteOpen)
@@ -175,7 +175,7 @@ tweakDynamic _ _ _ = 1
 toFilename :: Articulation -> Pitch -> Util.Dynamic -> Util.Variation
     -> FilePath
 toFilename articulation pitch dyn variation = Lists.join "-"
-    [ show (Midi.from_key (pitchToKey pitch) :: Int)
+    [ show (Midi.fromKey (pitchToKey pitch) :: Int)
     , show lowVel
     , show highVel
     , group
@@ -214,7 +214,7 @@ nnToPitch = Map.fromList $ zip reyongTuning $
     take 15 $ drop 4 [Pitch oct pc | oct <- [3..], pc <- Util.enumAll]
 
 pitchToKey :: Pitch -> Midi.Key
-pitchToKey (Pitch oct pc) = Midi.to_key (oct*12) + baseKey pc
+pitchToKey (Pitch oct pc) = Midi.toKey (oct*12) + baseKey pc
     where
     baseKey = \case
         I -> Key.c_1

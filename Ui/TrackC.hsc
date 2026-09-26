@@ -5,7 +5,7 @@
 {- | A Track is a container for Events.  A track goes from ScoreTime 0 until
     the end of the last Event.
 -}
-module Ui.TrackC (with_track) where
+module Ui.TrackC (withTrack) where
 import ForeignC
 import qualified Util.FFI as FFI
 import qualified Util.Lists as Lists
@@ -27,15 +27,15 @@ import Global
 -- | Since converting a Track requires both a track and merged events, poke
 -- needs two args.  So keep it out of Storable to prevent accidental use of
 -- 'with'.
-with_track :: Track.Track -> Track.SetStyle -> [Events.Events]
+withTrack :: Track.Track -> Track.SetStyle -> [Events.Events]
     -> (Ptr Track.Track -> IO a) -> IO a
-with_track track (track_bg, event_style) merged_events f =
+withTrack track (trackBg, eventStyle) mergedEvents f =
     allocaBytesAligned size align $ \trackp -> do
-        (#poke EventTrackConfig, bg_color) trackp (track_bg track)
-        poke_find_events trackp (event_style (Track.track_title track))
-            (Track.track_events track : merged_events)
-        (#poke EventTrackConfig, render) trackp (Track.track_render track)
-        initialize_track_signal ((#ptr EventTrackConfig, track_signal) trackp)
+        (#poke EventTrackConfig, bg_color) trackp (trackBg track)
+        pokeFindEvents trackp (eventStyle (Track.trackTitle track))
+            (Track.trackEvents track : mergedEvents)
+        (#poke EventTrackConfig, render) trackp (Track.trackRender track)
+        initializeTrackSignal ((#ptr EventTrackConfig, track_signal) trackp)
         f trackp
     where
     size = #size EventTrackConfig
@@ -43,33 +43,33 @@ with_track track (track_bg, event_style) merged_events f =
 
 type EventStyle = Event.Event -> Style.StyleId
 
-poke_find_events :: Ptr Track.Track -> EventStyle -> [Events.Events] -> IO ()
-poke_find_events trackp event_style event_lists = do
-    let time_end = maximum (0 : map Events.time_end event_lists)
-    find_events <- make_find_events event_style event_lists
-    (#poke EventTrackConfig, find_events) trackp find_events
-    (#poke EventTrackConfig, time_end) trackp time_end
+pokeFindEvents :: Ptr Track.Track -> EventStyle -> [Events.Events] -> IO ()
+pokeFindEvents trackp eventStyle eventLists = do
+    let timeEnd = maximum (0 : map Events.timeEnd eventLists)
+    findEvents <- makeFindEvents eventStyle eventLists
+    (#poke EventTrackConfig, find_events) trackp findEvents
+    (#poke EventTrackConfig, time_end) trackp timeEnd
 
-make_find_events :: EventStyle -> [Events.Events] -> IO (FunPtr FindEvents)
-make_find_events event_style event_lists = FFI.makeFunPtr "find_events" $
-    c_make_find_events (cb_find_events event_style event_lists)
+makeFindEvents :: EventStyle -> [Events.Events] -> IO (FunPtr FindEvents)
+makeFindEvents eventStyle eventLists = FFI.makeFunPtr "find_events" $
+    cMakeFindEvents (cbFindEvents eventStyle eventLists)
 
 instance CStorable Track.RenderConfig where
     sizeOf _ = #size RenderConfig
     alignment _ = alignment (0 :: CDouble)
     peek _ = error "RenderConfig peek unimplemented"
-    poke = poke_render_config
+    poke = pokeRenderConfig
 
-poke_render_config :: Ptr Track.RenderConfig -> Track.RenderConfig -> IO ()
-poke_render_config configp (Track.RenderConfig style color) = do
-    (#poke RenderConfig, style) configp (encode_style style)
+pokeRenderConfig :: Ptr Track.RenderConfig -> Track.RenderConfig -> IO ()
+pokeRenderConfig configp (Track.RenderConfig style color) = do
+    (#poke RenderConfig, style) configp (encodeStyle style)
     (#poke RenderConfig, color) configp color
 
 instance CStorable Track.TrackSignal where
     sizeOf _ = #size TrackSignal
     alignment _ = alignment (0 :: CDouble)
     peek _ = error "TrackSignal peek unimplemented"
-    poke = poke_track_signal
+    poke = pokeTrackSignal
 
 -- | This does a memcpy to marshal the signal for c++.  I could pass the
 -- pointer directly, but then I would have to arrange for haskell and c++
@@ -81,19 +81,19 @@ instance CStorable Track.TrackSignal where
 -- a control track is 8 bytes/Double * 600 = 4.6kb.  So * 60 minutes * 8 tracks
 -- = 2.25mb.  Since I tested 0.01s to copy 32mb, this should totally be fast
 -- enough.
-poke_track_signal :: Ptr Track.TrackSignal -> Track.TrackSignal -> IO ()
-poke_track_signal tsigp (Track.TrackSignal sig shift stretch) = do
-    initialize_track_signal tsigp
+pokeTrackSignal :: Ptr Track.TrackSignal -> Track.TrackSignal -> IO ()
+pokeTrackSignal tsigp (Track.TrackSignal sig shift stretch) = do
+    initializeTrackSignal tsigp
     (offset, destp, len) <- if Signal.null sig then return (0, nullPtr, 0)
-        else Signal.with_ptr sig $ \offset sigp len -> do
+        else Signal.withPtr sig $ \offset sigp len -> do
             destp <- mallocArray len
             copyArray destp sigp len
             return (offset, destp, len)
     -- This TrackSignal's signal is actually in ScoreTime.
-    (#poke TrackSignal, shift) tsigp (shift + RealTime.to_score offset)
+    (#poke TrackSignal, shift) tsigp (shift + RealTime.toScore offset)
     (#poke TrackSignal, stretch) tsigp stretch
     (#poke TrackSignal, signal) tsigp destp
-    (#poke TrackSignal, length) tsigp (FFI.c_int len)
+    (#poke TrackSignal, length) tsigp (FFI.cInt len)
 
     -- Calculated by c++, in c_interface.cc.  I'd rather do it here,
     -- but I'm worried all those peeks will generate garbage.
@@ -102,13 +102,13 @@ poke_track_signal tsigp (Track.TrackSignal sig shift stretch) = do
 
 -- | Objects constructed from haskell don't have their constructors run,
 -- so make sure it doesn't have garbage.
-initialize_track_signal :: Ptr Track.TrackSignal -> IO ()
-initialize_track_signal tsigp = do
+initializeTrackSignal :: Ptr Track.TrackSignal -> IO ()
+initializeTrackSignal tsigp = do
     (#poke TrackSignal, signal) tsigp nullPtr
     (#poke TrackSignal, length) tsigp (0 :: CInt)
 
-encode_style :: Track.RenderStyle -> (#type RenderConfig::RenderStyle)
-encode_style style = case style of
+encodeStyle :: Track.RenderStyle -> (#type RenderConfig::RenderStyle)
+encodeStyle style = case style of
     Track.NoRender -> (#const RenderConfig::render_none)
     Track.Line {} -> (#const RenderConfig::render_line)
     Track.Filled {} -> (#const RenderConfig::render_filled)
@@ -119,19 +119,19 @@ encode_style style = case style of
 type FindEvents = Ptr ScoreTime -> Ptr ScoreTime
     -> Ptr (Ptr Event.Event) -> Ptr (Ptr CInt) -> IO Int
 
-cb_find_events :: EventStyle -> [Events.Events] -> FindEvents
-cb_find_events event_style event_lists startp endp ret_events ret_ranks = do
+cbFindEvents :: EventStyle -> [Events.Events] -> FindEvents
+cbFindEvents eventStyle eventLists startp endp retEvents retRanks = do
     start <- peek startp
     end <- peek endp
     let (events, ranks) = unzip $ Lists.mergeLists key $
             zipWith (\rank -> map (, rank)) [0..] $
-            map (map set_style . in_range start end) event_lists
+            map (map setStyle . inRange start end) eventLists
         key (event, rank) = (Event.start event, rank)
-        set_style event = Event.style_ #= event_style event $ event
+        setStyle event = Event.style_ #= eventStyle event $ event
     unless (null events) $ do
         -- Calling c++ is responsible for freeing these.
-        poke ret_events =<< newArray events
-        poke ret_ranks =<< newArray ranks
+        poke retEvents =<< newArray events
+        poke retRanks =<< newArray ranks
     return (length events)
     where
     -- Get everything in the inclusive range, plus one event before and after.
@@ -140,9 +140,9 @@ cb_find_events event_style event_lists startp endp ret_events ret_ranks = do
     -- negative duration and the text goes above.
     --
     -- Almost, but not quite the same as 'Events.in_range_around'.
-    in_range start end events =
+    inRange start end events =
         take 1 pre ++ Then.takeWhile1 ((<=end) . Event.start) post
-        where (pre, post) = Events.split_lists start events
+        where (pre, post) = Events.splitLists start events
 
 foreign import ccall "wrapper"
-    c_make_find_events :: FindEvents -> IO (FunPtr FindEvents)
+    cMakeFindEvents :: FindEvents -> IO (FunPtr FindEvents)

@@ -15,28 +15,28 @@ import           Util.Test
 
 test_process_msg :: Test
 test_process_msg = do
-    let f = fmap (UTF8.toString . Process.style_text) . fst
-            . Process.process_msg (Process.initial_state "")
+    let f = fmap (UTF8.toString . Process.styleText) . fst
+            . Process.processMsg (Process.initialState "")
     equal (f (Log.msg Log.Debug Nothing "hi"))
         (Just "*   LogView/Process_test.hs:20 hi\n")
 
 test_render_status :: Test
 test_render_status = do
     let status = Map.fromList [("a", "one {click} 1"), ("b", "two")]
-    let f = Process.render_status
+    let f = Process.renderStatus
     equal (f status) $ Process.StyledText
         "a: one {click} 1 || b: two"
         "DAAAAAACCCCCCCAAEEEEDAAAAA"
 
 test_catch_pattern :: Test
 test_catch_pattern = do
-    let f key val = Process.state_status $ snd $ Process.process_msg state $
+    let f key val = Process.stateStatus $ snd $ Process.processMsg state $
             mkmsg key val
         mkmsg key val = Log.msg Log.Debug Nothing $
             "global status: " <> key <> " -- " <> val
-        state = (Process.initial_state "")
-            { Process.state_catch_patterns = [Process.global_status_pattern]
-            , Process.state_status = Map.fromList [("key", "val1")]
+        state = (Process.initialState "")
+            { Process.stateCatchPatterns = [Process.globalStatusPattern]
+            , Process.stateStatus = Map.fromList [("key", "val1")]
             }
     equal (f "key" "val2") (Map.fromList [("key", "val2")])
     -- Key is deleted.
@@ -44,7 +44,7 @@ test_catch_pattern = do
 
 test_flatten_ranges :: Test
 test_flatten_ranges = do
-    let f = Process.flatten_ranges 'z'
+    let f = Process.flattenRanges 'z'
     equal (f [((2, 4), 'a')]) [(2, 'z'), (2, 'a')]
     -- Ranges are half-open, so (4, 4) is empty.
     -- 01234567
@@ -55,8 +55,8 @@ test_flatten_ranges = do
 
 test_regex_style :: Test
 test_regex_style = do
-    let f = UTF8.toString . Process.style_style . Process.run_formatter
-            . Process.regex_style Process.style_plain Process.msg_text_regexes
+    let f = UTF8.toString . Process.styleStyle . Process.runFormatter
+            . Process.regexStyle Process.stylePlain Process.msgTextRegexes
     equal (f "{a}") "CCC"
     equal (f "x {a} x") "AACCCAA"
     equal (f "x (bid \"a\") x") "AADDDDDDDDDAA"

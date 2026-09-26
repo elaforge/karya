@@ -32,9 +32,9 @@ import           Global
 type Interface = Interface.RawInterface Midi.WriteMessage
 
 main :: IO ()
-main = MidiDriver.initialize "test_midi" want_message test_midi
+main = MidiDriver.initialize "test_midi" wantMessage test_midi
     where
-    want_message =
+    wantMessage =
         (/= Midi.Encode.encode (Midi.RealtimeMessage Midi.ActiveSense))
 
 type ReadMsg = IO (Maybe Midi.ReadMessage)
@@ -43,101 +43,101 @@ type WriteMsg = (RealTime.RealTime, Midi.Message) -> IO ()
 test_midi :: Either Text Interface -> IO ()
 test_midi (Left err) = errorIO $ "initializing midi: " <> err
 test_midi (Right interface) = do
-    rdevs <- Interface.read_devices interface
+    rdevs <- Interface.readDevices interface
     putStrLn "read devs:"
     mapM_ (Text.IO.putStrLn . ("    " <>) . pretty) rdevs
-    wdevs <- Interface.write_devices interface
+    wdevs <- Interface.writeDevices interface
     putStrLn "write devs:"
     mapM_ (Text.IO.putStrLn . ("    " <>) . pretty) wdevs
     rdevs <- pure $ map fst rdevs
 
-    let open = open_devices interface
+    let open = openDevices interface
     args <- System.Environment.getArgs
     case args of
         [] -> pure ()
         ["monitor"] -> do
             putStrLn "monitoring (pass arg 'help' for help)"
-            (_, read_msg) <- open True rdevs Nothing
-            monitor read_msg
+            (_, readMsg) <- open True rdevs Nothing
+            monitor readMsg
         ["record-sysex"] -> do
-            (_, read_msg) <- open True rdevs Nothing
-            record_sysex read_msg
-        ["send-sysex", out_dev, fname] -> do
-            (write_msg, _) <- open True [] (Just out_dev)
-            send_sysex write_msg fname
+            (_, readMsg) <- open True rdevs Nothing
+            recordSysex readMsg
+        ["send-sysex", outDev, fname] -> do
+            (writeMsg, _) <- open True [] (Just outDev)
+            sendSysex writeMsg fname
         ["help"] -> putStrLn usage
-        ["melody", out_dev] -> do
+        ["melody", outDev] -> do
             putStrLn "playing melody"
-            (write_msg, _) <- open True [] (Just out_dev)
-            melody interface write_msg
+            (writeMsg, _) <- open True [] (Just outDev)
+            melody interface writeMsg
             putStrLn "return to quit... "
             void getLine
-        ["melody-thru", out_dev] -> do
+        ["melody-thru", outDev] -> do
             putStrLn "playing melody + thru"
-            (write_msg, read_msg) <- open True rdevs (Just out_dev)
-            thru_melody interface write_msg read_msg
-        ["mmc", msg, out_dev] -> do
-            (write_msg, _) <- open True [] (Just out_dev)
-            mmc write_msg msg
+            (writeMsg, readMsg) <- open True rdevs (Just outDev)
+            thruMelody interface writeMsg readMsg
+        ["mmc", msg, outDev] -> do
+            (writeMsg, _) <- open True [] (Just outDev)
+            mmc writeMsg msg
         ("monitor" : mdevs@(_:_)) -> do
             putStrLn $ "monitoring: " ++ Lists.join ", " mdevs
-            (_, read_msg) <-
-                open True (map (Midi.read_device . txt) mdevs) Nothing
-            monitor read_msg
-        ["spam", out_dev, n_str] -> do
-            putStrLn $ "spamming " ++ n_str ++ " msgs"
-            (write_msg, _) <- open True rdevs (Just out_dev)
-            n <- readIO n_str
-            spam interface write_msg n
+            (_, readMsg) <-
+                open True (map (Midi.readDevice . txt) mdevs) Nothing
+            monitor readMsg
+        ["spam", outDev, nStr] -> do
+            putStrLn $ "spamming " ++ nStr ++ " msgs"
+            (writeMsg, _) <- open True rdevs (Just outDev)
+            n <- readIO nStr
+            spam interface writeMsg n
             getChar
             pure ()
-        ["pb-range", out_dev, semis] -> do
+        ["pb-range", outDev, semis] -> do
             semis <- readIO semis
-            (write_msg, _) <- open True rdevs (Just out_dev)
-            pitch_bend_range write_msg semis
-        ["program", out_dev] ->
-            uncurry program_change =<< open False [] (Just out_dev)
+            (writeMsg, _) <- open True rdevs (Just outDev)
+            pitchBendRange writeMsg semis
+        ["program", outDev] ->
+            uncurry programChange =<< open False [] (Just outDev)
         ["test", loopback] -> do
-            (write_msg, read_msg) <- open False
-                [Midi.read_device (txt loopback)] (Just loopback)
-            run_tests interface write_msg read_msg
-        ["thru", out_dev] -> do
+            (writeMsg, readMsg) <- open False
+                [Midi.readDevice (txt loopback)] (Just loopback)
+            runTests interface writeMsg readMsg
+        ["thru", outDev] -> do
             putStrLn "playing thru"
-            (write_msg, read_msg) <- open True rdevs (Just out_dev)
-            thru_loop write_msg read_msg
+            (writeMsg, readMsg) <- open True rdevs (Just outDev)
+            thruLoop writeMsg readMsg
         _ -> do
             putStrLn "unknown command"
             putStrLn usage
 
-open_devices :: Interface -> Bool -> [Midi.ReadDevice]
+openDevices :: Interface -> Bool -> [Midi.ReadDevice]
     -> Maybe String -> IO (WriteMsg, ReadMsg)
-open_devices interface blocking rdevs maybe_wdev = do
-    oks <- mapM (Interface.connect_read_device interface) rdevs
+openDevices interface blocking rdevs maybeWdev = do
+    oks <- mapM (Interface.connectReadDevice interface) rdevs
     forM_ [rdev | (rdev, False) <- zip rdevs oks] $ \missing ->
         putStrLn $ "rdev not found: " ++ show missing
-    let read_msg = (if blocking then blocking_get else nonblocking_get)
-            (Interface.read_channel interface)
-    case Midi.write_device . txt <$> maybe_wdev of
+    let readMsg = (if blocking then blockingGet else nonblockingGet)
+            (Interface.readChannel interface)
+    case Midi.writeDevice . txt <$> maybeWdev of
         Nothing -> pure
-            (const (error "write device not opened"), read_msg)
+            (const (error "write device not opened"), readMsg)
         Just wdev -> do
-            ok <- Interface.connect_write_device interface wdev
+            ok <- Interface.connectWriteDevice interface wdev
             unless ok $
                 error $ "required wdev " ++ show wdev ++ " not found"
-            pure (make_write_msg interface wdev, read_msg)
+            pure (makeWriteMsg interface wdev, readMsg)
     where
-    make_write_msg interface wdev (ts, msg) = do
+    makeWriteMsg interface wdev (ts, msg) = do
         putStrLn $ "write: " <> show ts <> ": " <> show msg
-        mb_err <- Interface.write_message interface
+        mbErr <- Interface.writeMessage interface
             (Midi.WriteMessage wdev ts msg)
-        whenJust mb_err $ Text.IO.putStrLn . ("error: "<>)
+        whenJust mbErr $ Text.IO.putStrLn . ("error: "<>)
 
-nonblocking_get :: Interface.ReadChan -> ReadMsg
-nonblocking_get read_chan = STM.atomically $
-    fmap Just (STM.readTChan read_chan) `STM.orElse` pure Nothing
+nonblockingGet :: Interface.ReadChan -> ReadMsg
+nonblockingGet readChan = STM.atomically $
+    fmap Just (STM.readTChan readChan) `STM.orElse` pure Nothing
 
-blocking_get :: Interface.ReadChan -> ReadMsg
-blocking_get read_chan = STM.atomically $ fmap Just (STM.readTChan read_chan)
+blockingGet :: Interface.ReadChan -> ReadMsg
+blockingGet readChan = STM.atomically $ fmap Just (STM.readTChan readChan)
 
 usage :: String
 usage =
@@ -157,22 +157,22 @@ usage =
 
 -- * program change
 
-program_change :: WriteMsg -> ReadMsg -> IO ()
-program_change write_message _read_message = forever $ do
+programChange :: WriteMsg -> ReadMsg -> IO ()
+programChange writeMessage _readMessage = forever $ do
     putStr "> "
     IO.hFlush IO.stdout
     line <- getLine
     let msg = Midi.ChannelMessage 0 $ Midi.ProgramChange (read line)
     print msg
-    write_message (0, msg)
+    writeMessage (0, msg)
 
 -- * sysex
 
-record_sysex :: ReadMsg -> IO ()
-record_sysex read_msg = loop 0
+recordSysex :: ReadMsg -> IO ()
+recordSysex readMsg = loop 0
     where
     loop n = do
-        Just (Midi.ReadMessage _ _ msg) <- read_msg
+        Just (Midi.ReadMessage _ _ msg) <- readMsg
         wrote <- case msg of
             Midi.CommonMessage (Midi.SystemExclusive manuf bytes) -> do
                 let fn = "record-sysex" ++ show n ++ ".syx"
@@ -184,10 +184,10 @@ record_sysex read_msg = loop 0
             _ -> pure False
         loop (if wrote then n+1 else n)
 
-send_sysex :: WriteMsg -> FilePath -> IO ()
-send_sysex write_msg fname = do
+sendSysex :: WriteMsg -> FilePath -> IO ()
+sendSysex writeMsg fname = do
     msg <- Midi.Encode.decode <$> ByteString.readFile fname
-    write_msg (0, msg)
+    writeMsg (0, msg)
     putStrLn "sending asynchronously, hit return when the blinkenlights stop"
     _ <- getLine
     pure ()
@@ -195,53 +195,53 @@ send_sysex write_msg fname = do
 -- * monitor
 
 monitor :: ReadMsg -> IO ()
-monitor read_msg = forever $ do
-    Just (Midi.ReadMessage dev ts msg) <- read_msg
+monitor readMsg = forever $ do
+    Just (Midi.ReadMessage dev ts msg) <- readMsg
     print (ts, dev, msg)
 
 
 -- * thru
 
-thru_loop :: WriteMsg -> ReadMsg -> IO ()
-thru_loop write_msg read_msg = forever $ do
-    Just (Midi.ReadMessage dev ts msg) <- read_msg
+thruLoop :: WriteMsg -> ReadMsg -> IO ()
+thruLoop writeMsg readMsg = forever $ do
+    Just (Midi.ReadMessage dev ts msg) <- readMsg
     putStrLn $ "thru: " ++ show (ts, dev, msg)
-    write_msg (0, msg)
+    writeMsg (0, msg)
 
 
 -- * melody
 
 -- | Play a melody while also allowing msgs thru, to test merging.
-thru_melody :: Interface -> WriteMsg -> ReadMsg -> IO ()
-thru_melody interface write_msg read_msg = do
-    melody interface write_msg
-    thru_loop write_msg read_msg
+thruMelody :: Interface -> WriteMsg -> ReadMsg -> IO ()
+thruMelody interface writeMsg readMsg = do
+    melody interface writeMsg
+    thruLoop writeMsg readMsg
 
 melody :: Interface -> WriteMsg -> IO ()
-melody interface write_msg = do
+melody interface writeMsg = do
     now <- Interface.now interface
-    mapM_ write_msg (notes now)
+    mapM_ writeMsg (notes now)
 
 -- | Write notes over time.
 notes :: RealTime.RealTime -> [(RealTime.RealTime, Midi.Message)]
-notes start_ts = concat
-    [[(ts, note_on nn), (ts + RealTime.seconds 0.4, note_off nn)]
-        | (ts, nn) <- zip (Lists.range_ start_ts (RealTime.seconds 0.5)) score]
+notes startTs = concat
+    [[(ts, noteOn nn), (ts + RealTime.seconds 0.4, noteOff nn)]
+        | (ts, nn) <- zip (Lists.range_ startTs (RealTime.seconds 0.5)) score]
     where score = [53, 55 .. 61]
 
 -- * mmc
 
 mmc :: WriteMsg -> String -> IO ()
-mmc write_msg msg = write_msg (0, Mmc.encode 127 mmc_msg)
+mmc writeMsg msg = writeMsg (0, Mmc.encode 127 mmcMsg)
     where
-    mmc_msg
-        | Just smpte <- parse_smpte msg = Mmc.Goto smpte 0
+    mmcMsg
+        | Just smpte <- parseSmpte msg = Mmc.Goto smpte 0
         | msg == "play" = Mmc.Play
         | msg == "stop" = Mmc.Stop
         | otherwise = error $ "unknown msg: " ++ msg
 
-parse_smpte :: String -> Maybe Midi.Smpte
-parse_smpte txt = do
+parseSmpte :: String -> Maybe Midi.Smpte
+parseSmpte txt = do
     [h, m, s] <- Just $ Lists.split (==':') txt
     Midi.Smpte <$> int h <*> int m <*> int s <*> pure 0
     where
@@ -253,9 +253,9 @@ parse_smpte txt = do
 -- * spam
 
 spam :: Interface -> WriteMsg -> Int -> IO ()
-spam interface write_msg n = do
+spam interface writeMsg n = do
     now <- Interface.now interface
-    mapM_ write_msg [(now + RealTime.milliseconds (i*10), msg)
+    mapM_ writeMsg [(now + RealTime.milliseconds (i*10), msg)
         | (i, msg) <- zip [0..] msgs]
     where
     msgs = take n [Midi.ChannelMessage 0 msg | nn <- cycle [0..127],
@@ -263,113 +263,113 @@ spam interface write_msg n = do
 
 -- * pitch bend range
 
-pitch_bend_range :: WriteMsg -> Double -> IO ()
-pitch_bend_range write_msg semis = do
-    let msgs = map (Midi.ChannelMessage 0) (Midi.pitch_bend_range semis)
+pitchBendRange :: WriteMsg -> Double -> IO ()
+pitchBendRange writeMsg semis = do
+    let msgs = map (Midi.ChannelMessage 0) (Midi.pitchBendRange semis)
     Test.pprint msgs
-    mapM_ (write_msg . (,) 0) msgs
+    mapM_ (writeMsg . (,) 0) msgs
 
 -- * tests
 
 -- | Test a few things by writing and reading both ends of the same port.
-run_tests :: Interface -> WriteMsg -> ReadMsg -> IO ()
-run_tests interface write_msg read_msg = do
+runTests :: Interface -> WriteMsg -> ReadMsg -> IO ()
+runTests interface writeMsg readMsg = do
     putStrLn "---- abort"
-    test_abort interface write_msg read_msg
+    test_abort interface writeMsg readMsg
     putStrLn "---- merge"
-    test_merge interface write_msg read_msg
+    test_merge interface writeMsg readMsg
     putStrLn "---- sysex"
-    test_sysex write_msg read_msg
+    test_sysex writeMsg readMsg
 
 -- | Ensure that aborts really cancel pending msgs.
 test_abort :: Interface -> WriteMsg -> ReadMsg -> IO ()
-test_abort interface write_msg read_msg = do
+test_abort interface writeMsg readMsg = do
     now <- Interface.now interface
-    let msgs = [note_on 10, note_on 20, chan_msg (Midi.PitchBend 42)]
+    let msgs = [noteOn 10, noteOn 20, chanMsg (Midi.PitchBend 42)]
     -- Msgs start from now + 0.5 so the abort should cancel all of them.
-    mapM_ write_msg [(now + RealTime.seconds (i * 0.5), msg)
+    mapM_ writeMsg [(now + RealTime.seconds (i * 0.5), msg)
         | (i, msg) <- zip [5..] msgs]
     sleep 0.2
     Interface.abort interface
     sleep 1
-    msgs <- read_all read_msg
+    msgs <- readAll readMsg
     -- OS X used to have a bug that emitted weird pitchbend after an abort.
     -- It's been fixed but now it emits pb0, presumably because they can't
     -- be totally sure a pitchbend hasn't been emitted when the abort is
     -- received.
-    Test.equal (filter (not . is_pb0) msgs) []
+    Test.equal (filter (not . isPb0) msgs) []
     putStrLn "msgs after abort (pitchbend 0 expected on CoreMIDI):"
     Test.pprint msgs
     where
-    is_pb0 msg = case Midi.rmsg_msg msg of
+    isPb0 msg = case Midi.rmsgMsg msg of
         Midi.ChannelMessage _ (Midi.PitchBend 0) -> True
         _ -> False
 
 -- | Ensure that timestamp 0 msgs get merged in ahead of timed msgs, as per
 -- 'Interface.write_message'.
 test_merge :: Interface -> WriteMsg -> ReadMsg -> IO ()
-test_merge interface write_msg read_msg = do
+test_merge interface writeMsg readMsg = do
     now <- Interface.now interface
-    mapM_ write_msg
-        [ (now, note_on 10)
-        , (now + RealTime.seconds 0.25, note_on 11)
-        , (now + RealTime.seconds 0.5, note_on 12)
+    mapM_ writeMsg
+        [ (now, noteOn 10)
+        , (now + RealTime.seconds 0.25, noteOn 11)
+        , (now + RealTime.seconds 0.5, noteOn 12)
         ]
     sleep 0.1
-    write_msg (0, note_on 100)
+    writeMsg (0, noteOn 100)
     sleep 1
-    msgs <- read_all read_msg
-    void $ Test.equal (map Midi.rmsg_msg msgs)
-        [note_on 10, note_on 100, note_on 11, note_on 12]
+    msgs <- readAll readMsg
+    void $ Test.equal (map Midi.rmsgMsg msgs)
+        [noteOn 10, noteOn 100, noteOn 11, noteOn 12]
 
 test_sysex :: WriteMsg -> ReadMsg -> IO ()
-test_sysex write_msg read_msg = do
+test_sysex writeMsg readMsg = do
     let size = 20
     let msg = Midi.CommonMessage $ Midi.SystemExclusive 42
             (ByteString.pack (take (size*1024) (cycle [0..9]) ++ [0xf7]))
-    write_msg (0, msg)
+    writeMsg (0, msg)
     putStrLn "waiting for sysex to arrive..."
-    result <- read_until 10 read_msg
+    result <- readUntil 10 readMsg
     (out, secs) <- case result of
         Nothing -> errorIO "no sysex arrived!"
         Just val -> pure val
     putStrLn $ show secs ++ " seconds for " ++ show size ++ " bytes"
-    let out_msg = Midi.rmsg_msg out
-    void $ if out_msg == msg
+    let outMsg = Midi.rmsgMsg out
+    void $ if outMsg == msg
         then Test.success "sysex equal"
-        else Test.failure $ "got sysex: " <> showt out_msg
+        else Test.failure $ "got sysex: " <> showt outMsg
 
 
 -- * util
 
-chan_msg = Midi.ChannelMessage 0
-note_on nn = chan_msg (Midi.NoteOn nn 70)
-note_off nn = chan_msg (Midi.NoteOff nn 70)
+chanMsg = Midi.ChannelMessage 0
+noteOn nn = chanMsg (Midi.NoteOn nn 70)
+noteOff nn = chanMsg (Midi.NoteOff nn 70)
 
 sleep :: Double -> IO ()
 sleep = Concurrent.threadDelay . floor . (*1000000)
 
-read_until :: Time.NominalDiffTime -> ReadMsg
+readUntil :: Time.NominalDiffTime -> ReadMsg
     -> IO (Maybe (Midi.ReadMessage, Time.NominalDiffTime))
-read_until timeout read_msg = do
+readUntil timeout readMsg = do
     started <- Time.getCurrentTime
-    let abort_at = timeout `Time.addUTCTime` started
+    let abortAt = timeout `Time.addUTCTime` started
     let go = do
-            msg <- read_msg
+            msg <- readMsg
             now <- Time.getCurrentTime
             case msg of
                 Just m -> pure (Just (m, now `Time.diffUTCTime` started))
                 Nothing -> do
-                    if now > abort_at
+                    if now > abortAt
                         then pure Nothing
                         else sleep 0.25 >> go
     go
 
-read_all :: ReadMsg -> IO [Midi.ReadMessage]
-read_all read_msg = do
-    msg <- read_msg
+readAll :: ReadMsg -> IO [Midi.ReadMessage]
+readAll readMsg = do
+    msg <- readMsg
     case msg of
         Just m -> do
-            rest <- read_all read_msg
+            rest <- readAll readMsg
             pure (m:rest)
         Nothing -> pure []

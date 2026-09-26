@@ -37,13 +37,13 @@ cmod :: Tags
 cmod = tag "cmod"
 
 -- | This call returns a 'TrackLang.VCFunction'.
-control_function :: Tags
-control_function = tag "control-function"
+controlFunction :: Tags
+controlFunction = tag "control-function"
 
 -- | This call is a curve intorpolator, intended for the curve argument for
 -- calls that interpolate curves.
 curve :: Tags
-curve = control_function <> tag "curve"
+curve = controlFunction <> tag "curve"
 
 -- | Adds or transforms note in a style idiomatic to a particular instrument.
 inst :: Tags
@@ -79,16 +79,16 @@ random = tag "random"
 
 -- | This call emits events with the 'Derive.Environ.args' set, and requires
 -- a 'postproc' call to emit the proper events.
-requires_postproc :: Tags
-requires_postproc = tag "requires-postproc"
+requiresPostproc :: Tags
+requiresPostproc = tag "requires-postproc"
 
 -- | Takes sub-events.
 subs :: Tags
 subs = tag "subs"
 
 -- | This transformer runs under inversion, via 'Derive.Call.Sub.under_invert'.
-under_invert :: Tags
-under_invert = tag "under-invert"
+underInvert :: Tags
+underInvert = tag "under-invert"
 
 -- | Saves an argument in 'Derive.Score.event_delayed_args', which means it
 -- applies an Attribute, and relies on a postproc to complete the
@@ -98,15 +98,15 @@ delayed = tag "delayed"
 
 -- | This is the other half of a 'delayed' call.  It expects an entry in
 -- 'Derive.Score.event_delayed_args'.
-realize_delayed :: Tags
-realize_delayed = tag "realize-delayed"
+realizeDelayed :: Tags
+realizeDelayed = tag "realize-delayed"
 
 -- * tags with effects
 
 -- | Give this call Derive.PrioBlock when imported.  This is a special hack
 -- just for the block call.
-prio_block :: Tags
-prio_block = tag "prio-block"
+prioBlock :: Tags
+prioBlock = tag "prio-block"
 
 -- * automatically applied
 

@@ -25,47 +25,47 @@ import           Global
 
 
 scales :: [Scale.Definition]
-scales = Legong.make_scale_set config scale_id "The usual saih lima."
+scales = Legong.makeScaleSet config scaleId "The usual saih lima."
 
-scale_id :: Pitch.ScaleId
-scale_id = "selisir"
+scaleId :: Pitch.ScaleId
+scaleId = "selisir"
 
 config :: BaliScales.Config
 config = BaliScales.Config
-    { config_layout = layout
-    , config_keys = mempty
-    , config_default_key = default_key
-    , config_laras = laras
-    , config_default_laras = laras_rambat
+    { configLayout = layout
+    , configKeys = mempty
+    , configDefaultKey = defaultKey
+    , configLaras = laras
+    , configDefaultLaras = larasRambat
     }
     where
-    layout = Theory.diatonic_layout 5
-    default_key = Theory.key (Pitch.Degree 0 0) "default" (replicate 5 1) layout
+    layout = Theory.diatonicLayout 5
+    defaultKey = Theory.key (Pitch.Degree 0 0) "default" (replicate 5 1) layout
 
 laras :: Map Text BaliScales.Laras
-laras = BaliScales.laras_map $ concat
-    [ map pitu_to_lima (Map.elems Legong.laras)
-    , [pegulingan_teges]
+laras = BaliScales.larasMap $ concat
+    [ map pituToLima (Map.elems Legong.laras)
+    , [pegulinganTeges]
     , mcphee
     ]
 
 mcphee :: [BaliScales.Laras]
 mcphee =
-    map (make . McPhee.extract Legong.low_pitch Legong.high_pitch)
+    map (make . McPhee.extract Legong.lowPitch Legong.highPitch)
         McPhee.selisir
     where
     make (name, (nns, doc)) =
-        BaliScales.laras name low_pitch id doc (map (\nn -> (nn, nn)) nns)
+        BaliScales.laras name lowPitch id doc (map (\nn -> (nn, nn)) nns)
 
 -- | Exported for instruments to use.
-laras_rambat :: BaliScales.Laras
-laras_rambat = pitu_to_lima Legong.laras_rambat
+larasRambat :: BaliScales.Laras
+larasRambat = pituToLima Legong.larasRambat
 
 -- | Strip extra notes to get back to saih lima.
-pitu_to_lima :: BaliScales.Laras -> BaliScales.Laras
-pitu_to_lima laras = laras
-    { BaliScales.laras_umbang = strip $ BaliScales.laras_umbang laras
-    , BaliScales.laras_isep = strip $ BaliScales.laras_isep laras
+pituToLima :: BaliScales.Laras -> BaliScales.Laras
+pituToLima laras = laras
+    { BaliScales.larasUmbang = strip $ BaliScales.larasUmbang laras
+    , BaliScales.larasIsep = strip $ BaliScales.larasIsep laras
     }
     where
     strip = Vector.fromList
@@ -75,12 +75,12 @@ pitu_to_lima laras = laras
 data Pitch = I | O | E | U | A
     deriving (Eq, Ord, Enum, Show, Bounded)
 
-low_pitch :: Pitch.Pitch
-low_pitch = Legong.low_pitch
+lowPitch :: Pitch.Pitch
+lowPitch = Legong.lowPitch
 
 -- TODO what is the ombak?
-pegulingan_teges :: BaliScales.Laras
-pegulingan_teges = BaliScales.laras "pegulingan-teges" low_pitch (extend 4 U)
+pegulinganTeges :: BaliScales.Laras
+pegulinganTeges = BaliScales.laras "pegulingan-teges" lowPitch (extend 4 U)
     "From Teges Semar Pegulingan, via Bob Brown's 1972 recording."
     $ map (\nn -> (nn, nn))
     [ 69.55 -- 4u
@@ -94,11 +94,11 @@ pegulingan_teges = BaliScales.laras "pegulingan-teges" low_pitch (extend 4 U)
 -- | Extend down to the "Legong" range.
 extend :: Pitch.Octave -> Pitch -> [Pitch.NoteNumber] -> [Pitch.NoteNumber]
 extend oct pc =
-    Bali.extend_scale 7 Legong.low_pitch Legong.high_pitch (Pitch.pitch oct pc)
+    Bali.extendScale 7 Legong.lowPitch Legong.highPitch (Pitch.pitch oct pc)
 
-instrument_scale ::
+instrumentScale ::
     ([(Midi.Key, Pitch.NoteNumber)] -> [(Midi.Key, Pitch.NoteNumber)])
     -- ^ drop and take keys for the instrument's range
     -> BaliScales.Laras -> BaliScales.Tuning -> Patch.Scale
-instrument_scale = Legong.make_instrument_scale "selisir"
+instrumentScale = Legong.makeInstrumentScale "selisir"
     [Key.c_1, Key.d_1, Key.e_1, Key.g_1, Key.a_1] -- i o e u a

@@ -16,10 +16,10 @@
     on.
 -}
 module App.LoadInstruments (
-    all_loads, load
+    allLoads, load
 #ifdef TESTING
-    , synth_warnings
-    , load_synths
+    , synthWarnings
+    , loadSynths
 #endif
 ) where
 import           System.FilePath ((</>))
@@ -49,17 +49,17 @@ import qualified User.Elaforge.Instrument.Ness as Ness
 import           Global
 
 
-midi_synths :: [MidiInst.Synth]
-midi_synths = Local.Instrument.midi_synths
+midiSynths :: [MidiInst.Synth]
+midiSynths = Local.Instrument.midiSynths
 
 -- | Each synth that caches to disk has a function to make the cache, and one
 -- to load it.
-all_loads :: [(InstT.SynthName, (MidiInst.MakeDb, MidiInst.Load))]
-all_loads = Local.Instrument.all_loads
+allLoads :: [(InstT.SynthName, (MidiInst.MakeDb, MidiInst.Load))]
+allLoads = Local.Instrument.allLoads
 
-im_synths :: [MidiInst.Synth]
-im_synths =
-    [ Perform.Im.Play.play_cache_synth
+imSynths :: [MidiInst.Synth]
+imSynths =
+    [ Perform.Im.Play.playCacheSynth
 #if defined(ENABLE_IM) && !defined(TESTING)
     , Sampler.PatchDb.synth
     , Faust.PatchDb.synth
@@ -69,39 +69,39 @@ im_synths =
 
 -- | Warnings validating synths.  TODO this should probably be merged with
 -- MidiInst.Synth.
-synth_warnings :: [Text]
-synth_warnings = concat
+synthWarnings :: [Text]
+synthWarnings = concat
     [
 #if defined(ENABLE_IM) && !defined(TESTING)
     Faust.PatchDb.warnings
 #endif
     ]
 
-internal_synths :: [MidiInst.Synth]
-internal_synths = [Lilypond.Constants.ly_synth Cmd.empty_code]
+internalSynths :: [MidiInst.Synth]
+internalSynths = [Lilypond.Constants.lySynth Cmd.emptyCode]
 
 load :: Path.AppDir -> IO (Inst.Db Cmd.InstrumentCode)
-load app_dir = do
-    (db, warns) <- load_synths app_dir
-    forM_ (synth_warnings ++ warns) $ \msg -> Log.warn $ "inst db: " <> msg
-    let annot_fn = Path.to_absolute app_dir Config.local_dir
+load appDir = do
+    (db, warns) <- loadSynths appDir
+    forM_ (synthWarnings ++ warns) $ \msg -> Log.warn $ "inst db: " <> msg
+    let annotFn = Path.toAbsolute appDir Config.localDir
             </> "instrument_annotations"
-    annots <- Parse.parse_annotations annot_fn >>= \case
+    annots <- Parse.parseAnnotations annotFn >>= \case
         -- The parsec error already includes the filename.
         Left err -> Log.warn (txt err) >> pure mempty
         Right annots -> pure annots
-    (db, not_found) <- pure $ Inst.annotate annots db
-    unless (null not_found) $
-        Log.warn $ "annotated instruments not found: " <> pretty not_found
+    (db, notFound) <- pure $ Inst.annotate annots db
+    unless (null notFound) $
+        Log.warn $ "annotated instruments not found: " <> pretty notFound
     pure db
 
-load_synths :: Path.AppDir -> IO (Inst.Db Cmd.InstrumentCode, [Text])
-load_synths app_dir = do
-    loaded <- mapMaybeM ($ app_dir) $
-        Sc.PatchDb.load_synth : map (snd . snd) all_loads
+loadSynths :: Path.AppDir -> IO (Inst.Db Cmd.InstrumentCode, [Text])
+loadSynths appDir = do
+    loaded <- mapMaybeM ($ appDir) $
+        Sc.PatchDb.loadSynth : map (snd . snd) allLoads
     pure $ Inst.db $ concat
-        [ im_synths
+        [ imSynths
         , loaded
-        , midi_synths
-        , internal_synths
+        , midiSynths
+        , internalSynths
         ]

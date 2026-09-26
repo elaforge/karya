@@ -28,16 +28,16 @@ test_block :: Test
 test_block = do
     -- This also tests Derive.Call.Prelude.Block.lookup_note_call
     let run evts = DeriveTest.extract extract $
-            DeriveTest.derive_blocks
+            DeriveTest.deriveBlocks
                 [ ("b1", [(">", evts)])
                 , ("sub=ruler", [(">", [(0, 22, "")])])
                 ]
-        extract e = (DeriveTest.e_event e, DeriveTest.e_instrument e,
-            DeriveTest.e_attributes e)
+        extract e = (DeriveTest.eEvent e, DeriveTest.eInstrument e,
+            DeriveTest.eAttributes e)
     let (evts, logs) = run [(0, 1, "nosuch")]
     equal evts []
-    strings_like logs ["note generator not found: nosuch"]
-    strings_like (snd (run [(0, 1, "sub arg")])) ["too many arguments"]
+    stringsLike logs ["note generator not found: nosuch"]
+    stringsLike (snd (run [(0, 1, "sub arg")])) ["too many arguments"]
 
     -- subderived stuff is stretched and placed, inherits instrument
     let (evts, logs) = run [(0, 1, "sub"), (1, 2, "attr i +a | sub")]
@@ -49,16 +49,16 @@ test_block = do
 
 test_block_recursive :: Test
 test_block_recursive = do
-    let run = snd . DeriveTest.extract DeriveTest.e_event
-            . DeriveTest.derive_blocks
-    strings_like (run [("b1", [(">", [(0, 1, "b1")])])])
+    let run = snd . DeriveTest.extract DeriveTest.eEvent
+            . DeriveTest.deriveBlocks
+    stringsLike (run [("b1", [(">", [(0, 1, "b1")])])])
         ["recursive call to */b1"]
-    strings_like (run
+    stringsLike (run
         [ ("b1", [(">", [(0, 1, "sub")])])
         , ("sub=ruler", [(">", [(0, 1, ""), (1, 1, "b1")])])
         ])
         ["recursive call to */b1"]
-    strings_like (run
+    stringsLike (run
         [ ("b1", [(">", [(0, 1, "sub")])])
         , ("sub=ruler", [(">", [(0, 1, ""), (1, 1, "sub")])])
         ])
@@ -66,10 +66,10 @@ test_block_recursive = do
 
 test_subblock_placement :: Test
 test_subblock_placement = do
-    let run transform = run_sub (with transform) DeriveTest.e_start_dur
+    let run transform = runSub (with transform) DeriveTest.eStartDur
             [(">", [(1, 4, "trans | sub")])]
             [(">", [(0, 1, ""), (1, 1, "")])]
-        with transform = CallTest.with_note_transformer "trans" $
+        with transform = CallTest.withNoteTransformer "trans" $
             CallTest.transformer $ \_args -> transform
     equal (run id) ([(1, 2), (3, 2)], [])
     equal (run (Derive.at 1)) ([(2, 2), (4, 2)], [])
@@ -81,36 +81,36 @@ test_subblock_placement = do
 
 test_block_call_overrides_other_calls :: Test
 test_block_call_overrides_other_calls = do
-    let run sub_name evts = DeriveTest.extract extract $
-            DeriveTest.derive_blocks
-                [("b1", [(">", evts)]), (sub_name <> "=ruler", sub)]
-        extract e = (Score.event_start e, DeriveTest.e_attributes e)
-        sub = UiTest.note_track [(0, 1, "4c"), (1, 1, "4d")]
+    let run subName evts = DeriveTest.extract extract $
+            DeriveTest.deriveBlocks
+                [("b1", [(">", evts)]), (subName <> "=ruler", sub)]
+        extract e = (Score.eventStart e, DeriveTest.eAttributes e)
+        sub = UiTest.noteTrack [(0, 1, "4c"), (1, 1, "4d")]
     equal (run "xyz" [(0, 2, "o")]) ([(0, "+harm")], [])
     equal (run "o" [(0, 2, "o")]) ([(0, "+"), (1, "+")], [])
 
 test_block_call_overridden_by_instrument_call :: Test
 test_block_call_overridden_by_instrument_call = do
-    let run sub_name evts = DeriveTest.extract DeriveTest.e_attributes $
-            DeriveTest.derive_blocks_setup (DeriveTest.with_patch set_code "x")
+    let run subName evts = DeriveTest.extract DeriveTest.eAttributes $
+            DeriveTest.deriveBlocksSetup (DeriveTest.withPatch setCode "x")
                 [ ("b1", [(">x", evts)])
-                , (sub_name <> "=ruler", [(">", [(0, 1, "+block")])])
+                , (subName <> "=ruler", [(">", [(0, 1, "+block")])])
                 ]
-        set_code = MidiInst.code #= MidiInst.note_generators
-            [("inst", DUtil.attributes_note Attrs.mute)]
+        setCode = MidiInst.code #= MidiInst.noteGenerators
+            [("inst", DUtil.attributesNote Attrs.mute)]
     equal (run "sub" [(0, 1, "sub")]) (["+block"], [])
     -- Even though the block is named inst, the inst call still happens.
     equal (run "inst" [(0, 1, "inst")]) (["+mute"], [])
 
 test_block_logical_range :: Test
 test_block_logical_range = do
-    let run s e tempo sub = DeriveTest.extract DeriveTest.e_start_dur $
-            DeriveTest.derive_blocks_setup
-                (DeriveTest.with_ruler (UiTest.bid "sub") (mkruler s e))
+    let run s e tempo sub = DeriveTest.extract DeriveTest.eStartDur $
+            DeriveTest.deriveBlocksSetup
+                (DeriveTest.withRuler (UiTest.bid "sub") (mkruler s e))
                 [ ("top", [(">", [(1, 1, "sub")])])
                 , ("sub=ruler", [("tempo", tempo), (">", sub)])
                 ]
-        mkruler s e = Ruler.set_bounds s e $ UiTest.mkruler_44 2 1
+        mkruler s e = Ruler.setBounds s e $ UiTest.mkruler44 2 1
     let sub01 = [(0, 1, ""), (1, 1, "")]
         sub012 = [(0, 1, ""), (1, 1, ""), (2, 1, "")]
         tempo1 = [(0, 0, "1")]
@@ -128,19 +128,19 @@ test_block_logical_range = do
 
 test_relative_block :: Test
 test_relative_block = do
-    let run call = DeriveTest.extract DeriveTest.e_note $
-            DeriveTest.derive_blocks
+    let run call = DeriveTest.extract DeriveTest.eNote $
+            DeriveTest.deriveBlocks
             [ ("top", [(">", [(0, 1, call)])])
-            , ("top-sub=ruler", UiTest.regular_notes 1)
+            , ("top-sub=ruler", UiTest.regularNotes 1)
             ]
     equal (run "-sub") ([(0, 1, "3c")], [])
     equal (run "top-sub") ([(0, 1, "3c")], [])
     equal (run "test/top-sub") ([(0, 1, "3c")], [])
-    strings_like (snd (run "-bub")) ["note generator not found"]
+    stringsLike (snd (run "-bub")) ["note generator not found"]
 
 test_control_scope :: Test
 test_control_scope = do
-    let (result, logs) = run_sub mempty extract
+    let (result, logs) = runSub mempty extract
             [ ("pedal", [(1, 0, "1"), (3, 0, "0")])
             , ("dia", [(2, 0, "1")])
             , (">", [(0, 2, "sub")])
@@ -148,9 +148,9 @@ test_control_scope = do
             [ (">", [(0, 2, ""), (2, 0, "")])
             , ("local", [(0, 0, "2"), (2, 0, "3")])
             ]
-        extract = map (second (Signal.to_pairs . ScoreT.val_of))
+        extract = map (second (Signal.toPairs . ScoreT.valOf))
                 . filter ((`elem` wanted) . fst) . Map.toList
-                . Score.event_controls
+                . Score.eventControls
             where wanted = ["pedal", "dia", "local"]
     equal logs []
     -- dia is omitted, since it falls after the call to sub.
@@ -166,15 +166,15 @@ test_control_scope = do
 -- Block.c_block.trim with oriented signals, or something else.
 test_control_scope_negative_orientation :: Test
 test_control_scope_negative_orientation = do
-    let run t_dia sub = DeriveTest.extract extract $
-            DeriveTest.derive_blocks
+    let run tDia sub = DeriveTest.extract extract $
+            DeriveTest.deriveBlocks
             [ ("top -- cancel 4",
-                [ ("t-dia" <> t_dia, [(0, 0, "0"), (2, 0, "1")])
+                [ ("t-dia" <> tDia, [(0, 0, "0"), (2, 0, "1")])
                 , (">", [(0, 2, "sub"), (2, 2, "sub")])
                 ])
-            , ("sub=ruler", UiTest.note_track sub)
+            , ("sub=ruler", UiTest.noteTrack sub)
             ]
-        extract = DeriveTest.e_note
+        extract = DeriveTest.eNote
 
     equal (run "" [(0, 1, "4c"), (1, 1, "5c")])
         ([(0, 1, "4c"), (1, 1, "5c"), (2, 1, "4d"), (3, 1, "5d")], [])
@@ -215,8 +215,8 @@ test_control_scope_negative_orientation = do
 
 test_trim_controls_problem :: Test
 test_trim_controls_problem = do
-    let run = DeriveTest.extract (DeriveTest.e_control "c")
-            . DeriveTest.derive_blocks
+    let run = DeriveTest.extract (DeriveTest.eControl "c")
+            . DeriveTest.deriveBlocks
     equal (run
             [ ("top", [("c", [(1, 0, "1")]), (">", [(0, 1, "sub")])])
             , ("sub=ruler", [(">", [(0, 1, "")])])
@@ -238,20 +238,20 @@ test_trim_controls_problem = do
         -- ([[(0, 0), (4, 0), (4, 1), (8, 1), (8, 0)]], [])
 
 
-run_sub :: DeriveTest.Setup -> (Score.Event -> a) -> [UiTest.TrackSpec]
+runSub :: DeriveTest.Setup -> (Score.Event -> a) -> [UiTest.TrackSpec]
     -> [UiTest.TrackSpec] -> ([a], [Text])
-run_sub setup extract top sub = DeriveTest.extract extract $
-    DeriveTest.derive_blocks_setup setup [("top", top), ("sub=ruler", sub)]
+runSub setup extract top sub = DeriveTest.extract extract $
+    DeriveTest.deriveBlocksSetup setup [("top", top), ("sub=ruler", sub)]
 
 test_score_duration :: Test
 test_score_duration = do
-    let run = snd . DeriveTest.extract Score.event_start
-            . DeriveTest.derive_blocks_setup
-                (CallTest.with_note_transformer "t" trans)
+    let run = snd . DeriveTest.extract Score.eventStart
+            . DeriveTest.deriveBlocksSetup
+                (CallTest.withNoteTransformer "t" trans)
         -- I can only return Score.Events from a NoteDeriver, so I have to
         -- smuggle out the value in a log msg.
         trans = CallTest.transformer $ \_ deriver -> do
-            Log.warn . showt =<< Derive.get_score_duration deriver
+            Log.warn . showt =<< Derive.getScoreDuration deriver
             pure Stream.empty
     equal (run [("top", [(">", [(0, 1, "t |")])])])
         ["Right (CallDuration 1.0)"]
@@ -263,11 +263,11 @@ test_score_duration = do
 
 test_real_duration :: Test
 test_real_duration = do
-    let run = DeriveTest.r_log_strings
-            . DeriveTest.derive_blocks_setup
-                (CallTest.with_note_transformer "t" trans)
+    let run = DeriveTest.rLogStrings
+            . DeriveTest.deriveBlocksSetup
+                (CallTest.withNoteTransformer "t" trans)
         trans = CallTest.transformer $ \_ deriver -> do
-            Log.warn . showt =<< Derive.get_real_duration deriver
+            Log.warn . showt =<< Derive.getRealDuration deriver
             pure Stream.empty
     equal (run [("top", [(">", [(0, 1, "t |")])])]) ["Right (CallDuration 1.0)"]
     equal (run [("top", [(">", [(0, 2, "t |")])])]) ["Right (CallDuration 2.0)"]
@@ -293,14 +293,14 @@ test_real_duration = do
 
 test_control_block :: Test
 test_control_block = do
-    let extract = DeriveTest.e_control "cont"
+    let extract = DeriveTest.eControl "cont"
         derive caller callee = DeriveTest.extract extract $
-            DeriveTest.derive_blocks
+            DeriveTest.deriveBlocks
                 [ ("top", [("cont", caller), (">", [(0, 4, "")])])
                 , ("sub=ruler", [("%", callee)])
                 ]
         sub = [(0, 0, "1"), (16, 0, "i 2"), (32, 0, "i 4")]
-    strings_like (snd (derive [(0, 2, "nosuch")] []))
+    stringsLike (snd (derive [(0, 2, "nosuch")] []))
         ["control generator not found: nosuch"]
     -- Discontinuity at the end of the sub block.
     equal (derive [(0, 0, "0"), (1, 2, "sub"), (3, 0, "3")] sub)
@@ -316,6 +316,6 @@ test_control_block_stack = do
             ]
         -- Failed call will produce a log msg, which has the stack.
         sub = [("%", [(0, 0, "no-call")])]
-    let res = DeriveTest.derive_blocks blocks
-    strings_like (map DeriveTest.show_log_stack (DeriveTest.r_logs res))
+    let res = DeriveTest.deriveBlocks blocks
+    stringsLike (map DeriveTest.showLogStack (DeriveTest.rLogs res))
         ["top top.t2 0-2: sub sub.t1 0-0: control-block:"]

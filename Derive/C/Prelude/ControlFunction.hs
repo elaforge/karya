@@ -5,7 +5,7 @@
 -- | Calls and functions for 'DeriveT.CFunction's.
 module Derive.C.Prelude.ControlFunction (
     library
-    , c_cf_rnd_around
+    , cCfRndAround
 ) where
 import qualified Data.List as List
 import qualified Data.Map as Map
@@ -47,23 +47,23 @@ import           Types
 
 library :: Library.Library
 library = Library.vals $
-    [ ("cf-rnd", c_cf_rnd const)
-    , ("cf-rnd+", c_cf_rnd (+))
-    , ("cf-rnd*", c_cf_rnd (*))
-    , ("cf-rnd-a", c_cf_rnd_around const)
-    , ("cf-rnd-a+", c_cf_rnd_around (+))
-    , ("cf-rnd-a*", c_cf_rnd_around (*))
-    , ("cf-rnd01", c_cf_rnd01)
-    , ("cf-swing", c_cf_swing)
-    , ("cf-clamp", c_cf_clamp)
-    ] ++ map (make_curve_call Nothing . snd) ControlUtil.standard_curves
-    ++ map (uncurry make_curve_call . first Just) curves
+    [ ("cf-rnd", cCfRnd const)
+    , ("cf-rnd+", cCfRnd (+))
+    , ("cf-rnd*", cCfRnd (*))
+    , ("cf-rnd-a", cCfRndAround const)
+    , ("cf-rnd-a+", cCfRndAround (+))
+    , ("cf-rnd-a*", cCfRndAround (*))
+    , ("cf-rnd01", cCfRnd01)
+    , ("cf-swing", cCfSwing)
+    , ("cf-clamp", cCfClamp)
+    ] ++ map (makeCurveCall Nothing . snd) ControlUtil.standardCurves
+    ++ map (uncurry makeCurveCall . first Just) curves
 
-make_curve_call :: Maybe Doc.Doc -> ControlUtil.CurveD
+makeCurveCall :: Maybe Doc.Doc -> ControlUtil.CurveD
     -> (Expr.Symbol, Derive.ValCall)
-make_curve_call doc curve =
-    ( "curve-" <> Expr.Symbol (ControlUtil.curve_name curve)
-    , ControlUtil.make_curve_call doc curve
+makeCurveCall doc curve =
+    ( "curve-" <> Expr.Symbol (ControlUtil.curveName curve)
+    , ControlUtil.makeCurveCall doc curve
     )
 
 data Distribution
@@ -78,8 +78,8 @@ instance ShowVal.ShowVal Distribution
 instance Typecheck.Typecheck Distribution
 instance Typecheck.ToVal Distribution
 
-c_cf_rnd :: (Signal.Y -> Signal.Y -> Signal.Y) -> Derive.ValCall
-c_cf_rnd combine = val_call "cf-rnd" (Tags.control_function <> Tags.random)
+cCfRnd :: (Signal.Y -> Signal.Y -> Signal.Y) -> Derive.ValCall
+cCfRnd combine = valCall "cf-rnd" (Tags.controlFunction <> Tags.random)
     "Randomize a control. Normally it replaces the control of the same name,\
     \ while the `+` and `*` variants add to and multiply with it."
     $ Sig.call ((,,)
@@ -87,21 +87,21 @@ c_cf_rnd combine = val_call "cf-rnd" (Tags.control_function <> Tags.random)
     <*> Sig.required "high" "High end of the range."
     <*> Sig.environ "distribution" Sig.Prefixed Normal "Random distribution."
     ) $ \(low, high, distribution) _args -> pure $!
-        make_cf "cf-rnd" $ \cf_dyn control pos -> combine
-            (cf_rnd distribution low high (random_stream pos (dyn_seed cf_dyn)))
+        makeCf "cf-rnd" $ \cfDyn control pos -> combine
+            (cfRnd distribution low high (randomStream pos (dynSeed cfDyn)))
             (Signal.at control pos)
 
-make_cf :: Text -> (DeriveT.Dynamic -> Signal.Control -> RealTime -> Signal.Y)
+makeCf :: Text -> (DeriveT.Dynamic -> Signal.Control -> RealTime -> Signal.Y)
     -> DeriveT.CFunction
-make_cf name f = DeriveT.CFunction
-    { cf_name = name
-    , cf_signal = ScoreT.untyped (Signal.constant 0)
-    , cf_function = f
+makeCf name f = DeriveT.CFunction
+    { cfName = name
+    , cfSignal = ScoreT.untyped (Signal.constant 0)
+    , cfFunction = f
     }
 
-c_cf_rnd_around :: (Signal.Y -> Signal.Y -> Signal.Y) -> Derive.ValCall
-c_cf_rnd_around combine = val_call "cf-rnd-a"
-    (Tags.control_function <> Tags.random)
+cCfRndAround :: (Signal.Y -> Signal.Y -> Signal.Y) -> Derive.ValCall
+cCfRndAround combine = valCall "cf-rnd-a"
+    (Tags.controlFunction <> Tags.random)
     "Randomize a control around a center point.\
     \ Normally it replaces the control of the same name,\
     \ while the `+` and `*` variants add to and multiply with it."
@@ -110,59 +110,59 @@ c_cf_rnd_around combine = val_call "cf-rnd-a"
     <*> Sig.defaulted "center" (0 :: Double) "Center of the range."
     <*> Sig.environ "distribution" Sig.Prefixed Normal "Random distribution."
     ) $ \(range, center, distribution) _args -> pure $!
-        make_cf "cf-rnd-a" $ \cf_dyn control pos -> combine
-            (cf_rnd distribution (center-range) (center+range)
-                (random_stream pos (dyn_seed cf_dyn)))
+        makeCf "cf-rnd-a" $ \cfDyn control pos -> combine
+            (cfRnd distribution (center-range) (center+range)
+                (randomStream pos (dynSeed cfDyn)))
             (Signal.at control pos)
 
-c_cf_rnd01 :: Derive.ValCall
-c_cf_rnd01 = Make.modify_vcall (c_cf_rnd (+)) Module.prelude "cf-rnd01"
+cCfRnd01 :: Derive.ValCall
+cCfRnd01 = Make.modifyVcall (cCfRnd (+)) Module.prelude "cf-rnd01"
     "This is an abbreviation for `(cf-clamp (cf-rnd+ ..) 0 1)`." $
-    \val -> case Typecheck.from_val_simple val of
-        Just cf -> Typecheck.to_val $ cf_compose "cf-rnd01" (Num.clamp 0 1) cf
+    \val -> case Typecheck.fromValSimple val of
+        Just cf -> Typecheck.toVal $ cfCompose "cf-rnd01" (Num.clamp 0 1) cf
         Nothing -> val
 
-cf_rnd :: Distribution -> Double -> Double -> [Double] -> Double
-cf_rnd dist low high rnds = Num.scale low high $ case dist of
+cfRnd :: Distribution -> Double -> Double -> [Double] -> Double
+cfRnd dist low high rnds = Num.scale low high $ case dist of
     Uniform -> head rnds
-    Normal -> Call.make_normal 1 rnds
+    Normal -> Call.makeNormal 1 rnds
     Bimodal
         | v >= 0.5 -> v - 0.5
         | otherwise -> v + 0.5
-        where v = Call.make_normal 1 rnds
+        where v = Call.makeNormal 1 rnds
 
-random_stream :: RealTime -> Double -> [Double]
-random_stream pos =
+randomStream :: RealTime -> Double -> [Double]
+randomStream pos =
     List.unfoldr (Just . Pure64.randomDouble) . Pure64.pureMT . floor
-    . (+ RealTime.to_seconds pos)
+    . (+ RealTime.toSeconds pos)
 
 
 -- * cf-swing
 
-c_cf_swing :: Derive.ValCall
-c_cf_swing = val_call "cf-swing" Tags.control_function
+cCfSwing :: Derive.ValCall
+cCfSwing = valCall "cf-swing" Tags.controlFunction
     ("Add a curved  offset to the control, suitable for swing tempo when added\
-    \ to " <> ShowVal.doc Controls.start_s <> ". The curve is a sine wave,\
+    \ to " <> ShowVal.doc Controls.startS <> ". The curve is a sine wave,\
     \ from trough to trough.")
     $ Sig.call ((,)
     <$> Sig.defaulted "rank" Meter.Q
         "The time steps are on the beat, and midway between offset by the\
         \ given amount."
-    <*> Sig.defaulted "amount" (make_ref "swing" (1/3))
+    <*> Sig.defaulted "amount" (makeRef "swing" (1/3))
         "Swing amount, multiplied by the rank duration / 2."
     ) $ \(rank, amount) _args -> do
-        amount <- from_control_ref amount
-        pure $! make_cf "cf-swing" (swing rank amount)
+        amount <- fromControlRef amount
+        pure $! makeCf "cf-swing" (swing rank amount)
     where
-    swing rank amount cf_dyn control pos
-        | Just marks <- maybe_marks =
-            Signal.at control pos + RealTime.to_seconds (swing marks)
+    swing rank amount cfDyn control pos
+        | Just marks <- maybeMarks =
+            Signal.at control pos + RealTime.toSeconds (swing marks)
         | otherwise = 0
         where
-        swing marks = cf_swing (real cf_dyn) rank
-            (to_function cf_dyn 0 amount) marks (score cf_dyn pos)
-        maybe_marks = snd <$>
-            Map.lookup Ruler.meter_name (DeriveT.dyn_ruler cf_dyn)
+        swing marks = cfSwing (real cfDyn) rank
+            (toFunction cfDyn 0 amount) marks (score cfDyn pos)
+        maybeMarks = snd <$>
+            Map.lookup Ruler.meterName (DeriveT.dynRuler cfDyn)
 
 -- | TODO Hacky ref, should be temporary until I clean up cfs.
 type Ref = Either DeriveT.ControlRef (ScoreT.Typed Signal.Y)
@@ -172,56 +172,56 @@ type Ref = Either DeriveT.ControlRef (ScoreT.Typed Signal.Y)
 -- are like little calls, so they need to delay control resolution just
 -- like calls do, so they wind up duplicating all that.  TODO if I'm able to
 -- unify calls and ControlFunctions then this goes away.
-from_control_ref :: DeriveT.Val -> Derive.Deriver Ref
-from_control_ref = \case
+fromControlRef :: DeriveT.Val -> Derive.Deriver Ref
+fromControlRef = \case
     DeriveT.VControlRef ref -> pure $ Left ref
-    val | Just num <- DeriveT.constant_val val -> pure $ Right num
+    val | Just num <- DeriveT.constantVal val -> pure $ Right num
     val -> Derive.throw $ "expected ControlRef or Num, but got "
-        <> pretty (ValType.specific_type_of val)
+        <> pretty (ValType.specificTypeOf val)
 
 -- | Defaulted control from a RealTime.
-make_ref :: ScoreT.Control -> RealTime -> DeriveT.ControlRef
-make_ref c deflt = DeriveT.Ref c $
-    Just $ ScoreT.untyped $ Signal.constant (RealTime.to_seconds deflt)
+makeRef :: ScoreT.Control -> RealTime -> DeriveT.ControlRef
+makeRef c deflt = DeriveT.Ref c $
+    Just $ ScoreT.untyped $ Signal.constant (RealTime.toSeconds deflt)
 
-cf_swing :: (ScoreTime -> RealTime) -> Meter.Rank -> ScoreT.Function
+cfSwing :: (ScoreTime -> RealTime) -> Meter.Rank -> ScoreT.Function
     -> Mark.Marklist -> ScoreTime -> RealTime
-cf_swing to_real rank amount marks pos = case marks_around rank marks pos of
+cfSwing toReal rank amount marks pos = case marksAround rank marks pos of
     Nothing -> 0
-    Just (pre, post) -> (to_real post - to_real pre) / 2
-        * RealTime.seconds (amount (to_real pos))
+    Just (pre, post) -> (toReal post - toReal pre) / 2
+        * RealTime.seconds (amount (toReal pos))
         * swing (Num.normalize pre post pos)
 
-marks_around :: Meter.Rank -> Mark.Marklist -> ScoreTime
+marksAround :: Meter.Rank -> Mark.Marklist -> ScoreTime
     -> Maybe (ScoreTime, ScoreTime)
-marks_around rank marks pos =
+marksAround rank marks pos =
     (,) <$> get (Mark.descending pos marks) <*> get (Mark.ascending pos marks)
-    where get = fmap fst . Lists.head . filter ((<=rank) . Mark.mark_rank . snd)
+    where get = fmap fst . Lists.head . filter ((<=rank) . Mark.markRank . snd)
 
 swing :: ScoreTime -- ^ time from this beat to the next, normalized 0 to 1
     -> RealTime -- ^ amount of swing offset, also normalized 0 to 1
 swing = RealTime.seconds . Num.normalize (-1) 1 . sin . (*pi)
-    . Num.scale (-0.5) 1.5 . ScoreTime.to_double
+    . Num.scale (-0.5) 1.5 . ScoreTime.toDouble
 
 -- * cf-clamp
 
-c_cf_clamp :: Derive.ValCall
-c_cf_clamp = val_call "cf-clamp" Tags.control_function
+cCfClamp :: Derive.ValCall
+cCfClamp = valCall "cf-clamp" Tags.controlFunction
     "Clamp the output of a control function to the given range."
     $ Sig.call ((,,)
     <$> Sig.required "cf" "Control function."
     <*> Sig.defaulted "low" (0 :: Double) "Low value."
     <*> Sig.defaulted "high" (1 :: Double) "High value."
     ) $ \(cf, low, high) _args ->
-        pure $ cf_compose ("cf-clamp(" <> DeriveT.cf_name cf <> ")")
+        pure $ cfCompose ("cf-clamp(" <> DeriveT.cfName cf <> ")")
             (Num.clamp low high) cf
 
-cf_compose :: Text -> (Signal.Y -> Signal.Y) -> DeriveT.CFunction
+cfCompose :: Text -> (Signal.Y -> Signal.Y) -> DeriveT.CFunction
     -> DeriveT.CFunction
-cf_compose name f cf = DeriveT.CFunction
-    { cf_name = name
-    , cf_signal = DeriveT.cf_signal cf
-    , cf_function = \cf_dyn c -> f . DeriveT.cf_function cf cf_dyn c
+cfCompose name f cf = DeriveT.CFunction
+    { cfName = name
+    , cfSignal = DeriveT.cfSignal cf
+    , cfFunction = \cfDyn c -> f . DeriveT.cfFunction cf cfDyn c
     }
 
 -- * curve interpolators
@@ -238,44 +238,44 @@ curves =
 
 -- * DeriveT.Dynamic
 
-dyn_seed :: DeriveT.Dynamic -> Double
-dyn_seed cf_dyn = fromIntegral (DeriveT.dyn_event_serial cf_dyn) + seed cf_dyn
-    where seed = fromMaybe 0 . Env.maybe_val EnvKey.seed . DeriveT.dyn_environ
+dynSeed :: DeriveT.Dynamic -> Double
+dynSeed cfDyn = fromIntegral (DeriveT.dynEventSerial cfDyn) + seed cfDyn
+    where seed = fromMaybe 0 . Env.maybeVal EnvKey.seed . DeriveT.dynEnviron
 
 real :: DeriveT.Dynamic -> ScoreTime -> RealTime
-real = Warp.warp . DeriveT.dyn_warp
+real = Warp.warp . DeriveT.dynWarp
 
 score :: DeriveT.Dynamic -> RealTime -> ScoreTime
-score = Warp.unwarp . DeriveT.dyn_warp
+score = Warp.unwarp . DeriveT.dynWarp
 
 -- ** ControlRef
 
-to_function :: DeriveT.Dynamic -> Signal.Y -> Ref -> ScoreT.Function
-to_function cf_dyn deflt =
-    maybe (const deflt) ScoreT.val_of . lookup_function cf_dyn
+toFunction :: DeriveT.Dynamic -> Signal.Y -> Ref -> ScoreT.Function
+toFunction cfDyn deflt =
+    maybe (const deflt) ScoreT.valOf . lookupFunction cfDyn
 
 -- | TODO duplicated with Typecheck.lookup_function except it
 -- can't be in Deriver.
-lookup_function :: DeriveT.Dynamic -> Ref -> Maybe ScoreT.TypedFunction
-lookup_function _ (Right ty) = Just $ const <$> ty
-lookup_function cf_dyn (Left (DeriveT.Ref control deflt)) =
-    maybe deflt_f get $ DeriveT.lookup (ScoreT.control_name control) $
-        DeriveT.dyn_environ cf_dyn
+lookupFunction :: DeriveT.Dynamic -> Ref -> Maybe ScoreT.TypedFunction
+lookupFunction _ (Right ty) = Just $ const <$> ty
+lookupFunction cfDyn (Left (DeriveT.Ref control deflt)) =
+    maybe defltF get $ DeriveT.lookup (ScoreT.controlName control) $
+        DeriveT.dynEnviron cfDyn
     where
-    deflt_f = fmap Signal.at <$> deflt
-    get = val_to_function cf_dyn
+    defltF = fmap Signal.at <$> deflt
+    get = valToFunction cfDyn
 
-val_to_function :: DeriveT.Dynamic -> DeriveT.Val -> Maybe ScoreT.TypedFunction
-val_to_function cf_dyn = \case
+valToFunction :: DeriveT.Dynamic -> DeriveT.Val -> Maybe ScoreT.TypedFunction
+valToFunction cfDyn = \case
     DeriveT.VSignal sig -> Just $ Signal.at <$> sig
-    DeriveT.VControlRef ref -> lookup_function cf_dyn (Left ref)
-    DeriveT.VCFunction cf -> Just $ DeriveT.call_cfunction cf_dyn cf
+    DeriveT.VControlRef ref -> lookupFunction cfDyn (Left ref)
+    DeriveT.VCFunction cf -> Just $ DeriveT.callCfunction cfDyn cf
     _ -> Nothing
 
 
 -- * misc
 
-val_call :: Typecheck.ToVal a => Derive.CallName -> Tags.Tags -> Doc.Doc
+valCall :: Typecheck.ToVal a => Derive.CallName -> Tags.Tags -> Doc.Doc
     -> Derive.WithArgDoc (Derive.PassedArgs Derive.Tagged -> Derive.Deriver a)
     -> Derive.ValCall
-val_call = Derive.val_call Module.prelude
+valCall = Derive.valCall Module.prelude

@@ -9,14 +9,14 @@ import qualified Derive.DeriveTest as DeriveTest
 
 test_reverse :: Test
 test_reverse = do
-    let run sub_tracks = extract $ DeriveTest.derive_blocks
+    let run subTracks = extract $ DeriveTest.deriveBlocks
             [ ("top=ruler",
                 [ ("tempo", [(0, 0, "1")])
                 , (">", [(1, 4, "reverse | sub")])
                 ])
-            , ("sub=ruler", sub_tracks)
+            , ("sub=ruler", subTracks)
             ]
-        extract = DeriveTest.extract DeriveTest.e_note
+        extract = DeriveTest.extract DeriveTest.eNote
     equal (run
         [ (">", [(0, 1, "")])
         , ("*", [(0, 0, "4c")])

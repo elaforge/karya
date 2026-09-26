@@ -26,7 +26,7 @@ import           Util.Test
 
 test_env :: Test
 test_env = do
-    let run = CallTest.run_val
+    let run = CallTest.runVal
     equal (run Nothing "env x")
         (Nothing, ["environ val not found: \"x\""])
     equal (run Nothing "env x 42") (Just (DeriveT.num 42), [])
@@ -36,7 +36,7 @@ test_env = do
 
 test_tempo :: Test
 test_tempo = do
-    let run = CallTest.run_val_tracks
+    let run = CallTest.runValTracks
     equal (run "" [("tempo", [(0, 0, "1")])] 1 Nothing "tempo")
         (Just (DeriveT.num 1), [])
     equal (run "" [("tempo", [(0, 0, "2")])] 1 Nothing "tempo")
@@ -50,10 +50,10 @@ test_tempo = do
 
 test_prev_next_val :: Test
 test_prev_next_val = do
-    let runc control = DeriveTest.extract (DeriveTest.e_control "c") $
-            DeriveTest.derive_tracks "" [(">", [(0, 10, "")]), ("c", control)]
-    let runp notes pitch = DeriveTest.extract DeriveTest.e_note $
-            DeriveTest.derive_tracks "" [(">", notes), ("*", pitch)]
+    let runc control = DeriveTest.extract (DeriveTest.eControl "c") $
+            DeriveTest.deriveTracks "" [(">", [(0, 10, "")]), ("c", control)]
+    let runp notes pitch = DeriveTest.extract DeriveTest.eNote $
+            DeriveTest.deriveTracks "" [(">", notes), ("*", pitch)]
 
     -- prev
     equal (runc [(0, 0, ".5"), (1, 0, "set (<)")])
@@ -77,9 +77,9 @@ test_prev_next_val = do
 test_linear_next :: Test
 test_linear_next = do
     let run extract track =
-            DeriveTest.extract extract $ DeriveTest.derive_tracks ""
+            DeriveTest.extract extract $ DeriveTest.deriveTracks ""
                 [(">", [(0, 4, "")]), track]
-    let (result, logs) = run DeriveTest.e_dyn
+    let (result, logs) = run DeriveTest.eDyn
             ("dyn", [(0, 0, "xcut (i> 0 1) (i> 1 0) 2"), (4, 0, "0")])
     equal logs []
     equal result
@@ -90,7 +90,7 @@ test_linear_next = do
           ]
         ]
 
-    let (result, logs) = run DeriveTest.e_nns
+    let (result, logs) = run DeriveTest.eNns
             ("*"
             , [(0, 0, "xcut (i> (4c) (5c)) (i> (5c) (4c)) 2"), (2, 0, "2c")]
             )
@@ -103,28 +103,28 @@ test_linear_next = do
           , (2, NN.c2)
           ]
         ]
-    strings_like
-        (snd $ run DeriveTest.e_dyn ("dyn", [(0, 0, "xcut (i> 0 (4c))")]))
+    stringsLike
+        (snd $ run DeriveTest.eDyn ("dyn", [(0, 0, "xcut (i> 0 (4c))")]))
         ["arg 2/bp: expected Signal but got Pitch"]
-    strings_like (snd $ run DeriveTest.e_dyn ("*", [(0, 0, "xcut (i> hi)")]))
+    stringsLike (snd $ run DeriveTest.eDyn ("*", [(0, 0, "xcut (i> hi)")]))
         ["arg 1/bp: expected Signal or Pitch"]
 
 test_down_from :: Test
 test_down_from = do
-    let run = DeriveTest.extract DeriveTest.e_dyn . DeriveTest.derive_tracks ""
+    let run = DeriveTest.extract DeriveTest.eDyn . DeriveTest.deriveTracks ""
     equal (run [(">", [(0, 4, "dyn=(df 2 1) |")])]) ([[(0, 2), (2, 0)]], [])
 
 test_timestep :: Test
 test_timestep = do
     let run start vcall = DeriveTest.extract extract $
-            DeriveTest.derive_tracks_setup (DeriveTest.with_default_ruler ruler)
+            DeriveTest.deriveTracksSetup (DeriveTest.withDefaultRuler ruler)
                 "" [(">", [(start, 0, ("d (ts " <> vcall <> ") |"))])]
-        extract = Score.event_start
-        ruler = UiTest.mkruler_ranks $ zip [0, 1, 2, 3, 4, 6, 8, 10, 12]
+        extract = Score.eventStart
+        ruler = UiTest.mkrulerRanks $ zip [0, 1, 2, 3, 4, 6, 8, 10, 12]
             (cycle (map fromEnum [Meter.W, Meter.Q, Meter.Q, Meter.Q]))
     let (evts, logs) = run 0 "'r:z'"
     equal evts []
-    strings_like logs ["expected Str"]
+    stringsLike logs ["expected Str"]
 
     -- Whole note in the first measure is 4.
     equal (run 0 "w") ([4], [])
@@ -149,40 +149,40 @@ test_timestep = do
 
 test_signal :: Test
 test_signal = do
-    let run = CallTest.run_val Nothing
-    let mksig typ = DeriveT.VSignal . ScoreT.Typed typ . Signal.from_pairs
+    let run = CallTest.runVal Nothing
+    let mksig typ = DeriveT.VSignal . ScoreT.Typed typ . Signal.fromPairs
     equal (run "signal") (Just (mksig ScoreT.Untyped []), [])
     equal (run "signal 0 2") (Just (mksig ScoreT.Untyped [(0, 2)]), [])
     equal (run "signal d 0 2") (Just (mksig ScoreT.Diatonic [(0, 2)]), [])
     let roundtrip sig =
-            ( run (strip_parens (ShowVal.show_val sig))
+            ( run (stripParens (ShowVal.showVal sig))
             , (Just sig, [])
             )
     uncurry equal (roundtrip (mksig ScoreT.Untyped [(0, 2)]))
     uncurry equal (roundtrip (mksig ScoreT.Nn [(1, 2), (3, 4)]))
-    pprint (ShowVal.show_val (mksig ScoreT.Chromatic [(0, 2)]))
-    pprint (ShowVal.show_val (mksig ScoreT.Nn [(0, 2), (2, 4)]))
+    pprint (ShowVal.showVal (mksig ScoreT.Chromatic [(0, 2)]))
+    pprint (ShowVal.showVal (mksig ScoreT.Nn [(0, 2), (2, 4)]))
 
-strip_parens :: Text -> Text
-strip_parens = Texts.dropPrefix "(" . Texts.dropSuffix ")"
+stripParens :: Text -> Text
+stripParens = Texts.dropPrefix "(" . Texts.dropSuffix ")"
 
 test_psignal :: Test
 test_psignal = do
-    let run = first (fmap un_psig) . CallTest.run_val Nothing
-    let mksig = DeriveT.VPSignal . PSignal.from_pairs
-            . map (fmap PSignal.nn_pitch)
+    let run = first (fmap unPsig) . CallTest.runVal Nothing
+    let mksig = DeriveT.VPSignal . PSignal.fromPairs
+            . map (fmap PSignal.nnPitch)
     equal (run "psignal") (Just [], [])
     equal (run "psignal 0 (4c)") (Just [(0, Right NN.c4)], [])
     -- These won't be parseable so no roundtrip for this one.
-    pprint (ShowVal.show_val (mksig [(0, 2)]))
-    pprint (ShowVal.show_val (mksig [(0, 2), (2, 4)]))
+    pprint (ShowVal.showVal (mksig [(0, 2)]))
+    pprint (ShowVal.showVal (mksig [(0, 2), (2, 4)]))
 
-un_psig :: DeriveT.Val
+unPsig :: DeriveT.Val
     -> [(RealTime, Either PSignal.PitchError Pitch.NoteNumber)]
-un_psig =
-    map (second (DeriveT.pitch_nn . DeriveT.coerce))
-        . PSignal.to_pairs . expect_psig
+unPsig =
+    map (second (DeriveT.pitchNn . DeriveT.coerce))
+        . PSignal.toPairs . expectPsig
     where
-    expect_psig (DeriveT.VPSignal sig) = sig
-    expect_psig val = error $ "expected VPSignal: "
-        <> untxt (ShowVal.show_val val)
+    expectPsig (DeriveT.VPSignal sig) = sig
+    expectPsig val = error $ "expected VPSignal: "
+        <> untxt (ShowVal.showVal val)

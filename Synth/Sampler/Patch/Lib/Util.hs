@@ -46,12 +46,12 @@ extension = \case
 -- | Patch with standard controls.
 patchPitchDynVar :: Common.AttributeMap a -> Im.Patch.Patch
 patchPitchDynVar attributeMap = Im.Patch.patch
-    { Im.Patch.patch_controls = mconcat
+    { Im.Patch.patchControls = mconcat
         [ Control.supportPitch
         , Control.supportDyn
         , Control.supportVariation
         ]
-    , Im.Patch.patch_attribute_map = const () <$> attributeMap
+    , Im.Patch.patchAttributeMap = const () <$> attributeMap
     }
 
 -- * preprocess
@@ -92,11 +92,11 @@ articulation :: Except.MonadError Text m => Common.AttributeMap a
 articulation attributeMap attrs =
     maybe (Except.throwError $ "attributes not found: " <> pretty attrs)
         (pure . snd) $
-    Common.lookup_attributes attrs attributeMap
+    Common.lookupAttributes attrs attributeMap
 
 articulationDefault :: a -> Common.AttributeMap a -> Attrs.Attributes -> a
 articulationDefault deflt attributeMap  =
-    maybe deflt snd . (`Common.lookup_attributes` attributeMap)
+    maybe deflt snd . (`Common.lookupAttributes` attributeMap)
 
 -- ** dynamic
 
@@ -214,23 +214,23 @@ dynEnvelope minDyn releaseTime note =
 dynEnvelopeSig :: Signal.Y -> RealTime -> RealTime -> RealTime -> Signal.Signal
     -> Signal.Signal
 dynEnvelopeSig minDyn releaseTime start end dyn =
-    env <> Signal.from_pairs [(end, Signal.at env end), (end + releaseTime, 0)]
+    env <> Signal.fromPairs [(end, Signal.at env end), (end + releaseTime, 0)]
     where
-    env = Signal.scalar_scale minDyn $
-        Signal.drop_before start $
-        Signal.clip_after end $
+    env = Signal.scalarScale minDyn $
+        Signal.dropBefore start $
+        Signal.clipAfter end $
         dyn
 
 -- | Simple sustain-release envelope.
 sustainRelease :: Dyn -> RealTime -> Note.Note -> Signal.Signal
-sustainRelease dyn releaseTime note = Signal.from_pairs
+sustainRelease dyn releaseTime note = Signal.fromPairs
     [ (Note.start note, dyn), (Note.end note, dyn)
     , (Note.end note + releaseTime, 0)
     ]
 
 -- | Simple release envelope.
 triggerRelease :: Dyn -> RealTime -> Note.Note -> Signal.Signal
-triggerRelease dyn releaseTime note = Signal.from_pairs
+triggerRelease dyn releaseTime note = Signal.fromPairs
     [ (Note.start note, dyn)
     , (Note.start note + releaseTime, 0)
     ]
@@ -253,7 +253,7 @@ thruFunction sampleDir convert = fmap Thru.Plays . mapM note
         (sample, _logs) <- Patch.runConvert $ convert $ (Note.note "" "" 0 1)
             { Note.attributes = attrs
             , Note.controls = Map.fromList
-                [ (Control.pitch, Signal.constant (Pitch.nn_to_double pitch))
+                [ (Control.pitch, Signal.constant (Pitch.nnToDouble pitch))
                 , (Control.dynamic, Signal.constant velocity)
                 , (Control.sampleStartOffset,
                     Signal.constant (fromIntegral offset))

@@ -7,8 +7,8 @@
 -- "Cmd.PitchTrack", or "Cmd.ControlTrack".  This also handles per-instrument
 -- and per-scale cmds.
 module Cmd.Track (
-    track_cmd
-    , event_and_note_step
+    trackCmd
+    , eventAndNoteStep
 ) where
 import qualified Control.Monad.Except as Except
 
@@ -36,34 +36,34 @@ import           Global
 import           Types
 
 
-track_cmd :: Msg.Msg -> Cmd.CmdId Cmd.Status
-track_cmd msg = do
-    cmds <- get_track_cmds `Except.catchError` \exc -> do
+trackCmd :: Msg.Msg -> Cmd.CmdId Cmd.Status
+trackCmd msg = do
+    cmds <- getTrackCmds `Except.catchError` \exc -> do
         case exc of
             Ui.Abort -> pure ()
             Ui.Error stack msg ->
-                Log.write $ Log.msg_call_stack stack Log.Warn Nothing
+                Log.write $ Log.msgCallStack stack Log.Warn Nothing
                     ("getting track cmds: " <> msg)
         pure []
-    Cmd.sequence_cmds cmds msg
+    Cmd.sequenceCmds cmds msg
 
 -- | Get cmds according to the currently focused block and track.
-get_track_cmds :: Cmd.CmdId [Msg.Msg -> Cmd.CmdId Cmd.Status]
-get_track_cmds = do
+getTrackCmds :: Cmd.CmdId [Msg.Msg -> Cmd.CmdId Cmd.Status]
+getTrackCmds = do
     -- If this fails, it means the the track type can't be determined and there
     -- will be no track cmds.
-    block_id <- Cmd.get_focused_block
-    tracknum <- Cmd.abort_unless =<< Cmd.get_insert_tracknum
-    track_id <- Cmd.abort_unless =<< Ui.event_track_at block_id tracknum
-    mb_resolved <- lookup_inst block_id track_id
-    track_type <- ParseTitle.track_type <$> Ui.get_track_title track_id
-    has_note_children <- Info.has_note_children block_id tracknum
+    blockId <- Cmd.getFocusedBlock
+    tracknum <- Cmd.abortUnless =<< Cmd.getInsertTracknum
+    trackId <- Cmd.abortUnless =<< Ui.eventTrackAt blockId tracknum
+    mbResolved <- lookupInst blockId trackId
+    trackType <- ParseTitle.trackType <$> Ui.getTrackTitle trackId
+    hasNoteChildren <- Info.hasNoteChildren blockId tracknum
 
-    edit_state <- Cmd.gets Cmd.state_edit
-    let edit_mode = Cmd.state_edit_mode edit_state
-    let with_input = NoteEntry.cmds_with_input
-            (Cmd.state_kbd_entry edit_state)
-            (fmap snd . Cmd.midi_patch =<< mb_resolved)
+    editState <- Cmd.gets Cmd.stateEdit
+    let editMode = Cmd.stateEditMode editState
+    let withInput = NoteEntry.cmdsWithInput
+            (Cmd.stateKbdEntry editState)
+            (fmap snd . Cmd.midiPatch =<< mbResolved)
     -- The order is important:
     -- - Per-instrument cmds can override all others.
     --
@@ -81,71 +81,71 @@ get_track_cmds = do
     -- mappings do.  If they want 'Pitch.Input's, they can call
     -- 'NoteEntry.cmds_with_input'.
     pure $ concat
-        [ case (track_type, mb_resolved) of
+        [ case (trackType, mbResolved) of
             (ParseTitle.NoteTrack, Just resolved) ->
-                map Cmd.call $ Cmd.inst_cmds $ Common.common_code $
-                    Inst.inst_common $ Cmd.inst_instrument resolved
+                map Cmd.call $ Cmd.instCmds $ Common.commonCode $
+                    Inst.instCommon $ Cmd.instInstrument resolved
             _ -> []
-        , (:[]) $ Edit.handle_floating_input $ case track_type of
+        , (:[]) $ Edit.handleFloatingInput $ case trackType of
             ParseTitle.NoteTrack -> False
             _ -> True
-        , (:[]) $ with_input (input_cmds edit_mode track_type has_note_children)
-        , track_type_cmds edit_mode track_type
-        , keymap_cmds track_type
+        , (:[]) $ withInput (inputCmds editMode trackType hasNoteChildren)
+        , trackTypeCmds editMode trackType
+        , keymapCmds trackType
         ]
 
-lookup_inst :: Cmd.M m => BlockId -> TrackId -> m (Maybe Cmd.ResolvedInstrument)
-lookup_inst block_id track_id =
-    justm (Perf.lookup_instrument (block_id, Just track_id)) $ \inst ->
-    Cmd.lookup_instrument inst
+lookupInst :: Cmd.M m => BlockId -> TrackId -> m (Maybe Cmd.ResolvedInstrument)
+lookupInst blockId trackId =
+    justm (Perf.lookupInstrument (blockId, Just trackId)) $ \inst ->
+    Cmd.lookupInstrument inst
 
 -- | Cmds that use InputNotes, and hence must be called with
 -- 'NoteEntry.cmds_with_input'.
-input_cmds :: Cmd.EditMode -> ParseTitle.Type -> Bool
+inputCmds :: Cmd.EditMode -> ParseTitle.Type -> Bool
     -> [Msg.Msg -> Cmd.CmdId Cmd.Status]
-input_cmds edit_mode track_type has_note_children =
-    universal ++ case track_type of
+inputCmds editMode trackType hasNoteChildren =
+    universal ++ case trackType of
         ParseTitle.NoteTrack
-            | has_note_children -> []
-            | otherwise -> case edit_mode of
-                Cmd.ValEdit -> [NoteTrack.cmd_val_edit]
+            | hasNoteChildren -> []
+            | otherwise -> case editMode of
+                Cmd.ValEdit -> [NoteTrack.cmdValEdit]
                 _ -> []
-        ParseTitle.PitchTrack -> case edit_mode of
-            Cmd.ValEdit -> [PitchTrack.cmd_val_edit]
+        ParseTitle.PitchTrack -> case editMode of
+            Cmd.ValEdit -> [PitchTrack.cmdValEdit]
             _ -> []
-        ParseTitle.ControlTrack -> case edit_mode of
-            Cmd.ValEdit -> [ControlTrack.cmd_val_edit]
+        ParseTitle.ControlTrack -> case editMode of
+            Cmd.ValEdit -> [ControlTrack.cmdValEdit]
             _ -> []
-        ParseTitle.TempoTrack -> case edit_mode of
-            Cmd.ValEdit -> [ControlTrack.cmd_tempo_val_edit]
+        ParseTitle.TempoTrack -> case editMode of
+            Cmd.ValEdit -> [ControlTrack.cmdTempoValEdit]
             _ -> []
     where
     universal =
-        [ PitchTrack.cmd_record_note_status
-        , MidiThru.cmd_midi_thru
-        , NoteEntry.floating_input_insert
+        [ PitchTrack.cmdRecordNoteStatus
+        , MidiThru.cmdMidiThru
+        , NoteEntry.floatingInputInsert
         ]
 
 -- | Track-specific Cmds.
-track_type_cmds :: Cmd.EditMode -> ParseTitle.Type
+trackTypeCmds :: Cmd.EditMode -> ParseTitle.Type
     -> [Msg.Msg -> Cmd.CmdId Cmd.Status]
-track_type_cmds edit_mode = \case
-    ParseTitle.NoteTrack -> case edit_mode of
-        Cmd.MethodEdit -> [NoteTrack.cmd_method_edit]
+trackTypeCmds editMode = \case
+    ParseTitle.NoteTrack -> case editMode of
+        Cmd.MethodEdit -> [NoteTrack.cmdMethodEdit]
         _ -> []
-    ParseTitle.PitchTrack -> case edit_mode of
-        Cmd.MethodEdit -> [PitchTrack.cmd_method_edit]
+    ParseTitle.PitchTrack -> case editMode of
+        Cmd.MethodEdit -> [PitchTrack.cmdMethodEdit]
         _ -> []
-    ParseTitle.ControlTrack -> case edit_mode of
-        Cmd.MethodEdit -> [ControlTrack.cmd_method_edit]
+    ParseTitle.ControlTrack -> case editMode of
+        Cmd.MethodEdit -> [ControlTrack.cmdMethodEdit]
         _ -> []
-    ParseTitle.TempoTrack -> case edit_mode of
-        Cmd.MethodEdit -> [ControlTrack.cmd_method_edit]
+    ParseTitle.TempoTrack -> case editMode of
+        Cmd.MethodEdit -> [ControlTrack.cmdMethodEdit]
         _ -> []
 
 -- | Track-specific keymaps.
-keymap_cmds :: ParseTitle.Type -> [Msg.Msg -> Cmd.CmdId Cmd.Status]
-keymap_cmds = \case
+keymapCmds :: ParseTitle.Type -> [Msg.Msg -> Cmd.CmdId Cmd.Status]
+keymapCmds = \case
     ParseTitle.NoteTrack -> [Cmd.call $ Cmd.Keymap $ NoteTrackKeymap.keymap]
     _ -> []
 
@@ -154,24 +154,24 @@ keymap_cmds = \case
 
 -- | Like 'TimeStep.event_step', step to start and end of events.  But also
 -- step to the start and end of the events of a parent note track, if any.
-event_and_note_step :: Cmd.M m => m TimeStep.TimeStep
-event_and_note_step = do
-    (block_id, tracknum, _, _) <- Selection.get_insert
-    maybe_track <- Info.lookup_track_type block_id tracknum
-    note_tracknum <- case Info.track_type <$> maybe_track of
+eventAndNoteStep :: Cmd.M m => m TimeStep.TimeStep
+eventAndNoteStep = do
+    (blockId, tracknum, _, _) <- Selection.getInsert
+    maybeTrack <- Info.lookupTrackType blockId tracknum
+    noteTracknum <- case Info.trackType <$> maybeTrack of
         Nothing -> pure Nothing
         Just (Info.Note {}) -> pure Nothing
         Just (Info.Pitch Nothing) -> pure Nothing
-        Just (Info.Pitch (Just note)) -> pure $ Just $ Ui.track_tracknum note
-        Just (Info.Control tracks) -> firstJusts (map note_tracknum_of tracks)
+        Just (Info.Pitch (Just note)) -> pure $ Just $ Ui.trackTracknum note
+        Just (Info.Control tracks) -> firstJusts (map noteTracknumOf tracks)
     let tracknums = TimeStep.TrackNums $
-            [tracknum] ++ maybe [] (:[]) note_tracknum
-    pure $ TimeStep.from_list
+            [tracknum] ++ maybe [] (:[]) noteTracknum
+    pure $ TimeStep.fromList
         [ TimeStep.EventStart tracknums, TimeStep.EventEnd tracknums
         , TimeStep.BlockEdge
         ]
     where
-    note_tracknum_of track = ifM (is_note track)
-        (pure (Just (Ui.track_tracknum track))) (pure Nothing)
-    is_note = fmap ParseTitle.is_note_track . Ui.get_track_title
-        . Ui.track_id
+    noteTracknumOf track = ifM (isNote track)
+        (pure (Just (Ui.trackTracknum track))) (pure Nothing)
+    isNote = fmap ParseTitle.isNoteTrack . Ui.getTrackTitle
+        . Ui.trackId

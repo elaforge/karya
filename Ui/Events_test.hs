@@ -22,7 +22,7 @@ import           Util.Test
 
 test_split_range :: Test
 test_split_range = do
-    let f range = e_ranges . Events.split_range range . from_start_dur
+    let f range = eRanges . Events.splitRange range . fromStartDur
     -- Half-open for positive.
     equal (f (Range 1 2) [(0, 1), (1, 1), (2, 1), (3, 1)])
         ([0], [1], [2, 3])
@@ -48,14 +48,14 @@ test_split_range = do
 
 test_split :: Test
 test_split = do
-    let f = bimap e_start_dur e_start_dur . Events.split 2 . from_start_dur
+    let f = bimap eStartDur eStartDur . Events.split 2 . fromStartDur
     equal (f [(0, 2), (2, 2), (4, 2)]) ([(0, 2)], [(2, 2), (4, 2)])
     equal (f [(2, -2), (2, 2)]) ([(2, -2)], [(2, 2)])
     equal (f [(2, -0), (2, 0)]) ([(2, -0)], [(2, 0)])
 
-e_ranges :: (Events.Events, Events.Events, Events.Events)
+eRanges :: (Events.Events, Events.Events, Events.Events)
     -> ([TrackTime], [TrackTime], [TrackTime])
-e_ranges (pre, within, post) =
+eRanges (pre, within, post) =
     ( map Event.start (Events.descending pre)
     , map Event.start (Events.ascending within)
     , map Event.start (Events.ascending post)
@@ -63,8 +63,8 @@ e_ranges (pre, within, post) =
 
 test_at_before :: Test
 test_at_before = do
-    let f pos = map Event.start $ Events.at_before pos e1
-        e1 = from_list [(0, 1, "0"), (1, 1, "1"), (2, 1, "2")]
+    let f pos = map Event.start $ Events.atBefore pos e1
+        e1 = fromList [(0, 1, "0"), (1, 1, "1"), (2, 1, "2")]
     equal (f 0) [0]
     equal (f 0.5) [0]
     equal (f 1) [1, 0]
@@ -72,8 +72,8 @@ test_at_before = do
 
 test_split_at_before :: Test
 test_split_at_before = do
-    let f pos = extract $ Events.split_at_before pos e1
-        e1 = from_list [(0, 1, "0"), (1, 1, "1"), (2, 1, "2")]
+    let f pos = extract $ Events.splitAtBefore pos e1
+        e1 = fromList [(0, 1, "0"), (1, 1, "1"), (2, 1, "2")]
         extract = bimap (map Event.start) (map Event.start)
     equal (f 0) ([], [0, 1, 2])
     equal (f 0.5) ([], [0, 1, 2])
@@ -82,8 +82,8 @@ test_split_at_before = do
 
 test_clip :: Test
 test_clip = do
-    let f include_end end = map extract_event
-            . Events.clip_list include_end end . pos_events
+    let f includeEnd end = map extractEvent
+            . Events.clipList includeEnd end . posEvents
     let positive = [(0, 2, "a"), (2, 2, "b")]
     equal [f False end positive | end <- Lists.range 0 5 1]
         [ []
@@ -110,79 +110,79 @@ test_clip = do
 
 test_insert :: Test
 test_insert = do
-    let f new old = extract $ Events.insert (pos_events new) (from_list old)
-    equal_e (f [(0, 1, "a0")] [(3, 1, "b0")])
+    let f new old = extract $ Events.insert (posEvents new) (fromList old)
+    equalE (f [(0, 1, "a0")] [(3, 1, "b0")])
         [(0, 1, "a0"), (3, 1, "b0")]
-    equal_e (f [(0, 4, "a0"), (4, 4, "a1")] [(2, 4, "b0"), (6, 4, "b1")])
+    equalE (f [(0, 4, "a0"), (4, 4, "a1")] [(2, 4, "b0"), (6, 4, "b1")])
         [(0, 2, "a0"), (2, 2, "b0"), (4, 2, "a1"), (6, 4, "b1")]
     -- Inserting overlapping events are clipped.
-    equal_e (f [(0, 4, "a0"), (2, 4, "a1")] []) [(0, 2, "a0"), (2, 4, "a1")]
-    equal_e (f [(1, 3, "new")] [(0, 2, "old")]) [(0, 1, "old"), (1, 3, "new")]
+    equalE (f [(0, 4, "a0"), (2, 4, "a1")] []) [(0, 2, "a0"), (2, 4, "a1")]
+    equalE (f [(1, 3, "new")] [(0, 2, "old")]) [(0, 1, "old"), (1, 3, "new")]
     -- If the start is coincident, the existing events are replaced.
-    equal_e (f [(0, 1, "a"), (2, 1, "b")] [(0, 0, "1"), (2, 0, "2")])
+    equalE (f [(0, 1, "a"), (2, 1, "b")] [(0, 0, "1"), (2, 0, "2")])
         [(0, 1, "a"), (2, 1, "b")]
-    equal_e (f [(1, 0, "1"), (1.25, 0, "1.25"), (2, 0, "2")]
+    equalE (f [(1, 0, "1"), (1.25, 0, "1.25"), (2, 0, "2")]
             [(0, 0, "0"), (0.25, 0, "0.25")])
         [ (0, 0, "0"), (0.25, 0, "0.25"), (1, 0, "1"), (1.25, 0, "1.25")
         , (2, 0, "2")
         ]
     -- Negative events.
-    equal_e (f [(4, -2, "a")] [(3, -3, "b")]) [(3, -3, "b"), (4, -1, "a")]
-    equal_e (f [(3, -3, "b")] [(4, -2, "a")]) [(3, -3, "b"), (4, -1, "a")]
-    equal_e (f [(2, -2, "a")] [(0, 2, "b")]) [(0, 1, "b"), (2, -1, "a")]
+    equalE (f [(4, -2, "a")] [(3, -3, "b")]) [(3, -3, "b"), (4, -1, "a")]
+    equalE (f [(3, -3, "b")] [(4, -2, "a")]) [(3, -3, "b"), (4, -1, "a")]
+    equalE (f [(2, -2, "a")] [(0, 2, "b")]) [(0, 1, "b"), (2, -1, "a")]
 
     -- New events win over old ones.
-    equal_e (f [(0, 2, "new")] [(0, 2, "old")]) [(0, 2, "new")]
-    equal_e (f [(1, 0, "new")] [(1, 0, "old")]) [(1, 0, "new")]
-    equal_e (f [(2, -2, "new")] [(2, -2, "old")]) [(2, -2, "new")]
-    equal_e (f [(1, -0, "new")] [(1, -0, "old")]) [(1, -0, "new")]
+    equalE (f [(0, 2, "new")] [(0, 2, "old")]) [(0, 2, "new")]
+    equalE (f [(1, 0, "new")] [(1, 0, "old")]) [(1, 0, "new")]
+    equalE (f [(2, -2, "new")] [(2, -2, "old")]) [(2, -2, "new")]
+    equalE (f [(1, -0, "new")] [(1, -0, "old")]) [(1, -0, "new")]
 
 test_from_list :: Test
 test_from_list = do
-    let f = Events.ascending . Events.from_list
+    let f = Events.ascending . Events.fromList
     equal (f [Event.unmodified $ Event.event 0 1 "hi"])
         [Event.unmodified $ Event.event 0 1 "hi"]
 
 test_from_list_qc :: Test
-test_from_list_qc = quickcheck $ Q.forAll gen_events $ \es -> do
+test_from_list_qc = quickcheck $ Q.forAll genEvents $ \es -> do
     let events = map mkevent es
-    q_equal (Events.ascending (Events.from_list events))
-        (Events.clip_events (Lists.sortOn Events.event_key events))
+    qEqual (Events.ascending (Events.fromList events))
+        (Events.clipEvents (Lists.sortOn Events.eventKey events))
 
 test_insert_qc :: Test
-test_insert_qc = quickcheck $ Q.forAll ((,) <$> gen_events <*> gen_events) $
-    \(es1, es2) -> q_equal
-        (find_overlaps $ Events.ascending $ Events.insert
-            (map mkevent es1) (Events.from_list (map mkevent es2)))
+test_insert_qc = quickcheck $ Q.forAll ((,) <$> genEvents <*> genEvents) $
+    \(es1, es2) -> qEqual
+        (findOverlaps $ Events.ascending $ Events.insert
+            (map mkevent es1) (Events.fromList (map mkevent es2)))
         []
 
 test_clip_events_qc :: Test
-test_clip_events_qc = quickcheck $ Q.forAll gen_events $ \es -> do
-    let clipped = Events.clip_events (Lists.sortOn Event.start (map mkevent es))
-    q_equal (find_overlaps clipped) []
+test_clip_events_qc = quickcheck $ Q.forAll genEvents $ \es -> do
+    let clipped = Events.clipEvents (Lists.sortOn Event.start (map mkevent es))
+    qEqual (findOverlaps clipped) []
 
 test_clip_events :: Test
 test_clip_events = do
-    let f = map extract_event .  Events.clip_events . pos_events
+    let f = map extractEvent .  Events.clipEvents . posEvents
     -- Drop ones with the same start and orientation.
-    equal_e (f [(0, 1, "a"), (0, 2, "b")]) [(0, 2, "b")]
-    equal_e (f [(2, -1, "a"), (2, -2, "b")]) [(2, -2, "b")]
-    equal_e (f [(2, -2, "a"), (2, 2, "b")]) [(2, -2, "a"), (2, 2, "b")]
+    equalE (f [(0, 1, "a"), (0, 2, "b")]) [(0, 2, "b")]
+    equalE (f [(2, -1, "a"), (2, -2, "b")]) [(2, -2, "b")]
+    equalE (f [(2, -2, "a"), (2, 2, "b")]) [(2, -2, "a"), (2, 2, "b")]
     -- Positive.
-    equal_e (f [(0, 1, "a"), (1, 1, "b")]) [(0, 1, "a"), (1, 1, "b")]
-    equal_e (f [(0, 2, "a"), (1, 1, "b")]) [(0, 1, "a"), (1, 1, "b")]
-    equal_e (f [(0, 0, "a"), (1, 0, "b")]) [(0, 0, "a"), (1, 0, "b")]
+    equalE (f [(0, 1, "a"), (1, 1, "b")]) [(0, 1, "a"), (1, 1, "b")]
+    equalE (f [(0, 2, "a"), (1, 1, "b")]) [(0, 1, "a"), (1, 1, "b")]
+    equalE (f [(0, 0, "a"), (1, 0, "b")]) [(0, 0, "a"), (1, 0, "b")]
     -- Negative and Positive compromise in the middle.
-    equal_e (f [(1, -1, "a"), (1, 1, "b")]) [(1, -1, "a"), (1, 1, "b")]
-    equal_e (f [(1, -0, "a"), (1, 0, "b")]) [(1, -0, "a"), (1, 0, "b")]
-    equal_e (f [(0, 2, "a"), (2, -1, "b")]) [(0, 1.5, "a"), (2, -0.5, "b")]
-    equal_e (f [(0, 8, "a"), (2, -1, "b")]) [(0, 1.5, "a"), (2, -0.5, "b")]
-    equal_e (f [(0, 2, "a"), (2, -8, "b")]) [(0, 1, "a"), (2, -1, "b")]
-    equal_e (f [(0, 2, "a"), (3, -2, "b")]) [(0, 1.5, "a"), (3, -1.5, "b")]
+    equalE (f [(1, -1, "a"), (1, 1, "b")]) [(1, -1, "a"), (1, 1, "b")]
+    equalE (f [(1, -0, "a"), (1, 0, "b")]) [(1, -0, "a"), (1, 0, "b")]
+    equalE (f [(0, 2, "a"), (2, -1, "b")]) [(0, 1.5, "a"), (2, -0.5, "b")]
+    equalE (f [(0, 8, "a"), (2, -1, "b")]) [(0, 1.5, "a"), (2, -0.5, "b")]
+    equalE (f [(0, 2, "a"), (2, -8, "b")]) [(0, 1, "a"), (2, -1, "b")]
+    equalE (f [(0, 2, "a"), (3, -2, "b")]) [(0, 1.5, "a"), (3, -1.5, "b")]
 
 test_remove :: Test
 test_remove = do
-    let f range = e_start_dur . Events.remove range . from_start_dur
+    let f range = eStartDur . Events.remove range . fromStartDur
     -- able to remove 0 dur events
     equal (f (Point 0 Types.Positive) [(0, 0), (1, 1)]) [(1, 1)]
     equal (f (Point 1 Types.Negative) [(0, 0), (1, -0), (1, 0), (2, 0)])
@@ -204,47 +204,47 @@ test_round_events = do
             next = Event.start_ %= (+ 1/3) $ e
     -- If round_event is doing its thing, this won't fall victim to
     -- imprecision.
-    equal (to_list $ iterate move (from_list [(0, 1, "a")]) !! (20 * 3))
+    equal (toList $ iterate move (fromList [(0, 1, "a")]) !! (20 * 3))
         [(20, 1, "a")]
 
 
 -- * util
 
-equal_e :: HasCallStack => [Event] -> [Event] -> Test
-equal_e = Testing.equal_fmt UiTest.fmt_events
+equalE :: HasCallStack => [Event] -> [Event] -> Test
+equalE = Testing.equalFmt UiTest.fmtEvents
 
 type Event = (ScoreTime, ScoreTime, Text)
 
-from_start_dur :: [(TrackTime, TrackTime)] -> Events.Events
-from_start_dur evts = from_list [(p, d, showt p) | (p, d) <- evts]
+fromStartDur :: [(TrackTime, TrackTime)] -> Events.Events
+fromStartDur evts = fromList [(p, d, showt p) | (p, d) <- evts]
 
-from_list :: [Event] -> Events.Events
-from_list = Events.from_list . pos_events
+fromList :: [Event] -> Events.Events
+fromList = Events.fromList . posEvents
 
-to_list :: Events.Events -> [Event]
-to_list = map (\e -> (Event.start e, Event.duration e, Event.text e))
+toList :: Events.Events -> [Event]
+toList = map (\e -> (Event.start e, Event.duration e, Event.text e))
     . Events.ascending
 
-pos_events :: [Event] -> [Event.Event]
-pos_events = map (\(pos, dur, text) -> Event.event pos dur text)
+posEvents :: [Event] -> [Event.Event]
+posEvents = map (\(pos, dur, text) -> Event.event pos dur text)
 
 extract :: Events.Events -> [(TrackTime, TrackTime, Text)]
-extract = map extract_event . Events.ascending
+extract = map extractEvent . Events.ascending
 
-e_start_dur :: Events.Events -> [(TrackTime, TrackTime)]
-e_start_dur = map (\(s, d, _) -> (s, d)) . extract
+eStartDur :: Events.Events -> [(TrackTime, TrackTime)]
+eStartDur = map (\(s, d, _) -> (s, d)) . extract
 
-extract_event :: Event.Event -> (TrackTime, TrackTime, Text)
-extract_event e = (Event.start e, Event.duration e, Event.text e)
+extractEvent :: Event.Event -> (TrackTime, TrackTime, Text)
+extractEvent e = (Event.start e, Event.duration e, Event.text e)
 
 mkevent :: (Int, Int) -> Event.Event
 mkevent (start, dur) = Event.event (fromIntegral start) (fromIntegral dur) ""
 
-gen_events :: Q.Gen [(Int, Int)]
-gen_events = Q.listOf ((,) <$> Q.choose (-4, 4) <*> Q.choose (-4, 4))
+genEvents :: Q.Gen [(Int, Int)]
+genEvents = Q.listOf ((,) <$> Q.choose (-4, 4) <*> Q.choose (-4, 4))
 
-find_overlaps :: [Event.Event] -> [(Event.Event, Event.Event)]
-find_overlaps = mapMaybe check . Lists.zipNext
+findOverlaps :: [Event.Event] -> [(Event.Event, Event.Event)]
+findOverlaps = mapMaybe check . Lists.zipNext
     where
     check (cur, Just next)
         | Event.end cur > Event.start next = Just (cur, next)

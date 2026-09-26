@@ -34,34 +34,34 @@ data CPatchP
 
 patches :: IO [(Text, PatchP)]
 patches = alloca $ \patchpp -> do
-    count <- fromIntegral <$> c_faust_patches patchpp
+    count <- fromIntegral <$> cFaustPatches patchpp
     patches <- peekArray count =<< peek patchpp
-    names <- mapM (FFI.peekCString . c_faust_name) patches
+    names <- mapM (FFI.peekCString . cFaustName) patches
     -- I use hyphens, but C doesn't allow them in names.
     pure $ zip (map (Text.replace "_" "-") names) patches
 
 -- int faust_patches(const Patch ***patches);
 foreign import ccall "faust_patches"
-    c_faust_patches :: Ptr (Ptr PatchP) -> IO CInt
+    cFaustPatches :: Ptr (Ptr PatchP) -> IO CInt
 
-foreign import ccall "faust_name" c_faust_name :: PatchP -> CString
+foreign import ccall "faust_name" cFaustName :: PatchP -> CString
 
 patchInputs, patchOutputs :: PatchP -> Int
-patchInputs = fromIntegral . c_faust_num_inputs
-patchOutputs = fromIntegral . c_faust_num_outputs
+patchInputs = fromIntegral . cFaustNumInputs
+patchOutputs = fromIntegral . cFaustNumOutputs
 
 instInputs, instOutputs :: InstrumentP -> Int
 instInputs = patchInputs . castPtr
 instOutputs = patchOutputs . castPtr
 
 foreign import ccall unsafe "faust_num_inputs"
-    c_faust_num_inputs :: PatchP -> CInt
+    cFaustNumInputs :: PatchP -> CInt
 foreign import ccall unsafe "faust_num_outputs"
-    c_faust_num_outputs :: PatchP -> CInt
+    cFaustNumOutputs :: PatchP -> CInt
 
 getMetadata :: PatchP -> IO (Map Text Text)
 getMetadata patch = alloca $ \keyspp -> alloca $ \valuespp -> do
-    count <- fromIntegral <$> c_faust_metadata patch keyspp valuespp
+    count <- fromIntegral <$> cFaustMetadata patch keyspp valuespp
     kvs <- zip <$> (peekTexts count =<< peek keyspp)
         <*> (peekTexts count =<< peek valuespp)
     free =<< peek keyspp
@@ -77,14 +77,14 @@ parseDescription meta = Text.intercalate "\n" $ filter (/="") $
 -- int faust_metadata(
 --     const Patch *patch, const char ***keys, const char ***values);
 foreign import ccall "faust_metadata"
-    c_faust_metadata :: PatchP -> Ptr (Ptr CString) -> Ptr (Ptr CString)
+    cFaustMetadata :: PatchP -> Ptr (Ptr CString) -> Ptr (Ptr CString)
         -> IO CInt
 
 getUiControls :: PatchP -> IO [(([Text], Control.Control), Text)]
 getUiControls patch = do
     (count, pathspp, controlsp, docsp) <-
         alloca $ \pathsppp -> alloca $ \controlspp -> alloca $ \docspp -> do
-            count <- c_faust_controls patch pathsppp controlspp docspp
+            count <- cFaustControls patch pathsppp controlspp docspp
             (,,,) (fromIntegral count)
                 <$> peek pathsppp <*> peek controlspp <*> peek docspp
     -- pathsp is a null-terminated list of char*
@@ -109,16 +109,16 @@ getUiControls patch = do
 -- int faust_controls(Patch patch, const char ****out_paths,
 --     const char ***out_controls, char ***out_docs)
 foreign import ccall "faust_controls"
-    c_faust_controls :: PatchP -> Ptr (Ptr (Ptr CString)) -> Ptr (Ptr CString)
+    cFaustControls :: PatchP -> Ptr (Ptr (Ptr CString)) -> Ptr (Ptr CString)
         -> Ptr (Ptr CString) -> IO CInt
 
 -- * Instrument
 
 allocate :: PatchP -> IO (InstrumentP, [(([Text], Control.Control), Ptr Float)])
 allocate patch = do
-    ptr <- c_faust_allocate patch (FFI.c_int Config.samplingRate)
+    ptr <- cFaustAllocate patch (FFI.cInt Config.samplingRate)
     cptrs <- alloca $ \cptrspp -> do
-        count <- c_faust_control_ptrs ptr cptrspp
+        count <- cFaustControlPtrs ptr cptrspp
         cptrsp <- peek cptrspp
         cptrs <- peekArray (fromIntegral count) cptrsp
         free cptrsp
@@ -131,14 +131,14 @@ allocate patch = do
 
 -- Patch *faust_allocate(const Patch *patch, int srate);
 foreign import ccall "faust_allocate"
-    c_faust_allocate :: PatchP -> CInt -> IO InstrumentP
+    cFaustAllocate :: PatchP -> CInt -> IO InstrumentP
 
 -- int faust_control_ptrs(Patch *inst, FAUSTFLOAT ***out_vals)
 foreign import ccall "faust_control_ptrs"
-    c_faust_control_ptrs :: InstrumentP -> Ptr (Ptr (Ptr Float)) -> IO CInt
+    cFaustControlPtrs :: InstrumentP -> Ptr (Ptr (Ptr Float)) -> IO CInt
 
 -- void faust_destroy(Patch *patch) { delete patch; }
-foreign import ccall "faust_destroy" c_faust_destroy :: InstrumentP -> IO ()
+foreign import ccall "faust_destroy" cFaustDestroy :: InstrumentP -> IO ()
 
 -- | Render chunk of time and return samples.
 render :: Audio.Frames -> Audio.Frames -> InstrumentP
@@ -171,15 +171,15 @@ render controlSize controlsPerBlock inst controls inputs = do
         withVectors inputs $ \inputsP ->
         withArray outputPtrs $ \outputsP ->
         withControls controls $ \controlCount controlPtrs controlValsP ->
-            c_faust_render inst
-                (c_frames controlSize) (c_frames controlsPerBlock)
+            cFaustRender inst
+                (cFrames controlSize) (cFrames controlsPerBlock)
                 controlCount controlPtrs controlValsP
                 inputsP outputsP
     pure $ map (\fptr -> V.unsafeFromForeignPtr0 fptr (unframe blockSize))
         outputFptrs
     where
     blockSize = controlSize * controlsPerBlock
-    c_frames = FFI.c_int . unframe
+    cFrames = FFI.cInt . unframe
     unframe (Audio.Frames f) = f
 
 withControls :: [(Ptr Float, Audio.Block)]
@@ -189,7 +189,7 @@ withControls controls action = do
     sequence_ [Foreign.poke ptr val | (ptr, Audio.Constant _ val) <- controls]
     withArray ptrs $ \controlPtrs ->
         withVectors vecs $ \controlValsP ->
-        action (FFI.c_int (length ptrs)) controlPtrs controlValsP
+        action (FFI.cInt (length ptrs)) controlPtrs controlValsP
     where (ptrs, vecs) = unzip [(ptr, vec) | (ptr, Audio.Block vec) <- controls]
 
 -- void faust_render(
@@ -198,7 +198,7 @@ withControls controls action = do
 --     int control_count, float **control_ptrs, const float **controls,
 --     const float **inputs, float **outputs);
 foreign import ccall "faust_render"
-    c_faust_render :: InstrumentP
+    cFaustRender :: InstrumentP
         -- control_size -> controls_per_block
         -> CInt -> CInt
         -- control_count -> control_ptrs -> controls
@@ -211,40 +211,40 @@ foreign import ccall "faust_render"
 
 getState :: InstrumentP -> IO ByteString.ByteString
 getState inst = alloca $ \statepp -> do
-    c_faust_get_state inst statepp
+    cFaustGetState inst statepp
     statep <- peek statepp
     ByteString.packCStringLen
-        (statep, fromIntegral $ c_faust_get_state_size inst)
+        (statep, fromIntegral $ cFaustGetStateSize inst)
 
 -- | 'getState', but without copying, if you promise to finish with the State
 -- before you call 'render', which will change it.
 unsafeGetState :: InstrumentP -> IO ByteString.ByteString
 unsafeGetState inst = alloca $ \statepp -> do
-    c_faust_get_state inst statepp
+    cFaustGetState inst statepp
     statep <- peek statepp
     ByteString.Unsafe.unsafePackCStringLen
-        (statep, fromIntegral $ c_faust_get_state_size inst)
+        (statep, fromIntegral $ cFaustGetStateSize inst)
 
 putState :: ByteString.ByteString -> Text -> InstrumentP -> IO ()
 putState state name inst =
     ByteString.Unsafe.unsafeUseAsCStringLen state $ \(statep, size) -> do
-        let psize = c_faust_get_state_size inst
+        let psize = cFaustGetStateSize inst
         unless (fromIntegral size == psize) $
             errorIO $ "inst " <> showt name <> " expects state size "
                 <> showt psize <> " but got " <> showt size
-        c_faust_put_state inst statep
+        cFaustPutState inst statep
 
 -- size_t faust_get_state_size(const Patch *patch) { return patch->size; }
 foreign import ccall "faust_get_state_size"
-    c_faust_get_state_size :: InstrumentP -> CSize
+    cFaustGetStateSize :: InstrumentP -> CSize
 
 -- size_t faust_get_state(const Patch *patch, const char **state);
 foreign import ccall "faust_get_state"
-    c_faust_get_state :: InstrumentP -> Ptr CString -> IO ()
+    cFaustGetState :: InstrumentP -> Ptr CString -> IO ()
 
 -- void faust_put_state(Patch *patch, const char *state);
 foreign import ccall "faust_put_state"
-    c_faust_put_state :: InstrumentP -> CString -> IO ()
+    cFaustPutState :: InstrumentP -> CString -> IO ()
 
 -- * util
 

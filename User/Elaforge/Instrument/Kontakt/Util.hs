@@ -31,20 +31,20 @@ write fname = either errorIO $ \t -> do
 
 -- | Create a script in Kontakt's hilariously incompetent KSP language to
 -- retune a 12TET patch to the given scale.
-tuning_ksp :: Maybe Patch.AttributeMap -> Patch.Scale -> Either Text Text
-tuning_ksp attr_map scale = interpolate values tuning_template
+tuningKsp :: Maybe Patch.AttributeMap -> Patch.Scale -> Either Text Text
+tuningKsp attrMap scale = interpolate values tuningTemplate
     where
     values = Map.fromList
-        [ ("TITLE", showt (Patch.scale_name scale))
-        , ("PITCHES", ksp_array 6 pitches)
+        [ ("TITLE", showt (Patch.scaleName scale))
+        , ("PITCHES", kspArray 6 pitches)
         ]
     -- -1 marks unmapped pitches, since it's visually distinct from 0.
     pitches = map (maybe (-1) (round . (*millicent)))
-        (Patch.scale_offsets attr_map scale)
+        (Patch.scaleOffsets attrMap scale)
     millicent = 1000 * 100 -- silly scent willy sent
 
-tuning_template :: Text
-tuning_template =
+tuningTemplate :: Text
+tuningTemplate =
     -- To ignore notes that don't have a tuning, I could set another %set array
     -- with 0 or 1, and do ignore_event($EVENT_ID).
     "on init\n\
@@ -65,76 +65,76 @@ tuning_template =
 -- built-in mechanism lets you assign notes to a group, and limit voices in the
 -- group, which means that two of the same strokes in a row will mute each
 -- other.
-drum_mute_ksp :: Text -> CUtil.PitchedStrokes -> [(Drums.Group, [Drums.Group])]
+drumMuteKsp :: Text -> CUtil.PitchedStrokes -> [(Drums.Group, [Drums.Group])]
     -- ^ each Group along with a set of Groups that it stops
     -> Either Text Text
-drum_mute_ksp instrument strokes stop_groups = do
-    stop_group_ids <- make_stop_groups stop_groups groups
+drumMuteKsp instrument strokes stopGroups = do
+    stopGroupIds <- makeStopGroups stopGroups groups
     let values = Map.fromList
             [ ("INSTRUMENT", instrument)
             , ("MAX_GROUPS", showt (length groups))
-            , ("MAX_KEYSWITCHES", showt max_keyswitches)
-            , ("PITCH_TO_GROUP", ksp_array 8 pitch_to_group)
-            , ("PITCH_TO_KEYSWITCH", ksp_array 8 pitch_to_keyswitch)
-            , ("STOP_GROUPS", ksp_array 8 stop_group_ids)
+            , ("MAX_KEYSWITCHES", showt maxKeyswitches)
+            , ("PITCH_TO_GROUP", kspArray 8 pitchToGroup)
+            , ("PITCH_TO_KEYSWITCH", kspArray 8 pitchToKeyswitch)
+            , ("STOP_GROUPS", kspArray 8 stopGroupIds)
             ]
-    interpolate values drum_mute_template
+    interpolate values drumMuteTemplate
     where
-    (pitch_to_keyswitch, pitch_to_group, groups, max_keyswitches) =
-        drum_mute_values strokes
+    (pitchToKeyswitch, pitchToGroup, groups, maxKeyswitches) =
+        drumMuteValues strokes
 
-drum_mute_values :: CUtil.PitchedStrokes -> ([Int], [Int], [Drums.Group], Int)
-drum_mute_values strokes =
-    (pitch_to_keyswitch, pitch_to_group, groups, length keyswitch_strokes)
+drumMuteValues :: CUtil.PitchedStrokes -> ([Int], [Int], [Drums.Group], Int)
+drumMuteValues strokes =
+    (pitchToKeyswitch, pitchToGroup, groups, length keyswitchStrokes)
     where
-    pitch_to_group = Vector.toList $ mconcat $ map make keyswitch_strokes
-    make ks_strokes = midi_pitch_array none
-        [ ((Midi.from_key s, Midi.from_key e), group_id group)
-        | (group, (s, e)) <- ks_strokes
+    pitchToGroup = Vector.toList $ mconcat $ map make keyswitchStrokes
+    make ksStrokes = midiPitchArray none
+        [ ((Midi.fromKey s, Midi.fromKey e), groupId group)
+        | (group, (s, e)) <- ksStrokes
         ]
-    pitch_to_keyswitch = Vector.toList $ Vector.replicate 128 none
-        Vector.// zip (map Midi.from_key keyswitches) [0..]
-    (keyswitches, keyswitch_strokes) =
-        unzip $ Map.toAscList keyswitch_to_strokes
+    pitchToKeyswitch = Vector.toList $ Vector.replicate 128 none
+        Vector.// zip (map Midi.fromKey keyswitches) [0..]
+    (keyswitches, keyswitchStrokes) =
+        unzip $ Map.toAscList keyswitchToStrokes
     -- If this instrument doesn't use keyswitches (it could use
     -- 'Patch.ControlSwitch'es), then they all wind up with 0.  I need
     -- at least one keyswitch so pitch_to_group isn't empty, and pretending
     -- there's one at 0 is fine since it never changes.  This is fine, assuming
     -- that overlapping groups all belong to the same stop gorup.
-    keyswitch_to_strokes = Maps.multimap
-        [ (ks_of keyswitch, (Drums._group stroke, (low, high)))
+    keyswitchToStrokes = Maps.multimap
+        [ (ksOf keyswitch, (Drums._group stroke, (low, high)))
         | (stroke, (keyswitch, low, high, _)) <- strokes
         ]
-    ks_of (Patch.Keyswitch ks : _) = ks
-    ks_of _ = 0
+    ksOf (Patch.Keyswitch ks : _) = ks
+    ksOf _ = 0
     groups = Lists.dropDups id (List.sort (map (Drums._group . fst) strokes))
-    group_to_id = Map.fromList $ zip groups [0..]
-    group_id g = Map.findWithDefault none g group_to_id
+    groupToId = Map.fromList $ zip groups [0..]
+    groupId g = Map.findWithDefault none g groupToId
 
 -- | Used in KSP for a nothing value.
 none :: Int
 none = -1
 
-make_stop_groups :: [(Drums.Group, [Drums.Group])] -> [Drums.Group]
+makeStopGroups :: [(Drums.Group, [Drums.Group])] -> [Drums.Group]
     -> Either Text [Int]
-make_stop_groups stop_groups groups = do
-    mapM_ (get . fst) stop_groups -- ensure all groups in stop_groups are known
+makeStopGroups stopGroups groups = do
+    mapM_ (get . fst) stopGroups -- ensure all groups in stop_groups are known
     concatMapM realize groups
     where
     ngroups = length groups
     realize group = do
         stops <- mapM get stops
         pure $ take ngroups $ stops ++ repeat none
-        where stops = fromMaybe [] $ lookup group stop_groups
+        where stops = fromMaybe [] $ lookup group stopGroups
     get g = justErr ("no group: " <> showt g) $ List.elemIndex g groups
 
-midi_pitch_array :: Vector.Unbox a => a -> [((Int, Int), a)] -> Vector.Vector a
-midi_pitch_array deflt ranges =
+midiPitchArray :: Vector.Unbox a => a -> [((Int, Int), a)] -> Vector.Vector a
+midiPitchArray deflt ranges =
     Vector.replicate 128 deflt Vector.// concatMap expand ranges
     where expand ((s, e), v) = [(i, v) | i <- Lists.range' s e 1]
 
-drum_mute_template :: Text
-drum_mute_template =
+drumMuteTemplate :: Text
+drumMuteTemplate =
     "on init\n\
     \    set_script_title(\"drum-mute for *INSTRUMENT*\")\n\
     \\n\
@@ -228,8 +228,8 @@ interpolate values =
     Texts.mapDelimitedM False '*' $ \v ->
         justErr ("no value for " <> showt v) $ Map.lookup v values
 
-ksp_array :: Int -> [Int] -> Text
-ksp_array chunk_size =
+kspArray :: Int -> [Int] -> Text
+kspArray chunkSize =
     ("( ...\n"<>) . (<>")") . Text.intercalate ", ...\n" . map ((indent<>)
-        . Text.intercalate ", ") . Lists.chunked chunk_size . map showt
+        . Text.intercalate ", ") . Lists.chunked chunkSize . map showt
     where indent = Text.replicate 8 " "

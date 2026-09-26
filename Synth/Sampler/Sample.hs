@@ -155,8 +155,8 @@ instance Serialize.Serialize Stretch where
     get = fail "no get for Stretch"
 
 instance Serialize.Serialize StretchMode where
-    put = Serialize.put_enum_unsafe
-    get = Serialize.get_enum_unsafe
+    put = Serialize.putEnumUnsafe
+    get = Serialize.getEnumUnsafe
 
 -- | The duration of a note which plays the entire sample.  This should be
 -- longer than any sample, and will be clipped to sample duration.
@@ -170,11 +170,11 @@ forever = 1000
 -- other sample.  So srate should be *2.  Number of frames is /2.  So the
 -- resampling ratio for +12nn is 1/2, while the pitch ratio is 2.
 pitchToRatio :: Pitch.NoteNumber -> Pitch.NoteNumber -> Signal.Y
-pitchToRatio sampleNn nn = Pitch.nn_to_hz sampleNn / Pitch.nn_to_hz nn
+pitchToRatio sampleNn nn = Pitch.nnToHz sampleNn / Pitch.nnToHz nn
 
 pitchToRatioSignal :: Pitch.NoteNumber -> Note.Note -> Signal.Signal
 pitchToRatioSignal sampleNn =
-    Signal.map_y srate (pitchToRatio sampleNn . Pitch.nn) . fromMaybe mempty
+    Signal.mapY srate (pitchToRatio sampleNn . Pitch.nn) . fromMaybe mempty
     . Map.lookup Control.pitch . Note.controls
 
 relativePitchToRatio :: Pitch.NoteNumber -> Signal.Y

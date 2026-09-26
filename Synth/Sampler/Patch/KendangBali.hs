@@ -30,27 +30,27 @@ patches = pasang : map make [Wadon, Lanang]
     make tuning =
         Drum.patch dir name strokeMap (convertMap tuning) (const config)
         where name = patchName <> "-" <> txt (Util.showLower tuning)
-    config = CUtil.call_config { CUtil._tuning_control = Just "kendang-tune" }
+    config = CUtil.callConfig { CUtil._tuningControl = Just "kendang-tune" }
     dir = untxt patchName </> "legong"
 
     -- TODO thru doesn't work for this, because I have to evaluate the call,
     -- and only MidiThru does that.
     pasang = Patch.patchKarya "kendang-bali-pasang" $
         ImInst.dummy "requires realize-kendang"
-        . (ImInst.code #= K.pasang_code)
+        . (ImInst.code #= K.pasangCode)
         . ImInst.triggered
 
 -- | @LInst.merge $ KendangBali.allocations ...@
 allocations :: Text -> UiConfig.Allocations
 allocations name =
-    ImInst.im_allocations
+    ImInst.imAllocations
         [ (inst $ name <> "-w", "sampler/kendang-bali-wadon", id)
         , (inst $ name <> "-l", "sampler/kendang-bali-lanang", id)
         ]
-    <> ImInst.dummy_allocations
+    <> ImInst.dummyAllocations
         [ ( inst name, "sampler/kendang-bali-pasang"
-          , Common.add_cenviron "wadon" (inst $ name <> "-w")
-            . Common.add_cenviron "lanang" (inst $ name <> "-l")
+          , Common.addCenviron "wadon" (inst $ name <> "-w")
+            . Common.addCenviron "lanang" (inst $ name <> "-l")
           )
         ]
     where
@@ -64,11 +64,11 @@ data Tuning = Wadon | Lanang
 
 strokeMap :: Drum.StrokeMap Articulation
 strokeMap = Drum.replaceSoft 0.75 $
-    Drum.strokeMap K.stops K.tunggal_strokes attributeMap
+    Drum.strokeMap K.stops K.tunggalStrokes attributeMap
 
 attributeMap :: Common.AttributeMap Articulation
 attributeMap =
-    Common.attribute_map (Lists.keyOn articulationToAttrs Util.enumAll)
+    Common.attributeMap (Lists.keyOn articulationToAttrs Util.enumAll)
 
 data Articulation
     = Plak -- both

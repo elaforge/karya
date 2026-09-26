@@ -41,11 +41,11 @@
 -}
 module Perform.RealTime (
     RealTime, div, mul, large, larger, suffix
-    , show_units
+    , showUnits
     -- * convert from
-    , seconds, milliseconds, microseconds, from_score
+    , seconds, milliseconds, microseconds, fromScore
     -- * convert to
-    , to_diff, to_seconds, to_milliseconds, to_microseconds, to_score
+    , toDiff, toSeconds, toMilliseconds, toMicroseconds, toScore
     -- * misc
     , eta, (==), (>), (<=)
 ) where
@@ -89,8 +89,8 @@ newtype RealTime = RealTime Double deriving
 instance Foreign.Storable RealTime where
     sizeOf _ = Foreign.sizeOf (0 :: C.CDouble)
     alignment _ = Foreign.alignment (0 :: C.CDouble)
-    poke p (RealTime d) = Foreign.poke (Foreign.castPtr p) (FFI.c_double d)
-    peek p = RealTime . FFI.hs_double <$> Foreign.peek (Foreign.castPtr p)
+    poke p (RealTime d) = Foreign.poke (Foreign.castPtr p) (FFI.cDouble d)
+    peek p = RealTime . FFI.hsDouble <$> Foreign.peek (Foreign.castPtr p)
 
 instance C.CStorable RealTime where
     sizeOf = Foreign.sizeOf
@@ -102,7 +102,7 @@ instance Show RealTime where show (RealTime t) = show t
 instance Read.Read RealTime where readPrec = RealTime <$> Read.readPrec
 
 instance ShowVal.ShowVal RealTime where
-    show_val = (`Text.snoc` suffix) . Num.showFloat 3 . to_seconds
+    showVal = (`Text.snoc` suffix) . Num.showFloat 3 . toSeconds
 
 instance Pretty RealTime where
     pretty t
@@ -110,14 +110,14 @@ instance Pretty RealTime where
         | t Prelude.>= large = "large"
         | t Prelude.<= -large = "-large"
         | otherwise =
-            Num.showFloatP False 2 (to_seconds t) <> Text.singleton suffix
+            Num.showFloatP False 2 (toSeconds t) <> Text.singleton suffix
 
 div :: RealTime -> Double -> RealTime
-div a b = seconds (to_seconds a / b)
+div a b = seconds (toSeconds a / b)
 infixl 7 `div`
 
 mul :: RealTime -> Double -> RealTime
-mul a b = seconds (to_seconds a * b)
+mul a b = seconds (toSeconds a * b)
 infixl 7 `mul`
 
 -- | A large RealTime as a stand-in for "forever" in signals.
@@ -143,8 +143,8 @@ suffix :: Char
 suffix = 's'
 
 -- | Show RealTime as hours, minutes, seconds.
-show_units :: RealTime -> Text
-show_units = Pretty.duration . to_diff
+showUnits :: RealTime -> Text
+showUnits = Pretty.duration . toDiff
 
 -- * convert from
 
@@ -157,25 +157,25 @@ milliseconds = seconds . (/1000) . fromIntegral
 microseconds :: Integer -> RealTime
 microseconds = seconds . (/1000000) . fromIntegral
 
-from_score :: ScoreTime.ScoreTime -> RealTime
-from_score = seconds . ScoreTime.to_double
+fromScore :: ScoreTime.ScoreTime -> RealTime
+fromScore = seconds . ScoreTime.toDouble
 
 -- * convert to
 
-to_diff :: RealTime -> Time.NominalDiffTime
-to_diff = realToFrac
+toDiff :: RealTime -> Time.NominalDiffTime
+toDiff = realToFrac
 
-to_seconds :: RealTime -> Double
-to_seconds (RealTime s) = s
+toSeconds :: RealTime -> Double
+toSeconds (RealTime s) = s
 
-to_milliseconds :: RealTime -> Integer
-to_milliseconds = round . (*1000) . to_seconds
+toMilliseconds :: RealTime -> Integer
+toMilliseconds = round . (*1000) . toSeconds
 
-to_microseconds :: RealTime -> Integer
-to_microseconds = round . (*1000000) . to_seconds
+toMicroseconds :: RealTime -> Integer
+toMicroseconds = round . (*1000000) . toSeconds
 
-to_score :: RealTime -> ScoreTime.ScoreTime
-to_score = ScoreTime.from_double . to_seconds
+toScore :: RealTime -> ScoreTime.ScoreTime
+toScore = ScoreTime.fromDouble . toSeconds
 
 -- | Eta for comparison.  Since RealTimes are seconds, this amount of time is
 -- definitely unnoticeable.
@@ -184,7 +184,7 @@ eta = 0.0000000000004
 
 -- | RealTimes are imprecise, so compare them with this instead of (==).
 (==) :: RealTime -> RealTime -> Bool
-(==) = ApproxEq.eq (to_seconds eta)
+(==) = ApproxEq.eq (toSeconds eta)
 infix 4 ==
 
 (>), (<=) :: RealTime -> RealTime -> Bool

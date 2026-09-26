@@ -53,12 +53,12 @@ test_event_serial = do
     -- Ultimately, I want different randomization for each note in a single
     -- event, but randomization is not affected if a previous event changes.
     let run = DeriveTest.extract extract
-            . DeriveTest.derive_tracks_setup with_calls ""
-            . UiTest.note_track
+            . DeriveTest.deriveTracksSetup withCalls ""
+            . UiTest.noteTrack
         extract = fromMaybe (error "no control")
-            . DeriveTest.e_initial_control "serial"
-        with_calls = CallTest.with_note_generator Symbols.null_note note
-            <> CallTest.with_note_generator "notes" notes
+            . DeriveTest.eInitialControl "serial"
+        withCalls = CallTest.withNoteGenerator Symbols.nullNote note
+            <> CallTest.withNoteGenerator "notes" notes
     equal (run [(0, 1, "notes 1 -- 4c"), (1, 1, "notes 1 -- 4d")])
         ([0, 0], [])
     equal (run [(0, 1, "notes 2 -- 4c"), (1, 1, "notes 1 -- 4d")])
@@ -66,23 +66,23 @@ test_event_serial = do
     equal (run [(0, 1, "notes 1 -- 4c"), (1, 1, "notes 2 -- 4d")])
         ([0, 0, 1], [])
     where
-    note = Note.transformed_note "" mempty $ \_args deriver -> do
+    note = Note.transformedNote "" mempty $ \_args deriver -> do
         serial <- Derive.gets $
-            Derive.state_event_serial . Derive.state_threaded
-        Derive.with_constant_control "serial" (fromIntegral serial) deriver
+            Derive.stateEventSerial . Derive.stateThreaded
+        Derive.withConstantControl "serial" (fromIntegral serial) deriver
     notes = Derive.generator CallTest.module_ "test" mempty "test doc" $
         Sig.call (Sig.required "notes" "Number of notes.") $ \notes _args ->
             mconcat $ replicate notes Call.note
 
 test_threaded_last_val :: Test
 test_threaded_last_val = do
-    let run notes = DeriveTest.extract (DeriveTest.e_control "c") $
-            DeriveTest.derive_tracks_setup with_calls ""
+    let run notes = DeriveTest.extract (DeriveTest.eControl "c") $
+            DeriveTest.deriveTracksSetup withCalls ""
                 [ (">", [(t, 1, "") | (t, _) <- events])
                 , ("c", [(t, 0, s) | (t, s) <- events])
                 ]
                 where events = zip (Lists.range_ 0 1) notes
-        with_calls = CallTest.with_control_generator "prev" c_prev
+        withCalls = CallTest.withControlGenerator "prev" cPrev
     equal (run ["1", "prev"])
         ( [ [(0, 1), (0.75, 1), (0.75, 0.75), (1, 1)]
           , [(1, 1), (1.25, 1.25)]
@@ -95,22 +95,22 @@ test_threaded_last_val = do
           , [(2, 1.25), (2.25, 1.5)]
           ], [])
     where
-    c_prev :: Derive.Generator Derive.Control
-    c_prev = CallTest.generator1 $ \args -> case Args.prev_control args of
+    cPrev :: Derive.Generator Derive.Control
+    cPrev = CallTest.generator1 $ \args -> case Args.prevControl args of
         Nothing -> Derive.throw "no prev val"
         Just (x, y) -> do
-            start <- Args.real_start args
+            start <- Args.realStart args
             -- Log.warn $ show (start, (x, y))
-            pure $ Signal.from_pairs $ if start > x
+            pure $ Signal.fromPairs $ if start > x
                 then [(start - 0.25, y - 0.25), (start, y),
                     (start + 0.25, y + 0.25)]
                 else []
 
 test_threaded_last_event :: Test
 test_threaded_last_event = do
-    let run = snd . DeriveTest.extract id . DeriveTest.derive_tracks_setup
-            (with_calls <> DeriveTest.with_linear) ""
-        with_calls = CallTest.with_note_generator "prev" n_prev
+    let run = snd . DeriveTest.extract id . DeriveTest.deriveTracksSetup
+            (withCalls <> DeriveTest.withLinear) ""
+        withCalls = CallTest.withNoteGenerator "prev" nPrev
     equal (run [(">", [(0, 1, ""), (1, 1, "prev")])]) ["0.0"]
     -- Get last event when both are inverted.
     equal (run [(">", [(0, 1, ""), (1, 1, "prev")]),
@@ -124,22 +124,22 @@ test_threaded_last_event = do
             ])
         ["0.0"]
     where
-    n_prev :: Derive.Generator Derive.Note
-    n_prev = CallTest.generator $ \args -> case Args.prev_val args of
+    nPrev :: Derive.Generator Derive.Note
+    nPrev = CallTest.generator $ \args -> case Args.prevVal args of
         Nothing -> Derive.throw "no prev val"
         Just prev -> do
-            Log.warn $ showt (Score.event_start prev)
+            Log.warn $ showt (Score.eventStart prev)
             pure Stream.empty
 
 test_assign_controls :: Test
 test_assign_controls = do
-    let run inst_title cont_title val = extract $ DeriveTest.derive_tracks ""
-            [ (cont_title, [(0, 0, val)])
+    let run instTitle contTitle val = extract $ DeriveTest.deriveTracks ""
+            [ (contTitle, [(0, 0, val)])
             , ("*", [(0, 0, "4c")])
-            , (inst_title, [(0, 1, "")])
+            , (instTitle, [(0, 1, "")])
             ]
         extract = DeriveTest.extract $ \e ->
-            (DeriveTest.e_pitch e, DeriveTest.e_control "cont" e)
+            (DeriveTest.ePitch e, DeriveTest.eControl "cont" e)
     -- normal
     equal (run ">i" "cont" "1") ([("4c", [(0, 1)])], [])
     -- not seen
@@ -148,7 +148,7 @@ test_assign_controls = do
     -- a non-existent control with no default is an error
     let (events, logs) = run ">i | cont = %bonk" "gont" "1"
     equal events []
-    strings_like logs ["control not found: %bonk"]
+    stringsLike logs ["control not found: %bonk"]
 
     -- TODO I could support this with Derive.get_control_map in
     -- NoteUtil.make_event, but I don't think I use this feature.
@@ -172,8 +172,8 @@ test_assign_controls = do
 
 test_environ_across_tracks :: Test
 test_environ_across_tracks = do
-    let run tracks = DeriveTest.extract (DeriveTest.e_control "cont") $
-            DeriveTest.derive_tracks "" ((">", [(0, 10, "")]) : tracks)
+    let run tracks = DeriveTest.extract (DeriveTest.eControl "cont") $
+            DeriveTest.deriveTracks "" ((">", [(0, 10, "")]) : tracks)
 
     -- first make sure srate works as I expect
     let interpolated = [(0, 0), (1, 0.0625), (2, 0.25), (3, 0.5625), (4, 1)]
@@ -189,99 +189,99 @@ test_environ_across_tracks = do
 
 test_call_errors :: Test
 test_call_errors = do
-    let derive = extract . DeriveTest.derive_tracks_setup with_trans ""
-        with_trans = CallTest.with_note_transformer "test-t" trans
-        extract r = case DeriveTest.extract DeriveTest.e_event r of
+    let derive = extract . DeriveTest.deriveTracksSetup withTrans ""
+        withTrans = CallTest.withNoteTransformer "test-t" trans
+        extract r = case DeriveTest.extract DeriveTest.eEvent r of
             (val, []) -> Right val
             (_, logs) -> Left $ Lists.join "\n" logs
 
-    let run_title title = derive [(title, [(0, 1, "--1")])]
-    left_like (run_title ">i | no-such-call")
+    let runTitle title = derive [(title, [(0, 1, "--1")])]
+    leftLike (runTitle ">i | no-such-call")
         "note transformer not found: no-such-call"
-    left_like (run_title ">i | test-t bad-arg") "expected Signal but got Str"
-    left_like (run_title ">i | test-t 1 2 3 4") "too many arguments"
-    left_like (run_title ">i | test-t") "expected an argument at \"test\""
-    left_like (run_title ">i | test-t _") "expected Signal but got _"
-    left_like (run_title ">i | test-t %delay")
+    leftLike (runTitle ">i | test-t bad-arg") "expected Signal but got Str"
+    leftLike (runTitle ">i | test-t 1 2 3 4") "too many arguments"
+    leftLike (runTitle ">i | test-t") "expected an argument at \"test\""
+    leftLike (runTitle ">i | test-t _") "expected Signal but got _"
+    leftLike (runTitle ">i | test-t %delay")
         "couldn't convert ControlRef %delay: control not found"
 
-    let run_evt evt = derive [(">i", [(0, 1, evt)])]
-    left_like (run_evt "no-such-call") "note generator not found: no-such-call"
-    let tr_result = extract $ DeriveTest.derive_tracks ""
+    let runEvt evt = derive [(">i", [(0, 1, evt)])]
+    leftLike (runEvt "no-such-call") "note generator not found: no-such-call"
+    let trResult = extract $ DeriveTest.deriveTracks ""
             [(">", [(0, 4, "")]), ("*twelve", [(0, 0, "tr")])]
-    left_like tr_result "expected an argument"
-    equal (run_evt "test-t 2 | test-t 1 |")
+    leftLike trResult "expected an argument"
+    equal (runEvt "test-t 2 | test-t 1 |")
         (Right [(0, 1, "test-t 2 | test-t 1 |")])
     where
-    trans = CallTest.transformer_args $ Sig.callt
+    trans = CallTest.transformerArgs $ Sig.callt
         (Sig.required "test" "doc") $ \c  _args deriver ->
-            Derive.with_constant_control "c" c deriver
+            Derive.withConstantControl "c" c deriver
 
 test_val_call :: Test
 test_val_call = do
-    let extract = DeriveTest.extract (DeriveTest.e_control "cont")
-    let run evt = extract $ DeriveTest.derive_tracks_setup with_add1 ""
+    let extract = DeriveTest.extract (DeriveTest.eControl "cont")
+    let run evt = extract $ DeriveTest.deriveTracksSetup withAdd1 ""
             [(">", [(0, 1, "")]), ("cont", [(0, 0, evt)])]
-        with_add1 = CallTest.with_val_call "add1" add_one
-    strings_like (snd (run "foobar")) ["control generator not found: foobar"]
+        withAdd1 = CallTest.withValCall "add1" addOne
+    stringsLike (snd (run "foobar")) ["control generator not found: foobar"]
     equal (run "set 1") ([[(0, 1)]], [])
     equal (run "set (add1 1)") ([[(0, 2)]], [])
     equal (run "set (add1 (add1 1))") ([[(0, 3)]], [])
-    strings_like (snd (run "set (add1 1 2)")) ["too many arguments"]
+    stringsLike (snd (run "set (add1 1 2)")) ["too many arguments"]
     where
-    add_one :: Derive.ValCall
-    add_one = Derive.val_call module_ "add" mempty "doc" $ Sig.call
+    addOne :: Derive.ValCall
+    addOne = Derive.valCall module_ "add" mempty "doc" $ Sig.call
         (Sig.required "v" "doc") $
         \val _ -> pure (val + 1 :: Double)
 
 test_inst_call :: Test
 test_inst_call = do
-    let run inst = DeriveTest.extract DeriveTest.e_attributes $
-            DeriveTest.derive_tracks_setup with_inst ""
+    let run inst = DeriveTest.extract DeriveTest.eAttributes $
+            DeriveTest.deriveTracksSetup withInst ""
             [(inst, [(0, 1, "sn")])]
-        with_inst = DeriveTest.with_synths_simple
+        withInst = DeriveTest.withSynthsSimple
             [("i1", "s/1"), ("with-call", "s/with-call")]
             [synth]
     equal (run ">i1") ([], ["note generator not found: sn"])
     equal (run ">with-call") (["+snare"], [])
     where
-    synth = UiTest.make_synth "s" patches
-    code = MidiInst.note_generators [("sn", DUtil.attributes_note Attrs.snare)]
+    synth = UiTest.makeSynth "s" patches
+    code = MidiInst.noteGenerators [("sn", DUtil.attributesNote Attrs.snare)]
     patches =
-        [ MidiInst.code #= code $ MidiInst.make_patch $
-            Patch.attribute_map #= Patch.unpitched_keymap [(Attrs.snare, 42)] $
-            UiTest.make_patch "with-call"
-        , MidiInst.make_patch $ UiTest.make_patch "1"
+        [ MidiInst.code #= code $ MidiInst.makePatch $
+            Patch.attributeMap #= Patch.unpitchedKeymap [(Attrs.snare, 42)] $
+            UiTest.makePatch "with-call"
+        , MidiInst.makePatch $ UiTest.makePatch "1"
         ]
 
 test_events_around :: Test
 test_events_around = do
     -- Ensure sliced inverting notes still have access to prev and next events
     -- via the track_around hackery.
-    let logs = extract $ DeriveTest.derive_tracks_setup with_call ""
+    let logs = extract $ DeriveTest.deriveTracksSetup withCall ""
             [ (">", [(0, 1, ""), (1, 1, "around"), (2, 1, "")])
             , ("*twelve", [(0, 0, "4c"), (2, 0, "4d")])
             ]
-        with_call = CallTest.with_note_generator "around" c_around
-        extract = DeriveTest.r_log_strings
+        withCall = CallTest.withNoteGenerator "around" cAround
+        extract = DeriveTest.rLogStrings
     equal logs ["prev: [0.0]", "next: [2.0]"]
     where
-    c_around = CallTest.generator $ Sub.inverting $ \args -> do
-        Log.warn $ "prev: " <> showt (map Event.start (Args.prev_events args))
-        Log.warn $ "next: " <> showt (map Event.start (Args.next_events args))
+    cAround = CallTest.generator $ Sub.inverting $ \args -> do
+        Log.warn $ "prev: " <> showt (map Event.start (Args.prevEvents args))
+        Log.warn $ "next: " <> showt (map Event.start (Args.nextEvents args))
         pure Stream.empty
 
 test_track_dynamic :: Test
 test_track_dynamic = do
-    let e_scale_inst dyn =
-            (env_lookup EnvKey.scale env, env_lookup EnvKey.instrument env)
-            where env = Derive.state_environ dyn
-        block_id = UiTest.default_block_id
-    let res = DeriveTest.derive_blocks
+    let eScaleInst dyn =
+            (envLookup EnvKey.scale env, envLookup EnvKey.instrument env)
+            where env = Derive.stateEnviron dyn
+        blockId = UiTest.defaultBlockId
+    let res = DeriveTest.deriveBlocks
             [ ("b", [("*legong", [(0, 0, "1")]), (">i1", [(0, 1, "sub")])])
             , ("sub", [(">", [(0, 1, "")]), ("*", [(0, 0, "2")])])
             ]
-    equal (e_track_dynamic e_scale_inst res)
+    equal (eTrackDynamic eScaleInst res)
         [ ((UiTest.bid "b", 1), ("legong", "Nothing"))
         , ((UiTest.bid "b", 2), ("legong", "i1"))
         , ((UiTest.bid "sub", 1), ("legong", "i1"))
@@ -290,31 +290,31 @@ test_track_dynamic = do
 
     -- I get TrackDynamics from the *legong track even when there are 0 events
     -- on it.
-    let res = DeriveTest.derive_tracks ""
+    let res = DeriveTest.deriveTracks ""
             [(">i1", [(0, 1, "")]), ("*legong", [])]
-    equal (e_track_dynamic e_scale_inst res)
-        [ ((block_id, 1), ("legong", "i1"))
-        , ((block_id, 2), ("legong", "i1"))
+    equal (eTrackDynamic eScaleInst res)
+        [ ((blockId, 1), ("legong", "i1"))
+        , ((blockId, 2), ("legong", "i1"))
         ]
 
     -- Controls for the note track come from the uninverted version, env from
     -- inverted version.  Otherwise, Dynamic is from the first slice.
-    let res = DeriveTest.derive_tracks_linear ""
+    let res = DeriveTest.deriveTracksLinear ""
             [ ("dyn", [(0, 0, ".5")])
             , (">", [(0, 1, ""), (1, 1, ""), (2, 1, "")])
             , ("*legong", [])
             , ("dyn", [(0, 0, ".25"), (1, 0, ".5"), (2, 0, ".75")])
             , ("dyn", [(0, 0, ".25"), (1, 0, ".5"), (2, 0, ".75")])
             ]
-    let e_dyn = fmap (Signal.to_pairs . ScoreT.val_of)
-            . DeriveTest.lookup_control Controls.dynamic
+    let eDyn = fmap (Signal.toPairs . ScoreT.valOf)
+            . DeriveTest.lookupControl Controls.dynamic
             -- Map.lookup Controls.dynamic (Derive.state_signals dyn)
-        e_scale = env_lookup EnvKey.scale . Derive.state_environ
-        all_tracks = [(block_id, n) | n <- [1..5]]
-    equal (e_track_dynamic e_scale res)
-        (zip all_tracks ("twelve" : repeat "legong"))
-    equal (e_track_dynamic e_dyn res)
-        (zip all_tracks
+        eScale = envLookup EnvKey.scale . Derive.stateEnviron
+        allTracks = [(blockId, n) | n <- [1..5]]
+    equal (eTrackDynamic eScale res)
+        (zip allTracks ("twelve" : repeat "legong"))
+    equal (eTrackDynamic eDyn res)
+        (zip allTracks
             [ Just [(-RealTime.larger, 1)] -- because of initial dyn
             , Just [(0, 0.5)]
             , Just [(0, 0.5)]
@@ -327,25 +327,25 @@ test_track_dynamic_consistent = do
     -- Ensure that all parts of the Dynamic come from the same derivation of
     -- the track.
     let run extract = lookup (UiTest.bid "sub", 1) $
-            e_track_dynamic extract $ DeriveTest.derive_blocks
+            eTrackDynamic extract $ DeriveTest.deriveBlocks
             [ ("top",
                 [ ("> | env = a", [(0, 1, "sub")])
                 , ("> | env = b | c = 1", [(0, 1, "sub")])
                 ])
             , ("sub=ruler", [(">", [(0, 1, "")])])
             ]
-        e_env = env_lookup "env" . Derive.state_environ
-        e_control = fmap (Signal.to_pairs . ScoreT.val_of)
-            . DeriveTest.lookup_control "c"
+        eEnv = envLookup "env" . Derive.stateEnviron
+        eControl = fmap (Signal.toPairs . ScoreT.valOf)
+            . DeriveTest.lookupControl "c"
     -- %c is only set in the env=b branch, so it shouldn't be set when env=a.
-    equal (run e_env) (Just "a")
-    equal (run e_control) (Just Nothing)
+    equal (run eEnv) (Just "a")
+    equal (run eControl) (Just Nothing)
 
 test_prev_val :: Test
 test_prev_val = do
     -- Test the prev_val and saved_val stuff in 'EvalTrack.derive_track'.
-    let run = DeriveTest.extract Score.initial_dynamic
-            . DeriveTest.derive_tracks ""
+    let run = DeriveTest.extract Score.initialDynamic
+            . DeriveTest.deriveTracks ""
     -- 0        1       2       3       4       5
     -- ""       ""      ""      ""
     -- .5       i> 0                            1
@@ -361,51 +361,51 @@ test_prev_val = do
             ])
         ([0, 0.25, 0.5, 0.75], [])
 
-env_lookup :: Env.Key -> Env.Environ -> String
-env_lookup key = prettys . Env.lookup key
+envLookup :: Env.Key -> Env.Environ -> String
+envLookup key = prettys . Env.lookup key
 
-e_track_dynamic :: (Derive.Dynamic -> a) -> Derive.Result
+eTrackDynamic :: (Derive.Dynamic -> a) -> Derive.Result
     -> [((BlockId, TrackNum), a)]
-e_track_dynamic extract = map (first (second UiTest.tid_tracknum))
-    . Map.toList . fmap extract . Derive.r_track_dynamic
+eTrackDynamic extract = map (first (second UiTest.tidTracknum))
+    . Map.toList . fmap extract . Derive.rTrackDynamic
 
 test_track_dynamic_invert :: Test
 test_track_dynamic_invert = do
     -- Ensure the correct TrackDynamic is collected even in the presence of
     -- inversion.
-    let run = e_track_dynamic (e_env . Derive.state_environ)
-            . DeriveTest.derive_tracks ""
-        e_env e = (lookup EnvKey.instrument e, lookup EnvKey.scale e)
+    let run = eTrackDynamic (eEnv . Derive.stateEnviron)
+            . DeriveTest.deriveTracks ""
+        eEnv e = (lookup EnvKey.instrument e, lookup EnvKey.scale e)
         lookup val = prettys . Env.lookup val
     -- Both tracks get *legong, even though >inst has to be inverted to see it.
     equal (run [(">i", [(0, 0, "")]), ("*legong", [(0, 0, "1")])])
-        [ ((UiTest.default_block_id, 1), ("i", "legong"))
-        , ((UiTest.default_block_id, 2), ("i", "legong"))
+        [ ((UiTest.defaultBlockId, 1), ("i", "legong"))
+        , ((UiTest.defaultBlockId, 2), ("i", "legong"))
         ]
 
 test_note_end :: Test
 test_note_end = do
-    let run = DeriveTest.derive_tracks_setup with_call ""
-        with_call = CallTest.with_control_generator "g" gen
+    let run = DeriveTest.deriveTracksSetup withCall ""
+        withCall = CallTest.withControlGenerator "g" gen
     let result = run [(">", [(0, 4, "")]), ("dyn", [(0, 0, "g")])]
-    equal (DeriveTest.extract DeriveTest.e_dyn result)
+    equal (DeriveTest.extract DeriveTest.eDyn result)
         ([[(0, 0), (4, 1)]], [])
     where
     gen :: Derive.Generator Derive.Control
     gen = CallTest.generator1 $ \args -> do
-        (start, end) <- Args.range_or_note_end args
+        (start, end) <- Args.rangeOrNoteEnd args
         start <- Derive.real start
         end <- Derive.real end
-        pure $ Signal.from_pairs [(start, 0), (end, 1)]
+        pure $ Signal.fromPairs [(start, 0), (end, 1)]
 
 -- * test orphans
 
 test_orphans :: Test
 test_orphans = do
-    let extract = DeriveTest.extract_events Score.event_start
-    let run = extract . DeriveTest.derive_tracks_setup
-            (with_calls <> DeriveTest.with_linear) ""
-        with_calls = CallTest.with_note_generator "show" show_subs
+    let extract = DeriveTest.extractEvents Score.eventStart
+    let run = extract . DeriveTest.deriveTracksSetup
+            (withCalls <> DeriveTest.withLinear) ""
+        withCalls = CallTest.withNoteGenerator "show" showSubs
     -- uncovered events are still played
     equal (run
             [ (">i1", [(1, 1, "show")])
@@ -433,31 +433,31 @@ test_orphans = do
             ])
         [0, 1, 2]
     where
-    show_subs :: Derive.Generator Derive.Note
-    show_subs = CallTest.generator $ \args -> do
-        let subs = Derive.ctx_sub_tracks (Derive.passed_ctx args)
+    showSubs :: Derive.Generator Derive.Note
+    showSubs = CallTest.generator $ \args -> do
+        let subs = Derive.ctxSubTracks (Derive.passedCtx args)
         Log.warn $ pretty subs
         pure Stream.empty
 
 test_record_empty_tracks :: Test
 test_record_empty_tracks = do
     -- Ensure that TrackWarps and TrackDynamics are collected for empty tracks.
-    let run = DeriveTest.derive_tracks_linear ""
-        track_warps = concatMap (Set.toList . TrackWarp.tw_tracks)
-            . Derive.r_track_warps
-        track_dyn = Map.keys . Derive.r_track_dynamic
+    let run = DeriveTest.deriveTracksLinear ""
+        trackWarps = concatMap (Set.toList . TrackWarp.twTracks)
+            . Derive.rTrackWarps
+        trackDyn = Map.keys . Derive.rTrackDynamic
 
     let result = run [(">i1", []), (">i2", []), (">i3", [(0, 1, "")])]
-    equal (track_warps result) (map UiTest.mk_tid [1, 2, 3])
-    equal (track_dyn result)
-        (map (((,) UiTest.default_block_id) . UiTest.mk_tid) [1, 2, 3])
+    equal (trackWarps result) (map UiTest.mkTid [1, 2, 3])
+    equal (trackDyn result)
+        (map (((,) UiTest.defaultBlockId) . UiTest.mkTid) [1, 2, 3])
 
 test_empty_parent_track :: Test
 test_empty_parent_track = do
     -- Ensure orphan tracks pick the instrument up from the parent.
     -- Well, the absentee parent, since they're orphans.
-    let run = DeriveTest.extract extract . DeriveTest.derive_tracks_linear ""
-        extract e = (Score.event_start e, DeriveTest.e_instrument e)
+    let run = DeriveTest.extract extract . DeriveTest.deriveTracksLinear ""
+        extract e = (Score.eventStart e, DeriveTest.eInstrument e)
     equal (run [(">i1", [(0, 1, "t")]), (">", [(0, 1, "")])]) ([(0, "i1")], [])
     equal (run [(">i1", []), (">", [(0, 1, "")])]) ([(0, "i1")], [])
 
@@ -465,8 +465,8 @@ test_two_level_orphans :: Test
 test_two_level_orphans = do
     -- Orphan extraction should be recursive, in case there are multiple
     -- intervening empty tracks.
-    let run = DeriveTest.extract extract . DeriveTest.derive_tracks_linear ""
-        extract e = (DeriveTest.e_note e, DeriveTest.e_attributes e)
+    let run = DeriveTest.extract extract . DeriveTest.deriveTracksLinear ""
+        extract e = (DeriveTest.eNote e, DeriveTest.eAttributes e)
     equal (run
         [ (">i", [(0, 1, "+a")])
         , (">", [(1, 1, "+b")])
@@ -481,8 +481,8 @@ test_orphan_ranges :: Test
 test_orphan_ranges = do
     -- These test TrackTree.track_end, indirectly by making sure it clips
     -- or doesn't clip signal correctly.
-    let run = DeriveTest.extract DeriveTest.e_nns
-            . DeriveTest.derive_tracks_linear ""
+    let run = DeriveTest.extract DeriveTest.eNns
+            . DeriveTest.deriveTracksLinear ""
     -- Each note has only its control.
     equal (run
         [ (">", [(1, 3, "(")])
@@ -504,17 +504,17 @@ test_orphan_ranges = do
 
 test_parse_error :: Test
 test_parse_error = do
-    let run = first (map Score.event_start) . DeriveTest.extract_logs
-            . Stream.to_list . Derive.r_events . DeriveTest.derive_tracks ""
+    let run = first (map Score.eventStart) . DeriveTest.extractLogs
+            . Stream.toList . Derive.rEvents . DeriveTest.deriveTracks ""
     let (events, logs) = run [(">", [(1, 2, "- 4:12")])]
     equal events []
-    equal (map (fmap Stack.to_ui . Log.msg_stack) logs)
+    equal (map (fmap Stack.toUi . Log.msgStack) logs)
         [Just [(Just (UiTest.bid "b1"), Just (UiTest.tid "b1.t1"),
             Just (1, 3))]]
 
 test_exception_reverts_state :: Test
 test_exception_reverts_state = do
-    let run = DeriveTest.extract (DeriveTest.e_environ "a")
-            . DeriveTest.derive_tracks ""
+    let run = DeriveTest.extract (DeriveTest.eEnviron "a")
+            . DeriveTest.deriveTracks ""
     equal (run [(">", [(0, 1, "a=b | err"), (1, 1, "")])])
         ([Nothing], ["note generator not found: err"])

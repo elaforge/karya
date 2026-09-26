@@ -6,7 +6,7 @@
 module Perform.Sc.Note (
     Note(..), ControlId(..), PatchName
     , Notes, PlayNotes(..)
-    , gate_id
+    , gateId
 ) where
 import qualified Data.ByteString as ByteString
 import qualified Data.Int as Int
@@ -53,5 +53,5 @@ data PlayNotes = PlayNotes
 -- | Gate is converted from note duration, so it gets treated specially.  I
 -- also require them all to be the same ControlId, so I can stop all sounding
 -- notes by setting the gate control on the default group.
-gate_id :: ControlId
-gate_id = ControlId 0
+gateId :: ControlId
+gateId = ControlId 0

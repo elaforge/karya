@@ -26,43 +26,43 @@ module Derive.DeriveT (
     , RawPitch(..)
     , pitch
     , coerce
-    , pitch_nn, pitch_note
+    , pitchNn, pitchNote
     , PitchConfig(..)
     , Scale(..)
-    , detailed_error
+    , detailedError
     , PitchError(..)
     , OutOfRange(..)
-    , out_of_range, out_of_range_error
-    , pitches_equal
+    , outOfRange, outOfRangeError
+    , pitchesEqual
 
     -- * Duration
     , Duration(..)
     , TimeType(..)
-    , multiply_duration
+    , multiplyDuration
 
     -- * Environ
     , Environ(..)
     , null
     , insert
     , lookup
-    , environ_attributes
+    , environAttributes
 
     -- * Val
     , Val(..)
-    , vals_equal
-    , types_equal
-    , val_to_mini
-    , constant_pitch
+    , valsEqual
+    , typesEqual
+    , valToMini
+    , constantPitch
     , Quoted(..)
-    , show_call_val
+    , showCallVal
     -- ** val utils
     , num
-    , constant_val
+    , constantVal
     , constant
-    , score_time, real_time
+    , scoreTime, realTime
     , transposition
     , str
-    , to_scale_id
+    , toScaleId
     , quoted, quoted0
     -- * Ref
     , ControlRef, PControlRef, Ref(..)
@@ -71,7 +71,7 @@ module Derive.DeriveT (
     , Expr, Call, Term
     , PitchCall
     -- ** call utils
-    , map_str
+    , mapStr
 
     -- * type aliases
     , PitchMap
@@ -79,10 +79,10 @@ module Derive.DeriveT (
 
     -- * ControlFunction
     , CFunction(..)
-    , call_cfunction
+    , callCfunction
     , PFunction(..)
     , Dynamic(..)
-    , empty_dynamic
+    , emptyDynamic
 ) where
 import           Prelude hiding (lookup, null)
 import qualified Control.DeepSeq as DeepSeq
@@ -162,20 +162,20 @@ interpolate (Segment.Sample x1 p1) (Segment.Sample x2 p2) x
     | x <= x1 = p1
     | x >= x2 = p2
     | otherwise = Pitch
-        { pitch_eval_nn = nn
-        , pitch_eval_note = note
-        , pitch_scale = pitch_scale p1
-        , pitch_config = mempty
+        { pitchEvalNn = nn
+        , pitchEvalNote = note
+        , pitchScale = pitchScale p1
+        , pitchConfig = mempty
         }
     where
     nn config = do
-        p1_nn <- pitch_nn $ coerce $ apply_config config p1
-        p2_nn <- pitch_nn $ coerce $ apply_config config p2
-        pure $ Num.scale p1_nn p2_nn $
-            Pitch.NoteNumber $ RealTime.to_seconds $ Num.normalize x1 x2 x
-    note config = pitch_note $ coerce $ apply_config config $
+        p1Nn <- pitchNn $ coerce $ applyConfig config p1
+        p2Nn <- pitchNn $ coerce $ applyConfig config p2
+        pure $ Num.scale p1Nn p2Nn $
+            Pitch.NoteNumber $ RealTime.toSeconds $ Num.normalize x1 x2 x
+    note config = pitchNote $ coerce $ applyConfig config $
         if x < x1 then p1 else p2
-    apply_config c pitch = pitch { pitch_config = c <> pitch_config pitch }
+    applyConfig c pitch = pitch { pitchConfig = c <> pitchConfig pitch }
 
 {- | This is an untransposed pitch.  All pitches have transposition signals
     from the dynamic state applied when they are converted to MIDI or whatever
@@ -193,10 +193,10 @@ data Untransposed_
 -- | A pitch is an abstract value that can generate a 'Pitch.NoteNumber' or
 -- symbolic 'Pitch.Note'.
 data RawPitch a = Pitch
-    { pitch_eval_nn :: PitchConfig -> Either PitchError Pitch.NoteNumber
-    , pitch_eval_note :: PitchConfig -> Either PitchError Pitch.Note
-    , pitch_scale :: Scale
-    , pitch_config :: PitchConfig
+    { pitchEvalNn :: PitchConfig -> Either PitchError Pitch.NoteNumber
+    , pitchEvalNote :: PitchConfig -> Either PitchError Pitch.Note
+    , pitchScale :: Scale
+    , pitchConfig :: PitchConfig
     }
 
 -- | Make an abstract Pitch.
@@ -205,10 +205,10 @@ pitch :: Scale
     -> (PitchConfig -> Either PitchError Pitch.Note)
     -> PitchConfig -> Pitch
 pitch scale nn note config = Pitch
-    { pitch_eval_nn = nn
-    , pitch_eval_note = note
-    , pitch_scale = scale
-    , pitch_config = config
+    { pitchEvalNn = nn
+    , pitchEvalNote = note
+    , pitchScale = scale
+    , pitchConfig = config
     }
 
 coerce :: RawPitch a -> RawPitch b
@@ -216,30 +216,30 @@ coerce = Coerce.coerce
 
 -- | Usually I only want to evaluate a fully transposed pitch.  Exceptions
 -- are documented by applying 'coerce'.
-pitch_nn :: Transposed -> Either PitchError Pitch.NoteNumber
-pitch_nn pitch = do
-    nn <- pitch_eval_nn pitch (pitch_config pitch)
-    first (annotate_out_of_range pitch (Just nn)) $
+pitchNn :: Transposed -> Either PitchError Pitch.NoteNumber
+pitchNn pitch = do
+    nn <- pitchEvalNn pitch (pitchConfig pitch)
+    first (annotateOutOfRange pitch (Just nn)) $
         if 0 <= nn && nn <= 127 then pure nn
-            else Left $ OutOfRangeError out_of_range
+            else Left $ OutOfRangeError outOfRange
 
 -- | Usually I only want to evaluate a fully transposed pitch.  Exceptions
 -- are documented by applying 'coerce'.
-pitch_note :: Transposed -> Either PitchError Pitch.Note
-pitch_note pitch = first (annotate_out_of_range pitch Nothing) $
-    pitch_eval_note pitch (pitch_config pitch)
+pitchNote :: Transposed -> Either PitchError Pitch.Note
+pitchNote pitch = first (annotateOutOfRange pitch Nothing) $
+    pitchEvalNote pitch (pitchConfig pitch)
 
-annotate_out_of_range :: RawPitch a -> Maybe Pitch.NoteNumber -> PitchError
+annotateOutOfRange :: RawPitch a -> Maybe Pitch.NoteNumber -> PitchError
     -> PitchError
-annotate_out_of_range pitch maybe_nn = modify_out_of_range $ \err -> err
-    { oor_nn = maybe_nn
-    , oor_transposers = filtered <> oor_transposers err
+annotateOutOfRange pitch maybeNn = modifyOutOfRange $ \err -> err
+    { oorNn = maybeNn
+    , oorTransposers = filtered <> oorTransposers err
     }
     where
     filtered = Map.filterWithKey (\k v -> k `Set.member` transposers && v /= 0)
         cmap
-    PitchConfig _ cmap = pitch_config pitch
-    transposers = pscale_transposers (pitch_scale pitch)
+    PitchConfig _ cmap = pitchConfig pitch
+    transposers = pscaleTransposers (pitchScale pitch)
 
 {- | A PitchConfig is the data that can continue to influence the pitch's
     frequency.
@@ -278,7 +278,7 @@ instance Monoid PitchConfig where
 data Scale = Scale
     -- | It can be useful to see the scale of a pitch, e.g. to create more
     -- pitches in the same scale as an existing pitch.
-    { pscale_scale_id :: Pitch.ScaleId
+    { pscaleScaleId :: Pitch.ScaleId
     -- | The set of transposer signals for this scale, as documented in
     -- 'Derive.Scale.scale_transposers'.
     --
@@ -287,11 +287,11 @@ data Scale = Scale
     -- event_pitch, but the scale at event creation time is not guaranteed to
     -- be the same as the one when the pitch was created, so the safest thing
     -- to do is keep it with the pitch itself.
-    , pscale_transposers :: Set ScoreT.Control
+    , pscaleTransposers :: Set ScoreT.Control
     } deriving (Show)
 
 instance Pretty Scale where
-    pretty = pretty . pscale_scale_id
+    pretty = pretty . pscaleScaleId
 
 -- | It can't be reduced since it has lambdas, but at least this way you can
 -- easily rnf things that contain it.
@@ -300,37 +300,37 @@ instance DeepSeq.NFData (RawPitch a) where
 
 instance Show (RawPitch a) where
     -- Show just the NN, so this is parseable by Util.PPrint.
-    show p = either show prettys (pitch_nn (coerce p))
+    show p = either show prettys (pitchNn (coerce p))
 
 -- | Will look like: 62.95nn,4i(*wayang)
 instance Pretty (RawPitch a) where
-    pretty p = either showt pretty (pitch_nn (coerce p)) <> ","
-        <> either showt Pitch.note_text (pitch_note (coerce p))
-        <> "(" <> pretty (pitch_scale p) <> ")"
+    pretty p = either showt pretty (pitchNn (coerce p)) <> ","
+        <> either showt Pitch.noteText (pitchNote (coerce p))
+        <> "(" <> pretty (pitchScale p) <> ")"
 
 -- | Pitches have no literal syntax, but I have to print something.
 instance ShowVal.ShowVal (RawPitch a) where
-    show_val pitch = "<pitch: " <> pretty pitch <> ">"
+    showVal pitch = "<pitch: " <> pretty pitch <> ">"
 
 -- | Annotate a PitchError with additional info.  TODO I should probably
 -- accumulate info all the way up to get a full "stack trace" of what happened
 -- to a pitch (e.g. interpolation), which maybe means abandon PitchError and
 -- just use Text, or go ever further with structure?  Meanwhile, this seems
 -- to do ok practically speaking.
-detailed_error :: RawPitch a -> PitchError -> Text
-detailed_error pitch err = mconcat
-    [ pretty (pscale_scale_id scale)
+detailedError :: RawPitch a -> PitchError -> Text
+detailedError pitch err = mconcat
+    [ pretty (pscaleScaleId scale)
     , ":"
-    , either pretty pretty $ pitch_eval_note pitch mempty
+    , either pretty pretty $ pitchEvalNote pitch mempty
     -- TODO the cmap includes non-transposing
     , if Map.null cmap then "" else " with transposition: " <> pretty cmap
     , ": ", pretty err
     ]
     where
-    PitchConfig _env cmap_all = pitch_config pitch
-    cmap = Map.intersection cmap_all
-        (Map.fromSet (const ()) (pscale_transposers scale))
-    scale = pitch_scale pitch
+    PitchConfig _env cmapAll = pitchConfig pitch
+    cmap = Map.intersection cmapAll
+        (Map.fromSet (const ()) (pscaleTransposers scale))
+    scale = pitchScale pitch
 
 -- | Things that can go wrong evaluating a pitch.
 data PitchError
@@ -359,25 +359,25 @@ data PitchError
     which happens to be MIDI's limitation.
 -}
 data OutOfRange = OutOfRange
-    { oor_nn :: Maybe Pitch.NoteNumber
-    , oor_degree :: Maybe Pitch.FSemi
-    , oor_valid :: Maybe (Int, Int)
-    , oor_transposers :: ScoreT.ControlValMap
+    { oorNn :: Maybe Pitch.NoteNumber
+    , oorDegree :: Maybe Pitch.FSemi
+    , oorValid :: Maybe (Int, Int)
+    , oorTransposers :: ScoreT.ControlValMap
     } deriving (Eq, Ord, Show)
 
-out_of_range :: OutOfRange
-out_of_range = OutOfRange Nothing Nothing Nothing mempty
+outOfRange :: OutOfRange
+outOfRange = OutOfRange Nothing Nothing Nothing mempty
 
-modify_out_of_range :: (OutOfRange -> OutOfRange) -> PitchError -> PitchError
-modify_out_of_range modify (OutOfRangeError err) = OutOfRangeError (modify err)
-modify_out_of_range _ err = err
+modifyOutOfRange :: (OutOfRange -> OutOfRange) -> PitchError -> PitchError
+modifyOutOfRange modify (OutOfRangeError err) = OutOfRangeError (modify err)
+modifyOutOfRange _ err = err
 
-out_of_range_error :: Real a => a -> (Int, Int) -> PitchError
-out_of_range_error semi valid = OutOfRangeError $ OutOfRange
-    { oor_nn = Nothing
-    , oor_degree = Just (realToFrac semi)
-    , oor_valid = Just valid
-    , oor_transposers = mempty
+outOfRangeError :: Real a => a -> (Int, Int) -> PitchError
+outOfRangeError semi valid = OutOfRangeError $ OutOfRange
+    { oorNn = Nothing
+    , oorDegree = Just (realToFrac semi)
+    , oorValid = Just valid
+    , oorTransposers = mempty
     }
 
 instance Pretty PitchError where
@@ -410,9 +410,9 @@ instance Pretty PitchConfig where
         , ("controls", Pretty.format controls)
         ]
 
-pitches_equal :: RawPitch a -> RawPitch a -> Bool
-pitches_equal p1 p2 = either (const False) id $
-    Pitch.nns_equal <$> pitch_nn (coerce p1) <*> pitch_nn (coerce p2)
+pitchesEqual :: RawPitch a -> RawPitch a -> Bool
+pitchesEqual p1 p2 = either (const False) id $
+    Pitch.nnsEqual <$> pitchNn (coerce p1) <*> pitchNn (coerce p2)
 
 -- * Duration
 
@@ -423,8 +423,8 @@ data Duration = RealDuration RealTime | ScoreDuration ScoreTime
 data TimeType = Real | Score deriving (Eq, Show)
 
 instance ShowVal.ShowVal Duration where
-    show_val (RealDuration x) = ShowVal.show_val x
-    show_val (ScoreDuration x) = ShowVal.show_val x
+    showVal (RealDuration x) = ShowVal.showVal x
+    showVal (ScoreDuration x) = ShowVal.showVal x
 
 instance Pretty Duration where
     pretty (RealDuration t) = pretty t
@@ -432,10 +432,10 @@ instance Pretty Duration where
 
 -- | Duration can't be in Fractional since you can't multiple a RealDuration
 -- by a ScoreDuration, but scaling operations are still useful.
-multiply_duration :: Duration -> Double -> Duration
-multiply_duration (RealDuration t) n = RealDuration (t * RealTime.seconds n)
-multiply_duration (ScoreDuration t) n =
-    ScoreDuration (t * ScoreTime.from_double n)
+multiplyDuration :: Duration -> Double -> Duration
+multiplyDuration (RealDuration t) n = RealDuration (t * RealTime.seconds n)
+multiplyDuration (ScoreDuration t) n =
+    ScoreDuration (t * ScoreTime.fromDouble n)
 
 -- * Environ
 
@@ -457,8 +457,8 @@ insert name val (Environ env) = Environ $ Map.insert name val env
 lookup :: EnvKey.Key -> Environ -> Maybe Val
 lookup name (Environ env) = Map.lookup name env
 
-environ_attributes :: Environ -> Attrs.Attributes
-environ_attributes environ =
+environAttributes :: Environ -> Attrs.Attributes
+environAttributes environ =
     case lookup EnvKey.attributes environ of
         Just (VAttributes attrs) -> attrs
         _ -> mempty
@@ -544,12 +544,12 @@ data Val
 
 -- | Return Nothing if the Vals can't be compared, and whether or not they're
 -- equal otherwise.
-vals_equal :: Val -> Val -> Maybe Bool
-vals_equal x y = case (x, y) of
+valsEqual :: Val -> Val -> Maybe Bool
+valsEqual x y = case (x, y) of
     (VSignal a, VSignal b) -> Just $ a == b
     (VPSignal sig1, VPSignal sig2)
-        | Just p1 <- constant_pitch sig1, Just p2 <- constant_pitch sig2 ->
-            Just $ pitches_equal p1 p2
+        | Just p1 <- constantPitch sig1, Just p2 <- constantPitch sig2 ->
+            Just $ pitchesEqual p1 p2
         -- I'm not going to implement this right now.  vals_equal is only used
         -- in Conditional anyway, and who is going to be comparing pitch
         -- signals?
@@ -562,15 +562,15 @@ vals_equal x y = case (x, y) of
     (VNotePitch a, VNotePitch b) -> Just $ a == b
     (VStr a, VStr b) -> Just $ a == b
     (VQuoted (Quoted a), VQuoted (Quoted b)) ->
-        lists_equal calls_equal (NonEmpty.toList a) (NonEmpty.toList b)
+        listsEqual callsEqual (NonEmpty.toList a) (NonEmpty.toList b)
     (VCFunction _, VCFunction _) -> Nothing
     (VNotGiven, VNotGiven) -> Just True
     (VSeparator, VSeparator) -> Just True
-    (VList a, VList b) -> lists_equal vals_equal a b
+    (VList a, VList b) -> listsEqual valsEqual a b
     _ -> Nothing
 
-types_equal :: Val -> Val -> Bool
-types_equal x y = case (x, y) of
+typesEqual :: Val -> Val -> Bool
+typesEqual x y = case (x, y) of
     (VSignal {}, VSignal {}) -> True
     (VPSignal {}, VPSignal {}) -> True
     (VAttributes {}, VAttributes {}) -> True
@@ -586,17 +586,17 @@ types_equal x y = case (x, y) of
     (VList {}, VList {}) -> True
     _ -> False
 
-lists_equal :: (a -> a -> Maybe Bool) -> [a] -> [a] -> Maybe Bool
-lists_equal eq = go
+listsEqual :: (a -> a -> Maybe Bool) -> [a] -> [a] -> Maybe Bool
+listsEqual eq = go
     where
     go (a:as) (b:bs) = maybe Nothing
         (\t -> if t then go as bs else Just False) (eq a b)
     go _ _ = Just False
 
-val_to_mini :: Val -> Maybe Expr.MiniVal
-val_to_mini = \case
+valToMini :: Val -> Maybe Expr.MiniVal
+valToMini = \case
     VStr a -> Just (Expr.VStr a)
-    VSignal sig -> Expr.VNum <$> traverse Signal.constant_val sig
+    VSignal sig -> Expr.VNum <$> traverse Signal.constantVal sig
     _ -> Nothing
 
 -- | This instance is actually invalid due to showing VPSignal, which has no
@@ -605,38 +605,38 @@ val_to_mini = \case
 -- invalid means that a VPSignal or VPControlRef with a default will cause
 -- a parse failure, but I'll have to see if this becomes a problem in practice.
 instance ShowVal.ShowVal Val where
-    show_val = \case
-        VSignal sig -> show_signal sig
-        VPSignal sig -> show_psignal sig
-        VAttributes attrs -> ShowVal.show_val attrs
-        VControlRef ref -> ShowVal.show_val ref
-        VPControlRef ref -> ShowVal.show_val ref
-        VNotePitch pitch -> ShowVal.show_val pitch
-        VStr str -> ShowVal.show_val str
-        VQuoted quoted -> ShowVal.show_val quoted
-        VCFunction f -> ShowVal.show_val f
-        VPFunction f -> ShowVal.show_val f
+    showVal = \case
+        VSignal sig -> showSignal sig
+        VPSignal sig -> showPsignal sig
+        VAttributes attrs -> ShowVal.showVal attrs
+        VControlRef ref -> ShowVal.showVal ref
+        VPControlRef ref -> ShowVal.showVal ref
+        VNotePitch pitch -> ShowVal.showVal pitch
+        VStr str -> ShowVal.showVal str
+        VQuoted quoted -> ShowVal.showVal quoted
+        VCFunction f -> ShowVal.showVal f
+        VPFunction f -> ShowVal.showVal f
         VNotGiven -> "_"
         VSeparator -> ";"
-        VList vals -> ShowVal.show_val vals
+        VList vals -> ShowVal.showVal vals
 
 instance ShowVal.ShowVal (ScoreT.Typed Signal.Control) where
-    show_val = show_signal
+    showVal = showSignal
 
 -- | ShowVal for VSignal.
 --
 -- > 1c -- constant with chromatic type
 -- > (signal 0 1 1 1) -- [(0, 1), (1, 1)], untyped
-show_signal :: ScoreT.Typed Signal.Control -> Text
-show_signal (ScoreT.Typed typ sig)
-    | Just c <- Signal.constant_val sig = ShowVal.show_val (ScoreT.Typed typ c)
+showSignal :: ScoreT.Typed Signal.Control -> Text
+showSignal (ScoreT.Typed typ sig)
+    | Just c <- Signal.constantVal sig = ShowVal.showVal (ScoreT.Typed typ c)
     | otherwise = Text.unwords $ Lists.mapLast (<>")") $
-        "(signal" : filter (/="") [ShowVal.show_val typ] ++
-            [ ShowVal.show_val v
-            | (x, y) <- Signal.to_pairs sig, v <- [RealTime.to_seconds x, y]
+        "(signal" : filter (/="") [ShowVal.showVal typ] ++
+            [ ShowVal.showVal v
+            | (x, y) <- Signal.toPairs sig, v <- [RealTime.toSeconds x, y]
             ]
 
-instance ShowVal.ShowVal PSignal where show_val = show_psignal
+instance ShowVal.ShowVal PSignal where showVal = showPsignal
 
 -- | ShowVal for VPSignal.
 --
@@ -645,25 +645,25 @@ instance ShowVal.ShowVal PSignal where show_val = show_psignal
 -- Otherwise, convert to nn, since symbolic depends on what's in scope?
 -- The fact that I never trip on <>s implies that improper ShowVal for
 -- pitch is not practically a problem.
-show_psignal :: PSignal -> Text
-show_psignal sig
-    | Just c <- constant_pitch sig = ShowVal.show_val c
+showPsignal :: PSignal -> Text
+showPsignal sig
+    | Just c <- constantPitch sig = ShowVal.showVal c
     | otherwise = Text.unwords $ Lists.mapLast (<>")") $
         "(psignal" :
             [ s
-            | (x, y) <- to_pairs sig
-            , s <- [ShowVal.show_val x, ShowVal.show_val y]
+            | (x, y) <- toPairs sig
+            , s <- [ShowVal.showVal x, ShowVal.showVal y]
             ]
     where
-    to_pairs = Segment.to_pairs . _signal
+    toPairs = Segment.toPairs . _signal
 
 -- These are in PSignal, but have to be here too to avoid a circular
 -- import.
-constant_pitch :: PSignal -> Maybe Pitch
-constant_pitch = Segment.constant_val . _signal
+constantPitch :: PSignal -> Maybe Pitch
+constantPitch = Segment.constantVal . _signal
 
 instance Pretty Val where
-    pretty = ShowVal.show_val
+    pretty = ShowVal.showVal
 
 instance DeepSeq.NFData Val where
     rnf (VStr s) = DeepSeq.rnf s
@@ -675,14 +675,14 @@ newtype Quoted = Quoted Expr deriving (Show)
 -- show_val.  This is because a Quoted has only been parsed, not evaluated,
 -- so it shouldn't have anything unshowable, like pitches.
 instance ShowVal.ShowVal Quoted where
-    show_val (Quoted expr) = "\"(" <> ShowVal.show_val expr <> ")"
-instance Pretty Quoted where pretty = ShowVal.show_val
+    showVal (Quoted expr) = "\"(" <> ShowVal.showVal expr <> ")"
+instance Pretty Quoted where pretty = ShowVal.showVal
 
 -- | Show a str intended for call position.  Call position is special in
 -- that it can contain any character except space and equals without quoting.
-show_call_val :: Val -> Text
-show_call_val (VStr (Expr.Str sym)) = sym
-show_call_val val = ShowVal.show_val val
+showCallVal :: Val -> Text
+showCallVal (VStr (Expr.Str sym)) = sym
+showCallVal val = ShowVal.showVal val
 
 -- ** val utils
 
@@ -690,19 +690,19 @@ show_call_val val = ShowVal.show_val val
 num :: Double -> Val
 num = constant ScoreT.Untyped
 
-constant_val :: Val -> Maybe (ScoreT.Typed Signal.Y)
-constant_val (VSignal (ScoreT.Typed typ sig)) =
-    ScoreT.Typed typ <$> Signal.constant_val sig
-constant_val _ = Nothing
+constantVal :: Val -> Maybe (ScoreT.Typed Signal.Y)
+constantVal (VSignal (ScoreT.Typed typ sig)) =
+    ScoreT.Typed typ <$> Signal.constantVal sig
+constantVal _ = Nothing
 
 constant :: ScoreT.Type -> Signal.Y -> Val
 constant typ = VSignal . ScoreT.Typed typ . Signal.constant
 
-score_time :: ScoreTime -> Val
-score_time = constant ScoreT.Score . ScoreTime.to_double
+scoreTime :: ScoreTime -> Val
+scoreTime = constant ScoreT.Score . ScoreTime.toDouble
 
-real_time :: RealTime -> Val
-real_time = constant ScoreT.Real . RealTime.to_seconds
+realTime :: RealTime -> Val
+realTime = constant ScoreT.Real . RealTime.toSeconds
 
 transposition :: Pitch.Transpose -> Val
 transposition t = case t of
@@ -713,9 +713,9 @@ transposition t = case t of
 str :: Text -> Val
 str = VStr . Expr.Str
 
-to_scale_id :: Val -> Maybe Pitch.ScaleId
-to_scale_id (VStr (Expr.Str a)) = Just (Pitch.ScaleId a)
-to_scale_id _ = Nothing
+toScaleId :: Val -> Maybe Pitch.ScaleId
+toScaleId (VStr (Expr.Str a)) = Just (Pitch.ScaleId a)
+toScaleId _ = Nothing
 
 quoted :: Expr.Symbol -> [Val] -> Quoted
 quoted sym args = Quoted $ Expr.generator (Expr.call sym args)
@@ -733,7 +733,7 @@ data Ref control val = Ref control (Maybe val)
 
 instance (Serialize.Serialize control, Serialize.Serialize val) =>
         Serialize.Serialize (Ref control val) where
-    put (Ref a b) = Serialize.put_tag 3 >> Serialize.put a >> Serialize.put b
+    put (Ref a b) = Serialize.putTag 3 >> Serialize.put a >> Serialize.put b
     {-
         This has to be careful to maintain compatibility with the old Ref:
 
@@ -746,17 +746,17 @@ instance (Serialize.Serialize control, Serialize.Serialize val) =>
             1 -> DefaultedControl <$> Serialize.get <*> Serialize.get
             2 -> LiteralControl <$> Serialize.get
     -}
-    get = Serialize.get_tag >>= \case
+    get = Serialize.getTag >>= \case
         0 -> fail "new Ref doesn't have ControlSignal"
         1 -> Ref <$> Serialize.get <*> (Just <$> Serialize.get)
         2 -> Ref <$> Serialize.get <*> pure Nothing
         3 -> Ref <$> Serialize.get <*> Serialize.get
-        n -> Serialize.bad_tag "DeriveT.Ref" n
+        n -> Serialize.badTag "DeriveT.Ref" n
 
 instance ShowVal.ShowVal ControlRef where
-    show_val = show_ref (Text.cons '%' . ScoreT.control_name)
+    showVal = showRef (Text.cons '%' . ScoreT.controlName)
 
-instance Pretty ControlRef where pretty = ShowVal.show_val
+instance Pretty ControlRef where pretty = ShowVal.showVal
 
 -- | There's no way to convert a pitch back into the expression that produced
 -- it, so this is the best I can do.
@@ -766,13 +766,13 @@ instance Pretty ControlRef where pretty = ShowVal.show_val
 -- accurately since it doesn't take things like pitch interpolation into
 -- account.
 instance ShowVal.ShowVal PControlRef where
-    show_val = show_ref (Text.cons '#' . ScoreT.pcontrol_name)
+    showVal = showRef (Text.cons '#' . ScoreT.pcontrolName)
 
-instance Pretty PControlRef where pretty = ShowVal.show_val
+instance Pretty PControlRef where pretty = ShowVal.showVal
 
-show_ref :: ShowVal.ShowVal sig => (control -> Text) -> Ref control sig -> Text
-show_ref ref_text (Ref control deflt) =
-        ref_text control <> maybe "" (("," <>) . ShowVal.show_val) deflt
+showRef :: ShowVal.ShowVal sig => (control -> Text) -> Ref control sig -> Text
+showRef refText (Ref control deflt) =
+        refText control <> maybe "" (("," <>) . ShowVal.showVal) deflt
 
 -- * Expr
 
@@ -780,25 +780,25 @@ type Expr = Expr.Expr Val
 type Call = Expr.Call Val
 type Term = Expr.Term Val
 
-instance ShowVal.ShowVal (Expr.Expr Val) where show_val = Expr.show_val_expr
+instance ShowVal.ShowVal (Expr.Expr Val) where showVal = Expr.showValExpr
 instance ShowVal.ShowVal (Expr.Call Val) where
-    show_val = Expr.show_val_call $ \case
+    showVal = Expr.showValCall $ \case
         VStr (Expr.Str op) -> Just op
         _ -> Nothing
-instance ShowVal.ShowVal (Expr.Term Val) where show_val = Expr.show_val_term
+instance ShowVal.ShowVal (Expr.Term Val) where showVal = Expr.showValTerm
 
-instance Pretty (Expr.Call Val) where pretty = ShowVal.show_val
-instance Pretty (Expr.Term Val) where pretty = ShowVal.show_val
+instance Pretty (Expr.Call Val) where pretty = ShowVal.showVal
+instance Pretty (Expr.Term Val) where pretty = ShowVal.showVal
 
-calls_equal :: Call -> Call -> Maybe Bool
-calls_equal (Expr.Call sym1 args1) (Expr.Call sym2 args2)
+callsEqual :: Call -> Call -> Maybe Bool
+callsEqual (Expr.Call sym1 args1) (Expr.Call sym2 args2)
     | sym1 /= sym2 = Just False
-    | otherwise = lists_equal terms_equal args1 args2
+    | otherwise = listsEqual termsEqual args1 args2
 
-terms_equal :: Term -> Term -> Maybe Bool
-terms_equal (Expr.ValCall call1) (Expr.ValCall call2) = calls_equal call1 call2
-terms_equal (Expr.Literal val1) (Expr.Literal val2) = vals_equal val1 val2
-terms_equal _ _ = Just False
+termsEqual :: Term -> Term -> Maybe Bool
+termsEqual (Expr.ValCall call1) (Expr.ValCall call2) = callsEqual call1 call2
+termsEqual (Expr.Literal val1) (Expr.Literal val2) = valsEqual val1 val2
+termsEqual _ _ = Just False
 
 -- | This is just a 'Call', but it's expected to return a constant VPSignal.
 type PitchCall = Call
@@ -806,8 +806,8 @@ type PitchCall = Call
 -- ** call utils
 
 -- | Transform the Symbols in a Call.
-map_str :: (Expr.Str -> Expr.Str) -> Call -> Call
-map_str f = call
+mapStr :: (Expr.Str -> Expr.Str) -> Call -> Call
+mapStr f = call
     where
     call (Expr.Call sym terms) = Expr.Call sym (map term terms)
     term (Expr.ValCall c) = Expr.ValCall (call c)
@@ -856,8 +856,8 @@ data CFunction = CFunction
     --
     -- TODO I thought of making it the expression that created this, for
     -- serialization, but not implemented yet.
-    { cf_name :: Text
-    , cf_signal :: ScoreT.TypedSignal
+    { cfName :: Text
+    , cfSignal :: ScoreT.TypedSignal
     {- | This is modifying an underlying signal.
 
         The function may be created before the signal it modifies, e.g.
@@ -867,51 +867,51 @@ data CFunction = CFunction
         convention, since many functions make sense against 0 too, and it would
         be annoying to plumb out an error from 'call_cfunction'.
     -}
-    , cf_function :: Dynamic -> Signal.Control -> RealTime -> Signal.Y
+    , cfFunction :: Dynamic -> Signal.Control -> RealTime -> Signal.Y
     }
 
 -- | A simple pure function.
 data PFunction = PFunction
-    { pf_name :: Text
-    , pf_function :: ScoreT.TypedFunction
+    { pfName :: Text
+    , pfFunction :: ScoreT.TypedFunction
     }
 
 instance Show PFunction where show = prettys
-instance Pretty PFunction where pretty = ShowVal.show_val
-instance ShowVal.ShowVal PFunction where show_val = pf_name
+instance Pretty PFunction where pretty = ShowVal.showVal
+instance ShowVal.ShowVal PFunction where showVal = pfName
 
 instance DeepSeq.NFData CFunction where
     rnf _ = () -- bogus instance so Derive.Dynamic can have one
 instance Show CFunction where show = untxt . pretty
 instance Pretty CFunction where
-    pretty cf = "((CFunction " <> cf_name cf <> "))"
+    pretty cf = "((CFunction " <> cfName cf <> "))"
 
 -- | TODO this isn't a real ShowVal, I'd have to record the whole expression.
 instance ShowVal.ShowVal CFunction where
-    show_val = cf_name
+    showVal = cfName
 
-call_cfunction :: Dynamic -> CFunction -> ScoreT.TypedFunction
-call_cfunction cf_dyn cf = ScoreT.Typed typ (cf_function cf cf_dyn signal)
-    where ScoreT.Typed typ signal = cf_signal cf
+callCfunction :: Dynamic -> CFunction -> ScoreT.TypedFunction
+callCfunction cfDyn cf = ScoreT.Typed typ (cfFunction cf cfDyn signal)
+    where ScoreT.Typed typ signal = cfSignal cf
 
 -- | A stripped down "Derive.Deriver.Monad.Dynamic" for ControlFunctions
 -- to use.  The duplication is unfortunate, see 'CFunction'.
 data Dynamic = Dynamic
-    { dyn_pitch :: PSignal
-    , dyn_environ :: Environ
+    { dynPitch :: PSignal
+    , dynEnviron :: Environ
     -- | This is from 'Derive.Deriver.Monad.state_event_serial'.
-    , dyn_event_serial :: Int
-    , dyn_warp :: Warp.Warp
-    , dyn_ruler :: ~Ruler.Marklists -- intentionally lazy
+    , dynEventSerial :: Int
+    , dynWarp :: Warp.Warp
+    , dynRuler :: ~Ruler.Marklists -- intentionally lazy
     } deriving (Show)
 
-empty_dynamic :: Dynamic
-empty_dynamic = Dynamic
-    { dyn_pitch = mempty
-    , dyn_environ = mempty
-    , dyn_event_serial = 0
-    , dyn_warp = Warp.identity
-    , dyn_ruler = mempty
+emptyDynamic :: Dynamic
+emptyDynamic = Dynamic
+    { dynPitch = mempty
+    , dynEnviron = mempty
+    , dynEventSerial = 0
+    , dynWarp = Warp.identity
+    , dynRuler = mempty
     }
 
 {- NOTE [control-function]

@@ -19,13 +19,13 @@ import Global
 
 test_note_to_call :: Test
 test_note_to_call = do
-    let run ps = DeriveTest.extract extract $ DeriveTest.derive_tracks ""
+    let run ps = DeriveTest.extract extract $ DeriveTest.deriveTracks ""
             [ ("*bp", [(t, 0, p) | (t, p) <- times ps])
             , (">", [(t, 1, "") | (t, _) <- times ps])
             ]
             where times = zip (Lists.range_ 0 1)
-        extract = fmap Pitch.nn_to_hz . Score.initial_nn
-        c = Pitch.middle_c_hz
+        extract = fmap Pitch.nnToHz . Score.initialNn
+        c = Pitch.middleCHz
     -- Ensure that the octave wraps at A.
     equalf 0.001 (run ["4a"]) ([Just c], [])
     equalf 0.001 (run ["4i"]) ([Just (c * 25/9)], [])
@@ -33,10 +33,10 @@ test_note_to_call = do
 
 test_input_to_note :: Test
 test_input_to_note = do
-    let f = either pretty Pitch.note_text
-            . Scale.scale_input_to_note BP.absolute_scale mempty
-    let ascii oct = CmdTest.ascii_kbd . CmdTest.oct_pc oct
-        piano oct = CmdTest.piano_kbd . CmdTest.oct_pc oct
+    let f = either pretty Pitch.noteText
+            . Scale.scaleInputToNote BP.absoluteScale mempty
+    let ascii oct = CmdTest.asciiKbd . CmdTest.octPc oct
+        piano oct = CmdTest.pianoKbd . CmdTest.octPc oct
     equal [f (ascii 4 pc) | pc <- [0..9]]
         ["4a", "4b", "4c", "4d", "4e", "4f", "4g", "4h", "4i", "5a"]
     equal [f (piano 4 pc) | pc <- [0..6]]
@@ -47,9 +47,9 @@ test_input_to_note = do
 test_input_to_nn :: Test
 test_input_to_nn = do
     let f input = second (first prettys) $ DeriveTest.eval Ui.empty $
-            Scale.scale_input_to_nn BP.absolute_scale 0 input
-    let ascii oct = CmdTest.ascii_kbd . CmdTest.oct_pc oct
-    equalf 0.001 (f (ascii 4 0)) $ Right (Right NN.middle_c)
+            Scale.scaleInputToNn BP.absoluteScale 0 input
+    let ascii oct = CmdTest.asciiKbd . CmdTest.octPc oct
+    equalf 0.001 (f (ascii 4 0)) $ Right (Right NN.middleC)
     let ratio = 25/21
     equalf 0.001 (f (ascii 4 1)) $
-        Right $ Right $ Pitch.modify_hz (*ratio) NN.middle_c
+        Right $ Right $ Pitch.modifyHz (*ratio) NN.middleC

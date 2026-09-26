@@ -56,8 +56,8 @@ options =
         "Use haskell pprint instead of Pretty."
     ]
 
-usage_doc :: String
-usage_doc = "usage: dump file[,git-commit] file ..."
+usageDoc :: String
+usageDoc = "usage: dump file[,git-commit] file ..."
 
 main :: IO ()
 main = Git.initialize $ do
@@ -67,16 +67,16 @@ main = Git.initialize $ do
         (_, _, errs) -> usage $ "flag errors: " ++ unwords errs
     let mode = fromMaybe DumpAll (Lists.last [m | Mode m <- flags])
         pprint = any (==PPrint) flags
-    ok <- mapM (dump_file pprint mode) args
+    ok <- mapM (dumpFile pprint mode) args
     Processes.exit $ length (filter not ok)
     where
     usage msg = do
-        putStrLn usage_doc
+        putStrLn usageDoc
         putStr (GetOpt.usageInfo msg options)
         Processes.exit 1
 
-dump_file :: Bool -> Mode -> FilePath -> IO Bool
-dump_file pprint mode fname = dump pprint mode fname >>= \case
+dumpFile :: Bool -> Mode -> FilePath -> IO Bool
+dumpFile pprint mode fname = dump pprint mode fname >>= \case
     Right lines -> do
         let prefix = txt fname <> ": "
         mapM_ Text.IO.putStrLn $
@@ -89,13 +89,13 @@ dump_file pprint mode fname = dump pprint mode fname >>= \case
 dump :: Bool -> Mode -> FilePath -> IO (Either Text [Text])
 dump pprint mode fname
     | [repo, commit] <- Lists.split (==',') fname =
-        dump_git pprint mode repo (Just commit)
-    | SaveGit.is_git fname = dump_git pprint mode fname Nothing
+        dumpGit pprint mode repo (Just commit)
+    | SaveGit.isGit fname = dumpGit pprint mode fname Nothing
 dump pprint mode fname =
-    try fname Cmd.Serialize.score_magic (dump_score pprint mode) $
-    try fname Cmd.Serialize.allocations_magic ((:[]) . format pprint) $
-    try fname Cmd.Serialize.views_magic ((:[]) . format pprint) $
-    try fname DiffPerformance.midi_magic dump_midi $
+    try fname Cmd.Serialize.scoreMagic (dumpScore pprint mode) $
+    try fname Cmd.Serialize.allocationsMagic ((:[]) . format pprint) $
+    try fname Cmd.Serialize.viewsMagic ((:[]) . format pprint) $
+    try fname DiffPerformance.midiMagic dumpMidi $
     try fname Synth.Shared.Note.notesMagic (map (format pprint)) $
     pure $ Left "no magic codes match"
 
@@ -114,70 +114,70 @@ try fname magic dump next = do
         Left err -> pure $ Left (pretty err)
 
 -- | Either a commit hash or a save point ref.
-dump_git :: Bool -> Mode -> FilePath -> Maybe String -> IO (Either Text [Text])
-dump_git pprint mode repo maybe_arg = Except.runExceptT $ do
-    maybe_commit <- case maybe_arg of
+dumpGit :: Bool -> Mode -> FilePath -> Maybe String -> IO (Either Text [Text])
+dumpGit pprint mode repo maybeArg = Except.runExceptT $ do
+    maybeCommit <- case maybeArg of
         Nothing -> pure Nothing
         Just arg -> do
             commit <- tryJust ("couldn't find commit for " <> showt arg)
-                =<< liftIO (SaveGit.infer_commit repo arg)
+                =<< liftIO (SaveGit.inferCommit repo arg)
             pure (Just commit)
     let prefix = "reading " <> showt repo <> ":"
     (state, commit, names) <- tryRight . first (prefix<>)
-        =<< liftIO (SaveGit.load repo maybe_commit)
+        =<< liftIO (SaveGit.load repo maybeCommit)
     let header = "commit: " <> pretty commit <> ", names: "
             <> Text.intercalate ", " names
-    pure $ header : dump_score pprint mode state
+    pure $ header : dumpScore pprint mode state
 
-dump_score :: Bool -> Mode -> Ui.State -> [Text]
-dump_score pprint mode state = case mode of
+dumpScore :: Bool -> Mode -> Ui.State -> [Text]
+dumpScore pprint mode state = case mode of
     DumpAll -> fmt state
     DumpAllocations -> fmt $
-        UiConfig.config_allocations $ Ui.state_config state
-    DumpConfig -> fmt $ Ui.state_config state
-    DumpCalls -> extract_calls state ++ extract_event_text state
+        UiConfig.configAllocations $ Ui.stateConfig state
+    DumpConfig -> fmt $ Ui.stateConfig state
+    DumpCalls -> extractCalls state ++ extractEventText state
     where
     fmt :: (Show a, Pretty a) => a -> [Text]
-    fmt = (:[]) . strip_name . format pprint
+    fmt = (:[]) . stripName . format pprint
 
-dump_midi :: Vector.Vector Midi.WriteMessage -> [Text]
-dump_midi = map Pretty.formatted . Vector.toList
+dumpMidi :: Vector.Vector Midi.WriteMessage -> [Text]
+dumpMidi = map Pretty.formatted . Vector.toList
 
 -- | Remove the record name and dedent, since it's redundant.
-strip_name :: Text -> Text
-strip_name text = case Text.lines text of
-    name : first : rest | is_record name ->
+stripName :: Text -> Text
+stripName text = case Text.lines text of
+    name : first : rest | isRecord name ->
         -- +2 to drop the '{ ' and ', ' on each line.
         let indent = Text.length (Text.takeWhile (==' ') first) + 2
         in Text.unlines $ map (Text.drop indent) (first : rest)
     _ -> text
     where
-    is_record = (`elem` ["State", "Config"])
+    isRecord = (`elem` ["State", "Config"])
 
-extract_calls :: Ui.State -> [Text]
-extract_calls state = filter (not . Text.null) $
+extractCalls :: Ui.State -> [Text]
+extractCalls state = filter (not . Text.null) $
     label "ky" (Ui.config#UiConfig.ky #$ state)
-    : map block_title (Map.toList (Ui.state_blocks state))
-    ++ map track_title (Map.toList (Ui.state_tracks state))
+    : map blockTitle (Map.toList (Ui.stateBlocks state))
+    ++ map trackTitle (Map.toList (Ui.stateTracks state))
     where
-    block_title (block_id, block) =
-        stack_label (Just block_id, Nothing, Nothing) (Block.block_title block)
-    track_title (track_id, track) =
-        stack_label (Nothing, Just track_id, Nothing) (Track.track_title track)
+    blockTitle (blockId, block) =
+        stackLabel (Just blockId, Nothing, Nothing) (Block.blockTitle block)
+    trackTitle (trackId, track) =
+        stackLabel (Nothing, Just trackId, Nothing) (Track.trackTitle track)
 
-extract_event_text :: Ui.State -> [Text]
-extract_event_text state =
-    [ stack_label (frame track_id event) (Event.text event)
-    | (track_id, track) <- Map.toList (Ui.state_tracks state)
-    , event <- Events.ascending (Track.track_events track)
+extractEventText :: Ui.State -> [Text]
+extractEventText state =
+    [ stackLabel (frame trackId event) (Event.text event)
+    | (trackId, track) <- Map.toList (Ui.stateTracks state)
+    , event <- Events.ascending (Track.trackEvents track)
     , not (Text.null (Event.text event))
     ]
     where
-    frame track_id event =
-        (Nothing, Just track_id, Just (Event.range event))
+    frame trackId event =
+        (Nothing, Just trackId, Just (Event.range event))
 
-stack_label :: Stack.UiFrame -> Text -> Text
-stack_label frame = label (Stack.log_ui_frame frame)
+stackLabel :: Stack.UiFrame -> Text -> Text
+stackLabel frame = label (Stack.logUiFrame frame)
 
 label :: Text -> Text -> Text
 label name val

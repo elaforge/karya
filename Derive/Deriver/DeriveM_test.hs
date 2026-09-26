@@ -14,7 +14,7 @@ import Global
 type State = Int
 
 run :: DeriveM.Deriver State Text Text -> (Either Text Text, State, [Text])
-run d = (result, state, map Log.msg_text logs)
+run d = (result, state, map Log.msgText logs)
     where (result, state, logs) = DeriveM.run 0 d
 
 test_monad_error :: Test

@@ -4,8 +4,8 @@
 
 -- | Kendang sunda patches for "User.Elaforge.Instrument.Kontakt".
 module User.Elaforge.Instrument.Kontakt.KendangSunda (
-    patches, write_ksp, pitch_control
-    , resolve_errors
+    patches, writeKsp, pitchControl
+    , resolveErrors
 ) where
 import qualified Cmd.Instrument.CUtil as CUtil
 import qualified Cmd.Instrument.Drums as Drums
@@ -29,37 +29,37 @@ import           Global
 
 patches :: [MidiInst.Patch]
 patches =
-    [ MidiInst.code #= code $ CUtil.pitched_drum_patch pitched_strokes $
+    [ MidiInst.code #= code $ CUtil.pitchedDrumPatch pitchedStrokes $
         patch "kendang-sunda"
     ]
     where
-    patch name = MidiInst.named_patch (-24, 24) name [(4, pitch_control)]
-    strokes = map fst pitched_strokes
-    code = MidiInst.cmd (CUtil.drum_cmd [] CUtil.MidiThru strokes)
-        <> MidiInst.note_generators
-            (replace_det $ CUtil.drum_calls (map (,call_config) strokes))
+    patch name = MidiInst.namedPatch (-24, 24) name [(4, pitchControl)]
+    strokes = map fst pitchedStrokes
+    code = MidiInst.cmd (CUtil.drumCmd [] CUtil.MidiThru strokes)
+        <> MidiInst.noteGenerators
+            (replaceDet $ CUtil.drumCalls (map (,callConfig) strokes))
 
-replace_det :: [(Expr.Symbol, Derive.Generator Derive.Note)]
+replaceDet :: [(Expr.Symbol, Derive.Generator Derive.Note)]
     -> [(Expr.Symbol, Derive.Generator Derive.Note)]
-replace_det = (calls++) . filter ((`notElem` map fst calls) . fst)
+replaceDet = (calls++) . filter ((`notElem` map fst calls) . fst)
     where
     calls =
-        [ ("o", c_dong)
-        , ("e", c_det Nothing)
-        , ("e_", c_det (Just Low))
-        , ("e-", c_det (Just Middle))
-        , ("e^", c_det (Just High))
+        [ ("o", cDong)
+        , ("e", cDet Nothing)
+        , ("e_", cDet (Just Low))
+        , ("e-", cDet (Just Middle))
+        , ("e^", cDet (Just High))
         ]
 
 -- | Just like the default, except force 'pitch_control' to 0.
-c_dong :: Derive.Generator Derive.Note
-c_dong = CUtil.drum_call config "o" dong
+cDong :: Derive.Generator Derive.Note
+cDong = CUtil.drumCall config "o" dong
     where
-    config = call_config
-        { CUtil._transform = Derive.with_constant_control pitch_control 0 }
+    config = callConfig
+        { CUtil._transform = Derive.withConstantControl pitchControl 0 }
 
-call_config :: CUtil.CallConfig
-call_config = CUtil.call_config { CUtil._tuning_control = Just tuning_control }
+callConfig :: CUtil.CallConfig
+callConfig = CUtil.callConfig { CUtil._tuningControl = Just tuningControl }
 
 data Pitch = Low | Middle | High deriving (Show)
 
@@ -67,43 +67,43 @@ data Pitch = Low | Middle | High deriving (Show)
 -- given.  Of course, I could also set +det+low etc. and it would work with
 -- integration.  Ok, so don't change the attrs, but set the control and have
 -- separate defaults.
-c_det :: Maybe Pitch -> Derive.Generator Derive.Note
-c_det vague_pitch = Derive.generator Module.instrument name Tags.attr doc $
+cDet :: Maybe Pitch -> Derive.Generator Derive.Note
+cDet vaguePitch = Derive.generator Module.instrument name Tags.attr doc $
     Sig.call (
-        Sig.defaulted_env "pitch" Derive.Unprefixed pitch_default
+        Sig.defaultedEnv "pitch" Derive.Unprefixed pitchDefault
             "0 is the open pitch, and 1 is the highest pitch."
-    ) $ \pitch args -> Call.add_attributes attrs $
-        CUtil.apply_tuning_control args tuning_control $
-        Derive.with_constant_control pitch_control pitch $
-        Note.default_note Note.no_duration_attributes args
+    ) $ \pitch args -> Call.addAttributes attrs $
+        CUtil.applyTuningControl args tuningControl $
+        Derive.withConstantControl pitchControl pitch $
+        Note.defaultNote Note.noDurationAttributes args
     where
     doc = "This takes a pitch argument and is split into separate calls so\
         \ there can be separate defaults for low, middle, and high."
-    name = case vague_pitch of
+    name = case vaguePitch of
         Nothing -> "det"
         Just Low -> "det-low"
         Just Middle -> "det-mid"
         Just High -> "det-high"
-    pitch_default :: Double
-    pitch_default = case vague_pitch of
+    pitchDefault :: Double
+    pitchDefault = case vaguePitch of
         Nothing -> 0.5
         Just Low -> 0.25
         Just Middle -> 0.5
         Just High -> 0.75
-    attrs = det <> case vague_pitch of
+    attrs = det <> case vaguePitch of
         Nothing -> mempty
         Just Low -> Attrs.low
         Just Middle -> Attrs.middle
         Just High -> Attrs.high
 
-tuning_control :: ScoreT.Control
-tuning_control = "kendang-tune"
+tuningControl :: ScoreT.Control
+tuningControl = "kendang-tune"
 
-pitch_control :: ScoreT.Control
-pitch_control = "pitch"
+pitchControl :: ScoreT.Control
+pitchControl = "pitch"
 
-pitched_strokes :: CUtil.PitchedStrokes
-(pitched_strokes, resolve_errors) = CUtil.resolve_strokes 0.3 keymap strokes
+pitchedStrokes :: CUtil.PitchedStrokes
+(pitchedStrokes, resolveErrors) = CUtil.resolveStrokes 0.3 keymap strokes
 
 strokes :: [(Char, Expr.Symbol, Attrs.Attributes, Drums.Group)]
 stops :: [(Drums.Group, [Drums.Group])]
@@ -114,54 +114,54 @@ stops :: [(Drums.Group, [Drums.Group])]
     --
     -- with panggul
     -- indung, kiri
-    [ ('a', "-",    tak <> soft,        left_closed)
-    , ('z', "+",    tak,                left_closed)
-    , ('s', ".",    dong <> soft,       left_open)
-    , ('x', "o",    dong,               left_open)
-    , ('c', "i",    ting,               left_semiclosed)
+    [ ('a', "-",    tak <> soft,        leftClosed)
+    , ('z', "+",    tak,                leftClosed)
+    , ('s', ".",    dong <> soft,       leftOpen)
+    , ('x', "o",    dong,               leftOpen)
+    , ('c', "i",    ting,               leftSemiclosed)
     -- This uses the %pitch control.
-    , ('v', "e",    det,                left_semiclosed)
+    , ('v', "e",    det,                leftSemiclosed)
     -- These are hardcoded to a certain pitch.
-    , ('b', "e_",   det <> Attrs.low,   left_semiclosed)
-    , ('n', "e-",   det <> Attrs.middle,left_semiclosed)
-    , ('m', "e^",   det <> Attrs.high,  left_semiclosed)
+    , ('b', "e_",   det <> Attrs.low,   leftSemiclosed)
+    , ('n', "e-",   det <> Attrs.middle,leftSemiclosed)
+    , ('m', "e^",   det <> Attrs.high,  leftSemiclosed)
     -- kulanter gede
-    , (',', "u",    tung,               kulanter_gede_open)
+    , (',', "u",    tung,               kulanterGedeOpen)
     -- indung, kanan
-    , ('1', "^",    phak <> soft,       right_closed)
-    , ('q', "P",    phak,               right_closed)
-    , ('2', "'",    phak1 <> soft,      right_closed)
-    , ('w', "T",    phak1,              right_closed)
-    , ('e', "I",    ping,               right_open)
-    , ('r', "O",    pong,               right_open)
+    , ('1', "^",    phak <> soft,       rightClosed)
+    , ('q', "P",    phak,               rightClosed)
+    , ('2', "'",    phak1 <> soft,      rightClosed)
+    , ('w', "T",    phak1,              rightClosed)
+    , ('e', "I",    ping,               rightOpen)
+    , ('r', "O",    pong,               rightOpen)
     -- kulanter leutik
-    , ('t', "K",    pak,                kulanter_leutik_closed)
-    , ('y', "E",    peung,              kulanter_leutik_open)
+    , ('t', "K",    pak,                kulanterLeutikClosed)
+    , ('y', "E",    peung,              kulanterLeutikOpen)
     ]
     where
     soft = Attrs.soft
     stops =
-        [ (left_closed, [left_open])
+        [ (leftClosed, [leftOpen])
         -- TODO this should be (left_semiclosed, [left_open, left_semiclosed]),
         -- but the ksp doesn't understand cc switching.
-        , (left_open, [left_open])
-        , (right_closed, [right_open])
-        , (kulanter_leutik_closed, [kulanter_leutik_open])
+        , (leftOpen, [leftOpen])
+        , (rightClosed, [rightOpen])
+        , (kulanterLeutikClosed, [kulanterLeutikOpen])
         ]
-    left_open = "left-open"
+    leftOpen = "left-open"
     -- TODO this should be its own group, but the ksp doesn't understand cc
     -- switching.
-    left_semiclosed = "left-open"
-    left_closed = "left-closed"
+    leftSemiclosed = "left-open"
+    leftClosed = "left-closed"
 
-    right_open = "right-open"
-    right_closed = "right-closed"
-    kulanter_gede_open = "kulanter-gede-open"
-    kulanter_leutik_closed = "kulanter-leutik-closed"
-    kulanter_leutik_open = "kulanter-leutik-open"
+    rightOpen = "right-open"
+    rightClosed = "right-closed"
+    kulanterGedeOpen = "kulanter-gede-open"
+    kulanterLeutikClosed = "kulanter-leutik-closed"
+    kulanterLeutikOpen = "kulanter-leutik-open"
 
 keymap :: Map Attrs.Attributes CUtil.KeyswitchRange
-keymap = CUtil.make_keymap2 Nothing 8 6 12 Key.c4
+keymap = CUtil.makeKeymap2 Nothing 8 6 12 Key.c4
     -- indung, left
     [ [dong, det, det <> Attrs.low, det <> Attrs.middle, det <> Attrs.high]
     , [ting]
@@ -179,10 +179,10 @@ keymap = CUtil.make_keymap2 Nothing 8 6 12 Key.c4
     , [peung]
     ]
 
-write_ksp :: IO ()
-write_ksp = mapM_ (uncurry Util.write)
+writeKsp :: IO ()
+writeKsp = mapM_ (uncurry Util.write)
     [ ("kendang-sunda.ksp",
-        Util.drum_mute_ksp "kendang sunda" pitched_strokes stops)
+        Util.drumMuteKsp "kendang sunda" pitchedStrokes stops)
     ]
 
 -- indung, kiri

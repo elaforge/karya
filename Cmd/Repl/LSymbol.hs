@@ -26,11 +26,11 @@ import Global
 -- symbol under test.
 make :: Cmd.CmdL ()
 make = do
-    ident <- Ui.read_id "symbol-test"
-    bid <- Create.named_block ident Ui.no_ruler
-    Create.track_events bid Ui.no_ruler 1 100 $
+    ident <- Ui.readId "symbol-test"
+    bid <- Create.namedBlock ident Ui.noRuler
+    Create.trackEvents bid Ui.noRuler 1 100 $
         Track.track "" (Events.singleton (Event.event 0 5 "symbol"))
-    Ui.set_track_width bid 0 0
+    Ui.setTrackWidth bid 0 0
     vid <- Create.view bid
     Selection.set vid (Just (Sel.point 1 0 Sel.Positive))
 
@@ -40,22 +40,22 @@ set sym = do
     fonts <- liftIO $ SymbolC.insert sym
     unless (null fonts) $
         Cmd.throw $ "Missing fonts: " <> pretty fonts
-    (_, _, tid, _) <- Selection.get_insert
-    Ui.insert_event tid $ Event.event 0 5 ("`" <> Symbol.name sym <> "`")
+    (_, _, tid, _) <- Selection.getInsert
+    Ui.insertEvent tid $ Event.event 0 5 ("`" <> Symbol.name sym <> "`")
 
-get_fonts :: Cmd.CmdL [Symbol.Font]
-get_fonts = liftIO SymbolC.get_fonts
+getFonts :: Cmd.CmdL [Symbol.Font]
+getFonts = liftIO SymbolC.getFonts
 
-glyph_at :: Int -> (Double, Double) -> Symbol.Glyph -> Symbol.Glyph
-glyph_at size align glyph =
-    glyph { Symbol.glyph_size = size, Symbol.glyph_align = align }
+glyphAt :: Int -> (Double, Double) -> Symbol.Glyph -> Symbol.Glyph
+glyphAt size align glyph =
+    glyph { Symbol.glyphSize = size, Symbol.glyphAlign = align }
 
 font :: String -> Symbol.Glyph -> Symbol.Glyph
-font name glyph = glyph { Symbol.glyph_font = Just name }
+font name glyph = glyph { Symbol.glyphFont = Just name }
 
 rotate :: Int -> Symbol.Glyph -> Symbol.Glyph
-rotate degrees glyph = glyph { Symbol.glyph_rotate = degrees }
+rotate degrees glyph = glyph { Symbol.glyphRotate = degrees }
 
-arp_up = Symbol.symbol "arp-up" [arp, glyph_at 8 (-0.14, -0.62) arp_arrow_up]
-arp_arrow_up = Symbol.glyph "\xe18a"
-arp = (Symbol.glyph "\xe18e") { Symbol.glyph_rotate = 90 }
+arpUp = Symbol.symbol "arp-up" [arp, glyphAt 8 (-0.14, -0.62) arpArrowUp]
+arpArrowUp = Symbol.glyph "\xe18a"
+arp = (Symbol.glyph "\xe18e") { Symbol.glyphRotate = 90 }

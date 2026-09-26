@@ -129,13 +129,13 @@ showNotes notes = ["n", "time", "dyn"] : zipWith fmt [0..] notes
     where
     fmt (i :: Int) n =
         [ Num.zeroPad 2 i
-        , RealTime.show_units (Note.start n)
+        , RealTime.showUnits (Note.start n)
         , pretty $ Note.initial Control.dynamic n
         ]
 
 renderNotes :: FilePath -> InstrumentC.Patch -> [Note.Note] -> IO ()
 renderNotes fname patch notes = do
-    Log.with_stdio_lock $
+    Log.withStdioLock $
         Text.IO.putStrLn $ InstrumentC._name patch <> ": " <> txt fname
     Resource.runResourceT $
         Audio.File.write AUtil.outputFormat fname $

@@ -5,7 +5,7 @@
 {-# LANGUAGE CPP #-}
 -- | This has the FLTK event thread, and communication with it.
 module Ui.Fltk (
-    Fltk, fltk, Channel, event_loop, send_action, quit_ui_thread
+    Fltk, fltk, Channel, eventLoop, sendAction, quitUiThread
 ) where
 #ifdef STUB_OUT_FLTK
 import Ui.FltkStub
@@ -28,8 +28,8 @@ import           Global
 
 
 -- | See NOTE [ui-loop-timing]
-action_timing :: Bool
-action_timing = False
+actionTiming :: Bool
+actionTiming = False
 
 -- | You should only talk to FLTK from the main thread, which is also the FLTK
 -- event thread.  So to call a FLTK function, you have to put it on
@@ -55,32 +55,32 @@ type QuitRequest = MVar.MVar ()
 -- and go into the UI polling loop.  This is intended to be run from the main
 -- thread, since some UIs don't work properly unless run from the main thread.
 -- When the app exits, the ui loop will be aborted.
-event_loop :: Channel -> QuitRequest -> STM.TChan UiMsg.UiMsg -> IO ()
-event_loop ui_chan quit_request msg_chan = do
-    finalizer <- c_make_free_fun_ptr FFI.freeFunPtr
-    c_initialize finalizer
+eventLoop :: Channel -> QuitRequest -> STM.TChan UiMsg.UiMsg -> IO ()
+eventLoop uiChan quitRequest msgChan = do
+    finalizer <- cMakeFreeFunPtr FFI.freeFunPtr
+    cInitialize finalizer
     -- An apparent fltk regression means that if I call Fl::wait() before
     -- making a window, when I do make the window the app won't get focus
     -- automatically.  This works around by waiting until there is something
     -- in ui_chan before handling the contents, and only then going into
     -- fltk_event_loop.  This started happening in OSX 15.7.
     MVar.withMVar initialized $ \_ -> pure ()
-    handle_actions ui_chan
-    while_ (fmap not (MVar.isEmptyMVar quit_request)) $
-        fltk_event_loop ui_chan msg_chan
+    handleActions uiChan
+    while_ (fmap not (MVar.isEmptyMVar quitRequest)) $
+        fltkEventLoop uiChan msgChan
 
 -- | When I do anything that will destroy previous callbacks, I have to pass
 -- yet another callback which will be used to mark the old callbacks as done,
 -- so that the haskell GC knows it can collect the data those callbacks use.
 type FunPtrFinalizer a = Foreign.FunPtr a -> IO ()
 foreign import ccall "wrapper"
-    c_make_free_fun_ptr :: FunPtrFinalizer a
+    cMakeFreeFunPtr :: FunPtrFinalizer a
         -> IO (Foreign.FunPtr (FunPtrFinalizer a))
 
 -- | Send the UI to the ui thread to run asynchronously.
-send_action :: Channel -> Text -> Fltk () -> IO ()
-send_action ui_chan description act = do
-    MVar.modifyMVar_ ui_chan $ pure . ((act, description) :)
+sendAction :: Channel -> Text -> Fltk () -> IO ()
+sendAction uiChan description act = do
+    MVar.modifyMVar_ uiChan $ pure . ((act, description) :)
     MVar.tryPutMVar initialized () >>= \case
         True -> pure ()
         False -> awake
@@ -121,14 +121,14 @@ initialized = Unsafe.unsafePerformIO MVar.newEmptyMVar
 -}
 
 -- | The FLTK event loop.
-fltk_event_loop :: Channel -> STM.TChan UiMsg.UiMsg -> IO ()
-fltk_event_loop ui_chan msg_chan = do
+fltkEventLoop :: Channel -> STM.TChan UiMsg.UiMsg -> IO ()
+fltkEventLoop uiChan msgChan = do
     wait
     -- I think that fltk will wake up once for every call to awake, so I
     -- shouldn't have to worry about another awake call coming in right
     -- here.
-    handle_actions ui_chan
-    ui_msgs <- UiMsgC.get_ui_msgs
+    handleActions uiChan
+    uiMsgs <- UiMsgC.getUiMsgs
     -- TODO
     -- when (length handled > 0 && length ui_msgs > 0)
     -- This means there is a possibility for a race.  If a haskell action says
@@ -141,36 +141,36 @@ fltk_event_loop ui_chan msg_chan = do
     -- effects should be fairly benign, and fixed as soon as there is any
     -- scrolling or zooming.  It would look like e.g. play from the top of
     -- the view playing from the wrong point.
-    unless (null ui_msgs) $
-        STM.atomically $ mapM_ (STM.writeTChan msg_chan) ui_msgs
+    unless (null uiMsgs) $
+        STM.atomically $ mapM_ (STM.writeTChan msgChan) uiMsgs
 
 -- | Synchronously take actions out of the 'Channel' and run them.  This could
 -- be asynchronous, but this way if the FLTK event loop wedges up then the UI
 -- will also wedge up.  That's not exactly good, but it lets me know something
 -- has gone wrong quickly.
-handle_actions :: Channel -> IO ()
-handle_actions ui_chan = MVar.modifyMVar_ ui_chan $ \actions -> do
+handleActions :: Channel -> IO ()
+handleActions uiChan = MVar.modifyMVar_ uiChan $ \actions -> do
     -- Since actions are added to the front, reverse them before executing.
     Exception.handle handle $
         forM_ (reverse actions) $ \(Fltk action, name) -> do
-            when action_timing $ FFI.withText name $ \namep ->
-                c_timing 1 namep
+            when actionTiming $ FFI.withText name $ \namep ->
+                cTiming 1 namep
             action
     pure []
     where
     handle :: Exception.SomeException -> IO ()
     handle exc = Log.error $ "exception in event_loop: " <> showt exc
 
-quit_ui_thread :: QuitRequest -> IO ()
-quit_ui_thread quit_request = do
-    MVar.tryTakeMVar quit_request
+quitUiThread :: QuitRequest -> IO ()
+quitUiThread quitRequest = do
+    MVar.tryTakeMVar quitRequest
     awake -- get it out of wait
 
 foreign import ccall "initialize"
-    c_initialize :: Foreign.FunPtr (FunPtrFinalizer a) -> IO ()
+    cInitialize :: Foreign.FunPtr (FunPtrFinalizer a) -> IO ()
 foreign import ccall "ui_wait" wait :: IO ()
 foreign import ccall "ui_awake" awake :: IO ()
 
-foreign import ccall unsafe "timing" c_timing :: C.CInt -> C.CString -> IO ()
+foreign import ccall unsafe "timing" cTiming :: C.CInt -> C.CString -> IO ()
 
 #endif

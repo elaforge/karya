@@ -15,11 +15,11 @@ import           Util.Test
 test_aftertouch :: Test
 test_aftertouch = do
     let run notes = extract $
-            DeriveTest.perform_result (KontaktTest.perform allocs) $
-            KontaktTest.derive allocs title $ UiTest.note_spec ("r", notes, [])
-        allocs = DeriveTest.simple_allocs [("r", "kontakt/reyong")]
-        extract ((_, midi), logs) = (mapMaybe e_midi midi, logs)
-        e_midi msg = case Midi.channel_message $ Midi.wmsg_msg msg of
+            DeriveTest.performResult (KontaktTest.perform allocs) $
+            KontaktTest.derive allocs title $ UiTest.noteSpec ("r", notes, [])
+        allocs = DeriveTest.simpleAllocs [("r", "kontakt/reyong")]
+        extract ((_, midi), logs) = (mapMaybe eMidi midi, logs)
+        eMidi msg = case Midi.channelMessage $ Midi.wmsgMsg msg of
             Just (m@(Midi.NoteOn {})) -> Just m
             Just (m@(Midi.Aftertouch {})) -> Just m
             _ -> Nothing

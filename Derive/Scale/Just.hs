@@ -28,34 +28,34 @@ import           Global
 
 
 scales :: [Scale.Definition]
-scales = simple_scales ++ make_scales
+scales = simpleScales ++ makeScales
 
-simple_scales :: [Scale.Definition]
-simple_scales = map Scale.Simple
-    [ Scales.add_doc "7-note just scale." $
-        JustScales.make_scale "just" (scale_map TheoryFormat.absolute_c)
-            just_doc doc_fields
-    , Scales.add_doc "7-note just scale." $
-        JustScales.make_scale "just-r"
-            (scale_map (TheoryFormat.sargam relative_fmt)) just_doc doc_fields
+simpleScales :: [Scale.Definition]
+simpleScales = map Scale.Simple
+    [ Scales.addDoc "7-note just scale." $
+        JustScales.makeScale "just" (scaleMap TheoryFormat.absoluteC)
+            justDoc docFields
+    , Scales.addDoc "7-note just scale." $
+        JustScales.makeScale "just-r"
+            (scaleMap (TheoryFormat.sargam relativeFmt)) justDoc docFields
     ]
     where
-    relative_fmt = JustScales.make_relative_fmt keys default_key
+    relativeFmt = JustScales.makeRelativeFmt keys defaultKey
 
-make_scales :: [Scale.Definition]
-make_scales =
-    [ scale_make_just "make-just7" TheoryFormat.absolute_c
-    , scale_make_just "make-just7-r" (TheoryFormat.sargam relative_fmt)
+makeScales :: [Scale.Definition]
+makeScales =
+    [ scaleMakeJust "make-just7" TheoryFormat.absoluteC
+    , scaleMakeJust "make-just7-r" (TheoryFormat.sargam relativeFmt)
     ]
     where
-    relative_fmt = JustScales.make_relative_fmt mempty default_key
-    default_key = JustScales.Key
-        { key_tonic = 0
-        , key_ratios = Map.fromList []
+    relativeFmt = JustScales.makeRelativeFmt mempty defaultKey
+    defaultKey = JustScales.Key
+        { keyTonic = 0
+        , keyRatios = Map.fromList []
         }
 
-just_doc :: Doc.Doc
-just_doc =
+justDoc :: Doc.Doc
+justDoc =
     "7-note scales in just intonation.\
     \\nThey are fundamentally 7 note scales because they use a A-G or SRGMPDN.\
     \ While they support sharps and flats and have a piano-style layout,\
@@ -68,31 +68,31 @@ just_doc =
     \ only which MIDI key maps to the first scale degree. So for the ASCII kbd\
     \ where the input is also relative, the tonic is irrelevant."
 
-doc_fields :: [(Doc.Doc, Doc.Doc)]
-doc_fields =
+docFields :: [(Doc.Doc, Doc.Doc)]
+docFields =
     [ (Doc.literal name,
-        Doc.Doc $ JustScales.show_ratios (JustScales.key_ratios key))
-    | (name, key) <- ChromaticScales.group_tonic_mode (Map.toList keys)
+        Doc.Doc $ JustScales.showRatios (JustScales.keyRatios key))
+    | (name, key) <- ChromaticScales.groupTonicMode (Map.toList keys)
     ]
 
-scale_map :: TheoryFormat.Format -> JustScales.ScaleMap
-scale_map = JustScales.scale_map keys default_key (Just default_tuning)
+scaleMap :: TheoryFormat.Format -> JustScales.ScaleMap
+scaleMap = JustScales.scaleMap keys defaultKey (Just defaultTuning)
 
-default_key :: JustScales.Key
-Just default_key = Map.lookup (Pitch.Key "c-maj") keys
+defaultKey :: JustScales.Key
+Just defaultKey = Map.lookup (Pitch.Key "c-maj") keys
 
 keys :: Map Pitch.Key JustScales.Key
-keys = JustScales.make_keys TheoryFormat.absolute_c_degrees key_ratios
+keys = JustScales.makeKeys TheoryFormat.absoluteCDegrees keyRatios
 
-key_ratios :: [(Text, [(JustScales.Tuning, JustScales.Ratios)])]
-key_ratios =
+keyRatios :: [(Text, [(JustScales.Tuning, JustScales.Ratios)])]
+keyRatios =
     [ (name, map (second (select is)) (Map.toList tunings))
-    | (name, is) <- named_intervals
+    | (name, is) <- namedIntervals
     ]
 
-named_intervals :: [(Text, [Pitch.Semi])]
-named_intervals = map (second (take 7)) $ zip names $ List.tails $
-    cycle Theory.piano_intervals
+namedIntervals :: [(Text, [Pitch.Semi])]
+namedIntervals = map (second (take 7)) $ zip names $ List.tails $
+    cycle Theory.pianoIntervals
     where
     -- The names are the same as in Twelve.
     names = ["maj", "dorian", "phrygian", "lydian", "mixolydian", "min",
@@ -116,8 +116,8 @@ tunings = Map.fromList $ map (second Vector.fromList)
     -- 11+ limit adds intervals which get increasingly far from the 7 note
     -- framework, so I'd need some other way to name them.
 
-default_tuning :: JustScales.Tuning
-default_tuning = "limit-5"
+defaultTuning :: JustScales.Tuning
+defaultTuning = "limit-5"
 
 {-
     c   db     d    eb   e    f    f#     g    ab   a    bb   b
@@ -137,58 +137,58 @@ default_tuning = "limit-5"
 -- * make just
 
 -- | Make a 7 note just scale with custom ratios or intervals.
-scale_make_just :: Pitch.ScaleId -> TheoryFormat.Format -> Scale.Definition
-scale_make_just scale_id fmt =
-    Scale.Make scale_id (TheoryFormat.fmt_pattern fmt, call_doc)
-        (make_just scale_id fmt)
+scaleMakeJust :: Pitch.ScaleId -> TheoryFormat.Format -> Scale.Definition
+scaleMakeJust scaleId fmt =
+    Scale.Make scaleId (TheoryFormat.fmtPattern fmt, callDoc)
+        (makeJust scaleId fmt)
     where
-    call_doc = Scales.annotate_call_doc Scales.standard_transposers
-        doc [] JustScales.default_call_doc
-    doc = "Set " <> ShowVal.doc just_ratios <> " to make a custom scale, and "
-        <> ShowVal.doc just_intervals <> " to select from it. The intervals\
+    callDoc = Scales.annotateCallDoc Scales.standardTransposers
+        doc [] JustScales.defaultCallDoc
+    doc = "Set " <> ShowVal.doc justRatios <> " to make a custom scale, and "
+        <> ShowVal.doc justIntervals <> " to select from it. The intervals\
         \ default to replicate 7 1, and the number of ratios should be\
         \ sum intervals - 1 (the initial 1/1 is implicit).\
         \ Ratios can be a list, or one of " <> literals (Map.keys tunings)
         <> ", and intervals can be a list or one of "
-        <> literals (map fst named_intervals
-            ++ map fst Raga.melakarta_intervals)
-        <> "\n\n" <> just_doc
+        <> literals (map fst namedIntervals
+            ++ map fst Raga.melakartaIntervals)
+        <> "\n\n" <> justDoc
     literals = Doc.commas . map Doc.literal
 
-all_named_intervals :: Map Text [Pitch.Semi]
-all_named_intervals = Map.fromList $ named_intervals ++ Raga.melakarta_intervals
+allNamedIntervals :: Map Text [Pitch.Semi]
+allNamedIntervals = Map.fromList $ namedIntervals ++ Raga.melakartaIntervals
 
-just_ratios :: Env.Key
-just_ratios = "just-ratios"
+justRatios :: Env.Key
+justRatios = "just-ratios"
 
-just_intervals :: Env.Key
-just_intervals = "just-intervals"
+justIntervals :: Env.Key
+justIntervals = "just-intervals"
 
-make_just :: Pitch.ScaleId -> TheoryFormat.Format
+makeJust :: Pitch.ScaleId -> TheoryFormat.Format
     -> Env.Environ -> Scale.LookupScale
     -> Either DeriveT.PitchError Scale.Scale
-make_just scale_id fmt env _ = do
-    intervals <- parse_intervals env
-    ratios <- parse_ratios intervals env
-    let default_key = JustScales.Key
-            { key_tonic = 0
-            , key_ratios = Map.fromList [("", ratios)]
+makeJust scaleId fmt env _ = do
+    intervals <- parseIntervals env
+    ratios <- parseRatios intervals env
+    let defaultKey = JustScales.Key
+            { keyTonic = 0
+            , keyRatios = Map.fromList [("", ratios)]
             }
-    let smap = JustScales.scale_map Map.empty default_key Nothing fmt
-    pure $ JustScales.make_scale scale_id smap "unused doc" []
+    let smap = JustScales.scaleMap Map.empty defaultKey Nothing fmt
+    pure $ JustScales.makeScale scaleId smap "unused doc" []
 
-parse_intervals :: Env.Environ -> Either DeriveT.PitchError [Pitch.Semi]
-parse_intervals =
-    Scales.read_environ_ parse (Just (Right (replicate 7 1))) just_intervals
+parseIntervals :: Env.Environ -> Either DeriveT.PitchError [Pitch.Semi]
+parseIntervals =
+    Scales.readEnviron_ parse (Just (Right (replicate 7 1))) justIntervals
     where
     parse (Left xs) = Right xs
     parse (Right sym) = maybe
-        (Left $ Just $ "not one of: " <> pretty (Map.keys all_named_intervals))
-        Right (Map.lookup sym all_named_intervals)
+        (Left $ Just $ "not one of: " <> pretty (Map.keys allNamedIntervals))
+        Right (Map.lookup sym allNamedIntervals)
 
-parse_ratios :: [Pitch.Semi] -> Env.Environ
+parseRatios :: [Pitch.Semi] -> Env.Environ
     -> Either DeriveT.PitchError JustScales.Ratios
-parse_ratios intervals = Scales.read_environ_ parse Nothing just_ratios
+parseRatios intervals = Scales.readEnviron_ parse Nothing justRatios
     where
     parse (Right sym) = maybe
         (Left $ Just $ "not one of: " <> pretty (Map.keys tunings))

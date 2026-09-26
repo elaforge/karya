@@ -14,7 +14,7 @@ import Solkattu.Dsl.Mridangam
 c_1 :: Korvai
 c_1 = akash $ date 2015 1 1 $ tekha $
     comment "rupak hindustani = 2 * misra chapu" $
-    korvaiS Tala.misra_chapu
+    korvaiS Tala.misraChapu
     [ sd $ i. __.i. __.n. __.od.__.  n.__.od.__. n. __
     , sd $ p&i.k.p&i.__.n.k .od.o&k.p&n.k.od.o&k.p&n.k
     , sd $ od.__.k.od.__.k  .od.o&k.p&n.k.od.o&k.p&n.k
@@ -33,7 +33,7 @@ c_2 = akash $ date 2015 1 1 $ tekha $
 
 c_3 :: Korvai
 c_3 = akash $ date 2015 1 1 $ tekha $ comment "14 beats" $
-    korvaiS Tala.misra_chapu
+    korvaiS Tala.misraChapu
     [ sd $ on.od.__.on.on.od.__.n.p&d.__.on.on.od.__
     , sd $ r2 (n.d.l.n.l.d.l) & (o.__3.o.__.o.__.p.__3.o.__.o.__)
     , sarvaD_ 5 . r2 (nadai 6 (n.p.kt.pk))

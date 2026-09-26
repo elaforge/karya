@@ -56,17 +56,17 @@ patchCode = Map.fromList
     [ ("tambura8", tambura), ("tambura4", tambura)
     ]
     where
-    tambura = ImInst.note_calls
-        [ ImInst.transformer "terminate" (Code.note_terminate "decay" 0.01)
+    tambura = ImInst.noteCalls
+        [ ImInst.transformer "terminate" (Code.noteTerminate "decay" 0.01)
         ]
 
 makePatch :: FilePath -> InstrumentC.Patch -> ImInst.Patch
 makePatch imDir patch =
     ImInst.doc #= Doc.Doc (InstrumentC._doc patch) $
     code constantPitch constantControls $
-    ImInst.make_patch $ Patch.patch
-        { Patch.patch_controls = (pretty <$> controls) <> standardControls
-        , Patch.patch_elements = Set.fromList $ filter (/="") $ map fst $
+    ImInst.makePatch $ Patch.patch
+        { Patch.patchControls = (pretty <$> controls) <> standardControls
+        , Patch.patchElements = Set.fromList $ filter (/="") $ map fst $
             Map.keys $ InstrumentC._controls patch
         }
     where
@@ -77,15 +77,15 @@ makePatch imDir patch =
     controls = InstrumentC.imControls patch
     code constantPitch constantControls = (ImInst.code #=) $ mconcat
         [ if constantPitch || not (null constantControls)
-            then ImInst.null_call $
-                DUtil.constant_controls constantPitch
+            then ImInst.nullCall $
+                DUtil.constantControls constantPitch
                     (Set.fromList (map control constantControls))
             else mempty
         , thruCode pitchToSample
         , case InstrumentC._elementFrom patch of
             Nothing -> mempty
             Just elementFrom -> ImInst.postproc $
-                DUtil.element_from_id elementFrom
+                DUtil.elementFromId elementFrom
         , Map.findWithDefault mempty (InstrumentC._name patch) patchCode
         ]
     pitchToSample = Preview.pitchToSample imDir (InstrumentC._name patch)
@@ -128,4 +128,4 @@ thruFunction pitchToSample = fmap Thru.Plays . mapM note
 
 -- | From Sampler.Sample
 pitchToRatio :: Pitch.NoteNumber -> Pitch.NoteNumber -> Signal.Y
-pitchToRatio sampleNn nn = Pitch.nn_to_hz sampleNn / Pitch.nn_to_hz nn
+pitchToRatio sampleNn nn = Pitch.nnToHz sampleNn / Pitch.nnToHz nn

@@ -90,8 +90,8 @@ getHostName = do
     let size = 256
     Foreign.allocaArray0 size $ \cstr -> do
         Socket.Internal.throwSocketErrorIfMinus1_ "Network.getHostName" $
-            c_gethostname cstr (fromIntegral size)
+            cGethostname cstr (fromIntegral size)
         C.peekCString cstr
 
 foreign import ccall unsafe "gethostname"
-   c_gethostname :: C.CString -> C.CSize -> IO C.CInt
+   cGethostname :: C.CString -> C.CSize -> IO C.CInt

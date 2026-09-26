@@ -20,7 +20,7 @@ meta = Testing.moduleMeta { Testing.tags = [Testing.Interactive] }
 -- Fiddle around with the REPL by hand.
 test_repl_ghc :: IO ()
 test_repl_ghc = do
-    session <- ReplGhc.make_session
+    session <- ReplGhc.makeSession
     Concurrent.forkIO $ ReplGhc.interpreter session
     go session
     where
@@ -28,20 +28,20 @@ test_repl_ghc = do
         expr <- getLine
         if expr == "quit" then pure () else do
             cmd <- ReplGhc.interpret session (txt expr)
-            result <- run_io cmd
+            result <- runIo cmd
             case result of
                 Left err -> putStrLn $ "---> err: " ++ err
                 Right val -> putStrLn $ "---> val: " ++ untxt val
             go session
 
-run_io :: Cmd.CmdT IO ReplProtocol.CmdResult -> IO (Either String Text)
-run_io cmd = do
+runIo :: Cmd.CmdT IO ReplProtocol.CmdResult -> IO (Either String Text)
+runIo cmd = do
     (_cstate, _midi, _logs, result) <-
-        Cmd.run (ReplProtocol.raw "") ui_state cmd_state cmd
+        Cmd.run (ReplProtocol.raw "") uiState cmdState cmd
     pure $ case result of
         Left err -> Left (prettys err)
-        Right (cmd_result, _ustate, _updates) ->
-            Right $ ReplProtocol.format_result cmd_result
+        Right (cmdResult, _ustate, _updates) ->
+            Right $ ReplProtocol.formatResult cmdResult
     where
-    ui_state = Ui.empty
-    cmd_state = CmdTest.default_cmd_state
+    uiState = Ui.empty
+    cmdState = CmdTest.defaultCmdState

@@ -36,11 +36,11 @@ type Track m = BlockId -> TrackId -> [Event.Event] -> m (Maybe [Event.Event])
 
 -- | Map a Track transformer over multiple tracks.
 track :: Monad m => Track m -> Tracks m
-track modify = \block_id track_events -> do
-    outs <- mapM (uncurry (modify block_id)) track_events
+track modify = \blockId trackEvents -> do
+    outs <- mapM (uncurry (modify blockId)) trackEvents
     pure
-        [ (track_id, events)
-        | (track_id, Just events) <- zip (map fst track_events) outs
+        [ (trackId, events)
+        | (trackId, Just events) <- zip (map fst trackEvents) outs
         ]
 
 -- | Map a function over a set of events.
@@ -56,163 +56,163 @@ text = event . (\f -> Event.text_ %= f)
 
 -- | Split up a pipeline and lex the calls.
 pipeline :: ([[Text]] -> [[Text]]) -> Text -> Text
-pipeline modify = Parse.join_pipeline . modify . Parse.split_pipeline
+pipeline modify = Parse.joinPipeline . modify . Parse.splitPipeline
 
 -- | Take a text transformation that can fail to a Track transformation that
 -- transforms all the events and throws if any of the text transformations
 -- failed.
-failable_text :: Cmd.M m => (Text -> Either Text Text) -> Track m
-failable_text f block_id track_id events = do
-    let (failed, ok) = Either.partitionEithers $ map (failing_text f) events
-        errs = [err <> ": " <> Cmd.log_event block_id track_id evt
+failableText :: Cmd.M m => (Text -> Either Text Text) -> Track m
+failableText f blockId trackId events = do
+    let (failed, ok) = Either.partitionEithers $ map (failingText f) events
+        errs = [err <> ": " <> Cmd.logEvent blockId trackId evt
             | (err, evt) <- failed]
     unless (null errs) $ Cmd.throw $
         "transformation failed: " <> Text.intercalate ", " errs
     pure $ Just ok
     where
-    failing_text f event = case f (Event.text event) of
+    failingText f event = case f (Event.text event) of
         Left err -> Left (err, event)
         Right text -> Right $ Event.text_ #= text $ event
 
 
 -- * modify selections
 
-selection_tracks :: Cmd.M m => Tracks m -> m ()
-selection_tracks modify =
-    modify_selected IncludeCollapsed modify =<< Selection.events
+selectionTracks :: Cmd.M m => Tracks m -> m ()
+selectionTracks modify =
+    modifySelected IncludeCollapsed modify =<< Selection.events
 
 -- | Map a function over the selected events, as per 'Selection.events'.
 selection :: Cmd.M m => Track m -> m ()
 selection modify =
-    modify_selected IncludeCollapsed (track modify) =<< Selection.events
+    modifySelected IncludeCollapsed (track modify) =<< Selection.events
 
 -- | Like 'selection', but don't apply to collapsed tracks.  This is
 -- appropriate for operations that often apply to note tracks.  If you select
 -- multiple note tracks, then the intervening collapsed pitch tracks will also
 -- be selected and if you accidentally modify those you won't see the
 -- modifications.
-selection_visible :: Cmd.M m => Track m -> m ()
-selection_visible modify = ctx_selection_visible modify =<< Selection.context
+selectionVisible :: Cmd.M m => Track m -> m ()
+selectionVisible modify = ctxSelectionVisible modify =<< Selection.context
 
-ctx_selection_visible :: Ui.M m => Track m -> Selection.Context -> m ()
-ctx_selection_visible modify ctx =
-    modify_selected_block ExcludeCollapsed (track modify)
-        (Selection.ctx_block_id ctx) =<< Selection.ctx_events ctx
+ctxSelectionVisible :: Ui.M m => Track m -> Selection.Context -> m ()
+ctxSelectionVisible modify ctx =
+    modifySelectedBlock ExcludeCollapsed (track modify)
+        (Selection.ctxBlockId ctx) =<< Selection.ctxEvents ctx
 
 -- | Like 'selection', but only operate on the 'Selection.point_track'.
-selected_track :: Cmd.M m => Track m -> m ()
-selected_track modify =
-    modify_selected ExcludeCollapsed (track modify) . (:[])
-        =<< Selection.track_events
+selectedTrack :: Cmd.M m => Track m -> m ()
+selectedTrack modify =
+    modifySelected ExcludeCollapsed (track modify) . (:[])
+        =<< Selection.trackEvents
     -- Don't affect collapsed tracks because why would the point selection be
     -- on one of those?
 
 data Collapsed = ExcludeCollapsed | IncludeCollapsed
     deriving (Show, Eq)
 
-modify_selected :: Cmd.M m => Collapsed
+modifySelected :: Cmd.M m => Collapsed
     -> Tracks m -> Selection.SelectedEvents -> m ()
-modify_selected collapsed modify selected = do
-    block_id <- Cmd.get_focused_block
-    modify_selected_block collapsed modify block_id selected
+modifySelected collapsed modify selected = do
+    blockId <- Cmd.getFocusedBlock
+    modifySelectedBlock collapsed modify blockId selected
 
 -- It would be nice to make this a ctx_ function, but modify_selected is called
 -- with different selections.
-modify_selected_block :: Ui.M m => Collapsed
+modifySelectedBlock :: Ui.M m => Collapsed
     -> Tracks m -> BlockId -> Selection.SelectedEvents -> m ()
-modify_selected_block collapsed modify block_id selected = do
+modifySelectedBlock collapsed modify blockId selected = do
     selected <- filterM (wanted . fst) selected
-    new <- modify block_id selected
-    forM_ new $ \(track_id, new_events) -> do
-        let events = fromMaybe [] $ lookup track_id selected
-        Ui.remove_events track_id events
-        Ui.insert_block_events block_id track_id new_events
+    new <- modify blockId selected
+    forM_ new $ \(trackId, newEvents) -> do
+        let events = fromMaybe [] $ lookup trackId selected
+        Ui.removeEvents trackId events
+        Ui.insertBlockEvents blockId trackId newEvents
     where
-    wanted track_id = case collapsed of
+    wanted trackId = case collapsed of
         IncludeCollapsed -> pure True
         ExcludeCollapsed -> do
-            tracknum <- Ui.get_tracknum_of block_id track_id
-            not <$> Ui.track_collapsed block_id tracknum
+            tracknum <- Ui.getTracknumOf blockId trackId
+            not <$> Ui.trackCollapsed blockId tracknum
 
 -- | Advance the selection if it was a point.  This is convenient for applying
 -- a transformation repeatedly.
-advance_if_point :: Cmd.M m => m ()
-advance_if_point = whenM (Sel.is_point <$> Selection.get) Selection.advance
+advanceIfPoint :: Cmd.M m => m ()
+advanceIfPoint = whenM (Sel.isPoint <$> Selection.get) Selection.advance
 
 -- | Map a function over the events that overlap the selection point.
 overlapping :: Cmd.M m => Track m -> m ()
 overlapping f = do
-    (block_id, _, track_ids, _) <- Selection.tracks
+    (blockId, _, trackIds, _) <- Selection.tracks
     pos <- Selection.point
-    forM_ track_ids $ \track_id -> do
-        maybe_event <- Events.overlapping pos <$> Ui.get_events track_id
-        whenJust maybe_event $ \old_event ->
-            whenJustM (f block_id track_id [old_event]) $ \new_events -> do
-                Ui.remove_event track_id old_event
-                Ui.insert_block_events block_id track_id new_events
+    forM_ trackIds $ \trackId -> do
+        maybeEvent <- Events.overlapping pos <$> Ui.getEvents trackId
+        whenJust maybeEvent $ \oldEvent ->
+            whenJustM (f blockId trackId [oldEvent]) $ \newEvents -> do
+                Ui.removeEvent trackId oldEvent
+                Ui.insertBlockEvents blockId trackId newEvents
 
 -- | Map over tracks whose name matches the predicate.
-tracks_named :: Cmd.M m => (Text -> Bool) -> Track m -> Track m
-tracks_named wanted f = \block_id track_id events ->
-    ifM (wanted <$> Ui.get_track_title track_id)
-        (f block_id track_id events) (pure Nothing)
+tracksNamed :: Cmd.M m => (Text -> Bool) -> Track m -> Track m
+tracksNamed wanted f = \blockId trackId events ->
+    ifM (wanted <$> Ui.getTrackTitle trackId)
+        (f blockId trackId events) (pure Nothing)
 
-selected_note :: Cmd.M m => Track m -> m ()
-selected_note = selection . tracks_named ParseTitle.is_note_track
+selectedNote :: Cmd.M m => Track m -> m ()
+selectedNote = selection . tracksNamed ParseTitle.isNoteTrack
 
-selected_control :: Cmd.M m => Track m -> m ()
-selected_control = selection . tracks_named ParseTitle.is_signal_track
+selectedControl :: Cmd.M m => Track m -> m ()
+selectedControl = selection . tracksNamed ParseTitle.isSignalTrack
 
-selected_pitch :: Cmd.M m => Track m -> m ()
-selected_pitch = selection . tracks_named ParseTitle.is_pitch_track
+selectedPitch :: Cmd.M m => Track m -> m ()
+selectedPitch = selection . tracksNamed ParseTitle.isPitchTrack
 
 
 -- * block tracks
 
 -- | Like 'selection', but maps over an entire block.
 block :: Cmd.M m => BlockId -> Track m -> m ()
-block block_id f = do
-    track_ids <- Block.block_track_ids <$> Ui.get_block block_id
-    forM_ track_ids $ \track_id -> do
-        events <- Events.ascending <$> Ui.get_events track_id
-        maybe (pure ()) (Ui.modify_events track_id . const . Events.from_list)
-            =<< f block_id track_id events
+block blockId f = do
+    trackIds <- Block.blockTrackIds <$> Ui.getBlock blockId
+    forM_ trackIds $ \trackId -> do
+        events <- Events.ascending <$> Ui.getEvents trackId
+        maybe (pure ()) (Ui.modifyEvents trackId . const . Events.fromList)
+            =<< f blockId trackId events
 
-all_blocks :: Cmd.M m => Track m -> m ()
-all_blocks f = mapM_ (flip block f) =<< Ui.all_block_ids
+allBlocks :: Cmd.M m => Track m -> m ()
+allBlocks f = mapM_ (flip block f) =<< Ui.allBlockIds
 
-all_tracks_named :: Cmd.M m => (Text -> Bool) -> Track m -> m ()
-all_tracks_named wanted = all_blocks . tracks_named wanted
+allTracksNamed :: Cmd.M m => (Text -> Bool) -> Track m -> m ()
+allTracksNamed wanted = allBlocks . tracksNamed wanted
 
-note_tracks :: Cmd.M m => Track m -> m ()
-note_tracks = all_tracks_named ParseTitle.is_note_track
+noteTracks :: Cmd.M m => Track m -> m ()
+noteTracks = allTracksNamed ParseTitle.isNoteTrack
 
-control_tracks :: Cmd.M m => Track m -> m ()
-control_tracks = all_tracks_named ParseTitle.is_control_track
+controlTracks :: Cmd.M m => Track m -> m ()
+controlTracks = allTracksNamed ParseTitle.isControlTrack
 
-pitch_tracks :: Cmd.M m => Track m -> m ()
-pitch_tracks = all_tracks_named ParseTitle.is_pitch_track
+pitchTracks :: Cmd.M m => Track m -> m ()
+pitchTracks = allTracksNamed ParseTitle.isPitchTrack
 
 -- * misc
 
 -- | Move everything at or after @start@ by @shift@.
-move_track_events :: Ui.M m => ScoreTime -> ScoreTime -> ScoreTime
+moveTrackEvents :: Ui.M m => ScoreTime -> ScoreTime -> ScoreTime
     -> TrackId -> m ()
-move_track_events block_end start shift track_id =
-    Ui.modify_events track_id $ \events ->
-        move_events block_end start shift events
+moveTrackEvents blockEnd start shift trackId =
+    Ui.modifyEvents trackId $ \events ->
+        moveEvents blockEnd start shift events
 
 -- | All events starting at and after a point to the end are shifted by the
 -- given amount.
-move_events :: ScoreTime -- ^ events past the block end are shortened or removed
+moveEvents :: ScoreTime -- ^ events past the block end are shortened or removed
     -> ScoreTime -> ScoreTime -> Events.Events -> Events.Events
-move_events block_end point shift events = merged
+moveEvents blockEnd point shift events = merged
     where
-    shifted = Events.clip_list False block_end $
-        map (Event.start_ %= (+shift)) (Events.at_after point events)
+    shifted = Events.clipList False blockEnd $
+        map (Event.start_ %= (+shift)) (Events.atAfter point events)
     -- +1 in case the last event is +0 duration.
     merged = Events.insert shifted $
-        Events.remove (Events.Range point (Events.time_end events + 1)) events
+        Events.remove (Events.Range point (Events.timeEnd events + 1)) events
 
 -- * replace tokens
 
@@ -234,7 +234,7 @@ substitute parser replacements text = case match of
     Just matches -> Text.unwords . filter (not . Text.null) <$>
         mapM (replace matches) replacements
     where
-    match = IntMap.fromList . zip [0..] <$> parse_tokens parser text
+    match = IntMap.fromList . zip [0..] <$> parseTokens parser text
     replace matches r = case r of
         RLiteral text -> Right text
         F n -> justErr ("no match for field " <> showt n) $
@@ -247,8 +247,8 @@ newtype Parser = Parser ([Token] -> [([Match], [Token])])
 type Token = Text
 type Match = [Token]
 
-parse_tokens :: Parser -> Text -> Maybe [Text]
-parse_tokens parser =
+parseTokens :: Parser -> Text -> Maybe [Text]
+parseTokens parser =
     fmap (map Text.unwords) . Lists.head . parse parser . map Text.strip
     . Parse.lex
 

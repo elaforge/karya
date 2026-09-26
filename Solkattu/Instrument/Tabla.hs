@@ -74,10 +74,10 @@ instance Solkattu.Notation Stroke where
 instance Expr.ToExpr Stroke where
     -- TODO I have no tabla instrument, so this is just theoretical
     -- Korvai.GInstrument wants it
-    to_expr s = Expr.generator0 $ Expr.Symbol $ Solkattu.notationText s
+    toExpr s = Expr.generator0 $ Expr.Symbol $ Solkattu.notationText s
 
 instance Expr.ToExpr (Realize.Stroke Stroke) where
-    to_expr (Realize.Stroke _emphasis stroke) = Expr.to_expr stroke
+    toExpr (Realize.Stroke _emphasis stroke) = Expr.toExpr stroke
     -- TODO
 
 -- COMBINING OVERLINE

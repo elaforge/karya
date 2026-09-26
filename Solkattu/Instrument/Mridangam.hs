@@ -284,9 +284,9 @@ _printStrokes = mapM_ Text.IO.putStrLn $ Texts.columns 2 $ concat
 -- it has more horizontal space, and I want to be able to type them.
 -- So I don't use the abbreviations for Both.
 instance Expr.ToExpr Stroke where
-    to_expr stroke = case stroke of
-        Thoppi t -> Expr.to_expr t
-        Valantalai v -> Expr.to_expr v
+    toExpr stroke = case stroke of
+        Thoppi t -> Expr.toExpr t
+        Valantalai v -> Expr.toExpr v
         Both t v -> call $ Solkattu.notationText t <> Solkattu.notationText v
         Flam (Tha _) Ki -> call $ Solkattu.notationText stroke
         Flam t v -> Expr.generator $ Expr.call "f"
@@ -306,16 +306,16 @@ extraCalls t v = case t of
     _ -> Nothing
 
 instance Expr.ToExpr Valantalai where
-    to_expr = call . Solkattu.notationText
+    toExpr = call . Solkattu.notationText
 instance Expr.ToExpr Thoppi where
-    to_expr = call . Solkattu.notationText
+    toExpr = call . Solkattu.notationText
 
 call :: Text -> Expr.Expr val
 call = Expr.generator0 . Expr.Symbol
 
 instance Expr.ToExpr (Realize.Stroke Stroke) where
-    to_expr (Realize.Stroke emphasis stroke) = case emphasis of
-        Realize.Normal -> Expr.to_expr stroke
+    toExpr (Realize.Stroke emphasis stroke) = case emphasis of
+        Realize.Normal -> Expr.toExpr stroke
         Realize.Light -> Expr.with Symbols.weak stroke
         Realize.Heavy -> Expr.with Symbols.accent stroke
 

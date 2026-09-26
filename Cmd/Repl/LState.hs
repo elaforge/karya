@@ -78,208 +78,208 @@ summary = do
         ]
 
 stats :: Cmd.CmdL Text
-stats = Transform.show_stats <$> Ui.get
+stats = Transform.showStats <$> Ui.get
 
 -- * configure
 
-get_config :: Cmd.CmdL UiConfig.Config
-get_config = Ui.config <#> Ui.get
+getConfig :: Cmd.CmdL UiConfig.Config
+getConfig = Ui.config <#> Ui.get
 
-get_default :: Cmd.CmdL UiConfig.Default
-get_default = Ui.config#UiConfig.default_ <#> Ui.get
+getDefault :: Cmd.CmdL UiConfig.Default
+getDefault = Ui.config#UiConfig.default_ <#> Ui.get
 
-get_default_tempo :: Cmd.CmdL Signal.Y
-get_default_tempo = Ui.config#UiConfig.default_#UiConfig.tempo <#> Ui.get
+getDefaultTempo :: Cmd.CmdL Signal.Y
+getDefaultTempo = Ui.config#UiConfig.default_#UiConfig.tempo <#> Ui.get
 
-set_default_tempo :: Signal.Y -> Cmd.CmdL ()
-set_default_tempo t = Ui.modify_config $ UiConfig.default_#UiConfig.tempo #= t
+setDefaultTempo :: Signal.Y -> Cmd.CmdL ()
+setDefaultTempo t = Ui.modifyConfig $ UiConfig.default_#UiConfig.tempo #= t
 
 ky :: Ui.M m => m ReplProtocol.Result
 ky = do
-    ky <- get_ky
+    ky <- getKy
     pure $ ReplProtocol.Edit $ (:| []) $ ReplProtocol.Editor
         { _file = ReplProtocol.Text ReplProtocol.Ky ky
-        , _line_number = 0
-        , _on_save = Just "LState.set_ky %s"
-        , _on_send = Nothing
+        , _lineNumber = 0
+        , _onSave = Just "LState.set_ky %s"
+        , _onSend = Nothing
         }
 
-get_ky :: Ui.M m => m Text
-get_ky = Ui.config#UiConfig.ky <#> Ui.get
+getKy :: Ui.M m => m Text
+getKy = Ui.config#UiConfig.ky <#> Ui.get
 
-set_ky :: Text -> Cmd.CmdT IO Text
-set_ky = Ky.set
+setKy :: Text -> Cmd.CmdT IO Text
+setKy = Ky.set
 
 -- ** meta
 
-get_meta :: Cmd.CmdL UiConfig.Meta
-get_meta = Ui.config#UiConfig.meta <#> Ui.get
+getMeta :: Cmd.CmdL UiConfig.Meta
+getMeta = Ui.config#UiConfig.meta <#> Ui.get
 
-set_creation_time :: Cmd.CmdL ()
-set_creation_time = do
+setCreationTime :: Cmd.CmdL ()
+setCreationTime = do
     now <- liftIO Time.getCurrentTime
-    Ui.modify_config $ UiConfig.meta#UiConfig.creation #= now
+    Ui.modifyConfig $ UiConfig.meta#UiConfig.creation #= now
 
-get_notes :: Cmd.M m => m Text
-get_notes = Ui.config#UiConfig.meta#UiConfig.notes <#> Ui.get
+getNotes :: Cmd.M m => m Text
+getNotes = Ui.config#UiConfig.meta#UiConfig.notes <#> Ui.get
 
-set_notes :: Cmd.M m => Text -> m ()
-set_notes = Ui.modify_config . (UiConfig.meta#UiConfig.notes #=)
+setNotes :: Cmd.M m => Text -> m ()
+setNotes = Ui.modifyConfig . (UiConfig.meta#UiConfig.notes #=)
 
 -- *** performance
 
-save_perf :: Cmd.CmdT IO Text
-save_perf = do
-    config <- Ui.get_config id
-    midi <- if UiConfig.has_midi (UiConfig.config_allocations config)
-        then save_midi >> pure (Just "saved midi") else pure Nothing
-    im <- if UiConfig.has_im (UiConfig.config_allocations config)
-        then save_im >> pure (Just "saved im") else pure Nothing
+savePerf :: Cmd.CmdT IO Text
+savePerf = do
+    config <- Ui.getConfig id
+    midi <- if UiConfig.hasMidi (UiConfig.configAllocations config)
+        then saveMidi >> pure (Just "saved midi") else pure Nothing
+    im <- if UiConfig.hasIm (UiConfig.configAllocations config)
+        then saveIm >> pure (Just "saved im") else pure Nothing
     -- TODO sc
     pure $ Text.intercalate ", " $ Maybe.catMaybes [midi, im]
 
 -- | Save the current root MIDI performance as \"correct\".
-save_midi :: Cmd.CmdT IO ()
-save_midi = save_performance UiConfig.midi_performances
-    (fmap Vector.fromList . perform_midi)
+saveMidi :: Cmd.CmdT IO ()
+saveMidi = savePerformance UiConfig.midiPerformances
+    (fmap Vector.fromList . performMidi)
 
-save_im :: Cmd.CmdT IO ()
-save_im = save_performance UiConfig.im_performances perform_im
+saveIm :: Cmd.CmdT IO ()
+saveIm = savePerformance UiConfig.imPerformances performIm
 
-save_lilypond :: Cmd.CmdT IO ()
-save_lilypond = save_performance UiConfig.lilypond_performances
-    perform_lilypond
+saveLilypond :: Cmd.CmdT IO ()
+saveLilypond = savePerformance UiConfig.lilypondPerformances
+    performLilypond
 
 --
 
-get_midi_performance :: BlockId -> Cmd.CmdL UiConfig.MidiPerformance
-get_midi_performance block_id =
-    Cmd.require ("no saved performance for " <> showt block_id)
-        =<< Ui.get_config
-            (UiConfig.meta#UiConfig.midi_performances # Lens.map block_id #$)
+getMidiPerformance :: BlockId -> Cmd.CmdL UiConfig.MidiPerformance
+getMidiPerformance blockId =
+    Cmd.require ("no saved performance for " <> showt blockId)
+        =<< Ui.getConfig
+            (UiConfig.meta#UiConfig.midiPerformances # Lens.map blockId #$)
 
 -- | Compare the current root block performance against the saved one.
-verify_performance :: Cmd.CmdL Text
-verify_performance = do
-    block_id <- Ui.get_root_id
-    perf <- get_midi_performance block_id
-    midi <- perform_midi block_id
-    let name = Id.ident_name block_id
+verifyPerformance :: Cmd.CmdL Text
+verifyPerformance = do
+    blockId <- Ui.getRootId
+    perf <- getMidiPerformance blockId
+    midi <- performMidi blockId
+    let name = Id.identName blockId
     dir <- Cmd.require "need a save dir to put tmp files"
-        =<< Cmd.gets Cmd.state_save_dir
-    (maybe_diff, _) <- liftIO $
-        DiffPerformance.diff_midi (untxt name) dir perf midi
-    pure $ fromMaybe "ok!" maybe_diff
+        =<< Cmd.gets Cmd.stateSaveDir
+    (maybeDiff, _) <- liftIO $
+        DiffPerformance.diffMidi (untxt name) dir perf midi
+    pure $ fromMaybe "ok!" maybeDiff
 
-save_performance :: Lens UiConfig.Meta (Map BlockId (UiConfig.Performance a))
+savePerformance :: Lens UiConfig.Meta (Map BlockId (UiConfig.Performance a))
     -> (BlockId -> Cmd.CmdT IO a) -> Cmd.CmdT IO ()
-save_performance field perform = do
-    block_id <- Ui.get_root_id
-    events <- perform block_id
-    perf <- liftIO $ UiConfig.make_performance events
-    Ui.modify_meta $ field %= Map.insert block_id perf
+savePerformance field perform = do
+    blockId <- Ui.getRootId
+    events <- perform blockId
+    perf <- liftIO $ UiConfig.makePerformance events
+    Ui.modifyMeta $ field %= Map.insert blockId perf
 
 --
 
-perform_midi :: Cmd.M m => BlockId -> m [Midi.WriteMessage]
-perform_midi block_id = do
-    perf <- Cmd.get_performance block_id
-    LEvent.events_of . fst <$> PlayUtil.perform_from 0 (Cmd.perf_events perf)
+performMidi :: Cmd.M m => BlockId -> m [Midi.WriteMessage]
+performMidi blockId = do
+    perf <- Cmd.getPerformance blockId
+    LEvent.eventsOf . fst <$> PlayUtil.performFrom 0 (Cmd.perfEvents perf)
 
-perform_im :: Cmd.M m => BlockId -> m (Vector.Vector Shared.Note.Note)
-perform_im block_id = do
-    perf <- Cmd.get_performance block_id
-    lookup_inst <- Cmd.get_lookup_instrument
-    pure $ Vector.fromList $ LEvent.events_of $
-        Im.Convert.convert block_id lookup_inst $
-        Vector.toList (Msg.perf_events perf)
+performIm :: Cmd.M m => BlockId -> m (Vector.Vector Shared.Note.Note)
+performIm blockId = do
+    perf <- Cmd.getPerformance blockId
+    lookupInst <- Cmd.getLookupInstrument
+    pure $ Vector.fromList $ LEvent.eventsOf $
+        Im.Convert.convert blockId lookupInst $
+        Vector.toList (Msg.perfEvents perf)
 
-perform_lilypond :: Cmd.M m => BlockId -> m Text
-perform_lilypond block_id = do
-    events <- Stream.write_logs . Derive.r_events
-        =<< Cmd.Lilypond.derive_block block_id
+performLilypond :: Cmd.M m => BlockId -> m Text
+performLilypond blockId = do
+    events <- Stream.writeLogs . Derive.rEvents
+        =<< Cmd.Lilypond.deriveBlock blockId
     config <- Ui.config#UiConfig.lilypond <#> Ui.get
-    result <- LEvent.write_snd $
-        Cmd.Lilypond.extract_movements config "title" events
+    result <- LEvent.writeSnd $
+        Cmd.Lilypond.extractMovements config "title" events
     case result of
-        Left err -> Log.write err >> pure (Log.msg_text err)
+        Left err -> Log.write err >> pure (Log.msgText err)
         Right ly -> pure $ Text.Lazy.toStrict ly
 
 
 -- * transform
 
-set_namespace :: Id.Namespace -> Cmd.CmdL ()
-set_namespace = Create.rename_project
+setNamespace :: Id.Namespace -> Cmd.CmdL ()
+setNamespace = Create.renameProject
 
 -- | Set the score namespace to the given one.  Also update the project_dir
 -- and move the actual directory.
 rename :: Id.Namespace -> Cmd.CmdL ()
 rename ns = do
-    Create.rename_project ns
-    Cmd.gets Cmd.state_save_file >>= \case
+    Create.renameProject ns
+    Cmd.gets Cmd.stateSaveFile >>= \case
         Nothing -> pure ()
         Just (_, Cmd.SaveState fn) -> do
-            new_path <- liftIO $ Path.canonical $
-                replace_dir ns (Path.to_path fn)
+            newPath <- liftIO $ Path.canonical $
+                replaceDir ns (Path.toPath fn)
             Cmd.modify $ \st -> st
-                { Cmd.state_save_file =
+                { Cmd.stateSaveFile =
                     -- Assume the new name is new, and thus defaults to
                     -- ReadWrite.
-                    Just (Cmd.ReadWrite, Cmd.SaveState new_path)
+                    Just (Cmd.ReadWrite, Cmd.SaveState newPath)
                 }
         Just (_, Cmd.SaveRepo repo) -> do
-            let old_dir = FilePath.takeDirectory (Path.to_path repo)
-                new_dir = FilePath.replaceFileName old_dir
-                    (untxt (Id.un_namespace ns))
+            let oldDir = FilePath.takeDirectory (Path.toPath repo)
+                newDir = FilePath.replaceFileName oldDir
+                    (untxt (Id.unNamespace ns))
             -- System.Directory.renameDirectory deletes the destination
             -- diretory for some reason.  I'd rather throw an exception.
-            Cmd.rethrow_io $ Exceptions.ignoreEnoent $
-                Posix.rename old_dir new_dir
-            new_path <- liftIO $ Path.canonical $
-                new_dir </> FilePath.takeFileName (Path.to_path repo)
+            Cmd.rethrowIo $ Exceptions.ignoreEnoent $
+                Posix.rename oldDir newDir
+            newPath <- liftIO $ Path.canonical $
+                newDir </> FilePath.takeFileName (Path.toPath repo)
             Cmd.modify $ \st -> st
-                { Cmd.state_save_file =
-                    Just (Cmd.ReadWrite, Cmd.SaveState new_path)
+                { Cmd.stateSaveFile =
+                    Just (Cmd.ReadWrite, Cmd.SaveState newPath)
                 }
     where
-    replace_dir ns path = new_dir </> FilePath.takeFileName path
+    replaceDir ns path = newDir </> FilePath.takeFileName path
         where
-        new_dir = FilePath.replaceFileName (FilePath.takeDirectory path)
-            (untxt (Id.un_namespace ns))
+        newDir = FilePath.replaceFileName (FilePath.takeDirectory path)
+            (untxt (Id.unNamespace ns))
 
 fix :: Cmd.M m => m [Text]
-fix = Ui.fix_state
+fix = Ui.fixState
 
 -- * load
 
-load_midi :: FilePath -> Cmd.CmdL BlockId
-load_midi = Load.Midi.load
+loadMidi :: FilePath -> Cmd.CmdL BlockId
+loadMidi = Load.Midi.load
 
 -- | Load the state from the file and merge it with the current state.  This
 -- will fail if any IDs collide, so hopefully they live in different
 -- namespaces.  In fact, this is why IDs have namespaces.
-load_merge :: Bool -> FilePath -> Cmd.CmdL ()
-load_merge = load_as_ Nothing
+loadMerge :: Bool -> FilePath -> Cmd.CmdL ()
+loadMerge = loadAs_ Nothing
 
 -- | Load another score and put it in a new namespace.  Will probably fail if
 -- the score itself uses multiple namespaces.
-load_as :: Text -> Bool -- ^ if True, open views
+loadAs :: Text -> Bool -- ^ if True, open views
     -> FilePath -> Cmd.CmdL ()
-load_as = load_as_ . Just . Id.namespace
+loadAs = loadAs_ . Just . Id.namespace
 
-load_as_ :: Maybe Id.Namespace -> Bool -> FilePath -> Cmd.CmdL ()
-load_as_ maybe_ns open_views fn = do
-    (new_state, _) <- Save.read fn
-    new_state <- Ui.exec_rethrow "strip clip" new_state $ do
-        Transform.destroy_namespace Clip.clip_namespace
-        whenJust maybe_ns $ Transform.map_namespace . const
-        unless open_views $
-            mapM_ Ui.destroy_view =<< Ui.all_view_ids
+loadAs_ :: Maybe Id.Namespace -> Bool -> FilePath -> Cmd.CmdL ()
+loadAs_ maybeNs openViews fn = do
+    (newState, _) <- Save.read fn
+    newState <- Ui.execRethrow "strip clip" newState $ do
+        Transform.destroyNamespace Clip.clipNamespace
+        whenJust maybeNs $ Transform.mapNamespace . const
+        unless openViews $
+            mapM_ Ui.destroyView =<< Ui.allViewIds
     state <- Ui.get
-    merged <- Cmd.require_right (("merge state: "<>) . pretty) $
-        Transform.merge_states state new_state
+    merged <- Cmd.requireRight (("merge state: "<>) . pretty) $
+        Transform.mergeStates state newState
     Ui.put merged
 
 -- | Destroy the given namespace.
 unload :: Ui.M m => Text -> m ()
-unload = Transform.destroy_namespace . Id.namespace
+unload = Transform.destroyNamespace . Id.namespace

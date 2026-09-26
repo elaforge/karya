@@ -13,7 +13,7 @@ test_doc_html :: Test
 test_doc_html = do
     -- Mostly this just makes HPC coverage for all the documentation.
     let hstate = ("haddock", mempty)
-    not_equal (CallDoc.doc_html hstate (CallDoc.builtins C.All.builtins))
+    notEqual (CallDoc.docHtml hstate (CallDoc.builtins C.All.builtins))
         mempty
-    not_equal (CallDoc.scales_html hstate (CallDoc.scale_docs Scale.All.docs))
+    notEqual (CallDoc.scalesHtml hstate (CallDoc.scaleDocs Scale.All.docs))
         mempty

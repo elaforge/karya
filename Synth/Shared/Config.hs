@@ -61,16 +61,16 @@ data Config = Config
     } deriving (Eq, Show)
 
 getConfig :: IO Config
-getConfig = config <$> Path.get_app_dir
+getConfig = config <$> Path.getAppDir
 
 getLogFilename :: String -> IO FilePath
 getLogFilename name = do
-    dir <- Path.to_absolute <$> Path.get_app_dir <*> pure App.Config.log_dir
+    dir <- Path.toAbsolute <$> Path.getAppDir <*> pure App.Config.logDir
     pure $ dir </> name
 
 config :: Path.AppDir -> Config
 config appDir = Config
-    { imDir = Path.to_absolute appDir Config.im_dir
+    { imDir = Path.toAbsolute appDir Config.imDir
     , synths = Map.fromList
         [ (samplerName, sampler)
         , (faustName, faust)
@@ -102,7 +102,7 @@ sampler = Synth
 
 -- | Base directory for sampler patches.
 samplerRoot :: Path.Relative
-samplerRoot = Config.data_dir Path.</> "sampler"
+samplerRoot = Config.dataDir Path.</> "sampler"
 
 -- | This is samplerRoot, but as an absolute path.
 --
@@ -114,7 +114,7 @@ samplerRoot = Config.data_dir Path.</> "sampler"
 -- is the only thing that actually needs it.
 unsafeSamplerRoot :: FilePath
 unsafeSamplerRoot =
-    Path.to_absolute (Unsafe.unsafePerformIO Path.get_app_dir) samplerRoot
+    Path.toAbsolute (Unsafe.unsafePerformIO Path.getAppDir) samplerRoot
 {-# NOINLINE unsafeSamplerRoot #-}
 
 faustName :: SynthName
@@ -235,8 +235,8 @@ playFilename :: FilePath -> Id.BlockId -> FilePath
 playFilename scorePath blockId = scorePath </> idFilename blockId
 
 idFilename :: Id.Ident a => a -> FilePath
-idFilename id = untxt $ Id.un_namespace ns <> "/" <> name
-    where (ns, name) = Id.un_id $ Id.unpack_id id
+idFilename id = untxt $ Id.unNamespace ns <> "/" <> name
+    where (ns, name) = Id.unId $ Id.unpackId id
 
 -- | Delete output links for instruments that have disappeared entirely.
 -- This often happens when I disable a track.
@@ -256,7 +256,7 @@ clearUnusedInstruments outputDir instruments = do
 -- correspondance with ScoreT.Instrument, because clearUnusedInstruments
 -- uses it.
 instrumentToDir :: ScoreT.Instrument -> FilePath
-instrumentToDir = untxt . ScoreT.instrument_name
+instrumentToDir = untxt . ScoreT.instrumentName
 
 dirToInstrument :: FilePath -> ScoreT.Instrument
 dirToInstrument = ScoreT.Instrument . txt . FilePath.takeFileName
@@ -301,15 +301,15 @@ emitMessage msg = do
             Warn {} -> Log.Warn
             Failure {} -> Log.Warn
     Log.log prio $ Text.unwords $
-        [ Id.ident_text (_blockId msg)
-        , pretty (Set.map Id.ident_text (_trackIds msg))
+        [ Id.identText (_blockId msg)
+        , pretty (Set.map Id.identText (_trackIds msg))
         , case _payload msg of
             RenderingRange start end -> pretty start <> "--" <> pretty end
             WaveformsCompleted chunknums -> "completed: " <> pretty chunknums
             Warn stack err -> pretty stack <> ": " <> err
             Failure err -> err
         ]
-    Log.with_stdio_lock $ do
+    Log.withStdioLock $ do
         ByteString.Lazy.Char8.putStrLn $ Aeson.encode msg
         IO.hFlush IO.stdout
 
@@ -319,5 +319,5 @@ parseMessage = Aeson.decode . Texts.toLazyByteString
 -- | Infer namespace/block from
 -- .../im/cache/$scorePath/$scoreFname/$namespace/$block/$instrument
 pathToBlockId :: FilePath -> Id.BlockId
-pathToBlockId = Id.BlockId . Id.read_id
+pathToBlockId = Id.BlockId . Id.readId
     . Text.intercalate "/" . take 2 . Lists.takeEnd 3 . Text.splitOn "/" . txt

@@ -5,7 +5,7 @@
 -- | Block call and support.
 module Derive.C.Prelude.Block (
     library
-    , eval_root_block, global_transform
+    , evalRootBlock, globalTransform
 ) where
 import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Map as Map
@@ -44,9 +44,9 @@ import           Types
 library :: Library.Library
 library = mconcat
     [ Library.generators
-        [(BlockUtil.capture_null_control, c_capture_null_control)]
-    , Library.pattern pattern_note_block
-    , Library.pattern pattern_control_block
+        [(BlockUtil.captureNullControl, cCaptureNullControl)]
+    , Library.pattern patternNoteBlock
+    , Library.pattern patternControlBlock
     ]
 
 -- * root block
@@ -57,73 +57,73 @@ library = mconcat
 -- Tempo.with_tempo does a bit of magic to stretch all blocks to length 1,
 -- except the root one.  The root block should operate in real time, so no
 -- stretching here.  Otherwise, a tempo of 2 would be the same as 1.
-{-# SCC eval_root_block #-}
-eval_root_block :: BlockId -> Derive.NoteDeriver
-eval_root_block block_id =
-    global_transform $ Eval.eval_one_call True $ call_from_block_id block_id
+{-# SCC evalRootBlock #-}
+evalRootBlock :: BlockId -> Derive.NoteDeriver
+evalRootBlock blockId =
+    globalTransform $ Eval.evalOneCall True $ callFromBlockId blockId
 
-{-# SCC global_transform #-}
-global_transform :: Derive.NoteDeriver -> Derive.NoteDeriver
-global_transform = transform_if_present ctx "GLOBAL"
-    where ctx = Derive.dummy_context 0 1 "<GLOBAL transform>"
+{-# SCC globalTransform #-}
+globalTransform :: Derive.NoteDeriver -> Derive.NoteDeriver
+globalTransform = transformIfPresent ctx "GLOBAL"
+    where ctx = Derive.dummyContext 0 1 "<GLOBAL transform>"
 
-transform_if_present :: Derive.Callable (Derive.Transformer a)
+transformIfPresent :: Derive.Callable (Derive.Transformer a)
     => Derive.Context a
     -> Expr.Symbol -> Derive.Deriver (Stream.Stream a)
     -> Derive.Deriver (Stream.Stream a)
-transform_if_present ctx sym deriver = Derive.lookup_call sym >>= \case
+transformIfPresent ctx sym deriver = Derive.lookupCall sym >>= \case
     Nothing -> deriver
-    Just call -> Eval.apply_transformer ctx call [] deriver
+    Just call -> Eval.applyTransformer ctx call [] deriver
 
 -- * note calls
 
-pattern_note_block :: Derive.PatternCall (Derive.Generator Derive.Note)
-pattern_note_block = Derive.PatternCall
-    { pat_description = "block name"
-    , pat_doc = Derive.extract_doc fake_call
-    , pat_function = \sym -> fmap c_block <$> call_to_block_id sym
+patternNoteBlock :: Derive.PatternCall (Derive.Generator Derive.Note)
+patternNoteBlock = Derive.PatternCall
+    { patDescription = "block name"
+    , patDoc = Derive.extractDoc fakeCall
+    , patFunction = \sym -> fmap cBlock <$> callToBlockId sym
     }
     where
     -- Not evaluated, so it doesn't matter if the BlockId is invalid.
-    fake_call = c_block (Id.BlockId (Id.read_id "example/block"))
+    fakeCall = cBlock (Id.BlockId (Id.readId "example/block"))
 
-{-# SCC c_block #-}
-c_block :: BlockId -> Derive.Generator Derive.Note
-c_block block_id = Derive.with_score_duration get_score_duration $
-    Derive.with_real_duration (const $ get_real_duration block_id) $
+{-# SCC cBlock #-}
+cBlock :: BlockId -> Derive.Generator Derive.Note
+cBlock blockId = Derive.withScoreDuration getScoreDuration $
+    Derive.withRealDuration (const $ getRealDuration blockId) $
     Derive.generator Module.prelude
-        (Derive.CallName $ "block " <> showt block_id) Tags.prio_block
+        (Derive.CallName $ "block " <> showt blockId) Tags.prioBlock
     "Substitute the named block into the score. If the symbol doesn't contain\
     \ a `/`, the default namespace is applied. If it starts with a `-`, this\
     \ is a relative call and the calling block's namespace and name are\
     \ prepended."
     $ Sig.call0 $ Sub.inverting $ \args -> do
-        stack <- Internal.get_stack
-        when (Stack.Block block_id `elem` Stack.innermost stack) $
-            Derive.throw $ "recursive call to " <> pretty block_id
+        stack <- Internal.getStack
+        when (Stack.Block blockId `elem` Stack.innermost stack) $
+            Derive.throw $ "recursive call to " <> pretty blockId
         -- This ensures that each block call from the same event sees a new
         -- serial number, as documented in 'Derive.CacheKey'.
-        Internal.increment_event_serial
+        Internal.incrementEventSerial
         -- I have to put the block on the stack before calling 'd_block'
         -- because 'Cache.block' relies on on the block id already being
         -- on the stack.
-        Internal.with_stack_block block_id $ Cache.block block_id run args
+        Internal.withStackBlock blockId $ Cache.block blockId run args
     where
-    run args = Derive.place start (end - start) $ trim args $ d_block block_id
+    run args = Derive.place start (end - start) $ trim args $ dBlock blockId
         where (start, end) = Args.range args
     trim args deriver = do
         end <- Derive.real (1 :: ScoreTime)
-        if Event.is_positive (Args.event args)
-            then trim_controls end deriver
+        if Event.isPositive (Args.event args)
+            then trimControls end deriver
             else deriver
-    get_score_duration :: a -> Derive.Deriver (Derive.CallDuration ScoreTime)
-    get_score_duration _ = Derive.CallDuration . (\(s, e) -> e-s) <$>
-        Derive.block_logical_range block_id
-    get_real_duration :: BlockId
+    getScoreDuration :: a -> Derive.Deriver (Derive.CallDuration ScoreTime)
+    getScoreDuration _ = Derive.CallDuration . (\(s, e) -> e-s) <$>
+        Derive.blockLogicalRange blockId
+    getRealDuration :: BlockId
         -> Derive.Deriver (Derive.CallDuration RealTime)
-    get_real_duration block_id = fmap (either (const Derive.Unknown) id) $
-        Derive.get_real_duration $ Internal.with_stack_block block_id $
-            d_block block_id
+    getRealDuration blockId = fmap (either (const Derive.Unknown) id) $
+        Derive.getRealDuration $ Internal.withStackBlock blockId $
+            dBlock blockId
 
 -- | Remove samples at the given RealTime.  This is to support final block
 -- notes and 'Derive.Flags.infer_duration'.  Otherwise, an event at the end of
@@ -140,64 +140,64 @@ c_block block_id = Derive.with_score_duration get_score_duration $
 -- TODO this is unsatisfying because it feels ad-hoc and clunky.  In addition,
 -- it drops a sample that I don't actually want to drop for non-final events.
 -- Not to mention it's inefficient.
-trim_controls :: RealTime -> Derive.Deriver a -> Derive.Deriver a
-trim_controls end =
-    Derive.modify_signals (Signal.drop_discontinuity_at end)
-        (PSignal.drop_discontinuity_at end)
+trimControls :: RealTime -> Derive.Deriver a -> Derive.Deriver a
+trimControls end =
+    Derive.modifySignals (Signal.dropDiscontinuityAt end)
+        (PSignal.dropDiscontinuityAt end)
 
-d_block :: BlockId -> Derive.NoteDeriver
-d_block block_id = do
-    blocks <- Derive.get_ui_state Ui.state_blocks
+dBlock :: BlockId -> Derive.NoteDeriver
+dBlock blockId = do
+    blocks <- Derive.getUiState Ui.stateBlocks
     -- Do some error checking.  These are all caught later, but if I throw here
     -- I can give more specific error msgs.
-    title <- case Map.lookup block_id blocks of
+    title <- case Map.lookup blockId blocks of
         Nothing -> Derive.throw "block_id not found"
-        Just block -> pure $ Block.block_title block
+        Just block -> pure $ Block.blockTitle block
     -- Record a dependency on this block.  This should happen even if the
     -- derivation throws, because a dependency on a block with an error is
     -- still a dependency.
-    Internal.add_block_dep block_id
-    let deriver = BlockUtil.note_deriver block_id
+    Internal.addBlockDep blockId
+    let deriver = BlockUtil.noteDeriver blockId
     fmap (fromMaybe Stream.empty) $ Derive.catch True $
-        case ParseTitle.parse_block title of
+        case ParseTitle.parseBlock title of
             Left err -> Derive.throw $ "block title: " <> err
             -- An empty title means no transformation.
             Right (Expr.Call call [] :| []) | call == "" -> deriver
             Right expr ->
-                Eval.eval_transformers ctx (NonEmpty.toList expr) deriver
-                where ctx = Derive.dummy_context 0 1 "block title"
+                Eval.evalTransformers ctx (NonEmpty.toList expr) deriver
+                where ctx = Derive.dummyContext 0 1 "block title"
 
 -- | Given a block id, produce a call expression that will call that block.
-call_from_block_id :: BlockId -> DeriveT.Call
-call_from_block_id block_id =
-    Expr.call0 (Expr.Symbol $ Id.show_id $ Id.unpack_id block_id)
+callFromBlockId :: BlockId -> DeriveT.Call
+callFromBlockId blockId =
+    Expr.call0 (Expr.Symbol $ Id.showId $ Id.unpackId blockId)
 
 -- | Like 'Eval.call_to_block_id' but make sure the block exists.
-call_to_block_id :: Expr.Symbol -> Derive.Deriver (Maybe BlockId)
-call_to_block_id sym = do
-    caller <- Internal.lookup_current_block_id
-    ns <- Derive.get_ui_state $ UiConfig.config_namespace . Ui.state_config
-    case Eval.call_to_block_id ns caller sym of
+callToBlockId :: Expr.Symbol -> Derive.Deriver (Maybe BlockId)
+callToBlockId sym = do
+    caller <- Internal.lookupCurrentBlockId
+    ns <- Derive.getUiState $ UiConfig.configNamespace . Ui.stateConfig
+    case Eval.callToBlockId ns caller sym of
         Nothing -> pure Nothing
-        Just block_id -> do
-            blocks <- Derive.get_ui_state Ui.state_blocks
-            pure $ if Map.member block_id blocks then Just block_id
+        Just blockId -> do
+            blocks <- Derive.getUiState Ui.stateBlocks
+            pure $ if Map.member blockId blocks then Just blockId
                 else Nothing
 
 -- * control calls
 
-pattern_control_block :: Derive.PatternCall (Derive.Generator Derive.Control)
-pattern_control_block = Derive.PatternCall
-    { pat_description = "block name"
-    , pat_doc = Derive.extract_doc fake_call
-    , pat_function = \sym -> fmap c_control_block <$> call_to_block_id sym
+patternControlBlock :: Derive.PatternCall (Derive.Generator Derive.Control)
+patternControlBlock = Derive.PatternCall
+    { patDescription = "block name"
+    , patDoc = Derive.extractDoc fakeCall
+    , patFunction = \sym -> fmap cControlBlock <$> callToBlockId sym
     }
     where
     -- Not evaluated, so it doesn't matter if the BlockId is invalid.
-    fake_call = c_control_block (Id.BlockId (Id.read_id "example/block"))
+    fakeCall = cControlBlock (Id.BlockId (Id.readId "example/block"))
 
-c_control_block :: BlockId -> Derive.Generator Derive.Control
-c_control_block block_id = Derive.generator Module.prelude "control-block"
+cControlBlock :: BlockId -> Derive.Generator Derive.Control
+cControlBlock blockId = Derive.generator Module.prelude "control-block"
     mempty ("Substitute the control signal from the named control block.\
     \ A control block should consist of a single branch ending in\
     \ a track named `%`.  The signal from that track will be\
@@ -205,27 +205,27 @@ c_control_block block_id = Derive.generator Module.prelude "control-block"
     ) $
     Sig.call0 $ \args -> do
         let (start, end) = Args.range args
-        Derive.place start (end-start) (d_control_block block_id)
+        Derive.place start (end-start) (dControlBlock blockId)
 
-d_control_block :: BlockId -> Derive.ControlDeriver
-d_control_block block_id = Internal.with_stack_block block_id $ do
+dControlBlock :: BlockId -> Derive.ControlDeriver
+dControlBlock blockId = Internal.withStackBlock blockId $ do
     -- Control calls aren't cached, so I can put the block stack in the
     -- convenient place.
-    blocks <- Derive.get_ui_state Ui.state_blocks
-    when (Map.lookup block_id blocks == Nothing) $
+    blocks <- Derive.getUiState Ui.stateBlocks
+    when (Map.lookup blockId blocks == Nothing) $
         Derive.throw "block_id not found"
-    Internal.add_block_dep block_id
-    deriver <- Derive.eval_ui $ BlockUtil.control_deriver block_id
+    Internal.addBlockDep blockId
+    deriver <- Derive.evalUi $ BlockUtil.controlDeriver blockId
     deriver
 
-c_capture_null_control :: Derive.Generator Derive.Note
-c_capture_null_control = Derive.generator1 Module.internal
-    (Derive.sym_to_call_name BlockUtil.capture_null_control) mempty
+cCaptureNullControl :: Derive.Generator Derive.Note
+cCaptureNullControl = Derive.generator1 Module.internal
+    (Derive.symToCallName BlockUtil.captureNullControl) mempty
     ("This is an internal call used to capture the control signal at the\
     \ bottom of a control block."
     ) $ Sig.call0 $ \_ -> do
         sig <- Derive.require "no null control to capture"
-            =<< Derive.lookup_signal Controls.null
-        stack <- Derive.get_stack
-        pure $! Score.set_control Controls.null sig Score.empty_event
-            { Score.event_stack = stack }
+            =<< Derive.lookupSignal Controls.null
+        stack <- Derive.getStack
+        pure $! Score.setControl Controls.null sig Score.emptyEvent
+            { Score.eventStack = stack }

@@ -12,10 +12,10 @@
     to account for start randomization.
 -}
 module Cmd.StepPlay (
-    cmd_set_or_advance, cmd_set, cmd_here, cmd_clear, cmd_advance, cmd_rewind
+    cmdSetOrAdvance, cmdSet, cmdHere, cmdClear, cmdAdvance, cmdRewind
 
 #ifdef TESTING
-    , selnum, make_states
+    , selnum, makeStates
 #endif
 ) where
 import qualified Data.List as List
@@ -47,49 +47,49 @@ import           Types
 
 
 selnum :: Sel.Num
-selnum = Config.step_play_selnum
+selnum = Config.stepPlaySelnum
 
-cmd_set_or_advance :: Cmd.M m => Bool -> m ()
-cmd_set_or_advance play_selected_tracks =
+cmdSetOrAdvance :: Cmd.M m => Bool -> m ()
+cmdSetOrAdvance playSelectedTracks =
     ifM (Maybe.isJust <$> get)
-        cmd_advance (cmd_set play_selected_tracks)
+        cmdAdvance (cmdSet playSelectedTracks)
 
 -- | Place the play step position at the 'Cmd.state_play_step' before the
 -- insert point and prepare the performance.
-cmd_set :: Cmd.M m => Bool -> m ()
-cmd_set = set True
+cmdSet :: Cmd.M m => Bool -> m ()
+cmdSet = set True
 
-cmd_here :: Cmd.M m => Bool -> m ()
-cmd_here = set False
+cmdHere :: Cmd.M m => Bool -> m ()
+cmdHere = set False
 
 -- | Prepare the step play performance and emit MIDI for the initial position.
 set :: Cmd.M m => Bool -- ^ Rewind from the selection pos by the play step.
     -> Bool -- ^ Filter events to include only the ones on the selected
     -- tracks.
     -> m ()
-set step_back play_selected_tracks = do
-    (block_id, tracknum, _, sel_pos) <- Selection.get_insert
-    view_id <- Cmd.get_focused_view
-    tracks <- Ui.track_count block_id
-    play_tracks <- if play_selected_tracks
+set stepBack playSelectedTracks = do
+    (blockId, tracknum, _, selPos) <- Selection.getInsert
+    viewId <- Cmd.getFocusedView
+    tracks <- Ui.trackCount blockId
+    playTracks <- if playSelectedTracks
         then Sel.tracknums tracks <$> Selection.get
         else pure []
-    initialize view_id block_id play_tracks
-    start <- if step_back
+    initialize viewId blockId playTracks
+    start <- if stepBack
         then do
-            step <- Cmd.gets (Cmd.state_play_step . Cmd.state_play)
-            fromMaybe sel_pos <$>
-                TimeStep.rewind step block_id tracknum sel_pos
-        else pure sel_pos
-    move_to block_id start
+            step <- Cmd.gets (Cmd.statePlayStep . Cmd.statePlay)
+            fromMaybe selPos <$>
+                TimeStep.rewind step blockId tracknum selPos
+        else pure selPos
+    moveTo blockId start
 
-make_states :: [RealTime] -> [Midi.WriteMessage] -> [Midi.State.State]
-make_states ts msgs = snd $ List.mapAccumL go (Midi.State.empty, msgs) ts
+makeStates :: [RealTime] -> [Midi.WriteMessage] -> [Midi.State.State]
+makeStates ts msgs = snd $ List.mapAccumL go (Midi.State.empty, msgs) ts
     where
-    go (prev_state, msgs) t = ((state, post), state)
+    go (prevState, msgs) t = ((state, post), state)
         where
-        (pre, post) = break ((>t) . Midi.wmsg_ts) msgs
-        state = Midi.State.play (map Midi.State.convert pre) prev_state
+        (pre, post) = break ((>t) . Midi.wmsgTs) msgs
+        state = Midi.State.play (map Midi.State.convert pre) prevState
 
 -- ** initialize
 
@@ -107,164 +107,164 @@ make_states ts msgs = snd $ List.mapAccumL go (Midi.State.empty, msgs) ts
 -- ends, but that doesn't work when the events don't line up with the score.
 -- This happens with tuplets, or even if events are a bit randomized.
 initialize :: Cmd.M m => ViewId -> BlockId -> [TrackNum] -> m ()
-initialize view_id block_id play_tracks = do
-    play_track_ids <- Set.fromList <$>
-        mapMaybeM (Ui.event_track_at block_id) play_tracks
-    perf <- Cmd.get_performance block_id
-    let events = filter_tracks play_track_ids $ Cmd.perf_events perf
-        reals = group_edges eta events
-        scores = real_to_score block_id (Cmd.perf_inv_tempo perf) reals
+initialize viewId blockId playTracks = do
+    playTrackIds <- Set.fromList <$>
+        mapMaybeM (Ui.eventTrackAt blockId) playTracks
+    perf <- Cmd.getPerformance blockId
+    let events = filterTracks playTrackIds $ Cmd.perfEvents perf
+        reals = groupEdges eta events
+        scores = realToScore blockId (Cmd.perfInvTempo perf) reals
         steps = [(s, r) | (Just s, r) <- zip scores reals]
-    msgs <- LEvent.events_of <$> PlayUtil.perform_raw (Vector.toList events)
-    Cmd.modify_play_state $ \st -> st
-        { Cmd.state_step = Just $ Cmd.StepState
-            { Cmd.step_view_id = view_id
-            , Cmd.step_tracknums = play_tracks
-            , Cmd.step_before = []
-            , Cmd.step_after =
+    msgs <- LEvent.eventsOf <$> PlayUtil.performRaw (Vector.toList events)
+    Cmd.modifyPlayState $ \st -> st
+        { Cmd.stateStep = Just $ Cmd.StepState
+            { Cmd.stepViewId = viewId
+            , Cmd.stepTracknums = playTracks
+            , Cmd.stepBefore = []
+            , Cmd.stepAfter =
                 zip (map fst steps)
-                    (make_states (map ((+eta) . snd) steps) msgs)
+                    (makeStates (map ((+eta) . snd) steps) msgs)
             }
         }
     where eta = RealTime.seconds 0.01
 
-real_to_score :: BlockId -> Transport.InverseTempoFunction -> [RealTime]
+realToScore :: BlockId -> Transport.InverseTempoFunction -> [RealTime]
     -> [Maybe ScoreTime]
-real_to_score block_id inv = map $ \t ->
-    case Lists.head $ filter ((==block_id) . fst) (inv Transport.StopAtEnd t) of
+realToScore blockId inv = map $ \t ->
+    case Lists.head $ filter ((==blockId) . fst) (inv Transport.StopAtEnd t) of
         -- If this block is being played multiple times then just pick the
         -- first one and the first track.  That's basically what the playback
         -- monitor does anyway.
         Just (_, (_, score) : _) -> Just score
         _ -> Nothing
 
-filter_tracks :: Set TrackId -> Vector.Vector Score.Event
+filterTracks :: Set TrackId -> Vector.Vector Score.Event
     -> Vector.Vector Score.Event
-filter_tracks track_ids
-    | Set.null track_ids = id
-    | otherwise = Vector.filter (from_track track_ids)
+filterTracks trackIds
+    | Set.null trackIds = id
+    | otherwise = Vector.filter (fromTrack trackIds)
 
-group_edges :: RealTime -> Vector.Vector Score.Event -> [RealTime]
-group_edges eta = group . edges . Vector.toList
+groupEdges :: RealTime -> Vector.Vector Score.Event -> [RealTime]
+groupEdges eta = group . edges . Vector.toList
     where
-    edges events = Lists.merge (map Score.event_start events)
+    edges events = Lists.merge (map Score.eventStart events)
         -- The starts should be in order, but the ends have no such guarantee.
-        (List.sort (map Score.event_end events))
+        (List.sort (map Score.eventEnd events))
     group [] = []
     group (t : ts) = t : group (dropWhile (<= t + eta) ts)
 
 -- | True if the event was from one of these tracks.
-from_track :: Set TrackId -> Score.Event -> Bool
-from_track track_ids event = any (`Set.member` track_ids) $
-    mapMaybe track_of $ Stack.innermost (Score.event_stack event)
+fromTrack :: Set TrackId -> Score.Event -> Bool
+fromTrack trackIds event = any (`Set.member` trackIds) $
+    mapMaybe trackOf $ Stack.innermost (Score.eventStack event)
     where
-    track_of (Stack.Track tid) = Just tid
-    track_of _ = Nothing
+    trackOf (Stack.Track tid) = Just tid
+    trackOf _ = Nothing
 
 -- * movement
 
-cmd_clear :: Cmd.M m => m ()
-cmd_clear = do
-    view_ids <- Map.keys . Ui.state_views <$> Ui.get
-    forM_ view_ids $ \view_id -> Selection.set_selnum view_id selnum Nothing
-    Cmd.modify_play_state $ \st -> st { Cmd.state_step = Nothing }
-    Cmd.all_notes_off
+cmdClear :: Cmd.M m => m ()
+cmdClear = do
+    viewIds <- Map.keys . Ui.stateViews <$> Ui.get
+    forM_ viewIds $ \viewId -> Selection.setSelnum viewId selnum Nothing
+    Cmd.modifyPlayState $ \st -> st { Cmd.stateStep = Nothing }
+    Cmd.allNotesOff
 
-cmd_advance :: Cmd.M m => m ()
-cmd_advance = move True
+cmdAdvance :: Cmd.M m => m ()
+cmdAdvance = move True
 
-cmd_rewind :: Cmd.M m => m ()
-cmd_rewind = move False
+cmdRewind :: Cmd.M m => m ()
+cmdRewind = move False
 
 move :: Cmd.M m => Bool -> m ()
 move forward = do
-    step_state <- Cmd.abort_unless =<< get
+    stepState <- Cmd.abortUnless =<< get
     let msg = "can't " <> (if forward then "advance" else "rewind")
             <> " for step play"
-    (view_id, prev_state, pos, state) <- Cmd.require msg
-        =<< zip_state step_state forward
-    block_id <- Ui.block_id_of view_id
+    (viewId, prevState, pos, state) <- Cmd.require msg
+        =<< zipState stepState forward
+    blockId <- Ui.blockIdOf viewId
     -- If I want to get accurate playback positions, I need to call
     -- find_play_pos on the RealTime.  However, converting ScoreTime ->
     -- RealTime -> ScoreTime loses information since they are different types,
     -- and the inaccuracy messes up time step.  In any case, I don't support
     -- discontiguous play selections yet, so I don't need to get this right.
-    view_ids <- Map.keys <$> Ui.views_of block_id
-    set_selections view_ids pos (Cmd.step_tracknums step_state)
-    let msgs = Midi.State.diff prev_state state
+    viewIds <- Map.keys <$> Ui.viewsOf blockId
+    setSelections viewIds pos (Cmd.stepTracknums stepState)
+    let msgs = Midi.State.diff prevState state
     mapM_ (uncurry Cmd.midi) msgs
 
 -- | Move to the midi state at the given time and play it.  If there is no
 -- exact match for the time, pick the previous one.
-move_to :: Cmd.M m => BlockId -> ScoreTime -> m ()
-move_to block_id pos = do
-    step_state <- Cmd.abort_unless =<< get
-    let (before, after) = zip_backward $ zip_until ((>pos) . fst)
-            (Cmd.step_before step_state, Cmd.step_after step_state)
-    (pos, mstate) <- Cmd.abort_unless $ zip_head (before, after)
+moveTo :: Cmd.M m => BlockId -> ScoreTime -> m ()
+moveTo blockId pos = do
+    stepState <- Cmd.abortUnless =<< get
+    let (before, after) = zipBackward $ zipUntil ((>pos) . fst)
+            (Cmd.stepBefore stepState, Cmd.stepAfter stepState)
+    (pos, mstate) <- Cmd.abortUnless $ zipHead (before, after)
     put $ Just $
-        step_state { Cmd.step_before = before, Cmd.step_after = after }
-    view_ids <- Map.keys <$> Ui.views_of block_id
-    set_selections view_ids pos (Cmd.step_tracknums step_state)
+        stepState { Cmd.stepBefore = before, Cmd.stepAfter = after }
+    viewIds <- Map.keys <$> Ui.viewsOf blockId
+    setSelections viewIds pos (Cmd.stepTracknums stepState)
     mapM_ (uncurry Cmd.midi) $ Midi.State.diff Midi.State.empty mstate
 
-zip_state :: Cmd.M m => Cmd.StepState -> Bool ->
+zipState :: Cmd.M m => Cmd.StepState -> Bool ->
     m (Maybe (ViewId, Midi.State.State, ScoreTime, Midi.State.State))
-zip_state step_state forward = do
-    let zipper = (Cmd.step_before step_state, Cmd.step_after step_state)
+zipState stepState forward = do
+    let zipper = (Cmd.stepBefore stepState, Cmd.stepAfter stepState)
         (before, after) = if forward
-            then zip_forward zipper else zip_backward zipper
+            then zipForward zipper else zipBackward zipper
     unless (null after) $
         put $ Just $
-            step_state { Cmd.step_before = before, Cmd.step_after = after }
+            stepState { Cmd.stepBefore = before, Cmd.stepAfter = after }
     pure $ if forward
         then do
             (_, prev) <- Lists.head before
             (p, next) <- Lists.head after
-            pure (Cmd.step_view_id step_state, prev, p, next)
+            pure (Cmd.stepViewId stepState, prev, p, next)
         else do
             (p, next) <- Lists.head (fst zipper)
             (_, prev) <- Lists.head (snd zipper)
-            pure (Cmd.step_view_id step_state, prev, p, next)
+            pure (Cmd.stepViewId stepState, prev, p, next)
 
-zip_forward :: ([a], [a]) -> ([a], [a])
-zip_forward (before, []) = (before, [])
-zip_forward (before, x : xs) = (x : before, xs)
+zipForward :: ([a], [a]) -> ([a], [a])
+zipForward (before, []) = (before, [])
+zipForward (before, x : xs) = (x : before, xs)
 
-zip_backward :: ([a], [a]) -> ([a], [a])
-zip_backward ([], after) = ([], after)
-zip_backward (x : xs, after) = (xs, x : after)
+zipBackward :: ([a], [a]) -> ([a], [a])
+zipBackward ([], after) = ([], after)
+zipBackward (x : xs, after) = (xs, x : after)
 
-zip_until :: (a -> Bool) -> ([a], [a]) -> ([a], [a])
-zip_until f (before, after@(x:xs))
+zipUntil :: (a -> Bool) -> ([a], [a]) -> ([a], [a])
+zipUntil f (before, after@(x:xs))
     | f x = (before, after)
-    | otherwise = zip_until f (x:before, xs)
-zip_until _ (before, []) = (before, [])
+    | otherwise = zipUntil f (x:before, xs)
+zipUntil _ (before, []) = (before, [])
 
-zip_head :: ([a], [a]) -> Maybe a
-zip_head = Lists.head . snd
+zipHead :: ([a], [a]) -> Maybe a
+zipHead = Lists.head . snd
 
-set_selections :: Cmd.M m => [ViewId] -> ScoreTime -> [TrackNum] -> m ()
-set_selections view_ids pos tracks = sequence_
-    [Selection.set_selnum view_id selnum (sel pos) | view_id <- view_ids]
+setSelections :: Cmd.M m => [ViewId] -> ScoreTime -> [TrackNum] -> m ()
+setSelections viewIds pos tracks = sequence_
+    [Selection.setSelnum viewId selnum (sel pos) | viewId <- viewIds]
     where
     -- I can't display disjoint selections so assume the tracks are
     -- contiguous.
     sel pos = Just $ if null tracks
         then Sel.Selection
-            { start_track = 0, start_pos = pos
-            , cur_track = 999, cur_pos = pos
+            { startTrack = 0, startPos = pos
+            , curTrack = 999, curPos = pos
             , orientation = Sel.Positive
             }
         else Sel.Selection
-            { start_track = minimum tracks, start_pos = pos
-            , cur_track = maximum tracks, cur_pos = pos
+            { startTrack = minimum tracks, startPos = pos
+            , curTrack = maximum tracks, curPos = pos
             , orientation = Sel.Positive
             }
 
 get :: Cmd.M m => m (Maybe Cmd.StepState)
-get = Cmd.gets (Cmd.state_step . Cmd.state_play)
+get = Cmd.gets (Cmd.stateStep . Cmd.statePlay)
 
 put :: Cmd.M m => Maybe Cmd.StepState -> m ()
-put step_state = Cmd.modify_play_state $ \st ->
-    st { Cmd.state_step = step_state }
+put stepState = Cmd.modifyPlayState $ \st ->
+    st { Cmd.stateStep = stepState }

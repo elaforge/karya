@@ -17,7 +17,7 @@ import           Util.Test
 test_harmonic_ly :: Test
 test_harmonic_ly = do
     let run p = LilypondTest.measures ["harmonic"] $
-            LilypondTest.derive_tracks $ UiTest.note_track [(0, 4, p)]
+            LilypondTest.deriveTracks $ UiTest.noteTrack [(0, 4, p)]
     equal (run "o -- 3c") (Right "c1 -\\flageolet", [])
     -- Valid natural harmonics.
     equal (run "open-strings=(list (3c)) | o -- 4c")
@@ -25,13 +25,13 @@ test_harmonic_ly = do
     equal (run "open-strings=(list (3c)) | o -- 4g")
         (Right "<c g\\harmonic>1", [])
     -- You can't get that pitch as a natural harmonic.
-    strings_like (snd $ run "open-strings=(list (3c)) | o -- 4a")
+    stringsLike (snd $ run "open-strings=(list (3c)) | o -- 4a")
         ["can't find 69nn as a natural harmonic of open strings"]
     -- But you can as an artificial one.
     equal (run "open-strings=(list (3c)) | o art -- 4a")
         (Right "<d a\\harmonic>1", [])
 
-    strings_like (snd $ run "string=(3c) | o -- 3c")
+    stringsLike (snd $ run "string=(3c) | o -- 3c")
         ["can't find 48nn as a natural harmonic of *48nn*"]
     equal (run "harmonic-force-diamond=t | o nat -- 4c")
         (Right "<c c'\\harmonic>1", [])
@@ -40,7 +40,7 @@ test_harmonic_ly = do
 
     -- Harmonics are naturally nv.
     let run2 = LilypondTest.measures ["harmonic"]
-            . LilypondTest.derive_tracks . UiTest.note_track
+            . LilypondTest.deriveTracks . UiTest.noteTrack
     equal (run2 [(0, 1, "+nv -- 3c"), (1, 1, "o -- 3d"), (2, 1, "3e")])
         (Right "c4 ^\"nv\" d4 -\\flageolet e4 ^\"vib\" r4", [])
     equal (run2 [(0, 1, "+nv -- 3c"), (1, 1, "o art -- 3d"), (2, 1, "3e")])
@@ -48,9 +48,9 @@ test_harmonic_ly = do
 
 test_slur :: Test
 test_slur = do
-    let run = DeriveTest.extract extract . DeriveTest.derive_tracks_linear ""
-        extract = DeriveTest.e_note
-    let (evts, logs) = run $ (">", [(1, 3, "( .5 .5")]) : UiTest.regular_notes 5
+    let run = DeriveTest.extract extract . DeriveTest.deriveTracksLinear ""
+        extract = DeriveTest.eNote
+    let (evts, logs) = run $ (">", [(1, 3, "( .5 .5")]) : UiTest.regularNotes 5
     equal logs []
     equal evts
         [ (0, 1, "3c")
@@ -61,14 +61,14 @@ test_slur = do
 test_attr_slur :: Test
 test_attr_slur = do
     let run = DeriveTest.extract extract
-            . DeriveTest.derive_tracks_setup
-                (with_call <> DeriveTest.with_linear) ""
-        with_call = CallTest.with_note_generator "("
-            (Articulation.c_attr_slur Attrs.pizz Attrs.legato)
+            . DeriveTest.deriveTracksSetup
+                (withCall <> DeriveTest.withLinear) ""
+        withCall = CallTest.withNoteGenerator "("
+            (Articulation.cAttrSlur Attrs.pizz Attrs.legato)
         extract e = (s, d, p, a)
             where
-            ((s, d, p), a) = (DeriveTest.e_note e, DeriveTest.e_attributes e)
-    let (events, logs) = run $ (">", [(0, 2, "( .5")]) : UiTest.regular_notes 3
+            ((s, d, p), a) = (DeriveTest.eNote e, DeriveTest.eAttributes e)
+    let (events, logs) = run $ (">", [(0, 2, "( .5")]) : UiTest.regularNotes 3
     equal logs []
     equal events
         [ (0, 1.02, "3c", "+pizz"), (1, 0.5, "3d", "+legato")
@@ -77,18 +77,18 @@ test_attr_slur = do
 
 test_slur_ly :: Test
 test_slur_ly = do
-    let run = LilypondTest.measures [] . LilypondTest.derive_tracks_linear
-    equal (run $ (">", [(1, 2, "(")]) : UiTest.regular_notes 4)
+    let run = LilypondTest.measures [] . LilypondTest.deriveTracksLinear
+    equal (run $ (">", [(1, 2, "(")]) : UiTest.regularNotes 4)
         (Right "c4 d4 ( e4 ) f4", [])
     -- Arg is ignored in lilypond mode.
     equal (run $
-            (">", [(0, 4, "( .5")]) : UiTest.note_track1 ["3a", "3b", "3c"])
+            (">", [(0, 4, "( .5")]) : UiTest.noteTrack1 ["3a", "3b", "3c"])
         (Right "a4 ( b4 c4 ) r4", [])
     let tracks =
             -- Irregularly overlapping sub events.
             [ (">", [(0, 3, "("), (3, 3, "(")])
             , (">", [(0, 2, "+legato"), (2, 1, "+sul"), (3, 3, "+sul")])
-            ] ++ UiTest.regular_notes 6
+            ] ++ UiTest.regularNotes 6
     equal (run tracks)
         (Right "c4 ( d4 e4 ) f4 ( | g4 a4 ) r2", [])
     -- Goes to the last note in a tie.
@@ -99,15 +99,15 @@ test_slur_ly = do
             ]
     equal (run tracks) (Right "a'1 ( | b'1~ | b'1 )", [])
     -- Legato on a single note does nothing.
-    equal (run $ (">", [(0, 1, "(")]) : UiTest.regular_notes 1)
+    equal (run $ (">", [(0, 1, "(")]) : UiTest.regularNotes 1)
         (Right "c4 r4 r2", [])
 
 test_attributed_note_ly :: Test
 test_attributed_note_ly = do
-    let run = LilypondTest.measures [] . LilypondTest.derive_tracks_linear
+    let run = LilypondTest.measures [] . LilypondTest.deriveTracksLinear
     -- Works as a note transformer.
     equal (run $
-        (">", [(0, 2, "m")]) : UiTest.note_track
+        (">", [(0, 2, "m")]) : UiTest.noteTrack
             [(0, 1, "4a"), (1, 1, "4b"), (2, 1, "4c")])
         (Right "a'4 -+ b'4 -+ c'4 r4", [])
     -- Works as both a transformer and a generator.

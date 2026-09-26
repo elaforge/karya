@@ -3,11 +3,11 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Util.Fltk (
-    Fltk, Result(..), fltk, action, quit, run_action, Channel, new_channel
-    , event_loop
+    Fltk, Result(..), fltk, action, quit, runAction, Channel, newChannel
+    , eventLoop
     -- * window
-    , Window, win_ptr, MsgCallback, Msg(..)
-    , create_window, read_msg
+    , Window, winPtr, MsgCallback, Msg(..)
+    , createWindow, readMsg
 ) where
 import qualified Control.Concurrent as Concurrent
 import qualified Control.Concurrent.STM as STM
@@ -35,36 +35,36 @@ fltk = Fltk
 
 -- | Send a Fltk action that doesn't quit.
 action :: Channel -> Fltk () -> IO ()
-action chan act = send_action chan (act >> pure Continue)
+action chan act = sendAction chan (act >> pure Continue)
 
 quit :: Channel -> IO ()
-quit chan = send_action chan (pure Quit)
+quit chan = sendAction chan (pure Quit)
 
 -- | Run an action directly, rather than over the 'Channel'.  Only use this if
 -- you're certain you're the main thread!
-run_action :: Fltk a -> IO a
-run_action (Fltk act) = act
+runAction :: Fltk a -> IO a
+runAction (Fltk act) = act
 
-new_channel :: IO Channel
-new_channel = Channel <$> Concurrent.newMVar []
+newChannel :: IO Channel
+newChannel = Channel <$> Concurrent.newMVar []
 
 -- | Enter the fltk event loop.  For portability, this should only be called
 -- from the main thread.
-event_loop :: Channel -> IO ()
-event_loop chan = do
-    c_initialize
+eventLoop :: Channel -> IO ()
+eventLoop chan = do
+    cInitialize
     loop chan
     where
     loop chan = do
-        done <- not . Foreign.toBool <$> c_has_windows
+        done <- not . Foreign.toBool <$> cHasWindows
         if done then pure () else do
-            c_wait
-            handle_actions chan >>= \case
+            cWait
+            handleActions chan >>= \case
                 Quit -> pure ()
                 Continue -> loop chan
 
-handle_actions :: Channel -> IO Result
-handle_actions (Channel chan) = Concurrent.modifyMVar chan $ go . reverse
+handleActions :: Channel -> IO Result
+handleActions (Channel chan) = Concurrent.modifyMVar chan $ go . reverse
     -- The events are consed to the start, so reverse to get them back in
     -- the right order.
     where
@@ -73,21 +73,21 @@ handle_actions (Channel chan) = Concurrent.modifyMVar chan $ go . reverse
         Continue -> go acts
     go [] = pure ([], Continue)
 
-send_action :: Channel -> Fltk Result -> IO ()
-send_action (Channel chan) act = do
+sendAction :: Channel -> Fltk Result -> IO ()
+sendAction (Channel chan) act = do
     Concurrent.modifyMVar_ chan (pure . (act:))
-    c_awake
+    cAwake
 
-foreign import ccall "initialize" c_initialize :: IO ()
-foreign import ccall "ui_wait" c_wait :: IO ()
-foreign import ccall "ui_awake" c_awake :: IO ()
-foreign import ccall "has_windows" c_has_windows :: IO C.CInt
+foreign import ccall "initialize" cInitialize :: IO ()
+foreign import ccall "ui_wait" cWait :: IO ()
+foreign import ccall "ui_awake" cAwake :: IO ()
+foreign import ccall "has_windows" cHasWindows :: IO C.CInt
 
 -- * window
 
 data Window a = Window
-    { win_ptr :: Foreign.Ptr (Window a)
-    , win_chan :: STM.TChan (Msg a)
+    { winPtr :: Foreign.Ptr (Window a)
+    , winChan :: STM.TChan (Msg a)
     }
 type MsgCallback = C.CInt -> C.CString -> IO ()
 data Msg a = Msg a Text.Text
@@ -95,29 +95,29 @@ data Msg a = Msg a Text.Text
 type CreateWindow a = C.CInt -> C.CInt -> C.CInt -> C.CInt -> C.CString
     -> Foreign.FunPtr MsgCallback -> IO (Foreign.Ptr (Window a))
 
-create_window :: (C.CInt -> a) -> CreateWindow a -> Int -> Int -> Int -> Int
+createWindow :: (C.CInt -> a) -> CreateWindow a -> Int -> Int -> Int -> Int
     -> String -> IO (Window a)
-create_window decode_type create_win x y w h title = do
+createWindow decodeType createWin x y w h title = do
     chan <- STM.newTChanIO
-    cb <- c_make_msg_callback (cb_msg_callback decode_type chan)
+    cb <- cMakeMsgCallback (cbMsgCallback decodeType chan)
     winp <- C.withCString title $ \titlep ->
-        create_win (c x) (c y) (c w) (c h) titlep cb
+        createWin (c x) (c y) (c w) (c h) titlep cb
     pure (Window winp chan)
     where c = fromIntegral
 
-read_msg :: Window a -> STM.STM (Msg a)
-read_msg = STM.readTChan . win_chan
+readMsg :: Window a -> STM.STM (Msg a)
+readMsg = STM.readTChan . winChan
 
 
 -- * implementation
 
-cb_msg_callback :: (C.CInt -> a) -> STM.TChan (Msg a) -> MsgCallback
-cb_msg_callback decode_type msg_chan msg_type msgp = do
+cbMsgCallback :: (C.CInt -> a) -> STM.TChan (Msg a) -> MsgCallback
+cbMsgCallback decodeType msgChan msgType msgp = do
     msg <- peekCString msgp
-    STM.atomically $ STM.writeTChan msg_chan (Msg (decode_type msg_type) msg)
+    STM.atomically $ STM.writeTChan msgChan (Msg (decodeType msgType) msg)
 
 foreign import ccall "wrapper"
-    c_make_msg_callback :: MsgCallback -> IO (Foreign.FunPtr MsgCallback)
+    cMakeMsgCallback :: MsgCallback -> IO (Foreign.FunPtr MsgCallback)
 
 peekCString :: C.CString -> IO Text.Text
 peekCString cstr

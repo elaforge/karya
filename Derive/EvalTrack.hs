@@ -82,9 +82,9 @@
 module Derive.EvalTrack (
     TrackInfo(..)
     , GetLastVal
-    , derive_control_track, derive_note_track
-    , defragment_track_signals, unwarp
-    , derive_event, context
+    , deriveControlTrack, deriveNoteTrack
+    , defragmentTrackSignals, unwarp
+    , deriveEvent, context
 #ifdef TESTING
     , module Derive.EvalTrack
 #endif
@@ -124,15 +124,15 @@ import           Types
 -- | Per-track parameters, to cut down on the number of arguments taken by
 -- 'derive_note_track'.
 data TrackInfo d = TrackInfo
-    { tinfo_track :: !TrackTree.Track
-    , tinfo_sub_tracks :: !TrackTree.EventsTree
-    , tinfo_type :: !ParseTitle.Type
-    , tinfo_get_last_val :: GetLastVal d
+    { tinfoTrack :: !TrackTree.Track
+    , tinfoSubTracks :: !TrackTree.EventsTree
+    , tinfoType :: !ParseTitle.Type
+    , tinfoGetLastVal :: GetLastVal d
     }
 
-tinfo_prev_val :: TrackInfo d -> Maybe d -> Stream.Stream d -> Maybe d
-tinfo_prev_val tinfo prev_val levents =
-    tinfo_get_last_val tinfo (Stream.events_of levents) <|> prev_val
+tinfoPrevVal :: TrackInfo d -> Maybe d -> Stream.Stream d -> Maybe d
+tinfoPrevVal tinfo prevVal levents =
+    tinfoGetLastVal tinfo (Stream.eventsOf levents) <|> prevVal
 
 instance Pretty (TrackInfo d) where
     format (TrackInfo track subs ttype _) = Pretty.record "TrackInfo"
@@ -146,18 +146,18 @@ type DeriveResult d = ([Stream.Stream d], Derive.Threaded, Derive.Collect)
 
 -- | This is the toplevel function to derive control tracks.  It's responsible
 -- for actually evaluating each event.
-{-# SCC derive_control_track #-}
-derive_control_track :: Derive.CallableExpr d => Derive.State -> TrackInfo d
+{-# SCC deriveControlTrack #-}
+deriveControlTrack :: Derive.CallableExpr d => Derive.State -> TrackInfo d
     -> DeriveResult d
-derive_control_track state tinfo =
-    post_track track $ use_save_val $
-    List.mapAccumL (derive_control_track_stream tinfo) initial_state
-        (event_prev_nexts tinfo)
+deriveControlTrack state tinfo =
+    postTrack track $ useSaveVal $
+    List.mapAccumL (deriveControlTrackStream tinfo) initialState
+        (eventPrevNexts tinfo)
     where
-    initial_state = (record_track_dynamic track state, val, val)
-        where val = lookup_prev_val track state
-    track = tinfo_track tinfo
-    use_save_val ((state, _, save_val), result) = ((state, save_val), result)
+    initialState = (recordTrackDynamic track state, val, val)
+        where val = lookupPrevVal track state
+    track = tinfoTrack tinfo
+    useSaveVal ((state, _, saveVal), result) = ((state, saveVal), result)
 
 {- | This is the note track version of 'derive_control_track'.  The main
     difference is that it evaluates orphans.
@@ -171,28 +171,28 @@ derive_control_track state tinfo =
     complicated and somewhat more satisfactory than it used to be, if you can
     imagine that.
 -}
-{-# SCC derive_note_track #-}
-derive_note_track :: (TrackTree.EventsTree -> Derive.NoteDeriver)
+{-# SCC deriveNoteTrack #-}
+deriveNoteTrack :: (TrackTree.EventsTree -> Derive.NoteDeriver)
     -> Derive.State -> TrackInfo Score.Event -> DeriveResult Score.Event
-derive_note_track derive_tracks state tinfo
-    | TrackTree.track_sliced (tinfo_track tinfo) == TrackTree.Inversion =
-        derive_inverted state tinfo $
-        Derive.state_inversion (Derive.state_dynamic state)
-    | otherwise = derive_note_track_ derive_tracks state tinfo
+deriveNoteTrack deriveTracks state tinfo
+    | TrackTree.trackSliced (tinfoTrack tinfo) == TrackTree.Inversion =
+        deriveInverted state tinfo $
+        Derive.stateInversion (Derive.stateDynamic state)
+    | otherwise = deriveNoteTrack_ deriveTracks state tinfo
 
 -- This function is split out from 'derive_note_track' to emphasize the shared
 -- structure with 'derive_control_track'.
-derive_note_track_ :: (TrackTree.EventsTree -> Derive.NoteDeriver)
+deriveNoteTrack_ :: (TrackTree.EventsTree -> Derive.NoteDeriver)
     -> Derive.State -> TrackInfo Score.Event
     -> ([Stream.Stream Score.Event], Derive.Threaded, Derive.Collect)
-derive_note_track_ derive_tracks state tinfo =
-    post_track track $
-    List.mapAccumL (derive_note_track_stream derive_tracks tinfo) initial_state
-        (event_prev_nexts tinfo)
+deriveNoteTrack_ deriveTracks state tinfo =
+    postTrack track $
+    List.mapAccumL (deriveNoteTrackStream deriveTracks tinfo) initialState
+        (eventPrevNexts tinfo)
     where
-    initial_state = (record_track_dynamic track state, val)
-        where val = lookup_prev_val track state
-    track = tinfo_track tinfo
+    initialState = (recordTrackDynamic track state, val)
+        where val = lookupPrevVal track state
+    track = tinfoTrack tinfo
 
 -- I used to use the same function to derive note and control tracks.  However,
 -- over time control and note tracks gradually gained separate features, and
@@ -201,27 +201,27 @@ derive_note_track_ derive_tracks state tinfo =
 -- simpler, but there is a certain amount of duplicated code between them.
 -- So if you modify one, make sure you also modify the other if applicable.
 
-derive_inverted :: Derive.State -> TrackInfo Score.Event
+deriveInverted :: Derive.State -> TrackInfo Score.Event
     -> Derive.Inversion -> DeriveResult Score.Event
-derive_inverted state_ tinfo inversion =
-    ([levents], threaded, Derive.state_collect next_state)
+deriveInverted state_ tinfo inversion =
+    ([levents], threaded, Derive.stateCollect nextState)
     where
-    (levents, next_state) = run_derive state $ case inversion of
+    (levents, nextState) = runDerive state $ case inversion of
         Derive.NotInverted ->
             Derive.throw "inverted track didn't set state_inversion"
-        Derive.InversionInProgress generator -> with_inverted tinfo $
-            Derive.state_under_invert (Derive.state_dynamic state) generator
-    threaded = stash_prev_val track next_val $ Derive.state_threaded next_state
-    prev_val = lookup_prev_val track state_
-    next_val = tinfo_prev_val tinfo prev_val levents
-    track = tinfo_track tinfo
-    state = record_track_dynamic track state_
+        Derive.InversionInProgress generator -> withInverted tinfo $
+            Derive.stateUnderInvert (Derive.stateDynamic state) generator
+    threaded = stashPrevVal track nextVal $ Derive.stateThreaded nextState
+    prevVal = lookupPrevVal track state_
+    nextVal = tinfoPrevVal tinfo prevVal levents
+    track = tinfoTrack tinfo
+    state = recordTrackDynamic track state_
 
 -- | Update Dynamic before evaluating the inverted generator.
-with_inverted :: TrackInfo d -> Derive.Deriver a -> Derive.Deriver a
-with_inverted tinfo = Internal.local $ \state ->
-    maybe id Internal.add_stack_frame frame $ state
-        { Derive.state_inversion = Derive.NotInverted }
+withInverted :: TrackInfo d -> Derive.Deriver a -> Derive.Deriver a
+withInverted tinfo = Internal.local $ \state ->
+    maybe id Internal.addStackFrame frame $ state
+        { Derive.stateInversion = Derive.NotInverted }
     where
     -- The region is redundant, since the uninverted call has already put it on
     -- the stack, but inversion causes the tracks to go on the stack again, and
@@ -230,23 +230,23 @@ with_inverted tinfo = Internal.local $ \state ->
     -- TODO should I put the call name on again?  I could stash it in the event
     -- text.
     frame = (\e -> Stack.Region (Event.min e + shifted) (Event.max e + shifted))
-        <$> maybe_event
-    shifted = TrackTree.track_shifted (tinfo_track tinfo)
-    maybe_event = Events.head $ TrackTree.track_events $ tinfo_track tinfo
+        <$> maybeEvent
+    shifted = TrackTree.trackShifted (tinfoTrack tinfo)
+    maybeEvent = Events.head $ TrackTree.trackEvents $ tinfoTrack tinfo
 
 -- | Extract the final state at the end of a track derivation.
-post_track :: Derive.Taggable d => TrackTree.Track
+postTrack :: Derive.Taggable d => TrackTree.Track
     -> ((Derive.State, Maybe d), a) -> (a, Derive.Threaded, Derive.Collect)
-post_track track ((state, save_val), result) =
+postTrack track ((state, saveVal), result) =
     ( result
-    , stash_prev_val track save_val $ Derive.state_threaded state
-    , Derive.state_collect state
+    , stashPrevVal track saveVal $ Derive.stateThreaded state
+    , Derive.stateCollect state
     )
 
 -- | Get all event prefixes and suffixes.
-event_prev_nexts :: TrackInfo d -> [([Event.Event], [Event.Event])]
-event_prev_nexts =
-    Lists.zipper [] . Events.ascending . TrackTree.track_events . tinfo_track
+eventPrevNexts :: TrackInfo d -> [([Event.Event], [Event.Event])]
+eventPrevNexts =
+    Lists.zipper [] . Events.ascending . TrackTree.trackEvents . tinfoTrack
 
 -- | Derive one event on a control track.  Carrying previous values forward
 -- on a control track is a bit more complicated, because there is a separate
@@ -255,118 +255,118 @@ event_prev_nexts =
 -- track.  The reason is that I only save a prev val if the event won't be
 -- derived again, e.g.  there's a future event <= the start of the next slice.
 -- Otherwise, a sliced event will see its own output as its previous val.
-derive_control_track_stream :: Derive.CallableExpr d
+deriveControlTrackStream :: Derive.CallableExpr d
     => TrackInfo d
     -> (Derive.State, Maybe d, Maybe d)
     -> ([Event.Event], [Event.Event])
     -> ((Derive.State, Maybe d, Maybe d), Stream.Stream d)
-derive_control_track_stream tinfo (prev_state, prev_val, prev_save_val)
-        (prev_events, cur_events) =
-    ((state, next_val, save_val), stream)
+deriveControlTrackStream tinfo (prevState, prevVal, prevSaveVal)
+        (prevEvents, curEvents) =
+    ((state, nextVal, saveVal), stream)
     where
     (stream, state) = case derivers of
-        Just deriver -> run_derive (reset_event_serial prev_state) deriver
-        Nothing -> (Stream.empty, prev_state)
-    derivers = case cur_events of
-        event : next_events -> Just $
-            derive_event (context tinfo prev_val prev_events event next_events)
+        Just deriver -> runDerive (resetEventSerial prevState) deriver
+        Nothing -> (Stream.empty, prevState)
+    derivers = case curEvents of
+        event : nextEvents -> Just $
+            deriveEvent (context tinfo prevVal prevEvents event nextEvents)
                 event
         [] -> Nothing
-    next_val = tinfo_prev_val tinfo prev_val stream
-    save_val = if should_save_val then next_val else prev_save_val
-    should_save_val = case cur_events of
+    nextVal = tinfoPrevVal tinfo prevVal stream
+    saveVal = if shouldSaveVal then nextVal else prevSaveVal
+    shouldSaveVal = case curEvents of
         _ : next : _ ->
-            Event.start next <= TrackTree.track_end (tinfo_track tinfo)
+            Event.start next <= TrackTree.trackEnd (tinfoTrack tinfo)
         _ -> False
 
 -- | Derive one event on a note track.  This also derives orphan events
 -- before the event, or after the last event.
-{-# SCC derive_note_track_stream #-}
-derive_note_track_stream :: (TrackTree.EventsTree -> Derive.NoteDeriver)
+{-# SCC deriveNoteTrackStream #-}
+deriveNoteTrackStream :: (TrackTree.EventsTree -> Derive.NoteDeriver)
     -> TrackInfo Score.Event
     -> (Derive.State, Maybe Score.Event)
     -> ([Event.Event], [Event.Event])
     -> ((Derive.State, Maybe Score.Event), Stream.Stream Score.Event)
-derive_note_track_stream derive_tracks tinfo (prev_state, prev_val)
-        (prev_events, cur_events) =
-    ((next_state, next_val), stream)
+deriveNoteTrackStream deriveTracks tinfo (prevState, prevVal)
+        (prevEvents, curEvents) =
+    ((nextState, nextVal), stream)
     where
-    (stream, next_state)
-        | null derivers = (Stream.empty, prev_state)
-        | otherwise = run_derive (reset_event_serial prev_state)
+    (stream, nextState)
+        | null derivers = (Stream.empty, prevState)
+        | otherwise = runDerive (resetEventSerial prevState)
             (mconcat derivers)
-    derivers = Maybe.catMaybes $ case cur_events of
-        event : next_events ->
-            [ derive_empty (Lists.head prev_events) (Just event)
-            , Just $ derive_note event next_events
+    derivers = Maybe.catMaybes $ case curEvents of
+        event : nextEvents ->
+            [ deriveEmpty (Lists.head prevEvents) (Just event)
+            , Just $ deriveNote event nextEvents
             ]
-        [] -> [derive_empty (Lists.head prev_events) Nothing]
-    derive_note event next_events = derive_event ctx event
-        where ctx = context tinfo prev_val prev_events event next_events
-    next_val = tinfo_prev_val tinfo prev_val stream
+        [] -> [deriveEmpty (Lists.head prevEvents) Nothing]
+    deriveNote event nextEvents = deriveEvent ctx event
+        where ctx = context tinfo prevVal prevEvents event nextEvents
+    nextVal = tinfoPrevVal tinfo prevVal stream
     -- Look for orphans in the gap between events.
-    derive_empty prev next =
-        derive_orphans derive_tracks prev end (tinfo_sub_tracks tinfo)
+    deriveEmpty prev next =
+        deriveOrphans deriveTracks prev end (tinfoSubTracks tinfo)
         where
-        end = maybe (TrackTree.track_end (tinfo_track tinfo)) Event.start next
+        end = maybe (TrackTree.trackEnd (tinfoTrack tinfo)) Event.start next
 
 -- | See 'Derive.state_event_serial' for what this is doing.
-reset_event_serial :: Derive.State -> Derive.State
-reset_event_serial state =
-    case Derive.state_inversion (Derive.state_dynamic state) of
+resetEventSerial :: Derive.State -> Derive.State
+resetEventSerial state =
+    case Derive.stateInversion (Derive.stateDynamic state) of
         Derive.NotInverted -> state
-            { Derive.state_threaded = (Derive.state_threaded state)
-                { Derive.state_event_serial = 0 }
+            { Derive.stateThreaded = (Derive.stateThreaded state)
+                { Derive.stateEventSerial = 0 }
             }
         _ -> state
 
-lookup_prev_val :: Derive.Taggable a => TrackTree.Track -> Derive.State
+lookupPrevVal :: Derive.Taggable a => TrackTree.Track -> Derive.State
     -> Maybe a
-lookup_prev_val track state = do
-    block_track <- TrackTree.block_track_id track
-    tagged <- Map.lookup block_track $
-        Derive.state_prev_val (Derive.state_threaded state)
-    Derive.from_tagged tagged
+lookupPrevVal track state = do
+    blockTrack <- TrackTree.blockTrackId track
+    tagged <- Map.lookup blockTrack $
+        Derive.statePrevVal (Derive.stateThreaded state)
+    Derive.fromTagged tagged
 
-stash_prev_val :: Derive.Taggable a => TrackTree.Track -> Maybe a
+stashPrevVal :: Derive.Taggable a => TrackTree.Track -> Maybe a
     -> Derive.Threaded -> Derive.Threaded
-stash_prev_val track prev_val threaded = fromMaybe threaded $ do
-    val <- prev_val
-    block_track <- TrackTree.block_track_id track
+stashPrevVal track prevVal threaded = fromMaybe threaded $ do
+    val <- prevVal
+    blockTrack <- TrackTree.blockTrackId track
     pure $ threaded
-        { Derive.state_prev_val = Map.insert block_track (Derive.to_tagged val)
-            (Derive.state_prev_val threaded)
+        { Derive.statePrevVal = Map.insert blockTrack (Derive.toTagged val)
+            (Derive.statePrevVal threaded)
         }
 
 -- | Run a derivation.  If the deriver throws an exception, it will be caught
 -- and turned into a log msg, and any state changes rolled back.
 -- 'Internal.local' relies on this, since it doesn't revert the state after an
 -- exception.
-run_derive :: Derive.State -> Derive.Deriver (Stream.Stream d)
+runDerive :: Derive.State -> Derive.Deriver (Stream.Stream d)
     -> (Stream.Stream d, Derive.State)
-run_derive state deriver = case result of
-    Right stream -> (Stream.merge_logs logs stream, out_state)
-    Left err -> (Stream.merge_logs logs (error_to_stream err), state)
+runDerive state deriver = case result of
+    Right stream -> (Stream.mergeLogs logs stream, outState)
+    Left err -> (Stream.mergeLogs logs (errorToStream err), state)
     where
-    error_to_stream = Stream.from_logs . (:[]) . Derive.error_to_warn
-    (result, out_state, logs) = Derive.run state deriver
+    errorToStream = Stream.fromLogs . (:[]) . Derive.errorToWarn
+    (result, outState, logs) = Derive.run state deriver
 
-derive_orphans :: (TrackTree.EventsTree -> Derive.NoteDeriver)
+deriveOrphans :: (TrackTree.EventsTree -> Derive.NoteDeriver)
     -> Maybe Event.Event -> TrackTime -> TrackTree.EventsTree
     -> Maybe Derive.NoteDeriver
     -- ^ The Maybe is a micro-optimization to avoid returning 'mempty'.  This
     -- is because 'Derive.d_merge' doesn't know that one of its operands is
     -- empty, and does all the splitting of and restoring collect bother.
     -- I expect lots of empties here so maybe it makes a difference.
-derive_orphans derive_tracks prev end subs
+deriveOrphans deriveTracks prev end subs
     | start >= end = Nothing
     | otherwise = case checked of
         Left err -> Just $ Log.warn err >> pure Stream.empty
         Right [] -> Nothing
-        Right slices -> Just $ derive_tracks slices
+        Right slices -> Just $ deriveTracks slices
     where
-    checked = Slice.slice_orphans exclude_start start end subs
-    exclude_start = maybe False ((==0) . Event.duration) prev
+    checked = Slice.sliceOrphans excludeStart start end subs
+    excludeStart = maybe False ((==0) . Event.duration) prev
     start = maybe 0 Event.end prev
 
 -- Notes on recording TrackDynamic at NOTE [record-track-dynamics].
@@ -374,93 +374,93 @@ derive_orphans derive_tracks prev end subs
 -- I want controls from the first uninverted version (might be sliced because
 -- a child note track will only ever be evaluated sliced), and the rest from
 -- the first inverted version.
-record_track_dynamic :: TrackTree.Track -> Derive.State -> Derive.State
-record_track_dynamic track state =
+recordTrackDynamic :: TrackTree.Track -> Derive.State -> Derive.State
+recordTrackDynamic track state =
     -- TODO I feel like I should merge this with the existing collect, but
     -- profiling shows that it kills performance.  Perhaps I wind up
     -- duplicating the collect and doing a bunch of extra merging every
     -- (inverted) event.  I'm not sure at the moment, but it should be safe to
     -- start with an empty collect anyway.
-    state { Derive.state_collect = collect }
+    state { Derive.stateCollect = collect }
     where
-    collect = case Internal.record_track_dynamic (Derive.state_dynamic state) of
+    collect = case Internal.recordTrackDynamic (Derive.stateDynamic state) of
         Nothing -> mempty
-        Just track_dyn
-            | TrackTree.track_sliced track == TrackTree.Inversion -> mempty
-                { Derive.collect_track_dynamic_inverted = track_dyn }
-            | otherwise -> mempty { Derive.collect_track_dynamic = track_dyn }
+        Just trackDyn
+            | TrackTree.trackSliced track == TrackTree.Inversion -> mempty
+                { Derive.collectTrackDynamicInverted = trackDyn }
+            | otherwise -> mempty { Derive.collectTrackDynamic = trackDyn }
 
-defragment_track_signals :: Warp.Warp -> Derive.Collect -> Derive.Collect
-defragment_track_signals warp collect
+defragmentTrackSignals :: Warp.Warp -> Derive.Collect -> Derive.Collect
+defragmentTrackSignals warp collect
     | Map.null fragments = collect
     | otherwise = collect
-        { Derive.collect_track_signals = Derive.collect_track_signals collect
+        { Derive.collectTrackSignals = Derive.collectTrackSignals collect
             <> Map.map defragment fragments
-        , Derive.collect_signal_fragments = mempty
+        , Derive.collectSignalFragments = mempty
         }
     where
-    fragments = Derive.collect_signal_fragments collect
+    fragments = Derive.collectSignalFragments collect
     defragment = unwarp warp . mconcat . Map.elems
 
 unwarp :: Warp.Warp -> Signal.Control -> Track.TrackSignal
-unwarp warp control = case Warp.is_linear warp of
+unwarp warp control = case Warp.isLinear warp of
     Just linear -> Track.TrackSignal
-        { ts_signal = Signal.coerce control
-        , ts_shift = RealTime.to_score (Warp._shift linear)
-        , ts_stretch = RealTime.to_score (Warp._stretch linear)
+        { tsSignal = Signal.coerce control
+        , tsShift = RealTime.toScore (Warp._shift linear)
+        , tsStretch = RealTime.toScore (Warp._stretch linear)
         }
     Nothing -> Track.TrackSignal
-        { ts_signal = Warp.unwarp_signal warp control
-        , ts_shift = 0
-        , ts_stretch = 1
+        { tsSignal = Warp.unwarpSignal warp control
+        , tsShift = 0
+        , tsStretch = 1
         }
 
-{-# SCC derive_event #-}
-derive_event :: Derive.CallableExpr d => Derive.Context d -> Event.Event
+{-# SCC deriveEvent #-}
+deriveEvent :: Derive.CallableExpr d => Derive.Context d -> Event.Event
     -> Derive.Deriver (Stream.Stream d)
-derive_event ctx event
-    | Parse.comment_remove `Text.isPrefixOf` Text.stripStart text =
+deriveEvent ctx event
+    | Parse.commentRemove `Text.isPrefixOf` Text.stripStart text =
         pure Stream.empty
-    | otherwise = with_event_region (Derive.ctx_track_shifted ctx) event $
-        case Parse.parse_expr text of
+    | otherwise = withEventRegion (Derive.ctxTrackShifted ctx) event $
+        case Parse.parseExpr text of
             Left err -> Log.warn err >> pure Stream.empty
-            Right expr -> with_note_start_end $ Eval.eval_toplevel ctx expr
+            Right expr -> withNoteStartEnd $ Eval.evalToplevel ctx expr
     where
     text = Event.text event
-    with_note_start_end = case Derive.ctx_track_type ctx of
-        Just ParseTitle.NoteTrack -> Derive.with_vals
-                [ (EnvKey.note_start, Event.start event)
-                , (EnvKey.note_end, Event.end event)
+    withNoteStartEnd = case Derive.ctxTrackType ctx of
+        Just ParseTitle.NoteTrack -> Derive.withVals
+                [ (EnvKey.noteStart, Event.start event)
+                , (EnvKey.noteEnd, Event.end event)
                 ]
-            where event = Derive.ctx_event ctx
+            where event = Derive.ctxEvent ctx
         _ -> id
 
-with_event_region :: ScoreTime -> Event.Event -> Derive.Deriver a
+withEventRegion :: ScoreTime -> Event.Event -> Derive.Deriver a
     -> Derive.Deriver a
-with_event_region track_shifted event =
-    Internal.with_stack_region (Event.min event + track_shifted)
-        (Event.max event + track_shifted)
+withEventRegion trackShifted event =
+    Internal.withStackRegion (Event.min event + trackShifted)
+        (Event.max event + trackShifted)
 
 context :: TrackInfo a -> Maybe val
     -> [Event.Event] -- ^ previous events, in reverse order
     -> Event.Event -- ^ cur event
     -> [Event.Event] -- ^ following events
     -> Derive.Context val
-context tinfo prev_val prev event next = Derive.Context
-    { Derive.ctx_prev_val = prev_val
-    , Derive.ctx_event = event
+context tinfo prevVal prev event next = Derive.Context
+    { Derive.ctxPrevVal = prevVal
+    , Derive.ctxEvent = event
     -- Augment prev and next with the unevaluated "around" notes from
     -- 'State.track_around'.
-    , Derive.ctx_prev_events = tprev ++ prev
-    , Derive.ctx_next_events = next ++ tnext
-    , Derive.ctx_event_end = case next ++ tnext of
-        [] -> TrackTree.track_end track
+    , Derive.ctxPrevEvents = tprev ++ prev
+    , Derive.ctxNextEvents = next ++ tnext
+    , Derive.ctxEventEnd = case next ++ tnext of
+        [] -> TrackTree.trackEnd track
         event : _ -> Event.start event
-    , Derive.ctx_track_shifted = TrackTree.track_shifted track
-    , Derive.ctx_sub_tracks = subs
-    , Derive.ctx_sub_events = Nothing
-    , Derive.ctx_track_type = Just ttype
+    , Derive.ctxTrackShifted = TrackTree.trackShifted track
+    , Derive.ctxSubTracks = subs
+    , Derive.ctxSubEvents = Nothing
+    , Derive.ctxTrackType = Just ttype
     }
     where
     TrackInfo track subs ttype _ = tinfo
-    (tprev, tnext) = TrackTree.track_around track
+    (tprev, tnext) = TrackTree.trackAround track

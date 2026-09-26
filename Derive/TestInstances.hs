@@ -24,14 +24,14 @@ deriving instance {-# OVERLAPPING #-} Eq DeriveT.Term
 deriving instance Eq DeriveT.Quoted
 
 instance Eq PSignal.PSignal where
-    sig1 == sig2 = PSignal.to_pairs sig1 == PSignal.to_pairs sig2
+    sig1 == sig2 = PSignal.toPairs sig1 == PSignal.toPairs sig2
 instance Eq (PSignal.RawPitch a) where
-    p1 == p2 = PSignal.pitch_nn (PSignal.coerce p1)
-        == PSignal.pitch_nn (PSignal.coerce p2)
+    p1 == p2 = PSignal.pitchNn (PSignal.coerce p1)
+        == PSignal.pitchNn (PSignal.coerce p2)
 
 instance Eq DeriveT.CFunction where
-    a == b = DeriveT.cf_name a == DeriveT.cf_name b
+    a == b = DeriveT.cfName a == DeriveT.cfName b
 instance Eq DeriveT.PFunction where
-    a == b = DeriveT.pf_name a == DeriveT.pf_name b
+    a == b = DeriveT.pfName a == DeriveT.pfName b
 
 #endif

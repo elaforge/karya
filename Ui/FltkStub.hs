@@ -5,7 +5,7 @@
 {-# OPTIONS_GHC -fno-warn-unused-matches #-}
 -- | Like "Ui.BlockCStub" for "Ui.Ui".
 module Ui.FltkStub (
-    Fltk, fltk, Channel, event_loop, send_action, quit_ui_thread
+    Fltk, fltk, Channel, eventLoop, sendAction, quitUiThread
 ) where
 import qualified Control.Concurrent.MVar as MVar
 import qualified Control.Concurrent.STM as STM
@@ -25,11 +25,11 @@ type Channel = MVar.MVar [(Fltk (), Text)]
 
 type QuitRequest = MVar.MVar ()
 
-event_loop :: Channel -> QuitRequest -> STM.TChan UiMsg.UiMsg -> IO ()
-event_loop ui_chan quit_request msg_chan = pure ()
+eventLoop :: Channel -> QuitRequest -> STM.TChan UiMsg.UiMsg -> IO ()
+eventLoop uiChan quitRequest msgChan = pure ()
 
-send_action :: Channel -> Text -> Fltk () -> IO ()
-send_action ui_chan description act = pure ()
+sendAction :: Channel -> Text -> Fltk () -> IO ()
+sendAction uiChan description act = pure ()
 
-quit_ui_thread :: QuitRequest -> IO ()
-quit_ui_thread quit_request = pure ()
+quitUiThread :: QuitRequest -> IO ()
+quitUiThread quitRequest = pure ()

@@ -25,10 +25,10 @@ import           Util.Test
 
 test_selected_notes :: Test
 test_selected_notes = do
-    let run state start end = CmdTest.result_val $
-            CmdTest.run state CmdTest.default_cmd_state $ do
-                CmdTest.set_sel 1 start 8 end
-                ModifyNotes.selected_notes
+    let run state start end = CmdTest.resultVal $
+            CmdTest.run state CmdTest.defaultCmdState $ do
+                CmdTest.setSel 1 start 8 end
+                ModifyNotes.selectedNotes
     let state = mkstate
             [ ("tempo", [])
             , (">", [(0, 1, "1")]), ("*", [(0, 0, "4c")])
@@ -38,48 +38,48 @@ test_selected_notes = do
             , (2, 3), (4, 5)
             ]
     equal (run state 0.5 0.5) $ Right $ Just
-        [ (mknote (0, 1, "1", [("*", [(0, "4c")])], 0, [3]), UiTest.mk_tid 2)
+        [ (mknote (0, 1, "1", [("*", [(0, "4c")])], 0, [3]), UiTest.mkTid 2)
         ]
     equal (run state 0 2) $ Right $ Just
-        [ (mknote (0, 1, "1", [("*", [(0, "4c")])], 0, [3]), UiTest.mk_tid 2)
-        , (mknote (1, 1, "2", [("*", [(1, "4d")])], 1, [5]), UiTest.mk_tid 4)
+        [ (mknote (0, 1, "1", [("*", [(0, "4c")])], 0, [3]), UiTest.mkTid 2)
+        , (mknote (1, 1, "2", [("*", [(1, "4d")])], 1, [5]), UiTest.mkTid 4)
         ]
 
     let complicated = mkstate
             [(">", [(0, 1, "")]), ("*", []), ("*", [])] [(1, 2), (1, 3)]
-    left_like (run complicated 0 2) ">1 subtrack"
+    leftLike (run complicated 0 2) ">1 subtrack"
     let fancy = mkstate [(">", [(0, 1, "")]), ("add c", [])] [(1, 2)]
-    left_like (run fancy 0 2) "complicated controls unsupported"
+    leftLike (run fancy 0 2) "complicated controls unsupported"
 
 test_selected_remove :: Test
 test_selected_remove = do
-    let run tracks start end = CmdTest.e_tracks $
-            CmdTest.run_tracks tracks $ do
-                CmdTest.set_sel 1 start 2 end
+    let run tracks start end = CmdTest.eTracks $
+            CmdTest.runTracks tracks $ do
+                CmdTest.setSel 1 start 2 end
                 ModifyNotes.selection (ModifyNotes.notes (const []))
     let mkpitch negative ts = ("*",
-            [ (ScoreTime.from_double t, if negative then -0 else 0, "")
+            [ (ScoreTime.fromDouble t, if negative then -0 else 0, "")
             | t <- ts
             ])
-    equal_t (run (UiTest.note_track [(0, 2, "a"), (2, 2, "b")]) 0 0) $
+    equalT (run (UiTest.noteTrack [(0, 2, "a"), (2, 2, "b")]) 0 0) $
         Right ([(">", [(2, 2, "")]), ("*", [(2, 0, "b")])], [])
-    equal_t (run ((">", [(0, 2, "1"), (2, 2, "2")]) : [mkpitch False [0..4]])
+    equalT (run ((">", [(0, 2, "1"), (2, 2, "2")]) : [mkpitch False [0..4]])
             0 0) $
         Right ([(">", [(2, 2, "2")]), mkpitch False [2..4]], [])
     -- The pitch at 0 is still there because "1" was negative.
-    equal_t (run ((">", [(2, -2, "1"), (4, -2, "2")]) : [mkpitch True [0..4]])
+    equalT (run ((">", [(2, -2, "1"), (4, -2, "2")]) : [mkpitch True [0..4]])
             0 0) $
         Right ([(">", [(4, -2, "2")]), mkpitch True [0, 3, 4]], [])
 
 test_merge_notes :: Test
 test_merge_notes = do
-    let f = extract . head . ModifyNotes.merge_notes . mknotes
+    let f = extract . head . ModifyNotes.mergeNotes . mknotes
         mknotes notes =
             [ mknote (start, 1, showt n, controls, 0, [])
             | (n, (start, controls)) <- zip [0..] notes
             ]
         extract (ModifyNotes.NoteTrack events controls) =
-            (extract_events events, controls)
+            (extractEvents events, controls)
     equal (f [(0, []), (1, [])])
         ([(0, "0"), (1, "1")], mkcontrols [])
     equal (f [(0, [("*", [(0, "4c")])]), (1, [("c", [(1, "1")])])])
@@ -88,10 +88,10 @@ test_merge_notes = do
 
 test_write_tracks :: Test
 test_write_tracks = do
-    let f state tracknums = write_tracks state tracknums . map mk
+    let f state tracknums = writeTracks state tracknums . map mk
         mk (events, controls) =
             ModifyNotes.NoteTrack (mkevents events) (mkcontrols controls)
-        empty = f (snd $ UiTest.run_mkblock []) []
+        empty = f (snd $ UiTest.runMkblock []) []
         pitch pos = ("*", [(pos, "4c")])
         control name pos = (name, [(pos, "1")])
     equal (empty []) ([], [])
@@ -114,7 +114,7 @@ test_write_tracks = do
         )
 
     -- New tracks get the same parent as the old ones.
-    equal (f (snd $ UiTest.run_mkblock [("tempo", []), (">", [])]) [2]
+    equal (f (snd $ UiTest.runMkblock [("tempo", []), (">", [])]) [2]
             [([(0, "a")], []), ([(0, "b")], [])])
         ( [ ("tempo", [])
           , (">", [(0, 0, "a")])
@@ -151,7 +151,7 @@ test_write_tracks = do
           , (2, 3), (3, 4), (5, 6)
           ]
         )
-    let linear tracks = snd $ UiTest.run_mkblock $
+    let linear tracks = snd $ UiTest.runMkblock $
             (">", [(0, 1, "a")]) : tracks
     equal (f (linear [("*", [(4, 0, "5c")]), ("d", [(4, 0, "4")])]) [1..3]
             [([(0, "x")], [pitch 0, control "c" 1])])
@@ -162,38 +162,38 @@ test_write_tracks = do
         , [(1, 2), (2, 3), (3, 4)]
         )
 
-write_tracks :: Ui.State -> [TrackNum] -> [ModifyNotes.NoteTrack]
+writeTracks :: Ui.State -> [TrackNum] -> [ModifyNotes.NoteTrack]
     -> ([UiTest.TrackSpec], [Skeleton.Edge])
-write_tracks state tracknums tracks = extract $ UiTest.exec state $
-    ModifyNotes.write_tracks UiTest.default_block_id
-        (map UiTest.mk_tid tracknums) tracks
+writeTracks state tracknums tracks = extract $ UiTest.exec state $
+    ModifyNotes.writeTracks UiTest.defaultBlockId
+        (map UiTest.mkTid tracknums) tracks
     where
     extract state =
-        (UiTest.extract_tracks state, UiTest.extract_skeleton state)
+        (UiTest.extractTracks state, UiTest.extractSkeleton state)
 
 -- * util
 
-equal_t :: (Eq logs, Show logs) => Either Text ([UiTest.TrackSpec], logs)
+equalT :: (Eq logs, Show logs) => Either Text ([UiTest.TrackSpec], logs)
     -> Either Text ([UiTest.TrackSpec], logs) -> Test
-equal_t = Testing.equal_fmt (UiTest.right_fst UiTest.fmt_tracks)
+equalT = Testing.equalFmt (UiTest.rightFst UiTest.fmtTracks)
 
-extract_events :: Events.Events -> [(TrackTime, Text)]
-extract_events = map event . Events.ascending
+extractEvents :: Events.Events -> [(TrackTime, Text)]
+extractEvents = map event . Events.ascending
     where event e = (Event.start e, Event.text e)
 
 mkevents :: [(TrackTime, Text)] -> Events.Events
-mkevents = Events.from_list . map mkevent
+mkevents = Events.fromList . map mkevent
     where mkevent (start, text) = Event.event start 0 text
 
 mknote :: (TrackTime, TrackTime, Text, [(Text, [(TrackTime, Text)])],
     ModifyNotes.Index, [TrackNum]) -> ModifyNotes.Note
-mknote (start, dur, text, controls, index, control_track_ids) = ModifyNotes.Note
-    { note_start = start
-    , note_duration = dur
-    , note_text = text
-    , note_controls = mkcontrols controls
-    , note_index = index
-    , note_control_track_ids = map UiTest.mk_tid control_track_ids
+mknote (start, dur, text, controls, index, controlTrackIds) = ModifyNotes.Note
+    { noteStart = start
+    , noteDuration = dur
+    , noteText = text
+    , noteControls = mkcontrols controls
+    , noteIndex = index
+    , noteControlTrackIds = map UiTest.mkTid controlTrackIds
     }
 
 mkcontrols :: [(Text, [(TrackTime, Text)])] -> ModifyNotes.Controls
@@ -207,6 +207,6 @@ mkcontrols = Map.fromList . map mk
 
 mkstate :: [UiTest.TrackSpec] -> [Skeleton.Edge] -> Ui.State
 mkstate tracks skel = UiTest.exec Ui.empty $ do
-    UiTest.mkblocks_skel [((UiTest.default_block_name, tracks), skel)]
-    UiTest.mkview UiTest.default_block_id
+    UiTest.mkblocksSkel [((UiTest.defaultBlockName, tracks), skel)]
+    UiTest.mkview UiTest.defaultBlockId
     pure ()

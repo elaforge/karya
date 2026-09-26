@@ -15,10 +15,10 @@
 module Ui.Skeleton (
     Skeleton, Edge
     , empty, make, draw
-    , has_edge, add_edges, remove_edges
-    , lonely_vertex, flatten, to_forest, parents, children
-    , insert, remove, toggle_edge
-    , splice_above, splice_below
+    , hasEdge, addEdges, removeEdges
+    , lonelyVertex, flatten, toForest, parents, children
+    , insert, remove, toggleEdge
+    , spliceAbove, spliceBelow
     , move
 #ifdef TESTING
     , module Ui.Skeleton
@@ -66,22 +66,22 @@ make edges = Skeleton (Graphs.build edges)
 draw :: Skeleton -> String
 draw (Skeleton graph) = Graphs.draw graph
 
-has_edge :: Skeleton -> Edge -> Bool
-has_edge (Skeleton skel) edge = Graphs.has_edge skel edge
+hasEdge :: Skeleton -> Edge -> Bool
+hasEdge (Skeleton skel) edge = Graphs.hasEdge skel edge
 
-add_edges :: [Edge] -> Skeleton -> Maybe Skeleton
-add_edges edges = acyclic . map_skel (Graphs.add_edges edges)
+addEdges :: [Edge] -> Skeleton -> Maybe Skeleton
+addEdges edges = acyclic . mapSkel (Graphs.addEdges edges)
 
-remove_edges :: [Edge] -> Skeleton -> Skeleton
-remove_edges edges = map_skel (Graphs.remove_edges edges)
+removeEdges :: [Edge] -> Skeleton -> Skeleton
+removeEdges edges = mapSkel (Graphs.removeEdges edges)
 
-lonely_vertex :: Skeleton -> TrackNum -> Bool
-lonely_vertex (Skeleton graph) = Graphs.lonely_vertex graph
+lonelyVertex :: Skeleton -> TrackNum -> Bool
+lonelyVertex (Skeleton graph) = Graphs.lonelyVertex graph
 
 flatten :: Skeleton -> [Edge]
 flatten (Skeleton graph) = List.sort (Graph.edges graph)
 
-to_forest :: TrackNum -- ^ Total number of tracks.  This is needed because the
+toForest :: TrackNum -- ^ Total number of tracks.  This is needed because the
     -- underlying graph may be smaller than the number of tracks.  I don't
     -- want to allow a skeleton that doesn't have certain tracks (and hence
     -- makes them invisible) so any missing tracks are appended.
@@ -89,11 +89,11 @@ to_forest :: TrackNum -- ^ Total number of tracks.  This is needed because the
      -> [Tree.Tree TrackNum] -- ^ Each list of Nodes is sorted so the tree
      -- appears in the same order as the tracks.  This is essential for calls
      -- that want to deal with tracks left-to-right.
-to_forest ntracks (Skeleton graph) = sort_tree $ Graphs.to_forest graph ++ rest
+toForest ntracks (Skeleton graph) = sortTree $ Graphs.toForest graph ++ rest
     where -- from 1 past array end to last track index (ntracks-1)
     rest = [Graph.Node n [] | n <- [snd (IArray.bounds graph) + 1 .. ntracks-1]]
-    sort_tree = Lists.sortOn Tree.rootLabel
-        . map (\(Tree.Node val subs) -> Tree.Node val (sort_tree subs))
+    sortTree = Lists.sortOn Tree.rootLabel
+        . map (\(Tree.Node val subs) -> Tree.Node val (sortTree subs))
 
 -- | Get the parents of a TrackNum.
 parents :: Skeleton -> TrackNum -> [TrackNum]
@@ -104,25 +104,25 @@ children (Skeleton graph) tracknum = Graphs.children graph tracknum
 
 -- | Increment all vertices at and above, insert new empty vertex.
 insert :: TrackNum -> Skeleton -> Skeleton
-insert tracknum = map_skel (Graphs.insert_vertex tracknum)
+insert tracknum = mapSkel (Graphs.insertVertex tracknum)
 
 -- | All vertices pointing to the removed vertex instead point to what it
 -- pointed to.  All vertices above the removed one get (-1).
 remove :: TrackNum -> Skeleton -> Skeleton
-remove tracknum = map_skel (Graphs.remove_vertex tracknum)
+remove tracknum = mapSkel (Graphs.removeVertex tracknum)
 
-toggle_edge :: Edge -> Skeleton -> Maybe Skeleton
-toggle_edge edge (Skeleton graph) = Skeleton <$> Graphs.toggle_edge edge graph
+toggleEdge :: Edge -> Skeleton -> Maybe Skeleton
+toggleEdge edge (Skeleton graph) = Skeleton <$> Graphs.toggleEdge edge graph
 
-splice_above :: TrackNum -> TrackNum -> Skeleton -> Maybe Skeleton
-splice_above new to = acyclic . map_skel (Graphs.splice_above new to)
+spliceAbove :: TrackNum -> TrackNum -> Skeleton -> Maybe Skeleton
+spliceAbove new to = acyclic . mapSkel (Graphs.spliceAbove new to)
 
-splice_below :: TrackNum -> TrackNum -> Skeleton -> Maybe Skeleton
-splice_below new to = acyclic . map_skel (Graphs.splice_below new to)
+spliceBelow :: TrackNum -> TrackNum -> Skeleton -> Maybe Skeleton
+spliceBelow new to = acyclic . mapSkel (Graphs.spliceBelow new to)
 
 acyclic :: Skeleton -> Maybe Skeleton
 acyclic skel@(Skeleton graph)
-    | Graphs.has_cycle graph = Nothing
+    | Graphs.hasCycle graph = Nothing
     | otherwise = Just skel
 
 -- | If from<to, then @from@ is inserted after @to@.
@@ -144,5 +144,5 @@ move from to = make . go . flatten
         | x >= to && x < from = x + 1
         | otherwise = x
 
-map_skel :: (Graph.Graph -> Graph.Graph) -> Skeleton -> Skeleton
-map_skel f (Skeleton graph) = Skeleton (f graph)
+mapSkel :: (Graph.Graph -> Graph.Graph) -> Skeleton -> Skeleton
+mapSkel f (Skeleton graph) = Skeleton (f graph)

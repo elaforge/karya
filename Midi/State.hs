@@ -8,7 +8,7 @@
 -- higher level notes, but similar in that it's also simulating a synthesizer.
 -- This module focuses on the instantaneous state of the synth.
 module Midi.State (
-    State(..), empty, Channel(..), get_channel, empty_channel
+    State(..), empty, Channel(..), getChannel, emptyChannel
     , Control(..), Addr
     , Message, convert
     , play, process, diff
@@ -31,16 +31,16 @@ empty :: State
 empty = State Map.empty
 
 data Channel = Channel
-    { chan_notes :: !(Map Midi.Key Midi.Velocity)
-    , chan_pb :: !Midi.PitchBendValue
-    , chan_controls :: !(Map Control Midi.ControlValue)
+    { chanNotes :: !(Map Midi.Key Midi.Velocity)
+    , chanPb :: !Midi.PitchBendValue
+    , chanControls :: !(Map Control Midi.ControlValue)
     } deriving (Eq, Show)
 
-empty_channel :: Channel
-empty_channel = Channel Map.empty 0 Map.empty
+emptyChannel :: Channel
+emptyChannel = Channel Map.empty 0 Map.empty
 
-get_channel :: Addr -> State -> Channel
-get_channel addr (State chans) = Map.findWithDefault empty_channel addr chans
+getChannel :: Addr -> State -> Channel
+getChannel addr (State chans) = Map.findWithDefault emptyChannel addr chans
 
 instance Pretty Channel where
     format (Channel notes pb controls) = Pretty.record "Channel"
@@ -59,13 +59,13 @@ instance Pretty Control where
     pretty (Aftertouch key) = "at:" <> pretty key
     pretty Pressure = "pressure"
 
-cc_msg :: Control -> Midi.ControlValue -> Midi.ChannelMessage
-cc_msg (CC cc) val = Midi.ControlChange cc val
-cc_msg (Aftertouch key) val = Midi.Aftertouch key val
-cc_msg Pressure val = Midi.ChannelPressure val
+ccMsg :: Control -> Midi.ControlValue -> Midi.ChannelMessage
+ccMsg (CC cc) val = Midi.ControlChange cc val
+ccMsg (Aftertouch key) val = Midi.Aftertouch key val
+ccMsg Pressure val = Midi.ChannelPressure val
 
 convert :: Midi.WriteMessage -> Message
-convert msg = (Midi.wmsg_dev msg, Midi.wmsg_msg msg)
+convert msg = (Midi.wmsgDev msg, Midi.wmsgMsg msg)
 
 -- * play
 
@@ -82,21 +82,21 @@ process state (dev, Midi.ChannelMessage chan msg) = case msg of
     Midi.ControlChange cc val -> controls (Map.insert (CC cc) val)
     Midi.ProgramChange _pgm -> state -- I don't track current patch
     Midi.ChannelPressure val -> controls (Map.insert Pressure val)
-    Midi.PitchBend val -> modify $ \chan -> chan { chan_pb = val }
+    Midi.PitchBend val -> modify $ \chan -> chan { chanPb = val }
     Midi.AllSoundOff -> notes (const Map.empty)
     Midi.ResetAllControls -> controls (const Map.empty)
     Midi.AllNotesOff -> notes (const Map.empty)
     _ -> state
     where
-    notes f = modify $ \chan -> chan { chan_notes = f (chan_notes chan) }
+    notes f = modify $ \chan -> chan { chanNotes = f (chanNotes chan) }
     controls f = modify $ \chan ->
-        chan { chan_controls = f (chan_controls chan) }
-    modify = modify_addr state (dev, chan)
+        chan { chanControls = f (chanControls chan) }
+    modify = modifyAddr state (dev, chan)
 process state _ = state
 
-modify_addr :: State -> Addr -> (Channel -> Channel) -> State
-modify_addr (State chans) addr f =
-    State (Map.alter (Just . f . Maybe.fromMaybe empty_channel) addr chans)
+modifyAddr :: State -> Addr -> (Channel -> Channel) -> State
+modifyAddr (State chans) addr f =
+    State (Map.alter (Just . f . Maybe.fromMaybe emptyChannel) addr chans)
 
 
 -- * diff
@@ -104,32 +104,32 @@ modify_addr (State chans) addr f =
 -- | Emit msgs needed to take one State to another.
 diff :: State -> State -> [Message]
 diff (State chans1) (State chans2) =
-    diff_map chans1 chans2 empty_channel diff_chan
+    diffMap chans1 chans2 emptyChannel diffChan
 
-diff_chan :: Addr -> Channel -> Channel -> [Message]
-diff_chan (dev, chan) (Channel notes1 pb1 controls1)
+diffChan :: Addr -> Channel -> Channel -> [Message]
+diffChan (dev, chan) (Channel notes1 pb1 controls1)
         (Channel notes2 pb2 controls2) =
     map (\m -> (dev, Midi.ChannelMessage chan m)) $
     (if pb1 == pb2 then [] else [Midi.PitchBend pb2])
-    ++ diff_map controls1 controls2 0 diff_control
-    ++ concatMap (uncurry diff_note) (Maps.pairs notes1 notes2)
+    ++ diffMap controls1 controls2 0 diffControl
+    ++ concatMap (uncurry diffNote) (Maps.pairs notes1 notes2)
 
-diff_control :: Control -> Midi.ControlValue -> Midi.ControlValue
+diffControl :: Control -> Midi.ControlValue -> Midi.ControlValue
     -> [Midi.ChannelMessage]
-diff_control control v1 v2
+diffControl control v1 v2
     | v1 == v2 = []
-    | otherwise = [cc_msg control v2]
+    | otherwise = [ccMsg control v2]
 
-diff_note :: Midi.Key -> Lists.Paired Midi.Velocity Midi.Velocity
+diffNote :: Midi.Key -> Lists.Paired Midi.Velocity Midi.Velocity
     -> [Midi.ChannelMessage]
-diff_note key (Lists.First _) = [Midi.NoteOff key 0]
-diff_note key (Lists.Second vel) = [Midi.NoteOn key vel]
-diff_note key (Lists.Both v1 v2)
+diffNote key (Lists.First _) = [Midi.NoteOff key 0]
+diffNote key (Lists.Second vel) = [Midi.NoteOn key vel]
+diffNote key (Lists.Both v1 v2)
     | v1 == v2 = []
     | otherwise = [Midi.NoteOff key 0, Midi.NoteOn key v2]
 
-diff_map :: Ord k => Map k a -> Map k a -> a -> (k -> a -> a -> [b]) -> [b]
-diff_map m1 m2 deflt f = concatMap go (Maps.pairs m1 m2)
+diffMap :: Ord k => Map k a -> Map k a -> a -> (k -> a -> a -> [b]) -> [b]
+diffMap m1 m2 deflt f = concatMap go (Maps.pairs m1 m2)
     where
     go (k, Lists.Both v1 v2) = f k v1 v2
     go (k, Lists.First v1) = f k v1 deflt

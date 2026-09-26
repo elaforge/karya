@@ -81,13 +81,13 @@ emap1_ = fmap
 
 -- | Map on Score.Events.  The function is allowed to move the events, since it
 -- sorts them afterwards.
-emap1_ord_ :: (a -> Score.Event) -> Stream a -> Stream Score.Event
-emap1_ord_ f = Stream.sort . fmap f
+emap1Ord_ :: (a -> Score.Event) -> Stream a -> Stream Score.Event
+emap1Ord_ f = Stream.sort . fmap f
 
 -- | 1:1 non-monadic map with state.  This is like mapAccumL.
 emap1 :: (state -> a -> (state, b)) -> state -> Stream a -> (state, Stream b)
 emap1 f state =
-    second Stream.from_sorted_list . List.mapAccumL go state . Stream.to_list
+    second Stream.fromSortedList . List.mapAccumL go state . Stream.toList
     where
     go state (LEvent.Log log) = (state, LEvent.Log log)
     go state (LEvent.Event event) = LEvent.Event <$> f state event
@@ -95,72 +95,72 @@ emap1 f state =
 -- | 1:n non-monadic map with state.
 emap :: (state -> a -> (state, [Score.Event])) -> state
     -> Stream a -> (state, Stream Score.Event)
-emap f state = second Stream.merge_asc_lists . emap_groups f state
+emap f state = second Stream.mergeAscLists . emapGroups f state
     where
-    emap_groups :: (state -> a -> (state, [b])) -> state
+    emapGroups :: (state -> a -> (state, [b])) -> state
         -> Stream a -> (state, [Stream b])
-    emap_groups f state = List.mapAccumL go state . Stream.to_list
+    emapGroups f state = List.mapAccumL go state . Stream.toList
         where
-        go state (LEvent.Log log) = (state, Stream.from_logs [log])
+        go state (LEvent.Log log) = (state, Stream.fromLogs [log])
         go state (LEvent.Event event) =
-            Stream.from_sorted_events <$> f state event
+            Stream.fromSortedEvents <$> f state event
 
 -- | This is 'emap', but it promises to emit events in sorted order.
 -- TODO except that's not enforced, and maybe I should just always sort.
-emap_asc :: (state -> a -> (state, [Score.Event])) -> state
+emapAsc :: (state -> a -> (state, [Score.Event])) -> state
     -> Stream a -> (state, Stream Score.Event)
-emap_asc = emap
+emapAsc = emap
 
 -- | 'emap' without state.
 emap_ :: (a -> [Score.Event]) -> Stream a -> Stream Score.Event
-emap_ f = Stream.merge_asc_lists . map flatten . Stream.to_list . fmap f
+emap_ f = Stream.mergeAscLists . map flatten . Stream.toList . fmap f
     where
-    flatten (LEvent.Log log) = Stream.from_logs [log]
-    flatten (LEvent.Event events) = Stream.from_sorted_events events
+    flatten (LEvent.Log log) = Stream.fromLogs [log]
+    flatten (LEvent.Event events) = Stream.fromSortedEvents events
 
-emap_asc_ :: (a -> [Score.Event]) -> Stream a -> Stream Score.Event
-emap_asc_ = emap_
+emapAsc_ :: (a -> [Score.Event]) -> Stream a -> Stream Score.Event
+emapAsc_ = emap_
 
 -- ** monadic
 
 -- | Apply a function to the non-log events.
 -- TODO assumes the function doesn't destroy the order.
 apply :: ([a] -> [b]) -> Stream.Stream a -> Stream.Stream b
-apply f stream = Stream.merge_logs logs $ Stream.from_sorted_events (f events)
+apply f stream = Stream.mergeLogs logs $ Stream.fromSortedEvents (f events)
     where (events, logs) = Stream.partition stream
 
-apply_m :: Functor f => ([a] -> f [b]) -> Stream.Stream a -> f (Stream.Stream b)
-apply_m f stream =
-    Stream.merge_logs logs . Stream.from_sorted_events <$> f events
+applyM :: Functor f => ([a] -> f [b]) -> Stream.Stream a -> f (Stream.Stream b)
+applyM f stream =
+    Stream.mergeLogs logs . Stream.fromSortedEvents <$> f events
     where (events, logs) = Stream.partition stream
 
 -- | 1:1 monadic map without state.
 emap1m_ :: (a -> Score.Event) -> (a -> Derive.Deriver b) -> Stream a
     -> Derive.Deriver (Stream b)
-emap1m_ event_of f =
-    fmap Stream.from_sorted_list . mapMaybeM process . Stream.to_list
+emap1m_ eventOf f =
+    fmap Stream.fromSortedList . mapMaybeM process . Stream.toList
     where
     process (LEvent.Log log) = pure $ Just $ LEvent.Log log
     process (LEvent.Event a) =
-        Derive.with_event (event_of a) $ LEvent.Event <$> f a
+        Derive.withEvent (eventOf a) $ LEvent.Event <$> f a
 
 -- | Monadic map with state.  The event type is polymorphic, so you can use
 -- 'LEvent.zip' and co. to zip up unthreaded state, constructed with 'control'
 -- and 'nexts' and such.
-emap_m :: (a -> Score.Event)
+emapM :: (a -> Score.Event)
     -> (state -> a -> Derive.Deriver (state, [b]))
     -- ^ Process an event. Exceptions are caught and logged.
     -> state -> Stream a -> Derive.Deriver (state, Stream b)
-emap_m event_of f state =
-    fmap (second (Stream.from_sorted_list . DList.toList)) . go state
-        . Stream.to_list
+emapM eventOf f state =
+    fmap (second (Stream.fromSortedList . DList.toList)) . go state
+        . Stream.toList
     where
     go state [] = pure (state, mempty)
     go state (LEvent.Log log : events) =
         fmap (DList.cons (LEvent.Log log)) <$> go state events
     go state (LEvent.Event event : events) = do
         (state, output) <- fromMaybe (state, []) <$>
-            Derive.with_event (event_of event) (f state event)
+            Derive.withEvent (eventOf event) (f state event)
         (final, outputs) <- go state events
         pure (final, DList.fromList (map LEvent.Event output) <> outputs)
     -- TODO this could also take [(a, LEvent Score.Event)] and omit 'event_of'
@@ -168,75 +168,75 @@ emap_m event_of f state =
     -- annots approach I had earlier, and forces you to have a () annotation
     -- if you don't want one.
 
-emap_asc_m :: (a -> Score.Event)
+emapAscM :: (a -> Score.Event)
     -> (state -> a -> Derive.Deriver (state, [Score.Event]))
     -- ^ Process an event. Exceptions are caught and logged.
     -> state -> Stream a -> Derive.Deriver (state, Stream Score.Event)
-emap_asc_m event_of f state =
-    fmap (second merge) . Lists.mapAccumLM go state . Stream.to_list
+emapAscM eventOf f state =
+    fmap (second merge) . Lists.mapAccumLM go state . Stream.toList
     where
-    merge = Stream.merge_asc_lists . map Stream.from_sorted_list
+    merge = Stream.mergeAscLists . map Stream.fromSortedList
     go state (LEvent.Event event) =
         maybe (state, []) (second (map LEvent.Event)) <$>
-            Derive.with_event (event_of event) (f state event)
+            Derive.withEvent (eventOf event) (f state event)
     go state (LEvent.Log log) = pure (state, [LEvent.Log log])
 
 -- | 'emap_m' without the state.
-emap_m_ :: (a -> Score.Event) -> (a -> Derive.Deriver [b]) -> Stream a
+emapM_ :: (a -> Score.Event) -> (a -> Derive.Deriver [b]) -> Stream a
     -> Derive.Deriver (Stream b)
-emap_m_ event_of f = fmap snd . emap_m event_of (\() e -> (,) () <$> f e) ()
+emapM_ eventOf f = fmap snd . emapM eventOf (\() e -> (,) () <$> f e) ()
 
-emap_asc_m_ :: (a -> Score.Event) -> (a -> Derive.Deriver [Score.Event])
+emapAscM_ :: (a -> Score.Event) -> (a -> Derive.Deriver [Score.Event])
     -> Stream a -> Derive.Deriver (Stream Score.Event)
-emap_asc_m_ event_of f =
-    fmap snd <$> emap_asc_m event_of (\() e -> (,) () <$> f e) ()
+emapAscM_ eventOf f =
+    fmap snd <$> emapAscM eventOf (\() e -> (,) () <$> f e) ()
 
 -- | Postprocess each event with a NoteDeriver.  This is necessary if you need
 -- to generate more notes, e.g. with 'Call.note'.
-emap_s_ :: (a -> Score.Event) -> (a -> Derive.NoteDeriver) -> Stream a
+emapS_ :: (a -> Score.Event) -> (a -> Derive.NoteDeriver) -> Stream a
     -> Derive.NoteDeriver
-emap_s_ event_of f = concatMapM go . Stream.to_list
+emapS_ eventOf f = concatMapM go . Stream.toList
     where
-    go (LEvent.Log log) = pure $ Stream.from_logs [log]
+    go (LEvent.Log log) = pure $ Stream.fromLogs [log]
     go (LEvent.Event a) = fromMaybe mempty <$>
-        Derive.with_event (event_of a) (f a)
+        Derive.withEvent (eventOf a) (f a)
 
-merge_asc :: [[Score.Event]] -> [Score.Event]
-merge_asc = Lists.mergeAscLists Score.event_start
+mergeAsc :: [[Score.Event]] -> [Score.Event]
+mergeAsc = Lists.mergeAscLists Score.eventStart
 
 -- * only
 
 -- | Only process the events that match, otherwise pass unchanged.
 only :: (a -> event) -> (event -> Bool) -> (a -> event) -> a -> event
-only event_of match f a = if match (event_of a) then f a else event_of a
+only eventOf match f a = if match (eventOf a) then f a else eventOf a
 
-has_instrument :: [ScoreT.Instrument] -> Score.Event -> Bool
-has_instrument wanted = (`Set.member` set) . Score.event_instrument
+hasInstrument :: [ScoreT.Instrument] -> Score.Event -> Bool
+hasInstrument wanted = (`Set.member` set) . Score.eventInstrument
     where set = Set.fromList wanted
 
 -- ** unthreaded state
 
 control :: ScoreT.Function -> Stream Score.Event -> [Signal.Y]
-control f = map (f . Score.event_start) . Stream.events_of
+control f = map (f . Score.eventStart) . Stream.eventsOf
 
-real_time_control :: ScoreT.Function -> Stream Score.Event -> [RealTime]
-real_time_control f = map RealTime.seconds . control f
+realTimeControl :: ScoreT.Function -> Stream Score.Event -> [RealTime]
+realTimeControl f = map RealTime.seconds . control f
 
 -- | Take a typed signal to RealTime durations.
-duration_control :: ScoreT.TimeT -> ScoreT.Function
+durationControl :: ScoreT.TimeT -> ScoreT.Function
     -> Stream Score.Event -> Derive.Deriver [RealTime]
-duration_control time_t f events = do
-    let starts = map Score.event_start (Stream.events_of events)
-    case time_t of
+durationControl timeT f events = do
+    let starts = map Score.eventStart (Stream.eventsOf events)
+    case timeT of
         ScoreT.TReal -> pure $ map (RealTime.seconds . f) starts
         ScoreT.TScore ->
-            mapM (\t -> Call.real_duration t (ScoreTime.from_double (f t)))
+            mapM (\t -> Call.realDuration t (ScoreTime.fromDouble (f t)))
                 starts
 
 -- | Zip each event up with its neighbors.
 neighbors :: Stream a -> Stream ([a], a, [a])
 neighbors events = emap1_ (\(ps, ns, e) -> (ps, e, ns)) $
-    Stream.zip3_on prevs nexts events
+    Stream.zip3On prevs nexts events
 
 -- | Zip each event with its nearest neighbor with the same key.  A key might
 -- be 'Score.event_instrument', 'hand_key', or 'voice_key'.
@@ -245,37 +245,37 @@ neighbors events = emap1_ (\(ps, ns, e) -> (ps, e, ns)) $
 -- choose between hand or voice when they want the next \"relevant\" note.
 -- Perhaps hand and voice should be merged into a single concept.  They have to
 -- be distinct for the lilypond backend though.
-neighbors_by :: Eq key => (a -> key) -> Stream a -> Stream (Maybe a, a, Maybe a)
-neighbors_by key = emap1_ extract . neighbors
+neighborsBy :: Eq key => (a -> key) -> Stream a -> Stream (Maybe a, a, Maybe a)
+neighborsBy key = emap1_ extract . neighbors
     where
     extract (ps, e, ns) = (same ps, e, same ns)
         where same = Lists.head . filter ((== key e) . key)
 
-nexts_by :: Eq key => (a -> key) -> Stream a -> Stream (a, [a])
-nexts_by key = emap1_ extract . Stream.zip_on nexts
+nextsBy :: Eq key => (a -> key) -> Stream a -> Stream (a, [a])
+nextsBy key = emap1_ extract . Stream.zipOn nexts
     where
     extract (ns, e) = (e, same ns)
         where same = filter ((== key e) . key)
 
 -- | Like 'neighbors_by', but only the next neighbor.
-next_by :: Eq key => (a -> key) -> Stream a -> Stream (a, Maybe a)
-next_by key = emap1_ extract . neighbors_by key
+nextBy :: Eq key => (a -> key) -> Stream a -> Stream (a, Maybe a)
+nextBy key = emap1_ extract . neighborsBy key
     where extract (_, e, n) = (e, n)
 
-prev_by :: Eq key => (a -> key) -> Stream a -> Stream (Maybe a, a)
-prev_by key = emap1_ extract . neighbors_by key
+prevBy :: Eq key => (a -> key) -> Stream a -> Stream (Maybe a, a)
+prevBy key = emap1_ extract . neighborsBy key
     where extract (p, e, _) = (p, e)
 
-hand_key :: Score.Event -> (ScoreT.Instrument, Maybe Text)
-hand_key e =
-    ( Score.event_instrument e
-    , Env.maybe_val EnvKey.hand $ Score.event_environ e
+handKey :: Score.Event -> (ScoreT.Instrument, Maybe Text)
+handKey e =
+    ( Score.eventInstrument e
+    , Env.maybeVal EnvKey.hand $ Score.eventEnviron e
     )
 
-voice_key :: Score.Event -> (ScoreT.Instrument, Int)
-voice_key e =
-    ( Score.event_instrument e
-    , fromMaybe 0 $ Env.maybe_val EnvKey.voice $ Score.event_environ e
+voiceKey :: Score.Event -> (ScoreT.Instrument, Int)
+voiceKey e =
+    ( Score.eventInstrument e
+    , fromMaybe 0 $ Env.maybeVal EnvKey.voice $ Score.eventEnviron e
     )
 
 -- | Extract subsequent events.
@@ -290,36 +290,36 @@ prevs = scanl (flip (:)) []
 
 -- | Apply a function on the first Event of an LEvent stream.
 -- TODO this shouldn't destroy the order, but it isn't checkded.
-map_first :: (a -> Derive.Deriver a) -> Stream a
+mapFirst :: (a -> Derive.Deriver a) -> Stream a
     -> Derive.Deriver (Stream.Stream a)
-map_first f = map_head_tail $ \e es -> do
+mapFirst f = mapHeadTail $ \e es -> do
     e <- f e
-    pure $ Stream.from_sorted_list $ LEvent.Event e : Stream.to_list es
+    pure $ Stream.fromSortedList $ LEvent.Event e : Stream.toList es
 
 -- | Transform the first event and the rest of the events.
-map_head_tail :: (a -> Stream.Stream a -> Derive.Deriver (Stream.Stream a))
+mapHeadTail :: (a -> Stream.Stream a -> Derive.Deriver (Stream.Stream a))
     -> Stream a
     -> Derive.Deriver (Stream.Stream a)
-map_head_tail f = go . Stream.to_list
+mapHeadTail f = go . Stream.toList
     where
     go [] = pure Stream.empty
-    go (LEvent.Log log : rest) = Stream.merge_log log <$> go rest
-    go (LEvent.Event event : rest) = f event (Stream.from_sorted_list rest)
+    go (LEvent.Log log : rest) = Stream.mergeLog log <$> go rest
+    go (LEvent.Event event : rest) = f event (Stream.fromSortedList rest)
 
 -- * signal
 
-control_range :: Derive.ControlDeriver
+controlRange :: Derive.ControlDeriver
     -> Derive.Deriver (Signal.Control, (RealTime, RealTime), [Log.Msg])
-control_range deriver = do
+controlRange deriver = do
     (sig, logs) <- first mconcat . Stream.partition <$> deriver
     let range = case (Signal.head sig, Signal.last sig) of
             (Just (s, _), Just (e, _)) -> (s, e)
             _ -> (0, 0)
     pure (sig, range, logs)
 
-pitch_range :: Derive.PitchDeriver
+pitchRange :: Derive.PitchDeriver
     -> Derive.Deriver (PSignal.PSignal, (RealTime, RealTime), [Log.Msg])
-pitch_range deriver = do
+pitchRange deriver = do
     (sig, logs) <- first mconcat . Stream.partition <$> deriver
     let range = case (PSignal.head sig, PSignal.last sig) of
             (Just (s, _), Just (e, _)) -> (s, e)
@@ -330,13 +330,13 @@ pitch_range deriver = do
 signal :: Monoid sig => (sig -> sig)
     -> Derive.Deriver (Stream.Stream sig) -> Derive.Deriver (Stream.Stream sig)
 signal f deriver = do
-    (sig, logs) <- derive_signal deriver
-    pure $ Stream.from_sorted_list $
+    (sig, logs) <- deriveSignal deriver
+    pure $ Stream.fromSortedList $
         LEvent.Event (f sig) : map LEvent.Log logs
 
-derive_signal :: Monoid sig => Derive.Deriver (Stream.Stream sig)
+deriveSignal :: Monoid sig => Derive.Deriver (Stream.Stream sig)
     -> Derive.Deriver (sig, [Log.Msg])
-derive_signal deriver = do
+deriveSignal deriver = do
     (chunks, logs) <- Stream.partition <$> deriver
     pure (mconcat chunks, logs)
 
@@ -358,56 +358,56 @@ derive_signal deriver = do
     TODO this stuff is now unused, but maybe I'll find a use for it again some
     day.
 -}
-make_delayed :: Derive.PassedArgs a -> RealTime -> [DeriveT.Val]
+makeDelayed :: Derive.PassedArgs a -> RealTime -> [DeriveT.Val]
     -> Derive.NoteDeriver
-make_delayed args start event_args = do
-    dyn <- Internal.get_dynamic id
-    Stream.from_event . delayed_event event_args <$>
-        NoteUtil.make_event args dyn start 0 "" mempty
+makeDelayed args start eventArgs = do
+    dyn <- Internal.getDynamic id
+    Stream.fromEvent . delayedEvent eventArgs <$>
+        NoteUtil.makeEvent args dyn start 0 "" mempty
 
-delayed_event :: [DeriveT.Val] -> Score.Event -> Score.Event
-delayed_event args = Score.modify_environ $
-    Env.insert_val EnvKey.args (DeriveT.VList args)
+delayedEvent :: [DeriveT.Val] -> Score.Event -> Score.Event
+delayedEvent args = Score.modifyEnviron $
+    Env.insertVal EnvKey.args (DeriveT.VList args)
 
 -- | Return the args if this is a delayed event created by the given call.
-delayed_args :: Expr.Symbol -> Score.Event -> Maybe [DeriveT.Val]
-delayed_args (Expr.Symbol call) event
-    | Lists.head (Stack.innermost (Score.event_stack event))
+delayedArgs :: Expr.Symbol -> Score.Event -> Maybe [DeriveT.Val]
+delayedArgs (Expr.Symbol call) event
+    | Lists.head (Stack.innermost (Score.eventStack event))
             == Just (Stack.Call call) =
-        Env.maybe_val EnvKey.args (Score.event_environ event)
+        Env.maybeVal EnvKey.args (Score.eventEnviron event)
     | otherwise = Nothing
 
 -- * modify events
 
 -- | Like 'add_environ', but check the type.
-put_environ :: Typecheck.ToVal a => Env.Key -> a -> Score.Event
+putEnviron :: Typecheck.ToVal a => Env.Key -> a -> Score.Event
     -> Either Text Score.Event
-put_environ name val event =
-    case Env.put_val name val (Score.event_environ event) of
+putEnviron name val event =
+    case Env.putVal name val (Score.eventEnviron event) of
         Left err -> Left err
-        Right env -> Right $ event { Score.event_environ = env }
+        Right env -> Right $ event { Score.eventEnviron = env }
 
-add_environ :: Typecheck.ToVal a => Env.Key -> a -> Score.Event -> Score.Event
-add_environ name val = Score.modify_environ $ Env.insert_val name val
+addEnviron :: Typecheck.ToVal a => Env.Key -> a -> Score.Event -> Score.Event
+addEnviron name val = Score.modifyEnviron $ Env.insertVal name val
 
-set_instrument :: (ScoreT.Instrument, Derive.Instrument)
+setInstrument :: (ScoreT.Instrument, Derive.Instrument)
     -- ^ unaliased instrument name, from 'Derive.get_instrument'
     -> Score.Event -> Score.Event
-set_instrument (score_inst, inst) =
-    Score.set_instrument score_inst (Derive.inst_environ inst)
+setInstrument (scoreInst, inst) =
+    Score.setInstrument scoreInst (Derive.instEnviron inst)
 
 -- * misc
 
 -- | Like 'Derive.with_event_stack', but directly add the event's innermost
 -- stack to a log msg.
 -- TODO unused
-add_event_stack :: Score.Event -> Log.Msg -> Log.Msg
-add_event_stack =
-    maybe id with_stack . Stack.block_track_region_of . Score.event_stack
+addEventStack :: Score.Event -> Log.Msg -> Log.Msg
+addEventStack =
+    maybe id withStack . Stack.blockTrackRegionOf . Score.eventStack
     where
-    with_stack (block_id, track_id, (s, e)) msg =
-        msg { Log.msg_stack = add_stack msg }
+    withStack (blockId, trackId, (s, e)) msg =
+        msg { Log.msgStack = addStack msg }
         where
-        add_stack = Just . add . fromMaybe Stack.empty . Log.msg_stack
-        add = Stack.add (Stack.Region s e) . Stack.add (Stack.Track track_id)
-            . Stack.add (Stack.Block block_id)
+        addStack = Just . add . fromMaybe Stack.empty . Log.msgStack
+        add = Stack.add (Stack.Region s e) . Stack.add (Stack.Track trackId)
+            . Stack.add (Stack.Block blockId)

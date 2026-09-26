@@ -33,23 +33,23 @@
     the note is going to use.
 -}
 module Cmd.InputNote (
-    keyboard_velocity
+    keyboardVelocity
     , Input
     , InputNn
     , GenericInput(..)
-    , input_id
-    , offset_note_id
+    , inputId
+    , offsetNoteId
     , NoteId(..)
 
     -- * from_midi
     , ReadDeviceState
-    , empty_rdev_state
-    , from_midi
-    , nn_to_input
+    , emptyRdevState
+    , fromMidi
+    , nnToInput
     -- * from_ascii
-    , from_ascii
+    , fromAscii
     -- * to_midi
-    , to_midi
+    , toMidi
 #ifdef TESTING
     , module Cmd.InputNote
 #endif
@@ -75,8 +75,8 @@ import           Global
 -- | Since the ASCII keyboard isn't pressure sensitive, this is the default
 -- velocity.  Hopefully it's strong but not so strong as to be hard on the
 -- ears.
-keyboard_velocity :: Signal.Y
-keyboard_velocity = 0.75
+keyboardVelocity :: Signal.Y
+keyboardVelocity = 0.75
 
 type Input = GenericInput Pitch.Input
 
@@ -103,12 +103,12 @@ instance (Show pitch, Pretty pitch) => Pretty (GenericInput pitch) where
         ["NoteOn", "(" <> showt id <> ")", pretty pitch, pretty vel]
     pretty input = showt input
 
-input_id :: GenericInput x -> NoteId
-input_id input = case input of
-    NoteOn note_id _ _ -> note_id
-    NoteOff note_id _ -> note_id
-    Control note_id _ _ -> note_id
-    PitchChange note_id _ -> note_id
+inputId :: GenericInput x -> NoteId
+inputId input = case input of
+    NoteOn noteId _ _ -> noteId
+    NoteOff noteId _ -> noteId
+    Control noteId _ _ -> noteId
+    PitchChange noteId _ -> noteId
 
 -- | Modify the NodeId so that it won't collide with other NodeIds.
 --
@@ -120,12 +120,12 @@ input_id input = case input of
 --
 -- TODO This is a grody hack.  A better solution might be to make NoteId into
 -- a (Channel, Int) pair.
-offset_note_id :: Int -> GenericInput x -> GenericInput x
-offset_note_id multiplier input = case input of
-    NoteOn note_id pitch vel -> NoteOn (modify note_id) pitch vel
-    NoteOff note_id vel -> NoteOff (modify note_id) vel
-    Control note_id control val -> Control (modify note_id) control val
-    PitchChange note_id pitch -> PitchChange (modify note_id) pitch
+offsetNoteId :: Int -> GenericInput x -> GenericInput x
+offsetNoteId multiplier input = case input of
+    NoteOn noteId pitch vel -> NoteOn (modify noteId) pitch vel
+    NoteOff noteId vel -> NoteOff (modify noteId) vel
+    Control noteId control val -> Control (modify noteId) control val
+    PitchChange noteId pitch -> PitchChange (modify noteId) pitch
     where
     modify (NoteId n) = NoteId (n + 1000 * multiplier)
 
@@ -141,11 +141,11 @@ offset_note_id multiplier input = case input of
 -- use that.
 newtype NoteId = NoteId Int deriving (Eq, Ord, Show)
 
-key_to_id :: Midi.Key -> NoteId
-key_to_id = NoteId . Midi.from_key
+keyToId :: Midi.Key -> NoteId
+keyToId = NoteId . Midi.fromKey
 
-id_to_key :: NoteId -> Midi.Key
-id_to_key (NoteId key) = Midi.to_key key
+idToKey :: NoteId -> Midi.Key
+idToKey (NoteId key) = Midi.toKey key
 
 -- * from midi
 
@@ -155,143 +155,143 @@ type Addr = (Midi.ReadDevice, Midi.Channel)
 newtype ReadDeviceState = ReadDeviceState (Map Midi.ReadDevice ControlState)
     deriving (Eq, Show)
 
-empty_rdev_state :: ReadDeviceState
-empty_rdev_state = ReadDeviceState mempty
+emptyRdevState :: ReadDeviceState
+emptyRdevState = ReadDeviceState mempty
 
-next_state :: Midi.ReadDevice -> ControlState -> ReadDeviceState
+nextState :: Midi.ReadDevice -> ControlState -> ReadDeviceState
     -> ReadDeviceState
-next_state rdev cstate (ReadDeviceState state) =
+nextState rdev cstate (ReadDeviceState state) =
     ReadDeviceState $ Map.insert rdev cstate state
 
 -- | The state of one 'Midi.ReadDevice'.
 data ControlState = ControlState
-    { state_note_id :: Map Addr NoteId -- ^ last note_id
-    , state_pb :: Map Addr Midi.PitchBendValue -- ^ last pb
-    , state_pb_range :: Control.PbRange
+    { stateNoteId :: Map Addr NoteId -- ^ last note_id
+    , statePb :: Map Addr Midi.PitchBendValue -- ^ last pb
+    , statePbRange :: Control.PbRange
     } deriving (Eq, Show)
 
-empty_control_state :: Control.PbRange -> ControlState
-empty_control_state pb_range = ControlState
-    { state_note_id = Map.empty
-    , state_pb = Map.empty
-    , state_pb_range = pb_range
+emptyControlState :: Control.PbRange -> ControlState
+emptyControlState pbRange = ControlState
+    { stateNoteId = Map.empty
+    , statePb = Map.empty
+    , statePbRange = pbRange
     }
 
-from_midi :: ReadDeviceState -> Midi.ReadDevice -> Midi.Message
+fromMidi :: ReadDeviceState -> Midi.ReadDevice -> Midi.Message
     -> Maybe (Input, ReadDeviceState)
-from_midi (ReadDeviceState state) rdev (Midi.ChannelMessage chan chan_msg) =
-    case maybe_input of
+fromMidi (ReadDeviceState state) rdev (Midi.ChannelMessage chan chanMsg) =
+    case maybeInput of
         Nothing -> Nothing
-        Just input -> Just (input, next_state)
+        Just input -> Just (input, nextState)
     where
-    next_state = ReadDeviceState $
-        Map.insert rdev (update_control_state addr chan_msg cstate) state
+    nextState = ReadDeviceState $
+        Map.insert rdev (updateControlState addr chanMsg cstate) state
     cstate = Map.findWithDefault
-        (empty_control_state Config.read_device_pb_range) rdev state
+        (emptyControlState Config.readDevicePbRange) rdev state
     addr = (rdev, chan)
-    last_pb = Map.findWithDefault 0 addr (state_pb cstate)
-    with_last_id f = fmap f (Map.lookup addr (state_note_id cstate))
-    maybe_input = case chan_msg of
+    lastPb = Map.findWithDefault 0 addr (statePb cstate)
+    withLastId f = fmap f (Map.lookup addr (stateNoteId cstate))
+    maybeInput = case chanMsg of
         Midi.NoteOn key vel -> Just $
-            NoteOn (key_to_id key) (to_pitch last_pb key) (to_val vel)
+            NoteOn (keyToId key) (toPitch lastPb key) (toVal vel)
         Midi.NoteOff key vel -> Just $
-            NoteOff (key_to_id key) (to_val vel)
-        Midi.ControlChange cc val -> with_last_id $ \last_id ->
-            Control last_id (cc_to_control cc) (to_val val)
-        Midi.PitchBend val -> with_last_id $ \last_id ->
-            PitchChange last_id (to_pitch val (id_to_key last_id))
+            NoteOff (keyToId key) (toVal vel)
+        Midi.ControlChange cc val -> withLastId $ \lastId ->
+            Control lastId (ccToControl cc) (toVal val)
+        Midi.PitchBend val -> withLastId $ \lastId ->
+            PitchChange lastId (toPitch val (idToKey lastId))
         Midi.Aftertouch key val -> Just $
-            Control (key_to_id key) Controls.aftertouch (to_val val)
-        Midi.ChannelPressure val -> with_last_id $ \last_id ->
-            Control last_id Controls.pressure (to_val val)
+            Control (keyToId key) Controls.aftertouch (toVal val)
+        Midi.ChannelPressure val -> withLastId $ \lastId ->
+            Control lastId Controls.pressure (toVal val)
         _ -> Nothing
-    to_pitch = pb_to_input (state_pb_range cstate)
-    to_val v = fromIntegral v / 127
-from_midi _ _ _ = Nothing
+    toPitch = pbToInput (statePbRange cstate)
+    toVal v = fromIntegral v / 127
+fromMidi _ _ _ = Nothing
 
-update_control_state :: Addr -> Midi.ChannelMessage -> ControlState
+updateControlState :: Addr -> Midi.ChannelMessage -> ControlState
     -> ControlState
-update_control_state addr chan_msg state = state
-    { state_note_id = case id_of chan_msg of
-        Nothing -> state_note_id state
-        Just note_id -> Map.insert addr note_id (state_note_id state)
-    , state_pb = case pb_of chan_msg of
-        Nothing -> state_pb state
-        Just pb -> Map.insert addr pb (state_pb state)
+updateControlState addr chanMsg state = state
+    { stateNoteId = case idOf chanMsg of
+        Nothing -> stateNoteId state
+        Just noteId -> Map.insert addr noteId (stateNoteId state)
+    , statePb = case pbOf chanMsg of
+        Nothing -> statePb state
+        Just pb -> Map.insert addr pb (statePb state)
     }
     where
-    pb_of (Midi.PitchBend val) = Just val
-    pb_of _ = Nothing
-    id_of (Midi.NoteOn key _) = Just (key_to_id key)
-    id_of (Midi.NoteOff key _) = Just (key_to_id key)
-    id_of _ = Nothing
+    pbOf (Midi.PitchBend val) = Just val
+    pbOf _ = Nothing
+    idOf (Midi.NoteOn key _) = Just (keyToId key)
+    idOf (Midi.NoteOff key _) = Just (keyToId key)
+    idOf _ = Nothing
 
-pb_to_input :: Control.PbRange -> Midi.PitchBendValue -> Midi.Key -> Pitch.Input
-pb_to_input (low, high) pb key =
-    nn_to_input $ Midi.from_key key + Pitch.nn offset
+pbToInput :: Control.PbRange -> Midi.PitchBendValue -> Midi.Key -> Pitch.Input
+pbToInput (low, high) pb key =
+    nnToInput $ Midi.fromKey key + Pitch.nn offset
     where
     offset = Num.f2d $
         if pb < 0 then -pb * fromIntegral low else pb * fromIntegral high
 
-nn_to_input :: Pitch.NoteNumber -> Pitch.Input
-nn_to_input nn = Pitch.Input Pitch.PianoKbd pitch frac
+nnToInput :: Pitch.NoteNumber -> Pitch.Input
+nnToInput nn = Pitch.Input Pitch.PianoKbd pitch frac
     where
-    pitch = Theory.semis_to_pitch_sharps Theory.piano_layout $
-        Theory.nn_to_semis key
-    (key, frac) = properFraction (Pitch.nn_to_double nn)
+    pitch = Theory.semisToPitchSharps Theory.pianoLayout $
+        Theory.nnToSemis key
+    (key, frac) = properFraction (Pitch.nnToDouble nn)
 
-input_to_nn :: Pitch.Input -> Pitch.NoteNumber
-input_to_nn (Pitch.Input _ pitch frac) = nn + Pitch.nn frac
-    where nn = fromIntegral (pitch_to_nn pitch)
+inputToNn :: Pitch.Input -> Pitch.NoteNumber
+inputToNn (Pitch.Input _ pitch frac) = nn + Pitch.nn frac
+    where nn = fromIntegral (pitchToNn pitch)
 
-cc_to_control :: Midi.Control -> ScoreT.Control
-cc_to_control cc = fromMaybe (ScoreT.Control ("cc" <> showt cc))
-    (Map.lookup cc cc_control)
+ccToControl :: Midi.Control -> ScoreT.Control
+ccToControl cc = fromMaybe (ScoreT.Control ("cc" <> showt cc))
+    (Map.lookup cc ccControl)
 
-control_to_cc :: ScoreT.Control -> Maybe Midi.Control
-control_to_cc = flip Map.lookup control_cc
+controlToCc :: ScoreT.Control -> Maybe Midi.Control
+controlToCc = flip Map.lookup controlCc
 
-cc_control :: Map Midi.Control ScoreT.Control
-cc_control = Maps.invert control_cc
+ccControl :: Map Midi.Control ScoreT.Control
+ccControl = Maps.invert controlCc
 
-control_cc :: Map ScoreT.Control Midi.Control
-control_cc = Control.universal_control_map
+controlCc :: Map ScoreT.Control Midi.Control
+controlCc = Control.universalControlMap
 
 -- * from ascii
 
 -- | Create an Input from an ascii keyboard Pitch.
-from_ascii :: Bool -> Pitch.Pitch -> Input
-from_ascii down pitch
-    | down = NoteOn note_id (Pitch.Input Pitch.AsciiKbd pitch 0)
-        keyboard_velocity
-    | otherwise = NoteOff note_id keyboard_velocity
-    where note_id = NoteId (pitch_to_nn pitch)
+fromAscii :: Bool -> Pitch.Pitch -> Input
+fromAscii down pitch
+    | down = NoteOn noteId (Pitch.Input Pitch.AsciiKbd pitch 0)
+        keyboardVelocity
+    | otherwise = NoteOff noteId keyboardVelocity
+    where noteId = NoteId (pitchToNn pitch)
 
-pitch_to_nn :: Pitch.Pitch -> Int
-pitch_to_nn = Theory.semis_to_nn . Theory.pitch_to_semis Theory.piano_layout
+pitchToNn :: Pitch.Pitch -> Int
+pitchToNn = Theory.semisToNn . Theory.pitchToSemis Theory.pianoLayout
 
 -- * to midi
 
 -- | Convert an InputNn to MIDI.
-to_midi :: Control.PbRange -> Map NoteId Midi.Key -> InputNn
+toMidi :: Control.PbRange -> Map NoteId Midi.Key -> InputNn
     -> ([Midi.ChannelMessage], Map NoteId Midi.Key)
-to_midi pb_range id_to_key = \case
-    NoteOn note_id nn vel -> note_on note_id nn vel
-    NoteOff note_id vel -> with_key note_id $ \key ->
-        ([Midi.NoteOff key (from_val vel)], Map.delete note_id id_to_key)
-    PitchChange note_id nn -> with_key note_id $ \key ->
-        ([Midi.PitchBend (Control.pb_from_nn pb_range key nn)], id_to_key)
-    Control _ control val -> case control_to_cc control of
-        Nothing -> ([], id_to_key)
-        Just cc -> ([Midi.ControlChange cc (from_val val)], id_to_key)
+toMidi pbRange idToKey = \case
+    NoteOn noteId nn vel -> noteOn noteId nn vel
+    NoteOff noteId vel -> withKey noteId $ \key ->
+        ([Midi.NoteOff key (fromVal vel)], Map.delete noteId idToKey)
+    PitchChange noteId nn -> withKey noteId $ \key ->
+        ([Midi.PitchBend (Control.pbFromNn pbRange key nn)], idToKey)
+    Control _ control val -> case controlToCc control of
+        Nothing -> ([], idToKey)
+        Just cc -> ([Midi.ControlChange cc (fromVal val)], idToKey)
     where
-    with_key note_id f = case Map.lookup note_id id_to_key of
-        Nothing -> ([], id_to_key)
+    withKey noteId f = case Map.lookup noteId idToKey of
+        Nothing -> ([], idToKey)
         Just key -> f key
-    from_val val = floor (val * 127)
-    note_on note_id nn vel = case Control.pitch_to_midi pb_range nn of
-        Nothing -> ([], id_to_key)
+    fromVal val = floor (val * 127)
+    noteOn noteId nn vel = case Control.pitchToMidi pbRange nn of
+        Nothing -> ([], idToKey)
         Just (key, pb) ->
-            ( [Midi.PitchBend pb, Midi.NoteOn key (from_val vel)]
-            , Map.insert note_id key id_to_key
+            ( [Midi.PitchBend pb, Midi.NoteOn key (fromVal vel)]
+            , Map.insert noteId key idToKey
             )

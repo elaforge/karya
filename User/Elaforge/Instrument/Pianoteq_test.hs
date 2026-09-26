@@ -19,10 +19,10 @@ import qualified User.Elaforge.Instrument.Pianoteq as Pianoteq
 
 test_harp_harmonic :: Test
 test_harp_harmonic = do
-    let run = perform . Derive.r_events
-            . DeriveTest.derive_tracks_setup setup "inst=harp"
-            . UiTest.note_track
-        extract ((_, midi), logs) = (DeriveTest.note_on_cc midi, logs)
+    let run = perform . Derive.rEvents
+            . DeriveTest.deriveTracksSetup setup "inst=harp"
+            . UiTest.noteTrack
+        extract ((_, midi), logs) = (DeriveTest.noteOnCc midi, logs)
 
     -- Harmonic is cancelled out properly.
     equal (extract $ run [(0, 1, "o -- 4c"), (1, 1, "4d")])
@@ -42,11 +42,11 @@ test_harp_harmonic = do
         )
 
 setup :: DeriveTest.Setup
-setup = DeriveTest.with_synths_simple allocs [Pianoteq.synth]
+setup = DeriveTest.withSynthsSimple allocs [Pianoteq.synth]
 
 perform :: Stream.Stream Score.Event
     -> (([Midi.Types.Event], [Midi.WriteMessage]), [Log.Msg])
-perform = DeriveTest.perform_synths_simple allocs [Pianoteq.synth]
+perform = DeriveTest.performSynthsSimple allocs [Pianoteq.synth]
 
 allocs :: DeriveTest.SimpleAllocations
 allocs = [("harp", "pianoteq/harp")]

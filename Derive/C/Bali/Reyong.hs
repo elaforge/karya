@@ -85,95 +85,95 @@ module_ = "bali" <> "reyong"
 library :: Library.Library
 library = mconcat
     [ Library.generators
-        [ ("kilit", realize_pattern norot_patterns)
-        , (">kilit", realize_pattern norot_prepare_patterns)
+        [ ("kilit", realizePattern norotPatterns)
+        , (">kilit", realizePattern norotPreparePatterns)
         -- kilit is probably redundant now that I have norot.
-        , ("norot", c_norot Nothing)
-        , ("nt", c_norot Nothing)
-        , ("nt>", c_norot (Just True))
-        , ("nt-", c_norot (Just False))
-        , ("k//", c_kotekan_regular False (Just "-12-12-1") (Just Call.Down))
-        , ("k\\\\", c_kotekan_regular False (Just "-21-21-21") (Just Call.Up))
-        , ("k_\\", realize_pattern $ reyong_pattern "-44-43-4" "-11-1-21")
-        , ("k//\\\\", realize_pattern $
-            reyong_pattern "-4-34-3-43-434-3" "-12-12-21-21-12-")
-        , ("k", c_kotekan_regular False Nothing Nothing)
-        , ("k^", c_kotekan_regular True Nothing Nothing)
-        , ("t", c_tumpuk)
-        , ("a", c_tumpuk_auto)
-        , ("o", c_byong)
-        , (":", c_pitches [Pitch.pitch 4 2, Pitch.pitch 5 0])
-        , ("/", articulation "cek-loose" ((:[]) . pos_cek) (cek <> Attrs.open))
+        , ("norot", cNorot Nothing)
+        , ("nt", cNorot Nothing)
+        , ("nt>", cNorot (Just True))
+        , ("nt-", cNorot (Just False))
+        , ("k//", cKotekanRegular False (Just "-12-12-1") (Just Call.Down))
+        , ("k\\\\", cKotekanRegular False (Just "-21-21-21") (Just Call.Up))
+        , ("k_\\", realizePattern $ reyongPattern "-44-43-4" "-11-1-21")
+        , ("k//\\\\", realizePattern $
+            reyongPattern "-4-34-3-43-434-3" "-12-12-21-21-12-")
+        , ("k", cKotekanRegular False Nothing Nothing)
+        , ("k^", cKotekanRegular True Nothing Nothing)
+        , ("t", cTumpuk)
+        , ("a", cTumpukAuto)
+        , ("o", cByong)
+        , (":", cPitches [Pitch.pitch 4 2, Pitch.pitch 5 0])
+        , ("/", articulation "cek-loose" ((:[]) . posCek) (cek <> Attrs.open))
         , ("//", articulation "cek-loose"
-            (replicate 2 . pos_cek) (cek <> Attrs.open))
-        , ("X", articulation "cek" ((:[]) . pos_cek) cek)
-        , ("XX", articulation "cek" (replicate 2 . pos_cek) cek)
-        , ("O", articulation "byong" pos_byong mempty)
-        , ("-", articulation "byut-loose" pos_byong (Attrs.mute <> Attrs.open))
-        , ("+", articulation "byut" pos_byong Attrs.mute)
+            (replicate 2 . posCek) (cek <> Attrs.open))
+        , ("X", articulation "cek" ((:[]) . posCek) cek)
+        , ("XX", articulation "cek" (replicate 2 . posCek) cek)
+        , ("O", articulation "byong" posByong mempty)
+        , ("-", articulation "byut-loose" posByong (Attrs.mute <> Attrs.open))
+        , ("+", articulation "byut" posByong Attrs.mute)
 
-        , ("n1", c_solkattu_note [0])
-        , ("n2", c_solkattu_note [1])
-        , ("n3", c_solkattu_note [2])
-        , ("n4", c_solkattu_note [3])
-        , ("n14", c_solkattu_note [0, 3])
+        , ("n1", cSolkattuNote [0])
+        , ("n2", cSolkattuNote [1])
+        , ("n3", cSolkattuNote [2])
+        , ("n4", cSolkattuNote [3])
+        , ("n14", cSolkattuNote [0, 3])
         ]
-    , Library.generators $ Gender.ngoret_variations c_ngoret
+    , Library.generators $ Gender.ngoretVariations cNgoret
     , Library.transformers
-        [ ("infer-damp", c_infer_damp)
-        , ("hand-damp", c_hand_damp)
-        , ("cancel-kotekan", c_cancel_kotekan)
-        , ("realize-ngoret", Derive.set_module module_ Gender.c_realize_ngoret)
-        , ("realize-reyong", c_realize_reyong)
-        , ("realize-trompong", c_realize_trompong)
-        , ("vv", c_lower_octave_note)
+        [ ("infer-damp", cInferDamp)
+        , ("hand-damp", cHandDamp)
+        , ("cancel-kotekan", cCancelKotekan)
+        , ("realize-ngoret", Derive.setModule module_ Gender.cRealizeNgoret)
+        , ("realize-reyong", cRealizeReyong)
+        , ("realize-trompong", cRealizeTrompong)
+        , ("vv", cLowerOctaveNote)
         ]
     , Library.both
-        [ ("lv", Make.attributed_note module_ undamped)
-        , ("upper", c_upper)
+        [ ("lv", Make.attributedNote module_ undamped)
+        , ("upper", cUpper)
         ]
     ]
-    where articulation = make_articulation reyong_positions
+    where articulation = makeArticulation reyongPositions
 
 cek :: Attrs.Attributes
 cek = Attrs.attr "cek"
 
-reyong_pattern :: [Char] -> [Char] -> Pattern
-reyong_pattern above below = make_pattern $ parse_kotekan above below
+reyongPattern :: [Char] -> [Char] -> Pattern
+reyongPattern above below = makePattern $ parseKotekan above below
 
-c_ngoret :: Sig.Parser (Maybe Pitch.Transpose) -> Derive.Generator Derive.Note
-c_ngoret = Gender.ngoret module_ False
+cNgoret :: Sig.Parser (Maybe Pitch.Transpose) -> Derive.Generator Derive.Note
+cNgoret = Gender.ngoret module_ False
     (pure $ Typecheck.RealTimeFunction $ const (DeriveT.RealDuration 0))
 
-voices_env :: Sig.Parser [Voice]
-voices_env = Sig.environ "voices" Sig.Both ([] :: [Sig.Dummy])
+voicesEnv :: Sig.Parser [Voice]
+voicesEnv = Sig.environ "voices" Sig.Both ([] :: [Sig.Dummy])
     "Only emit notes for these positions, from 1 to 4. Empty means all of them."
 
 -- * tumpuk
 
-c_tumpuk :: Derive.Generator Derive.Note
-c_tumpuk = Derive.generator module_ "tumpuk" Tags.inst "Pile up notes together."
+cTumpuk :: Derive.Generator Derive.Note
+cTumpuk = Derive.generator module_ "tumpuk" Tags.inst "Pile up notes together."
     $ Sig.call ((,,)
     <$> Sig.required "notes"
         ("Articulations, from " <> Doc.literal (txt (Map.keys articulations))
         <> ", pitches from `edcba0123456789`, or a space for a rest.")
     <*> Sig.defaulted "dur" (0.1 :: Double) "Duration of each note."
-    <*> place_env
+    <*> placeEnv
     ) $ \(notes, dur, place) -> Sub.inverting $ \args -> do
-        notes <- Derive.require_right id $ parse_tumpuk (untxt notes)
+        notes <- Derive.requireRight id $ parseTumpuk (untxt notes)
         tumpuk args place dur notes
 
 tumpuk :: Derive.PassedArgs Score.Event -> Typecheck.Normalized -> RealTime
     -> [TumpukNote] -> Derive.NoteDeriver
 tumpuk args place dur notes = do
-    (start, end) <- Args.real_range args
-    prev <- traverse Derive.real $ Args.prev_start args
-    pitch <- Call.get_pitch start
-    realize_tumpuk prev start end place (Args.prev_event_pitch args) pitch dur
+    (start, end) <- Args.realRange args
+    prev <- traverse Derive.real $ Args.prevStart args
+    pitch <- Call.getPitch start
+    realizeTumpuk prev start end place (Args.prevEventPitch args) pitch dur
         notes
 
-place_env :: Sig.Parser Typecheck.Normalized
-place_env = Sig.environ "place" Sig.Both (1 :: Double)
+placeEnv :: Sig.Parser Typecheck.Normalized
+placeEnv = Sig.environ "place" Sig.Both (1 :: Double)
     "At 0, grace notes fall before their base note.  At 1, grace notes fall on\
     \ the base note, and the base note is delayed."
 
@@ -182,27 +182,27 @@ type TumpukNote = (TumpukPitch, Attrs.Attributes, Dyn)
 data TumpukPitch = Transpose Pitch.Step | Prev deriving (Eq, Show)
 type Dyn = Signal.Y
 
-realize_tumpuk :: Maybe RealTime -> RealTime -> RealTime
+realizeTumpuk :: Maybe RealTime -> RealTime -> RealTime
     -> Typecheck.Normalized -> Maybe PSignal.Pitch -> PSignal.Pitch
     -> RealTime -> [TumpukNote] -> Derive.NoteDeriver
-realize_tumpuk prev event_start event_end place prev_pitch event_pitch dur
+realizeTumpuk prev eventStart eventEnd place prevPitch eventPitch dur
         notes =
-    mconcatMap realize $ filter ((>0) . note_dyn . fst) $ zip notes extents
+    mconcatMap realize $ filter ((>0) . noteDyn . fst) $ zip notes extents
     where
-    extents = GraceUtil.fit_grace_durs place
-        prev event_start event_end (length notes) dur
-    note_dyn (_, _, dyn) = dyn
-    realize ((tpitch, attrs, dyn), (real_start, dur)) = do
-        start <- Derive.score real_start
-        end <- Derive.score (real_start + dur)
+    extents = GraceUtil.fitGraceDurs place
+        prev eventStart eventEnd (length notes) dur
+    noteDyn (_, _, dyn) = dyn
+    realize ((tpitch, attrs, dyn), (realStart, dur)) = do
+        start <- Derive.score realStart
+        end <- Derive.score (realStart + dur)
         pitch <- case tpitch of
-            Transpose steps -> pure $ Pitches.transpose_d steps event_pitch
-            Prev -> Derive.require "no prev pitch" prev_pitch
-        Derive.place start (end-start) $ Call.multiply_dynamic dyn $
-            Call.add_attributes attrs $ Call.pitched_note pitch
+            Transpose steps -> pure $ Pitches.transposeD steps eventPitch
+            Prev -> Derive.require "no prev pitch" prevPitch
+        Derive.place start (end-start) $ Call.multiplyDynamic dyn $
+            Call.addAttributes attrs $ Call.pitchedNote pitch
 
-parse_tumpuk :: [Char] -> Either Text [TumpukNote]
-parse_tumpuk =
+parseTumpuk :: [Char] -> Either Text [TumpukNote]
+parseTumpuk =
     fmap (Maybe.catMaybes . snd) . Lists.mapAccumLM parse (Transpose 0)
     where
     parse pitch c = case Map.lookup c articulations of
@@ -230,45 +230,45 @@ articulations = Map.fromList
     , ('x', (Attrs.mute, 1))
     ]
 
-c_tumpuk_auto :: Derive.Generator Derive.Note
-c_tumpuk_auto = Derive.generator module_ "tumpuk-auto" Tags.inst
+cTumpukAuto :: Derive.Generator Derive.Note
+cTumpukAuto = Derive.generator module_ "tumpuk-auto" Tags.inst
     "A variant of `tumpuk` that randomly picks a pattern."
-    $ Sig.call place_env $ \place -> Sub.inverting $ \args -> do
+    $ Sig.call placeEnv $ \place -> Sub.inverting $ \args -> do
         randoms <- Call.randoms
         let rnd1 : rnd2 : _ = randoms -- randoms is infinite
-        event_dur <- Args.real_duration args
-        (notes, dur) <- Derive.require_right id $
-            select_pattern event_dur rnd1 rnd2
+        eventDur <- Args.realDuration args
+        (notes, dur) <- Derive.requireRight id $
+            selectPattern eventDur rnd1 rnd2
         tumpuk args place dur notes
 
 -- | If dur is long, use the slow end of the patterns.  If dur is short, try to
 -- fit the pattern in the first 2/3, dropping patterns if they exceed that at
 -- their fastest.
-select_pattern :: RealTime -> Double -> Double
+selectPattern :: RealTime -> Double -> Double
     -> Either Text ([TumpukNote], RealTime)
-select_pattern dur rnd1 rnd2 = justErr err $ select fits_well <|> select fits
+selectPattern dur rnd1 rnd2 = justErr err $ select fitsWell <|> select fits
     where
     select ps = case NonEmpty.nonEmpty ps of
         Nothing -> Nothing
-        Just ps -> Just $ pick_dur (Call.pick ps rnd1)
-    pick_dur (p, (slow, fast)) = (p, dur)
+        Just ps -> Just $ pickDur (Call.pick ps rnd1)
+    pickDur (p, (slow, fast)) = (p, dur)
         where
-        dur = Num.scale (Num.clamp slow fast min_slow) fast
+        dur = Num.scale (Num.clamp slow fast minSlow) fast
             (RealTime.seconds rnd2)
-        min_slow = desired_dur / fromIntegral (length p)
+        minSlow = desiredDur / fromIntegral (length p)
     err = "no patterns fit duration " <> pretty dur
     -- Try to take up only this much dur with tumpuk notes, but take up to
     -- the full duration if nothing fits.
-    desired_dur = dur * (2/3)
-    fits_well = filter ((<= desired_dur) . pattern_dur) tumpuk_patterns
-    fits = filter ((<= dur) . pattern_dur) tumpuk_patterns
-    pattern_dur (p, (_, fast)) = fromIntegral (length p) * fast
+    desiredDur = dur * (2/3)
+    fitsWell = filter ((<= desiredDur) . patternDur) tumpukPatterns
+    fits = filter ((<= dur) . patternDur) tumpukPatterns
+    patternDur (p, (_, fast)) = fromIntegral (length p) * fast
 
 -- | Pattern and usable time range.
 -- TODO probably I can vary -=, nx, and .o, or just randomize the dyn for
 -- non-final notes.
-tumpuk_patterns :: [([TumpukNote], (RealTime, RealTime))]
-tumpuk_patterns = expect_right $ mapM (firstA parse_tumpuk)
+tumpukPatterns :: [([TumpukNote], (RealTime, RealTime))]
+tumpukPatterns = expectRight $ mapM (firstA parseTumpuk)
     [ ("p-0o", (1/10, 1/14))
     , ("p-0.o", (1/12, 1/18))
     , ("p.0.o", (1/14, 1/18))
@@ -276,192 +276,192 @@ tumpuk_patterns = expect_right $ mapM (firstA parse_tumpuk)
     , ("p.0.pm0o", (1/18, 1/20))
     ]
     where
-    expect_right = either (errorStack . ("tumpuk_patterns: "<>)) id
+    expectRight = either (errorStack . ("tumpuk_patterns: "<>)) id
     firstA f (a, c) = (,) <$> f a <*> pure c
 
 -- * c_byong
 
-c_byong :: Derive.Generator Derive.Note
-c_byong = Derive.generator module_ "byong" Tags.inst
+cByong :: Derive.Generator Derive.Note
+cByong = Derive.generator module_ "byong" Tags.inst
     "Play the byong notes, but only for the current voice, and following\
     \ normal damping rules."
     $ Sig.call0 $ Sub.inverting $ \args -> do
-        voice <- Derive.get_val EnvKey.voice
+        voice <- Derive.getVal EnvKey.voice
         position <- Derive.require ("unknown position: " <> showt voice) $
-            Lists.at reyong_positions (voice - 1 :: Int)
-        (_, show_pitch, _) <- Call.get_pitch_functions
+            Lists.at reyongPositions (voice - 1 :: Int)
+        (_, showPitch, _) <- Call.getPitchFunctions
         let realize = Call.place args
-                . realize_note show_pitch voice (Args.start args)
-        mconcatMap (realize . (, mempty)) (pos_byong position)
+                . realizeNote showPitch voice (Args.start args)
+        mconcatMap (realize . (, mempty)) (posByong position)
 
-c_pitches :: [Pitch.Pitch] -> Derive.Generator Derive.Note
-c_pitches pitches = Derive.generator module_ "pitches" Tags.inst
+cPitches :: [Pitch.Pitch] -> Derive.Generator Derive.Note
+cPitches pitches = Derive.generator module_ "pitches" Tags.inst
     ("Play notes for each pitch: " <> ShowVal.doc pitches
         <> ". Really only for `4e` and `5i` for the penyorog.")
     $ Sig.call0 $ Sub.inverting $ \args ->
         mconcatMap (Call.place args . realize (Args.start args)) pitches
     where
     realize start pitch =
-        Call.transposed_pitched_note =<< Call.eval_pitch_ start pitch
+        Call.transposedPitchedNote =<< Call.evalPitch_ start pitch
 
 -- * cancel
 
-c_cancel_kotekan :: Derive.Transformer Derive.Note
-c_cancel_kotekan = Derive.transformer module_ "cancel-kotekan" Tags.postproc
+cCancelKotekan :: Derive.Transformer Derive.Note
+cCancelKotekan = Derive.transformer module_ "cancel-kotekan" Tags.postproc
     "This is like the `cancel` call, except it understands flags set by\
     \ kotekan, and cancels based on reyong voice." $
-    Postproc.make_cancel Gangsa.cancel_strong_final Post.voice_key
+    Postproc.makeCancel Gangsa.cancelStrongFinal Post.voiceKey
 
 -- * kilitan
 
-c_norot :: Maybe Bool -> Derive.Generator Derive.Note
-c_norot default_prepare =
+cNorot :: Maybe Bool -> Derive.Generator Derive.Note
+cNorot defaultPrepare =
     Derive.generator module_ "norot" Tags.inst "Reyong norot."
     $ Sig.call ((,,,)
-    <$> Sig.defaulted "prepare" default_prepare
+    <$> Sig.defaulted "prepare" defaultPrepare
         "Whether or not to prepare for the next pitch. If Nothing, infer based\
         \ on the next note."
-    <*> Gangsa.dur_env <*> Gangsa.infer_initial_final_env <*> voices_env
-    ) $ \(prepare, note_dur, initial_final, voices) -> Sub.inverting $
+    <*> Gangsa.durEnv <*> Gangsa.inferInitialFinalEnv <*> voicesEnv
+    ) $ \(prepare, noteDur, initialFinal, voices) -> Sub.inverting $
     \args -> do
-        (pitch, show_pitch) <- get_parsed_pitch args
-        next_pitch <- infer_prepare args prepare
+        (pitch, showPitch) <- getParsedPitch args
+        nextPitch <- inferPrepare args prepare
         let orientation = Args.orientation args
-        let (sustain_params, prepare_params) = Gangsa.prepare_sustain
-                (Maybe.isJust next_pitch) note_dur initial_final
+        let (sustainParams, prepareParams) = Gangsa.prepareSustain
+                (Maybe.isJust nextPitch) noteDur initialFinal
                 orientation (Args.range args)
-        sustain <- case sustain_params of
+        sustain <- case sustainParams of
             Nothing -> pure mempty
-            Just (initial_final, range) ->
-                realize_positions
-                    (realize_notes range orientation initial_final
-                        show_pitch Gangsa.Repeat note_dur)
-                    voices norot_patterns pitch
-        prepare <- case (,) <$> next_pitch <*> prepare_params of
+            Just (initialFinal, range) ->
+                realizePositions
+                    (realizeNotes range orientation initialFinal
+                        showPitch Gangsa.Repeat noteDur)
+                    voices norotPatterns pitch
+        prepare <- case (,) <$> nextPitch <*> prepareParams of
             Nothing -> pure Nothing
-            Just (next, (initial_final, range)) ->
-                Just <$> realize_positions
-                    (realize_notes range orientation initial_final
-                        show_pitch Gangsa.Once note_dur)
-                    voices norot_prepare_patterns next
+            Just (next, (initialFinal, range)) ->
+                Just <$> realizePositions
+                    (realizeNotes range orientation initialFinal
+                        showPitch Gangsa.Once noteDur)
+                    voices norotPreparePatterns next
         maybe sustain (sustain<>) prepare
 
-realize_positions :: ((Voice, note) -> Derive.NoteDeriver)
+realizePositions :: ((Voice, note) -> Derive.NoteDeriver)
     -> [Voice] -> Map Pitch.PitchClass [note]
     -> Pitch.Pitch -> Derive.Deriver Derive.NoteDeriver
-realize_positions realize voices patterns pitch = do
+realizePositions realize voices patterns pitch = do
     positions <- Derive.require
         ("no pattern for pitch: " <> pretty pitch)
-        (Map.lookup (Pitch.pitch_pc pitch) patterns)
-    pure $ mconcatMap realize (filter_voices voices positions)
+        (Map.lookup (Pitch.pitchPc pitch) patterns)
+    pure $ mconcatMap realize (filterVoices voices positions)
 
 -- | Kilitan is implemented as a set of patterns indexed by an absolute pitch
 -- degree.  The patterns are similar to kotekan, except with absolute pitches,
 -- and without a polos \/ sangsih division.
-realize_pattern :: Pattern -> Derive.Generator Derive.Note
-realize_pattern pattern =
+realizePattern :: Pattern -> Derive.Generator Derive.Note
+realizePattern pattern =
     Derive.generator module_ "reyong" Tags.inst "Emit reyong pattern."
     $ Sig.call ((,,)
-    <$> Gangsa.dur_env <*> Gangsa.infer_initial_final_env <*> voices_env)
-    $ \(dur, initial_final, voices) -> Sub.inverting $ \args -> do
-        (pitch, show_pitch) <- get_parsed_pitch args
+    <$> Gangsa.durEnv <*> Gangsa.inferInitialFinalEnv <*> voicesEnv)
+    $ \(dur, initialFinal, voices) -> Sub.inverting $ \args -> do
+        (pitch, showPitch) <- getParsedPitch args
         positions <- Derive.require ("no pattern for pitch: " <> pretty pitch)
-            (Map.lookup (Pitch.pitch_pc pitch) pattern)
+            (Map.lookup (Pitch.pitchPc pitch) pattern)
         mconcatMap
-            (realize_notes_args args initial_final show_pitch Gangsa.Repeat dur)
-            (filter_voices voices positions)
+            (realizeNotesArgs args initialFinal showPitch Gangsa.Repeat dur)
+            (filterVoices voices positions)
 
 -- | Select the given Voice indices.
-filter_voices :: [Voice] -> [a] -> [(Voice, a)]
-filter_voices voices positions
+filterVoices :: [Voice] -> [a] -> [(Voice, a)]
+filterVoices voices positions
     | null voices = zip [1..] positions
     | otherwise = filter ((`elem` voices) . fst) (zip [1..] positions)
 
 -- * kotekan
 
-c_kotekan_regular :: Bool -> Maybe Text -> Maybe Call.UpDown
+cKotekanRegular :: Bool -> Maybe Text -> Maybe Call.UpDown
     -> Derive.Generator Derive.Note
-c_kotekan_regular inverted maybe_kernel maybe_dir =
+cKotekanRegular inverted maybeKernel maybeDir =
     Derive.generator module_ "kotekan" Tags.inst
     ("Render a kotekan pattern from a kernel representing the polos.\
     \ The sangsih is inferred. This can emit notes at both the beginning and\
     \ end of the event, so use `cancel-kotekan` to cancel the extras.")
     $ Sig.call ((,,,,)
     <$> maybe
-        (Sig.defaulted_env "kernel" Sig.Both ("k-12-1-21" :: Text) kernel_doc)
-        pure maybe_kernel
+        (Sig.defaultedEnv "kernel" Sig.Both ("k-12-1-21" :: Text) kernelDoc)
+        pure maybeKernel
     <*> maybe
         (Sig.defaulted "dir" Call.Up
             "Inferred part is above or below the explicit one.")
-        pure maybe_dir
-    <*> Gangsa.dur_env <*> Gangsa.infer_initial_final_env <*> voices_env
-    ) $ \(kernel_s, dir, dur, initial_final, voices) -> Sub.inverting $
+        pure maybeDir
+    <*> Gangsa.durEnv <*> Gangsa.inferInitialFinalEnv <*> voicesEnv
+    ) $ \(kernelS, dir, dur, initialFinal, voices) -> Sub.inverting $
     \args -> do
-        kernel <- Derive.require_right id $ Gangsa.make_kernel (untxt kernel_s)
-        (pitch, show_pitch) <- get_parsed_pitch args
+        kernel <- Derive.requireRight id $ Gangsa.makeKernel (untxt kernelS)
+        (pitch, showPitch) <- getParsedPitch args
         pattern <- Derive.require "empty pattern" $
-            kernel_to_pattern dir
+            kernelToPattern dir
                 (if inverted then Gangsa.invert kernel else kernel)
-        let positions = kotekan_pattern per_octave
-                (map pos_cek reyong_positions) pattern (Pitch.pitch_pc pitch)
+        let positions = kotekanPattern perOctave
+                (map posCek reyongPositions) pattern (Pitch.pitchPc pitch)
         mconcatMap
-            (realize_notes_args args initial_final show_pitch Gangsa.Repeat dur)
-            (filter_voices voices positions)
-    where per_octave = 5
+            (realizeNotesArgs args initialFinal showPitch Gangsa.Repeat dur)
+            (filterVoices voices positions)
+    where perOctave = 5
 
-kernel_doc :: Doc.Doc
-kernel_doc = "Transposition steps for the part that ends on the destination\
+kernelDoc :: Doc.Doc
+kernelDoc = "Transposition steps for the part that ends on the destination\
     \ pitch. It should consist of `-`, `1`, and `2`. You can start with `k` to\
     \ avoid needing quotes. Starting with `k` will also require the length to\
     \ be a multiple of 4."
 
-realize_notes_args :: Derive.PassedArgs a -> (Maybe Bool, Bool)
+realizeNotesArgs :: Derive.PassedArgs a -> (Maybe Bool, Bool)
     -> (Pitch.Pitch -> Maybe Pitch.Note) -> Gangsa.Repeat -> ScoreTime
     -> (Voice, [[Note]]) -> Derive.NoteDeriver
-realize_notes_args args initial_final =
-    realize_notes (Args.range args) (Args.orientation args)
-        (Gangsa.infer_initial args initial_final)
+realizeNotesArgs args initialFinal =
+    realizeNotes (Args.range args) (Args.orientation args)
+        (Gangsa.inferInitial args initialFinal)
 
-realize_notes :: (ScoreTime, ScoreTime) -> Types.Orientation -> (Bool, Bool)
+realizeNotes :: (ScoreTime, ScoreTime) -> Types.Orientation -> (Bool, Bool)
     -> (Pitch.Pitch -> Maybe Pitch.Note) -> Gangsa.Repeat -> ScoreTime
     -> (Voice, [Chord]) -> Derive.NoteDeriver
-realize_notes (start, end) orientation initial_final show_pitch repeat dur
+realizeNotes (start, end) orientation initialFinal showPitch repeat dur
         (voice, position) =
-    Gangsa.realize_notes (realize_note show_pitch voice start) $
-        Gangsa.realize_pattern repeat orientation initial_final start end dur
+    Gangsa.realizeNotes (realizeNote showPitch voice start) $
+        Gangsa.realizePattern repeat orientation initialFinal start end dur
             (const position)
 
-kernel_to_pattern :: Call.UpDown -> Gangsa.Kernel -> Maybe KotekanPattern
-kernel_to_pattern direction kernel = do
+kernelToPattern :: Call.UpDown -> Gangsa.Kernel -> Maybe KotekanPattern
+kernelToPattern direction kernel = do
     -- Reyong doesn't really have polos and sangsih, so here polos is the
     -- one that has the destination.
-    let polos = map (fmap (+offset) . to_steps) kernel
-        sangsih = map (fmap (+offset) . infer_sangsih) kernel
-    sangsih_last <- msum (reverse sangsih)
-    polos_last <- msum (reverse polos)
+    let polos = map (fmap (+offset) . toSteps) kernel
+        sangsih = map (fmap (+offset) . inferSangsih) kernel
+    sangsihLast <- msum (reverse sangsih)
+    polosLast <- msum (reverse polos)
     pure $ case direction of
         Call.Up -> KotekanPattern
-            { kotekan_above = (sangsih, sangsih_last)
-            , kotekan_below = (polos, polos_last)
+            { kotekanAbove = (sangsih, sangsihLast)
+            , kotekanBelow = (polos, polosLast)
             }
         Call.Down -> KotekanPattern
-            { kotekan_above = (polos, polos_last)
-            , kotekan_below = (sangsih, sangsih_last)
+            { kotekanAbove = (polos, polosLast)
+            , kotekanBelow = (sangsih, sangsihLast)
             }
     where
     -- I want the final note to end on the destination, whether it be polos or
     -- sangsih.  So shift everything to make that happen.  If it's Gap then I
     -- have no idea, leave it alone.
     offset = negate $ fromMaybe 0 $ case Lists.last kernel of
-        Just Gangsa.Gap -> infer_sangsih Gangsa.Gap
-        Just a -> to_steps a
+        Just Gangsa.Gap -> inferSangsih Gangsa.Gap
+        Just a -> toSteps a
         Nothing -> Nothing
-    to_steps a = case a of
+    toSteps a = case a of
         Gangsa.Gap -> Nothing
         Gangsa.Rest -> Nothing
         Gangsa.Low -> Just 0
         Gangsa.High -> Just 1
-    infer_sangsih a = case direction of
+    inferSangsih a = case direction of
         Call.Up -> case a of
             Gangsa.Gap -> Nothing
             Gangsa.Rest -> Just 2
@@ -474,52 +474,52 @@ kernel_to_pattern direction kernel = do
             Gangsa.High -> Just (-2)
 
 -- | Like 'Gangsa.get_pitch', but get the symbolic pitch.
-get_parsed_pitch :: Derive.PassedArgs a
+getParsedPitch :: Derive.PassedArgs a
     -> Derive.Deriver (Pitch.Pitch, Pitch.Pitch -> Maybe Pitch.Note)
-get_parsed_pitch args = do
-    (parse_pitch, show_pitch, _) <- Call.get_pitch_functions
-    pitch <- Call.get_parsed_pitch parse_pitch =<< Args.real_start args
-    pure (pitch, show_pitch)
+getParsedPitch args = do
+    (parsePitch, showPitch, _) <- Call.getPitchFunctions
+    pitch <- Call.getParsedPitch parsePitch =<< Args.realStart args
+    pure (pitch, showPitch)
 
 -- | Like 'Gangsa.infer_prepare', except return a parsed Pitch.Pitch.
-infer_prepare :: Derive.PassedArgs a -> Maybe Bool
+inferPrepare :: Derive.PassedArgs a -> Maybe Bool
     -> Derive.Deriver (Maybe Pitch.Pitch)
-infer_prepare args prepare = do
-    (parse_pitch, _, _) <- Call.get_pitch_functions
-    justm (Gangsa.infer_prepare args prepare) $ \_ ->
-        maybe (pure Nothing) (Args.lookup_parsed_pitch_at parse_pitch)
-            (Args.next_start args)
+inferPrepare args prepare = do
+    (parsePitch, _, _) <- Call.getPitchFunctions
+    justm (Gangsa.inferPrepare args prepare) $ \_ ->
+        maybe (pure Nothing) (Args.lookupParsedPitchAt parsePitch)
+            (Args.nextStart args)
 
 -- * articulation
 
-make_articulation :: [Position] -> Derive.CallName
+makeArticulation :: [Position] -> Derive.CallName
     -> (Position -> [Pitch.Pitch]) -> Attrs.Attributes
     -> Derive.Generator Derive.Note
-make_articulation positions name get_notes attrs =
+makeArticulation positions name getNotes attrs =
     Derive.generator module_ name Tags.inst
     "Reyong articulation. The doubled variants emit two notes, and rely on\
     \ start time randomization so they're not exactly simultaneous." $
-    Sig.call voices_env $ \voices -> Sub.inverting $ \args -> do
-        (_, show_pitch, _) <- Call.get_pitch_functions
-        mconcat $ map (realize show_pitch args) (filter_voices voices positions)
+    Sig.call voicesEnv $ \voices -> Sub.inverting $ \args -> do
+        (_, showPitch, _) <- Call.getPitchFunctions
+        mconcat $ map (realize showPitch args) (filterVoices voices positions)
     where
-    realize show_pitch args (voice, position) = hands $ map
-        (Call.place args . realize_note show_pitch voice (Args.start args)) $
-        map (\p -> (p, attrs)) (get_notes position)
+    realize showPitch args (voice, position) = hands $ map
+        (Call.place args . realizeNote showPitch voice (Args.start args)) $
+        map (\p -> (p, attrs)) (getNotes position)
     hands [n] = n
     hands [n1, n2] = hand Call.L n1 <> hand Call.R n2
-        where hand = Derive.with_val EnvKey.hand . ShowVal.show_val
+        where hand = Derive.withVal EnvKey.hand . ShowVal.showVal
     hands ns = mconcat ns
 
 type Voice = Int
 
-realize_note :: (Pitch.Pitch -> Maybe Pitch.Note) -> Voice -> ScoreTime
+realizeNote :: (Pitch.Pitch -> Maybe Pitch.Note) -> Voice -> ScoreTime
     -> Note -> Derive.NoteDeriver
-realize_note show_pitch voice start (pitch, attrs) =
+realizeNote showPitch voice start (pitch, attrs) =
     -- TODO I could maybe get rid of all the show_pitch args by using
     -- Call.eval_pitch_, but would that be inefficient?
-    Call.add_attributes attrs $ Derive.with_val EnvKey.voice voice $
-        Call.transposed_pitched_note =<< Call.eval_pitch show_pitch start pitch
+    Call.addAttributes attrs $ Derive.withVal EnvKey.voice voice $
+        Call.transposedPitchedNote =<< Call.evalPitch showPitch start pitch
 
 
 -- * kotekan
@@ -528,8 +528,8 @@ data KotekanPattern = KotekanPattern
     -- | Pair relative steps with the final note's distance from the
     -- destination pitch.  This is used to find this line's distance from
     -- a given position.
-    { kotekan_above :: !([Maybe Pitch.Step], Pitch.Step)
-    , kotekan_below :: !([Maybe Pitch.Step], Pitch.Step)
+    { kotekanAbove :: !([Maybe Pitch.Step], Pitch.Step)
+    , kotekanBelow :: !([Maybe Pitch.Step], Pitch.Step)
     } deriving (Show)
 
 {- What about the high ding?
@@ -551,39 +551,39 @@ type Chord = [Note]
 type Note = (Pitch.Pitch, Attrs.Attributes)
 
 -- | Figure out a pattern for each note of the scale.
-make_pattern :: KotekanPattern -> Pattern
-make_pattern pattern = Map.fromList
-    [ (pc, kotekan_pattern per_octave (map pos_cek reyong_positions) pattern pc)
+makePattern :: KotekanPattern -> Pattern
+makePattern pattern = Map.fromList
+    [ (pc, kotekanPattern perOctave (map posCek reyongPositions) pattern pc)
     | pc <- pcs
     ]
     where
-    per_octave = 5
-    pcs = [0 .. per_octave - 1]
+    perOctave = 5
+    pcs = [0 .. perOctave - 1]
 
-kotekan_pattern :: Pitch.PitchClass -> [Pitch.Pitch] -> KotekanPattern
+kotekanPattern :: Pitch.PitchClass -> [Pitch.Pitch] -> KotekanPattern
     -> Pitch.PitchClass -> [[Chord]]
-kotekan_pattern per_octave centers pattern pc =
-    map (map convert) $ assign_positions pattern per_octave pc centers
+kotekanPattern perOctave centers pattern pc =
+    map (map convert) $ assignPositions pattern perOctave pc centers
     where convert = maybe [] (\p -> [(p, mempty)])
 
-assign_positions :: KotekanPattern -> Pitch.PitchClass -> Pitch.PitchClass
+assignPositions :: KotekanPattern -> Pitch.PitchClass -> Pitch.PitchClass
     -> [Pitch.Pitch] -> [[Maybe Pitch.Pitch]]
-assign_positions (KotekanPattern above below) per_octave destination =
-    map extract . assign_closest distance absolute
+assignPositions (KotekanPattern above below) perOctave destination =
+    map extract . assignClosest distance absolute
     where
     -- Kotekan at theoretical positions in every octave.
     absolute = concatMap (\dest -> map (transpose dest) [below, above])
         [Pitch.Pitch oct (Pitch.Degree destination 0) | oct <- [0..]]
     transpose pitch (steps, last) =
         (map (fmap (add pitch)) steps, add pitch last)
-    add pitch steps = Pitch.add_pc per_octave steps pitch
+    add pitch steps = Pitch.addPc perOctave steps pitch
     extract ((steps, _), _) = steps
-    distance (_, last) center = abs $ Pitch.diff_pc per_octave last center
+    distance (_, last) center = abs $ Pitch.diffPc perOctave last center
 
 -- | Find the value from the first list that is closest to the first element of
 -- the first list, and then zip them up.
-assign_closest :: Ord key => (a -> b -> key) -> [a] -> [b] -> [(a, b)]
-assign_closest distance = go
+assignClosest :: Ord key => (a -> b -> key) -> [a] -> [b] -> [(a, b)]
+assignClosest distance = go
     where
     go [] _ = []
     go _ [] = []
@@ -592,19 +592,19 @@ assign_closest distance = go
         | otherwise = go xs (y:ys)
     go [x] (y:_) = [(x, y)]
 
-parse_kotekan :: [Char] -> [Char] -> KotekanPattern
-parse_kotekan above below = KotekanPattern
-    { kotekan_above = (map (fmap (subtract dest)) abovep, above_last - dest)
-    , kotekan_below = (map (fmap (subtract dest)) belowp, below_last - dest)
+parseKotekan :: [Char] -> [Char] -> KotekanPattern
+parseKotekan above below = KotekanPattern
+    { kotekanAbove = (map (fmap (subtract dest)) abovep, aboveLast - dest)
+    , kotekanBelow = (map (fmap (subtract dest)) belowp, belowLast - dest)
     }
     where
-    (abovep, belowp) = (parse_relative above, parse_relative below)
-    Just above_last = msum (reverse abovep)
-    Just below_last = msum (reverse belowp)
+    (abovep, belowp) = (parseRelative above, parseRelative below)
+    Just aboveLast = msum (reverse abovep)
+    Just belowLast = msum (reverse belowp)
     Just dest = msum $ mapMaybe Lists.last [belowp, abovep]
 
-parse_relative :: [Char] -> [Maybe Pitch.Step]
-parse_relative = map parse1 . filter (/=' ')
+parseRelative :: [Char] -> [Maybe Pitch.Step]
+parseRelative = map parse1 . filter (/=' ')
     where
     parse1 '-' = Nothing
     parse1 c = Just (digit c)
@@ -623,16 +623,16 @@ type NoteTable = Map Char Chord
 data Degree = I | O | E | U | A deriving (Eq, Ord, Enum, Show)
 instance Pretty Degree where pretty = showt
 
-to_pc :: Degree -> Pitch.PitchClass
-to_pc = fromEnum
+toPc :: Degree -> Pitch.PitchClass
+toPc = fromEnum
 
-parse_absolute :: NoteTable -> [Char] -> [Chord]
-parse_absolute table = map $ \c -> fromMaybe
+parseAbsolute :: NoteTable -> [Char] -> [Chord]
+parseAbsolute table = map $ \c -> fromMaybe
     (errorStack $ "parse_absolute: not in table: " <> showt c)
     (Map.lookup c table)
 
-parse_note :: NoteTable -> Char -> Note
-parse_note table = extract . head . parse_absolute table . (:[])
+parseNote :: NoteTable -> Char -> Note
+parseNote table = extract . head . parseAbsolute table . (:[])
     where
     extract [x] = x
     extract xs = errorStack $ "parse_note: expected only one: " <> pretty xs
@@ -644,11 +644,11 @@ parse_note table = extract . head . parse_absolute table . (:[])
              |------|---    |---------|
     4e 4u 4a 5i 5o 5e 5u 5a 6i 6o 6e 6u 6a 7i
 -}
-norot_prepare_patterns :: Map Pitch.PitchClass [[Chord]]
-norot_prepare_patterns = Map.fromList $ zip [0..] $ map parse by_degree
+norotPreparePatterns :: Map Pitch.PitchClass [[Chord]]
+norotPreparePatterns = Map.fromList $ zip [0..] $ map parse byDegree
     where
-    parse = zipWith parse_absolute (map pos_table reyong_positions)
-    by_degree =
+    parse = zipWith parseAbsolute (map posTable reyongPositions)
+    byDegree =
         -- 1       2       3       4
         [ ["eua-", "Iioi", "Uua-", "Iioi"] -- i
         , ["ua:-", "Ooeo", "uai-", "Ooeo"] -- o
@@ -657,11 +657,11 @@ norot_prepare_patterns = Map.fromList $ zip [0..] $ map parse by_degree
         , ["Aaea", "Eeie", "Aa-a", "Eeie"] -- a
         ]
 
-norot_patterns :: Map Pitch.PitchClass [[Chord]]
-norot_patterns = Map.fromList $ zip [0..] $ map parse by_degree
+norotPatterns :: Map Pitch.PitchClass [[Chord]]
+norotPatterns = Map.fromList $ zip [0..] $ map parse byDegree
     where
-    parse = zipWith parse_absolute (map pos_table reyong_positions)
-    by_degree =
+    parse = zipWith parseAbsolute (map posTable reyongPositions)
+    byDegree =
         -- 1       2       3       4
         [ ["aua-", "oioi", "aua-", "oioi"] -- i
                -- i oeio
@@ -673,9 +673,9 @@ norot_patterns = Map.fromList $ zip [0..] $ map parse by_degree
 
 -- | Map letters to chords, starting from the given octave and Degree.  Capital
 -- letters get 'Attrs.mute'.
-note_table :: Pitch.Octave -> Degree -> NoteTable
-note_table octave start = Map.fromList $
-    ('-', []) : take (length notes) (drop (to_pc start) pitches)
+noteTable :: Pitch.Octave -> Degree -> NoteTable
+noteTable octave start = Map.fromList $
+    ('-', []) : take (length notes) (drop (toPc start) pitches)
         ++ take (length notes) muted
     where
     pitches =
@@ -687,41 +687,41 @@ note_table octave start = Map.fromList $
     notes = "ioeua"
 
 data Position = Position
-    { pos_cek :: !Pitch.Pitch
-    , pos_byong :: ![Pitch.Pitch]
-    , pos_table :: !NoteTable
+    { posCek :: !Pitch.Pitch
+    , posByong :: ![Pitch.Pitch]
+    , posTable :: !NoteTable
     } deriving (Eq, Show)
 
-reyong_positions :: [Position]
-reyong_positions = [position1, position2, position3, position4]
+reyongPositions :: [Position]
+reyongPositions = [position1, position2, position3, position4]
 
 position1 :: Position
-position1 = make_position ptable 'u' "ea"
+position1 = makePosition ptable 'u' "ea"
     where
-    ptable = Map.insert ':' (map (parse_note table) "ei") table
-        where table = note_table 4 E
+    ptable = Map.insert ':' (map (parseNote table) "ei") table
+        where table = noteTable 4 E
 
 position2 :: Position
-position2 = make_position (note_table 5 I) 'o' "ie"
+position2 = makePosition (noteTable 5 I) 'o' "ie"
 
 position3 :: Position
-position3 = make_position (note_table 5 U) 'a' "ui"
+position3 = makePosition (noteTable 5 U) 'a' "ui"
 
 position4 :: Position
-position4 = make_position (note_table 6 I) 'e' "ou"
+position4 = makePosition (noteTable 6 I) 'e' "ou"
 
-make_position :: NoteTable -> Char -> [Char] -> Position
-make_position table cek byong = Position
-    { pos_cek = parse cek
-    , pos_byong = map parse byong
-    , pos_table = table
+makePosition :: NoteTable -> Char -> [Char] -> Position
+makePosition table cek byong = Position
+    { posCek = parse cek
+    , posByong = map parse byong
+    , posTable = table
     }
-    where parse = fst . parse_note table
+    where parse = fst . parseNote table
 
 -- * damping
 
-c_hand_damp :: Derive.Transformer Derive.Note
-c_hand_damp = Derive.transformer module_ "hand-damp" Tags.postproc
+cHandDamp :: Derive.Transformer Derive.Note
+cHandDamp = Derive.transformer module_ "hand-damp" Tags.postproc
     "Damping when the parts are already divided by hand."
     $ Sig.callt ((,)
         <$> Sig.required "insts" "Apply damping to these instruments."
@@ -729,24 +729,24 @@ c_hand_damp = Derive.transformer module_ "hand-damp" Tags.postproc
             "There must be at least this much time between the end of a note\
             \ and the start of the next to damp."
     ) $ \(insts, dur) _args deriver ->
-        hand_damp (Set.fromList insts) dur <$> deriver
+        handDamp (Set.fromList insts) dur <$> deriver
 
-hand_damp :: Set ScoreT.Instrument -> (RealTime -> RealTime)
+handDamp :: Set ScoreT.Instrument -> (RealTime -> RealTime)
     -> Stream.Stream Score.Event -> Stream.Stream Score.Event
-hand_damp damped_insts dur_at =
-    Post.emap_asc_ infer . Post.next_by Post.hand_key
+handDamp dampedInsts durAt =
+    Post.emapAsc_ infer . Post.nextBy Post.handKey
     where
     infer (event, _)
-        | Score.event_instrument event `Set.notMember` damped_insts = [event]
-    infer (event, Just next) | too_close event next = [event]
+        | Score.eventInstrument event `Set.notMember` dampedInsts = [event]
+    infer (event, Just next) | tooClose event next = [event]
     infer (event, _) = damp event
-    damp event = [event, make_damp 0 event]
-    too_close event next =
-        (Score.event_start next - Score.event_end event)
-            <= dur_at (Score.event_end event)
+    damp event = [event, makeDamp 0 event]
+    tooClose event next =
+        (Score.eventStart next - Score.eventEnd event)
+            <= durAt (Score.eventEnd event)
 
-c_infer_damp :: Derive.Transformer Derive.Note
-c_infer_damp = Derive.transformer module_ "infer-damp" Tags.postproc
+cInferDamp :: Derive.Transformer Derive.Note
+cInferDamp = Derive.transformer module_ "infer-damp" Tags.postproc
     ("Add damping for reyong parts based on a simulation of the hand technique.\
     \ The " <> ShowVal.doc damped <> " attribute will force a damp, while "
     <> ShowVal.doc undamped <> " will prevent damping. The latter can cause a\
@@ -767,100 +767,100 @@ c_infer_damp = Derive.transformer module_ "infer-damp" Tags.postproc
     ) $ \(insts, dur, early) _args deriver ->
         -- infer_damp preserves order, so Post.apply is safe.  TODO Is there a
         -- way to express this statically?
-        Post.apply_m
-            (Derive.run_logs . infer_damp_voices (Set.fromList insts) dur early)
+        Post.applyM
+            (Derive.runLogs . inferDampVoices (Set.fromList insts) dur early)
             =<< deriver
 
 -- | Multiply this by 'Controls.dynamic' for the dynamic of +mute notes created
 -- by infer-damp.
-damp_control :: ScoreT.Control
-damp_control = "damp"
+dampControl :: ScoreT.Control
+dampControl = "damp"
 
 -- | Divide notes into voices.  Assign each note to a hand.  The end of each
 -- note needs a free hand to damp.  That can be the same hand if the next note
 -- with that hand is a sufficiently long time from now, or the opposite hand if
 -- it is not too busy.
-infer_damp_voices :: Set ScoreT.Instrument
+inferDampVoices :: Set ScoreT.Instrument
     -> (RealTime -> RealTime) -- ^ duration required to damp
     -> (RealTime -> RealTime) -> [Score.Event] -> Log.LogId [Score.Event]
-infer_damp_voices damped_insts dur_at early_at events = do
+inferDampVoices dampedInsts durAt earlyAt events = do
     unless (null skipped) $
         Log.warn $ "skipped events without pitch: "
-            <> Score.short_events skipped
+            <> Score.shortEvents skipped
     pure damped
     where
-    (skipped, damped) = bimap concat (Post.merge_asc . map Post.merge_asc)
-        . unzip . map infer_voice . Lists.keyedGroupSort Post.voice_key $
+    (skipped, damped) = bimap concat (Post.mergeAsc . map Post.mergeAsc)
+        . unzip . map inferVoice . Lists.keyedGroupSort Post.voiceKey $
         events
-    infer_voice ((inst, _voice), events)
-        | inst `Set.notMember` damped_insts = ([], [events])
+    inferVoice ((inst, _voice), events)
+        | inst `Set.notMember` dampedInsts = ([], [events])
         | otherwise =
-            (skipped, zipWith infer_event damps (Lists.zipNext events))
-        where (damps, skipped) = infer_damp dur_at events
-    infer_event (hand, damped) (event, next) =
-        map (Post.add_environ EnvKey.hand hand) $ if damped
-            then [Score.duration (subtract early) event, make_damp early event]
+            (skipped, zipWith inferEvent damps (Lists.zipNext events))
+        where (damps, skipped) = inferDamp durAt events
+    inferEvent (hand, damped) (event, next) =
+        map (Post.addEnviron EnvKey.hand hand) $ if damped
+            then [Score.duration (subtract early) event, makeDamp early event]
             else [event]
         where
         early = case next of
-            Just n | Score.event_end event >= Score.event_start n ->
-                early_at (Score.event_start event)
+            Just n | Score.eventEnd event >= Score.eventStart n ->
+                earlyAt (Score.eventStart event)
             _ -> 0
 
 -- | Create a damped note at the end of the given note.
-make_damp :: RealTime -> Score.Event -> Score.Event
-make_damp early event =
-    Score.add_attributes Attrs.mute $ Score.set_dynamic damp $
+makeDamp :: RealTime -> Score.Event -> Score.Event
+makeDamp early event =
+    Score.addAttributes Attrs.mute $ Score.setDynamic damp $
     event
-        { Score.event_start = Score.event_end event - early
-        , Score.event_duration = 0
+        { Score.eventStart = Score.eventEnd event - early
+        , Score.eventDuration = 0
         }
     where
-    damp = maybe 0.35 ScoreT.val_of
-        (Score.control_at (Score.event_end event) damp_control event)
+    damp = maybe 0.35 ScoreT.valOf
+        (Score.controlAt (Score.eventEnd event) dampControl event)
 
-infer_damp :: (RealTime -> RealTime) -> [Score.Event]
+inferDamp :: (RealTime -> RealTime) -> [Score.Event]
     -> ([(Call.Hand, Bool)], [Score.Event])
     -- ^ (True if corresponding input event should be damped, skipped)
-infer_damp dur_at =
-    first (snd . List.mapAccumL infer (0, 0) . Lists.zipNexts) . assign_hands
+inferDamp durAt =
+    first (snd . List.mapAccumL infer (0, 0) . Lists.zipNexts) . assignHands
     where
-    infer prev ((hand, event), nexts) = (hands_state, (hand, damp))
+    infer prev ((hand, event), nexts) = (handsState, (hand, damp))
         where
-        damp = Score.has_attribute damped event
-            || (could_damp event
-                && (same_hand_can_damp || other_hand_can_damp))
+        damp = Score.hasAttribute damped event
+            || (couldDamp event
+                && (sameHandCanDamp || otherHandCanDamp))
         -- The same hand can damp if its next strike is sufficiently distant.
-        same_hand_can_damp = enough_time (next hand)
+        sameHandCanDamp = enoughTime (next hand)
         -- The other hand can damp if it has enough time from its previous
         -- strike to move, and the current hand has moved out of the way by
         -- changing pitches.
         -- TODO maybe doesn't need a full dur from prev strike?
-        other_hand_can_damp = and
-            [ (now - prev_strike (Call.other_hand hand)) >= dur
-            , enough_time (next (Call.other_hand hand))
-            , maybe True ((/= Score.initial_nn event) . Score.initial_nn . snd)
+        otherHandCanDamp = and
+            [ (now - prevStrike (Call.otherHand hand)) >= dur
+            , enoughTime (next (Call.otherHand hand))
+            , maybe True ((/= Score.initialNn event) . Score.initialNn . snd)
                 (next hand)
             ]
-        now = Score.event_end event
-        prev_strike Call.L = fst prev
-        prev_strike Call.R = snd prev
-        hands_state
+        now = Score.eventEnd event
+        prevStrike Call.L = fst prev
+        prevStrike Call.R = snd prev
+        handsState
             | damp = case hand of
                 Call.L -> (now, snd prev)
                 Call.R -> (fst prev, now)
             | otherwise = prev
         next hand = Lists.head $ filter ((==hand) . fst) nexts
-        enough_time = maybe True
-            ((>=dur) . subtract now . Score.event_start . snd)
-        dur = dur_at (Score.event_start event)
+        enoughTime = maybe True
+            ((>=dur) . subtract now . Score.eventStart . snd)
+        dur = durAt (Score.eventStart event)
 
 -- | True for events which could get an inferred damp.
-could_damp :: Score.Event -> Bool
-could_damp event =
-    Score.event_duration event > 0
+couldDamp :: Score.Event -> Bool
+couldDamp event =
+    Score.eventDuration event > 0
         && not (any (Attrs.contain attrs) [undamped, cek, Attrs.mute])
-    where attrs = Score.event_attributes event
+    where attrs = Score.eventAttributes event
 
 damped :: Attrs.Attributes
 damped = Attrs.attr "damped"
@@ -870,17 +870,17 @@ undamped = Attrs.attr "undamped"
 
 -- | Assign hands based on the direction of the pitches.  This is a bit
 -- simplistic but hopefully works well enough.
-assign_hands :: [Score.Event] -> ([(Call.Hand, Score.Event)], [Score.Event])
-assign_hands =
+assignHands :: [Score.Event] -> ([(Call.Hand, Score.Event)], [Score.Event])
+assignHands =
     first (snd . List.mapAccumL assign (Call.L, 999))
-        . Lists.partitionOn (\e -> (,e) <$> Score.initial_nn e)
+        . Lists.partitionOn (\e -> (,e) <$> Score.initialNn e)
     where
-    assign (prev_hand, prev_pitch) (pitch, event) =
+    assign (prevHand, prevPitch) (pitch, event) =
         ((hand, pitch), (hand, event))
         where
         hand
-            | pitch == prev_pitch = prev_hand
-            | pitch > prev_pitch = Call.R
+            | pitch == prevPitch = prevHand
+            | pitch > prevPitch = Call.R
             | otherwise = Call.L
 
 -- * patterns
@@ -894,69 +894,69 @@ baris =
 
 -- * realize-reyong
 
-c_realize_reyong :: Derive.Transformer Derive.Note
-c_realize_reyong = StaticMacro.check "c_realize_reyong" $
+cRealizeReyong :: Derive.Transformer Derive.Note
+cRealizeReyong = StaticMacro.check "c_realize_reyong" $
     StaticMacro.transformer module_ "realize-reyong" Tags.postproc doc
         -- infer-damp relies on having the ngoret pitches and will get confused
         -- by uncalled notes, so it has to go after those.
-        [ StaticMacro.Call c_infer_damp [StaticMacro.Var, StaticMacro.Var]
-        , StaticMacro.Call c_cancel_kotekan [StaticMacro.Var]
-        , StaticMacro.Call Gender.c_realize_ngoret []
+        [ StaticMacro.Call cInferDamp [StaticMacro.Var, StaticMacro.Var]
+        , StaticMacro.Call cCancelKotekan [StaticMacro.Var]
+        , StaticMacro.Call Gender.cRealizeNgoret []
         ]
     where doc = "Combine the reyong realize calls in the right order."
 
-c_realize_trompong :: Derive.Transformer Derive.Note
-c_realize_trompong = StaticMacro.check "c_realize_trompong" $
+cRealizeTrompong :: Derive.Transformer Derive.Note
+cRealizeTrompong = StaticMacro.check "c_realize_trompong" $
     StaticMacro.transformer module_ "realize-trompong" Tags.postproc doc
         -- infer-damp relies on having the ngoret pitches and will get confused
         -- by uncalled notes, so it has to go after those.
-        [ StaticMacro.Call c_hand_damp [StaticMacro.Var, StaticMacro.Var]
-        , StaticMacro.Call Gender.c_realize_ngoret []
+        [ StaticMacro.Call cHandDamp [StaticMacro.Var, StaticMacro.Var]
+        , StaticMacro.Call Gender.cRealizeNgoret []
         ]
     where doc = "Combine the reyong realize calls in the right order."
 
 -- * octave transposition
 
-c_lower_octave_note :: Derive.Transformer Derive.Note
-c_lower_octave_note = Derive.transformer module_ "lower-octave-note"
-    (Tags.postproc <> Tags.under_invert)
+cLowerOctaveNote :: Derive.Transformer Derive.Note
+cLowerOctaveNote = Derive.transformer module_ "lower-octave-note"
+    (Tags.postproc <> Tags.underInvert)
     "Double a note with a single note one octave down, and add\
     \ 'Derive.Flags.infer_duration'."
-    $ Sig.call0t $ Sub.under_invert $ \args deriver -> do
-        start <- Args.real_start args
-        pitch <- Call.get_pitch start
-        let note = Call.add_flags Flags.infer_duration $
-                Derive.at (Args.start args) $ Call.pitched_note $
-                PSignal.add_control Controls.octave (-1) pitch
+    $ Sig.call0t $ Sub.underInvert $ \args deriver -> do
+        start <- Args.realStart args
+        pitch <- Call.getPitch start
+        let note = Call.addFlags Flags.inferDuration $
+                Derive.at (Args.start args) $ Call.pitchedNote $
+                PSignal.addControl Controls.octave (-1) pitch
         -- The transposed goes second so realize-ngoret infers to the upper
         -- pitch rather than the lower one.  This is kind of subtle and
         -- unsatisfying, but works.
         deriver <> note
 
-c_upper :: Library.Calls Derive.Note
-c_upper = Make.transform_notes module_ "upper" Tags.inst
+cUpper :: Library.Calls Derive.Note
+cUpper = Make.transformNotes module_ "upper" Tags.inst
     ("Double a part with `" <> Doc.pretty Controls.octave
         <> "=+1` and `" <> Doc.pretty EnvKey.voice
         <> "=2`. If reyong subtracks have `v=+1` and `v=+2` respectively,\
         \ they'll wind up with the right voices.")
     (pure ()) $ \() deriver ->
-        deriver <> Call.add_constant Controls.octave 1
-            (Derive.with_val EnvKey.voice (2 :: Int) deriver)
+        deriver <> Call.addConstant Controls.octave 1
+            (Derive.withVal EnvKey.voice (2 :: Int) deriver)
 
 -- * solkattu
 
-solkattu_module :: Module.Module
-solkattu_module = module_ <> "solkattu"
+solkattuModule :: Module.Module
+solkattuModule = module_ <> "solkattu"
 
 -- | These calls are used by the 'Derive.Solkattu.Instrument.Reyong'
 -- realization.
-c_solkattu_note :: [Pitch.Step] -> Derive.Generator Derive.Note
-c_solkattu_note steps = Derive.generator solkattu_module "solkattu-note"
+cSolkattuNote :: [Pitch.Step] -> Derive.Generator Derive.Note
+cSolkattuNote steps = Derive.generator solkattuModule "solkattu-note"
     Tags.inst "A pitched note, as generated by reyong solkattu."
     $ Sig.call0 $ Sub.inverting $ \args ->
         mconcatMap (realize (Args.start args) (Args.next args)) steps
     where
     realize start next step =
         Derive.place start (next - start) $
-        Call.add_constant Controls.diatonic (fromIntegral step)
+        Call.addConstant Controls.diatonic (fromIntegral step)
         Call.note

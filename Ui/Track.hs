@@ -27,16 +27,16 @@ import           Types
 -- | An event track, which contains some configuration, and the actual
 -- events that make up the score.
 data Track = Track
-    { track_title :: !Text
-    , track_events :: !Events.Events
+    { trackTitle :: !Text
+    , trackEvents :: !Events.Events
     -- | Similar to 'Event.Event.style', you can individually configure track
     -- bg color, but in practice I do it automatically at the low level with
     -- 'TrackBg'.
-    , track_bg :: !Color.Color
-    , track_render :: !RenderConfig
+    , trackBg :: !Color.Color
+    , trackRender :: !RenderConfig
     -- | If True, and this track has im notes, display the waveform on the
     -- track.
-    , track_waveform :: !Bool
+    , trackWaveform :: !Bool
     } deriving (Eq, Show)
 
 instance Pretty Track where
@@ -49,25 +49,25 @@ instance Pretty Track where
 -- | Construct a new Track.
 track :: Text -> Events.Events -> Track
 track title events = Track
-    { track_title = title
-    , track_events = events
-    , track_bg = Config.track_bg
-    , track_render = line_render
-    , track_waveform = True
+    { trackTitle = title
+    , trackEvents = events
+    , trackBg = Config.trackBg
+    , trackRender = lineRender
+    , trackWaveform = True
     }
 
 empty :: Track
 empty = track "" Events.empty
 
 instance DeepSeq.NFData Track where
-    rnf track = DeepSeq.rnf (track_events track) `seq` ()
+    rnf track = DeepSeq.rnf (trackEvents track) `seq` ()
 
-modify_events :: (Events.Events -> Events.Events) -> Track -> Track
-modify_events f track@(Track { track_events = events }) =
-    track { track_events = f events }
+modifyEvents :: (Events.Events -> Events.Events) -> Track -> Track
+modifyEvents f track@(Track { trackEvents = events }) =
+    track { trackEvents = f events }
 
-set_events :: Events.Events -> Track -> Track
-set_events events = modify_events (const events)
+setEvents :: Events.Events -> Track -> Track
+setEvents events = modifyEvents (const events)
 
 type SetStyle = (TrackBg, Event.EventStyle)
 
@@ -76,10 +76,10 @@ type SetStyle = (TrackBg, Event.EventStyle)
 -- It's a bit awkward to have two SetStyles, but some information can only be
 -- supplied by "Ui.Sync".
 data SetStyleHigh = SetStyleHigh
-    { _track_bg :: TrackBg
+    { _trackBg :: TrackBg
     -- | The arguments are what 'Cmd.Internal.event_style' needs to figure out
     -- a style.
-    , _set_event_style :: forall a. Id.Namespace -> Map BlockId a -> BlockId
+    , _setEventStyle :: forall a. Id.Namespace -> Map BlockId a -> BlockId
         -> Bool -- has note track children?
         -> Event.EventStyle
     }
@@ -89,15 +89,15 @@ type TrackBg = Track -> Color.Color
 
 -- | Whether to draw a 'Signal.Display' on this track, and if so, how.
 data RenderConfig = RenderConfig
-    { render_style :: !RenderStyle
-    , render_color :: !Color.Color
+    { renderStyle :: !RenderStyle
+    , renderColor :: !Color.Color
     } deriving (Eq, Show)
 
-no_render :: RenderConfig
-no_render = RenderConfig NoRender Config.track_signal_color
+noRender :: RenderConfig
+noRender = RenderConfig NoRender Config.trackSignalColor
 
-line_render :: RenderConfig
-line_render = RenderConfig (Line Nothing) Config.track_signal_color
+lineRender :: RenderConfig
+lineRender = RenderConfig (Line Nothing) Config.trackSignalColor
 
 instance Pretty RenderConfig where
     pretty (RenderConfig style color) = pretty (style, color)
@@ -124,9 +124,9 @@ instance Pretty RenderSource where
     pretty (Pitch c) = "Pitch " <> pretty c
 instance Pretty RenderStyle where pretty = showt
 
-set_render_style :: RenderStyle -> Track -> Track
-set_render_style style track =
-    track { track_render = (track_render track) { render_style = style } }
+setRenderStyle :: RenderStyle -> Track -> Track
+setRenderStyle style track =
+    track { trackRender = (trackRender track) { renderStyle = style } }
 
 -- | Each (BlockId, TrackId) pair can have a TrackSignal associated with it.
 --
@@ -145,13 +145,13 @@ type TrackSignals = Map (BlockId, TrackId) TrackSignal
 -- if there is a non-trivial warp, the signal will have to be unwarped back
 -- to ScoreTime.
 data TrackSignal = TrackSignal
-    { ts_signal :: !Signal.Display
-    , ts_shift :: !ScoreTime
-    , ts_stretch :: !ScoreTime
+    { tsSignal :: !Signal.Display
+    , tsShift :: !ScoreTime
+    , tsStretch :: !ScoreTime
     } deriving (Show, Eq)
 
-empty_track_signal :: TrackSignal
-empty_track_signal = TrackSignal mempty 0 1
+emptyTrackSignal :: TrackSignal
+emptyTrackSignal = TrackSignal mempty 0 1
 
 instance Pretty TrackSignal where
     format (TrackSignal sig shift stretch) =
@@ -161,9 +161,9 @@ instance Pretty TrackSignal where
 instance DeepSeq.NFData TrackSignal where
     rnf (TrackSignal sig _ _) = DeepSeq.rnf sig
 
-signal_at :: ScoreTime -> TrackSignal -> Signal.Y
-signal_at x (TrackSignal sig shift stretch) = Signal.at sig warped
-    where warped = RealTime.from_score $ x * stretch + shift
+signalAt :: ScoreTime -> TrackSignal -> Signal.Y
+signalAt x (TrackSignal sig shift stretch) = Signal.at sig warped
+    where warped = RealTime.fromScore $ x * stretch + shift
 
 -- * waveform
 

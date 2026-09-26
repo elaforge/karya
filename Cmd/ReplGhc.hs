@@ -9,7 +9,7 @@
 -- https://gitlab.haskell.org/ghc/ghc/-/wikis/commentary/compiler/api
 -- https://wiki.haskell.org/GHC/As_a_library
 module Cmd.ReplGhc (
-    Session(..), make_session
+    Session(..), makeSession
     , interpreter, interpret, complete
 ) where
 import qualified Control.Concurrent.Chan as Chan
@@ -82,11 +82,11 @@ gcatch = Catch.catch
 #endif
 
 -- | The base directory of this build.  Comes from CPP.
-build_dir :: FilePath
-build_dir = BUILD_DIR
+buildDir :: FilePath
+buildDir = BUILD_DIR
 
-ghci_flags :: FilePath
-ghci_flags = build_dir </> "ghci-flags"
+ghciFlags :: FilePath
+ghciFlags = buildDir </> "ghci-flags"
 
 -- | The actual session runs in another thread, so this is the communication
 -- channel.  @(expr, namespace, response_mvar)@
@@ -99,8 +99,8 @@ type Cmd = Cmd.CmdT IO ReplProtocol.CmdResult
 
 type Ghc a = GHC.GhcT IO a
 
-make_session :: IO Session
-make_session = Session <$> Chan.newChan
+makeSession :: IO Session
+makeSession = Session <$> Chan.newChan
 
 interpret :: Session -> Text -> IO Cmd
 interpret (Session chan) expr = do
@@ -126,22 +126,22 @@ interpreter (Session chan) = do
 #if GHC_VERSION < 80200
     GHC.parseStaticFlags [] -- not sure if this is necessary
 #endif
-    flags <- Exceptions.tryIO (readFile ghci_flags)
+    flags <- Exceptions.tryIO (readFile ghciFlags)
     args <- case flags of
         Left exc -> do
             Log.error $ "error reading ghci flags from "
-                <> showt ghci_flags <> ": " <> showt exc
+                <> showt ghciFlags <> ": " <> showt exc
                 <> ", the REPL is probably not going to work"
             pure []
         Right flags -> pure $ lines flags
 
     GHC.runGhcT (Just GHC.Paths.libdir) $ do
-        parse_flags args
-        GHC.setTargets =<< mapM make_target toplevel_modules
-        ((result, logs, warns), time_msg) <-
-            Thread.timeActionText (reload toplevel_modules)
+        parseFlags args
+        GHC.setTargets =<< mapM makeTarget toplevelModules
+        ((result, logs, warns), timeMsg) <-
+            Thread.timeActionText (reload toplevelModules)
         let expected = map ((++ ".hs, interpreted") . Lists.replace1 '.' "/")
-                (toplevel_modules ++ expected_reloads)
+                (toplevelModules ++ expectedReloads)
         logs <- pure $ filter
             (\log -> not $ (any (`List.isInfixOf` log) expected)) logs
         liftIO $ do
@@ -158,26 +158,26 @@ interpreter (Session chan) = do
             unless (null warns) $
                 Log.warn $ "warnings from reload: "
                     <> Text.intercalate "; " (map txt warns)
-            Log.notice $ "loaded modules for repl: " <> time_msg
+            Log.notice $ "loaded modules for repl: " <> timeMsg
             case result of
                 Left err -> Log.warn $ "error loading REPL modules: " <> txt err
                 _ -> pure ()
         forever $ do
-            (query, return_mvar) <- liftIO $ Chan.readChan chan
-            result <- respond toplevel_modules query
-            liftIO $ MVar.putMVar return_mvar result
+            (query, returnMvar) <- liftIO $ Chan.readChan chan
+            result <- respond toplevelModules query
+            liftIO $ MVar.putMVar returnMvar result
     where
-    expected_reloads = ["User.Elaforge.Repl"] -- TODO should be User.*.Repl
-    toplevel_modules = ["Cmd.Repl.Environ", "Local.Repl"]
+    expectedReloads = ["User.Elaforge.Repl"] -- TODO should be User.*.Repl
+    toplevelModules = ["Cmd.Repl.Environ", "Local.Repl"]
 
 respond :: [String] -> Query -> GHC.GhcT IO Response
-respond toplevel_modules (QCommand expr) = RCommand <$> if
+respond toplevelModules (QCommand expr) = RCommand <$> if
     -- Emitted via :r from the repl.
-    | expr == ":reload" -> make_response <$> reload toplevel_modules
-    | otherwise -> (`gcatch` catch) $ make_response <$> compile (untxt expr)
+    | expr == ":reload" -> makeResponse <$> reload toplevelModules
+    | otherwise -> (`gcatch` catch) $ makeResponse <$> compile (untxt expr)
     where
     catch (exc :: Exception.SomeException) =
-        pure $ pure $ ReplProtocol.error_result $ "Exception: " <> showt exc
+        pure $ pure $ ReplProtocol.errorResult $ "Exception: " <> showt exc
 respond _ (QCompletion prefix) = RCompletion <$>
     -- Don't bother with 50 zillion completions.
     if prefix == "" then pure [] else do
@@ -193,15 +193,15 @@ showPpr _ = Outputable.showPprUnsafe
 showPpr = Outputable.showPpr
 #endif
 
-make_response :: Result (Cmd.CmdL ReplProtocol.Result) -> Cmd
-make_response (val, logs, warns) = case val of
+makeResponse :: Result (Cmd.CmdL ReplProtocol.Result) -> Cmd
+makeResponse (val, logs, warns) = case val of
     Left err -> pure $ ReplProtocol.CmdResult
-        (ReplProtocol.Raw ("compile error: " <> txt err)) all_logs
+        (ReplProtocol.Raw ("compile error: " <> txt err)) allLogs
     Right cmd -> do
         result <- cmd
-        pure $ ReplProtocol.CmdResult result all_logs
+        pure $ ReplProtocol.CmdResult result allLogs
     where
-    all_logs = map (Log.msg Log.Notice Nothing . txt) logs
+    allLogs = map (Log.msg Log.Notice Nothing . txt) logs
         ++ map (Log.msg Log.Warn Nothing . txt) warns
 
 -- * implementation
@@ -211,9 +211,9 @@ type Result a = (Either String a, [String], [String])
 
 -- | Load or reload the target modules.  Return errors if the load failed.
 reload :: [String] -> Ghc (Result (Cmd.CmdL ReplProtocol.Result))
-reload toplevel_modules = do
-    (result, logs, warns) <- collect_logs $
-        GHC.load GHC.LoadAllTargets <* set_context toplevel_modules
+reload toplevelModules = do
+    (result, logs, warns) <- collectLogs $
+        GHC.load GHC.LoadAllTargets <* setContext toplevelModules
     pure (mkcmd result, logs, warns)
     where
     mkcmd (Right ok)
@@ -231,27 +231,27 @@ reload toplevel_modules = do
 
 compile :: String -> Ghc (Result (Cmd.CmdL ReplProtocol.Result))
 compile expr = do
-    (hval, logs, warns) <- collect_logs $ GHC.compileExpr typed_expr
+    (hval, logs, warns) <- collectLogs $ GHC.compileExpr typedExpr
     pure (fmap coerce hval, logs, warns)
     where
-    -- The _to_result method is defined in "Cmd.Repl.Global".
-    typed_expr =
-        "fmap _to_result (" ++ expr ++ ") :: Cmd.CmdL ReplProtocol.Result"
+    -- The _toResult method is defined in "Cmd.Repl.Global".
+    typedExpr =
+        "fmap _toResult (" ++ expr ++ ") :: Cmd.CmdL ReplProtocol.Result"
     -- This should be safe because I just asserted the the type above.
     coerce val = GHC.Exts.unsafeCoerce# val :: Cmd.CmdL ReplProtocol.Result
 
-set_context :: [String] -> Ghc ()
-set_context mod_names = do
+setContext :: [String] -> Ghc ()
+setContext modNames = do
     let prelude = GHC.simpleImportDecl (GHC.mkModuleName "Prelude")
     GHC.setContext $ GHC.IIDecl prelude
-        : map (GHC.IIModule . GHC.mkModuleName) mod_names
+        : map (GHC.IIModule . GHC.mkModuleName) modNames
 
 #if GHC_VERSION >= 90201
 
-collect_logs :: Ghc a -> Ghc (Result a)
-collect_logs action = do
+collectLogs :: Ghc a -> Ghc (Result a)
+collectLogs action = do
     logs <- liftIO $ IORef.newIORef []
-    GHC.pushLogHookM $ const (log_action logs)
+    GHC.pushLogHookM $ const (logAction logs)
     val <- fmap Right action
         `gcatch` \(exc :: Exception.SomeException) -> pure (Left (show exc))
     GHC.popLogHookM
@@ -262,14 +262,14 @@ collect_logs action = do
     let warns = []
     pure (val, reverse logs, warns)
 
-log_action :: IORef.IORef [String] -> Logger.LogAction
+logAction :: IORef.IORef [String] -> Logger.LogAction
 #if GHC_VERSION >= 90601
 -- type LogAction = LogFlags -> MessageClass -> SrcSpan -> SDoc -> IO ()
-log_action logs _ _ _ msg =
+logAction logs _ _ _ msg =
 #else
 -- type LogAction = DynFlags -> WarnReason -> Severity -> SrcSpan
 --               -> SDoc -> IO ()
-log_action logs _ _ _ _ msg =
+logAction logs _ _ _ _ msg =
 #endif
     liftIO $ IORef.modifyIORef logs (formatted:)
     where formatted = Outputable.showSDocUnsafe msg
@@ -277,10 +277,10 @@ log_action logs _ _ _ _ msg =
 #else
 
 -- | Run a Ghc action and collect logs and warns.
-collect_logs :: Ghc a -> Ghc (Result a)
-collect_logs action = do
+collectLogs :: Ghc a -> Ghc (Result a)
+collectLogs action = do
     logs <- liftIO $ IORef.newIORef []
-    val <- fmap Right (catch_logs logs >> action) `gcatch`
+    val <- fmap Right (catchLogs logs >> action) `gcatch`
         \(exc :: Exception.SomeException) -> pure (Left (show exc))
     logs <- liftIO $ IORef.readIORef logs
     -- GHC.getWarnings is gone, apparently replaced by either printing directly
@@ -289,17 +289,17 @@ collect_logs action = do
     let warns = []
     pure (val, reverse logs, warns)
     where
-    catch_logs logs = modify_flags $ \flags ->
-        flags { GHC.log_action = log_action logs }
-    modify_flags :: (GHC.DynFlags -> GHC.DynFlags) -> Ghc ()
-    modify_flags f = do
+    catchLogs logs = modifyFlags $ \flags ->
+        flags { GHC.logAction = logAction logs }
+    modifyFlags :: (GHC.DynFlags -> GHC.DynFlags) -> Ghc ()
+    modifyFlags f = do
         dflags <- GHC.getSessionDynFlags
         void $ GHC.setSessionDynFlags $! f dflags
 
-log_action :: IORef.IORef [String]
+logAction :: IORef.IORef [String]
     -> GHC.DynFlags -> DynFlags.WarnReason -> GHC.Severity -> GHC.SrcSpan
     -> Outputable.PprStyle -> Outputable.SDoc -> IO ()
-log_action logs dflags _warn_reason _severity _span style msg =
+logAction logs dflags _warnReason _severity _span style msg =
     liftIO $ IORef.modifyIORef logs (formatted:)
     where
     formatted = Outputable.showSDoc dflags $
@@ -307,36 +307,36 @@ log_action logs dflags _warn_reason _severity _span style msg =
 
 #endif
 
-parse_flags :: [String] -> Ghc ()
-parse_flags args = do
+parseFlags :: [String] -> Ghc ()
+parseFlags args = do
     dflags <- GHC.getSessionDynFlags
 
 #if GHC_VERSION >= 90201
     logger <- GHC.getLogger
-    (dflags, args_left, warns) <- GHC.parseDynamicFlags logger dflags
+    (dflags, argsLeft, warns) <- GHC.parseDynamicFlags logger dflags
         (map (GHC.mkGeneralLocated "cmdline") args)
 #else
-    (dflags, args_left, warns) <- GHC.parseDynamicFlags dflags
+    (dflags, argsLeft, warns) <- GHC.parseDynamicFlags dflags
         (map (GHC.mkGeneralLocated "cmdline") args)
 #endif
 
 #if GHC_VERSION >= 91201
     -- GHC.Types.Error.Messages GHC.Driver.Errors.Types.DriverMessage
     -- -> [String]
-    let show_warns = map (Ppr.showSDoc dflags)
+    let showWarns = map (Ppr.showSDoc dflags)
             . Error.pprMsgEnvelopeBagWithLocDefault . Error.getMessages
 #elif GHC_VERSION >= 80401
-    let show_warns = map (GHC.unLoc . CmdLine.warnMsg)
+    let showWarns = map (GHC.unLoc . CmdLine.warnMsg)
 #else
-    let show_warns = map GHC.unLoc
+    let showWarns = map GHC.unLoc
 #endif
 
     unless (null warns) $
         liftIO $ Log.warn $ "warnings parsing flags " <> showt args <> ": "
-            <> Text.unlines (map txt (show_warns warns))
-    unless (null args_left) $
+            <> Text.unlines (map txt (showWarns warns))
+    unless (null argsLeft) $
         liftIO $ Log.warn $
-            "ignoring unparsed args: " <> showt (map GHC.unLoc args_left)
+            "ignoring unparsed args: " <> showt (map GHC.unLoc argsLeft)
     void $ GHC.setSessionDynFlags $ dflags
         { GHC.ghcMode = GHC.CompManager
         , GHC.ghcLink = GHC.LinkInMemory
@@ -350,13 +350,13 @@ parse_flags args = do
         , GHC.verbosity = 1
         }
 
-make_target :: GHC.GhcMonad m => String -> m GHC.Target
+makeTarget :: GHC.GhcMonad m => String -> m GHC.Target
 
 #if GHC_VERSION >= 90601
 -- guessTarget :: GhcMonad m => String -> Maybe UnitId -> Maybe Phase
 -- -> m Target
-make_target module_name = do
-    target <- GHC.guessTarget module_name Nothing Nothing
+makeTarget moduleName = do
+    target <- GHC.guessTarget moduleName Nothing Nothing
     -- obj_allowed must be False, otherwise I get
     -- Cannot add module Cmd.Repl.Environ to context: not interpreted
     -- ghci unsets this if the module name starts with *, so I guess it means
@@ -364,8 +364,8 @@ make_target module_name = do
     pure $ target { GHC.targetAllowObjCode = False }
 #else
 
-make_target module_name = pure $ GHC.Target
-    { GHC.targetId = GHC.TargetModule (GHC.mkModuleName module_name)
+makeTarget moduleName = pure $ GHC.Target
+    { GHC.targetId = GHC.TargetModule (GHC.mkModuleName moduleName)
     -- ghci unsets this if the module name starts with *, so I guess it means
     -- you can load the .o or must interpret.
     , GHC.targetAllowObjCode = False

@@ -81,23 +81,23 @@
     a constant.
 -}
 module Derive.Sig (
-    Parser(parser_docs), Generator, Transformer
+    Parser(parserDocs), Generator, Transformer
     , Arg(..)
-    , check, parse_or_throw, require_right, parse, parse_vals
+    , check, parseOrThrow, requireRight, parse, parseVals
     , Dummy
     -- * parsers
-    , no_args
-    , required, required_env
-    , defaulted, defaulted_env, defaulted_env_quoted, maybe_defaulted
-    , environ, environ_key, environ_quoted
-    , required_environ, required_environ_key
-    , optional, optional_env, many, many_vals, many1, many_pairs, many1_pairs
-    , required_vals
+    , noArgs
+    , required, requiredEnv
+    , defaulted, defaultedEnv, defaultedEnvQuoted, maybeDefaulted
+    , environ, environKey, environQuoted
+    , requiredEnviron, requiredEnvironKey
+    , optional, optionalEnv, many, manyVals, many1, manyPairs, many1Pairs
+    , requiredVals
     -- ** defaults
     , EnvironDefault(..)
-    , prefixed_environ, environ_keys
+    , prefixedEnviron, environKeys
     -- * call
-    , call, call_sub, call0, callt, call0t
+    , call, callSub, call0, callt, call0t
 ) where
 import qualified Data.Text as Text
 
@@ -125,23 +125,23 @@ type Error = Derive.CallError
 type Docs = [Derive.ArgDoc]
 
 data Parser a = Parser
-    { parser_docs :: !Docs
-    , parser_parser :: !(State -> Either Error (State, a))
+    { parserDocs :: !Docs
+    , parserParser :: !(State -> Either Error (State, a))
     }
 
 parser :: Derive.ArgDoc -> (State -> Either Error (State, a)) -> Parser a
-parser arg_doc = Parser [arg_doc]
+parser argDoc = Parser [argDoc]
 
 -- | Keep track of state when parsing arguments.
 data State = State
-    { state_args :: ![Arg]
+    { stateArgs :: ![Arg]
     -- | This has to be incremented every time a Val is taken.  Pairing argnums
     -- in state_args doesn't work because when I run out I don't know where
     -- I am.
-    , state_argnum :: !Int
-    , state_call_name :: !CallName
-    , state_derive :: !Derive.State
-    , state_context :: !(Derive.Context Derive.Tagged)
+    , stateArgnum :: !Int
+    , stateCallName :: !CallName
+    , stateDerive :: !Derive.State
+    , stateContext :: !(Derive.Context Derive.Tagged)
     }
 
 data Arg = LiteralArg !DeriveT.Val | SubTrack !SubT.Track
@@ -150,21 +150,21 @@ instance Pretty Arg where
     format (LiteralArg val) = Pretty.format val
     format (SubTrack track) = Pretty.format track
 
-show_arg :: Arg -> Text
-show_arg (LiteralArg val) = ShowVal.show_val val
-show_arg (SubTrack track) = SubT.show_track track
+showArg :: Arg -> Text
+showArg (LiteralArg val) = ShowVal.showVal val
+showArg (SubTrack track) = SubT.showTrack track
 
-run_parser :: Parser a -> State -> Either Error a
-run_parser parser state = case parser_parser parser state of
+runParser :: Parser a -> State -> Either Error a
+runParser parser state = case parserParser parser state of
     Left err -> Left err
-    Right (state, a) -> case state_args state of
+    Right (state, a) -> case stateArgs state of
         [] -> Right a
         args -> Left $ Derive.ArgError $ "too many arguments: "
-            <> Text.intercalate ", " (map show_arg args)
+            <> Text.intercalate ", " (map showArg args)
 
 instance Functor Parser where
     fmap f parser =
-        parser { parser_parser = fmap (fmap f) . parser_parser parser }
+        parser { parserParser = fmap (fmap f) . parserParser parser }
 
 instance Applicative Parser where
     pure a = Parser mempty (\state -> Right (state, a))
@@ -183,46 +183,46 @@ check validate (Parser docs parse) = Parser docs $ \state -> case parse state of
         Just err -> Left $ Derive.ArgError err
         Nothing -> Right (state2, val)
 
-parse_or_throw :: Derive.Taggable d => Parser a -> Derive.PassedArgs d
+parseOrThrow :: Derive.Taggable d => Parser a -> Derive.PassedArgs d
     -> Derive.Deriver a
-parse_or_throw parser args = require_right =<< parse parser args
+parseOrThrow parser args = requireRight =<< parse parser args
 
-require_right :: Either Error a -> Derive.Deriver a
-require_right = either (Derive.throw_error . Derive.CallError) pure
+requireRight :: Either Error a -> Derive.Deriver a
+requireRight = either (Derive.throwError . Derive.CallError) pure
 
 -- | Run a parser against the current derive state.
 parse :: Derive.Taggable d => Parser a -> Derive.PassedArgs d
     -> Derive.Deriver (Either Error a)
 parse parser args = do
-    sub_tracks <- Sub.sub_tracks args
-    run_parser parser . make_state sub_tracks <$> Derive.get
+    subTracks <- Sub.subTracks args
+    runParser parser . makeState subTracks <$> Derive.get
     where
-    make_state sub_tracks state = State
-        { state_args = map LiteralArg (Derive.passed_vals args)
-            ++ map SubTrack sub_tracks
-        , state_argnum = 0
-        , state_call_name = Derive.passed_call_name args
-        , state_derive = state
-        , state_context = Derive.tag_context (Derive.passed_ctx args)
+    makeState subTracks state = State
+        { stateArgs = map LiteralArg (Derive.passedVals args)
+            ++ map SubTrack subTracks
+        , stateArgnum = 0
+        , stateCallName = Derive.passedCallName args
+        , stateDerive = state
+        , stateContext = Derive.tagContext (Derive.passedCtx args)
         }
 
 -- | Like 'parse', but transformers don't get to see 'SubTrack' args.
-parse_transformer :: Derive.Taggable d => Parser a -> Derive.PassedArgs d
+parseTransformer :: Derive.Taggable d => Parser a -> Derive.PassedArgs d
     -> Derive.Deriver (Either Error a)
-parse_transformer parser args =
-    parse_vals parser (Derive.tag_context (Derive.passed_ctx args))
-        (Derive.passed_call_name args) (Derive.passed_vals args)
+parseTransformer parser args =
+    parseVals parser (Derive.tagContext (Derive.passedCtx args))
+        (Derive.passedCallName args) (Derive.passedVals args)
 
-parse_vals :: Parser a -> Derive.Context Derive.Tagged -> CallName
+parseVals :: Parser a -> Derive.Context Derive.Tagged -> CallName
     -> [DeriveT.Val] -> Derive.Deriver (Either Error a)
-parse_vals parser ctx name vals = run_parser parser . make_state <$> Derive.get
+parseVals parser ctx name vals = runParser parser . makeState <$> Derive.get
     where
-    make_state state = State
-        { state_args = map LiteralArg vals
-        , state_argnum = 0
-        , state_call_name = name
-        , state_derive = state
-        , state_context = ctx
+    makeState state = State
+        { stateArgs = map LiteralArg vals
+        , stateArgnum = 0
+        , stateCallName = name
+        , stateDerive = state
+        , stateContext = ctx
         }
 
 -- | Now that the default can be any ToVal and may be a different type than the
@@ -232,105 +232,105 @@ parse_vals parser ctx name vals = run_parser parser . make_state <$> Derive.get
 -- explicitly mark that it doesn't matter.
 data Dummy
 instance Typecheck.ToVal Dummy where
-    to_val _ = DeriveT.VNotGiven
+    toVal _ = DeriveT.VNotGiven
 
 -- * parsers
 
 -- | Parser for nullary calls.  Either use this with 'call' and 'callt', or use
 -- 'call0' and 'call0t' as a shortcut.
-no_args :: Parser ()
-no_args = pure ()
+noArgs :: Parser ()
+noArgs = pure ()
 
 -- | The argument is required to be present, and have the right type.
 required :: forall a. Typecheck.Typecheck a => ArgName -> Doc.Doc -> Parser a
-required name = required_env name Derive.Prefixed
+required name = requiredEnv name Derive.Prefixed
 
-required_env :: forall a. Typecheck.Typecheck a => ArgName
+requiredEnv :: forall a. Typecheck.Typecheck a => ArgName
     -> Derive.EnvironDefault -> Doc.Doc -> Parser a
-required_env name env_default doc = parser arg_doc $ \state1 ->
-    case take_arg env_default state1 name of
+requiredEnv name envDefault doc = parser argDoc $ \state1 ->
+    case takeArg envDefault state1 name of
         Nothing -> Left $ Derive.ArgError $
             "expected an argument at " <> pretty name
         Just (state, arg) -> (state,) <$>
-            check_arg state arg_doc (argnum_error state1) name arg
+            checkArg state argDoc (argnumError state1) name arg
     where
-    expected = Typecheck.to_type (Proxy :: Proxy a)
-    arg_doc = Derive.ArgDoc
-        { arg_name = name
-        , arg_type = expected
-        , arg_parser = Derive.Required
-        , arg_environ_default = env_default
-        , arg_doc = doc
+    expected = Typecheck.toType (Proxy :: Proxy a)
+    argDoc = Derive.ArgDoc
+        { argName = name
+        , argType = expected
+        , argParser = Derive.Required
+        , argEnvironDefault = envDefault
+        , argDoc = doc
         }
 
 -- | The argument is not required to be present, but if it is, it has to have
 -- either the right type or be VNotGiven.
 defaulted :: forall a deflt.  (Typecheck.Typecheck a, Typecheck.ToVal deflt)
     => ArgName -> deflt -> Doc.Doc -> Parser a
-defaulted name = defaulted_env name Derive.Prefixed
+defaulted name = defaultedEnv name Derive.Prefixed
 
-defaulted_env :: forall a deflt.
+defaultedEnv :: forall a deflt.
     (Typecheck.Typecheck a, Typecheck.ToVal deflt)
     => ArgName -> Derive.EnvironDefault -> deflt -> Doc.Doc -> Parser a
-defaulted_env name env_default deflt =
-    defaulted_env_ name env_default (Left (Typecheck.to_val deflt))
+defaultedEnv name envDefault deflt =
+    defaultedEnv_ name envDefault (Left (Typecheck.toVal deflt))
 
 -- | The defaulted value can be a 'DeriveT.Quoted', which will be evaluated
 -- if needed.
-defaulted_env_quoted :: forall a. Typecheck.Typecheck a =>
+defaultedEnvQuoted :: forall a. Typecheck.Typecheck a =>
     ArgName -> Derive.EnvironDefault -> DeriveT.Quoted -> Doc.Doc -> Parser a
-defaulted_env_quoted name env_default = defaulted_env_ name env_default . Right
+defaultedEnvQuoted name envDefault = defaultedEnv_ name envDefault . Right
 
-defaulted_env_ :: forall a. Typecheck.Typecheck a
+defaultedEnv_ :: forall a. Typecheck.Typecheck a
     => ArgName -> Derive.EnvironDefault -> Either DeriveT.Val DeriveT.Quoted
     -> Doc.Doc -> Parser a
-defaulted_env_ name env_default deflt_quoted doc = parser arg_doc $ \state1 ->
-    case take_arg env_default state1 name of
+defaultedEnv_ name envDefault defltQuoted doc = parser argDoc $ \state1 ->
+    case takeArg envDefault state1 name of
         Nothing -> deflt state1
         Just (state, LiteralArg DeriveT.VNotGiven) -> deflt state
         Just (state, arg) -> (state,) <$>
-            check_arg state arg_doc (argnum_error state1) name arg
+            checkArg state argDoc (argnumError state1) name arg
     where
     deflt state =
-        eval_default arg_doc (argnum_error state) name state deflt_quoted
-    expected = Typecheck.to_type (Proxy :: Proxy a)
-    arg_doc = Derive.ArgDoc
-        { arg_name = name
-        , arg_type = expected
-        , arg_parser = Derive.Defaulted $ ShowVal.show_val $
-            either id Typecheck.to_val deflt_quoted
-        , arg_environ_default = env_default
-        , arg_doc = doc
+        evalDefault argDoc (argnumError state) name state defltQuoted
+    expected = Typecheck.toType (Proxy :: Proxy a)
+    argDoc = Derive.ArgDoc
+        { argName = name
+        , argType = expected
+        , argParser = Derive.Defaulted $ ShowVal.showVal $
+            either id Typecheck.toVal defltQuoted
+        , argEnvironDefault = envDefault
+        , argDoc = doc
         }
 
 -- | This is either 'required' or 'defaulted', depending on if there's a
 -- default value.  Useful for making call variants with instrument-specific
 -- defaults.
-maybe_defaulted :: (Typecheck.Typecheck a, Typecheck.ToVal deflt) =>
+maybeDefaulted :: (Typecheck.Typecheck a, Typecheck.ToVal deflt) =>
     ArgName -> Maybe deflt -> Doc.Doc -> Parser a
-maybe_defaulted name Nothing doc = required name doc
-maybe_defaulted name (Just deflt) doc = defaulted name deflt doc
+maybeDefaulted name Nothing doc = required name doc
+maybeDefaulted name (Just deflt) doc = defaulted name deflt doc
 
 -- | Eval a Quoted default value.
-eval_default :: forall a. Typecheck.Typecheck a => Derive.ArgDoc
+evalDefault :: forall a. Typecheck.Typecheck a => Derive.ArgDoc
     -> Derive.ErrorPlace -> ArgName -> State
     -> Either DeriveT.Val DeriveT.Quoted -> Either Error (State, a)
-eval_default arg_doc place name state = \case
+evalDefault argDoc place name state = \case
     Left val -> (state,) <$>
-        check_arg state arg_doc place name (LiteralArg val)
-    Right quoted -> case eval_quoted state quoted of
+        checkArg state argDoc place name (LiteralArg val)
+    Right quoted -> case evalQuoted state quoted of
         Right val -> (state,) <$>
-            check_arg state arg_doc place name (LiteralArg val)
+            checkArg state argDoc place name (LiteralArg val)
         Left err -> Left $ Derive.TypeError $ Derive.TypeErrorT
-            { error_place = place
-            , error_source = Derive.Quoted quoted
-            , error_arg_name = name
-            , error_expected = expected_type
-            , error_received = Nothing
-            , error_derive = Just err
+            { errorPlace = place
+            , errorSource = Derive.Quoted quoted
+            , errorArgName = name
+            , errorExpected = expectedType
+            , errorReceived = Nothing
+            , errorDerive = Just err
             }
     where
-    expected_type = Typecheck.to_type (Proxy :: Proxy a)
+    expectedType = Typecheck.toType (Proxy :: Proxy a)
 
 -- | This is an argument which is not actually parsed from the argument list.
 -- Instead it's looked up it the environ according to the normal defaulting
@@ -342,172 +342,172 @@ environ :: forall a deflt. (Typecheck.Typecheck a, Typecheck.ToVal deflt) =>
     ArgName -> Derive.EnvironDefault
     -- ^ None doesn't make any sense, but, well, don't pass that then.
     -> deflt -> Doc.Doc -> Parser a
-environ name env_default = environ_ name env_default . Left . Typecheck.to_val
+environ name envDefault = environ_ name envDefault . Left . Typecheck.toVal
 
 -- | A shortcut for an unprefixed environ key.
-environ_key :: (Typecheck.Typecheck a, Typecheck.ToVal deflt) =>
+environKey :: (Typecheck.Typecheck a, Typecheck.ToVal deflt) =>
     Env.Key -> deflt -> Doc.Doc -> Parser a
-environ_key key = environ (Derive.ArgName key) Unprefixed
+environKey key = environ (Derive.ArgName key) Unprefixed
 
 -- | This is like 'environ', but the default is a 'DeriveT.Quoted', which
 -- will be evaluated if needed.
-environ_quoted :: forall a. Typecheck.Typecheck a =>
+environQuoted :: forall a. Typecheck.Typecheck a =>
     ArgName -> Derive.EnvironDefault -> DeriveT.Quoted -> Doc.Doc -> Parser a
-environ_quoted name env_default = environ_ name env_default . Right
+environQuoted name envDefault = environ_ name envDefault . Right
 
 -- Internal function that handles both quoted and unquoted default.
 environ_ :: forall a. Typecheck.Typecheck a => ArgName -> Derive.EnvironDefault
     -- ^ None doesn't make any sense, but, well, don't pass that then.
     -> Either DeriveT.Val DeriveT.Quoted -> Doc.Doc -> Parser a
-environ_ name env_default quoted doc = parser arg_doc $ \state ->
-    case lookup_default env_default state name of
+environ_ name envDefault quoted doc = parser argDoc $ \state ->
+    case lookupDefault envDefault state name of
         Nothing -> deflt state
         Just val -> (state,) <$>
-            check_arg state arg_doc (environ_error state name) name
+            checkArg state argDoc (environError state name) name
                 (LiteralArg val)
     where
-    deflt state = eval_default arg_doc (argnum_error state) name state quoted
-    expected = Typecheck.to_type (Proxy :: Proxy a)
-    arg_doc = Derive.ArgDoc
-        { arg_name = name
-        , arg_type = expected
-        , arg_parser = Derive.Environ $ Just $
-            either ShowVal.show_val ShowVal.show_val quoted
-        , arg_environ_default = env_default
-        , arg_doc = doc
+    deflt state = evalDefault argDoc (argnumError state) name state quoted
+    expected = Typecheck.toType (Proxy :: Proxy a)
+    argDoc = Derive.ArgDoc
+        { argName = name
+        , argType = expected
+        , argParser = Derive.Environ $ Just $
+            either ShowVal.showVal ShowVal.showVal quoted
+        , argEnvironDefault = envDefault
+        , argDoc = doc
         }
 
 -- | This is like 'environ', but without a default.
-required_environ :: forall a. Typecheck.Typecheck a =>
+requiredEnviron :: forall a. Typecheck.Typecheck a =>
     ArgName -> Derive.EnvironDefault -> Doc.Doc -> Parser a
-required_environ name env_default doc = parser arg_doc $ \state ->
-    case lookup_default env_default state name of
+requiredEnviron name envDefault doc = parser argDoc $ \state ->
+    case lookupDefault envDefault state name of
         Nothing -> Left $ Derive.TypeError $ Derive.TypeErrorT
-            { error_place = environ_error state name
-            , error_source = Derive.Literal
-            , error_arg_name = name
-            , error_expected = expected
-            , error_received = Nothing
-            , error_derive = Nothing
+            { errorPlace = environError state name
+            , errorSource = Derive.Literal
+            , errorArgName = name
+            , errorExpected = expected
+            , errorReceived = Nothing
+            , errorDerive = Nothing
             }
         Just val -> (state,) <$>
-            check_arg state arg_doc (environ_error state name) name
+            checkArg state argDoc (environError state name) name
                 (LiteralArg val)
     where
-    expected = Typecheck.to_type (Proxy :: Proxy a)
-    arg_doc = Derive.ArgDoc
-        { arg_name = name
-        , Derive.arg_type = expected
-        , Derive.arg_parser = Derive.Environ Nothing
-        , Derive.arg_environ_default = env_default
-        , arg_doc = doc
+    expected = Typecheck.toType (Proxy :: Proxy a)
+    argDoc = Derive.ArgDoc
+        { argName = name
+        , Derive.argType = expected
+        , Derive.argParser = Derive.Environ Nothing
+        , Derive.argEnvironDefault = envDefault
+        , argDoc = doc
         }
 
-required_environ_key :: Typecheck.Typecheck a => Env.Key -> Doc.Doc -> Parser a
-required_environ_key key = required_environ (Derive.ArgName key) Unprefixed
+requiredEnvironKey :: Typecheck.Typecheck a => Env.Key -> Doc.Doc -> Parser a
+requiredEnvironKey key = requiredEnviron (Derive.ArgName key) Unprefixed
 
 -- | This is like 'defaulted', but if the argument is the wrong type return
 -- the default instead of failing.  It's mostly useful with 'many' or 'many1',
 -- where you can distinguish the arguments by type.
 optional :: forall a. (Typecheck.Typecheck a, ShowVal.ShowVal a) => ArgName -> a
     -> Doc.Doc -> Parser a
-optional name = optional_env name Derive.Prefixed
+optional name = optionalEnv name Derive.Prefixed
 
-optional_env :: forall a. (Typecheck.Typecheck a, ShowVal.ShowVal a) =>
+optionalEnv :: forall a. (Typecheck.Typecheck a, ShowVal.ShowVal a) =>
     ArgName -> Derive.EnvironDefault -> a -> Doc.Doc -> Parser a
-optional_env name env_default deflt doc = parser arg_doc $ \state1 ->
-    case take_arg env_default state1 name of
+optionalEnv name envDefault deflt doc = parser argDoc $ \state1 ->
+    case takeArg envDefault state1 name of
         Nothing -> Right (state1, deflt)
         Just (state, LiteralArg DeriveT.VNotGiven) -> Right (state, deflt)
         Just (state, arg) ->
-            case check_arg state arg_doc (argnum_error state1) name arg of
+            case checkArg state argDoc (argnumError state1) name arg of
                 Right a -> Right (state, a)
                 Left (Derive.TypeError {}) ->
-                    case lookup_default env_default state name of
+                    case lookupDefault envDefault state name of
                         Nothing -> Right (replaced, deflt)
                         Just val -> (replaced,) <$>
-                            check_arg replaced arg_doc (argnum_error state1)
+                            checkArg replaced argDoc (argnumError state1)
                                 name (LiteralArg val)
                 Left err -> Left err
-            where replaced = state { state_args = arg : state_args state }
+            where replaced = state { stateArgs = arg : stateArgs state }
     where
-    expected = Typecheck.to_type (Proxy :: Proxy a)
-    arg_doc = Derive.ArgDoc
-        { arg_name = name
-        , arg_type = expected
-        , arg_parser = Derive.Optional (ShowVal.show_val deflt)
-        , arg_environ_default = env_default
-        , arg_doc = doc
+    expected = Typecheck.toType (Proxy :: Proxy a)
+    argDoc = Derive.ArgDoc
+        { argName = name
+        , argType = expected
+        , argParser = Derive.Optional (ShowVal.showVal deflt)
+        , argEnvironDefault = envDefault
+        , argDoc = doc
         }
 
 -- | Collect the rest of the arguments.
 many :: forall a. Typecheck.Typecheck a => ArgName -> Doc.Doc -> Parser [a]
-many name doc = parser arg_doc $ \state -> do
+many name doc = parser argDoc $ \state -> do
     vals <- mapM (typecheck state)
-        (zip [state_argnum state ..] (state_args state))
-    let state2 = increment_argnum (length (state_args state)) $
-            state { state_args = []}
+        (zip [stateArgnum state ..] (stateArgs state))
+    let state2 = incrementArgnum (length (stateArgs state)) $
+            state { stateArgs = []}
     Right (state2, vals)
     where
     typecheck state (argnum, arg) =
-        check_arg state arg_doc (Derive.TypeErrorArg argnum) name arg
-    expected = Typecheck.to_type (Proxy :: Proxy a)
-    arg_doc = Derive.ArgDoc
-        { arg_name = name
-        , arg_type = expected
-        , arg_parser = Derive.Many
-        , arg_environ_default = Derive.None
-        , arg_doc = doc
+        checkArg state argDoc (Derive.TypeErrorArg argnum) name arg
+    expected = Typecheck.toType (Proxy :: Proxy a)
+    argDoc = Derive.ArgDoc
+        { argName = name
+        , argType = expected
+        , argParser = Derive.Many
+        , argEnvironDefault = Derive.None
+        , argDoc = doc
         }
 
 -- | 'many' specialized to Vals, to avoid a type annotation.
-many_vals :: ArgName -> Doc.Doc -> Parser [DeriveT.Val]
-many_vals name doc = many name doc
+manyVals :: ArgName -> Doc.Doc -> Parser [DeriveT.Val]
+manyVals name doc = many name doc
 
 -- | Collect the rest of the arguments, but there must be at least one.
 many1 :: forall a. Typecheck.Typecheck a => ArgName -> Doc.Doc
     -> Parser (NonEmpty a)
-many1 name doc = non_empty name $ many name doc
+many1 name doc = nonEmpty name $ many name doc
 
 -- | Collect the rest of the arguments, but expect a even number of them and
 -- pair them up.
-many_pairs :: forall a b. (Typecheck.Typecheck a,  Typecheck.Typecheck b) =>
+manyPairs :: forall a b. (Typecheck.Typecheck a,  Typecheck.Typecheck b) =>
     ArgName -> Doc.Doc -> Parser [(a, b)]
-many_pairs name doc = parser (arg_doc expected) $ \state -> do
-    let args = state_args state
+manyPairs name doc = parser (argDoc expected) $ \state -> do
+    let args = stateArgs state
     when (odd (length args)) $
         Left $ Derive.ArgError $ "many_pairs requires an even argument length: "
             <> showt (length args)
-    vals <- mapM (typecheck state) $ zip [state_argnum state ..] (pairs args)
-    let state2 = increment_argnum (length vals) $ state { state_args = [] }
+    vals <- mapM (typecheck state) $ zip [stateArgnum state ..] (pairs args)
+    let state2 = incrementArgnum (length vals) $ state { stateArgs = [] }
     Right (state2, vals)
     where
     typecheck state (argnum, (arg1, arg2)) = (,)
-        <$> check_arg state (arg_doc (Typecheck.to_type (Proxy :: Proxy a)))
+        <$> checkArg state (argDoc (Typecheck.toType (Proxy :: Proxy a)))
             (Derive.TypeErrorArg (argnum * 2)) name arg1
-        <*> check_arg state (arg_doc (Typecheck.to_type (Proxy :: Proxy b)))
+        <*> checkArg state (argDoc (Typecheck.toType (Proxy :: Proxy b)))
             (Derive.TypeErrorArg (argnum * 2 + 1)) name arg2
-    expected = ValType.TPair (Typecheck.to_type (Proxy :: Proxy a))
-        (Typecheck.to_type (Proxy :: Proxy b))
-    arg_doc expected = Derive.ArgDoc
-        { arg_name = name
-        , arg_type = expected
-        , arg_parser = Derive.Many
-        , arg_environ_default = Derive.None
-        , arg_doc = doc
+    expected = ValType.TPair (Typecheck.toType (Proxy :: Proxy a))
+        (Typecheck.toType (Proxy :: Proxy b))
+    argDoc expected = Derive.ArgDoc
+        { argName = name
+        , argType = expected
+        , argParser = Derive.Many
+        , argEnvironDefault = Derive.None
+        , argDoc = doc
         }
     pairs (a : b : xs) = (a, b) : pairs xs
     pairs _ = []
 
 -- | Like 'many_pairs', but require at least one pair.
-many1_pairs :: forall a b. (Typecheck.Typecheck a,  Typecheck.Typecheck b) =>
+many1Pairs :: forall a b. (Typecheck.Typecheck a,  Typecheck.Typecheck b) =>
     ArgName -> Doc.Doc -> Parser (NonEmpty (a, b))
-many1_pairs name doc = non_empty name $ many_pairs name doc
+many1Pairs name doc = nonEmpty name $ manyPairs name doc
 
 -- | Modify a 'many' parser to require at least one thing.
-non_empty :: ArgName -> Parser [a] -> Parser (NonEmpty a)
-non_empty name (Parser docs p) =
-    Parser (map (\d -> d { Derive.arg_parser = Derive.Many1 }) docs) convert
+nonEmpty :: ArgName -> Parser [a] -> Parser (NonEmpty a)
+nonEmpty name (Parser docs p) =
+    Parser (map (\d -> d { Derive.argParser = Derive.Many1 }) docs) convert
     where
     convert state = case p state of
         Left err -> Left err
@@ -516,109 +516,109 @@ non_empty name (Parser docs p) =
         Right (state, x : xs) -> Right (state, x :| xs)
 
 -- | Require one Val for each ArgDoc given, but otherwise do no typechecking.
-required_vals :: [Derive.ArgDoc] -> Parser [Arg]
-required_vals docs = Parser docs parser
+requiredVals :: [Derive.ArgDoc] -> Parser [Arg]
+requiredVals docs = Parser docs parser
     where
     -- I don't check the number of arguments because this is used for call
     -- macros, and I need to give the sub-call a chance to default its args.
     parser state = Right (state2, vals)
         where
-        (vals, rest) = splitAt (length docs) (state_args state)
-        state2 = increment_argnum (length vals) $ state { state_args = rest}
+        (vals, rest) = splitAt (length docs) (stateArgs state)
+        state2 = incrementArgnum (length vals) $ state { stateArgs = rest}
 
-argnum_error :: State -> Derive.ErrorPlace
-argnum_error = Derive.TypeErrorArg . state_argnum
+argnumError :: State -> Derive.ErrorPlace
+argnumError = Derive.TypeErrorArg . stateArgnum
 
-environ_error :: State -> ArgName -> Derive.ErrorPlace
-environ_error state name =
-    Derive.TypeErrorEnviron (prefixed_environ (state_call_name state) name)
+environError :: State -> ArgName -> Derive.ErrorPlace
+environError state name =
+    Derive.TypeErrorEnviron (prefixedEnviron (stateCallName state) name)
 
-increment_argnum :: Int -> State -> State
-increment_argnum n state = state { state_argnum = n + state_argnum state }
+incrementArgnum :: Int -> State -> State
+incrementArgnum n state = state { stateArgnum = n + stateArgnum state }
 
 -- ** util
 
-take_arg :: Derive.EnvironDefault -> State -> ArgName -> Maybe (State, Arg)
-take_arg env_default state name = case state_args state of
+takeArg :: Derive.EnvironDefault -> State -> ArgName -> Maybe (State, Arg)
+takeArg envDefault state name = case stateArgs state of
     v : vs -> Just
-        ( next { state_args = vs }
+        ( next { stateArgs = vs }
         , case v of
             LiteralArg DeriveT.VNotGiven ->
                 LiteralArg $ fromMaybe DeriveT.VNotGiven $
-                    lookup_default env_default state name
+                    lookupDefault envDefault state name
             _ -> v
         )
-    [] -> (next,) . LiteralArg <$> lookup_default env_default state name
-    where next = increment_argnum 1 state
+    [] -> (next,) . LiteralArg <$> lookupDefault envDefault state name
+    where next = incrementArgnum 1 state
 
-check_arg :: forall a. Typecheck.Typecheck a => State -> Derive.ArgDoc
+checkArg :: forall a. Typecheck.Typecheck a => State -> Derive.ArgDoc
     -> Derive.ErrorPlace -> ArgName -> Arg -> Either Error a
-check_arg state arg_doc place name = \case
-    LiteralArg val -> case from_val state val of
-        Left err -> Left $ type_error Derive.Literal (Just val) (Just err)
+checkArg state argDoc place name = \case
+    LiteralArg val -> case fromVal state val of
+        Left err -> Left $ typeError Derive.Literal (Just val) (Just err)
         Right (Just a) -> Right a
         Right Nothing -> case val of
             -- 'val' failed to typecheck, so try to coerce a Quoted to a new
             -- qval and typecheck that.
             DeriveT.VQuoted quoted -> do
                 let source = Derive.Quoted quoted
-                qval <- promote_error source val $ eval_quoted state quoted
-                maybe_a <- promote_error source qval $ from_val state qval
-                case maybe_a of
+                qval <- promoteError source val $ evalQuoted state quoted
+                maybeA <- promoteError source qval $ fromVal state qval
+                case maybeA of
                     Just a -> Right a
-                    Nothing -> Left $ type_error source (Just qval) Nothing
-            _ -> Left $ type_error Derive.Literal (Just val) Nothing
-    SubTrack track -> case Typecheck.from_subtrack track of
+                    Nothing -> Left $ typeError source (Just qval) Nothing
+            _ -> Left $ typeError Derive.Literal (Just val) Nothing
+    SubTrack track -> case Typecheck.fromSubtrack track of
         Just a -> Right a
         Nothing -> Left $
-            type_error (Derive.SubTrack (SubT._source track)) Nothing Nothing
+            typeError (Derive.SubTrack (SubT._source track)) Nothing Nothing
     where
-    promote_error source val = first (type_error source (Just val) . Just)
-    type_error source maybe_val derive = Derive.TypeError $ Derive.TypeErrorT
-        { error_place = place
-        , error_source = source
-        , error_arg_name = name
-        , error_expected = Derive.arg_type arg_doc
-        , error_received = maybe_val
-        , error_derive = derive
+    promoteError source val = first (typeError source (Just val) . Just)
+    typeError source maybeVal derive = Derive.TypeError $ Derive.TypeErrorT
+        { errorPlace = place
+        , errorSource = source
+        , errorArgName = name
+        , errorExpected = Derive.argType argDoc
+        , errorReceived = maybeVal
+        , errorDerive = derive
         }
 
 -- | Typecheck a Val, evaluating if necessary.
-from_val :: Typecheck.Typecheck a => State -> DeriveT.Val
+fromVal :: Typecheck.Typecheck a => State -> DeriveT.Val
     -> Either Derive.Error (Maybe a)
-from_val state val = run state $ case Typecheck.from_val val of
+fromVal state val = run state $ case Typecheck.fromVal val of
     Typecheck.Val result -> pure $ case result of
         Typecheck.Failure -> Nothing
         Typecheck.Success a -> Just a
-        Typecheck.Derive deriver -> Just $ deriver (state_context state)
-    Typecheck.Eval deriver -> deriver =<< Derive.score_to_real start
-    where start = Event.start $ Derive.ctx_event $ state_context state
+        Typecheck.Derive deriver -> Just $ deriver (stateContext state)
+    Typecheck.Eval deriver -> deriver =<< Derive.scoreToReal start
+    where start = Event.start $ Derive.ctxEvent $ stateContext state
 
 -- This can't be defined in Derive.Typecheck, because it uses Eval, and Eval
 -- imports Typecheck.  It could be in Eval, but here it's closer to 'from_val',
 -- which uses its result.
 instance Typecheck.Typecheck Derive.NoteDeriver where
-    from_val = quoted_to_deriver
-    to_type _ = ValType.TDeriver "note"
+    fromVal = quotedToDeriver
+    toType _ = ValType.TDeriver "note"
     -- This means that a subtrack can coerce to a deriver arg, in addition to
     -- a SubT.Track.
-    from_subtrack = Just . Sub.derive . SubT._events
+    fromSubtrack = Just . Sub.derive . SubT._events
 instance Typecheck.Typecheck Derive.ControlDeriver where
-    from_val = quoted_to_deriver
-    to_type _ = ValType.TDeriver "control"
+    fromVal = quotedToDeriver
+    toType _ = ValType.TDeriver "control"
 instance Typecheck.Typecheck Derive.PitchDeriver where
-    from_val = quoted_to_deriver
-    to_type _ = ValType.TDeriver "pitch"
+    fromVal = quotedToDeriver
+    toType _ = ValType.TDeriver "pitch"
 
-quoted_to_deriver :: Derive.CallableExpr d => DeriveT.Val
+quotedToDeriver :: Derive.CallableExpr d => DeriveT.Val
     -> Typecheck.Checked (Derive.Deriver (Stream.Stream d))
-quoted_to_deriver val = case as_quoted val of
+quotedToDeriver val = case asQuoted val of
     Just quoted -> Typecheck.Val $ Typecheck.Derive $
-        \ctx -> Eval.eval_quoted (Derive.untag_context ctx) quoted
+        \ctx -> Eval.evalQuoted (Derive.untagContext ctx) quoted
     Nothing -> Typecheck.failure
 
-as_quoted :: DeriveT.Val -> Maybe DeriveT.Quoted
-as_quoted = \case
+asQuoted :: DeriveT.Val -> Maybe DeriveT.Quoted
+asQuoted = \case
     DeriveT.VQuoted a -> Just a
     DeriveT.VStr (Expr.Str sym) ->
         Just $ DeriveT.Quoted $ Expr.Call (Expr.Symbol sym) [] :| []
@@ -626,39 +626,39 @@ as_quoted = \case
 
 run :: State -> Derive.Deriver a -> Either Derive.Error a
 run state deriver = result
-    where (result, _state, _logs) = Derive.run (state_derive state) deriver
+    where (result, _state, _logs) = Derive.run (stateDerive state) deriver
 
-eval_quoted :: State -> DeriveT.Quoted -> Either Derive.Error DeriveT.Val
-eval_quoted state (DeriveT.Quoted expr) = result
+evalQuoted :: State -> DeriveT.Quoted -> Either Derive.Error DeriveT.Val
+evalQuoted state (DeriveT.Quoted expr) = result
     where
-    (result, _state, _logs) = Derive.run (state_derive state) $ do
+    (result, _state, _logs) = Derive.run (stateDerive state) $ do
         call <- case expr of
             call :| [] -> pure call
             _ -> Derive.throw "expected a val call, but got a full expression"
-        Eval.eval (state_context state) (Expr.ValCall call)
+        Eval.eval (stateContext state) (Expr.ValCall call)
 
-lookup_default :: Derive.EnvironDefault -> State -> ArgName -> Maybe DeriveT.Val
-lookup_default env_default state name =
-    msum $ map lookup $ environ_keys (state_call_name state) name env_default
-    where lookup key = Env.lookup key (state_environ state)
+lookupDefault :: Derive.EnvironDefault -> State -> ArgName -> Maybe DeriveT.Val
+lookupDefault envDefault state name =
+    msum $ map lookup $ environKeys (stateCallName state) name envDefault
+    where lookup key = Env.lookup key (stateEnviron state)
 
-environ_keys :: CallName -> ArgName -> Derive.EnvironDefault -> [Env.Key]
-environ_keys call_name arg_name = \case
+environKeys :: CallName -> ArgName -> Derive.EnvironDefault -> [Env.Key]
+environKeys callName argName = \case
     None -> []
     Prefixed
-        | call_name == "" -> [unprefixed]
+        | callName == "" -> [unprefixed]
         | otherwise -> [prefixed]
     Unprefixed -> [unprefixed]
     Both
-        | call_name == "" -> [unprefixed]
+        | callName == "" -> [unprefixed]
         | otherwise -> [unprefixed, prefixed]
     where
-    prefixed = prefixed_environ call_name arg_name
-    unprefixed = (\(Derive.ArgName n) -> n) arg_name
+    prefixed = prefixedEnviron callName argName
+    unprefixed = (\(Derive.ArgName n) -> n) argName
 
-prefixed_environ :: CallName -> ArgName -> Env.Key
-prefixed_environ (Derive.CallName call_name) (Derive.ArgName arg_name) =
-    call_name <> "-" <> arg_name
+prefixedEnviron :: CallName -> ArgName -> Env.Key
+prefixedEnviron (Derive.CallName callName) (Derive.ArgName argName) =
+    callName <> "-" <> argName
 
 
 -- * call
@@ -671,27 +671,27 @@ type Transformer y d =
 
 call :: Derive.Taggable y => Parser a -> (a -> Generator y d)
     -> Derive.WithArgDoc (Generator y d)
-call parser f = (go, parser_docs parser)
+call parser f = (go, parserDocs parser)
     where
-    go args = parse_transformer parser args >>= require_right >>= \a -> f a args
+    go args = parseTransformer parser args >>= requireRight >>= \a -> f a args
 
-call_sub :: Derive.Taggable y => Parser a -> (a -> Generator y d)
+callSub :: Derive.Taggable y => Parser a -> (a -> Generator y d)
     -> Derive.WithArgDoc (Generator y d)
-call_sub parser f = (go, parser_docs parser)
-    where go args = parse parser args >>= require_right >>= \a -> f a args
+callSub parser f = (go, parserDocs parser)
+    where go args = parse parser args >>= requireRight >>= \a -> f a args
 
 -- | Specialization of 'call' for 0 arguments.
 call0 :: Derive.Taggable y => Generator y d -> Derive.WithArgDoc (Generator y d)
 call0 f = (go, [])
     where
-    go args = parse_transformer (pure ()) args >>= require_right
+    go args = parseTransformer (pure ()) args >>= requireRight
         >>= \() -> f args
 
 callt :: Derive.Taggable y => Parser a -> (a -> Transformer y d)
     -> Derive.WithArgDoc (Transformer y d)
-callt parser f = (go, parser_docs parser)
+callt parser f = (go, parserDocs parser)
     where
-    go args deriver = parse_transformer parser args >>= require_right
+    go args deriver = parseTransformer parser args >>= requireRight
         >>= \a -> f a args deriver
 
 -- | Specialization of 'callt' for 0 arguments.
@@ -699,8 +699,8 @@ call0t :: Derive.Taggable y => Transformer y d
     -> Derive.WithArgDoc (Transformer y d)
 call0t f = (go, [])
     where
-    go args deriver = parse_transformer (pure ()) args >>= require_right
+    go args deriver = parseTransformer (pure ()) args >>= requireRight
         >>= \() -> f args deriver
 
-state_environ :: State -> DeriveT.Environ
-state_environ = Derive.state_environ . Derive.state_dynamic . state_derive
+stateEnviron :: State -> DeriveT.Environ
+stateEnviron = Derive.stateEnviron . Derive.stateDynamic . stateDerive

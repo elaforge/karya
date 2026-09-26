@@ -72,9 +72,9 @@ patches = map make allBreaks
         , Patch._karyaPatch =
             ImInst.doc #= Doc.Doc
                 ("BPM: " <> Num.showFloat 2 break.bpm) $
-            ImInst.code #= (call_code <> drum_code) $
-            ImInst.make_patch $ Im.Patch.patch
-                { Im.Patch.patch_controls = mconcat
+            ImInst.code #= (callCode <> drumCode) $
+            ImInst.makePatch $ Im.Patch.patch
+                { Im.Patch.patchControls = mconcat
                     [ Control.supportDyn
                     , Control.supportSampleStartOffset
                     , Control.support pitchOffset "Pitch offset, in nn."
@@ -85,18 +85,18 @@ patches = map make allBreaks
         }
         where
         sample = untxt $ break.name <> ".wav"
-        call_code = ImInst.note_generators $ ("n", breakCall Nothing) :
+        callCode = ImInst.noteGenerators $ ("n", breakCall Nothing) :
             [ (Expr.Symbol stroke, breakCall (Just frame))
             | (_, stroke, frame) <- break.beats
             ]
-        drum_code = ImInst.cmd $ CUtil.insert_expr thru
+        drumCode = ImInst.cmd $ CUtil.insertExpr thru
             (lookupStroke break.increment break.perMeasure strokeMap)
             where
             strokeMap = Map.fromList
                 [(beat, stroke) | (beat, stroke, _) <- break.beats]
         thru = Util.imThruFunction dir (convert sample break.pitchAdjust)
         beatMap = makeBeatMap break
-        breakCall = c_break break.bpm beatMap break.perMeasure
+        breakCall = cBreak break.bpm beatMap break.perMeasure
     dir = "break"
 
 -- * cmd
@@ -130,7 +130,7 @@ lookupStroke increment perMeasure strokeMap
         [ (measure, beat)
         | measure <- [1..], beat <- Lists.range' 1 (perMeasure+1) increment
         ]
-    baseOctave = Cmd.state_kbd_entry_octave Cmd.initial_edit_state
+    baseOctave = Cmd.stateKbdEntryOctave Cmd.initialEditState
 
 makeExpr :: (Measure, Beat) -> DeriveT.Expr
 makeExpr (measure, beat) = Expr.generator $ Expr.call "n" [DeriveT.num num]
@@ -149,10 +149,10 @@ physicalKeys steps beats = concat
 -- into the bottom and top rows.
 keysByMeasure :: Int -> [[Char]]
 keysByMeasure steps = concatMap (equalDivisions steps) $
-    map (map fst) $ Lists.groupAdjacent (Pitch.pitch_octave . snd) $
+    map (map fst) $ Lists.groupAdjacent (Pitch.pitchOctave . snd) $
     -- '1' is a special case with -1 accidental.
-    filter ((>=0) . Pitch.pitch_accidentals . snd) $
-    Lists.sortOn snd $ Map.toList PhysicalKey.pitch_map
+    filter ((>=0) . Pitch.pitchAccidentals . snd) $
+    Lists.sortOn snd $ Map.toList PhysicalKey.pitchMap
 
 equalDivisions :: Int -> [a] -> [[a]]
 equalDivisions n xs
@@ -168,9 +168,9 @@ data BpmMode = Pitch | Stretch
 
 -- | Take a beat arg or named start time, and look up the corresponding start
 -- offset.
-c_break :: BPM -> Map Beat Frame -> Beat -> Maybe Frame
+cBreak :: BPM -> Map Beat Frame -> Beat -> Maybe Frame
     -> Derive.Generator Derive.Note
-c_break naturalBpm beatMap perMeasure mbFrame =
+cBreak naturalBpm beatMap perMeasure mbFrame =
     Derive.generator Module.instrument "break" mempty doc $
     Sig.call ((,,,,,)
         <$> maybe (Left <$> beatArg) (pure . Right) mbFrame
@@ -193,13 +193,13 @@ c_break naturalBpm beatMap perMeasure mbFrame =
         -- out the beats.
         -- let naturalBpm = inferBpmAt frameMap frame
         let (start, dur) = Args.extent args
-        pre <- Call.score_duration start pre
-        rpre <- Call.real_duration start pre
-        bpm <- maybe ((*60) <$> Derive.get_tempo (Args.start args)) pure mbBpm
+        pre <- Call.scoreDuration start pre
+        rpre <- Call.realDuration start pre
+        bpm <- maybe ((*60) <$> Derive.getTempo (Args.start args)) pure mbBpm
         let (bpmPitch, bpmStretch) = adjustBpm naturalBpm bpm bpmMode
         withControl Control.sampleStartOffset
                 (fromIntegral frame - fromIntegral (AUtil.toFrames rpre)) $
-            withControl pitchOffset (Pitch.nn_to_double (pitch + bpmPitch)) $
+            withControl pitchOffset (Pitch.nnToDouble (pitch + bpmPitch)) $
             bpmStretch $
             withControl Control.samplePitchShift pitchShift $
             Derive.place (start - pre) (dur + pre) Call.note
@@ -221,7 +221,7 @@ c_break naturalBpm beatMap perMeasure mbFrame =
 withControl :: Control.Control -> Signal.Y -> Derive.Deriver a
     -> Derive.Deriver a
 withControl control =
-    Derive.with_constant_control (Controls.from_shared control)
+    Derive.withConstantControl (Controls.fromShared control)
 
 adjustBpm :: BPM -> BPM -> BpmMode
     -> (Pitch.NoteNumber, Derive.Deriver a -> Derive.Deriver a)

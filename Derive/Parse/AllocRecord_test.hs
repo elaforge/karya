@@ -25,50 +25,50 @@ import           Util.Test
 
 test_un_allocation :: Test
 test_un_allocation = do
-    let un = Record.un_record . AllocRecord.un_allocation
-    equal (Text.unlines (un allocation)) alloc_expr
+    let un = Record.unRecord . AllocRecord.unAllocation
+    equal (Text.unlines (un allocation)) allocExpr
 
 test_p_allocation :: Test
 test_p_allocation = do
-    let parse = AllocRecord.p_allocation alloc_qualified . Map.fromList
-            <=< p_record
+    let parse = AllocRecord.pAllocation allocQualified . Map.fromList
+            <=< pRecord
     -- pprint (p_record alloc_expr)
-    right_equal (parse alloc_expr) allocation
+    rightEqual (parse allocExpr) allocation
 
-alloc_qualified :: InstT.Qualified
-alloc_qualified = InstT.Qualified "a" "b"
+allocQualified :: InstT.Qualified
+allocQualified = InstT.Qualified "a" "b"
 
 allocation :: UiConfig.Allocation
 allocation = UiConfig.Allocation
-    { alloc_qualified
-    , alloc_config = Common.Config
-        { config_environ = REnv.from_list
+    { allocQualified
+    , allocConfig = Common.Config
+        { configEnviron = REnv.fromList
             [ ("expr", REnv.VQuoted $ Expr.generator $
                 Expr.call "f" [num 1, str "a"])
             , ("num", num 42)
             , ("str", str "str")
             ]
-        , config_controls = Map.fromList [(Controls.dynamic, 0.25)]
-        , config_mute = False
-        , config_solo = False
+        , configControls = Map.fromList [(Controls.dynamic, 0.25)]
+        , configMute = False
+        , configSolo = False
         }
-    , alloc_backend = UiConfig.Midi $ Patch.Config
-        { config_allocation = []
-        , config_initialization = Just Patch.Tuning
-        , config_settings = Patch.Settings
-            { config_flags = Just $ Set.fromList
+    , allocBackend = UiConfig.Midi $ Patch.Config
+        { configAllocation = []
+        , configInitialization = Just Patch.Tuning
+        , configSettings = Patch.Settings
+            { configFlags = Just $ Set.fromList
                 [Patch.Pressure, Patch.HoldKeyswitch, Patch.ResumePlay]
-            , config_scale = Nothing
-            , config_decay = Just 0.5
-            , config_pitch_bend_range = Just (-12, 12)
-            , config_control_defaults = Just $
+            , configScale = Nothing
+            , configDecay = Just 0.5
+            , configPitchBendRange = Just (-12, 12)
+            , configControlDefaults = Just $
                 Map.fromList [(ScoreT.Control "cc1", 42)]
             }
         }
     }
 
-alloc_expr :: Text
-alloc_expr =
+allocExpr :: Text
+allocExpr =
     "{ env:\n\
     \    { expr: \"(f 1 a)\n\
     \    , num: 42\n\
@@ -88,5 +88,5 @@ num = REnv.VNum . ScoreT.untyped
 str :: Text -> REnv.Val
 str = REnv.VStr . Expr.Str
 
-p_record :: Text -> Either Text [(Text, Record.RVal)]
-p_record = Util.Parse.parse Record.p_record
+pRecord :: Text -> Either Text [(Text, Record.RVal)]
+pRecord = Util.Parse.parse Record.pRecord

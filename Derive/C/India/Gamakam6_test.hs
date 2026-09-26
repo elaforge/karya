@@ -19,7 +19,7 @@ import Types
 
 test_sequence :: Test
 test_sequence = do
-    let run c = derive_tracks e_nns $ pitch_gamakam_note
+    let run c = deriveTracks eNns $ pitchGamakamNote
                 [(0, "4c"), (4, "4d"), (6, "4e")]
                 [(4, c)]
                 [(0, 4), (4, 2), (6, 2)]
@@ -36,12 +36,12 @@ test_sequence = do
     equal (run "!]a=") (output [(4, NN.c4), (6, NN.c4)])
     equal (run "!]<0") (output [(4, NN.c4), (5, NN.cs4), (6, NN.d4)])
 
-e_nns :: Score.Event -> [(RealTime, Pitch.NoteNumber)]
-e_nns e = drop_last_dups fst $ takeWhile ((<= Score.event_end e) . fst) $
-    DeriveTest.e_nns_rounded e
+eNns :: Score.Event -> [(RealTime, Pitch.NoteNumber)]
+eNns e = dropLastDups fst $ takeWhile ((<= Score.eventEnd e) . fst) $
+    DeriveTest.eNnsRounded e
 
-drop_last_dups :: Eq k => (a -> k) -> [a] -> [a]
-drop_last_dups key = go
+dropLastDups :: Eq k => (a -> k) -> [a] -> [a]
+dropLastDups key = go
     where
     go (x:xs)
         | all ((== key x) . key) xs = [x]
@@ -93,15 +93,15 @@ test_parse = do
 
 -- * util
 
-derive_tracks :: (Score.Event -> a) -> [UiTest.TrackSpec]
+deriveTracks :: (Score.Event -> a) -> [UiTest.TrackSpec]
     -> ([a], [Text])
-derive_tracks extract = DeriveTest.extract extract
-    . DeriveTest.derive_tracks
+deriveTracks extract = DeriveTest.extract extract
+    . DeriveTest.deriveTracks
         "import india.gamakam6 | transition=1 | dyn-transition=1"
 
-pitch_gamakam_note :: [(ScoreTime, Text)] -> [(ScoreTime, Text)]
+pitchGamakamNote :: [(ScoreTime, Text)] -> [(ScoreTime, Text)]
     -> [(ScoreTime, ScoreTime)] -> [UiTest.TrackSpec]
-pitch_gamakam_note pitches gamakams notes =
+pitchGamakamNote pitches gamakams notes =
     [ ("*", [(s, 0, p) | (s, p) <- pitches])
     , ("t-nn | gamak", [(s, 0, p) | (s, p) <- gamakams])
     , (">", [(s, d, "") | (s, d) <- notes])

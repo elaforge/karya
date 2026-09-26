@@ -575,7 +575,7 @@ nextSam :: Tala.Tala -> SequenceT sollu -> S.Duration
 nextSam tala seq = fromIntegral $ Num.roundUp aksharas dur
     where
     dur = Solkattu.durationOf S.defaultTempo seq
-    aksharas = Tala.tala_aksharas tala
+    aksharas = Tala.talaAksharas tala
 
 -- | Align to the end of the given number of aksharams.
 __a :: (HasCallStack, Pretty sollu) =>

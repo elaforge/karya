@@ -22,50 +22,50 @@ build edges = buildG (0, upper) unique
     upper = maximum (-1 : map (\(x, y) -> max x y) unique)
 
 -- | Roots are all vertices with no parents.
-roots_of :: Graph -> [Vertex]
-roots_of graph =
+rootsOf :: Graph -> [Vertex]
+rootsOf graph =
     Set.toList $ List.foldl' (flip Set.delete) (Set.fromList [lo..hi])
         (concat (IArray.elems graph))
     where (lo, hi) = IArray.bounds graph
 
 -- | This is like 'dfs', except it allows duplicated vertices.  So don't
 -- use it one a graph with cycles.
-to_forest :: Graph -> Tree.Forest Vertex
-to_forest graph = map (generate graph) (roots_of graph)
+toForest :: Graph -> Tree.Forest Vertex
+toForest graph = map (generate graph) (rootsOf graph)
     where
     generate graph vertex = Node vertex (map (generate graph) (graph!vertex))
 
 draw :: Graph -> String
-draw = Tree.drawForest . map (fmap show) . to_forest
+draw = Tree.drawForest . map (fmap show) . toForest
 
 -- | Remove the edge if it already exists, create a new one of it doesn't.
 -- Return Nothing if adding an edge would create a cycle.
-toggle_edge :: Edge -> Graph -> Maybe Graph
-toggle_edge edge graph
-    | has_edge graph edge = Just (remove_edges [edge] graph)
-    | would_make_cycle edge graph = Nothing
-    | otherwise = Just $ add_edges [edge] graph
+toggleEdge :: Edge -> Graph -> Maybe Graph
+toggleEdge edge graph
+    | hasEdge graph edge = Just (removeEdges [edge] graph)
+    | wouldMakeCycle edge graph = Nothing
+    | otherwise = Just $ addEdges [edge] graph
 
 -- | Splice @new@ into the graph above @to@.  The parents of @to@ are detached
 -- from it and re-attached to @new@.  Then @new@ is attached above @to@.
 --
 -- This operation should be idempotent.
-splice_above :: Vertex -> Vertex -> Graph -> Graph
-splice_above new to graph =
+spliceAbove :: Vertex -> Vertex -> Graph -> Graph
+spliceAbove new to graph =
     -- If I don't filter p/=new, a duplicate splice will cause a vertex to
     -- loop back to itself.
-    add_edges ((new, to) : [(p, new) | p <- ps, p /= new]) $
-        remove_edges [(p, to) | p <- ps] graph
+    addEdges ((new, to) : [(p, new) | p <- ps, p /= new]) $
+        removeEdges [(p, to) | p <- ps] graph
     where ps = parents graph to
 
 -- | Splice @new@ into the graph below @to@.  The children of @to@ are
 -- detached and re-attached to @new@.  Then @to@ is attached above @new@.
 --
 -- This operation should be idempotent.
-splice_below :: Vertex -> Vertex -> Graph -> Graph
-splice_below new to graph =
-    add_edges ((to, new) : [(new, c) | c <- cs, c /= new]) $
-        remove_edges (map ((,) to) cs) graph
+spliceBelow :: Vertex -> Vertex -> Graph -> Graph
+spliceBelow new to graph =
+    addEdges ((to, new) : [(new, c) | c <- cs, c /= new]) $
+        removeEdges (map ((,) to) cs) graph
     where cs = children graph to
 
 -- | Get the parents of a Vertex.
@@ -75,79 +75,79 @@ parents graph v = [p | (p, cs) <- IArray.assocs graph, v `elem` cs]
 -- | Get the children of a Vertex.
 children :: Graph -> Vertex -> [Vertex]
 children graph v
-    | Array.in_bounds v graph = graph!v
+    | Array.inBounds v graph = graph!v
     | otherwise = []
 
-would_make_cycle :: Edge -> Graph -> Bool
-would_make_cycle (from, to) graph =
+wouldMakeCycle :: Edge -> Graph -> Bool
+wouldMakeCycle (from, to) graph =
     from == to
-    || Array.in_bounds from graph && Array.in_bounds to graph
+    || Array.inBounds from graph && Array.inBounds to graph
         && path graph to from
 
-has_cycle :: Graph -> Bool
-has_cycle graph = any (not . null . Tree.subForest) (scc graph)
+hasCycle :: Graph -> Bool
+hasCycle graph = any (not . null . Tree.subForest) (scc graph)
     || any (uncurry (==)) (edges graph)
 
-has_edge :: Graph -> Edge -> Bool
-has_edge graph (from, to) = Array.in_bounds from graph && to `elem` graph!from
+hasEdge :: Graph -> Edge -> Bool
+hasEdge graph (from, to) = Array.inBounds from graph && to `elem` graph!from
 
 -- | A lonely vertex has no edges.
-lonely_vertex :: Graph -> Vertex -> Bool
-lonely_vertex graph vertex =
-    not (Array.in_bounds vertex graph) || null (graph!vertex)
+lonelyVertex :: Graph -> Vertex -> Bool
+lonelyVertex graph vertex =
+    not (Array.inBounds vertex graph) || null (graph!vertex)
 
-add_edges :: [Edge] -> Graph -> Graph
-add_edges edges graph =
-    IArray.accumArray add [] new_bounds
+addEdges :: [Edge] -> Graph -> Graph
+addEdges edges graph =
+    IArray.accumArray add [] newBounds
         (edges ++ [(p, c) | (p, cs) <- IArray.assocs graph, c <- cs])
     where
     (low, high) = IArray.bounds graph
     flattened = [v | (p, c) <- edges, v <- [p, c]]
-    new_bounds = (minimum (low : flattened), maximum (high : flattened))
+    newBounds = (minimum (low : flattened), maximum (high : flattened))
     add cs c = if c `elem` cs then cs else c:cs
 
-remove_edges :: [Edge] -> Graph -> Graph
-remove_edges edges graph
+removeEdges :: [Edge] -> Graph -> Graph
+removeEdges edges graph
     | null edges = graph
     | otherwise =
         graph // [(from, filter (`notElem` map snd groups) (graph!from))
             | (from, groups) <- grouped]
     where
-    in_bounds = filter ((\p -> Array.in_bounds p graph) . fst) edges
-    grouped = Lists.keyedGroupSort fst in_bounds
+    inBounds = filter ((\p -> Array.inBounds p graph) . fst) edges
+    grouped = Lists.keyedGroupSort fst inBounds
 
 -- | Increment all vertices at and above, insert new empty vertex.
-insert_vertex :: Int -> Graph -> Graph
-insert_vertex vertex graph = map_vertices incr graph
+insertVertex :: Int -> Graph -> Graph
+insertVertex vertex graph = mapVertices incr graph
     where incr v = if v < vertex then v else v+1
 
 -- | Remove a vertex.  All vertices pointing to the removed vertex instead
 -- point to what pointed to it.
-remove_vertex :: Int -> Graph -> Graph
-remove_vertex vertex graph
-    | vertex `Array.in_bounds` graph =
-        map_vertices decr (unlink_vertex vertex graph)
+removeVertex :: Int -> Graph -> Graph
+removeVertex vertex graph
+    | vertex `Array.inBounds` graph =
+        mapVertices decr (unlinkVertex vertex graph)
     | otherwise = graph
     where decr v = if v > vertex then v-1 else v
 
 -- | All vertices pointing to the removed vertex instead point to what pointed
 -- to it.  It will be removed from the list of roots.
-unlink_vertex :: Int -> Graph -> Graph
-unlink_vertex vertex graph =
+unlinkVertex :: Int -> Graph -> Graph
+unlinkVertex vertex graph =
     IArray.amap (Lists.replace1 v (graph!v)) graph // [(v, [])]
-    where v = Array.assert_in_bounds "unlink_vertex" vertex graph
+    where v = Array.assertInBounds "unlink_vertex" vertex graph
 
 
 -- | Transform all the vertices by the given function.  If multiple vertices
 -- are transformed to the same value, the one with the originally highest
 -- vertex wins.
-map_vertices :: (Vertex -> Vertex) -> Graph -> Graph
-map_vertices f graph = Array.from_list $
-    strip_indices [] $ Lists.dropInitialDups fst $
+mapVertices :: (Vertex -> Vertex) -> Graph -> Graph
+mapVertices f graph = Array.fromList $
+    stripIndices [] $ Lists.dropInitialDups fst $
         map (\(p, cs) -> (f p, map f cs)) (IArray.assocs graph)
 
-strip_indices :: a -> [(Int, a)] -> [a]
-strip_indices def = go 0
+stripIndices :: a -> [(Int, a)] -> [a]
+stripIndices def = go 0
     where
     go _ [] = []
     go prev lst@((i, v):xs)

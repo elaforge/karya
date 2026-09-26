@@ -14,18 +14,18 @@ import qualified Shake.Util as Util
 
 
 test_importsOf :: Test
-test_importsOf = Testing.in_tmp_dir "HsDeps" $ do
+test_importsOf = Testing.inTmpDir "HsDeps" $ do
     let importsOf generated hs = run $
             HsDeps.importsOf (mkGen generated) Nothing hs
         transitive generated hs = run $
             HsDeps.transitiveImportsOf (mkGen generated) (const Nothing) hs
         mkGen g = HsDeps.Generated (Set.fromList g) [".hsc"]
     makeFiles
-    io_equal (importsOf [] "A.hs") ["M/B.hs"]
-    io_equal (transitive [] "A.hs") ["A.hs", "M/B.hs"]
+    ioEqual (importsOf [] "A.hs") ["M/B.hs"]
+    ioEqual (transitive [] "A.hs") ["A.hs", "M/B.hs"]
 
     -- I assume unknown imports are from external packages.
-    io_equal (importsOf [] "M/B.hs") []
+    ioEqual (importsOf [] "M/B.hs") []
 
 makeFiles :: IO ()
 makeFiles = do
@@ -40,5 +40,5 @@ makeFiles = do
 
 run :: Shake.Action a -> IO a
 run action = do
-    dir <- Testing.tmp_dir "shake"
+    dir <- Testing.tmpDir "shake"
     Util.runIO dir action

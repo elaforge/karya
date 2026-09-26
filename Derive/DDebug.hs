@@ -17,13 +17,13 @@ import qualified Perform.Pitch as Pitch
 import           Global
 
 
-apply_sub :: Functor f => (a -> f b) -> SubT.EventT a -> f (SubT.EventT b)
-apply_sub f (SubT.EventT s d n) = SubT.EventT s d <$> f n
+applySub :: Functor f => (a -> f b) -> SubT.EventT a -> f (SubT.EventT b)
+applySub f (SubT.EventT s d n) = SubT.EventT s d <$> f n
 
 showr :: Maybe Derive.NoteDeriver -> Derive.Deriver Text
 showr = maybe (pure "-") showd
 
 showd :: Derive.NoteDeriver -> Derive.Deriver Text
 showd d = do
-    es <- Stream.events_of <$> d
-    pure $ maybe "?" Pitch.note_text $ Score.initial_note =<< Lists.head es
+    es <- Stream.eventsOf <$> d
+    pure $ maybe "?" Pitch.noteText $ Score.initialNote =<< Lists.head es

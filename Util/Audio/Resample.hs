@@ -169,7 +169,7 @@ resampleBy config ratios audio = Audio.Audio $ do
 type Segment = Segment.Segment Signal.Y
 
 segmentAt :: Audio.Rate -> Signal.Control -> RealTime -> Segment
-segmentAt rate ratios x0 = case Signal.segment_at ratios x0 of
+segmentAt rate ratios x0 = case Signal.segmentAt ratios x0 of
     Just segment
         -- If the difference is less than a sample, I don't want it, because
         -- resampleBlock will then give 0 input samples, which will loop
@@ -202,7 +202,7 @@ resampleBlock chan rate state start maxFrames prevSegment segment audio = do
     -- Debug.tracepM "(start, end), (prev, segment)"
     --     ((start, start+outputFrames), (showSeg prevSegment, showSeg segment))
 
-    let destRatio = Segment.num_interpolate_s segment $
+    let destRatio = Segment.numInterpolateS segment $
             toSeconds $ start + outputFrames
         -- Progress through the ratios signal proceeds in real time, which is
         -- to say, outputFrames.
@@ -258,7 +258,7 @@ resampleBlock chan rate state start maxFrames prevSegment segment audio = do
     next audio =
         either (const (Nothing, audio)) (first (Just . Audio.blockVector)) <$>
         lift (S.next audio)
-    toFrames = Audio.secondsToFrames rate . RealTime.to_seconds
+    toFrames = Audio.secondsToFrames rate . RealTime.toSeconds
     toSeconds = RealTime.seconds . Audio.framesToSeconds rate
 
     -- showSeg (Segment.Segment x1 y1 x2 y2) =

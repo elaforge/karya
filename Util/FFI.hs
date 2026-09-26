@@ -27,35 +27,35 @@ import           Global
 
 -- * convert
 
-c_int :: Int -> CInt
-c_int = fromIntegral -- c ints should be at least as big as hs ones
+cInt :: Int -> CInt
+cInt = fromIntegral -- c ints should be at least as big as hs ones
 
-c_nat :: Int -> CInt
-c_nat = c_int -- I don't check for > 0 yet, I should catch the c++ exception
+cNat :: Int -> CInt
+cNat = cInt -- I don't check for > 0 yet, I should catch the c++ exception
 
-c_uchar :: Integral a => a -> CUChar
-c_uchar = fromIntegral . Num.clamp 0 255
+cUchar :: Integral a => a -> CUChar
+cUchar = fromIntegral . Num.clamp 0 255
 
-c_char :: Char -> CChar
-c_char = fromIntegral . Num.clamp 0 127 . fromEnum
+cChar :: Char -> CChar
+cChar = fromIntegral . Num.clamp 0 127 . fromEnum
 
 -- | This corresponds to utf8::rune.
-c_rune :: Char -> Word.Word32
-c_rune = fromIntegral . fromEnum
+cRune :: Char -> Word.Word32
+cRune = fromIntegral . fromEnum
 
-c_double :: Double -> CDouble
-c_double = CDouble
+cDouble :: Double -> CDouble
+cDouble = CDouble
 
-c_float :: Float -> CFloat
-c_float = CFloat
+cFloat :: Float -> CFloat
+cFloat = CFloat
 
-hs_double :: CDouble -> Double
-hs_double (CDouble d) = d
+hsDouble :: CDouble -> Double
+hsDouble (CDouble d) = d
 
 -- | bool is C++, not C, so I represent bools as chars.
-c_bool :: Bool -> CChar
-c_bool True = 1
-c_bool False = 0
+cBool :: Bool -> CChar
+cBool True = 1
+cBool False = 0
 
 -- | Copy the bytestring to a null-terminated cstring, in malloc'd space.
 -- ByteString only has an alloca version of this.

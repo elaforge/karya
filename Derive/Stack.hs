@@ -5,22 +5,22 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DerivingStrategies #-}
 module Derive.Stack (
-    Stack, empty, length, from_outermost, from_innermost
+    Stack, empty, length, fromOutermost, fromInnermost
     , block, call, add, member, outermost, innermost
-    , block_of, track_of, region_of, call_of
-    , block_track_of, block_tracks_of, block_track_region_of
-    , track_ids_of
+    , blockOf, trackOf, regionOf, callOf
+    , blockTrackOf, blockTracksOf, blockTrackRegionOf
+    , trackIdsOf
     , match
     , Frame(..), Serial
-    , format_ui, pretty_ui, pretty_ui_, pretty_ui_inner
-    , log_ui_frame
+    , formatUi, prettyUi, prettyUi_, prettyUiInner
+    , logUiFrame
 
     -- * more specialized utils
-    , track_regions
+    , trackRegions
 
     -- * ui
-    , UiFrame, to_ui, to_ui_innermost
-    , unparse_ui_frame, unparse_ui_frame_, parse_ui_frame
+    , UiFrame, toUi, toUiInnermost
+    , unparseUiFrame, unparseUiFrame_, parseUiFrame
 ) where
 import qualified Prelude
 import           Prelude hiding (length)
@@ -65,7 +65,7 @@ instance Read.Read Stack where
     readPrec = do
         Pretty.readWord
         frames <- Read.readPrec
-        pure (from_outermost frames)
+        pure (fromOutermost frames)
 
 empty :: Stack
 empty = Stack []
@@ -75,21 +75,21 @@ length (Stack f) = Prelude.length f
 
 -- | Construct a Stack from frames starting with the outermost and ending with
 -- the innermost.
-from_outermost :: [Frame] -> Stack
-from_outermost = Stack . reverse
+fromOutermost :: [Frame] -> Stack
+fromOutermost = Stack . reverse
 
 -- | Construct a Stack from frames starting with the innermost and ending with
 -- the outermost.
-from_innermost :: [Frame] -> Stack
-from_innermost = Stack
+fromInnermost :: [Frame] -> Stack
+fromInnermost = Stack
 
 -- | Make a Stack with a single block.
 block :: BlockId -> Stack
-block = from_innermost . (:[]) . Block
+block = fromInnermost . (:[]) . Block
 
 -- | Make a Stack with a single call.
 call :: Text -> Stack
-call = from_innermost . (:[]) . Call
+call = fromInnermost . (:[]) . Call
 
 -- | Add the frame to the innermost end of the stack.
 add :: Frame -> Stack -> Stack
@@ -107,58 +107,58 @@ outermost (Stack s) = reverse s
 innermost :: Stack -> [Frame]
 innermost (Stack s) = s
 
-block_of :: Frame -> Maybe BlockId
-block_of (Block b) = Just b
-block_of _ = Nothing
+blockOf :: Frame -> Maybe BlockId
+blockOf (Block b) = Just b
+blockOf _ = Nothing
 
-track_of :: Frame -> Maybe TrackId
-track_of (Track t) = Just t
-track_of _ = Nothing
+trackOf :: Frame -> Maybe TrackId
+trackOf (Track t) = Just t
+trackOf _ = Nothing
 
-region_of :: Frame -> Maybe (TrackTime, TrackTime)
-region_of (Region s e) = Just (s, e)
-region_of _ = Nothing
+regionOf :: Frame -> Maybe (TrackTime, TrackTime)
+regionOf (Region s e) = Just (s, e)
+regionOf _ = Nothing
 
-call_of :: Frame -> Maybe Text
-call_of (Call s) = Just s
-call_of _ = Nothing
+callOf :: Frame -> Maybe Text
+callOf (Call s) = Just s
+callOf _ = Nothing
 
 -- | Walk up the stack to discover the innermost TrackId, then BlockId.
-block_track_of :: Stack -> Maybe (BlockId, TrackId)
-block_track_of = find . innermost
+blockTrackOf :: Stack -> Maybe (BlockId, TrackId)
+blockTrackOf = find . innermost
     where
     find frames = do
-        (track_id, frames) <- find_rest track_of frames
-        (block_id, _) <- find_rest block_of frames
-        pure (block_id, track_id)
+        (trackId, frames) <- findRest trackOf frames
+        (blockId, _) <- findRest blockOf frames
+        pure (blockId, trackId)
 
 -- | Get each block and the tracks under it, starting from the innermost.
-block_tracks_of :: Stack -> [(BlockId, [TrackId])]
-block_tracks_of = go [] . innermost
+blockTracksOf :: Stack -> [(BlockId, [TrackId])]
+blockTracksOf = go [] . innermost
     where
-    go track_ids (frame : frames) = case frame of
-        Track track_id -> go (track_id : track_ids) frames
-        Block block_id -> (block_id, track_ids) : go [] frames
-        _ -> go track_ids frames
+    go trackIds (frame : frames) = case frame of
+        Track trackId -> go (trackId : trackIds) frames
+        Block blockId -> (blockId, trackIds) : go [] frames
+        _ -> go trackIds frames
     go _ [] = []
 
 -- | Walk up the stack to discover the innermost Region, TrackId, then BlockId.
-block_track_region_of :: Stack
+blockTrackRegionOf :: Stack
     -> Maybe (BlockId, TrackId, (TrackTime, TrackTime))
-block_track_region_of = find . innermost
+blockTrackRegionOf = find . innermost
     where
     find frames = do
-        (region, frames) <- find_rest region_of frames
-        (track_id, frames) <- find_rest track_of frames
-        (block_id, _) <- find_rest block_of frames
-        pure (block_id, track_id, region)
+        (region, frames) <- findRest regionOf frames
+        (trackId, frames) <- findRest trackOf frames
+        (blockId, _) <- findRest blockOf frames
+        pure (blockId, trackId, region)
 
-track_ids_of :: Stack -> [TrackId]
-track_ids_of = mapMaybe track_of . innermost
+trackIdsOf :: Stack -> [TrackId]
+trackIdsOf = mapMaybe trackOf . innermost
 
 -- | Find a value, and return the rest of the list.
-find_rest :: (a -> Maybe b) -> [a] -> Maybe (b, [a])
-find_rest f = go
+findRest :: (a -> Maybe b) -> [a] -> Maybe (b, [a])
+findRest f = go
     where
     go (x:xs) = maybe (go xs) (\y -> Just (y, xs)) (f x)
     go [] = Nothing
@@ -170,7 +170,7 @@ type Pattern =
     (Maybe BlockId, Maybe (Set TrackId), Maybe (TrackTime, TrackTime))
 
 match :: Pattern -> Stack -> Bool
-match pattern = any (ui_match pattern) . to_ui
+match pattern = any (uiMatch pattern) . toUi
 
 -- ** frames
 
@@ -204,13 +204,13 @@ instance Pretty Frame where
 
 instance Serialize.Serialize Frame where
     put frame = case frame of
-        Block bid -> Serialize.put_tag 0 >> Serialize.put bid
-        Track tid -> Serialize.put_tag 1 >> Serialize.put tid
-        Region s e -> Serialize.put_tag 2 >> Serialize.put s >> Serialize.put e
-        Call s -> Serialize.put_tag 4 >> Serialize.put s
-        Serial n -> Serialize.put_tag 5 >> Serialize.put n
+        Block bid -> Serialize.putTag 0 >> Serialize.put bid
+        Track tid -> Serialize.putTag 1 >> Serialize.put tid
+        Region s e -> Serialize.putTag 2 >> Serialize.put s >> Serialize.put e
+        Call s -> Serialize.putTag 4 >> Serialize.put s
+        Serial n -> Serialize.putTag 5 >> Serialize.put n
     get = do
-        tag <- Serialize.get_tag
+        tag <- Serialize.getTag
         case tag of
             0 -> do
                 bid :: BlockId <- Serialize.get
@@ -231,24 +231,24 @@ instance Serialize.Serialize Frame where
             5 -> do
                 n :: Int <- Serialize.get
                 pure $ Serial n
-            _ -> Serialize.bad_tag "Stack.Frame" tag
+            _ -> Serialize.badTag "Stack.Frame" tag
 
 instance Seed.Seed Frame where
-    to_seed n = \case
-        Block block_id -> n Seed.& block_id
-        Track track_id -> n + 1 Seed.& track_id
+    toSeed n = \case
+        Block blockId -> n Seed.& blockId
+        Track trackId -> n + 1 Seed.& trackId
         Region s e -> n + 2 Seed.& s Seed.& e
         Call call -> n + 3 Seed.& call
         Serial i -> n + 4 Seed.& i
 
 instance Aeson.ToJSON Frame where
     toJSON frame = Aeson.Array $ case frame of
-            Block block_id -> tagged "Block" $
-                Aeson.toJSON $ Id.ident_text block_id
-            Track track_id -> tagged "Track" $
-                Aeson.toJSON $ Id.ident_text track_id
+            Block blockId -> tagged "Block" $
+                Aeson.toJSON $ Id.identText blockId
+            Track trackId -> tagged "Track" $
+                Aeson.toJSON $ Id.identText trackId
             Region s e -> tagged "Region" $
-                Aeson.toJSON (ScoreTime.to_double s, ScoreTime.to_double e)
+                Aeson.toJSON (ScoreTime.toDouble s, ScoreTime.toDouble e)
             Call text -> tagged "Call" (Aeson.toJSON text)
             Serial n -> tagged "Serial" (Aeson.toJSON n)
         where tagged name val = Vector.fromList [Aeson.String name, val]
@@ -257,11 +257,11 @@ instance Aeson.FromJSON Frame where
     parseJSON (Aeson.Array a) = case Vector.toList a of
         [Aeson.String tag, val]
             | tag == "Block" ->
-                Block . Id.BlockId . Id.read_id <$> Aeson.parseJSON val
+                Block . Id.BlockId . Id.readId <$> Aeson.parseJSON val
             | tag == "Track" ->
-                Track . Id.TrackId . Id.read_id <$> Aeson.parseJSON val
+                Track . Id.TrackId . Id.readId <$> Aeson.parseJSON val
             | tag == "Region" -> uncurry Region
-                . bimap ScoreTime.from_double ScoreTime.from_double <$>
+                . bimap ScoreTime.fromDouble ScoreTime.fromDouble <$>
                 Aeson.parseJSON val
             | tag == "Call" -> Call <$> Aeson.parseJSON val
             | tag == "Serial" -> Serial <$> Aeson.parseJSON val
@@ -269,52 +269,52 @@ instance Aeson.FromJSON Frame where
         _ -> fail "expecting two element array"
     parseJSON _ = fail "expecting array"
 
-format_ui :: Stack -> Pretty.Doc
-format_ui = Pretty.textList . map unparse_ui_frame . to_ui
+formatUi :: Stack -> Pretty.Doc
+formatUi = Pretty.textList . map unparseUiFrame . toUi
 
-pretty_ui :: Stack -> Text
-pretty_ui = Text.intercalate " / " . map unparse_ui_frame . to_ui
+prettyUi :: Stack -> Text
+prettyUi = Text.intercalate " / " . map unparseUiFrame . toUi
 
-pretty_ui_ :: Stack -> Text
-pretty_ui_ = Text.intercalate " / " . map unparse_ui_frame_ . to_ui
+prettyUi_ :: Stack -> Text
+prettyUi_ = Text.intercalate " / " . map unparseUiFrame_ . toUi
 
 -- | Loggable msg with the last position of the stack.
-pretty_ui_inner :: Stack -> Maybe Text
-pretty_ui_inner = fmap log_ui_frame . Lists.head . to_ui_innermost
+prettyUiInner :: Stack -> Maybe Text
+prettyUiInner = fmap logUiFrame . Lists.head . toUiInnermost
 
 -- | Format a UiFrame for logging.  This means it wraps it in @{s "..."}@,
 -- which causes logview to make it clickable, which will highlight the stack
 -- location.
-log_ui_frame :: UiFrame -> Text
-log_ui_frame frame = "{s " <> showt (unparse_ui_frame frame) <> "}"
+logUiFrame :: UiFrame -> Text
+logUiFrame frame = "{s " <> showt (unparseUiFrame frame) <> "}"
 
 -- * more specialized utils
 
 -- | Get the Regions associated with a track in a given stack.  It's a little
 -- tricky because track level calls will go in between the track and the
 -- region, e.g. [track, call, call, region].
-track_regions :: Stack -> TrackId -> [Ranges.Ranges TrackTime]
-track_regions stack track_id =
-    [Ranges.range s e | _ : rest <- groups, (s, e) <- get_region rest ]
+trackRegions :: Stack -> TrackId -> [Ranges.Ranges TrackTime]
+trackRegions stack trackId =
+    [Ranges.range s e | _ : rest <- groups, (s, e) <- getRegion rest ]
     where
-    groups = Lists.splitBefore (== Track track_id) (outermost stack)
-    get_region frames = case dropWhile is_call frames of
+    groups = Lists.splitBefore (== Track trackId) (outermost stack)
+    getRegion frames = case dropWhile isCall frames of
         Region s e : _ -> [(s, e)]
         _ -> []
-    is_call (Call {}) = True
-    is_call _ = False
+    isCall (Call {}) = True
+    isCall _ = False
     -- find [track, call*, region] where the region overlaps
 
 -- * ui
 
-ui_match :: Pattern -> UiFrame -> Bool
-ui_match (bid_pattern, tids_pattern, range_pattern) (bid, tid, range) = and
-    [ maybe True ((==bid) . Just) bid_pattern
-    , case (tids_pattern, tid) of
+uiMatch :: Pattern -> UiFrame -> Bool
+uiMatch (bidPattern, tidsPattern, rangePattern) (bid, tid, range) = and
+    [ maybe True ((==bid) . Just) bidPattern
+    , case (tidsPattern, tid) of
         (Just tids, Just tid) -> Set.member tid tids
         (Nothing, _) -> True
         (_, Nothing) -> False
-    , maybe True overlaps range_pattern
+    , maybe True overlaps rangePattern
     ]
     where
     overlaps (s, e) = case range of
@@ -328,11 +328,11 @@ ui_match (bid_pattern, tids_pattern, range_pattern) (bid, tid, range) = and
 type UiFrame = (Maybe BlockId, Maybe TrackId, Maybe (TrackTime, TrackTime))
 
 -- | UiFrames are returned in outermost to innermost order.
-to_ui :: Stack -> [UiFrame]
-to_ui = reverse . to_ui_innermost
+toUi :: Stack -> [UiFrame]
+toUi = reverse . toUiInnermost
 
-to_ui_innermost :: Stack -> [UiFrame]
-to_ui_innermost = foldr f [] . innermost
+toUiInnermost :: Stack -> [UiFrame]
+toUiInnermost = foldr f [] . innermost
     where
     f (Block bid) accum = (Just bid, Nothing, Nothing) : accum
     f (Track tid) ((bid, _, _) : rest) = (bid, Just tid, Nothing) : rest
@@ -346,40 +346,40 @@ to_ui_innermost = foldr f [] . innermost
 -- > "untitled/b0 untitled/b0.t2 0-.25"
 -- > "untitled/b0 foo/bar *"
 -- > "untitled/b0 * *"
-unparse_ui_frame :: UiFrame -> Text
-unparse_ui_frame (maybe_bid, maybe_tid, maybe_range) =
-    Text.intercalate " " [bid_s, tid_s, range_s]
+unparseUiFrame :: UiFrame -> Text
+unparseUiFrame (maybeBid, maybeTid, maybeRange) =
+    Text.intercalate " " [bidS, tidS, rangeS]
     where
-    bid_s = maybe "*" (Id.show_id . Id.unpack_id) maybe_bid
-    tid_s = maybe "*" (Id.show_id . Id.unpack_id) maybe_tid
-    range_s = maybe "*"
-        (\(from, to) -> float from <> "-" <> float to) maybe_range
-    float = Num.showFloat 2 . ScoreTime.to_double
+    bidS = maybe "*" (Id.showId . Id.unpackId) maybeBid
+    tidS = maybe "*" (Id.showId . Id.unpackId) maybeTid
+    rangeS = maybe "*"
+        (\(from, to) -> float from <> "-" <> float to) maybeRange
+    float = Num.showFloat 2 . ScoreTime.toDouble
 
 -- | This is like 'unparse_ui_frame' except it omits the namespaces for a less
 -- cluttered but potentially ambiguous output.
-unparse_ui_frame_ :: UiFrame -> Text
-unparse_ui_frame_ (maybe_bid, maybe_tid, maybe_range) =
-    Text.unwords [bid_s, tid_s, range_s]
+unparseUiFrame_ :: UiFrame -> Text
+unparseUiFrame_ (maybeBid, maybeTid, maybeRange) =
+    Text.unwords [bidS, tidS, rangeS]
     where
-    bid_s = maybe "*" Id.ident_name maybe_bid
-    tid_s = maybe "*" Id.ident_name maybe_tid
-    range_s = maybe "*"
-        (\(from, to) -> float from <> "-" <> float to) maybe_range
-    float = Num.showFloat 2 . ScoreTime.to_double
+    bidS = maybe "*" Id.identName maybeBid
+    tidS = maybe "*" Id.identName maybeTid
+    rangeS = maybe "*"
+        (\(from, to) -> float from <> "-" <> float to) maybeRange
+    float = Num.showFloat 2 . ScoreTime.toDouble
 
-parse_ui_frame :: String -> Maybe UiFrame
-parse_ui_frame = ParseText.maybe_parse_string $ do
-    bid <- optional $ ParseText.lexeme ParseText.p_word
-    tid <- optional $ ParseText.lexeme ParseText.p_word
+parseUiFrame :: String -> Maybe UiFrame
+parseUiFrame = ParseText.maybeParseString $ do
+    bid <- optional $ ParseText.lexeme ParseText.pWord
+    tid <- optional $ ParseText.lexeme ParseText.pWord
     range <- optional $ do
-        from <- ParseText.p_float
+        from <- ParseText.pFloat
         A.char '-'
-        to <- ParseText.p_float
-        pure (ScoreTime.from_double from, ScoreTime.from_double to)
+        to <- ParseText.pFloat
+        pure (ScoreTime.fromDouble from, ScoreTime.fromDouble to)
     pure
-        ( Id.BlockId . Id.read_id <$> bid
-        , Id.TrackId . Id.read_id <$> tid
+        ( Id.BlockId . Id.readId <$> bid
+        , Id.TrackId . Id.readId <$> tid
         , range
         )
     where

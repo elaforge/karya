@@ -12,12 +12,12 @@ import           Ness.Multiplate
 instruments :: [Instrument]
 instruments = [instrument1]
 
-c_x, c_y :: Control.Control
-c_x = "x"
-c_y = "y"
+cX, cY :: Control.Control
+cX = "x"
+cY = "y"
 
-c_duration :: Control.Control
-c_duration = "duration"
+cDuration :: Control.Control
+cDuration = "duration"
 
 instrument1 = Instrument
     { iName = "gongs"
@@ -26,8 +26,8 @@ instrument1 = Instrument
         { aWidth = 1.32
         , aDepth = 1.32
         , aHeight = 1.37
-        , aC_a = 340.0
-        , aRho_a = 1.21
+        , aCA = 340.0
+        , aRhoA = 1.21
         , aOutputs = map (Util.Control.uncurry3 AirboxOutput)
             [ (0.01, 0.02, 0.6)
             , (-0.6, 0.012, 0.15)

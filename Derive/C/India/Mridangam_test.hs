@@ -17,8 +17,8 @@ import Global
 
 test_sequence :: Test
 test_sequence = do
-    let run = DeriveTest.extract extract . derive_tracks ""
-        extract e = (Score.event_start e, DeriveTest.e_attributes e)
+    let run = DeriveTest.extract extract . deriveTracks ""
+        extract e = (Score.eventStart e, DeriveTest.eAttributes e)
     equal (run [(2, 5, "seq ktkno")])
         (zip (Lists.range_ 2 1) ktkno, [])
     -- D is two strokes together, and _ or space are rest.
@@ -47,8 +47,8 @@ test_sequence = do
 
 test_strokes :: Test
 test_strokes = do
-    let run = DeriveTest.extract extract . derive_tracks "" . mkevents
-        extract e = (Score.event_start e, DeriveTest.e_attributes e)
+    let run = DeriveTest.extract extract . deriveTracks "" . mkevents
+        extract e = (Score.eventStart e, DeriveTest.eAttributes e)
         mkevents cs = [(t, 0, c) | (t, c) <- zip (Lists.range_ 0 1) cs]
     equal (run ["k", "t"]) ([(0, "+ki"), (1, "+ta")], [])
     equal (run ["D", "od"])
@@ -59,23 +59,23 @@ test_strokes = do
 
 test_tirmanam :: Test
 test_tirmanam = do
-    let run = DeriveTest.extract extract . derive_tracks " | cancel"
-        extract e = (Score.event_start e, DeriveTest.e_attributes e)
+    let run = DeriveTest.extract extract . deriveTracks " | cancel"
+        extract e = (Score.eventStart e, DeriveTest.eAttributes e)
     let tathom = ["+ta", "+thom", "+ta", "+thom", "+ta"]
-    strings_like (snd $ run [(0, 4, "dur=1 | tir t o")])
+    stringsLike (snd $ run [(0, 4, "dur=1 | tir t o")])
         ["event dur 4t: karvai would have to be .5t matras"]
-    strings_like (snd $ run [(0, 2, "dur=1 | tir t o")])
+    stringsLike (snd $ run [(0, 2, "dur=1 | tir t o")])
         ["would have to stretch karvai to -.5t"]
     equal (run [(0, 5, "dur=1 | tir t o")])
         (zip (Lists.range_ 0 1) tathom, [])
-    strings_like (snd $ run [(0, 10, "dur=1 | tir t o")])
+    stringsLike (snd $ run [(0, 10, "dur=1 | tir t o")])
         ["karvai would have to be 3.5t matras"]
     equal (run [(0, 9, "dur=1 | tir t o")])
         (zip [0, 1, 4, 5, 8] tathom, [])
     equal (run [(5, -5, "dur=1 | tir t o")])
         (zip (Lists.range_ 0 1) (tathom ++ ["+thom"]), [])
 
-    strings_like (snd $ run [(0, 10, "dur=1 | tir t o_p")]) ["expected 9\\*1t"]
+    stringsLike (snd $ run [(0, 10, "dur=1 | tir t o_p")]) ["expected 9\\*1t"]
     equal (run [(0, 9, "dur=1 | tir t o_p")])
         ( [ (0, "+ta"), (1, "+thom"), (3, "+tha"), (4, "+ta"), (5, "+thom")
           , (7, "+tha"), (8, "+ta")
@@ -94,36 +94,36 @@ test_tirmanam = do
 test_stretch_karvai :: Test
 test_stretch_karvai = do
     let f seq karvai matra event =
-            Mridangam.stretch_karvai (Mridangam.parse_sequence seq)
-            (Mridangam.parse_sequence karvai) matra event
+            Mridangam.stretchKarvai (Mridangam.parseSequence seq)
+            (Mridangam.parseSequence karvai) matra event
     -- sequence is 10, karvai is 1
-    left_like (f "+kn+k_+u_k" "D" 1 16) "would have to stretch karvai"
+    leftLike (f "+kn+k_+u_k" "D" 1 16) "would have to stretch karvai"
     equal (f "+kn+k_+u_k" "D" 1 32) (Right [(1, Mridangam.Stroke 'D')])
-    left_like (f "+kn+k_+u_k" "D_" 1 32) "expected 34\\*1"
+    leftLike (f "+kn+k_+u_k" "D_" 1 32) "expected 34\\*1"
     equal (f "+kn+k_+u_k" "D_" 1 34)
         (Right [(1, Mridangam.Stroke 'D'), (1, Mridangam.Rest)])
 
 test_pattern :: Test
 test_pattern = do
-    let run = DeriveTest.extract extract . derive_tracks ""
-        extract e = (Score.event_start e, DeriveTest.e_attributes e)
+    let run = DeriveTest.extract extract . deriveTracks ""
+        extract e = (Score.eventStart e, DeriveTest.eAttributes e)
     equal (run [(2, 5, "pat 5")]) (zip (Lists.range_ 2 1) ktkno, [])
     equal (run [(2, 5, "var=f567-1 | pat 5")])
         ([(2, "+ki"), (3, "+ta"), (4, "+ki"), (5, "+ki"), (5.5, "+ta"),
             (6, "+thom")], [])
 
     -- infer
-    strings_like (snd $ run [(0, 5, "pat _")]) ["can't infer"]
+    stringsLike (snd $ run [(0, 5, "pat _")]) ["can't infer"]
     equal (run [(0, 5, "dur=1 | pat _")]) (zip (Lists.range_ 0 1) ktkno, [])
     equal (run [(0, 6, "dur=1 | pat _")]) (zip [0, 1, 3, 4, 5] ktkno, [])
 
 ktkno :: [Text]
 ktkno = ["+ki", "+ta", "+ki", "+nam", "+thom"]
 
-derive_tracks :: Text -> [UiTest.EventSpec] -> Derive.Result
-derive_tracks title notes = DeriveTest.derive_tracks_setup with_synth
+deriveTracks :: Text -> [UiTest.EventSpec] -> Derive.Result
+deriveTracks title notes = DeriveTest.deriveTracksSetup withSynth
     ("import india.mridangam" <> title) [(">m", notes)]
 
-with_synth :: DeriveTest.Setup
-with_synth =
-    DeriveTest.with_synths_simple [("m", "kontakt/mridangam-d")] [Kontakt.synth]
+withSynth :: DeriveTest.Setup
+withSynth =
+    DeriveTest.withSynthsSimple [("m", "kontakt/mridangam-d")] [Kontakt.synth]

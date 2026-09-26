@@ -10,12 +10,12 @@ import qualified Midi.Midi as Midi
 import           Global
 
 
-midi_config :: Cmd.InstrumentDb -> StaticConfig.Midi
-midi_config _db = StaticConfig.Midi
-    { rdev_map = StaticConfig.make_rdev_map rdev_map
-    , wdev_map = StaticConfig.make_wdev_map wdev_map
-    , read_devices = StaticConfig.make_read_devices read_devices
-    , play_cache = Just (Midi.write_device "loop4", 15)
+midiConfig :: Cmd.InstrumentDb -> StaticConfig.Midi
+midiConfig _db = StaticConfig.Midi
+    { rdevMap = StaticConfig.makeRdevMap rdevMap
+    , wdevMap = StaticConfig.makeWdevMap wdevMap
+    , readDevices = StaticConfig.makeReadDevices readDevices
+    , playCache = Just (Midi.writeDevice "loop4", 15)
     }
 
 iac, tapco, network :: Int -> Text
@@ -23,8 +23,8 @@ iac n = "IAC Driver " <> showt n
 tapco n = "Tapco Link MIDI USB Ver 2.2 Port " <> showt n
 network n = "Network hobbes" <> showt n
 
-wdev_map :: [(Text, Text)]
-wdev_map = concat
+wdevMap :: [(Text, Text)]
+wdevMap = concat
     [ [("loop" <> showt n, iac n) | n <- [1..4]]
     , [("net" <> showt n, network n) | n <- [1..4]]
     , [ ("fm8", "Native Instruments FM8 Virtual Input")
@@ -36,8 +36,8 @@ wdev_map = concat
       ]
     ]
 
-rdev_map :: [(Text, Text)]
-rdev_map =
+rdevMap :: [(Text, Text)]
+rdevMap =
     [ (tapco 1, "z1")
     , (tapco 2, "vl1")
     , (tapco 3, "morpheus")
@@ -45,8 +45,8 @@ rdev_map =
     ]
 
 -- | Open these read devices on startup.
-read_devices :: [Text]
-read_devices =
+readDevices :: [Text]
+readDevices =
     [ "USB Oxygen 8 v2"
     , "EDIROL UA-25"
     , "828mk2 MIDI Port"

@@ -43,15 +43,15 @@ module_ = "india" <> "gamakam6"
 library :: Library.Library
 library = mconcat
     [ Library.generators
-        [ (Parse.unparsed_call, c_pitch_sequence)
+        [ (Parse.unparsedCall, cPitchSequence)
         -- , (Parse.unparsed_call, c_dyn_sequence)
         ]
     , Library.transformers
-        [ ("gamak", c_import_pitch)
+        [ ("gamak", cImportPitch)
         -- , ("dyn", c_import_dyn)
         ]
     , Library.transformers
-        [ ("sahitya", c_sahitya :: Derive.Transformer Derive.Note)
+        [ ("sahitya", cSahitya :: Derive.Transformer Derive.Note)
         ]
     ]
 
@@ -76,34 +76,34 @@ data PitchState = PitchState
     , _transition :: !Typecheck.Normalized
     } deriving (Show)
 
-nn_difference :: PSignal.Transposed -> PSignal.Transposed -> Derive.Deriver Nn
-nn_difference p1 p2 = fmap realToFrac $
-    (-) <$> Pitches.pitch_nn p1 <*> Pitches.pitch_nn p2
+nnDifference :: PSignal.Transposed -> PSignal.Transposed -> Derive.Deriver Nn
+nnDifference p1 p2 = fmap realToFrac $
+    (-) <$> Pitches.pitchNn p1 <*> Pitches.pitchNn p2
 
-get_pitch :: (PitchState -> Nn) -> M PSignal.Transposed
-get_pitch get = do
+getPitch :: (PitchState -> Nn) -> M PSignal.Transposed
+getPitch get = do
     nn <- State.gets get
     cur <- State.gets _current
-    pure $ Pitches.transpose_nn (Pitch.nn nn) cur
+    pure $ Pitches.transposeNn (Pitch.nn nn) cur
 
 -- ** initial state
 
-initial_pitch_state :: Typecheck.Normalized
+initialPitchState :: Typecheck.Normalized
     -> Derive.PassedArgs Derive.Control
     -> Derive.Deriver (Maybe PitchState)
-initial_pitch_state transition args = do
-    start <- Args.real_start args
+initialPitchState transition args = do
+    start <- Args.realStart args
     -- If there's no pitch then this is likely at the edge of a slice, and can
     -- be ignored.  TODO I think?
-    justm (lookup_pitch start) $ \current -> do
-        (prev, next, from) <- get_neighbor_pitches start
-        let prev_step = maybe 0 snd $ Args.prev_control args
-        let steps_from_current = fmap (fromMaybe 0) . traverse
-                ((`nn_difference` current) <=< Derive.resolve_pitch start)
-        prev <- steps_from_current prev
-        from <- steps_from_current $
-            Pitches.transpose_nn (Pitch.nn prev_step) <$> from
-        next <- steps_from_current next
+    justm (lookupPitch start) $ \current -> do
+        (prev, next, from) <- getNeighborPitches start
+        let prevStep = maybe 0 snd $ Args.prevControl args
+        let stepsFromCurrent = fmap (fromMaybe 0) . traverse
+                ((`nnDifference` current) <=< Derive.resolvePitch start)
+        prev <- stepsFromCurrent prev
+        from <- stepsFromCurrent $
+            Pitches.transposeNn (Pitch.nn prevStep) <$> from
+        next <- stepsFromCurrent next
 
         pure $ Just $ PitchState
             { _current = current
@@ -113,44 +113,44 @@ initial_pitch_state transition args = do
             , _transition = transition
             }
     where
-    lookup_pitch = Call.transposed
+    lookupPitch = Call.transposed
 
-get_neighbor_pitches :: RealTime -> Derive.Deriver
+getNeighborPitches :: RealTime -> Derive.Deriver
     (Maybe PSignal.Pitch, Maybe PSignal.Pitch, Maybe PSignal.Pitch)
-get_neighbor_pitches start = do
-    pitch <- Derive.get_pitch
-    let prev = PSignal.at_negative pitch start
-    let next = snd <$> next_sample start pitch
+getNeighborPitches start = do
+    pitch <- Derive.getPitch
+    let prev = PSignal.atNegative pitch start
+    let next = snd <$> nextSample start pitch
     pure (prev, next, prev)
 
-next_sample :: RealTime -> PSignal.PSignal -> Maybe (RealTime, PSignal.Pitch)
-next_sample x pitch = do
-    Segment.Segment _ _ x2 _ <- PSignal.segment_at pitch x
+nextSample :: RealTime -> PSignal.PSignal -> Maybe (RealTime, PSignal.Pitch)
+nextSample x pitch = do
+    Segment.Segment _ _ x2 _ <- PSignal.segmentAt pitch x
     (x2,) <$> PSignal.at pitch x2
 
 -- * pitch sequence
 
-c_import_pitch :: Derive.Transformer Derive.Control
-c_import_pitch = Derive.transformer module_ "gamak" mempty
+cImportPitch :: Derive.Transformer Derive.Control
+cImportPitch = Derive.transformer module_ "gamak" mempty
     "Import calls for a gamakam track."
-    $ Sig.call0t $ \_args -> Derive.with_imported False (module_ <> "pitch")
+    $ Sig.call0t $ \_args -> Derive.withImported False (module_ <> "pitch")
 
-c_pitch_sequence :: Derive.Generator Derive.Control
-c_pitch_sequence = Derive.generator1 (module_ <> "pitch")
-    "sequence" mempty pitch_sequence_doc
+cPitchSequence :: Derive.Generator Derive.Control
+cPitchSequence = Derive.generator1 (module_ <> "pitch")
+    "sequence" mempty pitchSequenceDoc
     $ Sig.call ((,)
         <$> Sig.required "sequence" "Pitch calls."
-        <*> transition_env
+        <*> transitionEnv
     ) $ \(code, transition) args -> do
-        end <- infer_end args
-        maybe_state <- initial_pitch_state transition args
-        case maybe_state of
+        end <- inferEnd args
+        maybeState <- initialPitchState transition args
+        case maybeState of
             Nothing -> pure mempty
             Just state -> do
                 transpose <- Derive.at (Args.start args) $
-                    pitch_sequence state (end - Args.start args) code
+                    pitchSequence state (end - Args.start args) code
                 -- Debug.tracepM "transpose" (Args.start args, end, transpose)
-                real_end <- Derive.real end
+                realEnd <- Derive.real end
                 -- End is the next pitch sample.  So if the next event
                 -- coincides with or precedes it, it will want to come from
                 -- this pitch, so don't append a 0.  Otherwise, the pitch is
@@ -160,20 +160,20 @@ c_pitch_sequence = Derive.generator1 (module_ <> "pitch")
                 -- I have to subtract ScoreTime.eta because the pitch sample
                 -- has been warped back from RealTime, so it will lose some
                 -- precision.  TODO ugh.
-                let next_gamakam = maybe False
-                        ((<=end) . subtract ScoreTime.eta) (next_event args)
+                let nextGamakam = maybe False
+                        ((<=end) . subtract ScoreTime.eta) (nextEvent args)
                 pure $ mconcat $ transpose
-                    ++ if next_gamakam then []
-                        else [Signal.from_sample real_end 0]
+                    ++ if nextGamakam then []
+                        else [Signal.fromSample realEnd 0]
     where
-    transition_env :: Sig.Parser Typecheck.Normalized
-    transition_env =
+    transitionEnv :: Sig.Parser Typecheck.Normalized
+    transitionEnv =
         Sig.environ "transition" Sig.Both (Typecheck.Normalized 0.5) $
             "Time for each pitch movement, in proportion of the total time"
             <> " available."
 
-pitch_sequence_doc :: Doc.Doc
-pitch_sequence_doc = Doc.Doc $
+pitchSequenceDoc :: Doc.Doc
+pitchSequenceDoc = Doc.Doc $
     "This is a mini-language that describes a transposition curve.\
     \ The grammar is a sequence of `Pitch Duration | ']' Pitch | Alias`.\
     \ A plain Pitch moves to that pitch, `]` Pitch sets the From running pitch\
@@ -192,86 +192,86 @@ pitch_sequence_doc = Doc.Doc $
 
 -- | Start of the next event.  'Args.next' gets the end of the block if there
 -- is no next event, but I don't want that.
-next_event :: Derive.PassedArgs a -> Maybe TrackTime
-next_event = fmap Event.start . Lists.head . Args.next_events
+nextEvent :: Derive.PassedArgs a -> Maybe TrackTime
+nextEvent = fmap Event.start . Lists.head . Args.nextEvents
 
 -- | Infer the end time for the gamakam as the next pitch in the pitch signal,
 -- which should correspond to the next explicit swaram.
-infer_end :: Derive.PassedArgs a -> Derive.Deriver TrackTime
-infer_end args
+inferEnd :: Derive.PassedArgs a -> Derive.Deriver TrackTime
+inferEnd args
     | Args.end args /= Args.start args = pure $ Args.end args
     | otherwise = do
-        pitch <- Derive.get_pitch
-        start <- Args.real_start args
-        next_pitch <- traverse (Derive.score . fst) (next_sample start pitch)
+        pitch <- Derive.getPitch
+        start <- Args.realStart args
+        nextPitch <- traverse (Derive.score . fst) (nextSample start pitch)
         let next = Args.next args
-        pure $ maybe next (min next) next_pitch
+        pure $ maybe next (min next) nextPitch
 
-pitch_sequence :: PitchState -> ScoreTime -> Code
+pitchSequence :: PitchState -> ScoreTime -> Code
     -> Derive.Deriver [Signal.Control]
-pitch_sequence state total_dur code = do
-    calls <- Derive.require_right (("parsing " <> pretty code <> ": ")<>) $
+pitchSequence state totalDur code = do
+    calls <- Derive.requireRight (("parsing " <> pretty code <> ": ")<>) $
         parse code
-    calls <- Derive.require_right id $ resolve_aliases calls
-    starts <- mapM Derive.real $ slice_time total_dur $ map call_duration calls
+    calls <- Derive.requireRight id $ resolveAliases calls
+    starts <- mapM Derive.real $ sliceTime totalDur $ map callDuration calls
     let ranges = zip starts (drop 1 starts)
-    (sigs, _) <- State.runStateT (mapM eval_call (zip ranges calls)) state
+    (sigs, _) <- State.runStateT (mapM evalCall (zip ranges calls)) state
     pure sigs
 
-slice_time :: ScoreTime -> [Double] -> [ScoreTime]
-slice_time dur slices =
-    scanl (+) 0 $ map ((*one) . ScoreTime.from_double) slices
-    where one = dur / ScoreTime.from_double (Num.sum slices)
+sliceTime :: ScoreTime -> [Double] -> [ScoreTime]
+sliceTime dur slices =
+    scanl (+) 0 $ map ((*one) . ScoreTime.fromDouble) slices
+    where one = dur / ScoreTime.fromDouble (Num.sum slices)
 
-eval_call :: ((RealTime, RealTime), Call) -> M Signal.Control
-eval_call ((start, end), call) = case call of
+evalCall :: ((RealTime, RealTime), Call) -> M Signal.Control
+evalCall ((start, end), call) = case call of
     SetFrom pitch -> do
-        set_from =<< resolve_pitch pitch
+        setFrom =<< resolvePitch pitch
         pure mempty
     Move (Movement to _) -> do
-        to <- resolve_pitch to
-        from <- get_pitch _from
-        set_from to
-        move_pitch start from end to
+        to <- resolvePitch to
+        from <- getPitch _from
+        setFrom to
+        movePitch start from end to
 
-set_from :: PSignal.Transposed -> M ()
-set_from pitch = do
+setFrom :: PSignal.Transposed -> M ()
+setFrom pitch = do
     cur <- State.gets _current
-    nn <- lift $ nn_difference pitch cur
+    nn <- lift $ nnDifference pitch cur
     State.modify' $ \state -> state { _from = nn }
 
-resolve_pitch :: Pitch -> M PSignal.Transposed
-resolve_pitch (Pitch from steps nn) = do
+resolvePitch :: Pitch -> M PSignal.Transposed
+resolvePitch (Pitch from steps nn) = do
     base <- case from of
         Current -> State.gets _current
-        From -> get_pitch _from
-        Prev -> get_pitch _prev
-        Next -> get_pitch _next
+        From -> getPitch _from
+        Prev -> getPitch _prev
+        Next -> getPitch _next
     pure $ apply (Pitches.transpose . Pitch.Diatonic . fromIntegral) steps $
-        apply Pitches.transpose_nn (Pitch.nn nn) $
+        apply Pitches.transposeNn (Pitch.nn nn) $
         base
     where
     apply f n
         | n == 0 = id
         | otherwise = f n
 
-move_pitch :: RealTime -> PSignal.Transposed -> RealTime -> PSignal.Transposed
+movePitch :: RealTime -> PSignal.Transposed -> RealTime -> PSignal.Transposed
     -> M Signal.Control
-move_pitch start from end to = do
+movePitch start from end to = do
     Typecheck.Normalized transition <- State.gets _transition
     let curve = ControlUtil.Function $
             ControlUtil.sigmoid (1-transition) (1-transition)
     cur <- State.gets _current
-    from <- lift $ nn_difference from cur
-    to <- lift $ nn_difference to cur
-    lift $ ControlUtil.make_segment curve start from end to
+    from <- lift $ nnDifference from cur
+    to <- lift $ nnDifference to cur
+    lift $ ControlUtil.makeSegment curve start from end to
 
 -- * aliases
 
 type Error = Text
 
-resolve_aliases :: [Either Alias Call] -> Either Error [Call]
-resolve_aliases = concatMapM (resolve 0)
+resolveAliases :: [Either Alias Call] -> Either Error [Call]
+resolveAliases = concatMapM (resolve 0)
     where
     resolve _ (Right call) = pure [call]
     resolve depth (Left (Alias alias))
@@ -320,9 +320,9 @@ data Duration = Relative !Double | AbsoluteShort | AbsoluteLong
 -- | Text representing unparsed Calls.
 type Code = Text
 
-call_duration :: Call -> Double
-call_duration (SetFrom _) = 0
-call_duration (Move (Movement _ dur)) = case dur of
+callDuration :: Call -> Double
+callDuration (SetFrom _) = 0
+callDuration (Move (Movement _ dur)) = case dur of
     Relative dur -> dur
     -- TODO not implemented
     AbsoluteLong -> 1
@@ -331,59 +331,59 @@ call_duration (Move (Movement _ dur)) = case dur of
 -- * parse
 
 parse :: Code -> Either Text [Either Alias Call]
-parse = ParseText.parse1 p_calls
+parse = ParseText.parse1 pCalls
 
-p_calls :: Parser [Either Alias Call]
-p_calls = Applicative.many $
-    Left <$> p_alias
-    <|> Right <$> (p_set_from <|> Move <$> p_movement)
+pCalls :: Parser [Either Alias Call]
+pCalls = Applicative.many $
+    Left <$> pAlias
+    <|> Right <$> (pSetFrom <|> Move <$> pMovement)
 
-p_set_from :: Parser Call
-p_set_from = SetFrom <$> (A.char ']' *> p_pitch)
+pSetFrom :: Parser Call
+pSetFrom = SetFrom <$> (A.char ']' *> pPitch)
 
-p_alias :: Parser Alias
-p_alias = Alias <$> A.satisfy is_alias
+pAlias :: Parser Alias
+pAlias = Alias <$> A.satisfy isAlias
     where
-    is_alias c = last_letter_negative < c && c <= 'z'
+    isAlias c = lastLetterNegative < c && c <= 'z'
         || 'A' <= c && c <= 'Z'
 
-p_movement :: Parser Movement
-p_movement = Movement <$> p_pitch <*> p_duration
+pMovement :: Parser Movement
+pMovement = Movement <$> pPitch <*> pDuration
 
-p_duration :: Parser Duration
-p_duration = p_longer <|> p_shorter
-    <|> choose_char [(':', AbsoluteShort), (';', AbsoluteLong)]
+pDuration :: Parser Duration
+pDuration = pLonger <|> pShorter
+    <|> chooseChar [(':', AbsoluteShort), (';', AbsoluteLong)]
     <|> pure (Relative 1)
     where
-    p_longer = do
+    pLonger = do
         n <- A.takeWhile1 (=='_')
         pure $ Relative $ fromIntegral $ Text.length n + 1
-    p_shorter = do
+    pShorter = do
         n <- A.takeWhile1 (=='.')
         pure $ Relative $ 1 / 2^(fromIntegral (Text.length n))
 
 -- | [=<>] [+\^v]? | #?[0-9a-d]? [+\^v]?
-p_pitch :: Parser Pitch
-p_pitch = do
-    (matched, pitch) <- A.match $ p_pitch_from
-        <|> (Pitch <$> p_from <*> (p_steps <|> pure 0) <*> p_nn)
+pPitch :: Parser Pitch
+pPitch = do
+    (matched, pitch) <- A.match $ pPitchFrom
+        <|> (Pitch <$> pFrom <*> (pSteps <|> pure 0) <*> pNn)
     when (Text.null matched) $ fail "empty pitch"
     pure pitch
 
-p_pitch_from :: Parser Pitch
-p_pitch_from = Pitch <$> from <*> pure 0 <*> p_nn
+pPitchFrom :: Parser Pitch
+pPitchFrom = Pitch <$> from <*> pure 0 <*> pNn
     where
-    from = choose_char
+    from = chooseChar
         [ ('=', From)
         , ('<', Prev)
         , ('>', Next)
         ]
 
-p_steps :: Parser Steps
-p_steps = p_number <|> p_letter_negative
+pSteps :: Parser Steps
+pSteps = pNumber <|> pLetterNegative
 
-p_nn :: Parser Nn
-p_nn = choose_char
+pNn :: Parser Nn
+pNn = chooseChar
     [ ('+', 1)
     , ('\\', -1)
     , ('^', 0.5)
@@ -399,31 +399,31 @@ p_nn = choose_char
 --     , (',', -0.5)
 --     ] <|> pure 0
 
-p_from :: Parser From
-p_from = A.option Current (A.char '#' *> pure From)
+pFrom :: Parser From
+pFrom = A.option Current (A.char '#' *> pure From)
 
-p_number :: Parser Int
-p_number = do
+pNumber :: Parser Int
+pNumber = do
     sign <- A.option 1 (A.char '-' >> pure (-1))
     digit <- A.satisfy $ \c -> '0' <= c && c <= '9'
     pure $ sign * (fromEnum digit - fromEnum '0')
 
-p_letter_negative :: Parser Int
-p_letter_negative = do
-    digit <- A.satisfy $ \c -> 'a' <= c && c <= last_letter_negative
+pLetterNegative :: Parser Int
+pLetterNegative = do
+    digit <- A.satisfy $ \c -> 'a' <= c && c <= lastLetterNegative
     pure $ fromEnum 'a' - fromEnum digit - 1
 
-last_letter_negative :: Char
-last_letter_negative = 'd'
+lastLetterNegative :: Char
+lastLetterNegative = 'd'
 
-choose_char :: [(Char, a)] -> Parser a
-choose_char = A.choice . map (\(c, a) -> A.char c *> pure a)
+chooseChar :: [(Char, a)] -> Parser a
+chooseChar = A.choice . map (\(c, a) -> A.char c *> pure a)
 
 
 -- * misc
 
-c_sahitya :: Derive.Taggable a => Derive.Transformer a
-c_sahitya = Derive.transformer module_ "sahitya" mempty
+cSahitya :: Derive.Taggable a => Derive.Transformer a
+cSahitya = Derive.transformer module_ "sahitya" mempty
     ("Ignore the transformed deriver. Put this on a track to ignore its"
     <> " contents, and put in sahitya.")
     $ Sig.call0t $ \_args _deriver -> pure Stream.empty

@@ -25,8 +25,8 @@ instance Pretty Track where
         , ("events", Pretty.format (const () <$> events))
         ]
 
-show_track :: Track -> Text
-show_track (Track source _) = "subtrack:" <> either id Id.ident_text source
+showTrack :: Track -> Text
+showTrack (Track source _) = "subtrack:" <> either id Id.identText source
 
 -- | Sliced sub-events are represented as a start, duration, and opaque
 -- deriver.  This is a compromise between a plain NoteDeriver, which is fully

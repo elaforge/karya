@@ -57,18 +57,18 @@ import           Global
 
 
 synth :: MidiInst.Synth
-synth = MidiInst.synth synth_name "Native Instrument Kontakt" patches
+synth = MidiInst.synth synthName "Native Instrument Kontakt" patches
 
-synth_name :: InstT.SynthName
-synth_name = "kontakt"
+synthName :: InstT.SynthName
+synthName = "kontakt"
 
 patches :: [MidiInst.Patch]
 patches =
-    MidiInst.default_patch pb_range [] : concat
-    [ mine_patches
-    , misc_patches
-    , hang_patches
-    , dio8_patches
+    MidiInst.defaultPatch pbRange [] : concat
+    [ minePatches
+    , miscPatches
+    , hangPatches
+    , dio8Patches
     , KendangBali.patches, KendangSunda.patches
     , Mridangam.patches, Pakhawaj.patches, Reyong.patches, Gong.patches
     , ScGamelan.patches
@@ -76,34 +76,34 @@ patches =
     ]
 
 patch :: InstT.Name -> [(Midi.Control, ScoreT.Control)] -> MidiInst.Patch
-patch = MidiInst.named_patch pb_range
+patch = MidiInst.namedPatch pbRange
 
 -- One pitch bend modulator can only do +-12, but if you put two on you get
 -- +-24.
-pb_range :: Patch.PbRange
-pb_range = (-24, 24)
+pbRange :: Patch.PbRange
+pbRange = (-24, 24)
 
 -- * mine
 
-mine_patches :: [MidiInst.Patch]
-mine_patches =
-    [ MidiInst.make_patch $ MidiInst.add_flag Patch.ResumePlay $
-        Patch.patch pb_range "tambura"
-    , set_scale $ MidiInst.make_patch $ Patch.patch pb_range "bali-guitar"
+minePatches :: [MidiInst.Patch]
+minePatches =
+    [ MidiInst.makePatch $ MidiInst.addFlag Patch.ResumePlay $
+        Patch.patch pbRange "tambura"
+    , setScale $ MidiInst.makePatch $ Patch.patch pbRange "bali-guitar"
     ]
     where
-    set_scale =
-        (MidiInst.patch#Patch.defaults#Patch.scale #= Just instrument_scale)
+    setScale =
+        (MidiInst.patch#Patch.defaults#Patch.scale #= Just instrumentScale)
         . MidiInst.environ EnvKey.tuning tuning
     tuning = BaliScales.Umbang
-    instrument_scale =
-        Selisir.instrument_scale (take 10 . drop 5) Selisir.laras_rambat tuning
+    instrumentScale =
+        Selisir.instrumentScale (take 10 . drop 5) Selisir.larasRambat tuning
 
 -- * misc
 
-misc_patches :: [MidiInst.Patch]
-misc_patches = concat
-    [library, mcgill, balalaika, anthology_wind, sonic_couture, misc]
+miscPatches :: [MidiInst.Patch]
+miscPatches = concat
+    [library, mcgill, balalaika, anthologyWind, sonicCouture, misc]
 
 library :: [MidiInst.Patch]
 library =
@@ -126,15 +126,15 @@ mcgill =
 balalaika :: [MidiInst.Patch]
 balalaika =
     [ MidiInst.code #= code $
-        MidiInst.attribute_map #= Patch.single_keyswitches ks $
-        MidiInst.make_patch $
-        MidiInst.add_flag Patch.HoldKeyswitch $
-        Patch.control_map #= Control.control_map controls $
-        Patch.patch pb_range "balalaika"
+        MidiInst.attributeMap #= Patch.singleKeyswitches ks $
+        MidiInst.makePatch $
+        MidiInst.addFlag Patch.HoldKeyswitch $
+        Patch.controlMap #= Control.controlMap controls $
+        Patch.patch pbRange "balalaika"
     ]
     where
-    code = MidiInst.note_generators
-        [("(", (Articulation.c_attr_slur mempty Attrs.legato))]
+    code = MidiInst.noteGenerators
+        [("(", (Articulation.cAttrSlur mempty Attrs.legato))]
     -- g6 strum, a6 solo, b6 harmony
     controls =
         [ (1, "trem-dyn")
@@ -156,15 +156,15 @@ balalaika =
 -- | Bela D Anthology Spiritual Wind
 -- Change volume to cc 2.
 -- Change b3 and c3 to be normal keyswitches instead of toggles.
-anthology_wind :: [MidiInst.Patch]
-anthology_wind =
+anthologyWind :: [MidiInst.Patch]
+anthologyWind =
     [ MidiInst.pressure $
-        MidiInst.attribute_map #= Patch.single_keyswitches dizi_ks $
+        MidiInst.attributeMap #= Patch.singleKeyswitches diziKs $
         patch "dizi" [(CC.mod, Controls.vib)]
     ]
     where
     -- blow and overblow as keyswitches instead of on/off
-    dizi_ks =
+    diziKs =
         [ (mempty, Key2.c2)
         , (ornament <> Attrs.v1, Key2.cs2)
         , (Attrs.staccato, Key2.d2)
@@ -185,27 +185,27 @@ anthology_wind =
 
 -- * sonic couture
 
-sonic_couture :: [MidiInst.Patch]
-sonic_couture =
+sonicCouture :: [MidiInst.Patch]
+sonicCouture =
     [ patch "ebow"
         [(1, "harm"), (21, Controls.lpf), (22, Controls.q), (23, Controls.hpf)]
     , guzheng
-    , MidiInst.pressure $ MidiInst.nn_range (NN.cs4, NN.fs6) $
+    , MidiInst.pressure $ MidiInst.nnRange (NN.cs4, NN.fs6) $
         patch "sheng" [(1, Controls.breath)]
     -- It's actually [NN.a4, NN.b4, NN.cs5, NN.d5, NN.e5, NN.fs5, NN.g5,
     -- NN.gs5, NN.a5, NN.b5, NN.c6, NN.cs6, NN.d6, NN.e6, NN.fs6], but I don't
     -- have the ability to set discontinuous pitches yet.
-    , MidiInst.pressure $ MidiInst.nn_range (NN.a4, NN.fs6) $
+    , MidiInst.pressure $ MidiInst.nnRange (NN.a4, NN.fs6) $
         patch "sho" [(1, Controls.breath)]
     -- Discontinuous range: [NN.g3, NN.a3, NN.as3, NN.c4, NN.d4, NN.ds4,
     -- NN.f4, NN.g4, NN.a4, NN.as4, NN.c5, NN.d5, NN.ds5, NN.f5, NN.g5]
-    , MidiInst.nn_range (NN.g3, NN.g5) $ patch "khaen" []
+    , MidiInst.nnRange (NN.g3, NN.g5) $ patch "khaen" []
     ]
 
 guzheng :: MidiInst.Patch
-guzheng = MidiInst.code #= code $ MidiInst.nn_range range $
+guzheng = MidiInst.code #= code $ MidiInst.nnRange range $
     MidiInst.decay #= Just 5 $
-    MidiInst.attribute_map #= Patch.single_keyswitches ks $
+    MidiInst.attributeMap #= Patch.singleKeyswitches ks $
     patch "guzheng" [(23, Controls.lpf), (24, Controls.q), (27, Controls.hpf)]
     where
     ks =
@@ -213,51 +213,51 @@ guzheng = MidiInst.code #= code $ MidiInst.nn_range range $
         , (Attrs.left, Key2.b5) -- left hand, no pick
         , (mempty, Key2.c6) -- right hand, picked
         ]
-    code = MidiInst.note_calls
-        [ MidiInst.both "左" (Make.attributed_note Module.instrument Attrs.left)
-        , MidiInst.transformer "standard-strings" standard_strings
+    code = MidiInst.noteCalls
+        [ MidiInst.both "左" (Make.attributedNote Module.instrument Attrs.left)
+        , MidiInst.transformer "standard-strings" standardStrings
         ]
-        <> MidiInst.null_call Highlight.c_highlight_strings_note
+        <> MidiInst.nullCall Highlight.cHighlightStringsNote
     -- This can't go in the automatic env because it uses DeriveT.Pitch, which
     -- is not serializable, hence not in REnv.
-    standard_strings = DUtil.transformer0 "standard-strings"
-        ("Set " <> ShowVal.doc EnvKey.open_strings
-            <> " to standard pitches: " <> ShowVal.doc open_strings)
-        $ \_ -> Derive.with_val EnvKey.open_strings
-            (map Twelve.nn_pitch open_strings)
-    open_strings = take (4*5 + 1) $ -- 4 octaves + 1, so D to D
+    standardStrings = DUtil.transformer0 "standard-strings"
+        ("Set " <> ShowVal.doc EnvKey.openStrings
+            <> " to standard pitches: " <> ShowVal.doc openStrings)
+        $ \_ -> Derive.withVal EnvKey.openStrings
+            (map Twelve.nnPitch openStrings)
+    openStrings = take (4*5 + 1) $ -- 4 octaves + 1, so D to D
         concatMap ((\nns oct -> map (oct+) nns) notes) octaves
         where
         notes = [NN.d2, NN.e2, NN.fs2, NN.a2, NN.b2]
         octaves = map fromIntegral [0, 12 ..]
     -- Let's say the top string can bend a minor third.
-    range = (head open_strings, last open_strings + 3)
+    range = (head openStrings, last openStrings + 3)
 
 -- * hang
 
-hang_patches :: [MidiInst.Patch]
-hang_patches = map (MidiInst.code #= hang_code)
-    [ MidiInst.attribute_map #= Patch.single_keyswitches hang_ks $
+hangPatches :: [MidiInst.Patch]
+hangPatches = map (MidiInst.code #= hangCode)
+    [ MidiInst.attributeMap #= Patch.singleKeyswitches hangKs $
         patch "hang" []
     ]
 
-hang_code :: MidiInst.Code
-hang_code =
-    MidiInst.note_calls
-        [ MidiInst.both call (Make.attributed_note Module.instrument attrs)
-        | (attrs, _, Just call, _) <- hang_strokes
+hangCode :: MidiInst.Code
+hangCode =
+    MidiInst.noteCalls
+        [ MidiInst.both call (Make.attributedNote Module.instrument attrs)
+        | (attrs, _, Just call, _) <- hangStrokes
         -- Make sure to not shadow the default "" call.
         , call /= ""
         ]
-    <> MidiInst.cmd hang_cmd
+    <> MidiInst.cmd hangCmd
 
-hang_cmd :: Cmd.M m => Cmd.Handler m
-hang_cmd = CUtil.keyswitches [(PhysicalKey.physical_key char, text, key)
-    | (_, key, Just text, Just char) <- hang_strokes]
+hangCmd :: Cmd.M m => Cmd.Handler m
+hangCmd = CUtil.keyswitches [(PhysicalKey.physicalKey char, text, key)
+    | (_, key, Just text, Just char) <- hangStrokes]
 
 -- | The order is important because it determines attr lookup priority.
-hang_strokes :: [(Attrs.Attributes, Midi.Key, Maybe Expr.Symbol, Maybe Char)]
-hang_strokes =
+hangStrokes :: [(Attrs.Attributes, Midi.Key, Maybe Expr.Symbol, Maybe Char)]
+hangStrokes =
     [ (Attrs.center,  Key.c2,     Just "",   Just 'Z')
     , (Attrs.edge,    Key.cs2,    Just "旁", Just 'X')
     , (Attrs.slap,    Key.d2,     Just "打", Just 'C')
@@ -266,48 +266,48 @@ hang_strokes =
     , (mempty,        Key.c2,     Nothing,   Nothing)
     ]
 
-hang_ks :: [(Attrs.Attributes, Midi.Key)]
-hang_ks = [(attrs, key) | (attrs, key, _, _) <- hang_strokes]
+hangKs :: [(Attrs.Attributes, Midi.Key)]
+hangKs = [(attrs, key) | (attrs, key, _, _) <- hangStrokes]
 
 -- * 8 dio
 
-dio8_patches :: [MidiInst.Patch]
-dio8_patches =
-    [ pedal_down $
-        MidiInst.attribute_map #= santur_ks $ patch "santur" []
-    , MidiInst.code #= qanun_calls $ pedal_down $
-        MidiInst.attribute_map #= qanun_ks $ patch "qanun" []
+dio8Patches :: [MidiInst.Patch]
+dio8Patches =
+    [ pedalDown $
+        MidiInst.attributeMap #= santurKs $ patch "santur" []
+    , MidiInst.code #= qanunCalls $ pedalDown $
+        MidiInst.attributeMap #= qanunKs $ patch "qanun" []
     ]
     where
-    santur_ks = ks_from Key2.c_1 $
+    santurKs = ksFrom Key2.c_1 $
         [ (m <> art)
         -- wood-m is the default
         | m <- [mempty, Attrs.attr "soft-m", Attrs.attr "softest-m"]
         -- sustain is the default
         , art <- [mempty, Attrs.attr "half-mute", Attrs.mute]
         ] ++ [Attrs.attr "sfx"]
-    qanun_ks = ks_from Key2.d_2 $ concat
+    qanunKs = ksFrom Key2.d_2 $ concat
         [ [mempty] -- thumb
         , map Attrs.attr ["fingertip", "pick", "pick-bridge", "pizz"]
-        , map fst grace_intervals
+        , map fst graceIntervals
         , [ Attrs.trem, Attrs.attr "vib-peg", Attrs.harm, Attrs.attr "fiske"
           , Attrs.attr "sfx"
           ]
         ]
-    ks_from key attrs = Patch.single_keyswitches $ zip attrs [key..]
-    pedal_down = MidiInst.control_defaults [(Controls.pedal, 1)]
-    qanun_calls = MidiInst.note_calls
+    ksFrom key attrs = Patch.singleKeyswitches $ zip attrs [key..]
+    pedalDown = MidiInst.controlDefaults [(Controls.pedal, 1)]
+    qanunCalls = MidiInst.noteCalls
         [ MidiInst.generator "g" $
-            Make.modify_generator_
+            Make.modifyGenerator_
                 "Multiply %dyn by .65, since the grace samples are too loud."
-                (\_ -> Call.multiply_dynamic 0.65) $
-            GraceUtil.c_attr_grace $ Map.fromList $
-            map Tuple.swap grace_intervals
+                (\_ -> Call.multiplyDynamic 0.65) $
+            GraceUtil.cAttrGrace $ Map.fromList $
+            map Tuple.swap graceIntervals
         , MidiInst.both "o" $
-            Make.modify_calls_ "" (\_ -> Call.add_constant Controls.octave (-1))
-                Articulation.c_harmonic
+            Make.modifyCalls_ "" (\_ -> Call.addConstant Controls.octave (-1))
+                Articulation.cHarmonic
         ]
-    grace_intervals =
+    graceIntervals =
         [ (grace <> dir <> interval, step * sign)
         | (interval, step) <- zip [Attrs.half, Attrs.whole] [1..]
         , (dir, sign) <- [(Attrs.up, 1), (Attrs.down, -1)]
@@ -318,4 +318,4 @@ dio8_patches =
 -- * misc
 
 misc :: [MidiInst.Patch]
-misc = [MidiInst.code #= Reaktor.resonant_filter $ patch "filtered" []]
+misc = [MidiInst.code #= Reaktor.resonantFilter $ patch "filtered" []]

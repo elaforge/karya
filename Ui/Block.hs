@@ -7,42 +7,42 @@ module Ui.Block (
     Block(..)
     , Skeleton(..)
     , Meta, TrackDestinations(..), ScoreDestinations, NoteDestination(..)
-    , dest_track_ids, note_dest_track_ids, empty_destination
-    , Source(..), destination_to_source
+    , destTrackIds, noteDestTrackIds, emptyDestination
+    , Source(..), destinationToSource
     , ManualDestinations, SourceKey
-    , EventIndex, short_event_index
-    , integrate_skeleton
-    , block_tracklike_ids, block_track_ids, block_ruler_ids
+    , EventIndex, shortEventIndex
+    , integrateSkeleton
+    , blockTracklikeIds, blockTrackIds, blockRulerIds
     , block
-    , Config(..), default_config
+    , Config(..), defaultConfig
     , Box(..)
     -- * Track
-    , Track(..), track_id, track
-    , modify_id
+    , Track(..), trackId, track
+    , modifyId
     , divider
-    , is_collapsed
-    , track_selectable, track_wants_signal
+    , isCollapsed
+    , trackSelectable, trackWantsSignal
     -- ** DisplayTrack
-    , DisplayTrack(..), Status(..), empty_status, TrackFlag(..)
-    , block_display_tracks
-    , display_track_width
-    , flags_to_status, flag_char
+    , DisplayTrack(..), Status(..), emptyStatus, TrackFlag(..)
+    , blockDisplayTracks
+    , displayTrackWidth
+    , flagsToStatus, flagChar
     -- ** TracklikeId
     , TracklikeId(..)
-    , track_id_of, track_ids_of, ruler_id_of, ruler_ids_of
-    , set_ruler_id
+    , trackIdOf, trackIdsOf, rulerIdOf, rulerIdsOf
+    , setRulerId
     , Tracklike(..)
-    , track_of, tracks_of, ruler_of, rulers_of
+    , trackOf, tracksOf, rulerOf, rulersOf
     , Divider(..)
     -- * View
     , View(..)
     , view
     , Padding(..)
-    , status_color, show_status
-    , visible_track, visible_time
-    , track_rect, set_track_rect
-    , view_visible_time, view_visible_track
-    , screen_pixels
+    , statusColor, showStatus
+    , visibleTrack, visibleTime
+    , trackRect, setTrackRect
+    , viewVisibleTime, viewVisibleTrack
+    , screenPixels
 ) where
 import qualified Control.DeepSeq as DeepSeq
 import qualified Data.Char as Char
@@ -74,28 +74,28 @@ import           Types
 
 -- | This is the data behind a single block.
 data Block = Block
-    { block_title :: !Text
-    , block_config :: !Config
-    , block_tracks :: ![Track]
-    , block_skeleton :: !Skeleton.Skeleton
+    { blockTitle :: !Text
+    , blockConfig :: !Config
+    , blockTracks :: ![Track]
+    , blockSkeleton :: !Skeleton.Skeleton
     -- | Present if this block was integrated from another.  If the
     -- TrackDestinations is empty, then this is an empty block that was created
     -- to receive integration.
-    , block_integrated :: !(Maybe (BlockId, TrackDestinations))
+    , blockIntegrated :: !(Maybe (BlockId, TrackDestinations))
 
     -- | Each pair is a set of tracks integrated from a source TrackId.
     -- A single source can have multiple destination sets.  Similar to
     -- block_integrated, if the TrackDestinations is empty, then new integrated
     -- tracks should be created.
-    , block_integrated_tracks :: ![(TrackId, TrackDestinations)]
-    , block_integrated_manual :: !ManualDestinations
-    , block_meta :: !Meta
+    , blockIntegratedTracks :: ![(TrackId, TrackDestinations)]
+    , blockIntegratedManual :: !ManualDestinations
+    , blockMeta :: !Meta
     } deriving (Eq, Show, Generics.Generic)
 
 instance Pretty Block where format = Pretty.formatG_
 
 instance DeepSeq.NFData Block where
-    rnf = DeepSeq.rnf . block_title
+    rnf = DeepSeq.rnf . blockTitle
 
 data Skeleton = Explicit | Implicit
     deriving (Eq, Show)
@@ -125,31 +125,31 @@ instance Pretty Source where
 -- | TODO I intended to unify all the integration muddle into one dest to
 -- source map, and maybe I stil can, but meanwhile, here's what it could look
 -- like.
-destination_to_source :: Block -> [(TrackId, (Source, EventIndex))]
-destination_to_source block = concat
-    [ case block_integrated block of
+destinationToSource :: Block -> [(TrackId, (Source, EventIndex))]
+destinationToSource block = concat
+    [ case blockIntegrated block of
         Nothing -> []
-        Just (source_block, tdests) ->
-            track_dests (BlockSource source_block) tdests
-    , integrated_tracks (block_integrated_tracks block)
-    , integrated_manual (block_integrated_manual block)
+        Just (sourceBlock, tdests) ->
+            trackDests (BlockSource sourceBlock) tdests
+    , integratedTracks (blockIntegratedTracks block)
+    , integratedManual (blockIntegratedManual block)
     ]
     where
-    integrated_tracks itracks = concat
-        [ track_dests (TrackSource source_track) tdests
-        | (source_track, tdests) <- itracks
+    integratedTracks itracks = concat
+        [ trackDests (TrackSource sourceTrack) tdests
+        | (sourceTrack, tdests) <- itracks
         ]
-    integrated_manual manual = concat
-        [ concatMap (note_dest (ManualSource source_key)) ndests
-        | (source_key, ndests) <- Map.toList manual
+    integratedManual manual = concat
+        [ concatMap (noteDest (ManualSource sourceKey)) ndests
+        | (sourceKey, ndests) <- Map.toList manual
         ]
-    track_dests source (DeriveDestinations ndests) =
-        concatMap (note_dest source) ndests
-    track_dests _source (ScoreDestinations sdests) =
-        [ (dest_track, (TrackSource source_track, index))
-        | (source_track, (dest_track, index)) <- sdests
+    trackDests source (DeriveDestinations ndests) =
+        concatMap (noteDest source) ndests
+    trackDests _source (ScoreDestinations sdests) =
+        [ (destTrack, (TrackSource sourceTrack, index))
+        | (sourceTrack, (destTrack, index)) <- sdests
         ]
-    note_dest source (NoteDestination _key note controls) =
+    noteDest source (NoteDestination _key note controls) =
         (fst note, (source, snd note))
             : [(tid, (source, index)) | (tid, index) <- Map.elems controls]
 
@@ -163,9 +163,9 @@ data TrackDestinations
     | ScoreDestinations !ScoreDestinations
     deriving (Eq, Show)
 
-dest_track_ids :: TrackDestinations -> [TrackId]
-dest_track_ids = \case
-    DeriveDestinations dests -> concatMap note_dest_track_ids dests
+destTrackIds :: TrackDestinations -> [TrackId]
+destTrackIds = \case
+    DeriveDestinations dests -> concatMap noteDestTrackIds dests
     ScoreDestinations dests -> map (fst . snd) dests
 
 {- | Score derivation creates destination tracks 1:1 with their source tracks,
@@ -203,23 +203,23 @@ data NoteDestination = NoteDestination
     -- time there is a merge, the source tracks can match by key.  Otherwise,
     -- they just have to blindly zip sources and dests, and can't detect
     -- deletions or moves.
-    { dest_key :: !Text
+    { destKey :: !Text
     -- | (dest_track, index)
-    , dest_note :: !(TrackId, EventIndex)
+    , destNote :: !(TrackId, EventIndex)
     -- | Map from control name to the track which was created for it.
-    , dest_controls :: !(Map Text (TrackId, EventIndex))
+    , destControls :: !(Map Text (TrackId, EventIndex))
     } deriving (Eq, Show)
 
-note_dest_track_ids :: NoteDestination -> [TrackId]
-note_dest_track_ids (NoteDestination _ note controls) =
+noteDestTrackIds :: NoteDestination -> [TrackId]
+noteDestTrackIds (NoteDestination _ note controls) =
     fst note : map fst (Map.elems controls)
 
 -- | Create an empty destination for the first integration.
-empty_destination :: Text -> TrackId -> [(Text, TrackId)] -> NoteDestination
-empty_destination key note controls = NoteDestination
-    { dest_key = key
-    , dest_note = (note, mempty)
-    , dest_controls = Map.fromList $ map (second (,mempty)) controls
+emptyDestination :: Text -> TrackId -> [(Text, TrackId)] -> NoteDestination
+emptyDestination key note controls = NoteDestination
+    { destKey = key
+    , destNote = (note, mempty)
+    , destControls = Map.fromList $ map (second (,mempty)) controls
     }
 
 -- | This is a picture of the integrated events that were used to create an
@@ -227,8 +227,8 @@ empty_destination key note controls = NoteDestination
 -- contents of the block I can figure out user edits.
 type EventIndex = Map Event.IndexKey Event.Event
 
-short_event_index :: EventIndex -> Text
-short_event_index index
+shortEventIndex :: EventIndex -> Text
+shortEventIndex index
     | Map.null index = "((empty))"
     | otherwise = mconcat
         [ "((index size:", showt (Map.size index)
@@ -245,69 +245,69 @@ instance Pretty NoteDestination where
         ]
 
 -- | Arrows that should be drawn to indicate integrate relationships.
-integrate_skeleton :: Block -> [(Color.Color, [(TrackNum, TrackNum)])]
-integrate_skeleton block = map integrate_edges (block_integrated_tracks block)
+integrateSkeleton :: Block -> [(Color.Color, [(TrackNum, TrackNum)])]
+integrateSkeleton block = map integrateEdges (blockIntegratedTracks block)
     where
-    integrate_edges (source_id, ScoreDestinations dests) =
-        (,) Config.score_integrate_skeleton $ maybe [] (:[]) $ do
-            (_, (dest_id, _)) <- Lists.head dests
-            dest <- tracknum_of dest_id
-            source <- tracknum_of source_id
+    integrateEdges (sourceId, ScoreDestinations dests) =
+        (,) Config.scoreIntegrateSkeleton $ maybe [] (:[]) $ do
+            (_, (destId, _)) <- Lists.head dests
+            dest <- tracknumOf destId
+            source <- tracknumOf sourceId
             pure (source, dest)
-    integrate_edges (source_id, DeriveDestinations dests) =
-        (Config.integrate_skeleton, edges_of source_id dests)
-    edges_of source_id dests = do
-        source <- maybe [] (:[]) $ tracknum_of source_id
-        dest <- mapMaybe (tracknum_of . fst . dest_note) dests
+    integrateEdges (sourceId, DeriveDestinations dests) =
+        (Config.integrateSkeleton, edgesOf sourceId dests)
+    edgesOf sourceId dests = do
+        source <- maybe [] (:[]) $ tracknumOf sourceId
+        dest <- mapMaybe (tracknumOf . fst . destNote) dests
         pure (source, dest)
-    tracknum_of = flip Map.lookup tracknums
+    tracknumOf = flip Map.lookup tracknums
     tracknums = Map.fromList
-        [ (track_id, tracknum)
-        | (tracknum, Just track_id) <- zip [0..]
-            (map track_id (block_tracks block))
+        [ (trackId, tracknum)
+        | (tracknum, Just trackId) <- zip [0..]
+            (map trackId (blockTracks block))
         ]
 
-block_tracklike_ids :: Block -> [TracklikeId]
-block_tracklike_ids = map tracklike_id . block_tracks
+blockTracklikeIds :: Block -> [TracklikeId]
+blockTracklikeIds = map tracklikeId . blockTracks
 
-block_track_ids :: Block -> [TrackId]
-block_track_ids = track_ids_of . block_tracklike_ids
+blockTrackIds :: Block -> [TrackId]
+blockTrackIds = trackIdsOf . blockTracklikeIds
 
-block_ruler_ids :: Block -> [RulerId]
-block_ruler_ids = ruler_ids_of . block_tracklike_ids
+blockRulerIds :: Block -> [RulerId]
+blockRulerIds = rulerIdsOf . blockTracklikeIds
 
 block :: Config -> Text -> [Track] -> Block
 block config title tracks = Block
-    { block_title = title
-    , block_config = config
-    , block_tracks = tracks
-    , block_skeleton = Skeleton.empty
-    , block_integrated = Nothing
-    , block_integrated_tracks = []
-    , block_integrated_manual = mempty
-    , block_meta = Map.empty
+    { blockTitle = title
+    , blockConfig = config
+    , blockTracks = tracks
+    , blockSkeleton = Skeleton.empty
+    , blockIntegrated = Nothing
+    , blockIntegratedTracks = []
+    , blockIntegratedManual = mempty
+    , blockMeta = Map.empty
     }
 
 -- | Per-block configuration.
 data Config = Config
-    { config_skel_box :: !Box
-    , config_track_box :: !Box
-    , config_sb_box :: !Box
-    , config_skeleton :: !Skeleton
+    { configSkelBox :: !Box
+    , configTrackBox :: !Box
+    , configSbBox :: !Box
+    , configSkeleton :: !Skeleton
     } deriving (Eq, Show, Generics.Generic)
 
-default_config :: Config
-default_config = Config
-    { config_skel_box = box Config.bconfig_box
-    , config_track_box = box Config.bconfig_box
-    , config_sb_box = box Config.bconfig_box
-    , config_skeleton = Implicit
+defaultConfig :: Config
+defaultConfig = Config
+    { configSkelBox = box Config.bconfigBox
+    , configTrackBox = box Config.bconfigBox
+    , configSbBox = box Config.bconfigBox
+    , configSkeleton = Implicit
     } where box = uncurry Box
 
 instance Pretty Config where format = Pretty.formatG_
 
 -- | One of those colored boxes wedged into the corners of the block window.
-data Box = Box { box_color :: !Color.Color, box_char :: !Char }
+data Box = Box { boxColor :: !Color.Color, boxChar :: !Char }
     deriving (Eq, Show)
 
 instance Pretty Box where
@@ -320,25 +320,25 @@ instance Pretty Box where
 -- This is the higher level track that is visible at the haskell level, as
 -- opposed to 'DisplayTrack', which is what is visible in the UI.
 data Track = Track
-    { tracklike_id :: !TracklikeId
+    { tracklikeId :: !TracklikeId
     -- | Formerly the width was in the view since each view could have
     -- a different width and this was just the default width, but that turned
     -- out to be too much of a hassle, so now all occurences of a track have
     -- the same width.
-    , track_width :: !Types.Width
+    , trackWidth :: !Types.Width
     -- | This is a width suggested by fltk that should be enough to show all
     -- the text.  Unlike the other fields in Track, it's derived from the track
     -- contents and is automatically updated by the UI.
-    , track_suggested_width :: !Types.Width
+    , trackSuggestedWidth :: !Types.Width
     -- | Track display state flags.
-    , track_flags :: !(Set TrackFlag)
+    , trackFlags :: !(Set TrackFlag)
     -- | Other tracks are displayed behind this one.  Useful to merge a pitch
     -- track into its note track.
-    , track_merged :: !(Set TrackId)
+    , trackMerged :: !(Set TrackId)
     } deriving (Eq, Show)
 
-track_id :: Track -> Maybe TrackId
-track_id = track_id_of . tracklike_id
+trackId :: Track -> Maybe TrackId
+trackId = trackIdOf . tracklikeId
 
 instance Pretty Track where
     pretty (Track tid width suggested flags merged) = pretty tid <> ": "
@@ -347,37 +347,37 @@ instance Pretty Track where
 
 -- | Construct a 'Track' with defaults.
 track :: TracklikeId -> Types.Width -> Track
-track tracklike_id width = Track
-    { tracklike_id = tracklike_id
-    , track_width = width
-    , track_suggested_width = width
-    , track_flags = mempty
-    , track_merged = mempty
+track tracklikeId width = Track
+    { tracklikeId = tracklikeId
+    , trackWidth = width
+    , trackSuggestedWidth = width
+    , trackFlags = mempty
+    , trackMerged = mempty
     }
 
-modify_id :: (TracklikeId -> TracklikeId) -> Track -> Track
-modify_id f track = track { tracklike_id = f (tracklike_id track) }
+modifyId :: (TracklikeId -> TracklikeId) -> Track -> Track
+modifyId f track = track { tracklikeId = f (tracklikeId track) }
 
-colored_divider :: Color.Color -> Track
-colored_divider color = track (DId (Divider color)) 3
+coloredDivider :: Color.Color -> Track
+coloredDivider color = track (DId (Divider color)) 3
 
 -- | A generic divider to insert manually as a visual aid.  Imitates the
 -- background color.
 divider :: Track
-divider = colored_divider (Color.rgb 0.8 0.8 0.8)
+divider = coloredDivider (Color.rgb 0.8 0.8 0.8)
 
-is_collapsed :: Set TrackFlag -> Bool
-is_collapsed flags = Set.member Collapse flags || Set.member Merge flags
+isCollapsed :: Set TrackFlag -> Bool
+isCollapsed flags = Set.member Collapse flags || Set.member Merge flags
 
-track_selectable :: Track -> Bool
-track_selectable track@(Track { tracklike_id = TId _ _}) =
-    not $ is_collapsed (track_flags track)
-track_selectable _ = False
+trackSelectable :: Track -> Bool
+trackSelectable track@(Track { tracklikeId = TId _ _}) =
+    not $ isCollapsed (trackFlags track)
+trackSelectable _ = False
 
 -- | Don't send a track signal to a track unless it actually wants to draw it.
-track_wants_signal :: Set TrackFlag -> Track.Track -> Bool
-track_wants_signal flags track =
-    Track.render_style (Track.track_render track) /= Track.NoRender
+trackWantsSignal :: Set TrackFlag -> Track.Track -> Bool
+trackWantsSignal flags track =
+    Track.renderStyle (Track.trackRender track) /= Track.NoRender
     && Collapse `Set.notMember` flags
     && Merge `Set.notMember` flags
 
@@ -385,17 +385,17 @@ track_wants_signal flags track =
 -- corresponds with what is displayed by the UI.  The DisplayTracks should be
 -- derivable from a 'Block' deterministically.
 data DisplayTrack = DisplayTrack
-    { dtracklike_id :: !TracklikeId
-    , dtrack_width :: !Types.Width
-    , dtrack_merged :: !(Set TrackId)
-    , dtrack_status :: !Status
-    , dtrack_event_brightness :: !Double
+    { dtracklikeId :: !TracklikeId
+    , dtrackWidth :: !Types.Width
+    , dtrackMerged :: !(Set TrackId)
+    , dtrackStatus :: !Status
+    , dtrackEventBrightness :: !Double
     } deriving (Eq, Show)
 
 instance Pretty DisplayTrack where
-    format (DisplayTrack tlike_id width merged status _bright) =
+    format (DisplayTrack tlikeId width merged status _bright) =
         Pretty.record "DisplayTrack"
-            [ ("tracklike_id", Pretty.format tlike_id)
+            [ ("tracklike_id", Pretty.format tlikeId)
             , ("width", Pretty.format width)
             , ("merged", Pretty.format merged)
             , ("status", Pretty.format status)
@@ -408,8 +408,8 @@ data Status = Status !String !Color.Color
 
 instance Pretty Status where pretty (Status cs color) = pretty (cs, color)
 
-empty_status :: Status
-empty_status = Status "" Color.black
+emptyStatus :: Status
+emptyStatus = Status "" Color.black
 
 -- | Most of these only make sense for event tracks.
 data TrackFlag
@@ -431,12 +431,12 @@ data TrackFlag
 instance Pretty TrackFlag where pretty = showt
 
 -- | Convert logical block level tracks to display tracks.
-block_display_tracks :: Block -> [DisplayTrack]
-block_display_tracks = join_collapsed . map display_track . block_tracks
+blockDisplayTracks :: Block -> [DisplayTrack]
+blockDisplayTracks = joinCollapsed . map displayTrack . blockTracks
 
 -- | Merge consecutive collapsed tracks.
-join_collapsed :: [DisplayTrack] -> [DisplayTrack]
-join_collapsed = id
+joinCollapsed :: [DisplayTrack] -> [DisplayTrack]
+joinCollapsed = id
 -- TODO I tried this and it looks nice but I'd need to also eliminate the
 -- tracks from a Block.display_skeleton and Block.display_integrate_skeleton
 -- and I'm not sure it's worth it.
@@ -445,57 +445,57 @@ join_collapsed = id
 
 -- | This is not exported so callers are forced to go through
 -- 'block_display_tracks'.
-display_track :: Track -> DisplayTrack
-display_track track
-    | has_flag Merge = merged_track
-    | has_flag Collapse = collapsed_track
+displayTrack :: Track -> DisplayTrack
+displayTrack track
+    | hasFlag Merge = mergedTrack
+    | hasFlag Collapse = collapsedTrack
     | otherwise = DisplayTrack
-        { dtracklike_id = tracklike_id track
-        , dtrack_width = track_width track
-        , dtrack_merged = track_merged track
-        , dtrack_status = status
-        , dtrack_event_brightness = brightness
+        { dtracklikeId = tracklikeId track
+        , dtrackWidth = trackWidth track
+        , dtrackMerged = trackMerged track
+        , dtrackStatus = status
+        , dtrackEventBrightness = brightness
         }
     where
-    (status, brightness) = flags_to_status (track_flags track)
-    has_flag flag = Set.member flag (track_flags track)
+    (status, brightness) = flagsToStatus (trackFlags track)
+    hasFlag flag = Set.member flag (trackFlags track)
 
 -- | Collapsed tracks are replaced with a divider.
-collapsed_track :: DisplayTrack
-collapsed_track = DisplayTrack
-    { dtracklike_id = DId $ Divider $
-        Color.brightness 0.5 Config.abbreviation_color
-    , dtrack_width = Config.collapsed_width -- TODO maybe a bit wider?
-    , dtrack_merged = mempty
-    , dtrack_status = empty_status
-    , dtrack_event_brightness = 1
+collapsedTrack :: DisplayTrack
+collapsedTrack = DisplayTrack
+    { dtracklikeId = DId $ Divider $
+        Color.brightness 0.5 Config.abbreviationColor
+    , dtrackWidth = Config.collapsedWidth -- TODO maybe a bit wider?
+    , dtrackMerged = mempty
+    , dtrackStatus = emptyStatus
+    , dtrackEventBrightness = 1
     }
 
-merged_track :: DisplayTrack
-merged_track = DisplayTrack
-    { dtracklike_id = DId (Divider Config.abbreviation_color)
-    , dtrack_width = Config.collapsed_width
-    , dtrack_merged = mempty
-    , dtrack_status = empty_status
-    , dtrack_event_brightness = 1
+mergedTrack :: DisplayTrack
+mergedTrack = DisplayTrack
+    { dtracklikeId = DId (Divider Config.abbreviationColor)
+    , dtrackWidth = Config.collapsedWidth
+    , dtrackMerged = mempty
+    , dtrackStatus = emptyStatus
+    , dtrackEventBrightness = 1
     }
 
-display_track_width :: Track -> Types.Width
-display_track_width = dtrack_width . display_track
+displayTrackWidth :: Track -> Types.Width
+displayTrackWidth = dtrackWidth . displayTrack
 
-flags_to_status :: Set TrackFlag -> (Status, Double)
-flags_to_status flags
+flagsToStatus :: Set TrackFlag -> (Status, Double)
+flagsToStatus flags
     | Disable `Set.member` flags =
-        (Status (chars Disable) Config.mute_color, 0.7)
-    | Solo `Set.member` flags = (Status (chars Solo) Config.solo_color, 1)
-    | Mute `Set.member` flags = (Status (chars Mute) Config.mute_color, 0.85)
-    | otherwise = (empty_status, 1)
+        (Status (chars Disable) Config.muteColor, 0.7)
+    | Solo `Set.member` flags = (Status (chars Solo) Config.soloColor, 1)
+    | Mute `Set.member` flags = (Status (chars Mute) Config.muteColor, 0.85)
+    | otherwise = (emptyStatus, 1)
     where
-    chars flag = filter (/=' ') $ flag_char flag
-        : map (Char.toLower . flag_char) (Set.toList (Set.delete flag flags))
+    chars flag = filter (/=' ') $ flagChar flag
+        : map (Char.toLower . flagChar) (Set.toList (Set.delete flag flags))
 
-flag_char :: TrackFlag -> Char
-flag_char status = case status of
+flagChar :: TrackFlag -> Char
+flagChar status = case status of
     Disable -> 'D'
     Solo -> 'S'
     Mute -> 'M'
@@ -510,30 +510,30 @@ data TracklikeId
     deriving (Eq, Ord, Show)
 
 instance Pretty TracklikeId where
-    pretty tlike_id = case tlike_id of
+    pretty tlikeId = case tlikeId of
         TId tid rid -> pretty tid <> "/" <> pretty rid
         RId rid -> pretty rid
         DId divider -> showt divider
 
-track_id_of :: TracklikeId -> Maybe TrackId
-track_id_of (TId tid _) = Just tid
-track_id_of _ = Nothing
+trackIdOf :: TracklikeId -> Maybe TrackId
+trackIdOf (TId tid _) = Just tid
+trackIdOf _ = Nothing
 
-track_ids_of :: [TracklikeId] -> [TrackId]
-track_ids_of = mapMaybe track_id_of
+trackIdsOf :: [TracklikeId] -> [TrackId]
+trackIdsOf = mapMaybe trackIdOf
 
-ruler_id_of :: TracklikeId -> Maybe RulerId
-ruler_id_of (TId _ rid) = Just rid
-ruler_id_of (RId rid) = Just rid
-ruler_id_of _ = Nothing
+rulerIdOf :: TracklikeId -> Maybe RulerId
+rulerIdOf (TId _ rid) = Just rid
+rulerIdOf (RId rid) = Just rid
+rulerIdOf _ = Nothing
 
-ruler_ids_of :: [TracklikeId] -> [RulerId]
-ruler_ids_of = mapMaybe ruler_id_of
+rulerIdsOf :: [TracklikeId] -> [RulerId]
+rulerIdsOf = mapMaybe rulerIdOf
 
-set_ruler_id :: RulerId -> TracklikeId -> TracklikeId
-set_ruler_id rid (TId tid _) = TId tid rid
-set_ruler_id rid (RId _) = RId rid
-set_ruler_id _ t = t
+setRulerId :: RulerId -> TracklikeId -> TracklikeId
+setRulerId rid (TId tid _) = TId tid rid
+setRulerId rid (RId _) = RId rid
+setRulerId _ t = t
 
 data Tracklike
     = T Track.Track Ruler.Ruler
@@ -541,20 +541,20 @@ data Tracklike
     | D Divider
     deriving (Show)
 
-track_of :: Tracklike -> Maybe Track.Track
-track_of (T track _) = Just track
-track_of _ = Nothing
+trackOf :: Tracklike -> Maybe Track.Track
+trackOf (T track _) = Just track
+trackOf _ = Nothing
 
-tracks_of :: [Tracklike] -> [Track.Track]
-tracks_of = mapMaybe track_of
+tracksOf :: [Tracklike] -> [Track.Track]
+tracksOf = mapMaybe trackOf
 
-ruler_of :: Tracklike -> Maybe Ruler.Ruler
-ruler_of (T _ ruler) = Just ruler
-ruler_of (R ruler) = Just ruler
-ruler_of _ = Nothing
+rulerOf :: Tracklike -> Maybe Ruler.Ruler
+rulerOf (T _ ruler) = Just ruler
+rulerOf (R ruler) = Just ruler
+rulerOf _ = Nothing
 
-rulers_of :: [Tracklike] -> [Ruler.Ruler]
-rulers_of = mapMaybe ruler_of
+rulersOf :: [Tracklike] -> [Ruler.Ruler]
+rulersOf = mapMaybe rulerOf
 
 -- | A divider separating tracks.  Defined here in Block since it's so trivial.
 newtype Divider = Divider Color.Color deriving (Eq, Ord, Show)
@@ -565,16 +565,16 @@ newtype Divider = Divider Color.Color deriving (Eq, Ord, Show)
 -- is closed.
 data View = View
     -- | view_block should never change.
-    { view_block :: !BlockId
-    , view_rect :: !Rect.Rect
-    , view_padding :: !Padding
+    { viewBlock :: !BlockId
+    , viewRect :: !Rect.Rect
+    , viewPadding :: !Padding
     -- | Contents of the status line.  Map (sort_order, name) contents.  This
     -- is formatted with 'show_status' and goes in the bar at the bottom of the
     -- window.
-    , view_status :: !(Map (Int, Text) Text)
-    , view_track_scroll :: !Types.Width
-    , view_zoom :: !Zoom.Zoom
-    , view_selections :: !(Map Sel.Num Sel.Selection)
+    , viewStatus :: !(Map (Int, Text) Text)
+    , viewTrackScroll :: !Types.Width
+    , viewZoom :: !Zoom.Zoom
+    , viewSelections :: !(Map Sel.Num Sel.Selection)
     } deriving (Eq, Ord, Show)
 
 instance Pretty View where
@@ -597,16 +597,16 @@ instance DeepSeq.NFData View where
 -- Don't construct views using View directly since 'State.create_view'
 -- overwrites view_tracks, and maybe more in the future.
 view :: Block -> BlockId -> Rect.Rect -> Zoom.Zoom -> View
-view block block_id rect zoom = View
-    { view_block = block_id
-    , view_rect = rect
+view block blockId rect zoom = View
+    { viewBlock = blockId
+    , viewRect = rect
     -- These will be filled in when the new view emits its initial resize msg,
     -- but it should start off with the defaults.
-    , view_padding = default_padding block
-    , view_status = Map.empty
-    , view_track_scroll = 0
-    , view_zoom = zoom
-    , view_selections = Map.empty
+    , viewPadding = defaultPadding block
+    , viewStatus = Map.empty
+    , viewTrackScroll = 0
+    , viewZoom = zoom
+    , viewSelections = Map.empty
     }
 
 -- | Pixel width and height of stuff in the view that is not the track area,
@@ -626,40 +626,40 @@ data Padding = Padding
 instance Pretty Padding where
     pretty (Padding left top bottom) = pretty (left, top, bottom)
 
-default_padding :: Block -> Padding
-default_padding block = Padding
-    { left = Config.view_left_padding
-    , top = Config.view_top_padding
-        + if Text.null (block_title block) then 0 else Config.block_title_height
-    , bottom = Config.view_bottom_padding
+defaultPadding :: Block -> Padding
+defaultPadding block = Padding
+    { left = Config.viewLeftPadding
+    , top = Config.viewTopPadding
+        + if Text.null (blockTitle block) then 0 else Config.blockTitleHeight
+    , bottom = Config.viewBottomPadding
     }
 
 -- | Figure out what color the background of the status line should be.
-status_color :: BlockId -> Block -> Maybe BlockId -> Color.Color
-status_color block_id block maybe_root_id
-    | Just block_id == maybe_root_id = Config.status_root
-    | Just (_, dests) <- block_integrated block = case dests of
-        DeriveDestinations {} -> Config.status_integrate_destination
-        ScoreDestinations {} -> Config.status_score_integrate_destination
-    | otherwise = Config.status_default
+statusColor :: BlockId -> Block -> Maybe BlockId -> Color.Color
+statusColor blockId block maybeRootId
+    | Just blockId == maybeRootId = Config.statusRoot
+    | Just (_, dests) <- blockIntegrated block = case dests of
+        DeriveDestinations {} -> Config.statusIntegrateDestination
+        ScoreDestinations {} -> Config.statusScoreIntegrateDestination
+    | otherwise = Config.statusDefault
 
-show_status :: Map (Int, Text) Text -> Text
-show_status = Text.intercalate " | " . map snd . Map.toAscList
+showStatus :: Map (Int, Text) Text -> Text
+showStatus = Text.intercalate " | " . map snd . Map.toAscList
     -- I used to display the keys, but they take up too much space, so now
     -- I just use them for sorting.
 
 -- | Return how much track is in view.
-visible_time :: View -> TrackTime
-visible_time view = Zoom.to_time (view_zoom view) (view_visible_time view)
+visibleTime :: View -> TrackTime
+visibleTime view = Zoom.toTime (viewZoom view) (viewVisibleTime view)
 
-visible_track :: View -> Types.Width
-visible_track = view_visible_track
+visibleTrack :: View -> Types.Width
+visibleTrack = viewVisibleTrack
 
 -- | Get the rect of the track area within the view.  This is used with
 -- 'set_track_rect' to set the size of the visible track area, minus the
 -- extra GUI bits around it.
-track_rect :: View -> Rect.Rect
-track_rect (View { view_rect = rect, view_padding = padding }) = Rect.Rect
+trackRect :: View -> Rect.Rect
+trackRect (View { viewRect = rect, viewPadding = padding }) = Rect.Rect
     { x = Rect.x rect + left padding
     , y = Rect.y rect + top padding
     , w = Rect.w rect - left padding
@@ -668,21 +668,21 @@ track_rect (View { view_rect = rect, view_padding = padding }) = Rect.Rect
 
 -- | The inverse of 'track_rect'  Use this to set the track area area to
 -- a certain size.
-set_track_rect :: View -> Rect.Rect -> Rect.Rect
-set_track_rect (View { view_padding = padding }) rect = Rect.Rect
+setTrackRect :: View -> Rect.Rect -> Rect.Rect
+setTrackRect (View { viewPadding = padding }) rect = Rect.Rect
     { x = Rect.x rect - left padding
     , y = Rect.y rect - top padding
     , w = Rect.w rect + left padding
     , h = Rect.h rect + top padding + bottom padding
     }
 
-view_visible_track, view_visible_time :: View -> Int
-view_visible_track view = Rect.w (view_rect view) - left (view_padding view)
-view_visible_time view = Rect.h (view_rect view) - top padding - bottom padding
-    where padding = view_padding view
+viewVisibleTrack, viewVisibleTime :: View -> Int
+viewVisibleTrack view = Rect.w (viewRect view) - left (viewPadding view)
+viewVisibleTime view = Rect.h (viewRect view) - top padding - bottom padding
+    where padding = viewPadding view
 
 -- | Y coordinate of the given TrackTime.
-screen_pixels :: View -> TrackTime -> Int
-screen_pixels view t =
-    Zoom.to_pixels (view_zoom view) (t - Zoom.offset (view_zoom view))
-    + top (view_padding view) + Rect.y (view_rect view)
+screenPixels :: View -> TrackTime -> Int
+screenPixels view t =
+    Zoom.toPixels (viewZoom view) (t - Zoom.offset (viewZoom view))
+    + top (viewPadding view) + Rect.y (viewRect view)

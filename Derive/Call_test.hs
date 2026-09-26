@@ -24,16 +24,16 @@ import           Util.Test
 
 test_random :: Test
 test_random = do
-    let f seed = DeriveTest.extract extract $ DeriveTest.derive_blocks
+    let f seed = DeriveTest.extract extract $ DeriveTest.deriveBlocks
             [ ("top", [(">", [(0, 1, seed <> "b"), (1, 1, seed <> "b")])])
             , ("b", [(">", [(0, 1, "")]), ("c", [(0, 0, "set (range)")])])
             ]
-        extract = DeriveTest.e_control "c"
+        extract = DeriveTest.eControl "c"
 
     -- Different calls to the same block are differently random.
     let ([[(_, v1)], [(_, v2)]], logs) = f ""
     equal logs []
-    not_equal v1 v2
+    notEqual v1 v2
 
     -- Unless overridden.  Note that the seed is set after the difference in
     -- position, so these calls should be the same.
@@ -44,23 +44,23 @@ test_random = do
 test_random_freeze_seed :: Test
 test_random_freeze_seed = do
     -- Query the seed, then hardcode it, then the call is no longer random.
-    let f call = extract $ DeriveTest.derive_blocks
+    let f call = extract $ DeriveTest.deriveBlocks
             [ ("top", [(">", [call])])
             , ("b", [(">", [(0, 1, "")]), ("c", [(0, 0, "set (range)")])])
             ]
         extract r =
             ( fromMaybe (error "no seed") $
-                maybe (error "no trackdyn") env_seed $
-                e_env (UiTest.bid "b") 1 r
+                maybe (error "no trackdyn") envSeed $
+                eEnv (UiTest.bid "b") 1 r
             , first head $ DeriveTest.extract
-                (\e -> (DeriveTest.e_control "c" e, Score.event_stack e)) r
+                (\e -> (DeriveTest.eControl "c" e, Score.eventStack e)) r
             )
 
     -- Moving the event changes the value.
     let (seed0, (([(0, val0)], _st0), [])) = f (0, 1, "b")
     let (seed1, (([(1, val1)], _st1), [])) = f (1, 1, "b")
-    not_equal val0 val1
-    not_equal seed0 seed1
+    notEqual val0 val1
+    notEqual seed0 seed1
 
     -- To freeze a random value, get the seed with log-seed, and hardcode it:
     -- pprint $ snd $ snd (f (0, 1, "log-seed | b"))
@@ -76,21 +76,21 @@ test_random_freeze_seed = do
     let (_, (([(1, val1)], _st1), [])) = f (1, 1, "seed=42 | b")
     equal val0 val1
 
-env_seed :: DeriveT.Environ -> Maybe Int
-env_seed = Env.maybe_val EnvKey.seed
+envSeed :: DeriveT.Environ -> Maybe Int
+envSeed = Env.maybeVal EnvKey.seed
 
-e_env :: BlockId -> TrackNum -> Derive.Result -> Maybe DeriveT.Environ
-e_env block_id tracknum =
-    fmap Derive.state_environ
-    . Map.lookup (block_id, UiTest.mk_tid_block block_id tracknum)
-    . Derive.r_track_dynamic
+eEnv :: BlockId -> TrackNum -> Derive.Result -> Maybe DeriveT.Environ
+eEnv blockId tracknum =
+    fmap Derive.stateEnviron
+    . Map.lookup (blockId, UiTest.mkTidBlock blockId tracknum)
+    . Derive.rTrackDynamic
 
 test_randoms_in :: Test
 test_randoms_in = do
-    let run seed = expect_right . DeriveTest.eval Ui.empty
-            . Derive.with_val EnvKey.seed (seed :: Int)
+    let run seed = expectRight . DeriveTest.eval Ui.empty
+            . Derive.withVal EnvKey.seed (seed :: Int)
         randoms seed low high = take 4 $
-            run seed (Call.randoms_in low high)
+            run seed (Call.randomsIn low high)
     let double :: Int -> Double -> Double -> [Double]
         double = randoms
         int :: Int -> Int -> Int -> [Int]
@@ -103,7 +103,7 @@ test_randoms_in = do
 
 test_pick_weighted :: Test
 test_pick_weighted = do
-    let f weights = Call.pick_weighted
+    let f weights = Call.pickWeighted
             (NonEmpty.fromList (zip weights ("abcdef" :: [Char])))
     equal (map (f [1, 3]) [0, 0.25, 0.5, 0.75]) "abbb"
     equal (map (f [3, 1]) [0, 0.25, 0.5, 0.75]) "aaab"

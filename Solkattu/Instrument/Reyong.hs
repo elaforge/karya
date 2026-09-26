@@ -33,7 +33,7 @@ instance Solkattu.Notation Stroke where
 instance Pretty Stroke where pretty = Solkattu.notationText
 
 instance Expr.ToExpr Stroke where
-    to_expr s = case s of
+    toExpr s = case s of
         N1 -> "n1"
         N2 -> "n2"
         N3 -> "n3"
@@ -44,7 +44,7 @@ instance Expr.ToExpr Stroke where
         CekC -> "X"
         CekO -> "/"
 
-instance Expr.ToExpr (Realize.Stroke Stroke) where to_expr = Realize.toExpr
+instance Expr.ToExpr (Realize.Stroke Stroke) where toExpr = Realize.toExpr
 
 instance Solkattu.Abbreviations Stroke where
     abbreviations = const Nothing

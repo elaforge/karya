@@ -57,10 +57,10 @@ split2 k fm = (pre, post')
 -- | Split the map into the maps below, within, and above the given range.
 -- @low@ to @high@ is half-open, as usual.
 split3 :: Ord k => k -> k -> Map k a -> (Map k a, Map k a, Map k a)
-split3 low high fm = (below, within, way_above)
+split3 low high fm = (below, within, wayAbove)
     where
     (below, above) = split2 low fm
-    (within, way_above) = split2 high above
+    (within, wayAbove) = split2 high above
 
 -- | Return the subset of the map that is between a half-open low and high key.
 within :: Ord k => k -> k -> Map k a -> Map k a

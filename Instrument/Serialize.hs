@@ -13,7 +13,7 @@ import qualified Data.Map as Map
 import qualified Data.Time as Time
 
 import qualified Util.Serialize as Serialize
-import Util.Serialize (Serialize, get, put, get_tag, put_tag, bad_tag)
+import Util.Serialize (Serialize, get, put, getTag, putTag, badTag)
 import Midi.Instances ()
 import Cmd.Serialize ()
 import qualified Perform.Midi.Patch as Patch
@@ -25,14 +25,14 @@ import Global
 
 -- | Serialize instrument definitions to a file.
 serialize :: FilePath -> InstrumentDb -> IO ()
-serialize fn = void . Serialize.serialize instrument_db_magic fn
+serialize fn = void . Serialize.serialize instrumentDbMagic fn
 
 -- | Unserialize instrument definitions.
 unserialize :: FilePath -> IO (Either Serialize.UnserializeError InstrumentDb)
-unserialize = Serialize.unserialize instrument_db_magic
+unserialize = Serialize.unserialize instrumentDbMagic
 
-instrument_db_magic :: Serialize.Magic InstrumentDb
-instrument_db_magic = Serialize.Magic 'i' 'n' 's' 't'
+instrumentDbMagic :: Serialize.Magic InstrumentDb
+instrumentDbMagic = Serialize.Magic 'i' 'n' 's' 't'
 
 -- | Time serialized, patches.
 data InstrumentDb = InstrumentDb
@@ -59,38 +59,38 @@ instance Serialize Patch.Patch where
     get = Patch.Patch <$> get <*> get <*> get <*> get <*> get <*> get
 
 instance Serialize Patch.InitializePatch where
-    put (Patch.InitializeMidi a) = put_tag 0 >> put a
-    put (Patch.InitializeMessage a) = put_tag 1 >> put a
-    put Patch.NoInitialization = put_tag 2
+    put (Patch.InitializeMidi a) = putTag 0 >> put a
+    put (Patch.InitializeMessage a) = putTag 1 >> put a
+    put Patch.NoInitialization = putTag 2
     get = do
-        tag <- get_tag
+        tag <- getTag
         case tag of
             0 -> get >>= \a -> pure (Patch.InitializeMidi a)
             1 -> get >>= \a -> pure (Patch.InitializeMessage a)
             2 -> pure Patch.NoInitialization
-            _ -> bad_tag "Patch.InitializePatch" tag
+            _ -> badTag "Patch.InitializePatch" tag
 
 instance Serialize Patch.Keymap where
-    put (Patch.UnpitchedKeymap a) = put_tag 0 >> put a
-    put (Patch.PitchedKeymap a b c) = put_tag 1 >> put a >> put b >> put c
+    put (Patch.UnpitchedKeymap a) = putTag 0 >> put a
+    put (Patch.PitchedKeymap a b c) = putTag 1 >> put a >> put b >> put c
     get = do
-        tag <- get_tag
+        tag <- getTag
         case tag of
             0 -> Patch.UnpitchedKeymap <$> get
             1 -> Patch.PitchedKeymap <$> get <*> get <*> get
-            _ -> bad_tag "Patch.Keymap" tag
+            _ -> badTag "Patch.Keymap" tag
 
 instance Serialize Patch.Keyswitch where
-    put (Patch.Keyswitch a) = put_tag 0 >> put a
-    put (Patch.ControlSwitch a b) = put_tag 1 >> put a >> put b
-    put (Patch.Aftertouch a) = put_tag 2 >> put a
+    put (Patch.Keyswitch a) = putTag 0 >> put a
+    put (Patch.ControlSwitch a b) = putTag 1 >> put a >> put b
+    put (Patch.Aftertouch a) = putTag 2 >> put a
     get = do
-        tag <- get_tag
+        tag <- getTag
         case tag of
             0 -> Patch.Keyswitch <$> get
             1 -> Patch.ControlSwitch <$> get <*> get
             2 -> Patch.Aftertouch <$> get
-            _ -> bad_tag "Patch.Keyswitch" tag
+            _ -> badTag "Patch.Keyswitch" tag
 
 -- Define it here rather than in Patch, or else it doesn't see the Keyswitch
 -- instance.

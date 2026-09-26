@@ -11,4 +11,4 @@ synth :: MidiInst.Synth
 synth = MidiInst.synth "morphine" "Image-Line Morphine" patches
 
 patches :: [MidiInst.Patch]
-patches = [MidiInst.default_patch (-12, 12) []]
+patches = [MidiInst.defaultPatch (-12, 12) []]

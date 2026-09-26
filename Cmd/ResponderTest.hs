@@ -12,15 +12,15 @@
 module Cmd.ResponderTest (
     -- * States
     States
-    , mkstates, mkstates_blocks, mk_cmd_state
+    , mkstates, mkstatesBlocks, mkCmdState
     -- * Result
-    , Result(..), Seconds, print_results, result_states, result_ui_state
-    , result_cmd_state
-    , result_perf
+    , Result(..), Seconds, printResults, resultStates, resultUiState
+    , resultCmdState
+    , resultPerf
     -- * run
-    , respond_cmd
-    , respond_all, continue_all
-    , thread, thread_delay
+    , respondCmd
+    , respondAll, continueAll
+    , thread, threadDelay
 ) where
 import qualified Control.Concurrent.Chan as Chan
 import qualified Control.Concurrent.MVar as MVar
@@ -72,96 +72,96 @@ type States = (Ui.State, Cmd.State)
 -- | Make a UI state with one block with the given tracks, and a standard cmd
 -- state.
 mkstates :: [UiTest.TrackSpec] -> States
-mkstates tracks = mkstates_blocks [(UiTest.default_block_name, tracks)]
+mkstates tracks = mkstatesBlocks [(UiTest.defaultBlockName, tracks)]
 
-mkstates_blocks :: [UiTest.BlockSpec] -> (Ui.State, Cmd.State)
-mkstates_blocks blocks =
-    (ui_state, mk_cmd_state ui_state UiTest.default_view_id)
+mkstatesBlocks :: [UiTest.BlockSpec] -> (Ui.State, Cmd.State)
+mkstatesBlocks blocks =
+    (uiState, mkCmdState uiState UiTest.defaultViewId)
     where
-    ui_state = UiTest.exec Ui.empty $ do
-        root_id : _ <- UiTest.mkblocks blocks
-        view_id <- UiTest.mkview root_id
-        Ui.set_selection view_id Config.insert_selnum $
+    uiState = UiTest.exec Ui.empty $ do
+        rootId : _ <- UiTest.mkblocks blocks
+        viewId <- UiTest.mkview rootId
+        Ui.setSelection viewId Config.insertSelnum $
             Just $ Sel.Selection
-                { start_track = 1, start_pos = 0
-                , cur_track = 1, cur_pos = 0
+                { startTrack = 1, startPos = 0
+                , curTrack = 1, curPos = 0
                 , orientation = Sel.Positive
                 }
 
 -- | Many cmds rely on a focused view, and it's easy to forget to add it, so
 -- make it mandatory.
-mk_cmd_state :: Ui.State -> ViewId -> Cmd.State
-mk_cmd_state ui_state view_id = CmdTest.default_cmd_state
-    { Cmd.state_focused_view = Just view_id
+mkCmdState :: Ui.State -> ViewId -> Cmd.State
+mkCmdState uiState viewId = CmdTest.defaultCmdState
+    { Cmd.stateFocusedView = Just viewId
     -- Normally this is created by the setup cmd, so pretend I did one.
-    , Cmd.state_history = Cmd.History [] present [] Nothing
+    , Cmd.stateHistory = Cmd.History [] present [] Nothing
     }
-    where present = Cmd.HistoryEntry ui_state mempty ["setup"] Nothing
+    where present = Cmd.HistoryEntry uiState mempty ["setup"] Nothing
 
 
 -- * result
 
 data Result = Result
     -- | Msg that gave rise to this Result.
-    { result_msg :: Msg.Msg
+    { resultMsg :: Msg.Msg
     -- | In CmdTest, Result has MIDI from the thru mechanism, and updates
     -- collected during the event.  But responder tests scope over the entire
     -- respond cycle, so MIDI potentially also includes play output and
     -- updates include diff output.
-    , result_cmd :: CmdTest.Result Cmd.Status
+    , resultCmd :: CmdTest.Result Cmd.Status
     -- | These are the updates emitted to the UI.  The CmdTest.Result updates
     -- are those collected during the cmd.
-    , result_updates :: [Update.DisplayUpdate]
-    , result_loopback :: Chan.Chan Msg.Msg
+    , resultUpdates :: [Update.DisplayUpdate]
+    , resultLoopback :: Chan.Chan Msg.Msg
     -- | CPU seconds it took for this Result to come back.  This doesn't
     -- include waiting for the Msg.
-    , result_time :: Seconds
-    , result_logs :: [Log.Msg]
+    , resultTime :: Seconds
+    , resultLogs :: [Log.Msg]
     }
 
 type Seconds = Double
 
 instance Pretty Result where
-    format result = Pretty.format (result_msg result) <> " -> "
-        <> Pretty.format (CmdTest.result_logs (result_cmd result))
+    format result = Pretty.format (resultMsg result) <> " -> "
+        <> Pretty.format (CmdTest.resultLogs (resultCmd result))
 
 -- | Print Results and anything interesting in them.
-print_results :: [Result] -> IO ()
-print_results = mapM_ $ \result -> do
-    Pretty.pprint (result_msg result)
-    case result_msg result of
+printResults :: [Result] -> IO ()
+printResults = mapM_ $ \result -> do
+    Pretty.pprint (resultMsg result)
+    case resultMsg result of
         Msg.DeriveStatus _ (Msg.DeriveComplete perf _) ->
-            mapM_ Pretty.pprint (Cmd.perf_logs perf)
+            mapM_ Pretty.pprint (Cmd.perfLogs perf)
         _ -> pure ()
-    let logs = CmdTest.result_logs (result_cmd result)
+    let logs = CmdTest.resultLogs (resultCmd result)
     unless (null logs) $ do
         putStrLn "\tcmd logs:"
         mapM_ Pretty.pprint logs
 
-result_states :: Result -> States
-result_states r = (result_ui_state r, result_cmd_state r)
+resultStates :: Result -> States
+resultStates r = (resultUiState r, resultCmdState r)
 
-result_cmd_state :: Result -> Cmd.State
-result_cmd_state = CmdTest.result_cmd_state . result_cmd
+resultCmdState :: Result -> Cmd.State
+resultCmdState = CmdTest.resultCmdState . resultCmd
 
-result_ui_state :: Result -> Ui.State
-result_ui_state = CmdTest.result_ui_state . result_cmd
+resultUiState :: Result -> Ui.State
+resultUiState = CmdTest.resultUiState . resultCmd
 
 -- | Wait for a DeriveComplete and get the performance from it.
 --
 -- This is error-prone because if you call this on a Result that didn't
 -- regenerate the performance this will hang until 'read_msg' gives up.
-result_perf :: Result -> IO (BlockId, Cmd.Performance)
-result_perf = get_perf . result_loopback
+resultPerf :: Result -> IO (BlockId, Cmd.Performance)
+resultPerf = getPerf . resultLoopback
 
-get_perf :: Chan.Chan Msg.Msg -> IO (BlockId, Cmd.Performance)
-get_perf chan = do
-    msg <- read_msg 3 chan
+getPerf :: Chan.Chan Msg.Msg -> IO (BlockId, Cmd.Performance)
+getPerf chan = do
+    msg <- readMsg 3 chan
     case msg of
         Nothing -> errorIO "get_perf: time out reading chan"
-        Just (Msg.DeriveStatus block_id (Msg.DeriveComplete perf _)) ->
-            pure (block_id, perf)
-        Just _ -> get_perf chan
+        Just (Msg.DeriveStatus blockId (Msg.DeriveComplete perf _)) ->
+            pure (blockId, perf)
+        Just _ -> getPerf chan
 
 -- | Continue feeding loopback msgs into the responder until I see
 -- DeriveCompletes for all the blocks I expect to derive.
@@ -173,92 +173,92 @@ get_perf chan = do
 --
 -- It's dangerous to look for a particular DeriveComplete because the order
 -- in which derive threads complete is non-deterministic.
-respond_all :: [BlockId] -- ^ subtract from the expected derivation set
+respondAll :: [BlockId] -- ^ subtract from the expected derivation set
     -> Thread.Seconds -> States -> Cmd.CmdT IO a -> IO [Result]
-respond_all blocks_gone timeout states cmd = do
+respondAll blocksGone timeout states cmd = do
     putStrLn "---------- new cmd"
-    result <- respond_cmd states cmd
-    (result:) <$> continue_all blocks_gone timeout result
+    result <- respondCmd states cmd
+    (result:) <$> continueAll blocksGone timeout result
 
 -- | Like 'respond_all', continue until all expected derivations are seen.
-continue_all :: [BlockId] -- ^ subtract from the expected derivation set
+continueAll :: [BlockId] -- ^ subtract from the expected derivation set
     -> Thread.Seconds -> Result -> IO [Result]
-continue_all blocks_gone timeout prev_result =
-    go Set.empty (result_states prev_result)
+continueAll blocksGone timeout prevResult =
+    go Set.empty (resultStates prevResult)
     where
-    loopback = result_loopback prev_result
-    expected_blocks = Performance.derive_blocks (result_ui_state prev_result)
-        `Set.difference` Set.fromList blocks_gone
-    go complete_blocks states
-        | complete_blocks == expected_blocks = pure []
+    loopback = resultLoopback prevResult
+    expectedBlocks = Performance.deriveBlocks (resultUiState prevResult)
+        `Set.difference` Set.fromList blocksGone
+    go completeBlocks states
+        | completeBlocks == expectedBlocks = pure []
         | otherwise = do
-            maybe_msg <- read_msg timeout loopback
-            Log.with_stdio_lock $ Text.IO.putStrLn $
-                "ResponderTest.continue: " <> case maybe_msg of
+            maybeMsg <- readMsg timeout loopback
+            Log.withStdioLock $ Text.IO.putStrLn $
+                "ResponderTest.continue: " <> case maybeMsg of
                     Nothing -> "timed out, waiting for "
-                        <> pretty expected_blocks <> ", only got "
-                        <> pretty complete_blocks
+                        <> pretty expectedBlocks <> ", only got "
+                        <> pretty completeBlocks
                     Just msg -> pretty msg
-            case maybe_msg of
+            case maybeMsg of
                 Nothing -> pure []
                 Just msg -> do
                     result <- respond1 (Just loopback) states Nothing msg
                     let completed = maybe id Set.insert (complete msg)
-                            complete_blocks
-                    (result:) <$> go completed (result_states result)
-    complete (Msg.DeriveStatus block_id (Msg.DeriveComplete {})) = Just block_id
+                            completeBlocks
+                    (result:) <$> go completed (resultStates result)
+    complete (Msg.DeriveStatus blockId (Msg.DeriveComplete {})) = Just blockId
     complete _ = Nothing
 
-read_msg :: Thread.Seconds -> Chan.Chan Msg.Msg -> IO (Maybe Msg.Msg)
-read_msg timeout chan = do
+readMsg :: Thread.Seconds -> Chan.Chan Msg.Msg -> IO (Maybe Msg.Msg)
+readMsg timeout chan = do
     ci <- maybe False (not . null) <$> Environment.lookupEnv "CI_DONT_TIMEOUT"
     (if ci then fmap Just else Thread.timeout timeout) $ Chan.readChan chan
 
 -- * thread
 
 thread :: Bool -> States -> [Msg.Msg] -> IO [Result]
-thread print_timing states msgs =
-    thread_delay print_timing states [(m, 0) | m <- msgs]
+thread printTiming states msgs =
+    threadDelay printTiming states [(m, 0) | m <- msgs]
 
-thread_delay :: Bool -> States -> [(Msg.Msg, Thread.Seconds)] -> IO [Result]
-thread_delay _ _ [] = pure []
-thread_delay print_timing states ((msg, delay) : msgs) = do
+threadDelay :: Bool -> States -> [(Msg.Msg, Thread.Seconds)] -> IO [Result]
+threadDelay _ _ [] = pure []
+threadDelay printTiming states ((msg, delay) : msgs) = do
     Printf.printf "thread msg: %s\n" (prettys msg)
-    result <- respond_msg states msg
-    when print_timing $
-        Printf.printf "%s -> lag: %.2fs\n" (prettys msg) (result_time result)
+    result <- respondMsg states msg
+    when printTiming $
+        Printf.printf "%s -> lag: %.2fs\n" (prettys msg) (resultTime result)
     Thread.delay delay
-    (result:) <$> thread_delay print_timing (result_states result) msgs
+    (result:) <$> threadDelay printTiming (resultStates result) msgs
 
 -- * respond_cmd
 
-configure_logging :: IORef.IORef [Log.Msg] -> IO ()
-configure_logging logs_ref = do
+configureLogging :: IORef.IORef [Log.Msg] -> IO ()
+configureLogging logsRef = do
     Log.configure $ \state -> state
-        { Log.state_write_msg = \msg -> do
-            IORef.modifyIORef' logs_ref (msg:)
-            Log.write_formatted IO.stdout msg
+        { Log.stateWriteMsg = \msg -> do
+            IORef.modifyIORef' logsRef (msg:)
+            Log.writeFormatted IO.stdout msg
         -- Otherwise the status updates get spammy.
-        , Log.state_priority = Log.Notice
+        , Log.statePriority = Log.Notice
         }
     pure ()
 
 -- | Respond to a single Cmd.  This can be used to test cmds in the full
 -- responder context without having to fiddle around with keymaps.
-respond_cmd :: States -> Cmd.CmdT IO a -> IO Result
-respond_cmd states cmd = respond1 Nothing states (Just (mkcmd cmd)) magic
+respondCmd :: States -> Cmd.CmdT IO a -> IO Result
+respondCmd states cmd = respond1 Nothing states (Just (mkcmd cmd)) magic
     where
     -- I run a cmd by adding a cmd that responds only to a specific Msg, and
     -- then sending that Msg.
     mkcmd cmd msg
-        | is_magic msg = cmd >> pure Cmd.Done
+        | isMagic msg = cmd >> pure Cmd.Done
         | otherwise = pure Cmd.Continue
-    is_magic (Msg.Socket _ (ReplProtocol.QCommand "MAGIC!!")) = True
-    is_magic _ = False
+    isMagic (Msg.Socket _ (ReplProtocol.QCommand "MAGIC!!")) = True
+    isMagic _ = False
     magic = Msg.Socket IO.stdout (ReplProtocol.QCommand "MAGIC!!")
 
-respond_msg :: States -> Msg.Msg -> IO Result
-respond_msg states = respond1 Nothing states Nothing
+respondMsg :: States -> Msg.Msg -> IO Result
+respondMsg states = respond1 Nothing states Nothing
 
 type CmdIO = Msg.Msg -> Cmd.CmdT IO Cmd.Status
 
@@ -266,89 +266,89 @@ respond1 :: Maybe (Chan.Chan Msg.Msg) -> States -> Maybe CmdIO
     -- ^ if given, this Cmd will get the Msg, otherwise whoever would normally
     -- respond will
     -> Msg.Msg -> IO Result
-respond1 reuse_loopback (ui_state, cmd_state) maybe_cmd msg = do
-    logs_ref <- IORef.newIORef []
-    configure_logging logs_ref
-    update_chan <- new_chan
-    loopback_chan <- maybe Chan.newChan pure reuse_loopback
-    (interface, midi_chan) <- make_midi_interface
-    ui_chan <- MVar.newMVar []
-    let rstate = make_rstate ui_chan update_chan loopback_chan
-            ui_state (set_cmd_state interface) maybe_cmd
+respond1 reuseLoopback (uiState, cmdState) maybeCmd msg = do
+    logsRef <- IORef.newIORef []
+    configureLogging logsRef
+    updateChan <- newChan
+    loopbackChan <- maybe Chan.newChan pure reuseLoopback
+    (interface, midiChan) <- makeMidiInterface
+    uiChan <- MVar.newMVar []
+    let rstate = makeRstate uiChan updateChan loopbackChan
+            uiState (setCmdState interface) maybeCmd
     ((rstate, midi, updates), metric) <- Thread.timeAction $ do
         (_quit, rstate) <- Responder.respond rstate msg
-        midi <- get_vals midi_chan
+        midi <- getVals midiChan
         Thread.force midi
-        updates <- concat <$> get_vals update_chan
+        updates <- concat <$> getVals updateChan
         Thread.force updates
         pure (rstate, midi, updates)
-    logs <- reverse <$> IORef.readIORef logs_ref
+    logs <- reverse <$> IORef.readIORef logsRef
     -- Updates and MIDI are normally forced by syncing with the UI and MIDI
     -- driver, so force explicitly here.  Not sure if this really makes
     -- a difference.
-    let cmd_result = CmdTest.Result
-            { CmdTest.result_val = Right Nothing
-            , CmdTest.result_cmd_state = Responder.state_cmd rstate
-            , CmdTest.result_ui_state = Responder.state_ui rstate
-            , CmdTest.result_ui_damage = mempty
-            , CmdTest.result_logs = []
-            , CmdTest.result_thru = map Cmd.MidiThru midi
+    let cmdResult = CmdTest.Result
+            { CmdTest.resultVal = Right Nothing
+            , CmdTest.resultCmdState = Responder.stateCmd rstate
+            , CmdTest.resultUiState = Responder.stateUi rstate
+            , CmdTest.resultUiDamage = mempty
+            , CmdTest.resultLogs = []
+            , CmdTest.resultThru = map Cmd.MidiThru midi
             }
     pure $ Result
-        { result_msg = msg
-        , result_cmd = cmd_result
-        , result_updates = updates
-        , result_loopback = loopback_chan
-        , result_time = realToFrac $ Thread.metricCpu metric
-        , result_logs = logs
+        { resultMsg = msg
+        , resultCmd = cmdResult
+        , resultUpdates = updates
+        , resultLoopback = loopbackChan
+        , resultTime = realToFrac $ Thread.metricCpu metric
+        , resultLogs = logs
         }
     where
-    set_cmd_state interface = cmd_state
-        { Cmd.state_config = (Cmd.state_config cmd_state)
-            { Cmd.config_midi_interface = interface }
-        , Cmd.state_derive_immediately = Map.keysSet (Ui.state_blocks ui_state)
+    setCmdState interface = cmdState
+        { Cmd.stateConfig = (Cmd.stateConfig cmdState)
+            { Cmd.configMidiInterface = interface }
+        , Cmd.stateDeriveImmediately = Map.keysSet (Ui.stateBlocks uiState)
         }
 
-make_rstate :: Fltk.Channel -> TVar.TVar [[Update.DisplayUpdate]]
+makeRstate :: Fltk.Channel -> TVar.TVar [[Update.DisplayUpdate]]
     -> Chan.Chan Msg.Msg -> Ui.State -> Cmd.State -> Maybe CmdIO
     -> Responder.State
-make_rstate ui_chan update_chan loopback_chan ui_state cmd_state maybe_cmd =
+makeRstate uiChan updateChan loopbackChan uiState cmdState maybeCmd =
     Responder.State
-        { Responder.state_static_config = config
-        , Responder.state_ui = ui_state
-        , Responder.state_cmd = cmd_state
+        { Responder.stateStaticConfig = config
+        , Responder.stateUi = uiState
+        , Responder.stateCmd = cmdState
         -- Tests probably link with the dummy interpreter so this is just
         -- return (), but profiling may try to use the interpreter.
-        , Responder.state_session = Unsafe.unsafePerformIO Repl.make_session
-        , Responder.state_loopback = loopback
-        , Responder.state_sync = dummy_sync
-        , Responder.state_monitor_state = play_monitor_state
-        , Responder.state_ui_channel = ui_chan
+        , Responder.stateSession = Unsafe.unsafePerformIO Repl.makeSession
+        , Responder.stateLoopback = loopback
+        , Responder.stateSync = dummySync
+        , Responder.stateMonitorState = playMonitorState
+        , Responder.stateUiChannel = uiChan
         }
     where
-    play_monitor_state = Unsafe.unsafePerformIO (MVar.newMVar Ui.empty)
+    playMonitorState = Unsafe.unsafePerformIO (MVar.newMVar Ui.empty)
     config = StaticConfig.empty
-        { StaticConfig.global_cmds = maybe [] (:[]) maybe_cmd }
-    dummy_sync _ _ _ updates = do
-        put_val update_chan updates
+        { StaticConfig.globalCmds = maybe [] (:[]) maybeCmd }
+    dummySync _ _ _ updates = do
+        putVal updateChan updates
         pure Nothing
-    loopback = Chan.writeChan loopback_chan
+    loopback = Chan.writeChan loopbackChan
 
-make_midi_interface :: IO (Interface.Interface, TVar.TVar [Interface.Message])
-make_midi_interface = do
-    midi_chan <- new_chan
+makeMidiInterface :: IO (Interface.Interface, TVar.TVar [Interface.Message])
+makeMidiInterface = do
+    midiChan <- newChan
     int <- StubMidi.interface
-    let write msg = put_val midi_chan msg >> pure Nothing
-    pure (int { Interface.write_message = write }, midi_chan)
+    let write msg = putVal midiChan msg >> pure Nothing
+    pure (int { Interface.writeMessage = write }, midiChan)
 
 -- Use a TVar as a kind of non-blocking channel.
-new_chan :: IO (TVar.TVar [a])
-new_chan = TVar.newTVarIO []
+newChan :: IO (TVar.TVar [a])
+newChan = TVar.newTVarIO []
 
-put_val :: TVar.TVar [a] -> a -> IO ()
-put_val chan v = STM.atomically $ do
+putVal :: TVar.TVar [a] -> a -> IO ()
+putVal chan v = STM.atomically $ do
     old <- TVar.readTVar chan
     TVar.writeTVar chan (v:old)
 
-get_vals :: TVar.TVar [a] -> IO [a]
-get_vals chan = fmap reverse (STM.readTVarIO chan)
+getVals :: TVar.TVar [a] -> IO [a]
+getVals chan = fmap reverse (STM.readTVarIO chan)

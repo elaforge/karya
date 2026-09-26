@@ -16,9 +16,9 @@ import           Util.Test
 
 test_toggle_edge :: Test
 test_toggle_edge = do
-    let f = Graphs.toggle_edge
+    let f = Graphs.toggleEdge
         eq mg1 mg2 = case (mg1, mg2) of
-            (Just g1, Just g2) -> graph_equal g1 g2
+            (Just g1, Just g2) -> graphEqual g1 g2
             (_, _) -> equal mg1 mg2
     eq (f (0, 1) (build [])) (Just (build [(0, 1)]))
     eq (f (0, 1) (build [(0, 1)])) (Just (build []))
@@ -27,53 +27,53 @@ test_toggle_edge = do
 
 test_splice_above :: Test
 test_splice_above = do
-    let f = Graphs.splice_above
+    let f = Graphs.spliceAbove
 
-    graph_equal (f 0 1 (build [(1, 2), (1, 3)]))
+    graphEqual (f 0 1 (build [(1, 2), (1, 3)]))
         (build [(0, 1), (1, 2), (1, 3)])
-    graph_equal (f 2 1 (build [(0, 1)])) (build [(0, 2), (2, 1)])
-    graph_equal (f 3 2 (build [(0, 2), (2, 1)]))
+    graphEqual (f 2 1 (build [(0, 1)])) (build [(0, 2), (2, 1)])
+    graphEqual (f 3 2 (build [(0, 2), (2, 1)]))
         (build [(0, 3), (3, 2), (2, 1)])
-    graph_equal (f 5 2 xgraph)
+    graphEqual (f 5 2 xgraph)
         (build [(0, 5), (4, 5), (5, 2), (2, 3), (2, 1)])
 
     -- finally a place I could use quickcheck...
     let idempotent new p graph =
-            graph_equal (f new p (f new p graph)) (f new p graph)
+            graphEqual (f new p (f new p graph)) (f new p graph)
     idempotent 5 2 xgraph
     idempotent 1 2 (build [(0, 1), (1, 3), (0, 2), (2, 4)])
     idempotent 3 2 (build [(0, 1), (1, 3), (0, 2), (2, 4)])
 
 test_splice_below :: Test
 test_splice_below = do
-    let f = Graphs.splice_below
-    graph_equal (f 1 0 (build [])) (build [(0, 1)])
-    graph_equal (f 2 1 (build [(0, 1), (1, 3), (1, 4)]))
+    let f = Graphs.spliceBelow
+    graphEqual (f 1 0 (build [])) (build [(0, 1)])
+    graphEqual (f 2 1 (build [(0, 1), (1, 3), (1, 4)]))
         (build [(0, 1), (1, 2), (2, 3), (2, 4)])
-    graph_equal (f 1 2 (build [(2, 0), (2, 3)]))
+    graphEqual (f 1 2 (build [(2, 0), (2, 3)]))
         (build [(2, 1), (1, 0), (1, 3)])
-    graph_equal (Graphs.splice_above 1 2 (build [(2, 0), (2, 3)]))
+    graphEqual (Graphs.spliceAbove 1 2 (build [(2, 0), (2, 3)]))
         (build [(1, 2), (2, 0), (2, 3)])
 
 test_add_edges :: Test
 test_add_edges = do
-    let f = Graphs.add_edges
-    graph_equal (f [(0, 1)] (build [])) (build [(0, 1)])
-    graph_equal (f [(1, 0)] (build [(0, 1)])) (build [(0, 1), (1, 0)])
-    graph_equal (f [(0, 1), (1, 0)] (build [])) (build [(0, 1), (1, 0)])
+    let f = Graphs.addEdges
+    graphEqual (f [(0, 1)] (build [])) (build [(0, 1)])
+    graphEqual (f [(1, 0)] (build [(0, 1)])) (build [(0, 1), (1, 0)])
+    graphEqual (f [(0, 1), (1, 0)] (build [])) (build [(0, 1), (1, 0)])
 
 test_remove_edges :: Test
 test_remove_edges = do
-    let f = Graphs.remove_edges
-    graph_equal (f [(0, 1)] (build [])) (build [])
-    graph_equal (f [(0, 1)] (build [(0, 2)])) (build [(0, 2)])
-    graph_equal (f [(0, 1)] (build [(0, 1)])) (build [])
-    graph_equal (f [(0, 1)] (build [(0, 1), (0, 2)])) (build [(0, 2)])
-    graph_equal (f [(0, 1), (0, 2)] (build [(0, 1), (0, 2)])) (build [])
+    let f = Graphs.removeEdges
+    graphEqual (f [(0, 1)] (build [])) (build [])
+    graphEqual (f [(0, 1)] (build [(0, 2)])) (build [(0, 2)])
+    graphEqual (f [(0, 1)] (build [(0, 1)])) (build [])
+    graphEqual (f [(0, 1)] (build [(0, 1), (0, 2)])) (build [(0, 2)])
+    graphEqual (f [(0, 1), (0, 2)] (build [(0, 1), (0, 2)])) (build [])
 
 test_map_vertices :: Test
 test_map_vertices = do
-    let f = Graphs.map_vertices
+    let f = Graphs.mapVertices
     equal (f (\v -> max 0 (v-1)) (build [(0, 1), (1, 2), (2, 3)]))
         (build [(0, 1), (1, 2)])
     equal (f (+1) (build [(0, 1), (1, 2), (2, 3)]))
@@ -88,11 +88,11 @@ test_map_vertices = do
 
 test_insert_vertex :: Test
 test_insert_vertex = do
-    let f = Graphs.insert_vertex
+    let f = Graphs.insertVertex
         g = build [(0, 1), (1, 2)]
-    graph_equal (f 0 g) (build [(1, 2), (2, 3)])
-    graph_equal (f 1 g) (build [(0, 2), (2, 3)])
-    graph_equal (f 3 g) (build [(0, 1), (1, 2)])
+    graphEqual (f 0 g) (build [(1, 2), (2, 3)])
+    graphEqual (f 1 g) (build [(0, 2), (2, 3)])
+    graphEqual (f 3 g) (build [(0, 1), (1, 2)])
 
 -- 0 4
 --  2
@@ -101,23 +101,23 @@ xgraph = build [(0, 2), (4, 2), (2, 1), (2, 3)]
 
 test_unlink_vertex :: Test
 test_unlink_vertex = do
-    let f = Graphs.unlink_vertex
-    graph_equal (f 0 xgraph) (build [(4, 2), (2, 1), (2, 3)])
-    graph_equal (f 1 xgraph) (build [(0, 2), (4, 2), (2, 3)])
-    graph_equal (f 2 xgraph) (build [(0, 1), (0, 3), (4, 1), (4, 3)])
+    let f = Graphs.unlinkVertex
+    graphEqual (f 0 xgraph) (build [(4, 2), (2, 1), (2, 3)])
+    graphEqual (f 1 xgraph) (build [(0, 2), (4, 2), (2, 3)])
+    graphEqual (f 2 xgraph) (build [(0, 1), (0, 3), (4, 1), (4, 3)])
     throws (f (-1) xgraph) "out of range"
 
 test_remove_vertex :: Test
 test_remove_vertex = do
-    let f = Graphs.remove_vertex
+    let f = Graphs.removeVertex
     -- x 3
     --  1
     -- 0 2
-    graph_equal (f 0 xgraph) (build [(3, 1), (1, 0), (1, 2)])
+    graphEqual (f 0 xgraph) (build [(3, 1), (1, 0), (1, 2)])
     -- 0 4  0 3
     --  x    x
     -- 1 3  1 2
-    graph_equal (f 2 xgraph) (build [(0, 1), (0, 2), (3, 1), (3, 2)])
+    graphEqual (f 2 xgraph) (build [(0, 1), (0, 2), (3, 1), (3, 2)])
 
 test_move :: Test
 test_move = do
@@ -134,8 +134,8 @@ test_move = do
     -- array [(0,[2]),(1,[]), (2,[1])       0 -> 2 -> 1
     equal (f 2 1 g) (Just (build [(0, 2), (2, 1)]))
 
-graph_equal :: Graph.Graph -> Graph.Graph -> Test
-graph_equal graph1 graph2
+graphEqual :: Graph.Graph -> Graph.Graph -> Test
+graphEqual graph1 graph2
     | norm graph1 == norm graph2 = success $ "graph == " <> showt graph1
     | otherwise = failure $ "graph " <> showt graph1 <> ":\n"
         <> txt (Graphs.draw graph1)

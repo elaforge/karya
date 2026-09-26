@@ -32,9 +32,9 @@ import           Global
 type Error = Text
 
 data Entry = Entry
-    { e_tags :: Tags
-    , e_meta :: Maybe Check.Meta
-    , e_block :: Block (Token ())
+    { eTags :: Tags
+    , eMeta :: Maybe Check.Meta
+    , eBlock :: Block (Token ())
     } deriving (Show, Eq)
 
 type Block token = T.Block T.Pitch [[token]]
@@ -43,46 +43,46 @@ type Token pos = T.Token pos (T.Note T.Pitch ()) T.Rest
 type Tags = Map Tag Text
 type Tag = Text
 
-print_entries :: [Entry] -> IO ()
-print_entries = mapM_ (Text.IO.putStrLn . fmt) . zip [0 :: Int ..]
-    where fmt (i, e) = showt i <> ": " <> format_entry e
+printEntries :: [Entry] -> IO ()
+printEntries = mapM_ (Text.IO.putStrLn . fmt) . zip [0 :: Int ..]
+    where fmt (i, e) = showt i <> ": " <> formatEntry e
 
-format_entry :: Entry -> Text
-format_entry (Entry { e_tags, e_meta, e_block }) =
-    Text.unlines $ format_tags e_tags
-        : Format.format_title e_block
-        : format_block fmt_pos e_meta e_block
-    where fmt_pos = const id
+formatEntry :: Entry -> Text
+formatEntry (Entry { eTags, eMeta, eBlock }) =
+    Text.unlines $ formatTags eTags
+        : Format.formatTitle eBlock
+        : formatBlock fmtPos eMeta eBlock
+    where fmtPos = const id
 
-format_block :: (pos -> Text -> Text) -> Maybe Check.Meta -> Block (Token pos)
+formatBlock :: (pos -> Text -> Text) -> Maybe Check.Meta -> Block (Token pos)
     -> [Text]
-format_block fmt_pos meta block =
-    Format.format_block fmt_pos
-        (Check.m_irama <$> meta) (Check.m_instrument <$> meta)
+formatBlock fmtPos meta block =
+    Format.formatBlock fmtPos
+        (Check.mIrama <$> meta) (Check.mInstrument <$> meta)
         block
 
-format_groups :: [Entry] -> [Text]
-format_groups = map format_group . Lists.groupSort (T.block_tracks . e_block)
+formatGroups :: [Entry] -> [Text]
+formatGroups = map formatGroup . Lists.groupSort (T.blockTracks . eBlock)
 
-format_group :: [Entry] -> Text
-format_group entries@(entry0 : _) = Text.unlines $
-    format_tags common
-    : Text.intercalate " ; " (map (Format.format_title . e_block) entries)
-    : format_block (const id) (e_meta entry0) (e_block entry0)
+formatGroup :: [Entry] -> Text
+formatGroup entries@(entry0 : _) = Text.unlines $
+    formatTags common
+    : Text.intercalate " ; " (map (Format.formatTitle . eBlock) entries)
+    : formatBlock (const id) (eMeta entry0) (eBlock entry0)
     where
     -- TODO I could show the unique ones, but it takes space
-    (common, _tags) = extract_common $ map e_tags entries
-format_group [] = "<empty>\n"
+    (common, _tags) = extractCommon $ map eTags entries
+formatGroup [] = "<empty>\n"
 
-parse_tags :: Text -> Tags
-parse_tags = Map.fromList . map split . Text.words
+parseTags :: Text -> Tags
+parseTags = Map.fromList . map split . Text.words
     where
     split w = case Text.splitOn "=" w of
         [k, v] -> (k, v)
         _ -> error $ "expected k=v: " <> untxt w
 
-format_tags :: Tags -> Text
-format_tags = Text.unwords . map format . Map.toList
+formatTags :: Tags -> Text
+formatTags = Text.unwords . map format . Map.toList
     where format (k, v) = k <> "=" <> v
 
 _seleh1 = search T.PelogLima
@@ -91,32 +91,32 @@ _seleh1 = search T.PelogLima
 search :: T.Laras -> Text -> IO ()
 search laras tags = do
     -- entries <- _load1
-    (entries, taken) <- Thread.timeAction load_db
+    (entries, taken) <- Thread.timeAction loadDb
     Text.IO.putStrLn $ "load took " <> Thread.showMetric taken
-    mapM_ Text.IO.putStrLn $ format_groups $
-        mapMaybe (entry_matches laras (parse_tags tags)) entries
+    mapM_ Text.IO.putStrLn $ formatGroups $
+        mapMaybe (entryMatches laras (parseTags tags)) entries
 
 _load1 = either (error . untxt) id <$>
     load "Example/tscore/java/balungan32.tscore"
 
-entry_matches :: T.Laras -> Tags -> Entry -> Maybe Entry
-entry_matches laras tags entry
-    | Just entry <- convert_laras laras entry, match (e_tags entry) =
+entryMatches :: T.Laras -> Tags -> Entry -> Maybe Entry
+entryMatches laras tags entry
+    | Just entry <- convertLaras laras entry, match (eTags entry) =
         Just entry
     | otherwise = Nothing
     where match = (tags `Map.isSubmapOf`)
 
-load_db :: IO [Entry]
-load_db = do
-    (errors, entries) <- load_dir "Example/tscore/java"
+loadDb :: IO [Entry]
+loadDb = do
+    (errors, entries) <- loadDir "Example/tscore/java"
     unless (null errors) $
         error $ "errors: " <> unlines (map untxt errors)
     pure entries
 
 type Score = T.Score Check.Block
 
-load_dir :: FilePath -> IO ([Error], [Entry])
-load_dir dir = do
+loadDir :: FilePath -> IO ([Error], [Entry])
+loadDir dir = do
     fnames <- filter (".tscore" `List.isSuffixOf`) <$> Files.list dir
     entries <- mapM load fnames
     pure $ second concat $ Either.partitionEithers entries
@@ -126,83 +126,83 @@ load fname = parse fname <$> Text.IO.readFile fname
 
 parse :: FilePath -> Text -> Either Error [Entry]
 parse fname source = first ((txt fname <> ": ") <>) $ do
-    score <- Parse.parse_score source
-    let (checked, errs) = Logger.runId $ Check.format_score score
+    score <- Parse.parseScore source
+    let (checked, errs) = Logger.runId $ Check.formatScore score
     unless (null errs) $
-        Left $ Text.unlines $ map (T.show_error source) errs
-    pure $ score_entries fname source checked
+        Left $ Text.unlines $ map (T.showError source) errs
+    pure $ scoreEntries fname source checked
 
-score_entries :: FilePath -> Text -> Score -> [Entry]
-score_entries fname source (T.Score toplevels) = go [] (map snd toplevels)
+scoreEntries :: FilePath -> Text -> Score -> [Entry]
+scoreEntries fname source (T.Score toplevels) = go [] (map snd toplevels)
     where
     go metas (T.ToplevelMeta meta : toplevels) = go (meta:metas) toplevels
     go metas (T.BlockDefinition block : toplevels)
-        | null (T.block_tracks block) = go metas toplevels
+        | null (T.blockTracks block) = go metas toplevels
         | otherwise = entry metas block : go metas toplevels
     go _ [] = []
-    entry e_metas e_block = Entry
-        { e_tags = make_tags (fname <> ":" <> show line) e_metas e_block
-        , e_meta
+    entry eMetas eBlock = Entry
+        { eTags = makeTags (fname <> ":" <> show line) eMetas eBlock
+        , eMeta
         -- Strip out T.Pos, I no longer need the original position and it'll
         -- complicate comparing tracks.
-        , e_block = map (map (T.set_token_pos ())) <$> e_block
+        , eBlock = map (map (T.setTokenPos ())) <$> eBlock
         }
         where
-        e_meta = Check.make_meta e_metas
-        Just (line, _, _) = T.find_pos source  (T.block_pos e_block)
+        eMeta = Check.makeMeta eMetas
+        Just (line, _, _) = T.findPos source  (T.blockPos eBlock)
 
-make_tags :: FilePath -> [T.Meta] -> Check.Block -> Tags
-make_tags fname metas block = Map.unions
-    [ block_tags block
-    , Map.fromListWith (\_ a -> a) (map meta_to_tag metas)
+makeTags :: FilePath -> [T.Meta] -> Check.Block -> Tags
+makeTags fname metas block = Map.unions
+    [ blockTags block
+    , Map.fromListWith (\_ a -> a) (map metaToTag metas)
     , Map.fromList [("file", txt (FilePath.takeFileName fname))]
     ]
 
-meta_tags :: Check.Meta -> Tags
-meta_tags (Check.Meta { m_laras, m_irama, m_instrument }) = Map.fromList
-    [ ("laras", Parse.laras_enum m_laras)
-    , ("irama", Parse.irama_enum m_irama)
-    , ("instrument", Parse.instrument_enum m_instrument)
+metaTags :: Check.Meta -> Tags
+metaTags (Check.Meta { mLaras, mIrama, mInstrument }) = Map.fromList
+    [ ("laras", Parse.larasEnum mLaras)
+    , ("irama", Parse.iramaEnum mIrama)
+    , ("instrument", Parse.instrumentEnum mInstrument)
     ]
 
-meta_to_tag :: T.Meta -> (Tag, Text)
-meta_to_tag = \case
+metaToTag :: T.Meta -> (Tag, Text)
+metaToTag = \case
     T.Source a -> ("source", a)
     T.Piece a -> ("piece", a)
     T.Section a -> ("section", a)
-    T.Laras a -> ("laras-orig", Parse.laras_enum a)
-    T.Irama a -> ("irama", Parse.irama_enum a)
-    T.Instrument a -> ("instrument", Parse.instrument_enum a)
+    T.Laras a -> ("laras-orig", Parse.larasEnum a)
+    T.Irama a -> ("irama", Parse.iramaEnum a)
+    T.Instrument a -> ("instrument", Parse.instrumentEnum a)
 
-block_tags :: Block pos -> Tags
-block_tags block = Map.fromList $ concat
-    [ [ ("seleh", Text.singleton (T.pc_char pc))
-      | Just pc <- [T.seleh (T.block_gatra block)]
+blockTags :: Block pos -> Tags
+blockTags block = Map.fromList $ concat
+    [ [ ("seleh", Text.singleton (T.pcChar pc))
+      | Just pc <- [T.seleh (T.blockGatra block)]
       ]
     -- TODO it should be multiple name= tags?
-    , [ ("name", Text.unwords (T.block_names block))
-      | not (null (T.block_names block))
+    , [ ("name", Text.unwords (T.blockNames block))
+      | not (null (T.blockNames block))
       ]
     ]
 
 -- | Try to convert an Entry to a different T.Laras.
-convert_laras :: T.Laras -> Entry -> Maybe Entry
-convert_laras laras entry = do
-    meta <- e_meta entry
-    if laras == Check.m_laras meta
+convertLaras :: T.Laras -> Entry -> Maybe Entry
+convertLaras laras entry = do
+    meta <- eMeta entry
+    if laras == Check.mLaras meta
         then pure entry
         else do
-            trans <- Check.convert_laras (Check.m_laras meta) laras
-            pure $ update_tags $ entry
-                { e_block = Format.transform_block trans (e_block entry)
-                , e_meta = Just $ meta { Check.m_laras = laras }
+            trans <- Check.convertLaras (Check.mLaras meta) laras
+            pure $ updateTags $ entry
+                { eBlock = Format.transformBlock trans (eBlock entry)
+                , eMeta = Just $ meta { Check.mLaras = laras }
                 }
 
-update_tags :: Entry -> Entry
-update_tags entry = entry
-    { e_tags = maybe mempty meta_tags (e_meta entry)
-        <> block_tags (e_block entry)
-        <> e_tags entry
+updateTags :: Entry -> Entry
+updateTags entry = entry
+    { eTags = maybe mempty metaTags (eMeta entry)
+        <> blockTags (eBlock entry)
+        <> eTags entry
     }
 
 -- * diff
@@ -217,37 +217,37 @@ update_tags entry = entry
 d2 = do
     es <- _load1
     mapM_ Text.IO.putStr $ map snd $ takeWhile ((<=20) . fst) $
-        find_closest es (es !! 54)
+        findClosest es (es !! 54)
 
-find_closest :: [Entry] -> Entry -> [(Int, Text)]
-find_closest entries entry =
-    map show_diff $ Lists.sortOn (fst . fst) $
-        Lists.keyOnJust (diff_entries entry) entries
+findClosest :: [Entry] -> Entry -> [(Int, Text)]
+findClosest entries entry =
+    map showDiff $ Lists.sortOn (fst . fst) $
+        Lists.keyOnJust (diffEntries entry) entries
     where
-    show_diff ((distance, (_tracks1, tracks2)), entry) =
+    showDiff ((distance, (_tracks1, tracks2)), entry) =
         (distance,) $ Text.unlines
-            [ showt distance <> ": " <> format_tags (e_tags entry)
+            [ showt distance <> ": " <> formatTags (eTags entry)
             , tracks2
             ]
 
-diff_entries :: Entry -> Entry -> Maybe (Int, (Text, Text))
-diff_entries e1 e2 = make <$> diff_tracks (tracks_of e1) (tracks_of e2)
+diffEntries :: Entry -> Entry -> Maybe (Int, (Text, Text))
+diffEntries e1 e2 = make <$> diffTracks (tracksOf e1) (tracksOf e2)
     where
     make (tracks1, tracks2) =
         ( distance tracks1
         , fmt tracks1 tracks2
         )
     fmt tracks1 tracks2 =
-        ( Text.unlines $ format_block fmt_pos (e_meta e1)
-            ((e_block e1) { T.block_tracks = tracks1 })
-        , Text.unlines $ format_block fmt_pos (e_meta e2)
-            ((e_block e2) { T.block_tracks = tracks2 })
+        ( Text.unlines $ formatBlock fmtPos (eMeta e1)
+            ((eBlock e1) { T.blockTracks = tracks1 })
+        , Text.unlines $ formatBlock fmtPos (eMeta e2)
+            ((eBlock e2) { T.blockTracks = tracks2 })
         )
-    tracks_of = T.block_tracks . e_block
+    tracksOf = T.blockTracks . eBlock
     distance = Num.sum
-        . map (Num.sum . map (\t -> if T.token_pos t then 0 else 1))
-    fmt_pos True t = t
-    fmt_pos False t = redColor <> t <> vt100Normal
+        . map (Num.sum . map (\t -> if T.tokenPos t then 0 else 1))
+    fmtPos True t = t
+    fmtPos False t = redColor <> t <> vt100Normal
 
 redColor :: Text
 redColor = "\ESC[31m" -- red
@@ -255,25 +255,25 @@ redColor = "\ESC[31m" -- red
 vt100Normal :: Text
 vt100Normal = "\ESC[m\ESC[m"
 
-diff_tracks :: [[Token ()]] -> [[Token ()]]
+diffTracks :: [[Token ()]] -> [[Token ()]]
     -> Maybe ([[Token Bool]], [[Token Bool]])
-diff_tracks tracks1 tracks2
+diffTracks tracks1 tracks2
     | length tracks1 /= length tracks2 = Nothing
     | otherwise = unzip <$> mapM track (zip tracks1 tracks2)
     where
     track (track1, track2)
         | length track1 /= length track2 = Nothing
-        | otherwise = Just $ unzip $ zipWith diff_tokens track1 track2
+        | otherwise = Just $ unzip $ zipWith diffTokens track1 track2
 
-diff_tokens :: Token () -> Token () -> (Token Bool, Token Bool)
-diff_tokens t1 t2 = (set t1, set t2)
-    where set = T.set_token_pos (t1 == t2)
+diffTokens :: Token () -> Token () -> (Token Bool, Token Bool)
+diffTokens t1 t2 = (set t1, set t2)
+    where set = T.setTokenPos (t1 == t2)
 
 -- * util
 
 -- | Extract the identical (k, a) pairs from the maps.
-extract_common :: (Ord k, Ord a) => [Map k a] -> (Map k a, [Map k a])
-extract_common ms = (common, map (`Map.withoutKeys` keys) ms)
+extractCommon :: (Ord k, Ord a) => [Map k a] -> (Map k a, [Map k a])
+extractCommon ms = (common, map (`Map.withoutKeys` keys) ms)
     where
     keys = Set.fromAscList $ map fst $ Set.toAscList pairs
     pairs = case map (Set.fromList . Map.toList) ms of

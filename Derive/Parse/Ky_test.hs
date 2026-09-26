@@ -24,35 +24,35 @@ import           Util.Test
 
 test_load_ky :: Test
 test_load_ky = do
-    let make_ky imports defs = unlines $
+    let makeKy imports defs = unlines $
             ["import '" <> i <> "'" | i <- imports]
             ++ "note generator:" : [d <> " = z" | d <- defs]
-    dir <- Testing.tmp_dir "ky"
+    dir <- Testing.tmpDir "ky"
     let lib = dir </> "lib"
     Directory.createDirectory lib
-    writeFile (lib </> "lib1") $ make_ky ["lib2"] ["lib1-call"]
+    writeFile (lib </> "lib1") $ makeKy ["lib2"] ["lib1-call"]
 
     let write imports =
-            writeFile (dir </> "defs") (make_ky imports ["defs-call"])
-    let load = bimap ParseText.show_error extract
-            <$> Ky.load_ky [dir, lib] "import 'defs'"
+            writeFile (dir </> "defs") (makeKy imports ["defs-call"])
+    let load = bimap ParseText.showError extract
+            <$> Ky.loadKy [dir, lib] "import 'defs'"
         extract (Ky.Ky defs imports allocs) =
-            ( map (fst . snd) . fst . Ky.def_note $ defs
+            ( map (fst . snd) . fst . Ky.defNote $ defs
             , imports
             , allocs
             )
     write ["z1"]
     v <- load
-    left_like v "ky file not found: z"
+    leftLike v "ky file not found: z"
 
     write ["lib1"]
     v <- load
-    left_like v "ky file not found: lib2"
+    leftLike v "ky file not found: lib2"
 
-    writeFile (lib </> "lib2") $ make_ky [] ["lib2-call"]
+    writeFile (lib </> "lib2") $ makeKy [] ["lib2-call"]
     [lib1, lib2, defs] <- mapM Text.IO.readFile
         [lib </> "lib1", lib </> "lib2", dir </> "defs"]
-    io_equal load $ Right
+    ioEqual load $ Right
         ( ["defs-call", "lib1-call", "lib2-call"]
         , [ Ky.Loaded "" "import 'defs'"
           , Ky.Loaded (dir </> "defs") defs
@@ -62,52 +62,52 @@ test_load_ky = do
         , mempty
         )
 
-e_expr :: Ky.Expr -> [(Expr.Symbol, [Text])]
-e_expr (Ky.Expr (call :| calls)) = e_call call : map e_call calls
-    where e_call (Ky.Call sym terms) = (sym, map ShowVal.show_val terms)
+eExpr :: Ky.Expr -> [(Expr.Symbol, [Text])]
+eExpr (Ky.Expr (call :| calls)) = eCall call : map eCall calls
+    where eCall (Ky.Call sym terms) = (sym, map ShowVal.showVal terms)
 
 test_parse_ky :: Test
 test_parse_ky = do
-    let f extract = bimap ParseText.show_error extract
-            . Ky.parse_ky "fname.ky"
-        note = f e_note . ("note generator:\n"<>)
-        e_note = map (second (head . e_expr) . snd) . fst . Ky.def_note
-            . Ky.ky_definitions
-    right_equal (f e_note "") mempty
-    right_equal (f e_note "-- hi") mempty
-    right_equal (f e_note "instrument:\n-- hi") mempty
-    left_like (f id "x:\na = b\n") "unknown sections: x"
+    let f extract = bimap ParseText.showError extract
+            . Ky.parseKy "fname.ky"
+        note = f eNote . ("note generator:\n"<>)
+        eNote = map (second (head . eExpr) . snd) . fst . Ky.defNote
+            . Ky.kyDefinitions
+    rightEqual (f eNote "") mempty
+    rightEqual (f eNote "-- hi") mempty
+    rightEqual (f eNote "instrument:\n-- hi") mempty
+    leftLike (f id "x:\na = b\n") "unknown sections: x"
     equal (note " --c\na = b\n\n") $
         Right [("a", ("b", []))]
     equal (note "a = b\n --c\n\n c\nd = e\n  -- hi\n") $
         Right [("a", ("b", ["c"])), ("d", ("e", []))]
     equal (note "a = b\n c\n --comment\n\nd = e\n") $
         Right [("a", ("b", ["c"])), ("d", ("e", []))]
-    left_like (note "a = b\nc\n") "3:1: expected eof"
+    leftLike (note "a = b\nc\n") "3:1: expected eof"
     equal (note "a = b $c") $ Right [("a", ("b", ["$c"]))]
-    equal (f e_note "-- hi") (Right [])
-    equal (f e_note "-- note_generator:") (Right [])
+    equal (f eNote "-- hi") (Right [])
+    equal (f eNote "-- note_generator:") (Right [])
     equal (note "a = c =+ 1\n") $ Right [("a", ("=", ["c", "1", "'+'"]))]
 
     -- imports
-    right_equal (f Ky.ky_imports "import 'x' -- blah\nimport 'y'\n")
+    rightEqual (f Ky.kyImports "import 'x' -- blah\nimport 'y'\n")
         [Ky.Import "fname.ky" "x", Ky.Import "fname.ky" "y"]
-    right_equal (f Ky.ky_imports "import\n\t'x'\n")
+    rightEqual (f Ky.kyImports "import\n\t'x'\n")
         [Ky.Import "fname.ky" "x"]
-    left_like (f Ky.ky_imports "blort x\nimport y\n") "1:1: expected eof"
+    leftLike (f Ky.kyImports "blort x\nimport y\n") "1:1: expected eof"
 
-    let aliases = Ky.def_aliases . Ky.ky_definitions
-    right_equal (f aliases "alias:\na = b\n") $
+    let aliases = Ky.defAliases . Ky.kyDefinitions
+    rightEqual (f aliases "alias:\na = b\n") $
         [(ScoreT.Instrument "a", ScoreT.Instrument "b")]
-    left_like (f aliases "alias:\n>a = >b\n") "lhs not a valid id"
+    leftLike (f aliases "alias:\n>a = >b\n") "lhs not a valid id"
 
 test_instruments :: Test
 test_instruments = do
-    let f = bimap ParseText.show_error extract
-            . Ky.parse_ky "fname.ky"
-        extract = Ky.ky_instruments
+    let f = bimap ParseText.showError extract
+            . Ky.parseKy "fname.ky"
+        extract = Ky.kyInstruments
     -- line offset to 4
-    left_like (f ky1) "4:1:*unexpected '1'"
+    leftLike (f ky1) "4:1:*unexpected '1'"
 
 ky1 :: Text
 ky1 =
@@ -118,18 +118,18 @@ ky1 =
 
 test_p_definition :: Test
 test_p_definition = do
-    let f = bimap ParseText.show_error (second e_expr)
-            . ParseText.parse Ky.p_definition
+    let f = bimap ParseText.showError (second eExpr)
+            . ParseText.parse Ky.pDefinition
     equal (f "a =\n b\n c\n") (Right ("a", [("b", ["c"])]))
-    left_like (f "a =\n b\nc = d\n") "3:1: expected eof"
+    leftLike (f "a =\n b\nc = d\n") "3:1: expected eof"
     equal (f "a = n +z\n") (Right ("a", [("n", ["+z"])]))
     equal (f "a = b $c") (Right ("a", [("b", ["$c"])]))
     equal (f "a = b = $c") (Right ("a", [("=", ["b", "$c"])]))
 
 test_checked_sections :: Test
 test_checked_sections = do
-    let f = Ky.checked_sections . Text.unlines
-    right_equal (f
+    let f = Ky.checkedSections . Text.unlines
+    rightEqual (f
         [ "import x"
         , "-- hi:"
         , "sec a:"
@@ -145,12 +145,12 @@ test_checked_sections = do
             , ("sec b", [(7, "there")])
             ]
         )
-    left_like (f ["sec:", "hi", "sec:", "there"])
+    leftLike (f ["sec:", "hi", "sec:", "there"])
         "duplicate sections: sec"
 
 test_replace_section :: Test
 test_replace_section = do
-    let f = Ky.replace_section "sec" ("-- "<>) . Text.unlines
+    let f = Ky.replaceSection "sec" ("-- "<>) . Text.unlines
     equal (f []) ""
     equal (f ["x", "sec:", "a"]) "x\n-- sec:\n-- a\n"
     equal (f ["abc:", "a", "sec:", "b", "c", "xyz:", "z"])

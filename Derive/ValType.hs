@@ -11,7 +11,7 @@ module Derive.ValType (
     Type(..)
     , NumType(..)
     , NumValue(..)
-    , general_type_of, specific_type_of
+    , generalTypeOf, specificTypeOf
 ) where
 import qualified Data.List as List
 import qualified Data.Text as Text
@@ -100,21 +100,21 @@ instance Pretty Type where
         TMaybe typ -> "Maybe " <> pretty typ
         TEither a b -> pretty a <> " or " <> pretty b
         TPair a b -> "(" <> pretty a <> ", " <> pretty b <> ")"
-        TSignal typ vtype -> append_parens "Signal" $
+        TSignal typ vtype -> appendParens "Signal" $
             Texts.join2 ", " (pretty typ) (pretty vtype)
-        TStr enums -> append_parens "Str" $ maybe "" Text.unwords enums
+        TStr enums -> appendParens "Str" $ maybe "" Text.unwords enums
         -- There is no corresponding Val type for these, so I might as well be
         -- clear about what they mean.
-        TControl -> append_parens "Control" Id.symbol_description
-        TPControl -> append_parens "PControl" ("#" <> Id.symbol_description)
+        TControl -> appendParens "Control" Id.symbolDescription
+        TPControl -> appendParens "PControl" ("#" <> Id.symbolDescription)
         TList typ -> "list of " <> pretty typ
         TOther text -> text
         TNotGiven -> "_"
         TDeriver name -> name <> " deriver"
         typ -> Text.drop 1 (showt typ)
 
-append_parens :: Text -> Text -> Text
-append_parens name desc
+appendParens :: Text -> Text -> Text
+appendParens name desc
     | Text.null desc = name
     | otherwise = name <> " (" <> desc <> ")"
 
@@ -142,27 +142,27 @@ instance Pretty NumValue where
 
 -- | Infer the most specific type possible, looking at the value inside.  This
 -- is for documentation (e.g. type error messages) for values.
-specific_type_of :: Val -> Type
-specific_type_of = infer_type_of True
+specificTypeOf :: Val -> Type
+specificTypeOf = inferTypeOf True
 
 -- | Infer a general type.  This is also for type errors, but for env type
 -- check errors, which use 'DeriveT.types_equal', which doesn't check the
 -- value.
-general_type_of :: Val -> Type
-general_type_of = infer_type_of False
+generalTypeOf :: Val -> Type
+generalTypeOf = inferTypeOf False
 
-infer_type_of :: Bool -> Val -> Type
-infer_type_of specific = \case
-    VSignal (ScoreT.Typed typ sig) -> TSignal (to_num_type typ) $
+inferTypeOf :: Bool -> Val -> Type
+inferTypeOf specific = \case
+    VSignal (ScoreT.Typed typ sig) -> TSignal (toNumType typ) $
         if not specific then TAny
-        else case Signal.constant_val sig of
+        else case Signal.constantVal sig of
             Nothing -> TAny
             Just n
                 | n > 0 -> TPositive
                 | n >= 0 -> TNonNegative
                 | otherwise -> TAny
     VPSignal sig
-        | Just _ <- DeriveT.constant_pitch sig -> TPitch
+        | Just _ <- DeriveT.constantPitch sig -> TPitch
         | otherwise -> TPSignal
     VAttributes {} -> TAttributes
     VControlRef {} -> TControlRef
@@ -176,10 +176,10 @@ infer_type_of specific = \case
     VSeparator -> TSeparator
     VList [] -> TList TVal
     -- Could use NonEmpty and sconcat, but too much bother.
-    VList vs -> TList (List.foldl1' (<>) (map (infer_type_of specific) vs))
+    VList vs -> TList (List.foldl1' (<>) (map (inferTypeOf specific) vs))
 
-to_num_type :: ScoreT.Type -> NumType
-to_num_type = \case
+toNumType :: ScoreT.Type -> NumType
+toNumType = \case
     ScoreT.Untyped -> TUntyped
     ScoreT.Real -> TRealTime
     ScoreT.Score -> TScoreTime

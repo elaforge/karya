@@ -18,85 +18,85 @@ import           Global
 import           Types
 
 
-maximize_and_zoom :: Cmd.M m => ViewId -> m ()
-maximize_and_zoom view_id = do
-    resize_to_fit True view_id
-    zoom_to_ruler view_id
+maximizeAndZoom :: Cmd.M m => ViewId -> m ()
+maximizeAndZoom viewId = do
+    resizeToFit True viewId
+    zoomToRuler viewId
 
 -- * zoom
 
 -- | Set zoom on the given view to make the entire block visible.
-zoom_to_ruler :: Cmd.M m => ViewId -> m ()
-zoom_to_ruler view_id = do
-    block_end <- block_end view_id
-    factor <- zoom_factor view_id block_end
-    set_zoom view_id $ Zoom.Zoom { offset = 0, factor = factor }
+zoomToRuler :: Cmd.M m => ViewId -> m ()
+zoomToRuler viewId = do
+    blockEnd <- blockEnd viewId
+    factor <- zoomFactor viewId blockEnd
+    setZoom viewId $ Zoom.Zoom { offset = 0, factor = factor }
 
 -- | Figure out the zoom factor to display the given amount of TrackTime.
-zoom_factor :: Ui.M m => ViewId -> TrackTime -> m Double
-zoom_factor view_id dur
+zoomFactor :: Ui.M m => ViewId -> TrackTime -> m Double
+zoomFactor viewId dur
     | dur == 0 = pure 1
     | otherwise = do
-        view <- Ui.get_view view_id
-        let pixels = Block.view_visible_time view
-        pure $ fromIntegral pixels / ScoreTime.to_double dur
+        view <- Ui.getView viewId
+        let pixels = Block.viewVisibleTime view
+        pure $ fromIntegral pixels / ScoreTime.toDouble dur
 
-set_zoom :: Cmd.M m => ViewId -> Zoom.Zoom -> m ()
-set_zoom view_id = modify_zoom view_id . const
+setZoom :: Cmd.M m => ViewId -> Zoom.Zoom -> m ()
+setZoom viewId = modifyZoom viewId . const
 
 -- | Set time scroll, clipping so it doesn't scroll past 'Block.block_end'.
-set_time_offset :: Cmd.M m => ViewId -> TrackTime -> m ()
-set_time_offset view_id offset = do
-    view <- Ui.get_view view_id
-    let visible = Block.visible_time view
-    end <- Ui.block_end $ Block.view_block view
-    modify_zoom view_id $ \zoom -> zoom
+setTimeOffset :: Cmd.M m => ViewId -> TrackTime -> m ()
+setTimeOffset viewId offset = do
+    view <- Ui.getView viewId
+    let visible = Block.visibleTime view
+    end <- Ui.blockEnd $ Block.viewBlock view
+    modifyZoom viewId $ \zoom -> zoom
         { Zoom.offset = Num.clamp 0 (end - visible) offset }
 
-modify_zoom :: Cmd.M m => ViewId -> (Zoom.Zoom -> Zoom.Zoom) -> m ()
-modify_zoom view_id modify = do
-    Ui.modify_zoom view_id modify
+modifyZoom :: Cmd.M m => ViewId -> (Zoom.Zoom -> Zoom.Zoom) -> m ()
+modifyZoom viewId modify = do
+    Ui.modifyZoom viewId modify
     -- it's a no-op and Internal adds many deps
     -- Internal.sync_zoom_status view_id
 
 -- * size
 
 -- | Resize a window to fit its tracks.
-resize_to_fit :: Cmd.M m => Bool -- ^ maximize the window vertically
+resizeToFit :: Cmd.M m => Bool -- ^ maximize the window vertically
     -> ViewId -> m ()
-resize_to_fit maximize view_id = do
-    view <- Ui.get_view view_id
-    screen <- Cmd.get_screen $ Just (Rect.upper_left (Block.view_rect view))
-    rect <- contents_rect view
-    Ui.set_view_rect view_id $ Rect.intersection screen $ scootch screen $
-        if maximize then max_height screen rect else rect
+resizeToFit maximize viewId = do
+    view <- Ui.getView viewId
+    screen <- Cmd.getScreen $ Just (Rect.upperLeft (Block.viewRect view))
+    rect <- contentsRect view
+    Ui.setViewRect viewId $ Rect.intersection screen $ scootch screen $
+        if maximize then maxHeight screen rect else rect
     where
     -- Move the rect over so it fits on the screen.
     scootch screen r = Rect.place
         (Num.clamp (Rect.x screen) (Rect.r screen - Rect.w r) (Rect.x r))
         (Num.clamp (Rect.y screen) (Rect.b screen - Rect.h r) (Rect.y r))
         r
-    max_height screen r = Rect.xywh
+    maxHeight screen r = Rect.xywh
         (Rect.x r) (Rect.y screen)
-        (Rect.w r) (Rect.h screen - Config.window_decoration_h)
+        (Rect.w r) (Rect.h screen - Config.windowDecorationH)
 
 -- | Get the View's Rect, resized to fit its contents at its current zoom.  Its
 -- position is unchanged.
-contents_rect :: Ui.M m => Block.View -> m Rect.Rect
-contents_rect view = do
-    block_end <- Ui.block_end (Block.view_block view)
-    block <- Ui.get_block (Block.view_block view)
-    let (x, y) = Rect.upper_left (Block.track_rect view)
-        w = Num.sum $ map Block.display_track_width (Block.block_tracks block)
-        h = Zoom.to_pixels (Block.view_zoom view) block_end
-    pure $ Block.set_track_rect view $ Rect.xywh x y (max w 40) (max h 40)
+contentsRect :: Ui.M m => Block.View -> m Rect.Rect
+contentsRect view = do
+    blockEnd <- Ui.blockEnd (Block.viewBlock view)
+    block <- Ui.getBlock (Block.viewBlock view)
+    let (x, y) = Rect.upperLeft (Block.trackRect view)
+        w = Num.sum $ map Block.displayTrackWidth (Block.blockTracks block)
+        h = Zoom.toPixels (Block.viewZoom view) blockEnd
+    pure $ Block.setTrackRect view $ Rect.xywh x y (max w 40) (max h 40)
 
-set_track_rect :: Ui.M m => ViewId -> Rect.Rect -> m ()
-set_track_rect view_id rect = do
-    view <- Ui.get_view view_id
-    Ui.set_view_rect view_id $ Block.set_track_rect view rect
+setTrackRect :: Ui.M m => ViewId -> Rect.Rect -> m ()
+setTrackRect viewId rect = do
+    view <- Ui.getView viewId
+    Ui.setViewRect viewId $ Block.setTrackRect view rect
 
 -- * util
 
-block_end :: Ui.M m => ViewId -> m TrackTime
-block_end = Ui.block_end . Block.view_block <=< Ui.get_view
+blockEnd :: Ui.M m => ViewId -> m TrackTime
+blockEnd = Ui.blockEnd . Block.viewBlock <=< Ui.getView

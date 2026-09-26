@@ -16,14 +16,14 @@ import           Util.Test
 test_pitch :: Test
 test_pitch = do
     let run key base ps = DeriveTest.extract extract $
-            DeriveTest.derive_tracks ""
+            DeriveTest.deriveTracks ""
             [ (title, [(t, 1, "") | (t, _) <- times ps])
             , ("*raga", [(t, 0, p) | (t, p) <- times ps])
             ]
             where
             times = zip (Lists.range_ 0 1)
             title = "> | just-base = " <> base <> " | key = " <> key
-        extract = Score.initial_nn
+        extract = Score.initialNn
     equalf 0.01 (run "hemavati" "(hz g3)" ["3s"]) ([Just NN.g3], [])
 
 test_alternate :: Test

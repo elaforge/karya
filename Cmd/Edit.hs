@@ -8,50 +8,50 @@
 -}
 module Cmd.Edit (
     -- * global editing state
-    cmd_toggle_val_edit
-    , cmd_toggle_method_edit
-    , cmd_toggle_kbd_entry
-    , cmd_toggle_val_edit_kbd_entry
-    , set_step_rank
-    , set_step
-    , toggle_absolute_relative_step
-    , cmd_toggle_note_orientation
-    , cmd_modify_octave
-    , toggle_advance
-    , toggle_chord
+    cmdToggleValEdit
+    , cmdToggleMethodEdit
+    , cmdToggleKbdEntry
+    , cmdToggleValEditKbdEntry
+    , setStepRank
+    , setStep
+    , toggleAbsoluteRelativeStep
+    , cmdToggleNoteOrientation
+    , cmdModifyOctave
+    , toggleAdvance
+    , toggleChord
 
     -- * event start and duration
-    , cmd_move_event_forward, cmd_move_event_backward
-    , cmd_set_duration
-    , cmd_toggle_zero_timestep
-    , cmd_set_start
-    , modify_dur
-    , cmd_join_events
-    , cmd_split_events
-    , cmd_insert_time
-    , cmd_delete_time
-    , delete_block_time
-    , cmd_clear_selected
-    , clear_range
-    , cmd_clear_and_advance
-    , toggle_note_duration
-    , cmd_set_call_duration
-    , cmd_invert_orientation
+    , cmdMoveEventForward, cmdMoveEventBackward
+    , cmdSetDuration
+    , cmdToggleZeroTimestep
+    , cmdSetStart
+    , modifyDur
+    , cmdJoinEvents
+    , cmdSplitEvents
+    , cmdInsertTime
+    , cmdDeleteTime
+    , deleteBlockTime
+    , cmdClearSelected
+    , clearRange
+    , cmdClearAndAdvance
+    , toggleNoteDuration
+    , cmdSetCallDuration
+    , cmdInvertOrientation
 
     -- * modify text
-    , cmd_toggle_commented
-    , strip_transformer
+    , cmdToggleCommented
+    , stripTransformer
 
     -- * record action
-    , save_last_action_to
-    , run_action_at
+    , saveLastActionTo
+    , runActionAt
 
     -- * floating text input
-    , handle_floating_input
-    , append_text
-    , prepend_text
-    , replace_last_call
-    , replace_first_call
+    , handleFloatingInput
+    , appendText
+    , prependText
+    , replaceLastCall
+    , replaceFirstCall
 ) where
 import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Map as Map
@@ -91,150 +91,150 @@ import           Types
 -- | Unlike the other toggle commands, val edit, being the \"default\" toggle,
 -- always turns other modes off.  So you can't switch directly from some other
 -- kind of edit to val edit.
-cmd_toggle_val_edit :: Cmd.M m => m ()
-cmd_toggle_val_edit = modify_edit_mode $ \m -> case m of
+cmdToggleValEdit :: Cmd.M m => m ()
+cmdToggleValEdit = modifyEditMode $ \m -> case m of
     Cmd.NoEdit -> Cmd.ValEdit
     _ -> Cmd.NoEdit
 
-cmd_toggle_method_edit :: Cmd.M m => m ()
-cmd_toggle_method_edit = modify_edit_mode $ \m -> case m of
+cmdToggleMethodEdit :: Cmd.M m => m ()
+cmdToggleMethodEdit = modifyEditMode $ \m -> case m of
     Cmd.MethodEdit -> Cmd.ValEdit
     Cmd.ValEdit -> Cmd.MethodEdit
     _ -> m
 
 -- | Toggle kbd entry mode, putting a K in the edit box as a reminder.  This is
 -- orthogonal to the previous edit modes.
-cmd_toggle_kbd_entry :: Cmd.M m => m ()
-cmd_toggle_kbd_entry = Cmd.modify_edit_state $ \st ->
-    st { Cmd.state_kbd_entry = not (Cmd.state_kbd_entry st) }
+cmdToggleKbdEntry :: Cmd.M m => m ()
+cmdToggleKbdEntry = Cmd.modifyEditState $ \st ->
+    st { Cmd.stateKbdEntry = not (Cmd.stateKbdEntry st) }
 
-cmd_toggle_val_edit_kbd_entry :: Cmd.M m => m ()
-cmd_toggle_val_edit_kbd_entry = Cmd.modify_edit_state $ \st ->
-    if Cmd.state_edit_mode st == Cmd.ValEdit
+cmdToggleValEditKbdEntry :: Cmd.M m => m ()
+cmdToggleValEditKbdEntry = Cmd.modifyEditState $ \st ->
+    if Cmd.stateEditMode st == Cmd.ValEdit
         then st
-            { Cmd.state_edit_mode = Cmd.NoEdit
-            , Cmd.state_kbd_entry = False
+            { Cmd.stateEditMode = Cmd.NoEdit
+            , Cmd.stateKbdEntry = False
             }
         else st
-            { Cmd.state_edit_mode = Cmd.ValEdit
-            , Cmd.state_kbd_entry = True
+            { Cmd.stateEditMode = Cmd.ValEdit
+            , Cmd.stateKbdEntry = True
             }
 
 -- | If the TimeStep is AbsoluteMark or RelativeMark, set its rank.  Otherwise,
 -- set it to the deflt.  This means the marklist names are sticky, so if you
 -- set it manually the default bindings won't mess it up.
-set_step_rank :: Cmd.M m => TimeStep.TimeStep -> Meter.Rank -> m ()
-set_step_rank deflt rank = Cmd.modify_edit_state $ \st ->
-    st { Cmd.state_time_step =
-        set (TimeStep.to_list (Cmd.state_time_step st)) }
+setStepRank :: Cmd.M m => TimeStep.TimeStep -> Meter.Rank -> m ()
+setStepRank deflt rank = Cmd.modifyEditState $ \st ->
+    st { Cmd.stateTimeStep =
+        set (TimeStep.toList (Cmd.stateTimeStep st)) }
     where
     set [TimeStep.AbsoluteMark names _] =
-        TimeStep.time_step (TimeStep.AbsoluteMark names rank)
+        TimeStep.timeStep (TimeStep.AbsoluteMark names rank)
     set [TimeStep.RelativeMark names _] =
-        TimeStep.time_step (TimeStep.RelativeMark names rank)
+        TimeStep.timeStep (TimeStep.RelativeMark names rank)
     set _ = deflt
 
-set_step :: Cmd.M m => TimeStep.TimeStep -> m ()
-set_step step = Cmd.modify_edit_state $ \st -> st { Cmd.state_time_step = step }
+setStep :: Cmd.M m => TimeStep.TimeStep -> m ()
+setStep step = Cmd.modifyEditState $ \st -> st { Cmd.stateTimeStep = step }
 
 -- | Toggle between absolute and relative mark step.
-toggle_absolute_relative_step :: Cmd.M m => m ()
-toggle_absolute_relative_step = Cmd.modify_edit_state $ \st ->
-        st { Cmd.state_time_step = toggle (Cmd.state_time_step st) }
+toggleAbsoluteRelativeStep :: Cmd.M m => m ()
+toggleAbsoluteRelativeStep = Cmd.modifyEditState $ \st ->
+        st { Cmd.stateTimeStep = toggle (Cmd.stateTimeStep st) }
     where
-    toggle step = case TimeStep.to_list step of
+    toggle step = case TimeStep.toList step of
         [TimeStep.AbsoluteMark names rank] ->
-            TimeStep.time_step (TimeStep.RelativeMark names rank)
+            TimeStep.timeStep (TimeStep.RelativeMark names rank)
         [TimeStep.RelativeMark names rank] ->
-            TimeStep.time_step (TimeStep.AbsoluteMark names rank)
+            TimeStep.timeStep (TimeStep.AbsoluteMark names rank)
         _ -> step
 
-cmd_toggle_note_orientation :: Cmd.M m => m ()
-cmd_toggle_note_orientation = Cmd.modify_edit_state $ \st -> st
-    { Cmd.state_note_orientation = Types.invert (Cmd.state_note_orientation st)
+cmdToggleNoteOrientation :: Cmd.M m => m ()
+cmdToggleNoteOrientation = Cmd.modifyEditState $ \st -> st
+    { Cmd.stateNoteOrientation = Types.invert (Cmd.stateNoteOrientation st)
     }
 
-cmd_modify_octave :: Cmd.M m => (Pitch.Octave -> Pitch.Octave) -> m ()
-cmd_modify_octave f = Cmd.modify_edit_state $ \st -> st
-    { Cmd.state_kbd_entry_octave = f (Cmd.state_kbd_entry_octave st) }
+cmdModifyOctave :: Cmd.M m => (Pitch.Octave -> Pitch.Octave) -> m ()
+cmdModifyOctave f = Cmd.modifyEditState $ \st -> st
+    { Cmd.stateKbdEntryOctave = f (Cmd.stateKbdEntryOctave st) }
 
 -- ** util
 
-modify_edit_mode :: Cmd.M m => (Cmd.EditMode -> Cmd.EditMode) -> m ()
-modify_edit_mode f = Cmd.modify_edit_state $ \st ->
-    st { Cmd.state_edit_mode = f (Cmd.state_edit_mode st) }
+modifyEditMode :: Cmd.M m => (Cmd.EditMode -> Cmd.EditMode) -> m ()
+modifyEditMode f = Cmd.modifyEditState $ \st ->
+    st { Cmd.stateEditMode = f (Cmd.stateEditMode st) }
 
-toggle_advance :: Cmd.M m => m ()
-toggle_advance = modify_advance not
+toggleAdvance :: Cmd.M m => m ()
+toggleAdvance = modifyAdvance not
 
-modify_advance :: Cmd.M m => (Bool -> Bool) -> m ()
-modify_advance f = Cmd.modify_edit_state $ \st ->
-    st { Cmd.state_advance = f (Cmd.state_advance st) }
+modifyAdvance :: Cmd.M m => (Bool -> Bool) -> m ()
+modifyAdvance f = Cmd.modifyEditState $ \st ->
+    st { Cmd.stateAdvance = f (Cmd.stateAdvance st) }
 
-toggle_chord :: Cmd.M m => m ()
-toggle_chord = modify_chord not
+toggleChord :: Cmd.M m => m ()
+toggleChord = modifyChord not
 
-modify_chord :: Cmd.M m => (Bool -> Bool) -> m ()
-modify_chord f = Cmd.modify_edit_state $ \st ->
-    st { Cmd.state_chord = f (Cmd.state_chord st) }
+modifyChord :: Cmd.M m => (Bool -> Bool) -> m ()
+modifyChord f = Cmd.modifyEditState $ \st ->
+    st { Cmd.stateChord = f (Cmd.stateChord st) }
 
-toggle_record_velocity :: Cmd.CmdL ()
-toggle_record_velocity = modify_record_velocity not
+toggleRecordVelocity :: Cmd.CmdL ()
+toggleRecordVelocity = modifyRecordVelocity not
 
-modify_record_velocity :: (Bool -> Bool) -> Cmd.CmdL ()
-modify_record_velocity f = Cmd.modify_edit_state $ \st ->
-    st { Cmd.state_record_velocity = f (Cmd.state_record_velocity st) }
+modifyRecordVelocity :: (Bool -> Bool) -> Cmd.CmdL ()
+modifyRecordVelocity f = Cmd.modifyEditState $ \st ->
+    st { Cmd.stateRecordVelocity = f (Cmd.stateRecordVelocity st) }
 
 -- * event start and duration
 
 -- | Insert an event at the current insert pos.
-insert_event :: Cmd.M m => Text -> ScoreTime -> m ()
-insert_event text dur = do
-    (block_id, _, track_id, pos) <- Selection.get_insert
-    Ui.insert_block_events block_id track_id [Event.event pos dur text]
+insertEvent :: Cmd.M m => Text -> ScoreTime -> m ()
+insertEvent text dur = do
+    (blockId, _, trackId, pos) <- Selection.getInsert
+    Ui.insertBlockEvents blockId trackId [Event.event pos dur text]
 
 -- | Different from 'cmd_insert_time' and 'cmd_delete_time' since it only
 -- moves some events.  Move back the next event, or move forward the previous
 -- event.  Move the next or previous event for a point selection, or the
 -- selected events.
-cmd_move_event_forward :: Cmd.M m => m ()
-cmd_move_event_forward = move_events TimeStep.Advance
+cmdMoveEventForward :: Cmd.M m => m ()
+cmdMoveEventForward = moveEvents TimeStep.Advance
 
-cmd_move_event_backward :: Cmd.M m => m ()
-cmd_move_event_backward = move_events TimeStep.Rewind
+cmdMoveEventBackward :: Cmd.M m => m ()
+cmdMoveEventBackward = moveEvents TimeStep.Rewind
 
 {- |
     . If selection is a point, expand it to the next or prev event.
     . Delete events from pos to end of selection.
     . Select all events in selection, move by pos - Event.start affected.
 -}
-move_events :: Cmd.M m => TimeStep.Direction -> m ()
-move_events dir = do
-    (block_id, _, track_ids, range) <- Selection.tracks
-    tracks <- zip track_ids <$> mapM Ui.get_events track_ids
+moveEvents :: Cmd.M m => TimeStep.Direction -> m ()
+moveEvents dir = do
+    (blockId, _, trackIds, range) <- Selection.tracks
+    tracks <- zip trackIds <$> mapM Ui.getEvents trackIds
     -- Use the first selected track as the reference for how much to move.
     -- This is predictable so let's try this for now.
-    event_range <- expand range . snd <$> Cmd.abort_unless (Lists.head tracks)
-    affected <- Cmd.abort_unless $
-        NonEmpty.nonEmpty . Events.ascending . Events.in_range event_range . snd
+    eventRange <- expand range . snd <$> Cmd.abortUnless (Lists.head tracks)
+    affected <- Cmd.abortUnless $
+        NonEmpty.nonEmpty . Events.ascending . Events.inRange eventRange . snd
             =<< Lists.head tracks
     let pos = case dir of
-            TimeStep.Rewind -> Events.range_start range
-            TimeStep.Advance -> Events.range_end range
+            TimeStep.Rewind -> Events.rangeStart range
+            TimeStep.Advance -> Events.rangeEnd range
     let delta = (pos -) $ Event.start $ case dir of
             TimeStep.Rewind -> NonEmpty.head affected
             TimeStep.Advance -> NonEmpty.last affected
     when (delta /= 0) $ forM_ tracks $ \(tid, events) -> do
-        Ui.remove_events_range tid event_range
-        Ui.insert_block_events block_id tid $
+        Ui.removeEventsRange tid eventRange
+        Ui.insertBlockEvents blockId tid $
             map (Event.start_ %= (+delta)) $ Events.ascending $
-            Events.in_range event_range events
+            Events.inRange eventRange events
     where
     expand range events = case range of
         Events.Point pos _orient ->
-            maybe range Events.event_range $ Lists.head $ case dir of
-                TimeStep.Rewind -> Events.at_after pos events
-                TimeStep.Advance -> Events.at_before pos events
+            maybe range Events.eventRange $ Lists.head $ case dir of
+                TimeStep.Rewind -> Events.atAfter pos events
+                TimeStep.Advance -> Events.atBefore pos events
         Events.Range {} -> range
 
 -- | Extend the events in the selection to either the end of the selection or
@@ -245,52 +245,52 @@ move_events dir = do
 -- the event to 0, which has its own cmd anyway.  If the selection is between
 -- a positive and negative event, the one corresponding to 'Sel.orientation' is
 -- selected.
-cmd_set_duration :: Cmd.M m => m ()
-cmd_set_duration = modify_neighbor modify =<< Selection.context
+cmdSetDuration :: Cmd.M m => m ()
+cmdSetDuration = modifyNeighbor modify =<< Selection.context
     where
     modify (start, end) event
-        | Event.is_negative event = set_dur (start - Event.start event) event
-        | otherwise = set_dur (end - Event.start event) event
+        | Event.isNegative event = setDur (start - Event.start event) event
+        | otherwise = setDur (end - Event.start event) event
 
 -- | Similar to 'ModifyEvents.event', but if the selection is a point, modify
 -- the previous or next event, depending on if it's positive or negative.
-modify_neighbor :: Ui.M m
+modifyNeighbor :: Ui.M m
     => ((ScoreTime, ScoreTime) -> Event.Event -> Event.Event)
     -> Selection.Context -> m ()
-modify_neighbor modify ctx
-    | Sel.is_point sel = prev_or_next (Selection.sel_point sel)
+modifyNeighbor modify ctx
+    | Sel.isPoint sel = prevOrNext (Selection.selPoint sel)
     | otherwise = selection (Sel.range sel)
     where
-    sel = Selection.ctx_selection ctx
+    sel = Selection.ctxSelection ctx
     -- TODO Should I integrate this into ModifyEvents?
-    prev_or_next pos = do
-        let block_id = Selection.ctx_block_id ctx
-        tracks <- avoid_exact_match ctx
-        forM_ tracks $ \(track_id, event) -> do
-            tracknum <- Ui.get_tracknum_of block_id track_id
+    prevOrNext pos = do
+        let blockId = Selection.ctxBlockId ctx
+        tracks <- avoidExactMatch ctx
+        forM_ tracks $ \(trackId, event) -> do
+            tracknum <- Ui.getTracknumOf blockId trackId
             -- It's confusing to modify collapsed tracks because you don't
             -- see the change.  TODO this is recreating the stuff in
             -- ModifyEvents.
-            unlessM (Ui.track_collapsed block_id tracknum) $ do
-                Ui.remove_event track_id event
-                Ui.insert_event track_id $ modify (pos, pos) event
-    selection range = ModifyEvents.ctx_selection_visible
+            unlessM (Ui.trackCollapsed blockId tracknum) $ do
+                Ui.removeEvent trackId event
+                Ui.insertEvent trackId $ modify (pos, pos) event
+    selection range = ModifyEvents.ctxSelectionVisible
         (ModifyEvents.events $ pure . map (modify range)) ctx
 
 -- | Like 'Selection.events_around', but if a point selection is on an event
 -- start, find a neighbor instead of matching that event.
-avoid_exact_match :: Ui.M m => Selection.Context -> m [(TrackId, Event.Event)]
-avoid_exact_match ctx =
-    Lists.mapMaybeSnd select <$> Selection.ctx_events_around ctx
+avoidExactMatch :: Ui.M m => Selection.Context -> m [(TrackId, Event.Event)]
+avoidExactMatch ctx =
+    Lists.mapMaybeSnd select <$> Selection.ctxEventsAround ctx
     where
-    point = Selection.sel_point (Selection.ctx_selection ctx)
+    point = Selection.selPoint (Selection.ctxSelection ctx)
     select triple = case triple of
         (_, [within], _) | Event.start within /= point -> Just within
         (prev:_, [within], _) | positive within && positive prev -> Just prev
         (_, [within], next:_) | negative within && negative next -> Just next
         _ -> Nothing
-    positive = Event.is_positive
-    negative = Event.is_negative
+    positive = Event.isPositive
+    negative = Event.isNegative
 
 {- | Toggle duration between zero and non-zero.
 
@@ -303,28 +303,28 @@ avoid_exact_match ctx =
     event case, but it turned out to be unintuitive to use in practice, because
     to toggle an event I'd have to put the selection on the next event.
 -}
-cmd_toggle_zero_timestep :: Cmd.M m => m ()
-cmd_toggle_zero_timestep = do
+cmdToggleZeroTimestep :: Cmd.M m => m ()
+cmdToggleZeroTimestep = do
     sel <- Selection.get
-    ModifyEvents.selection_visible $ \block_id track_id events -> do
-        tracknum <- Ui.get_tracknum_of block_id track_id
+    ModifyEvents.selectionVisible $ \blockId trackId events -> do
+        tracknum <- Ui.getTracknumOf blockId trackId
         let (start, end) = Sel.range sel
-        Just <$> mapM (toggle_zero_timestep block_id tracknum start end) events
+        Just <$> mapM (toggleZeroTimestep blockId tracknum start end) events
 
-toggle_zero_timestep :: Cmd.M m => BlockId -> TrackNum
+toggleZeroTimestep :: Cmd.M m => BlockId -> TrackNum
     -> TrackTime -> TrackTime -> Event.Event -> m Event.Event
-toggle_zero_timestep block_id tracknum start end event
+toggleZeroTimestep blockId tracknum start end event
     | Event.duration event /= 0 = pure $
-        Event.duration_ #= (if Event.is_negative event then -0 else 0) $ event
+        Event.duration_ #= (if Event.isNegative event then -0 else 0) $ event
     | start == end && start == Event.start event = do
-        step <- Cmd.get_current_step
-        maybe_pos <- TimeStep.step_from
-            (if Event.is_negative event then -1 else 1) step block_id tracknum
+        step <- Cmd.getCurrentStep
+        maybePos <- TimeStep.stepFrom
+            (if Event.isNegative event then -1 else 1) step blockId tracknum
             start
-        case maybe_pos of
+        case maybePos of
             Nothing -> pure event
-            Just pos -> pure $ Event.set_end pos event
-    | Event.is_negative event =
+            Just pos -> pure $ Event.setEnd pos event
+    | Event.isNegative event =
         pure $ Event.duration_ #= (start - Event.start event) $ event
     | otherwise = pure $ Event.duration_ #= (end - Event.start event) $ event
 
@@ -345,22 +345,22 @@ toggle_zero_timestep block_id tracknum start end event
 -- TODO for zero duration events, this is equivalent to
 -- 'cmd_move_event_backward'.  I'm not totally happy about the overlap, is
 -- there a more orthogonal organization?
-cmd_set_start :: Cmd.M m => m ()
-cmd_set_start = do
+cmdSetStart :: Cmd.M m => m ()
+cmdSetStart = do
     pos <- Selection.point
-    mapM_ (process pos) =<< Selection.opposite_neighbor
+    mapM_ (process pos) =<< Selection.oppositeNeighbor
     where
-    process pos (track_id, event) = do
-        Ui.remove_event track_id event
-        Ui.insert_event track_id $ set_start pos event
-    set_start p event
+    process pos (trackId, event) = do
+        Ui.removeEvent trackId event
+        Ui.insertEvent trackId $ setStart pos event
+    setStart p event
         | Event.duration event == 0 = Event.start_ #= p $ event
-        | otherwise = Event.set_start p event
+        | otherwise = Event.setStart p event
 
 -- | Modify event durations by applying a function to them.  0 durations
 -- are passed through, so you can't accidentally give control events duration.
-modify_dur :: Cmd.M m => (ScoreTime -> ScoreTime) -> m ()
-modify_dur f = ModifyEvents.selection_visible $ ModifyEvents.event $
+modifyDur :: Cmd.M m => (ScoreTime -> ScoreTime) -> m ()
+modifyDur f = ModifyEvents.selectionVisible $ ModifyEvents.event $
     Event.duration_ %= apply
     where apply dur = if dur == 0 then dur else f dur
 
@@ -373,46 +373,46 @@ modify_dur f = ModifyEvents.selection_visible $ ModifyEvents.event $
 -- Otherwise, if there's a collapsed pitch track and the next event doesn't
 -- have a pitch event, it's easy to wind up deleting a distance pitch and not
 -- noticing.
-cmd_join_events :: Cmd.M m => m ()
-cmd_join_events = join_selected =<< Selection.events_around
+cmdJoinEvents :: Cmd.M m => m ()
+cmdJoinEvents = joinSelected =<< Selection.eventsAround
     where
-    join_selected tracks = mapM_ (join_track nearest) tracks
-        where nearest = Lists.minimumOn abs $ mapMaybe nearest_of tracks
-    nearest_of (_, (prevs, [cur], nexts))
-        | Event.is_positive cur =
+    joinSelected tracks = mapM_ (joinTrack nearest) tracks
+        where nearest = Lists.minimumOn abs $ mapMaybe nearestOf tracks
+    nearestOf (_, (prevs, [cur], nexts))
+        | Event.isPositive cur =
             subtract (Event.start cur) . Event.start <$> Lists.head nexts
         | otherwise =
             subtract (Event.start cur) . Event.start <$> Lists.head prevs
-    nearest_of _ = Nothing
+    nearestOf _ = Nothing
 
-    join_track distance (track_id, selected) = case selected of
-        (_, [cur], next:_) | Event.is_positive cur
+    joinTrack distance (trackId, selected) = case selected of
+        (_, [cur], next:_) | Event.isPositive cur
                 && maybe True (Event.start next <=) nearest ->
-            join track_id cur next
+            join trackId cur next
             where nearest = (Event.start cur +) <$> distance
-        (prev:_, [cur], _) | Event.is_negative cur
+        (prev:_, [cur], _) | Event.isNegative cur
                 && maybe True (Event.start prev >=) nearest ->
-            join track_id prev cur
+            join trackId prev cur
             where nearest = (Event.start cur +) <$> distance
-        (_, events@(_:_:_), _) -> join track_id (head events) (last events)
+        (_, events@(_:_:_), _) -> join trackId (head events) (last events)
         _ -> pure ()
-    join track_id evt1 evt2 =
-        case (Event.is_positive evt1, Event.is_positive evt2) of
+    join trackId evt1 evt2 =
+        case (Event.isPositive evt1, Event.isPositive evt2) of
             (True, True) -> do
-                mapM_ (Ui.remove_event track_id) [evt1, evt2]
-                Ui.insert_event track_id $
-                    set_dur (Event.end evt2 - Event.start evt1) evt1
+                mapM_ (Ui.removeEvent trackId) [evt1, evt2]
+                Ui.insertEvent trackId $
+                    setDur (Event.end evt2 - Event.start evt1) evt1
             (False, False) -> do
-                mapM_ (Ui.remove_event track_id) [evt1, evt2]
-                Ui.insert_event track_id $ if Event.duration evt2 == 0
+                mapM_ (Ui.removeEvent trackId) [evt1, evt2]
+                Ui.insertEvent trackId $ if Event.duration evt2 == 0
                     then evt2
-                    else Event.set_end (Event.end evt1) evt2
+                    else Event.setEnd (Event.end evt1) evt2
             _ -> pure () -- no sensible way to join these
 
 
 -- | Split the events under the cursor.
-cmd_split_events :: Cmd.M m => m ()
-cmd_split_events = do
+cmdSplitEvents :: Cmd.M m => m ()
+cmdSplitEvents = do
     p <- Selection.point
     ModifyEvents.overlapping $ ModifyEvents.events $
         pure . concatMap (split p)
@@ -425,76 +425,76 @@ cmd_split_events = do
             ]
 
 -- | The same as 'Event.set_duration' except don't modify a zero dur event.
-set_dur :: TrackTime -> Event.Event -> Event.Event
-set_dur dur evt
+setDur :: TrackTime -> Event.Event -> Event.Event
+setDur dur evt
     | Event.duration evt == 0 = evt
     | otherwise = Event.duration_ #= dur $ evt
 
 -- | Insert empty space at the beginning of the selection for the length of
 -- the selection, pushing subsequent events forwards.  If the selection is
 -- a point, insert one timestep.
-cmd_insert_time :: Cmd.M m => m ()
-cmd_insert_time = do
-    (block_id, tracknums, track_ids, range) <- Selection.tracks
-    let (start, end) = Events.range_times range
-    (start, end) <- point_to_timestep tracknums start end
-    when (end > start) $ forM_ track_ids $ \track_id -> do
-        events <- Ui.get_events track_id
-        case Events.split_at_before start events of
+cmdInsertTime :: Cmd.M m => m ()
+cmdInsertTime = do
+    (blockId, tracknums, trackIds, range) <- Selection.tracks
+    let (start, end) = Events.rangeTimes range
+    (start, end) <- pointToTimestep tracknums start end
+    when (end > start) $ forM_ trackIds $ \trackId -> do
+        events <- Ui.getEvents trackId
+        case Events.splitAtBefore start events of
             (_, []) -> pure ()
             (_, events@(event:_)) -> do
-                Ui.modify_events_from track_id (min (Event.start event) start)
+                Ui.modifyEventsFrom trackId (min (Event.start event) start)
                     (const mempty)
                 -- The above won't get a negative event at start.
-                Ui.remove_event track_id event
-                Ui.insert_block_events block_id track_id $
-                    map (insert_event_time start (end-start)) events
+                Ui.removeEvent trackId event
+                Ui.insertBlockEvents blockId trackId $
+                    map (insertEventTime start (end-start)) events
 
 -- | Modify the event to insert time, lengthening it if the start time falls
 -- within the event's duration.
-insert_event_time :: TrackTime -> TrackTime -> Event.Event -> Event.Event
-insert_event_time start shift event
-    | Event.is_positive event = if
+insertEventTime :: TrackTime -> TrackTime -> Event.Event -> Event.Event
+insertEventTime start shift event
+    | Event.isPositive event = if
         | start <= Event.start event -> Event.start_ %= (+shift) $ event
         | start < Event.end event -> Event.duration_ %= (+shift) $ event
         | otherwise -> event
     | otherwise = if
         | start <= Event.end event -> Event.start_ %= (+shift) $ event
         | start < Event.start event ->
-            Event.set_start (Event.start event + shift) event
+            Event.setStart (Event.start event + shift) event
         | otherwise -> event
 
 -- | Remove the notes under the selection, and move everything else back.  If
 -- the selection is a point, delete one timestep.
-cmd_delete_time :: Cmd.M m => m ()
-cmd_delete_time = do
-    (block_id, tracknums, track_ids, range) <- Selection.tracks
-    let (start, end) = Events.range_times range
-    (start, end) <- point_to_timestep tracknums start end
-    when (end > start) $ forM_ track_ids $ \track_id ->
-        delete_time block_id track_id start (end-start)
+cmdDeleteTime :: Cmd.M m => m ()
+cmdDeleteTime = do
+    (blockId, tracknums, trackIds, range) <- Selection.tracks
+    let (start, end) = Events.rangeTimes range
+    (start, end) <- pointToTimestep tracknums start end
+    when (end > start) $ forM_ trackIds $ \trackId ->
+        deleteTime blockId trackId start (end-start)
 
 -- | Delete the time range for all tracks in the block.
-delete_block_time :: Ui.M m => BlockId -> TrackTime -> TrackTime -> m ()
-delete_block_time block_id start dur = do
-    track_ids <- Ui.track_ids_of block_id
-    forM_ track_ids $ \track_id ->
-        delete_time block_id track_id start dur
+deleteBlockTime :: Ui.M m => BlockId -> TrackTime -> TrackTime -> m ()
+deleteBlockTime blockId start dur = do
+    trackIds <- Ui.trackIdsOf blockId
+    forM_ trackIds $ \trackId ->
+        deleteTime blockId trackId start dur
 
-delete_time :: Ui.M m => BlockId -> TrackId -> TrackTime -> TrackTime -> m ()
-delete_time block_id track_id start dur = do
+deleteTime :: Ui.M m => BlockId -> TrackId -> TrackTime -> TrackTime -> m ()
+deleteTime blockId trackId start dur = do
     when (dur < 0) $
         Ui.throw $ "delete_time: negative dur " <> pretty dur
-    events <- Ui.get_events track_id
-    case Events.split_at_before start events of
+    events <- Ui.getEvents trackId
+    case Events.splitAtBefore start events of
         (_, []) -> pure ()
         (_, events@(event:_)) -> do
-            Ui.modify_events_from track_id (min (Event.start event) start)
+            Ui.modifyEventsFrom trackId (min (Event.start event) start)
                 (const mempty)
             -- The above won't get a negative event at start.
-            Ui.remove_event track_id event
-            Ui.insert_block_events block_id track_id $
-                mapMaybe (delete_event_time start dur) events
+            Ui.removeEvent trackId event
+            Ui.insertBlockEvents blockId trackId $
+                mapMaybe (deleteEventTime start dur) events
 
 -- | Modify the event to delete time, shortening it the start time falls within
 -- the event's duration, or removing it entirely if its 'Event.start' was
@@ -503,9 +503,9 @@ delete_time block_id track_id start dur = do
 -- This is more complicated than 'insert_event_time' because it can delete
 -- events, and because the event may only be partially shortened if the range
 -- overlaps its end.
-delete_event_time :: TrackTime -> TrackTime -> Event.Event -> Maybe Event.Event
-delete_event_time start shift event
-    | Event.is_positive event = if
+deleteEventTime :: TrackTime -> TrackTime -> Event.Event -> Maybe Event.Event
+deleteEventTime start shift event
+    | Event.isPositive event = if
         | end <= Event.start event ->
             Just $ Event.start_ %= subtract shift $ event
         | start < Event.start event -> Nothing
@@ -525,176 +525,176 @@ delete_event_time start shift event
     where end = start + shift
 
 -- | If the range is a point, then expand it to one timestep.
-point_to_timestep :: Cmd.M m => [TrackNum] -> TrackTime -> TrackTime
+pointToTimestep :: Cmd.M m => [TrackNum] -> TrackTime -> TrackTime
     -> m (TrackTime, TrackTime)
-point_to_timestep (tracknum:_) start end
+pointToTimestep (tracknum:_) start end
     | start == end = do
-        block_id <- Cmd.get_focused_block
-        step <- Cmd.get_current_step
-        pos <- TimeStep.advance step block_id tracknum end
+        blockId <- Cmd.getFocusedBlock
+        step <- Cmd.getCurrentStep
+        pos <- TimeStep.advance step blockId tracknum end
         pure (start, fromMaybe end pos)
     | otherwise = pure (start, end)
-point_to_timestep [] start end = pure (start, end)
+pointToTimestep [] start end = pure (start, end)
 
 -- | If the insertion selection is a point, clear any event under it.  If it's
 -- a range, clear all events within its half-open extent.
-cmd_clear_selected :: Cmd.M m => m ()
-cmd_clear_selected = do
-    (_, _, track_ids, range) <- Selection.tracks
-    clear_range track_ids range
+cmdClearSelected :: Cmd.M m => m ()
+cmdClearSelected = do
+    (_, _, trackIds, range) <- Selection.tracks
+    clearRange trackIds range
 
-clear_range :: Ui.M m => [TrackId] -> Events.Range -> m ()
-clear_range track_ids range =
-    forM_ track_ids $ \track_id -> Ui.remove_events_range track_id range
+clearRange :: Ui.M m => [TrackId] -> Events.Range -> m ()
+clearRange trackIds range =
+    forM_ trackIds $ \trackId -> Ui.removeEventsRange trackId range
 
-cmd_clear_and_advance :: Cmd.M m => m ()
-cmd_clear_and_advance = do
+cmdClearAndAdvance :: Cmd.M m => m ()
+cmdClearAndAdvance = do
     ctx <- Selection.context
-    (_, _, track_ids, range) <- Selection.ctx_tracks ctx
-    let sel = Selection.ctx_selection ctx
-    let is_point = Sel.is_point sel && Sel.start_track sel == Sel.cur_track sel
-    removed <- if is_point
-        then not . Events.null . Events.in_range range <$>
-            Ui.get_events (head track_ids)
+    (_, _, trackIds, range) <- Selection.ctxTracks ctx
+    let sel = Selection.ctxSelection ctx
+    let isPoint = Sel.isPoint sel && Sel.startTrack sel == Sel.curTrack sel
+    removed <- if isPoint
+        then not . Events.null . Events.inRange range <$>
+            Ui.getEvents (head trackIds)
         else pure False
-    clear_range track_ids range
-    when is_point $ do
+    clearRange trackIds range
+    when isPoint $ do
         -- Originally Cmd.NoteTrack deleted the pitch track too, but it seems
         -- more consistent to use the collapsed track if you want that.
         -- -- Clear out the pitch track too.
         -- maybe_pitch <- Info.pitch_of_note block_id sel_tracknum
         -- whenJust maybe_pitch $ \pitch -> EditUtil.remove_event_at
         --     (EditUtil.Pos block_id (Ui.track_tracknum pitch) pos 0)
-        dur_step <- Cmd.gets $ Cmd.state_note_duration . Cmd.state_edit
-        when (removed && dur_step == TimeStep.event_edge) $
-            extend_previous ctx
+        durStep <- Cmd.gets $ Cmd.stateNoteDuration . Cmd.stateEdit
+        when (removed && durStep == TimeStep.eventEdge) $
+            extendPrevious ctx
         Selection.advance
 
 -- | Get previous event, if positive and its end >= pos, then set its end to
 -- the next event or end of the block.  Or the reverse, if negative.
-extend_previous :: Ui.M m => Selection.Context -> m ()
-extend_previous ctx = do
-    let block_id = Selection.ctx_block_id ctx
-    prev <- TimeStep.rewind TimeStep.event_edge block_id tracknum pos
-    next <- TimeStep.advance TimeStep.event_edge block_id tracknum pos
-    modify_neighbor (const (extend prev next)) ctx
+extendPrevious :: Ui.M m => Selection.Context -> m ()
+extendPrevious ctx = do
+    let blockId = Selection.ctxBlockId ctx
+    prev <- TimeStep.rewind TimeStep.eventEdge blockId tracknum pos
+    next <- TimeStep.advance TimeStep.eventEdge blockId tracknum pos
+    modifyNeighbor (const (extend prev next)) ctx
     where
     extend prev next event
-        | not $ event_touches (Selection.sel_point sel) event = event
-        | Event.is_positive event, Just next <- next =
+        | not $ eventTouches (Selection.selPoint sel) event = event
+        | Event.isPositive event, Just next <- next =
             Event.end_ #= next $ event
-        | Event.is_negative event, Just prev <- prev =
+        | Event.isNegative event, Just prev <- prev =
             Event.end_ #= prev $ event
         | otherwise = event
-    sel = Selection.ctx_selection ctx
-    pos = Selection.sel_point sel
-    tracknum = Selection.sel_point_track sel
+    sel = Selection.ctxSelection ctx
+    pos = Selection.selPoint sel
+    tracknum = Selection.selPointTrack sel
 
-event_touches :: TrackTime -> Event.Event -> Bool
-event_touches pos event =
+eventTouches :: TrackTime -> Event.Event -> Bool
+eventTouches pos event =
     Event.max event ScoreTime.== pos || Event.min event ScoreTime.== pos
 
 -- | Toggle the note duration between the end of the block, and the current
 -- time step.
-toggle_note_duration :: Cmd.M m => m ()
-toggle_note_duration = do
-    dur <- Cmd.gets $ Cmd.state_note_duration . Cmd.state_edit
-    step <- Cmd.gets $ Cmd.state_time_step . Cmd.state_edit
-    Cmd.modify_edit_state $ \st ->
-        st { Cmd.state_note_duration = if dur == to_end then step else to_end }
-    where to_end = TimeStep.event_edge
+toggleNoteDuration :: Cmd.M m => m ()
+toggleNoteDuration = do
+    dur <- Cmd.gets $ Cmd.stateNoteDuration . Cmd.stateEdit
+    step <- Cmd.gets $ Cmd.stateTimeStep . Cmd.stateEdit
+    Cmd.modifyEditState $ \st ->
+        st { Cmd.stateNoteDuration = if dur == toEnd then step else toEnd }
+    where toEnd = TimeStep.eventEdge
 
 -- ** fancier start\/duration edits
 
-cmd_set_call_duration :: Cmd.M m => m ()
-cmd_set_call_duration = ModifyEvents.selection_visible $
-    \block_id track_id events ->
-        Just <$> mapM (set_call_duration block_id track_id) events
+cmdSetCallDuration :: Cmd.M m => m ()
+cmdSetCallDuration = ModifyEvents.selectionVisible $
+    \blockId trackId events ->
+        Just <$> mapM (setCallDuration blockId trackId) events
 
 -- | Set the event duration to the CallDuration of its call.  For block calls,
 -- this is the natural block duration.
-set_call_duration :: Cmd.M m => BlockId -> TrackId -> Event.Event
+setCallDuration :: Cmd.M m => BlockId -> TrackId -> Event.Event
     -> m Event.Event
-set_call_duration block_id track_id event =
+setCallDuration blockId trackId event =
     maybe event (\d -> Event.duration_ #= d $ event) <$>
-        lookup_call_duration block_id track_id event
+        lookupCallDuration blockId trackId event
 
 -- | Evaluate the given event to find its 'Derive.get_call_duration'.
-lookup_call_duration :: Cmd.M m => BlockId -> TrackId -> Event.Event
+lookupCallDuration :: Cmd.M m => BlockId -> TrackId -> Event.Event
     -> m (Maybe TrackTime)
-lookup_call_duration block_id track_id event =
-    Perf.lookup_note_deriver block_id track_id event >>= \case
+lookupCallDuration blockId trackId event =
+    Perf.lookupNoteDeriver blockId trackId event >>= \case
         Nothing -> pure Nothing
         Just deriver -> do
-            result <- Perf.derive_at_throw block_id track_id $
-                Derive.get_score_duration deriver
+            result <- Perf.deriveAtThrow blockId trackId $
+                Derive.getScoreDuration deriver
             pure $ case result of
                 Left _ -> Nothing
                 Right Derive.Unknown -> Just $ Event.duration event
                 Right (Derive.CallDuration dur) -> Just dur
 
-cmd_invert_orientation :: Cmd.M m => m ()
-cmd_invert_orientation = do
-    track_ids <- Selection.track_ids
-    let is_control = fmap ParseTitle.is_control_track . Ui.get_track_title
-    ifM (allM is_control track_ids) invert_events invert_notes
+cmdInvertOrientation :: Cmd.M m => m ()
+cmdInvertOrientation = do
+    trackIds <- Selection.trackIds
+    let isControl = fmap ParseTitle.isControlTrack . Ui.getTrackTitle
+    ifM (allM isControl trackIds) invertEvents invertNotes
 
-invert_events :: Cmd.M m => m ()
-invert_events =
-    ModifyEvents.modify_selected ModifyEvents.ExcludeCollapsed modify
-        =<< Selection.events_at_point
+invertEvents :: Cmd.M m => m ()
+invertEvents =
+    ModifyEvents.modifySelected ModifyEvents.ExcludeCollapsed modify
+        =<< Selection.eventsAtPoint
     where
     modify = ModifyEvents.track $ ModifyEvents.event $ \e ->
         Event.start_ %= (+ Event.duration e) $ Event.duration_ %= negate $ e
 
-invert_notes :: Cmd.M m => m ()
-invert_notes = ModifyNotes.selection $ ModifyNotes.note invert
+invertNotes :: Cmd.M m => m ()
+invertNotes = ModifyNotes.selection $ ModifyNotes.note invert
     where
-    invert note = invert_note $
-        ModifyNotes.controls %= fmap (invert_control note) $ note
-    invert_note note = ModifyNotes.start %= (+ ModifyNotes.note_duration note) $
+    invert note = invertNote $
+        ModifyNotes.controls %= fmap (invertControl note) $ note
+    invertNote note = ModifyNotes.start %= (+ ModifyNotes.noteDuration note) $
         ModifyNotes.duration %= negate $ note
     -- If there's exactly one event at the start time, I can flip it with the
     -- note.
-    invert_control note events = case Events.ascending events of
+    invertControl note events = case Events.ascending events of
         [event] | Event.duration event == 0 && Event.start event == start ->
             Events.singleton $ Event.duration_ #= dur $
-                Event.start_ #= ModifyNotes.note_end note $ event
+                Event.start_ #= ModifyNotes.noteEnd note $ event
         _ -> events
         where
-        dur = case ModifyNotes.note_orientation note of
+        dur = case ModifyNotes.noteOrientation note of
             Types.Positive -> -0
             Types.Negative -> 0
-        start = ModifyNotes.note_start note
+        start = ModifyNotes.noteStart note
 
 -- * modify text
 
-cmd_toggle_commented :: Cmd.M m => m ()
-cmd_toggle_commented = ModifyEvents.selection_tracks toggle
+cmdToggleCommented :: Cmd.M m => m ()
+cmdToggleCommented = ModifyEvents.selectionTracks toggle
     where
-    toggle block_id track_events
-        | all (all (is_commented) . snd) track_events =
+    toggle blockId trackEvents
+        | all (all (isCommented) . snd) trackEvents =
             modify $ Text.drop (Text.length cmt)
         | otherwise = modify $ \t ->
             if cmt `Text.isPrefixOf` t then t else "--|" <> t
         where
         modify f = ModifyEvents.track (ModifyEvents.text f)
-            block_id track_events
-    is_commented = (cmt `Text.isPrefixOf`) . Event.text
+            blockId trackEvents
+    isCommented = (cmt `Text.isPrefixOf`) . Event.text
     cmt = "--|"
 
 -- | Strip off the first transformer, and then the generator.
-strip_transformer :: Cmd.M m => m ()
-strip_transformer = do
-    ModifyEvents.selected_track $
+stripTransformer :: Cmd.M m => m ()
+stripTransformer = do
+    ModifyEvents.selectedTrack $
         ModifyEvents.text $ ModifyEvents.pipeline $ drop 1
-    ModifyEvents.advance_if_point
+    ModifyEvents.advanceIfPoint
 
 -- * record action
 
 -- | If you create a new event, and there is explicit duration, then use it.
-make_action :: Maybe Text -> Text -> Maybe TrackTime -> Cmd.Action
-make_action maybe_old new dur = case maybe_old of
+makeAction :: Maybe Text -> Text -> Maybe TrackTime -> Cmd.Action
+makeAction maybeOld new dur = case maybeOld of
     Nothing -> Cmd.InsertEvent dur new
     Just old
         -- This is a way to record a ReplaceText for an existing event.
@@ -705,33 +705,33 @@ make_action maybe_old new dur = case maybe_old of
             Cmd.PrependText $ Text.take (Text.length new - Text.length old) new
         | otherwise -> Cmd.ReplaceText new
 
-insert_recorded_action :: Cmd.M m => Char -> Cmd.Action -> m ()
-insert_recorded_action key action = Cmd.modify_edit_state $ \st -> st
-    { Cmd.state_recorded_actions =
-        Map.insert key action (Cmd.state_recorded_actions st)
+insertRecordedAction :: Cmd.M m => Char -> Cmd.Action -> m ()
+insertRecordedAction key action = Cmd.modifyEditState $ \st -> st
+    { Cmd.stateRecordedActions =
+        Map.insert key action (Cmd.stateRecordedActions st)
     }
 
-save_last_action_to :: Cmd.M m => Char -> m ()
-save_last_action_to key = insert_recorded_action key =<< get_action '.'
+saveLastActionTo :: Cmd.M m => Char -> m ()
+saveLastActionTo key = insertRecordedAction key =<< getAction '.'
 
-run_action_at :: Cmd.M m => Char -> m ()
-run_action_at key = run_action =<< get_action key
+runActionAt :: Cmd.M m => Char -> m ()
+runActionAt key = runAction =<< getAction key
 
-get_action :: Cmd.M m => Char -> m Cmd.Action
-get_action key = Cmd.abort_unless
-    =<< Cmd.gets (Map.lookup key . Cmd.state_recorded_actions . Cmd.state_edit)
+getAction :: Cmd.M m => Char -> m Cmd.Action
+getAction key = Cmd.abortUnless
+    =<< Cmd.gets (Map.lookup key . Cmd.stateRecordedActions . Cmd.stateEdit)
 
-run_action :: Cmd.M m => Cmd.Action -> m ()
-run_action action = do
-    pos <- EditUtil.get_pos
-    let modify = EditUtil.modify_event_at pos False False
+runAction :: Cmd.M m => Cmd.Action -> m ()
+runAction action = do
+    pos <- EditUtil.getPos
+    let modify = EditUtil.modifyEventAt pos False False
     case action of
-        Cmd.InsertEvent maybe_dur text -> do
-            let new_pos = case pos of
-                    EditUtil.Pos block_id tracknum start _dur ->
-                        EditUtil.Pos block_id tracknum start
-                            (fromMaybe 0 maybe_dur)
-            EditUtil.modify_event_at new_pos (maybe_dur == Just 0) True $
+        Cmd.InsertEvent maybeDur text -> do
+            let newPos = case pos of
+                    EditUtil.Pos blockId tracknum start _dur ->
+                        EditUtil.Pos blockId tracknum start
+                            (fromMaybe 0 maybeDur)
+            EditUtil.modifyEventAt newPos (maybeDur == Just 0) True $
                 const (Just text, True)
         Cmd.ReplaceText text -> modify $ const (Just text, True)
         Cmd.PrependText text -> modify $ \old -> case old of
@@ -743,96 +743,96 @@ run_action action = do
 
 -- * floating text input
 
-append_text :: Cmd.M m => m Cmd.Status
-append_text = open_floating (\text -> (Text.length text, Text.length text))
+appendText :: Cmd.M m => m Cmd.Status
+appendText = openFloating (\text -> (Text.length text, Text.length text))
 
-prepend_text :: Cmd.M m => m Cmd.Status
-prepend_text = open_floating (const (0, 0))
+prependText :: Cmd.M m => m Cmd.Status
+prependText = openFloating (const (0, 0))
 
 -- | This will be fooled by a @|@ inside a string, but I'll fix that if it's
 -- ever actually a problem.
-replace_first_call :: Cmd.M m => m Cmd.Status
-replace_first_call = open_floating $ \text -> case Text.breakOn "|" text of
+replaceFirstCall :: Cmd.M m => m Cmd.Status
+replaceFirstCall = openFloating $ \text -> case Text.breakOn "|" text of
     (pre, _) ->
         let space = " " `Text.isSuffixOf` pre
         in (0, Text.length pre - (if space then 1 else 0))
 
-replace_last_call :: Cmd.M m => m Cmd.Status
-replace_last_call = open_floating $ \text -> case Text.breakOnEnd "|" text of
+replaceLastCall :: Cmd.M m => m Cmd.Status
+replaceLastCall = openFloating $ \text -> case Text.breakOnEnd "|" text of
     (pre, post) ->
         let space = " " `Text.isPrefixOf` post
         in (Text.length pre + (if space then 1 else 0), Text.length text)
 
 -- | If a selection is used to create an event, this is where the event's start
 -- is.
-edit_point :: Sel.Selection -> TrackTime
-edit_point sel = case Sel.orientation sel of
+editPoint :: Sel.Selection -> TrackTime
+editPoint sel = case Sel.orientation sel of
     Sel.Negative -> Sel.max sel
     _ -> Sel.min sel
 
 -- | Open a floating text entry with a selection set.
-open_floating :: Cmd.M m => (Text -> (Int, Int)) -> m Cmd.Status
-open_floating selection = do
-    (view_id, sel) <- Selection.get_view_sel
-    (_, tracknum, track_id, _) <- Selection.get_insert
-    let pos = edit_point sel
-    maybe_event <- event_at track_id pos (Sel.event_orientation sel)
-    let text = maybe "" Event.text maybe_event
-        orient = maybe (Sel.event_orientation sel) Event.orientation maybe_event
-    zoom <- Block.view_zoom <$> Ui.get_view view_id
+openFloating :: Cmd.M m => (Text -> (Int, Int)) -> m Cmd.Status
+openFloating selection = do
+    (viewId, sel) <- Selection.getViewSel
+    (_, tracknum, trackId, _) <- Selection.getInsert
+    let pos = editPoint sel
+    maybeEvent <- eventAt trackId pos (Sel.eventOrientation sel)
+    let text = maybe "" Event.text maybeEvent
+        orient = maybe (Sel.eventOrientation sel) Event.orientation maybeEvent
+    zoom <- Block.viewZoom <$> Ui.getView viewId
     -- If I'm editing or opening a negative event, move the input up since
     -- the text will also be above the trigger.
-    let open_pos = pos - case orient of
-            Types.Negative -> Zoom.to_time zoom Config.track_title_height
+    let openPos = pos - case orient of
+            Types.Negative -> Zoom.toTime zoom Config.trackTitleHeight
             Types.Positive -> 0
-    pure $ Cmd.FloatingInput $ Cmd.FloatingOpen view_id tracknum open_pos text
+    pure $ Cmd.FloatingInput $ Cmd.FloatingOpen viewId tracknum openPos text
         (selection text)
 
-event_text_at :: Ui.M m => TrackId -> TrackTime -> Types.Orientation
+eventTextAt :: Ui.M m => TrackId -> TrackTime -> Types.Orientation
     -> m (Maybe Text)
-event_text_at track_id pos = fmap (fmap Event.text) . event_at track_id pos
+eventTextAt trackId pos = fmap (fmap Event.text) . eventAt trackId pos
 
-event_at :: Ui.M m => TrackId -> TrackTime -> Types.Orientation
+eventAt :: Ui.M m => TrackId -> TrackTime -> Types.Orientation
     -> m (Maybe Event.Event)
-event_at track_id pos orient = Events.at pos orient <$> Ui.get_events track_id
+eventAt trackId pos orient = Events.at pos orient <$> Ui.getEvents trackId
 
 -- ** handle floating input msg
 
 -- | Handle UpdateInput that comes back from the floating input.
 --
 -- A leading space will create a zero duration event.
-handle_floating_input :: Cmd.M m =>
+handleFloatingInput :: Cmd.M m =>
     Bool -- ^ True to always create a zero duration event.
     -> Msg.Msg -> m Cmd.Status
-handle_floating_input always_zero_dur msg = do
-    text <- Cmd.abort_unless $ floating_input_msg msg
-    EditUtil.Pos block_id tracknum start dur <- EditUtil.get_pos
-    track_id <- Cmd.require "handle_floating_input on non-event track"
-        =<< Ui.event_track_at block_id tracknum
-    old_text <- event_text_at track_id start (Event.orientation_of dur)
-    let zero_dur = always_zero_dur || " " `Text.isPrefixOf` text
-    EditUtil.modify_event_at (EditUtil.Pos block_id tracknum start dur)
-        zero_dur False (const (Just (Text.strip text), False))
+handleFloatingInput alwaysZeroDur msg = do
+    text <- Cmd.abortUnless $ floatingInputMsg msg
+    EditUtil.Pos blockId tracknum start dur <- EditUtil.getPos
+    trackId <- Cmd.require "handle_floating_input on non-event track"
+        =<< Ui.eventTrackAt blockId tracknum
+    oldText <- eventTextAt trackId start (Event.orientationOf dur)
+    let zeroDur = alwaysZeroDur || " " `Text.isPrefixOf` text
+    EditUtil.modifyEventAt (EditUtil.Pos blockId tracknum start dur)
+        zeroDur False (const (Just (Text.strip text), False))
     -- 0 dur means a point selection, which means to use the time step.
-    insert_recorded_action '.' $ make_action old_text (Text.strip text) $ if
-        | zero_dur -> Just (if ScoreTime.is_negative dur then -0 else 0)
+    insertRecordedAction '.' $ makeAction oldText (Text.strip text) $ if
+        | zeroDur -> Just (if ScoreTime.isNegative dur then -0 else 0)
         | dur == 0 -> Nothing
         | otherwise -> Just dur
-    when (old_text == Nothing) $
-        try_set_call_duration block_id track_id start (Event.orientation_of dur)
+    when (oldText == Nothing) $
+        trySetCallDuration blockId trackId start (Event.orientationOf dur)
     pure Cmd.Done
 
 -- | Set the event's duration to its CallDuration, if it has one.
-try_set_call_duration :: Cmd.M m => BlockId -> TrackId -> TrackTime
+trySetCallDuration :: Cmd.M m => BlockId -> TrackId -> TrackTime
     -> Types.Orientation -> m ()
-try_set_call_duration block_id track_id pos orient =
-    whenJustM (event_at track_id pos orient) $ \event ->
-        whenJustM (lookup_call_duration block_id track_id event) $ \dur ->
+trySetCallDuration blockId trackId pos orient =
+    whenJustM (eventAt trackId pos orient) $ \event ->
+        whenJustM (lookupCallDuration blockId trackId event) $ \dur ->
             when (dur /= Event.duration event) $
-                Ui.insert_event track_id (Event.duration_ #= dur $ event)
+                Ui.insertEvent trackId (Event.duration_ #= dur $ event)
 
-floating_input_msg :: Msg.Msg -> Maybe Text
-floating_input_msg (Msg.Ui (UiMsg.UiMsg ctx
+floatingInputMsg :: Msg.Msg -> Maybe Text
+floatingInputMsg (Msg.Ui (UiMsg.UiMsg ctx
         (UiMsg.UiUpdate _ (UiMsg.UpdateInput (Just text)))))
-    | UiMsg.ctx_floating_input ctx = Just text
-floating_input_msg _ = Nothing
+    | UiMsg.ctxFloatingInput ctx = Just text
+floatingInputMsg _ = Nothing

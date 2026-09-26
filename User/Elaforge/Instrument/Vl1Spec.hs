@@ -13,10 +13,10 @@
 -- parsed.
 module User.Elaforge.Instrument.Vl1Spec (
     encode, decode
-    , vl1_header
-    , patch_spec
+    , vl1Header
+    , patchSpec
 
-    , decode_num, encode_num
+    , decodeNum, encodeNum
 ) where
 import qualified Data.Bits as Bits
 import Data.Bits ((.|.), (.&.))
@@ -29,10 +29,10 @@ import qualified Instrument.Sysex as Sysex
 import Instrument.Sysex (Specs, Spec(..), unsigned, bool, enum, ranged, signed)
 
 
-vl1_header :: Int -> ByteString
-vl1_header nbytes = B.pack
+vl1Header :: Int -> ByteString
+vl1Header nbytes = B.pack
     -- spec sheet says there's a 'device number' after yamaha_code
-    [ 0xf0, Midi.yamaha_code, 0, 0x7a
+    [ 0xf0, Midi.yamahaCode, 0, 0x7a
     , msb, lsb -- size counts from 'L' char until the checksum
     ] <> magic
     where
@@ -49,22 +49,22 @@ vl1_header nbytes = B.pack
 -- > -64 - -1, 0, 1 - 63   => 40 - 7f, 00, 01 - 3f (2s complement)
 -- > -128 - -1, 0, 1 - 127 => 0100 - 017f, 0000, 0001 - 007f
 config :: Sysex.Config
-config = Sysex.Config decode_num encode_num range_bytes
+config = Sysex.Config decodeNum encodeNum rangeBytes
 
-decode_num :: Sysex.NumRange -> ByteString -> Int
-decode_num (low, high) bytes
+decodeNum :: Sysex.NumRange -> ByteString -> Int
+decodeNum (low, high) bytes
     | low >= 0 = val
-    | high <= 0x3f = Sysex.to_signed 7 val
+    | high <= 0x3f = Sysex.toSigned 7 val
     | otherwise = val .&. 0x7f - val .&. 0x80
     where
     val = B.foldl' (\val b -> Bits.shiftL val 7 .|. fromIntegral b) 0 bytes
 
-encode_num :: Sysex.NumRange -> Int -> ByteString
-encode_num (low, high) num
-    | low >= 0 = B.reverse $ B.unfoldr unfold (num, range_bytes (low, high))
-    | range_bytes (low, high) == 1 = B.singleton $ Sysex.from_signed 7 num
+encodeNum :: Sysex.NumRange -> Int -> ByteString
+encodeNum (low, high) num
+    | low >= 0 = B.reverse $ B.unfoldr unfold (num, rangeBytes (low, high))
+    | rangeBytes (low, high) == 1 = B.singleton $ Sysex.fromSigned 7 num
     | otherwise =
-        let b = Sysex.from_signed 8 num
+        let b = Sysex.fromSigned 8 num
         in B.pack [Bits.shiftR b 7, b .&. 0x7f]
     where
     unfold (num, left)
@@ -72,8 +72,8 @@ encode_num (low, high) num
             Just (fromIntegral (num .&. 0x7f), (Bits.shiftR num 7, left-1))
         | otherwise = Nothing
 
-range_bytes :: Sysex.NumRange -> Int
-range_bytes (low, high) = ceiling $ logBase 2 (fromIntegral range + 1) / 7
+rangeBytes :: Sysex.NumRange -> Int
+rangeBytes (low, high) = ceiling $ logBase 2 (fromIntegral range + 1) / 7
     where range = if low < 0 then high - low else high
 
 decode :: Specs -> ByteString -> Either String (Sysex.RMap, ByteString)
@@ -82,22 +82,22 @@ decode = Sysex.decode config
 encode :: Specs -> Sysex.RMap -> Either String ByteString
 encode = Sysex.encode config
 
-assert_valid :: String -> Int -> Specs -> Specs
-assert_valid = Sysex.assert_valid config
+assertValid :: String -> Int -> Specs -> Specs
+assertValid = Sysex.assertValid config
 
 -- * specs
 
-patch_spec :: Specs
-patch_spec = assert_valid "patch_spec" size $
-    [ ("header", Constant (vl1_header (size - B.length (vl1_header 0))))
+patchSpec :: Specs
+patchSpec = assertValid "patch_spec" size $
+    [ ("header", Constant (vl1Header (size - B.length (vl1Header 0))))
     , ("memory type", unsigned 127) -- 0 = memory, 7f = buffer
     , ("memory number", unsigned 127)
     , ("", Unparsed 14)
-    ] ++ common_spec ++ [("element", List 2 element_spec)]
+    ] ++ commonSpec ++ [("element", List 2 elementSpec)]
     where size = 3100
 
-common_spec :: Specs
-common_spec = assert_valid "common_spec" 108
+commonSpec :: Specs
+commonSpec = assertValid "common_spec" 108
     [ ("name", Str 10)
     , ("", Unparsed 6)
     , ("key mode", enum ["mono", "unison", "poly", "part"])
@@ -167,9 +167,9 @@ unsigned1 = unsigned 127
 signed64 :: Spec
 signed64 = ranged (-64) 63
 
-element_spec :: Specs
-element_spec = assert_valid "element_spec" 1480
-    [ ("control", SubSpec controls_spec)
+elementSpec :: Specs
+elementSpec = assertValid "element_spec" 1480
+    [ ("control", SubSpec controlsSpec)
     , ("trigger mode", unsigned 1) -- enum?  starting at 62
     , ("xfade speed", unsigned 96)
     , ("interpolate speed", unsigned 50)
@@ -238,46 +238,46 @@ breakpoints127 n = List n
     , ("offset", signed 127)
     ]
 
-controls_spec :: Specs
-controls_spec =
-    [ ("pressure", c_simple)
+controlsSpec :: Specs
+controlsSpec =
+    [ ("pressure", cSimple)
     , ("embouchure", SubSpec
-        [c_control, c_mode, ("upper depth", depth), ("lower depth", depth)])
+        [cControl, cMode, ("upper depth", depth), ("lower depth", depth)])
     , ("pitch", SubSpec
-        [ c_control, c_mode
+        [ cControl, cMode
         , ("upper depth", signed 12), ("lower depth", signed 12)
         ])
-    , ("vibrato", SubSpec [c_control, ("", Unparsed 1), c_depth])
-    , ("tonguing", c_simple)
-    , ("amplitude", c_simple)
-    , ("scream", c_complete)
-    , ("breath noise", c_complete)
-    , ("growl", c_complete)
-    , ("throat formant", c_complete)
-    , ("dynamic filter", c_simple)
-    , ("harmonic enhancer", c_simple)
-    , ("damping", c_simple)
-    , ("absorption", c_simple)
+    , ("vibrato", SubSpec [cControl, ("", Unparsed 1), cDepth])
+    , ("tonguing", cSimple)
+    , ("amplitude", cSimple)
+    , ("scream", cComplete)
+    , ("breath noise", cComplete)
+    , ("growl", cComplete)
+    , ("throat formant", cComplete)
+    , ("dynamic filter", cSimple)
+    , ("harmonic enhancer", cSimple)
+    , ("damping", cSimple)
+    , ("absorption", cSimple)
     ]
     where
-    c_simple = SubSpec [c_control, c_curve, c_depth]
-    c_complete = SubSpec [c_control, c_value, c_curve, c_depth]
+    cSimple = SubSpec [cControl, cCurve, cDepth]
+    cComplete = SubSpec [cControl, cValue, cCurve, cDepth]
 
     -- I think if the control is 127, then this control is disabled and
     -- the rest can be ignored.
     -- c_control = ("control", unsigned 127) -- 124)
-    c_control = ("control", unsigned 124)
-    c_value = ("value", unsigned 127)
-    c_mode = ("mode", enum ["mode1", "mode2"]) -- TODO what are these really?
-    c_curve = ("curve", signed 16)
-    c_depth = ("depth", depth)
+    cControl = ("control", unsigned 124)
+    cValue = ("value", unsigned 127)
+    cMode = ("mode", enum ["mode1", "mode2"]) -- TODO what are these really?
+    cCurve = ("curve", signed 16)
+    cDepth = ("depth", depth)
     depth = signed 127
 
 
 -- * modulation effects
 
-effect_flanger :: Specs
-effect_flanger =
+effectFlanger :: Specs
+effectFlanger =
     [ ("wave", unsigned 2)
     , ("freq", unsigned 127)
     , ("depth", unsigned 100)
@@ -286,11 +286,11 @@ effect_flanger =
     , ("fb gain", signed 100)
     , ("high", unsigned 9)
     , ("analog feel", unsigned 10)
-    , wet_dry
+    , wetDry
     ]
 
-effect_pitch_change :: Specs
-effect_pitch_change =
+effectPitchChange :: Specs
+effectPitchChange =
     [ ("mode", unsigned 1) -- enum
     , ("pitch 1", signed 12)
     , ("fine 1", signed 100)
@@ -298,11 +298,11 @@ effect_pitch_change =
     , ("pitch 2", signed 12)
     , ("fine 2", signed 100)
     , ("out 2", unsigned 100)
-    , wet_dry
+    , wetDry
     ]
 
-effect_distortion :: Specs
-effect_distortion =
+effectDistortion :: Specs
+effectDistortion =
     [ ("overdrive", unsigned 100)
     , ("", Unparsed 2)
     , ("device", unsigned 4)
@@ -311,19 +311,19 @@ effect_distortion =
     , ("output level", unsigned 100)
     ]
 
-effect_chorus :: Specs
-effect_chorus =
+effectChorus :: Specs
+effectChorus =
     [ ("mode", unsigned 1) -- enum
     , ("freq", unsigned 127)
     , ("depth", unsigned 100)
     , ("delay", unsigned 126)
     , ("fb gain", signed 100)
     , ("high", unsigned 9)
-    , wet_dry
+    , wetDry
     ]
 
-effect_phaser :: Specs
-effect_phaser =
+effectPhaser :: Specs
+effectPhaser =
     [ ("mode", unsigned 1) -- enum
     , ("stage", unsigned 3) -- enum
     , ("freq", unsigned 127)
@@ -331,32 +331,32 @@ effect_phaser =
     , ("offset", unsigned 100)
     , ("phase", signed 8) -- diffusion 0--1 when mode=0
     , ("fb gain", signed 100)
-    , wet_dry
+    , wetDry
     ]
 
-effect_symphonic :: Specs
-effect_symphonic =
+effectSymphonic :: Specs
+effectSymphonic =
     [ ("mode", unsigned 1) -- enum
     , ("freq", unsigned 127)
     , ("depth", unsigned 100)
     , ("diffusion", unsigned 10)
     , ("lo-fi", unsigned 12)
-    , wet_dry
+    , wetDry
     ]
 
-effect_celeste :: Specs
-effect_celeste =
+effectCeleste :: Specs
+effectCeleste =
     [ ("mode", unsigned 1)
     , ("freq", unsigned 127)
     , ("depth", unsigned 100)
     , ("delay", unsigned 126)
     , ("fb gain", signed 100)
     , ("lo-fi", unsigned 12)
-    , wet_dry
+    , wetDry
     ]
 
-effect_distortion_flanger :: Specs
-effect_distortion_flanger =
+effectDistortionFlanger :: Specs
+effectDistortionFlanger =
     [ ("overdrive", unsigned 100)
     , ("speaker", unsigned 5)
     , ("output level", unsigned 100)
@@ -369,8 +369,8 @@ effect_distortion_flanger =
     , ("flanger balance", unsigned 100)
     ]
 
-effect_distortion_wah :: Specs
-effect_distortion_wah =
+effectDistortionWah :: Specs
+effectDistortionWah =
     [ ("overdrive", unsigned 100)
     , ("speaker", unsigned 5)
     , ("output level", unsigned 100)
@@ -381,5 +381,5 @@ effect_distortion_wah =
     , ("sensitivity", unsigned 100)
     ]
 
-wet_dry :: (String, Sysex.Spec)
-wet_dry = ("wet/dry balance", unsigned 100)
+wetDry :: (String, Sysex.Spec)
+wetDry = ("wet/dry balance", unsigned 100)

@@ -47,31 +47,31 @@ make patch = case patch of
     Patches.PMultiplate inst -> multiplate inst
 
 guitar :: Guitar.Instrument -> ImInst.Patch
-guitar inst = ImInst.code #= code $ ImInst.environ EnvKey.open_strings strings $
-    ImInst.make_patch $ Patch.patch
-        { Patch.patch_controls = Map.fromList
+guitar inst = ImInst.code #= code $ ImInst.environ EnvKey.openStrings strings $
+    ImInst.makePatch $ Patch.patch
+        { Patch.patchControls = Map.fromList
             [ (Control.pitch, "")
             , (Control.dynamic, "")
-            , (Guitar.Patch.c_location, "Pluck location.")
+            , (Guitar.Patch.cLocation, "Pluck location.")
             -- TODO use Derive.Controls.finger
-            , (Guitar.Patch.c_finger, "Stopping finger weight.")
+            , (Guitar.Patch.cFinger, "Stopping finger weight.")
             ]
-        , Patch.patch_attribute_map = Patch.make_attribute_map [Attrs.mute]
+        , Patch.patchAttributeMap = Patch.makeAttributeMap [Attrs.mute]
         }
     where
-    strings = map make_string $ Guitar.iStrings inst
+    strings = map makeString $ Guitar.iStrings inst
     code = note <> postproc
     postproc = ImInst.postproc $
-        DUtil.move_val EnvKey.string EnvKey.element show_string
-    note = ImInst.null_call $ DUtil.constant_controls False $
-        Set.fromList $ map control [Guitar.Patch.c_location, Control.dynamic]
+        DUtil.moveVal EnvKey.string EnvKey.element showStr
+    note = ImInst.nullCall $ DUtil.constantControls False $
+        Set.fromList $ map control [Guitar.Patch.cLocation, Control.dynamic]
 
-show_string :: PSignal.Pitch -> Either Log.Msg Text
-show_string = bimap (Log.msg Log.Warn Nothing . pretty) Pitch.note_text
-    . PSignal.pitch_note . PSignal.coerce
+showStr :: PSignal.Pitch -> Either Log.Msg Text
+showStr = bimap (Log.msg Log.Warn Nothing . pretty) Pitch.noteText
+    . PSignal.pitchNote . PSignal.coerce
 
-make_string :: Guitar.String -> REnv.ConstantPitch
-make_string str = REnv.ConstantPitch Twelve.scale_id
+makeString :: Guitar.String -> REnv.ConstantPitch
+makeString str = REnv.ConstantPitch Twelve.scaleId
     (Pitch.Note (Guitar.sName str)) (Guitar.sNn str)
     -- TODO Twelve.scale_id may well be wrong, which can cause parsing errors.
     -- The string should also give the scale.
@@ -80,20 +80,20 @@ control :: Control.Control -> ScoreT.Control
 control (Control.Control c) = ScoreT.Control c
 
 multiplate :: Multiplate.Instrument -> ImInst.Patch
-multiplate inst = ImInst.code #= code $ ImInst.make_patch patch
+multiplate inst = ImInst.code #= code $ ImInst.makePatch patch
     where
-    code = ImInst.note_calls
+    code = ImInst.noteCalls
         [ ImInst.generator (Expr.Symbol object) $ generator object
         | object <- Multiplate.iObjects inst
         ]
-    generator object = Library.generator $ Make.environ_note Module.instrument
+    generator object = Library.generator $ Make.environNote Module.instrument
         (Derive.CallName object) mempty "Strike the named object."
         EnvKey.element object
     patch = Patch.patch
-        { Patch.patch_controls = Map.fromList
+        { Patch.patchControls = Map.fromList
             [ (Control.dynamic, "")
-            , (Multiplate.Patch.c_x, "")
-            , (Multiplate.Patch.c_y, "")
-            , (Multiplate.Patch.c_duration, "")
+            , (Multiplate.Patch.cX, "")
+            , (Multiplate.Patch.cY, "")
+            , (Multiplate.Patch.cDuration, "")
             ]
         }

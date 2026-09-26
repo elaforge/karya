@@ -27,13 +27,13 @@ import qualified Ui.UiTest as UiTest
 import           Global
 
 
-key_environ :: Text -> Env.Environ
-key_environ key = Env.insert_val EnvKey.key key mempty
+keyEnviron :: Text -> Env.Environ
+keyEnviron key = Env.insertVal EnvKey.key key mempty
 
-get_scale :: HasCallStack => [Scale.Definition] -> Text -> Scale.Scale
-get_scale scales scale_id =
-    fromMaybe (error $ "no scale: " <> show scale_id) $
-        List.find ((== Pitch.ScaleId scale_id) . Scale.scale_id)
+getScale :: HasCallStack => [Scale.Definition] -> Text -> Scale.Scale
+getScale scales scaleId =
+    fromMaybe (error $ "no scale: " <> show scaleId) $
+        List.find ((== Pitch.ScaleId scaleId) . Scale.scaleId)
             [scale | Scale.Simple scale <- scales]
 
 get :: HasCallStack => Text -> Scale.Scale
@@ -42,23 +42,23 @@ get = either (error . untxt) id . lookup
 lookup :: Text -> Either Text Scale.Scale
 lookup expr = do
     Expr.Call (Expr.Symbol sym) terms <- NonEmpty.head <$>
-        Parse.parse_expr_raw expr
+        Parse.parseExprRaw expr
     let vals = [val | Expr.Literal val <- terms]
     DeriveTest.eval Ui.empty $ Scale.get (Derive.CallName sym) vals
 
-input_to_note :: Scale.Scale -> Env.Environ
+inputToNote :: Scale.Scale -> Env.Environ
     -> (Pitch.Octave, Pitch.PitchClass, Pitch.Accidentals) -> Text
-input_to_note scale env =
-    either pretty Pitch.note_text
-    . Scale.scale_input_to_note scale env
-    . ascii_kbd
+inputToNote scale env =
+    either pretty Pitch.noteText
+    . Scale.scaleInputToNote scale env
+    . asciiKbd
 
-ascii_kbd :: (Pitch.Octave, Pitch.PitchClass, Pitch.Accidentals)
+asciiKbd :: (Pitch.Octave, Pitch.PitchClass, Pitch.Accidentals)
     -> Pitch.Input
-ascii_kbd (oct, pc, accs) = CmdTest.ascii_kbd $ CmdTest.pitch oct pc accs
+asciiKbd (oct, pc, accs) = CmdTest.asciiKbd $ CmdTest.pitch oct pc accs
 
-note_to_call :: Text -> Text -> [Text] -> ([Maybe Pitch.NoteNumber], [Text])
-note_to_call scale title =
-    DeriveTest.extract Score.initial_nn
-    . DeriveTest.derive_tracks (Texts.join2 " | " ("scale=" <> scale) title)
-    . UiTest.note_track1
+noteToCall :: Text -> Text -> [Text] -> ([Maybe Pitch.NoteNumber], [Text])
+noteToCall scale title =
+    DeriveTest.extract Score.initialNn
+    . DeriveTest.deriveTracks (Texts.join2 " | " ("scale=" <> scale) title)
+    . UiTest.noteTrack1

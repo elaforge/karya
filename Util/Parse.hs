@@ -85,8 +85,8 @@ offsetToSourcePos offset = do
 -- | Try to parse a file, or return a default value if the file doesn't exist.
 file :: a -> ParserS st a -> st -> FilePath -> IO (Either Text a)
 file deflt parser state fname = do
-    mb_text <- Exceptions.ignoreEnoent (Text.IO.readFile fname)
-    pure $ maybe (Right deflt) (parseS state fname parser) mb_text
+    mbText <- Exceptions.ignoreEnoent (Text.IO.readFile fname)
+    pure $ maybe (Right deflt) (parseS state fname parser) mbText
 
 -- -- | Format a ParseError assuming the input is just one line.
 -- format1 :: Text -> P.ParseError -> Text
@@ -104,38 +104,38 @@ file deflt parser state fname = do
 --         "expecting" "unexpected" "end of input"
 --     . Error.errorMessages
 
-p_int :: ParserT m Int
-p_int = do
+pInt :: ParserT m Int
+pInt = do
     sign <- P.option 1 (P.char '-' >> pure (-1))
-    (*sign) <$> p_nat
+    (*sign) <$> pNat
     <?> "int"
 
 -- | Natural number including 0.
-p_nat :: ParserT m Int
-p_nat = do
-    i <- P.takeWhile1P Nothing is_digit
+pNat :: ParserT m Int
+pNat = do
+    i <- P.takeWhile1P Nothing isDigit
     case Numeric.readDec (untxt i) of
         (n, _) : _ -> pure n
         _ -> mzero -- this should never happen
     <?> "nat"
 
 -- | Natural number without 0.
-p_positive :: ParserT m Int
-p_positive = do
-    n <- p_nat
+pPositive :: ParserT m Int
+pPositive = do
+    n <- pNat
     if n == 0 then mzero else pure n
 
-p_float :: ParserT m Double
-p_float = do
+pFloat :: ParserT m Double
+pFloat = do
     sign <- P.option 1 (P.char '-' >> pure (-1))
-    val <- p_unsigned_float
+    val <- pUnsignedFloat
     pure (val * sign)
     <?> "float"
 
-p_unsigned_float :: ParserT m Double
-p_unsigned_float = do
-    i <- P.takeWhileP Nothing is_digit
-    f <- P.option "" (P.char '.' >> P.takeWhile1P Nothing is_digit)
+pUnsignedFloat :: ParserT m Double
+pUnsignedFloat = do
+    i <- P.takeWhileP Nothing isDigit
+    f <- P.option "" (P.char '.' >> P.takeWhile1P Nothing isDigit)
     if Text.null i && Text.null f then mzero else do
         case (dec i, dec f) of
             (Just i', Just f') -> pure $ fromIntegral i'
@@ -150,8 +150,8 @@ p_unsigned_float = do
             (d, "") : _ -> Just d
             _ -> Nothing
 
-is_digit :: Char -> Bool
-is_digit c = '0' <= c && c <= '9'
+isDigit :: Char -> Bool
+isDigit c = '0' <= c && c <= '9'
 
 
 -- * attoparse

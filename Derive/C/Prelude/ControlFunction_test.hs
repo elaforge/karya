@@ -27,9 +27,9 @@ import           Util.Test
 test_cf_rnd :: Test
 test_cf_rnd = do
     let run title notes = DeriveTest.extract extract $
-            DeriveTest.derive_tracks ""
+            DeriveTest.deriveTracks ""
                 [(title, [(n, 1, "") | n <- Lists.range' 0 notes 1])]
-        extract = Score.event_duration
+        extract = Score.eventDuration
     equal (run "> | sus = .5" 1) ([0.5], [])
     let (durs, logs) = run "> | sus = (cf-rnd .5 1.5)" 5
     equal logs []
@@ -46,12 +46,12 @@ test_cf_rnd = do
 test_cf_backed :: Test
 test_cf_backed = do
     let run title = DeriveTest.extract extract $
-            DeriveTest.derive_tracks title
+            DeriveTest.deriveTracks title
                 [ ("dyn", [(0, 0, ".5")])
                 , (">", [(0, 1, ""), (1, 1, "")])
                 ]
         extract :: Score.Event -> Maybe Double
-        extract = DeriveTest.e_environ_val EnvKey.dynamic_val
+        extract = DeriveTest.eEnvironVal EnvKey.dynamicVal
     let (dyns, logs) = first Maybe.catMaybes $ run "dyn = (cf-rnd01 -.25 .25)"
     equal logs []
     equal (length dyns) 2
@@ -64,17 +64,17 @@ test_cf_rnd_transformer :: Test
 test_cf_rnd_transformer = do
     -- A transformer should create a function with random based on position.
     let run notes = DeriveTest.extract extract $
-            DeriveTest.derive_tracks_setup trans "c = (cf-rnd 1 2) | t"
+            DeriveTest.deriveTracksSetup trans "c = (cf-rnd 1 2) | t"
                 [(">", [(n, 1, "") | n <- Lists.range' 0 notes 1])]
-        trans = CallTest.with_note_transformer "t" $ CallTest.transformer $
+        trans = CallTest.withNoteTransformer "t" $ CallTest.transformer $
             \_args deriver -> do
-                c_at <- fmap ScoreT.val_of $
-                    Typecheck.resolve_function $ DeriveT.Ref "c" Nothing
-                fmap (set_dyn c_at) <$> deriver
-        set_dyn c_at event = Score.set_control Controls.dynamic
-            (ScoreT.untyped (Signal.constant (c_at (Score.event_start event))))
+                cAt <- fmap ScoreT.valOf $
+                    Typecheck.resolveFunction $ DeriveT.Ref "c" Nothing
+                fmap (setDyn cAt) <$> deriver
+        setDyn cAt event = Score.setControl Controls.dynamic
+            (ScoreT.untyped (Signal.constant (cAt (Score.eventStart event))))
             event
-        extract = Score.initial_dynamic
+        extract = Score.initialDynamic
     let (dyns, logs) = run 4
     equal logs []
     check ("not the same: " <> pretty dyns) $ not (all (== head dyns) dyns)
@@ -82,15 +82,15 @@ test_cf_rnd_transformer = do
 
 test_cf_swing :: Test
 test_cf_swing = do
-    let run marks amount tracks events = DeriveTest.extract Score.event_start $
-            DeriveTest.derive_tracks_setup (with_ruler marks)
+    let run marks amount tracks events = DeriveTest.extract Score.eventStart $
+            DeriveTest.deriveTracksSetup (withRuler marks)
                     "apply-start-offset" $
                 tracks ++
                 [ ( "> | start-s = (cf-swing q " <> amount <> ")"
                   , [(n, 0, "") | n <- events]
                   )
                 ]
-        with_ruler = DeriveTest.with_default_ruler . UiTest.mkruler_ranks
+        withRuler = DeriveTest.withDefaultRuler . UiTest.mkrulerRanks
             . map (second fromEnum)
     let marks = take 8 $ zip (Lists.range_ 0 2)
             [Meter.H, Meter.Q, Meter.Q, Meter.Q]
@@ -102,7 +102,7 @@ test_cf_swing = do
 
 test_curve_call :: Test
 test_curve_call = do
-    let run = CallTest.run_control
+    let run = CallTest.runControl
     equal (run [(0, "0"), (1, "p 1 4s")]) [(0, 0), (1, 0), (5, 1)]
     equal (run [(0, "0"), (1, "curve=(curve-linear) | p 1 4s")])
         [(0, 0), (1, 0), (5, 1)]

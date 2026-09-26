@@ -29,53 +29,53 @@ import qualified Perform.Signal as Signal
 import           Global
 
 
-total_events :: Int
-total_events = 40 * 1000
+totalEvents :: Int
+totalEvents = 40 * 1000
 
 signal :: [(Double, Signal.Y)] -> MSignal.Signal
-signal = MSignal.from_pairs . map (first RealTime.seconds)
+signal = MSignal.fromPairs . map (first RealTime.seconds)
 
-event_count msgs_per_event = floor (fromIntegral total_events / msgs_per_event)
+eventCount msgsPerEvent = floor (fromIntegral totalEvents / msgsPerEvent)
 
-profile_notes = do
+profileNotes = do
     -- simple notes with no controls
-    let evts = take (event_count 2) [mkevent n 1 [] pitch | n <- [0..]]
+    let evts = take (eventCount 2) [mkevent n 1 [] pitch | n <- [0..]]
         pitch = MSignal.constant 60
-    run_multiple evts $ \arg -> print_msgs $ perform arg
+    runMultiple evts $ \arg -> printMsgs $ perform arg
 
-profile_control = do
+profileControl = do
     -- just perform_control generating control msgs
     let len = 150 * 1000
     let sig = signal (zip [0, 0.25 .. len] (cycle vals))
         vals = map (/10) ([0..10] ++ [10, 9 .. 1])
     let cont = (Controls.mod, sig)
-    run_multiple cont $ \arg ->
-        print_msgs $ Perform.perform_control Control.empty_map 0 0
+    runMultiple cont $ \arg ->
+        printMsgs $ Perform.performControl Control.emptyMap 0 0
             (Just (RealTime.seconds len)) 42 arg
 
-profile_complex = do
+profileComplex = do
     -- notes with pitches and multiple controls, but no multiplexing
-    let pitch_at n = signal [(n, fromIntegral (floor n `mod` 64 + 32))]
-        mod_sig = signal [(n, n) | n <- [0, 1/16 .. 15/16]]
-        mod_at n = (Controls.mod, TimeVector.shift (RealTime.seconds n) mod_sig)
-        dynamic_at n = fromIntegral (floor n `mod` 64) / 64 + 1/8
-        dyn_at n = (Controls.dynamic, signal [(n, dynamic_at n)])
-    let event n = mkevent n 1 [mod_at n, dyn_at n] (pitch_at n)
+    let pitchAt n = signal [(n, fromIntegral (floor n `mod` 64 + 32))]
+        modSig = signal [(n, n) | n <- [0, 1/16 .. 15/16]]
+        modAt n = (Controls.mod, TimeVector.shift (RealTime.seconds n) modSig)
+        dynamicAt n = fromIntegral (floor n `mod` 64) / 64 + 1/8
+        dynAt n = (Controls.dynamic, signal [(n, dynamicAt n)])
+    let event n = mkevent n 1 [modAt n, dynAt n] (pitchAt n)
     -- 16 ccs + 2 notes = 18
-    let evts = take (event_count 18) (map event [0,4..])
-    run_multiple evts $ \arg -> print_msgs $ perform arg
+    let evts = take (eventCount 18) (map event [0,4..])
+    runMultiple evts $ \arg -> printMsgs $ perform arg
 
-profile_multiplex = do
+profileMultiplex = do
     -- notes with non-shareable pitches
-    let pitch_sig = signal [(n, n + 64.5) | n <- [0, 1/16 .. 15/16]]
-        pitch_at n = TimeVector.shift (RealTime.seconds n) pitch_sig
-    let event n = mkevent n 1 [] (pitch_at n)
-    let evts = take (event_count 18) (map event [0..])
-    run_multiple evts $ \arg -> print_msgs $ perform arg
+    let pitchSig = signal [(n, n + 64.5) | n <- [0, 1/16 .. 15/16]]
+        pitchAt n = TimeVector.shift (RealTime.seconds n) pitchSig
+    let event n = mkevent n 1 [] (pitchAt n)
+    let evts = take (eventCount 18) (map event [0..])
+    runMultiple evts $ \arg -> printMsgs $ perform arg
 
-print_msgs :: (Show msg, DeepSeq.NFData msg, Show log, DeepSeq.NFData log) =>
+printMsgs :: (Show msg, DeepSeq.NFData msg, Show log, DeepSeq.NFData log) =>
     ([msg], [log]) -> IO String
-print_msgs (msgs, logs) = do
+printMsgs (msgs, logs) = do
     Testing.force (msgs, logs)
     -- Make failures visible.
     Testing.pprint (take 4 logs)
@@ -85,37 +85,37 @@ print_msgs (msgs, logs) = do
 -- * implementation
 
 perform :: [Types.Event] -> ([Midi.WriteMessage], [Text])
-perform = split_logs . fst
-    . Perform.perform Perform.initial_state configs . map LEvent.Event
+perform = splitLogs . fst
+    . Perform.perform Perform.initialState configs . map LEvent.Event
 
-split_logs :: [LEvent.LEvent d] -> ([d], [Text])
-split_logs = second (map DeriveTest.show_log) . LEvent.partition
+splitLogs :: [LEvent.LEvent d] -> ([d], [Text])
+splitLogs = second (map DeriveTest.showLog) . LEvent.partition
 
-run_multiple :: a -> (a -> IO String) -> IO ()
-run_multiple arg action = forM_ [1..6] $ \n -> do
+runMultiple :: a -> (a -> IO String) -> IO ()
+runMultiple arg action = forM_ [1..6] $ \n -> do
     putStr $ show n ++ ": "
     IO.hFlush IO.stdout
     Thread.printTimer (showt n) id (action arg)
 
 mkevent :: Double -> Double -> [(ScoreT.Control, MSignal.Signal)]
     -> MSignal.Signal -> Types.Event
-mkevent start dur controls pitch_sig = PerformTest.empty_event
-    { Types.event_start = RealTime.seconds start
-    , Types.event_duration = RealTime.seconds dur
-    , Types.event_patch = patch1
-    , Types.event_controls = Map.fromList controls
-    , Types.event_pitch = pitch_sig
+mkevent start dur controls pitchSig = PerformTest.emptyEvent
+    { Types.eventStart = RealTime.seconds start
+    , Types.eventDuration = RealTime.seconds dur
+    , Types.eventPatch = patch1
+    , Types.eventControls = Map.fromList controls
+    , Types.eventPitch = pitchSig
     }
 
 patch1 :: Types.Patch
 patch1 = mkpatch "patch1"
 
 mkpatch :: InstT.Name -> Types.Patch
-mkpatch name = (PerformTest.mkpatch name) { Types.patch_decay = Just 1 }
+mkpatch name = (PerformTest.mkpatch name) { Types.patchDecay = Just 1 }
 
 configs :: Perform.Configs
 configs = Map.fromList
     [ (ScoreT.Instrument "patch1",
-        Perform.addrs_config [((dev, n), Nothing) | n <- [0..8]])
+        Perform.addrsConfig [((dev, n), Nothing) | n <- [0..8]])
     ]
-    where dev = Midi.write_device "dev1"
+    where dev = Midi.writeDevice "dev1"

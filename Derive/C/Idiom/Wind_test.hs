@@ -20,11 +20,11 @@ title =
 
 test_wind :: Test
 test_wind = do
-    let run = DeriveTest.extract extract . DeriveTest.derive_tracks title
-            . UiTest.note_track . mknotes
+    let run = DeriveTest.extract extract . DeriveTest.deriveTracks title
+            . UiTest.noteTrack . mknotes
         extract e =
-            ( Score.event_start e
-            , map (second Pitch.nn_to_hz) $ DeriveTest.e_nns e
+            ( Score.eventStart e
+            , map (second Pitch.nnToHz) $ DeriveTest.eNns e
             )
         mknotes ns = [(t, 1, n) | (t, n) <- zip (Lists.range_ 0 1) ns]
     equalf 0.01 (run ["set (nn 100)"]) ([(0, [(0, 100)])], [])
@@ -45,7 +45,7 @@ test_wind = do
 
 test_find_harmonic :: Test
 test_find_harmonic = do
-    let f = Wind.find_harmonic
+    let f = Wind.findHarmonic
     equal (f [7, 10] 7) $ Just (7, 1)
     equal (f [7, 10] 30) $ Just (10, 3)
     -- It wants to find a harmonic above, but accepts a bit of eta.

@@ -19,18 +19,18 @@ import Global
 -- already set.
 withVariation :: Derive.Deriver a -> Derive.Deriver a
 withVariation deriver =
-    ifM (Derive.is_control_set Controls.variation) deriver $ do
+    ifM (Derive.isControlSet Controls.variation) deriver $ do
         n <- Call.random
-        Derive.with_constant_control Controls.variation n deriver
+        Derive.withConstantControl Controls.variation n deriver
 
 -- | Like 'withVariation', but use a normal distribution.
 withVariationNormal :: Double -> Derive.Deriver a -> Derive.Deriver a
 withVariationNormal stddev deriver =
-    ifM (Derive.is_control_set Controls.variation) deriver $ do
+    ifM (Derive.isControlSet Controls.variation) deriver $ do
         n <- Call.normal stddev
-        Derive.with_constant_control Controls.variation n deriver
+        Derive.withConstantControl Controls.variation n deriver
 
 addSymbolicPitch :: Derive.PassedArgs x -> Derive.Deriver a -> Derive.Deriver a
 addSymbolicPitch args deriver = do
-    note <- Call.get_symbolic_pitch =<< Args.real_start args
-    Derive.with_val EnvKey.element (Pitch.note_text note) deriver
+    note <- Call.getSymbolicPitch =<< Args.realStart args
+    Derive.withVal EnvKey.element (Pitch.noteText note) deriver

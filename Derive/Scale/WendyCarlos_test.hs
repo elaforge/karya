@@ -12,9 +12,9 @@ import           Util.Test
 
 test_pitches :: Test
 test_pitches = do
-    let run title = DeriveTest.extract DeriveTest.e_nns
-            . DeriveTest.derive_tracks ("scale=alpha" <> title)
-            . UiTest.note_track
+    let run title = DeriveTest.extract DeriveTest.eNns
+            . DeriveTest.deriveTracks ("scale=alpha" <> title)
+            . UiTest.noteTrack
     equal (run "" [(0, 1, "1a"), (1, 1, "1b")])
         ([[(0, 12), (1, 12)], [(1, 12.78)]], [])
     equal (run " | a0-nn=1" [(0, 1, "1a"), (1, 1, "1b")])
@@ -22,9 +22,9 @@ test_pitches = do
 
 test_transpose_controls :: Test
 test_transpose_controls = do
-    let f p = DeriveTest.extract Score.initial_nn $
-            DeriveTest.derive_tracks "scale=alpha" $
-            UiTest.note_track [(0, 1, p)]
+    let f p = DeriveTest.extract Score.initialNn $
+            DeriveTest.deriveTracks "scale=alpha" $
+            UiTest.noteTrack [(0, 1, p)]
     equal (f "1a") ([Just 12], [])
     equal (f "t-chrom=1 | -- 1a") ([Just 12.78], [])
     equal (f "t-dia=1 | -- 1a") ([Just 12.78], [])

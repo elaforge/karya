@@ -26,7 +26,7 @@ import           Types
 
 
 list :: Cmd.CmdL [ViewId]
-list = Ui.all_view_ids
+list = Ui.allViewIds
 
 -- * create
 
@@ -35,70 +35,70 @@ create = Create.view
 
 -- | Create a view from a BlockId inferred like a block call would, from the
 -- selected block.
-create_infer :: Text -> Cmd.CmdL ViewId
-create_infer name = do
-    blocks <- Ui.gets Ui.state_blocks
-    ns <- Ui.get_namespace
-    caller <- Cmd.lookup_focused_block
-    case NoteTrackParse.to_block_id blocks ns caller name of
-        Just block_id -> Create.view block_id
+createInfer :: Text -> Cmd.CmdL ViewId
+createInfer name = do
+    blocks <- Ui.gets Ui.stateBlocks
+    ns <- Ui.getNamespace
+    caller <- Cmd.lookupFocusedBlock
+    case NoteTrackParse.toBlockId blocks ns caller name of
+        Just blockId -> Create.view blockId
         Nothing -> Cmd.throw "blah"
 
 -- | For the current window, open enough views at the current zoom to see the
 -- score from the current time until the end of the block.
 cover :: Cmd.M m => m [ViewId]
-cover = ViewConfig.views_covering =<< Cmd.get_focused_view
+cover = ViewConfig.viewsCovering =<< Cmd.getFocusedView
 
 -- * arrange
 
 -- | Crunch all the views up against each other.
 arrange :: Cmd.CmdL ()
 arrange = do
-    screens <- Cmd.gets Cmd.state_screens
-    mapM_ arrange_screen [(Rect.x r, Rect.y r) | r <- screens]
+    screens <- Cmd.gets Cmd.stateScreens
+    mapM_ arrangeScreen [(Rect.x r, Rect.y r) | r <- screens]
 
-arrange_screen :: (Int, Int) -> Cmd.CmdL ()
-arrange_screen point = do
-    screen <- Cmd.get_screen $ Just point
-    view_rects <- filter (Rect.overlaps screen . snd)
-        . map (second Block.view_rect) . Map.toList . Ui.state_views
+arrangeScreen :: (Int, Int) -> Cmd.CmdL ()
+arrangeScreen point = do
+    screen <- Cmd.getScreen $ Just point
+    viewRects <- filter (Rect.overlaps screen . snd)
+        . map (second Block.viewRect) . Map.toList . Ui.stateViews
         <$> Ui.get
-    mapM_ (uncurry Ui.set_view_rect) $
-        compact screen (Lists.sortOn snd view_rects)
+    mapM_ (uncurry Ui.setViewRect) $
+        compact screen (Lists.sortOn snd viewRects)
 
 compact :: Rect.Rect -> [(a, Rect.Rect)] -> [(a, Rect.Rect)]
 compact screen =
     snd . List.mapAccumL go (Rect.x screen, Rect.y screen, Rect.h screen)
     where
-    go (x, y, min_h) (view_id, rect) = (next, (view_id, Rect.place x y rect))
+    go (x, y, minH) (viewId, rect) = (next, (viewId, Rect.place x y rect))
         where
         next
             | x + Rect.w rect < Rect.r screen =
-                (x + Rect.w rect, y, min min_h (Rect.h rect))
-            | otherwise = (Rect.x screen, y + min_h, Rect.h screen)
+                (x + Rect.w rect, y, min minH (Rect.h rect))
+            | otherwise = (Rect.x screen, y + minH, Rect.h screen)
 
 -- * save and load
 
 -- | Show the list of saved views, with a star on the focused one.
 saved :: Cmd.CmdL Text
 saved = do
-    saved <- Ui.config#UiConfig.saved_views <#> Ui.get
+    saved <- Ui.config#UiConfig.savedViews <#> Ui.get
     pure $ Pretty.formatted $ Map.map pretty saved
     where
     pretty (views, focused) =
-        map (\view_id -> Pretty.text $
-                (if Just view_id == focused then "*" else "") <> showt view_id)
+        map (\viewId -> Pretty.text $
+                (if Just viewId == focused then "*" else "") <> showt viewId)
             (Map.keys views)
 
 -- | Save the current view layout.
 save :: Text -> Cmd.CmdL ()
-save = ViewConfig.save_views
+save = ViewConfig.saveViews
 
 load :: Text -> Cmd.CmdL ()
-load = ViewConfig.restore_views
+load = ViewConfig.restoreViews
 
 remove :: Ui.M m => Text -> m ()
-remove = ViewConfig.remove_views
+remove = ViewConfig.removeViews
 
 prev :: Cmd.CmdL ()
 prev = load "prev"
@@ -107,8 +107,8 @@ prev = load "prev"
 
 -- | Copy the zoom factor from the given view to the selected one.  This is
 -- useful when lining up parts.
-zoom_from :: Cmd.M m => ViewId -> m ()
-zoom_from from = do
-    from_factor <- Zoom.factor . Block.view_zoom <$> Ui.get_view from
-    to <- Cmd.get_focused_view
-    Views.modify_zoom to (\z -> z { Zoom.factor = from_factor })
+zoomFrom :: Cmd.M m => ViewId -> m ()
+zoomFrom from = do
+    fromFactor <- Zoom.factor . Block.viewZoom <$> Ui.getView from
+    to <- Cmd.getFocusedView
+    Views.modifyZoom to (\z -> z { Zoom.factor = fromFactor })

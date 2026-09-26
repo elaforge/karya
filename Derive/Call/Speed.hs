@@ -28,24 +28,24 @@ data Speed = Score !ScoreTime | Real !RealTime
 
 -- TODO this is a lot of boilerplate just to participate in Typecheck.
 instance Typecheck.Typecheck Speed where
-    from_val = Typecheck.coerce_to_scalar $ \(ScoreT.Typed typ val) ->
+    fromVal = Typecheck.coerceToScalar $ \(ScoreT.Typed typ val) ->
         case typ of
             ScoreT.Untyped -> Just $ Real (RealTime.seconds val)
             ScoreT.Real -> Just $ Real (RealTime.seconds val)
-            ScoreT.Score -> Just $ Score (ScoreTime.from_double val)
+            ScoreT.Score -> Just $ Score (ScoreTime.fromDouble val)
             _ -> Nothing
-    to_type = Typecheck.num_to_type
+    toType = Typecheck.numToType
 instance Typecheck.ToVal Speed where
-    to_val (Score a) = Typecheck.to_val a
-    to_val (Real a) = Typecheck.to_val a
+    toVal (Score a) = Typecheck.toVal a
+    toVal (Real a) = Typecheck.toVal a
 instance Typecheck.TypecheckNum Speed where
-    num_type _ = ValType.TTime
+    numType _ = ValType.TTime
 instance ShowVal.ShowVal Speed where
-    show_val (Score s) = ShowVal.show_val s
-    show_val (Real s) = ShowVal.show_val s
+    showVal (Score s) = ShowVal.showVal s
+    showVal (Real s) = ShowVal.showVal s
 
 arg :: Sig.Parser Typecheck.RealTimeFunctionT
-arg = Sig.defaulted_env "speed" Derive.Both (10 :: Int)
+arg = Sig.defaultedEnv "speed" Derive.Both (10 :: Int)
     "Repeat at this speed.  If it's a RealTime, the value is the number of\
     \ repeats per second, which will be unaffected by the tempo. If it's\
     \ a ScoreTime, the value is the number of repeats per ScoreTime\
@@ -55,44 +55,44 @@ arg = Sig.defaulted_env "speed" Derive.Both (10 :: Int)
 starts :: Derive.Time t => Typecheck.RealTimeFunctionT -> (t, t)
     -> Bool -- ^ If True, include a sample at the end time.
     -> Derive.Deriver [RealTime]
-starts (Typecheck.RealTimeFunctionT ttype speed) (start_, end_) include_end = do
-    let take_until e = if include_end then id else takeWhile (<e)
+starts (Typecheck.RealTimeFunctionT ttype speed) (start_, end_) includeEnd = do
+    let takeUntil e = if includeEnd then id else takeWhile (<e)
     case ttype of
         ScoreT.TReal -> do
             (start, end) <- (,) <$> Derive.real start_ <*> Derive.real end_
-            take_until end <$> real_starts speed start end
+            takeUntil end <$> realStarts speed start end
         ScoreT.TScore -> do
             (start, end) <- (,) <$> Derive.score start_ <*> Derive.score end_
-            mapM Derive.real . take_until end =<<
-                score_starts speed start end
+            mapM Derive.real . takeUntil end =<<
+                scoreStarts speed start end
 
 -- | Get start times for a changing speed.  The difference with 'starts' is
 -- that the start and end speeds can be different types.
-starts_curve :: ControlUtil.CurveF -> Speed -> Speed -> (RealTime, RealTime)
+startsCurve :: ControlUtil.CurveF -> Speed -> Speed -> (RealTime, RealTime)
     -> Bool -- ^ If True, include a sample at the end time.
     -> Derive.Deriver [RealTime]
-starts_curve curve start_speed end_speed (start, end) include_end = do
-    start_dur <- Call.real_duration start (speed_to_duration start_speed)
-    end_dur <- Call.real_duration end (speed_to_duration end_speed)
-    let dur_at = RealTime.seconds . ControlUtil.make_function curve
-            start (RealTime.to_seconds start_dur)
-            end (RealTime.to_seconds end_dur)
-    let take_until e = if include_end then id else takeWhile (<e)
-    Derive.require_right id $
-        take_until end <$> duration_starts dur_at start end
+startsCurve curve startSpeed endSpeed (start, end) includeEnd = do
+    startDur <- Call.realDuration start (speedToDuration startSpeed)
+    endDur <- Call.realDuration end (speedToDuration endSpeed)
+    let durAt = RealTime.seconds . ControlUtil.makeFunction curve
+            start (RealTime.toSeconds startDur)
+            end (RealTime.toSeconds endDur)
+    let takeUntil e = if includeEnd then id else takeWhile (<e)
+    Derive.requireRight id $
+        takeUntil end <$> durationStarts durAt start end
 
-speed_to_duration :: Speed -> DeriveT.Duration
-speed_to_duration (Score t) = DeriveT.ScoreDuration (1/t)
-speed_to_duration (Real t) = DeriveT.RealDuration (1/t)
+speedToDuration :: Speed -> DeriveT.Duration
+speedToDuration (Score t) = DeriveT.ScoreDuration (1/t)
+speedToDuration (Real t) = DeriveT.RealDuration (1/t)
 
 -- | Emit RealTimes at the given speed, which may change over time.  The speed
 -- is taken as hertz in real time, and must be >0.
 --
 -- This returns samples up to and including the end.
-real_starts :: ScoreT.Function -> RealTime -> RealTime
+realStarts :: ScoreT.Function -> RealTime -> RealTime
     -> Derive.Deriver [RealTime]
-real_starts speed_sig start end = Derive.require_right id $
-    duration_starts (RealTime.seconds . (1/) . speed_sig) start end
+realStarts speedSig start end = Derive.requireRight id $
+    durationStarts (RealTime.seconds . (1/) . speedSig) start end
 
 -- | Emit ScoreTimes at the given speed, which may change over time.  The
 -- ScoreTimes are emitted as the reciprocal of the signal at the given point
@@ -102,32 +102,32 @@ real_starts speed_sig start end = Derive.require_right id $
 -- tempo in effect.
 --
 -- This returns samples up to and including the end.
-score_starts :: ScoreT.Function -> ScoreTime -> ScoreTime
+scoreStarts :: ScoreT.Function -> ScoreTime -> ScoreTime
     -> Derive.Deriver [ScoreTime]
-score_starts speed_sig start end = do
-    dur_sig <- convert_score_signal speed_sig
-    Derive.require_right id $
-        duration_starts dur_sig start (end + ScoreTime.eta)
+scoreStarts speedSig start end = do
+    durSig <- convertScoreSignal speedSig
+    Derive.requireRight id $
+        durationStarts durSig start (end + ScoreTime.eta)
 
 -- | Convert a function from RealTime to a ScoreTime duration to a function
 -- from ScoreTime to ScoreTime duration.
-convert_score_signal :: ScoreT.Function
+convertScoreSignal :: ScoreT.Function
     -> Derive.Deriver (ScoreTime -> ScoreTime)
-convert_score_signal f = do
-    warp <- Internal.get_warp
-    pure $ ScoreTime.from_double . (1/) . f . Warp.warp warp
+convertScoreSignal f = do
+    warp <- Internal.getWarp
+    pure $ ScoreTime.fromDouble . (1/) . f . Warp.warp warp
 
-duration_starts :: (Num a, Ord a, Show a) => (a -> a) -> a -> a
+durationStarts :: (Num a, Ord a, Show a) => (a -> a) -> a -> a
     -> Either Text [a]
-duration_starts dur_at start end = sample (dur_at start) 0 start
+durationStarts durAt start end = sample (durAt start) 0 start
     where
-    sample prev_dur n t0
+    sample prevDur n t0
         | t > end = pure []
         | dur <= 0 = Left $ "duration <= 0: " <> showt dur <> " at " <> showt t
         -- Avoid loss of precision for the common case of a constant speed
         -- signal.
-        | dur == prev_dur = (t:) <$> sample prev_dur (n+1) t0
+        | dur == prevDur = (t:) <$> sample prevDur (n+1) t0
         | otherwise = (t:) <$> sample dur 0 (t+dur)
             where
-            t = t0 + prev_dur * n
-            dur = dur_at t
+            t = t0 + prevDur * n
+            dur = durAt t

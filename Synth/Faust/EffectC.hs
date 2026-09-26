@@ -108,7 +108,7 @@ allocate patch = do
     getDoc c = maybe "" snd $ Map.lookup c (_controls patch)
 
 destroy :: Effect -> IO ()
-destroy = PatchC.c_faust_destroy . _ptr
+destroy = PatchC.cFaustDestroy . _ptr
 
 -- | Render chunk of time and return samples.
 render :: Audio.Frames -> Audio.Frames -> Effect

@@ -13,22 +13,22 @@ import qualified Derive.Scale as Scale
 import qualified Perform.Pitch as Pitch
 
 
-print_note_numbers :: Pitch.ScaleId -> IO ()
-print_note_numbers scale = do
-    let run scale_id environ = DeriveTest.eval Ui.empty
-            (scale_degrees scale_id environ)
+printNoteNumbers :: Pitch.ScaleId -> IO ()
+printNoteNumbers scale = do
+    let run scaleId environ = DeriveTest.eval Ui.empty
+            (scaleDegrees scaleId environ)
     prettyp (run scale mempty)
 
-scale_degrees :: Pitch.ScaleId -> Env.Environ
+scaleDegrees :: Pitch.ScaleId -> Env.Environ
     -> Derive.Deriver [(Pitch.Pitch, Pitch.Note, Pitch.NoteNumber)]
-scale_degrees scale_id environ = do
-    scale <- Derive.get_scale scale_id
-    nns <- Scale.note_numbers scale environ
+scaleDegrees scaleId environ = do
+    scale <- Derive.getScale scaleId
+    nns <- Scale.noteNumbers scale environ
     pure $ zip3 (Scale.pitches scale environ) (Scale.notes scale environ) nns
 
 test_assign_keys :: Test
 test_assign_keys = do
-    let f = Scale.assign_keys 4
+    let f = Scale.assignKeys 4
     equal (f [1.5]) [(1, 1.5)]
     equal (f [1.5, 4]) [(1, 1.5), (3, 4)]
     equal (f [1, 2, 3, 4]) [(0, 1), (1, 2), (2, 3), (3, 4)]

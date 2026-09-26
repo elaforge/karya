@@ -168,7 +168,7 @@ legend = map make rows
 -- | These have to match with "Cmd.Instrument.KendangBali".
 -- TODO harmonize the two notations?
 instance Expr.ToExpr Stroke where
-    to_expr = \case
+    toExpr = \case
         Plak -> "PL"
         Ka -> "k"
         Pak -> "P"
@@ -182,8 +182,8 @@ instance Expr.ToExpr Stroke where
         Tut -> "o"
 
 instance Expr.ToExpr (Realize.Stroke Stroke) where
-    to_expr (Realize.Stroke emphasis stroke) = case emphasis of
-        Realize.Normal -> Expr.to_expr stroke
+    toExpr (Realize.Stroke emphasis stroke) = case emphasis of
+        Realize.Normal -> Expr.toExpr stroke
         Realize.Light -> case stroke of
             Pak -> "^"
             Ka -> "."

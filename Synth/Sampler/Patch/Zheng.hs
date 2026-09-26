@@ -56,49 +56,49 @@ patches = (:[]) $ (Patch.patch "zheng")
     , Patch._allFilenames = Set.fromList $ concat $ concatMap Map.elems $
         concatMap Map.elems $ Map.elems $ ZhengSamples.samples
     , Patch._preprocess = inferDuration
-    , Patch._karyaPatch = ImInst.code #= code $ ImInst.nn_range range $
-        ImInst.make_patch $ Im.Patch.patch
-            { Im.Patch.patch_controls = mconcat
+    , Patch._karyaPatch = ImInst.code #= code $ ImInst.nnRange range $
+        ImInst.makePatch $ Im.Patch.patch
+            { Im.Patch.patchControls = mconcat
                 [ Control.supportPitch
                 , Control.supportDyn
                 , Control.supportVariation
                 ] <> Map.fromList
-                [ (c_damp, "Notes don't ring when this is 1.")
-                , (c_damp_time, "Time in seconds to 0.")
+                [ (cDamp, "Notes don't ring when this is 1.")
+                , (cDampTime, "Time in seconds to 0.")
                 ]
-            , Im.Patch.patch_attribute_map = const () <$> attributeMap
+            , Im.Patch.patchAttributeMap = const () <$> attributeMap
             }
     }
     where
     dir = "zheng"
-    code = ImInst.note_calls
-        [ ImInst.both "左" (Make.attributed_note Module.instrument Attrs.left)
-        , ImInst.transformer "standard-strings" standard_strings
+    code = ImInst.noteCalls
+        [ ImInst.both "左" (Make.attributedNote Module.instrument Attrs.left)
+        , ImInst.transformer "standard-strings" standardStrings
         ]
-        <> ImInst.null_call Highlight.c_highlight_strings_note
+        <> ImInst.nullCall Highlight.cHighlightStringsNote
         <> Util.thru dir convert
         <> ImInst.postproc
-            (DUtil.element_from EnvKey.string show_string)
+            (DUtil.elementFrom EnvKey.string showStr)
     -- copy paste from User.Elaforge.Instrument.Kontakt
     -- TODO put it in a shared module?
     -- This can't go in the automatic env because it uses DeriveT.Pitch, which
     -- is not serializable, hence not in REnv.
-    standard_strings = DUtil.transformer0 "standard-strings"
-        ("Set " <> ShowVal.doc EnvKey.open_strings
-            <> " to standard pitches: " <> ShowVal.doc open_strings)
-        $ \_ -> Derive.with_val EnvKey.open_strings
-            (map Twelve.nn_pitch open_strings)
-    open_strings = take (4*5 + 1) $ -- 4 octaves + 1, so D to D
+    standardStrings = DUtil.transformer0 "standard-strings"
+        ("Set " <> ShowVal.doc EnvKey.openStrings
+            <> " to standard pitches: " <> ShowVal.doc openStrings)
+        $ \_ -> Derive.withVal EnvKey.openStrings
+            (map Twelve.nnPitch openStrings)
+    openStrings = take (4*5 + 1) $ -- 4 octaves + 1, so D to D
         concatMap ((\nns oct -> map (oct+) nns) notes) octaves
         where
         notes = [NN.d2, NN.e2, NN.fs2, NN.a2, NN.b2]
         octaves = map fromIntegral [0, 12 ..]
     -- Let's say the top string can bend a minor third.
-    range = (head open_strings, last open_strings + 3)
+    range = (head openStrings, last openStrings + 3)
 
-show_string :: PSignal.Pitch -> Either Log.Msg Text
-show_string = bimap (Log.msg Log.Warn Nothing . pretty) Pitch.note_text
-    . PSignal.pitch_note . PSignal.coerce
+showStr :: PSignal.Pitch -> Either Log.Msg Text
+showStr = bimap (Log.msg Log.Warn Nothing . pretty) Pitch.noteText
+    . PSignal.pitchNote . PSignal.coerce
 
 convert :: Note.Note -> Patch.ConvertM Sample.Sample
 convert note = do
@@ -114,13 +114,13 @@ convert note = do
     -- but this seems to sound ok in practice.
     let vol = Num.scale 0 1 (1 - (sampleDyn - dynVal))
     let dampTime = maybe defaultDampTime RealTime.seconds $
-            Note.controlAt (Note.end note) c_damp_time note
+            Note.controlAt (Note.end note) cDampTime note
     pure $ (Sample.make filename)
-        { Sample.envelope = Signal.from_pairs
+        { Sample.envelope = Signal.fromPairs
             [ (Note.start note, vol), (Note.end note, vol)
             , (Note.end note + dampTime, 0)
             ]
-        , Sample.ratios = Sample.pitchToRatioSignal (Midi.from_key key) note
+        , Sample.ratios = Sample.pitchToRatioSignal (Midi.fromKey key) note
         }
 
 defaultDampTime :: RealTime
@@ -129,7 +129,7 @@ defaultDampTime = 0.75
 toFilename :: Pitch.NoteNumber -> Articulation -> Signal.Y -> Signal.Y
     -> Maybe (Midi.Key, Signal.Y, Maybe FilePath)
 toFilename nn art dyn var = do
-    (key, velToFiles) <- Maps.lookupClosest (Midi.to_key (round nn))
+    (key, velToFiles) <- Maps.lookupClosest (Midi.toKey (round nn))
         (samples art)
     -- TODO pick some from neighbors, since I lost variations due to combining
     -- them
@@ -147,7 +147,7 @@ data Articulation = RightHand | LeftHand | Harmonic
     deriving (Eq, Ord, Show, Enum)
 
 attributeMap :: Common.AttributeMap Articulation
-attributeMap = Common.attribute_map
+attributeMap = Common.attributeMap
     [ (Attrs.harm, Harmonic)
     , (Attrs.left, LeftHand)
     , (mempty, RightHand)
@@ -159,11 +159,11 @@ samples art = fromMaybe (error ("unknown articulation: " <> show art)) $
 
 -- * preprocess
 
-c_damp :: Control.Control
-c_damp = "damp"
+cDamp :: Control.Control
+cDamp = "damp"
 
-c_damp_time :: Control.Control
-c_damp_time = "damp-time"
+cDampTime :: Control.Control
+cDampTime = "damp-time"
 
 -- | Interpret the 'c_damp' control.  Each note extends until there's a note
 -- with a c_damp with 1.
@@ -183,7 +183,7 @@ inferEnd note nexts = case mapMaybe dampedAt (note : nexts) of
     end : _ -> Just $ max end (Note.end note)
     where
     dampedAt = fmap fst . Signal.find (\_ y -> y >= 1)
-        . fromMaybe mempty . Map.lookup c_damp . Note.controls
+        . fromMaybe mempty . Map.lookup cDamp . Note.controls
 
 -- * make samples
 

@@ -28,8 +28,8 @@ import           Types
 
 library :: Library.Library
 library = Library.transformers
-    [ ("retune", c_retune)
-    , ("realize-retune", c_realize_retune)
+    [ ("retune", cRetune)
+    , ("realize-retune", cRealizeRetune)
     ]
 
 module_ :: Module.Module
@@ -38,11 +38,11 @@ module_ = "retune"
 -- | (time, dist)
 type RetuneArg = (RealTime, Pitch.NoteNumber)
 
-retune_arg :: Text
-retune_arg = "retune"
+retuneArg :: Text
+retuneArg = "retune"
 
-c_retune :: Derive.Transformer Derive.Note
-c_retune = Derive.transformer module_ "retune" Tags.delayed
+cRetune :: Derive.Transformer Derive.Note
+cRetune = Derive.transformer module_ "retune" Tags.delayed
     "Notes start with some detuning, and adjust to the desired pitch.  This\
     \ effect is scaled by the time and pitch distance from the previous note,\
     \ as documeneted in 'Derive.Call.Post.Retune.pitch_scale'."
@@ -53,42 +53,42 @@ c_retune = Derive.transformer module_ "retune" Tags.delayed
         "Out of tune distance, in NNs. Presumably this should be set to a\
         \ control function with a bimodal distribution."
     ) $ \(time, dist) _args -> fmap (Post.emap1_ (put time dist))
-    where put time dist = Score.put_arg retune_arg ((time, dist) :: RetuneArg)
+    where put time dist = Score.putArg retuneArg ((time, dist) :: RetuneArg)
 
-c_realize_retune :: Derive.Transformer Derive.Note
-c_realize_retune = Derive.transformer module_ "retune-realize"
-    Tags.realize_delayed "Perform annotations added by `retune`."
+cRealizeRetune :: Derive.Transformer Derive.Note
+cRealizeRetune = Derive.transformer module_ "retune-realize"
+    Tags.realizeDelayed "Perform annotations added by `retune`."
     $ Sig.call0t $ \_args deriver -> do
-        srate <- Call.get_srate
-        Post.emap_m_ snd (realize srate) . Post.prev_by Post.hand_key
+        srate <- Call.getSrate
+        Post.emapM_ snd (realize srate) . Post.prevBy Post.handKey
             =<< deriver
     where
     realize srate (prev, event) = do
-        (event, maybe_arg) <- Derive.require_right id $
-            Score.take_arg retune_arg event
-        pure $ case maybe_arg of
+        (event, maybeArg) <- Derive.requireRight id $
+            Score.takeArg retuneArg event
+        pure $ case maybeArg of
             Nothing -> [event]
-            Just arg -> [realize_retune srate arg prev event]
+            Just arg -> [realizeRetune srate arg prev event]
 
-realize_retune :: ControlUtil.SRate -> RetuneArg -> Maybe Score.Event
+realizeRetune :: ControlUtil.SRate -> RetuneArg -> Maybe Score.Event
     -> Score.Event -> Score.Event
-realize_retune srate (time, max_dist) prev event
+realizeRetune srate (time, maxDist) prev event
     | dist == 0 = event
-    | otherwise = add_nn_transpose curve event
+    | otherwise = addNnTranspose curve event
     where
-    dist = calculate_retune (pitch_distance prev event) max_dist
-    curve = retune_curve srate time dist (Score.event_start event)
-        (Score.event_end event)
+    dist = calculateRetune (pitchDistance prev event) maxDist
+    curve = retuneCurve srate time dist (Score.eventStart event)
+        (Score.eventEnd event)
 
 -- | Transpose an event by adding to its nn transpose control.
-add_nn_transpose :: Signal.Control -> Score.Event -> Score.Event
-add_nn_transpose curve = Score.modify_signal Controls.nn (Signal.sig_add curve)
+addNnTranspose :: Signal.Control -> Score.Event -> Score.Event
+addNnTranspose curve = Score.modifySignal Controls.nn (Signal.sigAdd curve)
 
-retune_curve :: ControlUtil.SRate -> RealTime -> Pitch.NoteNumber -> RealTime
+retuneCurve :: ControlUtil.SRate -> RealTime -> Pitch.NoteNumber -> RealTime
      -> RealTime -> Signal.Control
-retune_curve srate time dist start end =
+retuneCurve srate time dist start end =
     ControlUtil.segment srate curve
-        start (Pitch.nn_to_double dist) (min end (start + time)) 0
+        start (Pitch.nnToDouble dist) (min end (start + time)) 0
     where
     -- Adjust quickly at first, then slow down.
     curve = ControlUtil.Function $ ControlUtil.expon (-4)
@@ -98,32 +98,32 @@ retune_curve srate time dist start end =
 -- current pitch.  What should happen with notes that already have some pitch
 -- variation is dependent on how I want this to work, but for now start of the
 -- segment still seems reasonable.
-pitch_distance :: Maybe Score.Event -> Score.Event
+pitchDistance :: Maybe Score.Event -> Score.Event
     -> (RealTime, Pitch.NoteNumber)
-pitch_distance prev cur = fromMaybe (0, 0) $
-    distance <$> (get_last x2 =<< prev) <*> Score.initial_nn cur
+pitchDistance prev cur = fromMaybe (0, 0) $
+    distance <$> (getLast x2 =<< prev) <*> Score.initialNn cur
     where
-    x2 = Score.event_start cur
+    x2 = Score.eventStart cur
     distance (x1, y1) y2 = (x2 - x1, y2 - y1)
-    get_last x event = do
-        segment <- PSignal.segment_at (Score.event_pitch event) x
-        nn <- either (const Nothing) Just $ PSignal.pitch_nn $
-            Score.apply_controls event x $ Segment._y1 segment
+    getLast x event = do
+        segment <- PSignal.segmentAt (Score.eventPitch event) x
+        nn <- either (const Nothing) Just $ PSignal.pitchNn $
+            Score.applyControls event x $ Segment._y1 segment
         Just (Segment._x1 segment, nn)
 
-calculate_retune :: (RealTime, Pitch.NoteNumber)
+calculateRetune :: (RealTime, Pitch.NoteNumber)
     -> Pitch.NoteNumber -> Pitch.NoteNumber
-calculate_retune (time_diff, nn_diff) max_dist =
-    max_dist * pitch_scale time_diff nn_diff
+calculateRetune (timeDiff, nnDiff) maxDist =
+    maxDist * pitchScale timeDiff nnDiff
 
 -- | Scale the nn distance from 0 to 1 based on the pitch and time distance to
 -- the last pitch sample of the previous note.
 --
 -- An octave is the most inaccurate.  Unison is totally accurate.  0 time is
 -- the most inaccurate, while 1 second is still a little bit inaccurate.
-pitch_scale :: RealTime -> Pitch.NoteNumber -> Pitch.NoteNumber
-pitch_scale time_diff nn_diff =
-    Pitch.nn (RealTime.to_seconds time_scale) * nn_scale
+pitchScale :: RealTime -> Pitch.NoteNumber -> Pitch.NoteNumber
+pitchScale timeDiff nnDiff =
+    Pitch.nn (RealTime.toSeconds timeScale) * nnScale
     where
-    nn_scale = Num.clamp 0 12 (abs nn_diff) / 12
-    time_scale = Num.scale 0.15 1 $ 1 - Num.clamp 0 1 (abs time_diff)
+    nnScale = Num.clamp 0 12 (abs nnDiff) / 12
+    timeScale = Num.scale 0.15 1 $ 1 - Num.clamp 0 1 (abs timeDiff)

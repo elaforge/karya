@@ -15,12 +15,12 @@ import           Util.Test
 test_gliss :: Test
 test_gliss = do
     let run = DeriveTest.extract extract
-            . DeriveTest.derive_tracks
+            . DeriveTest.deriveTracks
                 "import china.zheng | open-strings=(list (3a) (4c) (4e))"
-            . UiTest.note_track
+            . UiTest.noteTrack
         extract e =
-            ( Score.event_start e
-            , Num.roundDigits 2 <$> Score.initial_nn e
+            ( Score.eventStart e
+            , Num.roundDigits 2 <$> Score.initialNn e
             )
     equal (run [(0, 1, "gliss -1 1s -- 4c")])
         ([(-1, Just NN.a3), (0, Just NN.c4)], [])

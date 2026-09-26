@@ -14,12 +14,12 @@ import Global
 
 
 symbols :: [Symbol.Symbol]
-symbols = dotted_numbers <> staff_symbols <> 工尺譜
+symbols = dottedNumbers <> staffSymbols <> 工尺譜
 
 -- * dotted numbers
 
-dotted_number :: Int -> Int -> Pitch.Note
-dotted_number num oct
+dottedNumber :: Int -> Int -> Pitch.Note
+dottedNumber num oct
     | oct == 0 = Pitch.Note nums
     | oct < 0 = Pitch.Note $ "`" <> nums <> Text.replicate (abs oct) "." <> "`"
     | otherwise = Pitch.Note $ "`" <> nums <> Text.replicate oct "^" <> "`"
@@ -28,30 +28,30 @@ dotted_number num oct
 dot :: Symbol.Glyph
 dot = Symbol.glyph "•" -- unicode \x2022
 
-dot_above :: Text -> Symbol.Symbol
-dot_above s = Symbol.Symbol (s <> "^") True
-    [Symbol.glyph s, Symbol.glyph_at 0 (0.5, -0.3) dot]
+dotAbove :: Text -> Symbol.Symbol
+dotAbove s = Symbol.Symbol (s <> "^") True
+    [Symbol.glyph s, Symbol.glyphAt 0 (0.5, -0.3) dot]
 
-dot2_above :: Text -> Symbol.Symbol
-dot2_above s = Symbol.Symbol (s <> "^^") True
+dot2Above :: Text -> Symbol.Symbol
+dot2Above s = Symbol.Symbol (s <> "^^") True
     [Symbol.glyph s,
-        Symbol.glyph_at 0 (-0.3, -0.3) dot,
-        Symbol.glyph_at 0 (0.5, -0.3) dot]
+        Symbol.glyphAt 0 (-0.3, -0.3) dot,
+        Symbol.glyphAt 0 (0.5, -0.3) dot]
 
-dot_below :: Text -> Symbol.Symbol
-dot_below s = Symbol.Symbol (s <> ".") True
-    [Symbol.glyph s, Symbol.glyph_at 0 (0.5, 0.3) dot]
+dotBelow :: Text -> Symbol.Symbol
+dotBelow s = Symbol.Symbol (s <> ".") True
+    [Symbol.glyph s, Symbol.glyphAt 0 (0.5, 0.3) dot]
 
-dot2_below :: Text -> Symbol.Symbol
-dot2_below s = Symbol.Symbol (s <> "..") True
+dot2Below :: Text -> Symbol.Symbol
+dot2Below s = Symbol.Symbol (s <> "..") True
     [ Symbol.glyph s
-    , Symbol.glyph_at 0 (-0.3, 0.3) dot
-    , Symbol.glyph_at 0 (0.5, 0.3) dot
+    , Symbol.glyphAt 0 (-0.3, 0.3) dot
+    , Symbol.glyphAt 0 (0.5, 0.3) dot
     ]
 
-dotted_numbers :: [Symbol.Symbol]
-dotted_numbers = map dot_above cs <> map dot2_above
-        cs <> map dot_below cs <> map dot2_below cs
+dottedNumbers :: [Symbol.Symbol]
+dottedNumbers = map dotAbove cs <> map dot2Above
+        cs <> map dotBelow cs <> map dot2Below cs
     where
     -- If some scale wants higher numbers, they are easy to add.
     cs = map showt [0..9]
@@ -59,8 +59,8 @@ dotted_numbers = map dot_above cs <> map dot2_above
 
 -- * staff notation
 
-staff_symbols :: [Symbol.Symbol]
-staff_symbols =
+staffSymbols :: [Symbol.Symbol]
+staffSymbols =
     [ Symbol.symbol "#" [g "\x266f" 1]
     -- bravura: e263
     , Symbol.symbol "##" [g "\x1d12a" 10]
@@ -69,7 +69,7 @@ staff_symbols =
     , Symbol.symbol "bb" [g "\x1d12b" 4]
     , Symbol.symbol "n" [g "\x266e" 1]
     ]
-    where g str size = (Symbol.glyph str) { Symbol.glyph_size = size }
+    where g str size = (Symbol.glyph str) { Symbol.glyphSize = size }
 
 
 -- * 南管的工尺譜
@@ -88,20 +88,20 @@ staff_symbols =
     , Symbol.simple "upstroke" "㇀" -- \x31c0
     , Symbol.simple "L" "㇄" -- \x31c4
     -- \x2020 at least until I can make a better one
-    , placed "dagger" [(Symbol.glyph "†") { Symbol.glyph_size = 4 }]
+    , placed "dagger" [(Symbol.glyph "†") { Symbol.glyphSize = 4 }]
     , placed "wu1"
-        [ glyph_at wu (0, 0)
-        , glyph_at dian (-0.5, 0)
+        [ glyphAt wu (0, 0)
+        , glyphAt dian (-0.5, 0)
         ]
     , placed "wu666"
-        [ glyph_at wu (0, 0)
-        , glyph_at dian (-0.5, 0)
-        , glyph_at dian (0, 0.5)
+        [ glyphAt wu (0, 0)
+        , glyphAt dian (-0.5, 0)
+        , glyphAt dian (0, 0.5)
         ]
     , placed "wu866"
-        [ glyph_at wu (0, 0)
-        , glyph_at dian (-0.5, 0.2)
-        , glyph_at dian (-0.5, -0.2)
+        [ glyphAt wu (0, 0)
+        , glyphAt dian (-0.5, 0.2)
+        , glyphAt dian (-0.5, -0.2)
         ]
 
     -- meter
@@ -110,6 +110,6 @@ staff_symbols =
     ]
     where
     placed name glyphs = Symbol.Symbol name True glyphs
-    glyph_at str align = (Symbol.glyph str) { Symbol.glyph_align = align }
+    glyphAt str align = (Symbol.glyph str) { Symbol.glyphAlign = align }
     dian = "、"
     wu = "ㄨ"

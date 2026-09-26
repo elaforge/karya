@@ -50,42 +50,42 @@ import           Types
 
 -- * config
 
-get_config :: Ui.M m => m Lilypond.Config
-get_config = Ui.config#UiConfig.lilypond <#> Ui.get
+getConfig :: Ui.M m => m Lilypond.Config
+getConfig = Ui.config#UiConfig.lilypond <#> Ui.get
 
-modify_config :: Ui.M m => (Lilypond.Config -> Lilypond.Config) -> m ()
-modify_config modify = Ui.modify_config $ UiConfig.lilypond %= modify
+modifyConfig :: Ui.M m => (Lilypond.Config -> Lilypond.Config) -> m ()
+modifyConfig modify = Ui.modifyConfig $ UiConfig.lilypond %= modify
 
-with_config :: Cmd.M m => Lilypond.Config -> m a -> m a
-with_config config = Ui.with_config (UiConfig.lilypond #= config)
+withConfig :: Cmd.M m => Lilypond.Config -> m a -> m a
+withConfig config = Ui.withConfig (UiConfig.lilypond #= config)
 
-set_quarter_duration :: Ui.M m => RealTime -> m ()
-set_quarter_duration dur = modify_config $ \config ->
-    config { Lilypond.config_quarter_duration = dur }
+setQuarterDuration :: Ui.M m => RealTime -> m ()
+setQuarterDuration dur = modifyConfig $ \config ->
+    config { Lilypond.configQuarterDuration = dur }
 
-set_quantize :: Ui.M m => Lilypond.Duration -> m ()
-set_quantize dur = modify_config $ \config ->
-    config { Lilypond.config_quantize = dur }
+setQuantize :: Ui.M m => Lilypond.Duration -> m ()
+setQuantize dur = modifyConfig $ \config ->
+    config { Lilypond.configQuantize = dur }
 
-set_dotted_rests :: Ui.M m => Bool -> m ()
-set_dotted_rests b = modify_config $ \config ->
-    config { Lilypond.config_dotted_rests = b }
+setDottedRests :: Ui.M m => Bool -> m ()
+setDottedRests b = modifyConfig $ \config ->
+    config { Lilypond.configDottedRests = b }
 
-toggle_display :: Ui.M m => Util.Instrument -> m ()
-toggle_display inst = modify_staff inst $ Lilypond.display %= not
+toggleDisplay :: Ui.M m => Util.Instrument -> m ()
+toggleDisplay inst = modifyStaff inst $ Lilypond.display %= not
 
-set_code :: Ui.M m => Util.Instrument -> [Text] -> m ()
-set_code inst code = modify_staff inst $ Lilypond.code #= code
+setCode :: Ui.M m => Util.Instrument -> [Text] -> m ()
+setCode inst code = modifyStaff inst $ Lilypond.code #= code
 
-modify_staff :: Ui.M m => Util.Instrument
+modifyStaff :: Ui.M m => Util.Instrument
     -> (Lilypond.StaffConfig -> Lilypond.StaffConfig) -> m ()
-modify_staff inst_ modify = do
-    config <- get_config
-    let staves = Lilypond.config_staves config
+modifyStaff inst_ modify = do
+    config <- getConfig
+    let staves = Lilypond.configStaves config
     case Lists.findModify ((==inst) . fst) (second modify) staves of
         Nothing -> Ui.throw $ "no staff config for " <> pretty inst
-        Just staves -> modify_config $ const $
-            config { Lilypond.config_staves = staves }
+        Just staves -> modifyConfig $ const $
+            config { Lilypond.configStaves = staves }
     where inst = Util.instrument inst_
 
 -- | Set staff config, [(instrument, long_name, short_name)].  The order
@@ -94,171 +94,171 @@ modify_staff inst_ modify = do
 -- If there is no staff config, all instruments get staves.  Otherwise, only
 -- instruments with 'Lilypond.StaffConfig's and 'Lilypond.staff_display' are
 -- displayed.
-set_staves :: Ui.M m => [(Text, Lilypond.Instrument, Lilypond.Instrument)]
+setStaves :: Ui.M m => [(Text, Lilypond.Instrument, Lilypond.Instrument)]
     -> m (Lilypond.Config -> Lilypond.Config)
-set_staves staves
+setStaves staves
     | not (null dups) = Ui.throw $ "duplicate instruments: " <> pretty dups
     | otherwise = pure $ \config ->
-        config { Lilypond.config_staves = map mk staves }
+        config { Lilypond.configStaves = map mk staves }
     where
     dups = map fst $ snd $
         Lists.partitionDups id [Util.instrument inst | (inst, _, _) <- staves]
     mk (inst, long, short) = (,) (Util.instrument inst) $
-        Lilypond.empty_staff_config
-            { Lilypond.staff_long = long, Lilypond.staff_short = short }
+        Lilypond.emptyStaffConfig
+            { Lilypond.staffLong = long, Lilypond.staffShort = short }
 
 -- * compile
 
 -- | Compile multiple blocks, with an explicit movement structure.
 blocks :: Lilypond.Title -> [(Lilypond.Title, BlockId)] -> Cmd.CmdL Text
 blocks title movements = do
-    events <- mapM ((LEvent.write_logs <=< derive) . snd) movements
-    compile_explicit title (zip (map fst movements) events)
+    events <- mapM ((LEvent.writeLogs <=< derive) . snd) movements
+    compileExplicit title (zip (map fst movements) events)
 
 -- | Compile the given block as lilypond.  If there are movements, they are
 -- extracted from the events.
 block :: BlockId -> Cmd.CmdL Text
-block block_id = block_title (block_id_title block_id) block_id
+block blockId = blockTitle (blockIdTitle blockId) blockId
 
 -- | Compile the given block, but only with a single instrument.
-block_inst :: Maybe Text -> Util.Instrument -> BlockId -> Cmd.CmdT IO Text
-block_inst maybe_title inst block_id = do
-    config <- get_config
-    let title = fromMaybe (block_id_title block_id) maybe_title
-    with_config (solo_instrument (Util.instrument inst) config) $
-        block_title (title <> " - " <> inst) block_id
+blockInst :: Maybe Text -> Util.Instrument -> BlockId -> Cmd.CmdT IO Text
+blockInst maybeTitle inst blockId = do
+    config <- getConfig
+    let title = fromMaybe (blockIdTitle blockId) maybeTitle
+    withConfig (soloInstrument (Util.instrument inst) config) $
+        blockTitle (title <> " - " <> inst) blockId
 
-solo_instrument :: ScoreT.Instrument -> Lilypond.Config -> Lilypond.Config
-solo_instrument inst = Lilypond.staves %= map solo
+soloInstrument :: ScoreT.Instrument -> Lilypond.Config -> Lilypond.Config
+soloInstrument inst = Lilypond.staves %= map solo
     where
     solo staff
         | fst staff == inst = staff
         | otherwise = second (Lilypond.display %= not) staff
 
-block_title :: Lilypond.Title -> BlockId -> Cmd.CmdT IO Text
-block_title title block_id =
-    compile_extract title =<< LEvent.write_logs =<< derive block_id
+blockTitle :: Lilypond.Title -> BlockId -> Cmd.CmdT IO Text
+blockTitle title blockId =
+    compileExtract title =<< LEvent.writeLogs =<< derive blockId
 
 -- | Compile the current block.
 current :: Cmd.CmdL Text
-current = block =<< Cmd.get_focused_block
+current = block =<< Cmd.getFocusedBlock
 
 -- | Show the output of the lilypond for the given block.
-view_block :: BlockId -> Cmd.CmdL ()
-view_block block_id = do
-    filename <- Cmd.Lilypond.ly_filename $ block_id_title block_id
+viewBlock :: BlockId -> Cmd.CmdL ()
+viewBlock blockId = do
+    filename <- Cmd.Lilypond.lyFilename $ blockIdTitle blockId
     liftIO $ void $ Thread.start $ Processes.call
         "open" [FilePath.replaceExtension filename ".pdf"]
 
 view :: Cmd.CmdL ()
-view = view_block =<< Cmd.get_focused_block
+view = viewBlock =<< Cmd.getFocusedBlock
 
 -- * from events
 
-from_events :: [Score.Event] -> Cmd.CmdL Text
-from_events events = do
-    block_id <- Cmd.get_focused_block
-    compile_extract (block_id_title block_id) events
+fromEvents :: [Score.Event] -> Cmd.CmdL Text
+fromEvents events = do
+    blockId <- Cmd.getFocusedBlock
+    compileExtract (blockIdTitle blockId) events
 
 -- * compile_ly
 
 -- | Run lilypond with explicit movements.
-compile_explicit :: Lilypond.Title -> [Cmd.Lilypond.Movement]
+compileExplicit :: Lilypond.Title -> [Cmd.Lilypond.Movement]
     -> Cmd.CmdL Text
-compile_explicit title movements = do
-    config <- get_config
-    result <- LEvent.write_snd $
-        Cmd.Lilypond.explicit_movements config title movements
+compileExplicit title movements = do
+    config <- getConfig
+    result <- LEvent.writeSnd $
+        Cmd.Lilypond.explicitMovements config title movements
     case result of
         Left err -> do
             Log.write err
-            pure $ Log.msg_text err
+            pure $ Log.msgText err
         Right output -> do
-            filename <- Cmd.Lilypond.ly_filename title
-            liftIO $ Cmd.Lilypond.compile_ly filename output
+            filename <- Cmd.Lilypond.lyFilename title
+            liftIO $ Cmd.Lilypond.compileLy filename output
             pure ""
 
 -- | Extract movements from the events and run lilypond.  Return any error.
-compile_extract :: Lilypond.Title -> [Score.Event] -> Cmd.CmdT IO Text
-compile_extract title events = do
-    config <- get_config
-    result <- LEvent.write_snd $
-        Cmd.Lilypond.extract_movements config title events
+compileExtract :: Lilypond.Title -> [Score.Event] -> Cmd.CmdT IO Text
+compileExtract title events = do
+    config <- getConfig
+    result <- LEvent.writeSnd $
+        Cmd.Lilypond.extractMovements config title events
     case result of
         Left err -> do
             Log.write err
-            pure $ Log.msg_text err
+            pure $ Log.msgText err
         Right output -> do
-            filename <- Cmd.Lilypond.ly_filename title
-            liftIO $ Cmd.Lilypond.compile_ly filename output
+            filename <- Cmd.Lilypond.lyFilename title
+            liftIO $ Cmd.Lilypond.compileLy filename output
             pure ""
 
-block_id_title :: BlockId -> Lilypond.Title
-block_id_title = Id.ident_name
+blockIdTitle :: BlockId -> Lilypond.Title
+blockIdTitle = Id.identName
 
 -- * debugging
 
 -- | Convert the block to lilypond score.
-block_ly :: Cmd.M m => BlockId -> m Lazy.Text
-block_ly block_id = do
-    config <- get_config
-    (events, derive_logs) <- LEvent.partition <$> derive block_id
-    let (result, logs) = Cmd.Lilypond.extract_movements config
-            (block_id_title block_id) events
-    mapM_ Log.write $ derive_logs ++ logs
+blockLy :: Cmd.M m => BlockId -> m Lazy.Text
+blockLy blockId = do
+    config <- getConfig
+    (events, deriveLogs) <- LEvent.partition <$> derive blockId
+    let (result, logs) = Cmd.Lilypond.extractMovements config
+            (blockIdTitle blockId) events
+    mapM_ Log.write $ deriveLogs ++ logs
     case result of
         Left err -> do
             Log.write err
-            Cmd.throw $ Log.msg_text err
+            Cmd.throw $ Log.msgText err
         Right ly -> pure ly
 
 -- | Derive the block to ly events.
 convert :: Cmd.M m => BlockId -> m [Lilypond.Event]
-convert block_id = do
-    config <- get_config
-    (score_events, derive_logs) <- LEvent.partition <$> derive block_id
-    let (events, logs) = Cmd.Lilypond.convert config score_events
-    mapM_ Log.write $ derive_logs ++ logs
+convert blockId = do
+    config <- getConfig
+    (scoreEvents, deriveLogs) <- LEvent.partition <$> derive blockId
+    let (events, logs) = Cmd.Lilypond.convert config scoreEvents
+    mapM_ Log.write $ deriveLogs ++ logs
     pure events
 
-e_note :: Lilypond.Event -> (Lilypond.Time, Lilypond.Time, Text)
-e_note e = (Lilypond.event_start e, Lilypond.event_duration e,
-    maybe "" Lilypond.to_lily (Lilypond.event_pitch e))
+eNote :: Lilypond.Event -> (Lilypond.Time, Lilypond.Time, Text)
+eNote e = (Lilypond.eventStart e, Lilypond.eventDuration e,
+    maybe "" Lilypond.toLily (Lilypond.eventPitch e))
 
 -- ** LPerf
 
 -- | Run a lilypond derive and return score events.
 derive :: Cmd.M m => BlockId -> m [LEvent.LEvent Score.Event]
-derive block_id =
-    Stream.to_list . Derive.r_events <$> Cmd.Lilypond.derive_block block_id
+derive blockId =
+    Stream.toList . Derive.rEvents <$> Cmd.Lilypond.deriveBlock blockId
 
-block_events :: Cmd.M m => BlockId -> m [LEvent.LEvent Score.Event]
-block_events = fmap LPerf.normalize_events . block_events_unnormalized
+blockEvents :: Cmd.M m => BlockId -> m [LEvent.LEvent Score.Event]
+blockEvents = fmap LPerf.normalizeEvents . blockEventsUnnormalized
 
-block_events_unnormalized :: Cmd.M m => BlockId -> m [LEvent.LEvent Score.Event]
-block_events_unnormalized block_id =
-    Stream.to_list . Derive.r_events <$> Cmd.Lilypond.derive_block block_id
+blockEventsUnnormalized :: Cmd.M m => BlockId -> m [LEvent.LEvent Score.Event]
+blockEventsUnnormalized blockId =
+    Stream.toList . Derive.rEvents <$> Cmd.Lilypond.deriveBlock blockId
 
 -- | Like 'LPerf.sel_events', but use the lilypond derive.
-sel_events :: Cmd.M m => m [LEvent.LEvent Score.Event]
-sel_events = filter_logs <$> get_sel False block_events
+selEvents :: Cmd.M m => m [LEvent.LEvent Score.Event]
+selEvents = filterLogs <$> getSel False blockEvents
 
 -- | Like 'sel_events' but take the root derivation.
-root_sel_events :: Cmd.M m => m [LEvent.LEvent Score.Event]
-root_sel_events = filter_logs <$> get_sel True block_events
+rootSelEvents :: Cmd.M m => m [LEvent.LEvent Score.Event]
+rootSelEvents = filterLogs <$> getSel True blockEvents
 
-filter_logs :: [LEvent.LEvent a] -> [LEvent.LEvent a]
-filter_logs = filter (LEvent.event_or (not . Cache.is_cache_log))
+filterLogs :: [LEvent.LEvent a] -> [LEvent.LEvent a]
+filterLogs = filter (LEvent.eventOr (not . Cache.isCacheLog))
 
-get_sel :: Cmd.M m => Bool -- ^ from root
+getSel :: Cmd.M m => Bool -- ^ from root
     -> (BlockId -> m [LEvent.LEvent Score.Event])
     -> m [LEvent.LEvent Score.Event]
-get_sel from_root derive_events = do
-    (block_id, _, track_ids, range) <- Selection.tracks
-    let (start, end) = Events.range_times range
-    events <- derive_events
-        =<< if from_root then Ui.get_root_id else pure block_id
+getSel fromRoot deriveEvents = do
+    (blockId, _, trackIds, range) <- Selection.tracks
+    let (start, end) = Events.rangeTimes range
+    events <- deriveEvents
+        =<< if fromRoot then Ui.getRootId else pure blockId
     -- Lilypond derivation skips tempo tracks, so the usual ScoreTime ->
     -- RealTime map doesn't work.
-    pure $ LPerf.in_score_range Score.event_stack [block_id] track_ids
+    pure $ LPerf.inScoreRange Score.eventStack [blockId] trackIds
         start end events

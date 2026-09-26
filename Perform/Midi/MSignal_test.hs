@@ -5,16 +5,16 @@
 module Perform.Midi.MSignal_test where
 import Util.Test
 import qualified Perform.Midi.MSignal as MSignal
-import Perform.Midi.MSignal (from_pairs)
+import Perform.Midi.MSignal (fromPairs)
 
 
 test_pitches_share :: Test
 test_pitches_share = do
     let sample0 ((_, y) : _) = fromIntegral (floor y)
         sample0 _ = error "empty"
-    let f start end sig1 sig2 = MSignal.pitches_share False start end
-            (sample0 sig1) (from_pairs sig1)
-            (sample0 sig2) (from_pairs sig2)
+    let f start end sig1 sig2 = MSignal.pitchesShare False start end
+            (sample0 sig1) (fromPairs sig1)
+            (sample0 sig2) (fromPairs sig2)
 
     -- Different signals.
     equal (f 0 1 [(0, 0), (1, 1)] [(0, 1), (1, 0)]) False
@@ -22,12 +22,12 @@ test_pitches_share = do
     equal (f 0 1 [(0, 0), (1, 1)] [(0, 1), (1, 2)]) True
     -- Separated by 0 can't share.
     equal (f 0 1 [(0, 0), (1, 1)] [(0, 0), (1, 1)]) False
-    equal (MSignal.pitches_share False 1 2 1 (from_pairs [(0, 1)]) 1
-            (from_pairs [(1, 1)]))
+    equal (MSignal.pitchesShare False 1 2 1 (fromPairs [(0, 1)]) 1
+            (fromPairs [(1, 1)]))
         False
     -- Except when one note is in decay.
-    equal (MSignal.pitches_share True 1 2 1 (from_pairs [(0, 1)]) 1
-            (from_pairs [(1, 1)]))
+    equal (MSignal.pitchesShare True 1 2 1 (fromPairs [(0, 1)]) 1
+            (fromPairs [(1, 1)]))
         True
 
     -- Not an integral difference.

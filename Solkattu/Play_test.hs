@@ -23,7 +23,7 @@ import           Util.Test
 
 test_to_state :: Test
 test_to_state = do
-    equal (extract <$> to_state (M.k <> M.t <> M.__ <> M.d)) $ Right
+    equal (extract <$> toState (M.k <> M.t <> M.__ <> M.d)) $ Right
         [ (">", [(0, 0, "k"), (0.25, 0, "t"), (0.75, 0, "d")])
         , (">metronome", [(0, 0, "")])
         , ("*", [(0, 0, "3p")])
@@ -32,31 +32,31 @@ test_to_state = do
 
 test_derive_to_disk :: Test
 test_derive_to_disk = do
-    let ui_state = expect_right $ to_state (M.k <> M.t)
-    prettyp (UiTest.dump_blocks ui_state)
-    (events, logs) <- derive ui_state
-    prettyp (map Log.msg_text logs)
-    let extract e = (DeriveTest.e_start_dur e, DeriveTest.e_attributes e)
-    events <- pure $ filter ((==Play.inst_name) . Score.event_instrument)
+    let uiState = expectRight $ toState (M.k <> M.t)
+    prettyp (UiTest.dumpBlocks uiState)
+    (events, logs) <- derive uiState
+    prettyp (map Log.msgText logs)
+    let extract e = (DeriveTest.eStartDur e, DeriveTest.eAttributes e)
+    events <- pure $ filter ((==Play.instName) . Score.eventInstrument)
         events
     equal (map extract events) [((0, 0), "+ki"), ((0.25, 0), "+ta")]
 
 derive :: Ui.State -> IO ([Score.Event], [Log.Msg])
-derive ui_state = do
-    cmd_state <- Play.load_cmd_state
+derive uiState = do
+    cmdState <- Play.loadCmdState
     -- pprint $ Inst.synth_names $ Cmd.config_instrument_db $
     --     Cmd.state_config cmd_state
-    block_id <- either (errorIO . pretty) pure $
-        Ui.eval ui_state Ui.get_root_id
-    pure $ first Vector.toList $ Play.derive cmd_state ui_state block_id
+    blockId <- either (errorIO . pretty) pure $
+        Ui.eval uiState Ui.getRootId
+    pure $ first Vector.toList $ Play.derive cmdState uiState blockId
 
 
 extract :: Ui.State -> [UiTest.TrackSpec]
-extract = snd . fst . snd . head . UiTest.dump_blocks
+extract = snd . fst . snd . head . UiTest.dumpBlocks
 
-to_state :: M.Sequence -> Either Text Ui.State
-to_state =
-    Play.to_state Korvai.IMridangam
+toState :: M.Sequence -> Either Text Ui.State
+toState =
+    Play.toState Korvai.IMridangam
         (InstT.Qualified "sampler" "mridangam-d") "" 1
     . M.korvaiS1 tala4
 

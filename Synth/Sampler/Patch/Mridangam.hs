@@ -25,7 +25,7 @@ patches = (:[]) $ (Patch.patch patchName)
     , Patch._convert = convert
     , Patch._preprocess = Drum.inferDuration strokeMap
     , Patch._karyaPatch =
-        CUtil.im_drum_patch (map fst strokeMap.strokes) $
+        CUtil.imDrumPatch (map fst strokeMap.strokes) $
         ImInst.code #= code $ Drum.makePatch attributeMap True
     , Patch._allFilenames = convertMap.allFilenames
     }
@@ -39,10 +39,10 @@ patchName :: Text
 patchName = "mridangam-d"
 
 strokeMap :: Drum.StrokeMap Articulation
-strokeMap = Drum.strokeMap Mridangam.stops Mridangam.all_strokes attributeMap
+strokeMap = Drum.strokeMap Mridangam.stops Mridangam.allStrokes attributeMap
 
 attributeMap :: Common.AttributeMap Articulation
-attributeMap = Common.attribute_map
+attributeMap = Common.attributeMap
     [ (Mridangam.tha, Tha)
     , (Mridangam.thom, Thom)
     , (Mridangam.thom <> Attrs.low, Gumki)

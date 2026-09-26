@@ -17,7 +17,7 @@ import qualified Data.List as List
 type Array = IArray.Array Int
 
 empty :: Array a
-empty = from_list []
+empty = fromList []
 
 null :: Array a -> Bool
 null = (==0) . length
@@ -26,28 +26,28 @@ length :: Array a -> Int
 length a = high - low + 1
     where (low, high) = IArray.bounds a
 
-from_list :: [a] -> Array a
-from_list xs = IArray.listArray (0, List.length xs - 1) xs
+fromList :: [a] -> Array a
+fromList xs = IArray.listArray (0, List.length xs - 1) xs
 
 -- | Like 'IArray.!', except throw a more informative error, with @msg@
 -- prepended.
 at :: String -> Array a -> Int -> a
-at msg a i = a ! assert_in_bounds msg i a
+at msg a i = a ! assertInBounds msg i a
 
-assert_in_bounds :: String -> Int -> Array a -> Int
-assert_in_bounds msg i a
-    | in_bounds i a = i
+assertInBounds :: String -> Int -> Array a -> Int
+assertInBounds msg i a
+    | inBounds i a = i
     | otherwise = error $ msg ++ ": index " ++ show i
         ++ " out of range " ++ show (IArray.bounds a)
 
 -- | Is the given index within the array's bounds?
-in_bounds :: Int -> Array a -> Bool
-in_bounds i a = let (low, high) = IArray.bounds a in low <= i && i <= high
+inBounds :: Int -> Array a -> Bool
+inBounds i a = let (low, high) = IArray.bounds a in low <= i && i <= high
 
 -- | Just the array if the index is in bounds.
 check :: Int -> Array a -> Maybe (Array a)
 check i a
-    | in_bounds i a = Just a
+    | inBounds i a = Just a
     | otherwise = Nothing
 
 -- ** searching
@@ -55,19 +55,19 @@ check i a
 -- | Find the index of the first element >= the given element in the sorted
 -- array.
 bsearch :: Ord k => Array k -> k -> Int
-bsearch = bsearch_with (<=)
+bsearch = bsearchWith (<=)
 
-bsearch_on :: Ord k => (a -> k) -> Array a -> k -> Int
-bsearch_on key a elt = bsearch_with (\elt e1 -> (elt <= key e1)) a elt
+bsearchOn :: Ord k => (a -> k) -> Array a -> k -> Int
+bsearchOn key a elt = bsearchWith (\elt e1 -> (elt <= key e1)) a elt
 
-bsearch_with :: (k -> a -> Bool) -> Array a -> k -> Int
-bsearch_with lte a elt = _do_bsearch (lte elt) a low (high+1)
+bsearchWith :: (k -> a -> Bool) -> Array a -> k -> Int
+bsearchWith lte a elt = _doBsearch (lte elt) a low (high+1)
     where (low, high) = IArray.bounds a
 
-_do_bsearch :: (a -> Bool) -> Array a -> Int -> Int -> Int
-_do_bsearch lte a low high
+_doBsearch :: (a -> Bool) -> Array a -> Int -> Int -> Int
+_doBsearch lte a low high
     | low == high = low
-    | lte (a!mid) = _do_bsearch lte a low mid
-    | otherwise = _do_bsearch lte a (mid+1) high
+    | lte (a!mid) = _doBsearch lte a low mid
+    | otherwise = _doBsearch lte a (mid+1) high
     where
     mid = (low + high) `div` 2

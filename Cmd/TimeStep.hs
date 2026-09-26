@@ -9,25 +9,25 @@
 -}
 module Cmd.TimeStep (
     -- * TimeStep
-    TimeStep, time_step, event_step, from_list, to_list
-    , modify_rank
-    , match_meter
-    , event_edge
+    TimeStep, timeStep, eventStep, fromList, toList
+    , modifyRank
+    , matchMeter
+    , eventEdge
     , rank
     , Step(..), Tracks(..)
     , MarklistMatch(..)
     , Direction(..)
-    , show_time_step, parse_time_step, show_direction
-    , parse_rank
+    , showTimeStep, parseTimeStep, showDirection
+    , parseRank
 
     -- * step
     , snap
-    , step_from, rewind, advance, direction
-    , duration_at
-    , get_points_from
+    , stepFrom, rewind, advance, direction
+    , durationAt
+    , getPointsFrom
 
 #ifdef TESTING
-    , ascending_points, descending_points
+    , ascendingPoints, descendingPoints
 #endif
 ) where
 import qualified Data.List.Ordered as Ordered
@@ -54,36 +54,36 @@ import           Types
 newtype TimeStep = TimeStep [Step]
     deriving (Eq, Show)
 
-time_step :: Step -> TimeStep
-time_step = TimeStep . (:[])
+timeStep :: Step -> TimeStep
+timeStep = TimeStep . (:[])
 
 -- | Step to start and end of events.
-event_step :: TimeStep
-event_step = from_list [EventStart CurrentTrack, EventEnd CurrentTrack]
+eventStep :: TimeStep
+eventStep = fromList [EventStart CurrentTrack, EventEnd CurrentTrack]
 
-from_list :: [Step] -> TimeStep
-from_list = TimeStep
+fromList :: [Step] -> TimeStep
+fromList = TimeStep
 
-to_list :: TimeStep -> [Step]
-to_list (TimeStep steps) = steps
+toList :: TimeStep -> [Step]
+toList (TimeStep steps) = steps
 
-modify_rank :: (Meter.Rank -> Meter.Rank) -> TimeStep -> TimeStep
-modify_rank f = from_list . map modify . to_list
+modifyRank :: (Meter.Rank -> Meter.Rank) -> TimeStep -> TimeStep
+modifyRank f = fromList . map modify . toList
     where
     modify (AbsoluteMark m r) = AbsoluteMark m (f r)
     modify (RelativeMark m r) = RelativeMark m (f r)
     modify step = step
 
 -- | Match on the meter marklist, which is the usual thing to do.
-match_meter :: MarklistMatch
-match_meter = NamedMarklists [Ruler.meter_name]
+matchMeter :: MarklistMatch
+matchMeter = NamedMarklists [Ruler.meterName]
 
-event_edge :: TimeStep
-event_edge =
+eventEdge :: TimeStep
+eventEdge =
     TimeStep [EventStart CurrentTrack, EventEnd CurrentTrack, BlockEdge]
 
 rank :: Meter.Rank -> TimeStep
-rank = time_step . AbsoluteMark match_meter
+rank = timeStep . AbsoluteMark matchMeter
 
 -- | The possible matchers for a TimeStep.
 data Step
@@ -114,63 +114,63 @@ data Direction = Advance | Rewind deriving (Eq, Show)
 
 -- | Convert a TimeStep to a compact and yet somehow still somewhat readable
 -- representation.
-show_time_step :: TimeStep -> Text
-show_time_step (TimeStep steps)
+showTimeStep :: TimeStep -> Text
+showTimeStep (TimeStep steps)
     -- Abbreviate to keep the status line shorter.
-    | TimeStep steps == event_edge = "E"
-    | otherwise = Text.intercalate ";" (map show_step steps)
+    | TimeStep steps == eventEdge = "E"
+    | otherwise = Text.intercalate ";" (map showStep steps)
     where
     -- The keywords and symbols are chosen carefully to allow unambiguous
     -- parsing.
-    show_step step = case step of
+    showStep step = case step of
         Duration pos -> "d:" <> pretty pos
         RelativeMark mlists rank ->
-            "r:" <> show_marklists mlists <> Meter.rank_name rank
+            "r:" <> showMarklists mlists <> Meter.rankName rank
         BlockEdge -> "END"
-        EventStart tracks -> "start" <> show_tracks tracks
-        EventEnd tracks -> "end" <> show_tracks tracks
+        EventStart tracks -> "start" <> showTracks tracks
+        EventEnd tracks -> "end" <> showTracks tracks
         AbsoluteMark mlists rank ->
-            show_marklists mlists <> Meter.rank_name rank
-    show_marklists AllMarklists = ""
-    show_marklists (NamedMarklists mlists) = Text.intercalate "," mlists <> "|"
-    show_tracks CurrentTrack = ""
-    show_tracks AllTracks = "s"
-    show_tracks (TrackNums tracks) =
+            showMarklists mlists <> Meter.rankName rank
+    showMarklists AllMarklists = ""
+    showMarklists (NamedMarklists mlists) = Text.intercalate "," mlists <> "|"
+    showTracks CurrentTrack = ""
+    showTracks AllTracks = "s"
+    showTracks (TrackNums tracks) =
         "s:" <> Text.intercalate "," (map showt tracks)
 
 -- | Parse that curiously somewhat readable representation back to a TimeStep.
-parse_time_step :: Text -> Either Text TimeStep
-parse_time_step = Parse.parse p_time_step
+parseTimeStep :: Text -> Either Text TimeStep
+parseTimeStep = Parse.parse pTimeStep
     where
-    p_time_step = TimeStep <$> P.sepBy p_step (P.char ';')
+    pTimeStep = TimeStep <$> P.sepBy pStep (P.char ';')
     -- P.choice must backtrack because AbsoluteMark parses can overlap.
-    p_step = P.choice $ map P.try
+    pStep = P.choice $ map P.try
         [ str "d:" *> (Duration <$>
-            (ScoreTime.from_double
-                <$> (Parse.p_float <* P.char ScoreTime.suffix)))
-        , str "r:" *> (RelativeMark <$> p_marklists <*> parse_rank)
+            (ScoreTime.fromDouble
+                <$> (Parse.pFloat <* P.char ScoreTime.suffix)))
+        , str "r:" *> (RelativeMark <$> pMarklists <*> parseRank)
         , str "END" *> pure BlockEdge
-        , str "start" *> (EventStart <$> p_tracks)
-        , str "end" *> (EventEnd <$> p_tracks)
-        , AbsoluteMark <$> p_marklists <*> parse_rank
+        , str "start" *> (EventStart <$> pTracks)
+        , str "end" *> (EventEnd <$> pTracks)
+        , AbsoluteMark <$> pMarklists <*> parseRank
         ]
-    p_marklists =
-        P.try ((NamedMarklists <$> P.sepBy p_name (P.char ',')) <* P.char '|')
+    pMarklists =
+        P.try ((NamedMarklists <$> P.sepBy pName (P.char ',')) <* P.char '|')
         <|> pure AllMarklists
-    p_name = txt <$> P.some (P.lowerChar <|> P.char '-')
-    p_tracks = P.option CurrentTrack $
-        P.try (TrackNums <$> (str "s:" *> p_tracknums))
+    pName = txt <$> P.some (P.lowerChar <|> P.char '-')
+    pTracks = P.option CurrentTrack $
+        P.try (TrackNums <$> (str "s:" *> pTracknums))
         <|> P.char 's' *> pure AllTracks
-    p_tracknums = P.sepBy Parse.p_nat (P.char ',')
+    pTracknums = P.sepBy Parse.pNat (P.char ',')
     str = P.string
 
-parse_rank :: Parse.Parser Meter.Rank
-parse_rank = P.choice $ map P.try
-    [P.string name *> pure rank | (rank, name) <- Meter.rank_names]
+parseRank :: Parse.Parser Meter.Rank
+parseRank = P.choice $ map P.try
+    [P.string name *> pure rank | (rank, name) <- Meter.rankNames]
 
-show_direction :: Direction -> Text
-show_direction Advance = "+"
-show_direction Rewind = "-"
+showDirection :: Direction -> Text
+showDirection Advance = "+"
+showDirection Rewind = "-"
 
 -- * snap
 
@@ -180,42 +180,42 @@ snap :: Ui.M m => TimeStep -> BlockId -> TrackNum
     -> Maybe TrackTime -- ^ Last sel pos, needed to snap relative steps like
     -- 'Duration' and 'RelativeMark'.
     -> TrackTime -> m TrackTime
-snap tstep block_id tracknum prev_pos pos =
+snap tstep blockId tracknum prevPos pos =
     -- I only need to step from prev_pos if there's a RelativeMark in the tstep.
     -- Otherwise, I can be a bit more efficient and snap pos directly.
-    fromMaybe pos <$> snap_from (if any is_relative (to_list tstep)
-        then fromMaybe pos prev_pos else pos)
+    fromMaybe pos <$> snapFrom (if any isRelative (toList tstep)
+        then fromMaybe pos prevPos else pos)
     where
-    snap_from p
+    snapFrom p
         | pos > p = -- Advance p until one before pos.
             Lists.head . Lists.dropBefore id pos <$>
-                get_points_from Advance block_id tracknum p tstep
+                getPointsFrom Advance blockId tracknum p tstep
         | otherwise = -- Rewind p until before pos.
             Lists.head . dropWhile (>pos) <$>
-                get_points_from Rewind block_id tracknum p tstep
-    is_relative (Duration {}) = True
-    is_relative (RelativeMark {}) = True
-    is_relative _ = False
+                getPointsFrom Rewind blockId tracknum p tstep
+    isRelative (Duration {}) = True
+    isRelative (RelativeMark {}) = True
+    isRelative _ = False
 
 -- * step
 
 rewind :: Ui.M m => TimeStep -> BlockId -> TrackNum -> TrackTime
     -> m (Maybe TrackTime)
-rewind = step_from (-1)
+rewind = stepFrom (-1)
 
 advance :: Ui.M m => TimeStep -> BlockId -> TrackNum -> TrackTime
     -> m (Maybe TrackTime)
-advance = step_from 1
+advance = stepFrom 1
 
 direction :: Direction -> Int
 direction Advance = 1
 direction Rewind = -1
 
-duration_at :: Ui.M m => BlockId -> TrackNum -> TrackTime -> TimeStep
+durationAt :: Ui.M m => BlockId -> TrackNum -> TrackTime -> TimeStep
     -> m (Maybe ScoreTime)
-duration_at block_id tracknum pos tstep = do
-    pre <- get_points_from Rewind block_id tracknum pos tstep
-    post <- get_points_from Advance block_id tracknum pos tstep
+durationAt blockId tracknum pos tstep = do
+    pre <- getPointsFrom Rewind blockId tracknum pos tstep
+    post <- getPointsFrom Advance blockId tracknum pos tstep
     pure $ case (pre, dropWhile (==pos) post) of
         (t0 : _, t1 : _) -> Just (t1 - t0)
         _ -> Nothing
@@ -226,46 +226,46 @@ duration_at block_id tracknum pos tstep = do
 -- should make sure to limit the value.  The reason is that this is also used
 -- to get e.g. the duration of a whole note at a given point, and that should
 -- work even if the given point is near the end of the ruler.
-step_from :: Ui.M m => Int -> TimeStep -> BlockId -> TrackNum
+stepFrom :: Ui.M m => Int -> TimeStep -> BlockId -> TrackNum
     -> TrackTime -> m (Maybe TrackTime)
-step_from steps tstep block_id tracknum start = extract <$>
-    get_points_from (if steps >= 0 then Advance else Rewind) block_id tracknum
+stepFrom steps tstep blockId tracknum start = extract <$>
+    getPointsFrom (if steps >= 0 then Advance else Rewind) blockId tracknum
         start tstep
     where
     extract = Lists.head
         . if steps == 0 then id else drop (abs steps - 1) . dropWhile (==start)
 
-get_points_from :: Ui.M m => Direction -> BlockId -> TrackNum -> TrackTime
+getPointsFrom :: Ui.M m => Direction -> BlockId -> TrackNum -> TrackTime
     -> TimeStep -> m [TrackTime]
-get_points_from dir block_id tracknum start tstep =
-    merge_points dir <$> mapM (get block_id tracknum start) (to_list tstep)
+getPointsFrom dir blockId tracknum start tstep =
+    mergePoints dir <$> mapM (get blockId tracknum start) (toList tstep)
     where
     get = case dir of
-        Advance -> ascending_points
-        Rewind -> descending_points
+        Advance -> ascendingPoints
+        Rewind -> descendingPoints
 
 -- | Step points ascending from the given time.  Includes the start
 -- point.
-ascending_points :: Ui.M m => BlockId -> TrackNum -> TrackTime -> Step
+ascendingPoints :: Ui.M m => BlockId -> TrackNum -> TrackTime -> Step
     -> m [TrackTime]
-ascending_points block_id tracknum start step =
+ascendingPoints blockId tracknum start step =
     dropWhile (<start) <$> case step of
         Duration t -> do
-            end <- Ui.block_ruler_end block_id
+            end <- Ui.blockRulerEnd blockId
             pure $ Lists.range start end t
         AbsoluteMark match rank ->
-            get_marks Advance False match rank start <$>
-                get_ruler block_id tracknum
+            getMarks Advance False match rank start <$>
+                getRuler blockId tracknum
         RelativeMark match rank ->
-            shift . get_marks Advance True match rank start <$>
-                get_ruler block_id tracknum
+            shift . getMarks Advance True match rank start <$>
+                getRuler blockId tracknum
         BlockEdge -> do
-            end <- Ui.block_ruler_end block_id
+            end <- Ui.blockRulerEnd blockId
             pure [0, end]
         EventStart tracks ->
-            track_events Advance True block_id tracknum start tracks
+            trackEvents Advance True blockId tracknum start tracks
         EventEnd tracks ->
-            track_events Advance False block_id tracknum start tracks
+            trackEvents Advance False blockId tracknum start tracks
     where
     shift [] = []
     shift (p:ps)
@@ -274,87 +274,87 @@ ascending_points block_id tracknum start step =
 
 -- | Step points descending from the given time.  Includes the start
 -- point.
-descending_points :: Ui.M m => BlockId -> TrackNum -> TrackTime -> Step
+descendingPoints :: Ui.M m => BlockId -> TrackNum -> TrackTime -> Step
     -> m [TrackTime]
-descending_points block_id tracknum start step =
+descendingPoints blockId tracknum start step =
     dropWhile (>start) <$> case step of
         Duration t -> pure $ Lists.range start 0 (-t)
         AbsoluteMark match rank ->
-            get_marks Rewind True match rank start <$>
-                get_ruler block_id tracknum
+            getMarks Rewind True match rank start <$>
+                getRuler blockId tracknum
         RelativeMark match rank ->
-            shift . get_marks Rewind True match rank start <$>
-                get_ruler block_id tracknum
+            shift . getMarks Rewind True match rank start <$>
+                getRuler blockId tracknum
         BlockEdge -> do
-            end <- Ui.block_ruler_end block_id
+            end <- Ui.blockRulerEnd blockId
             pure [end, 0]
         EventStart tracks ->
-            track_events Rewind True block_id tracknum start tracks
+            trackEvents Rewind True blockId tracknum start tracks
         EventEnd tracks ->
-            track_events Rewind False block_id tracknum start tracks
+            trackEvents Rewind False blockId tracknum start tracks
     where
     shift [] = []
     shift (p:ps)
         | p == start = p : ps
         | otherwise = map (+ (start-p)) (p:ps)
 
-track_events :: Ui.M m => Direction -> Bool
+trackEvents :: Ui.M m => Direction -> Bool
     -> BlockId -> TrackNum -> TrackTime -> Tracks -> m [TrackTime]
-track_events dir event_start block_id tracknum start = \case
+trackEvents dir eventStart blockId tracknum start = \case
     AllTracks -> do
-        track_ids <- Ui.track_ids_of block_id
-        merge_points dir <$> mapM get_times track_ids
-    CurrentTrack -> get_times =<< Ui.get_event_track_at block_id tracknum
+        trackIds <- Ui.trackIdsOf blockId
+        mergePoints dir <$> mapM getTimes trackIds
+    CurrentTrack -> getTimes =<< Ui.getEventTrackAt blockId tracknum
     TrackNums tracknums -> do
-        track_ids <- mapM (Ui.get_event_track_at block_id) tracknums
-        merge_points dir <$> mapM get_times track_ids
+        trackIds <- mapM (Ui.getEventTrackAt blockId) tracknums
+        mergePoints dir <$> mapM getTimes trackIds
     where
-    event_time = if event_start then Event.start else Event.end
-    get_times = fmap (map event_time . get_events) . Ui.get_events
-    get_events = case dir of
-        Advance -> if event_start then Events.at_after start
-            else snd . Events.split_at_before start
-        Rewind -> at_before start
-    at_before p events = case post of
+    eventTime = if eventStart then Event.start else Event.end
+    getTimes = fmap (map eventTime . getEvents) . Ui.getEvents
+    getEvents = case dir of
+        Advance -> if eventStart then Events.atAfter start
+            else snd . Events.splitAtBefore start
+        Rewind -> atBefore start
+    atBefore p events = case post of
             e : _ | Event.start e == p -> e : pre
             _ -> pre
-        where (pre, post) = Events.split_lists p events
+        where (pre, post) = Events.splitLists p events
 
-merge_points :: Direction -> [[TrackTime]] -> [TrackTime]
-merge_points Advance = Lists.dropDups id . Lists.mergeLists id
-merge_points Rewind = Lists.dropDups id . merge_desc
+mergePoints :: Direction -> [[TrackTime]] -> [TrackTime]
+mergePoints Advance = Lists.dropDups id . Lists.mergeLists id
+mergePoints Rewind = Lists.dropDups id . mergeDesc
 
-merge_desc :: [[TrackTime]] -> [TrackTime]
-merge_desc = foldr (Ordered.mergeBy (flip compare)) []
+mergeDesc :: [[TrackTime]] -> [TrackTime]
+mergeDesc = foldr (Ordered.mergeBy (flip compare)) []
 
 -- | Get all marks from the marklists that match the proper names and
 -- merge their marks into one list.
-get_marks :: Direction -> Bool -> MarklistMatch -> Meter.Rank -> TrackTime
+getMarks :: Direction -> Bool -> MarklistMatch -> Meter.Rank -> TrackTime
     -> Ruler.Marklists -> [TrackTime]
-get_marks dir minus1 match rank start marklists =
-    merge_points dir $ map extract matching
+getMarks dir minus1 match rank start marklists =
+    mergePoints dir $ map extract matching
     where
     extract = case dir of
         Advance
             | minus1 -> ascending1
-            | otherwise -> with_rank . Mark.ascending start
+            | otherwise -> withRank . Mark.ascending start
         Rewind
             | minus1 -> descending1
-            | otherwise -> with_rank . Mark.descending start
+            | otherwise -> withRank . Mark.descending start
     matching = map snd $ case match of
         AllMarklists -> Map.elems marklists
         NamedMarklists names -> mapMaybe (flip Map.lookup marklists) names
     ascending1 mlist
         | Just p <- Lists.head marks, p == start = marks
         | otherwise = maybe marks (:marks) $
-            Lists.head (with_rank $ Mark.descending start mlist)
-        where marks = with_rank $ Mark.ascending start mlist
+            Lists.head (withRank $ Mark.descending start mlist)
+        where marks = withRank $ Mark.ascending start mlist
     descending1 mlist = maybe marks (:marks) $
-        Lists.head (with_rank $ Mark.ascending start mlist)
-        where marks = with_rank $ Mark.descending start mlist
-    with_rank = map fst . filter ((<=rank) . Mark.mark_rank . snd)
+        Lists.head (withRank $ Mark.ascending start mlist)
+        where marks = withRank $ Mark.descending start mlist
+    withRank = map fst . filter ((<=rank) . Mark.markRank . snd)
 
-get_ruler :: Ui.M m => BlockId -> TrackNum -> m Ruler.Marklists
-get_ruler block_id tracknum = do
-    ruler_id <- fromMaybe Ui.no_ruler <$> Ui.ruler_track_at block_id tracknum
-    Ruler.ruler_marklists <$> Ui.get_ruler ruler_id
+getRuler :: Ui.M m => BlockId -> TrackNum -> m Ruler.Marklists
+getRuler blockId tracknum = do
+    rulerId <- fromMaybe Ui.noRuler <$> Ui.rulerTrackAt blockId tracknum
+    Ruler.rulerMarklists <$> Ui.getRuler rulerId

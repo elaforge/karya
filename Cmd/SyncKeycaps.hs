@@ -4,7 +4,7 @@
 
 {-# LANGUAGE NamedFieldPuns #-}
 -- | Manage the optional keycaps window.
-module Cmd.SyncKeycaps (open, close, update, get_bindings) where
+module Cmd.SyncKeycaps (open, close, update, getBindings) where
 import qualified Data.Either as Either
 import qualified Data.Map as Map
 import qualified Data.Set as Set
@@ -42,59 +42,59 @@ import           Global
 
 open :: Cmd.M m => m ()
 open = do
-    state <- keycaps_state
-    bindings <- get_bindings state
+    state <- keycapsState
+    bindings <- getBindings state
     -- Put the window in the bottom right corner, to minimize conflict with
     -- ViewConfig.horizontal_tile.
-    (sx, sy) <- Rect.lower_right <$> Cmd.get_screen Nothing
-    let pos = let (x, y) = KeycapsT.lt_size layout in (sx-x, sy-y)
-    set_update $ Cmd.KeycapsUpdate state (Just (pos, layout))
-        (Keycaps.resolve_bindings layout bindings)
+    (sx, sy) <- Rect.lowerRight <$> Cmd.getScreen Nothing
+    let pos = let (x, y) = KeycapsT.ltSize layout in (sx-x, sy-y)
+    setUpdate $ Cmd.KeycapsUpdate state (Just (pos, layout))
+        (Keycaps.resolveBindings layout bindings)
 
 close :: Cmd.M m => m ()
-close = set_update Cmd.KeycapsClose
+close = setUpdate Cmd.KeycapsClose
 
 update :: Cmd.M m => m ()
-update = whenJustM (Cmd.gets Cmd.state_keycaps) $ \old_state -> do
-    state <- keycaps_state
-    when (old_state /= state) $ do
-        bindings <- get_bindings state
-        set_update $ Cmd.KeycapsUpdate state Nothing
-            (Keycaps.resolve_bindings layout bindings)
+update = whenJustM (Cmd.gets Cmd.stateKeycaps) $ \oldState -> do
+    state <- keycapsState
+    when (oldState /= state) $ do
+        bindings <- getBindings state
+        setUpdate $ Cmd.KeycapsUpdate state Nothing
+            (Keycaps.resolveBindings layout bindings)
 
-set_update :: Cmd.M m => Cmd.KeycapsUpdate -> m ()
-set_update kc_update = Cmd.modify $ \st ->
-    st { Cmd.state_keycaps_update = Just kc_update }
+setUpdate :: Cmd.M m => Cmd.KeycapsUpdate -> m ()
+setUpdate kcUpdate = Cmd.modify $ \st ->
+    st { Cmd.stateKeycapsUpdate = Just kcUpdate }
 
 layout :: KeycapsT.Layout
-layout = Keycaps.make_layout Keycaps.mac_labels
+layout = Keycaps.makeLayout Keycaps.macLabels
 
-keycaps_state :: Cmd.M m => m Cmd.KeycapsState
-keycaps_state = do
-    kc_mods <- Cmd.gets $ key_mods . Cmd.state_keys_down
-    kc_octave <- Cmd.gets $ Cmd.state_kbd_entry_octave . Cmd.state_edit
-    kc_is_kbd_entry <- Cmd.is_kbd_entry
+keycapsState :: Cmd.M m => m Cmd.KeycapsState
+keycapsState = do
+    kcMods <- Cmd.gets $ keyMods . Cmd.stateKeysDown
+    kcOctave <- Cmd.gets $ Cmd.stateKbdEntryOctave . Cmd.stateEdit
+    kcIsKbdEntry <- Cmd.isKbdEntry
     -- This could fail if there is no focused block.
-    (kc_track_type, kc_instrument, kc_scale_id) <-
-        fmap (fromMaybe (Nothing, Nothing, Nothing)) $ Cmd.catch_abort $ do
-            block_id <- Cmd.get_focused_block
-            tracknum <- Cmd.abort_unless =<< Cmd.get_insert_tracknum
-            mb_track_id <- Ui.event_track_at block_id tracknum
+    (kcTrackType, kcInstrument, kcScaleId) <-
+        fmap (fromMaybe (Nothing, Nothing, Nothing)) $ Cmd.catchAbort $ do
+            blockId <- Cmd.getFocusedBlock
+            tracknum <- Cmd.abortUnless =<< Cmd.getInsertTracknum
+            mbTrackId <- Ui.eventTrackAt blockId tracknum
             (,,) <$> traverse
-                    (fmap ParseTitle.track_type . Ui.get_track_title)
-                    mb_track_id
+                    (fmap ParseTitle.trackType . Ui.getTrackTitle)
+                    mbTrackId
                 <*> maybe (pure Nothing)
-                    (\tid -> Perf.lookup_instrument (block_id, Just tid))
-                    mb_track_id
-                <*> (Just <$> Perf.get_scale_id (block_id, mb_track_id))
+                    (\tid -> Perf.lookupInstrument (blockId, Just tid))
+                    mbTrackId
+                <*> (Just <$> Perf.getScaleId (blockId, mbTrackId))
     pure $ Cmd.KeycapsState
-        { kc_mods, kc_octave, kc_is_kbd_entry
-        , kc_track_type, kc_instrument, kc_scale_id
+        { kcMods, kcOctave, kcIsKbdEntry
+        , kcTrackType, kcInstrument, kcScaleId
         }
 
-key_mods :: Map Cmd.Modifier Cmd.Modifier -> Set Cmd.Modifier
-key_mods keys_down =
-    Set.fromList [Cmd.KeyMod m | Cmd.KeyMod m <- Map.keys keys_down]
+keyMods :: Map Cmd.Modifier Cmd.Modifier -> Set Cmd.Modifier
+keyMods keysDown =
+    Set.fromList [Cmd.KeyMod m | Cmd.KeyMod m <- Map.keys keysDown]
 
 -- | Get the applicable bindings for the KeycapsState.
 --
@@ -106,105 +106,105 @@ key_mods keys_down =
 --
 -- But the duplication means that the keycaps can be inaccurate, especially the
 -- exact shadowing situtaion may be incorrect.
-get_bindings :: Cmd.M m => Cmd.KeycapsState -> m KeycapsT.Bindings
-get_bindings (Cmd.KeycapsState
-        { kc_mods, kc_octave, kc_is_kbd_entry, kc_track_type, kc_instrument
-        , kc_scale_id
+getBindings :: Cmd.M m => Cmd.KeycapsState -> m KeycapsT.Bindings
+getBindings (Cmd.KeycapsState
+        { kcMods, kcOctave, kcIsKbdEntry, kcTrackType, kcInstrument
+        , kcScaleId
         }) = do
-    inst_bindings <- case (kc_is_kbd_entry, kc_track_type, kc_instrument) of
+    instBindings <- case (kcIsKbdEntry, kcTrackType, kcInstrument) of
         (True, Just ParseTitle.NoteTrack, Just inst)
-            | kc_mods `elem` [mempty, shift] ->
-                merge_note_entry (kc_mods == shift) kc_octave <$>
-                    get_instrument_bindings inst
+            | kcMods `elem` [mempty, shift] ->
+                mergeNoteEntry (kcMods == shift) kcOctave <$>
+                    getInstrumentBindings inst
         _ -> pure mempty
     pure $ Map.unions $ reverse
-        [ Map.findWithDefault mempty kc_mods global_bindings
-        , case kc_track_type of
+        [ Map.findWithDefault mempty kcMods globalBindings
+        , case kcTrackType of
             Just ParseTitle.NoteTrack ->
-                Map.findWithDefault mempty kc_mods note_track_bindings
+                Map.findWithDefault mempty kcMods noteTrackBindings
             _ -> mempty
-        , if not (kc_is_kbd_entry && Set.null kc_mods) then mempty
-            else case kc_track_type of
-                Just ParseTitle.PitchTrack -> pitch_bindings
-                Just ParseTitle.NoteTrack -> pitch_bindings
+        , if not (kcIsKbdEntry && Set.null kcMods) then mempty
+            else case kcTrackType of
+                Just ParseTitle.PitchTrack -> pitchBindings
+                Just ParseTitle.NoteTrack -> pitchBindings
                 _ -> mempty
-        , inst_bindings
+        , instBindings
         ]
     where
     shift = Set.singleton $ Cmd.KeyMod Key.Shift
-    pitch_bindings = fromMaybe mempty $ Map.lookup kc_octave
-        =<< (\scale_id -> Map.lookup scale_id scale_to_bindings)
-        =<< kc_scale_id
+    pitchBindings = fromMaybe mempty $ Map.lookup kcOctave
+        =<< (\scaleId -> Map.lookup scaleId scaleToBindings)
+        =<< kcScaleId
 
-merge_note_entry :: Bool -> Pitch.Octave -> [Cmd.NoteEntryMap KeycapsT.Binding]
+mergeNoteEntry :: Bool -> Pitch.Octave -> [Cmd.NoteEntryMap KeycapsT.Binding]
     -> KeycapsT.Bindings
-merge_note_entry shifted octave = Map.unions . map get
+mergeNoteEntry shifted octave = Map.unions . map get
     where
     get = \case
         Cmd.WithOctave m -> convert $ Map.findWithDefault mempty octave m
         Cmd.WithoutOctave m -> convert m
     convert = Map.fromList
-        . Lists.mapMaybeFst (fmap (to_logical . char_to_keycap) . unshift)
+        . Lists.mapMaybeFst (fmap (toLogical . charToKeycap) . unshift)
         . Map.toList
     -- Like Cmd.Keymap, I used shifted characters as a shorthand for Shift +
     -- unshifted.  This is possible since I know the exact key layout.
     unshift
-        | shifted = KeyLayouts.to_unshifted Local.KeyLayout.layout
+        | shifted = KeyLayouts.toUnshifted Local.KeyLayout.layout
         | otherwise = Just
 
-char_to_keycap :: Char -> KeycapsT.Keycap
-char_to_keycap = Key.to_mac_label . Key.Char
+charToKeycap :: Char -> KeycapsT.Keycap
+charToKeycap = Key.toMacLabel . Key.Char
 
 -- ** instrument bindings
 
 -- | Get bindings for the given instrument.  This isn't cached for now, but
 -- it wouldn't be hard to keep a Map Instrument Bindings cache if it's slow.
-get_instrument_bindings :: Cmd.M m => ScoreT.Instrument
+getInstrumentBindings :: Cmd.M m => ScoreT.Instrument
     -> m [Cmd.NoteEntryMap KeycapsT.Binding]
-get_instrument_bindings inst = do
-    resolved <- Cmd.lookup_instrument inst
+getInstrumentBindings inst = do
+    resolved <- Cmd.lookupInstrument inst
     let handlers = maybe []
-            (Cmd.inst_cmds . Common.common_code . Inst.inst_common
-                . Cmd.inst_instrument)
+            (Cmd.instCmds . Common.commonCode . Inst.instCommon
+                . Cmd.instInstrument)
             resolved
     pure
-        [ note_entry_bindings inst (Cmd.cmd_name cmd) Config.note_color
-            note_entry
-        | Cmd.Handler (Just note_entry) cmd <- handlers
+        [ noteEntryBindings inst (Cmd.cmdName cmd) Config.noteColor
+            noteEntry
+        | Cmd.Handler (Just noteEntry) cmd <- handlers
         ]
 
-note_entry_bindings :: ScoreT.Instrument -> Text -> Color.Color
+noteEntryBindings :: ScoreT.Instrument -> Text -> Color.Color
     -> Cmd.NoteEntryMap Text -> Cmd.NoteEntryMap KeycapsT.Binding
-note_entry_bindings inst source color = fmap binding
+noteEntryBindings inst source color = fmap binding
     where
     binding name
-        | Text.null name = KeycapsT.no_binding
+        | Text.null name = KeycapsT.noBinding
         | otherwise = KeycapsT.Binding
-            { b_color = Just color
-            , b_text = name
-            , b_doc = ">" <> pretty inst <> ": " <> source <> ": " <> name
+            { bColor = Just color
+            , bText = name
+            , bDoc = ">" <> pretty inst <> ": " <> source <> ": " <> name
             }
 
 -- ** pitch bindings
 
-scale_to_bindings :: Map Pitch.ScaleId (Map Pitch.Octave KeycapsT.Bindings)
-scale_to_bindings = bindings <$> Scale.All.scales
+scaleToBindings :: Map Pitch.ScaleId (Map Pitch.Octave KeycapsT.Bindings)
+scaleToBindings = bindings <$> Scale.All.scales
     where
     bindings = \case
-        Scale.Simple scale -> for_octaves scale
-        Scale.Make _scale_id _doc env_to_scale ->
-            either (const mempty) for_octaves $
-                env_to_scale env Scale.All.lookup_scale
-    for_octaves scale =
-        Map.fromList [(oct, scale_bindings oct scale) | oct <- [0..8]]
+        Scale.Simple scale -> forOctaves scale
+        Scale.Make _scaleId _doc envToScale ->
+            either (const mempty) forOctaves $
+                envToScale env Scale.All.lookupScale
+    forOctaves scale =
+        Map.fromList [(oct, scaleBindings oct scale) | oct <- [0..8]]
     -- This likely means Scale.Makes won't work, but I can fix that later if I
     -- want them.
     env = mempty
 
-scale_bindings :: Pitch.Octave -> Scale.Scale -> KeycapsT.Bindings
-scale_bindings octave scale =
-    make_pitches $ Either.rights $
-        map (traverse (Scale.scale_input_to_note scale env)) (kbd_inputs octave)
+scaleBindings :: Pitch.Octave -> Scale.Scale -> KeycapsT.Bindings
+scaleBindings octave scale =
+    makePitches $ Either.rights $
+        map (traverse (Scale.scaleInputToNote scale env)) (kbdInputs octave)
     where
     -- Env-sensitive notes would prevent me from caching.  Env is likely to be
     -- key and tuning, which I think should affect pitch, but not symbolic note
@@ -212,40 +212,40 @@ scale_bindings octave scale =
     env = mempty
 
 -- | TODO unused, but I might want it if I need env-sensitivity.
-_compute_pitch_bindings :: Cmd.M m => Pitch.Octave -> m KeycapsT.Bindings
-_compute_pitch_bindings octave =
-    make_pitches <$> EditUtil.inputs_to_notes (kbd_inputs octave)
+_computePitchBindings :: Cmd.M m => Pitch.Octave -> m KeycapsT.Bindings
+_computePitchBindings octave =
+    makePitches <$> EditUtil.inputsToNotes (kbdInputs octave)
 
-kbd_inputs :: Pitch.Octave -> [(Char, Pitch.Input)]
-kbd_inputs octave = map (second make_input) $ Map.toList $ PhysicalKey.pitch_map
+kbdInputs :: Pitch.Octave -> [(Char, Pitch.Input)]
+kbdInputs octave = map (second makeInput) $ Map.toList $ PhysicalKey.pitchMap
     where
-    make_input p = Pitch.Input Pitch.AsciiKbd (Pitch.add_octave octave p) 0
+    makeInput p = Pitch.Input Pitch.AsciiKbd (Pitch.addOctave octave p) 0
 
-make_pitches :: [(Char, Pitch.Note)] -> KeycapsT.Bindings
-make_pitches char_notes = Map.fromList
-    [ (to_logical $ char_to_keycap char, binding note)
-    | (char, note) <- char_notes
+makePitches :: [(Char, Pitch.Note)] -> KeycapsT.Bindings
+makePitches charNotes = Map.fromList
+    [ (toLogical $ charToKeycap char, binding note)
+    | (char, note) <- charNotes
     ]
     where
     binding note = KeycapsT.Binding
-        { b_color = Just Config.pitch_color
-        , b_text = Pitch.note_text note
-        , b_doc = "pitch: " <> Pitch.note_text note
+        { bColor = Just Config.pitchColor
+        , bText = Pitch.noteText note
+        , bDoc = "pitch: " <> Pitch.noteText note
         }
 
 -- ** global bindings
 
-global_bindings :: Map (Set Cmd.Modifier) KeycapsT.Bindings
-global_bindings = bindings_cache Nothing GlobalKeymap.all_keymap
+globalBindings :: Map (Set Cmd.Modifier) KeycapsT.Bindings
+globalBindings = bindingsCache Nothing GlobalKeymap.allKeymap
 
-note_track_bindings :: Map (Set Cmd.Modifier) KeycapsT.Bindings
-note_track_bindings =
-    bindings_cache (Just Config.note_color) NoteTrackKeymap.keymap
+noteTrackBindings :: Map (Set Cmd.Modifier) KeycapsT.Bindings
+noteTrackBindings =
+    bindingsCache (Just Config.noteColor) NoteTrackKeymap.keymap
 
-bindings_cache :: Maybe Color.Color -> Cmd.Keymap m
+bindingsCache :: Maybe Color.Color -> Cmd.Keymap m
     -> Map (Set Cmd.Modifier) KeycapsT.Bindings
-bindings_cache mb_color keymap = Map.fromList $ Lists.keyOnSnd mod_bindings $
-    map (Set.fromList . mapMaybe Keymap.simple_to_mod)
+bindingsCache mbColor keymap = Map.fromList $ Lists.keyOnSnd modBindings $
+    map (Set.fromList . mapMaybe Keymap.simpleToMod)
     [ []
     , [Keymap.Shift]
     , [Keymap.PrimaryCommand]
@@ -254,24 +254,24 @@ bindings_cache mb_color keymap = Map.fromList $ Lists.keyOnSnd mod_bindings $
     , [Keymap.Shift, Keymap.SecondaryCommand]
     ]
     where
-    mod_bindings kmods =
-        Map.fromList $ map (second binding) $ keymap_docs kmods keymap
+    modBindings kmods =
+        Map.fromList $ map (second binding) $ keymapDocs kmods keymap
     binding doc = KeycapsT.Binding
-        { b_color = mb_color
-        , b_text = abbreviate doc
-        , b_doc = doc
+        { bColor = mbColor
+        , bText = abbreviate doc
+        , bDoc = doc
         }
 
-keymap_docs :: Set Cmd.Modifier -> Cmd.Keymap m
+keymapDocs :: Set Cmd.Modifier -> Cmd.Keymap m
     -> [(KeycapsT.KeyDoc, KeycapsT.Doc)]
-keymap_docs mods =
-    map (bimap to_logical (\(Cmd.NamedCmd name _) -> name))
-    . Lists.mapMaybeFst (key_spec_label mods)
+keymapDocs mods =
+    map (bimap toLogical (\(Cmd.NamedCmd name _) -> name))
+    . Lists.mapMaybeFst (keySpecLabel mods)
     . Map.toList
 
-to_logical :: KeycapsT.Keycap -> KeycapsT.Keycap
-to_logical label = case Text.unpack label of
-    [c] | Just c2 <- KeyLayouts.to_qwerty Local.KeyLayout.layout c ->
+toLogical :: KeycapsT.Keycap -> KeycapsT.Keycap
+toLogical label = case Text.unpack label of
+    [c] | Just c2 <- KeyLayouts.toQwerty Local.KeyLayout.layout c ->
         Text.singleton c2
     _ -> label
 
@@ -281,11 +281,11 @@ abbreviate =
     Text.pack . map symbolize . take 3 . filter (`Set.notMember` boring)
     . Text.words
     where
-    symbolize w = Map.findWithDefault (Text.head w) w word_symbol
+    symbolize w = Map.findWithDefault (Text.head w) w wordSymbol
     boring = Set.fromList ["to", "in", "or", "from", "then"]
 
-word_symbol :: Map Text Char
-word_symbol = Map.fromList $ concatMap (\(ks, v) -> map (,v) ks)
+wordSymbol :: Map Text Char
+wordSymbol = Map.fromList $ concatMap (\(ks, v) -> map (,v) ks)
     [ (["rewind", "up", "above"], '↑')
     , (["advance", "down", "below"], '↓')
     , (["left", "previous"], '←')
@@ -296,9 +296,9 @@ word_symbol = Map.fromList $ concatMap (\(ks, v) -> map (,v) ks)
     , (["bottom"], '下')
     ]
 
-key_spec_label :: Set Cmd.Modifier -> Cmd.KeySpec -> Maybe KeycapsT.Keycap
-key_spec_label mods (Cmd.KeySpec smods bindable) | mods == smods =
+keySpecLabel :: Set Cmd.Modifier -> Cmd.KeySpec -> Maybe KeycapsT.Keycap
+keySpecLabel mods (Cmd.KeySpec smods bindable) | mods == smods =
     case bindable of
-        Cmd.Key _repeat key -> Just $ Key.to_mac_label key
+        Cmd.Key _repeat key -> Just $ Key.toMacLabel key
         _ -> Nothing
-key_spec_label _ _ = Nothing
+keySpecLabel _ _ = Nothing

@@ -20,36 +20,36 @@ import Global
 
 test_when_ly :: Test
 test_when_ly = do
-    let run_ly = extract . LilypondTest.derive_tracks
-        run_normal = extract . DeriveTest.derive_tracks "import ly"
+    let runLy = extract . LilypondTest.deriveTracks
+        runNormal = extract . DeriveTest.deriveTracks "import ly"
         extract = DeriveTest.extract $
-            \e -> (DeriveTest.e_note e, DeriveTest.e_attributes e)
+            \e -> (DeriveTest.eNote e, DeriveTest.eAttributes e)
     let tracks =
             [ ("> | when-ly", [(0, 1, "")])
             , ("*", [(0, 0, "4a")])
             , ("> | unless-ly", [(1, 1, "")])
             , ("*", [(1, 0, "4b")])
             ]
-    equal (run_ly tracks) ([((0, 1, "4a"), "+")], [])
-    equal (run_normal tracks) ([((1, 1, "4b"), "+")], [])
+    equal (runLy tracks) ([((0, 1, "4a"), "+")], [])
+    equal (runNormal tracks) ([((1, 1, "4b"), "+")], [])
 
-    let tracks = UiTest.note_track [(0, 1, "when-ly +a | -- 4a")]
-    equal (run_ly tracks) ([((0, 1, "4a"), "+a")], [])
-    equal (run_normal tracks) ([((0, 1, "4a"), "+")], [])
-    let tracks = UiTest.note_track [(0, 1, "unless-ly +a | -- 4a")]
-    equal (run_ly tracks) ([((0, 1, "4a"), "+")], [])
-    equal (run_normal tracks) ([((0, 1, "4a"), "+a")], [])
+    let tracks = UiTest.noteTrack [(0, 1, "when-ly +a | -- 4a")]
+    equal (runLy tracks) ([((0, 1, "4a"), "+a")], [])
+    equal (runNormal tracks) ([((0, 1, "4a"), "+")], [])
+    let tracks = UiTest.noteTrack [(0, 1, "unless-ly +a | -- 4a")]
+    equal (runLy tracks) ([((0, 1, "4a"), "+")], [])
+    equal (runNormal tracks) ([((0, 1, "4a"), "+a")], [])
 
 test_ly_track :: Test
 test_ly_track = do
-    let run_normal =
-            DeriveTest.extract ex . DeriveTest.derive_tracks_linear "import ly"
-            where ex e = (DeriveTest.e_pitch e, DeriveTest.e_attributes e)
-        run_ly =
-            LilypondTest.extract extract . LilypondTest.derive_tracks_linear
+    let runNormal =
+            DeriveTest.extract ex . DeriveTest.deriveTracksLinear "import ly"
+            where ex e = (DeriveTest.ePitch e, DeriveTest.eAttributes e)
+        runLy =
+            LilypondTest.extract extract . LilypondTest.deriveTracksLinear
             where
-            extract e = (maybe "" Types.to_lily (Lilypond.event_pitch e),
-                ShowVal.show_val (Lilypond.event_attributes e))
+            extract e = (maybe "" Types.toLily (Lilypond.eventPitch e),
+                ShowVal.showVal (Lilypond.eventAttributes e))
 
     -- tr       0       1       2       3
     -- >                +always
@@ -63,15 +63,15 @@ test_ly_track = do
             [ (">", [(1, 1, "+always")])
             , ("> | ly-track", [(0, 1, "+ly1"), (1, 1, "+ly2")])
             , ("> | not-ly-track", [(1, 1, "+no1"), (2, 1, "+no2")])
-            ] ++ UiTest.regular_notes 4
-    equal (run_normal tracks)
+            ] ++ UiTest.regularNotes 4
+    equal (runNormal tracks)
         ([("3c", "+"), ("3d", "+always+no1"), ("3e", "+no2"), ("3f", "+")], [])
-    equal (run_ly tracks)
+    equal (runLy tracks)
         ([("c", "+ly1"), ("d", "+always+ly2"), ("e", "+"), ("f", "+")], [])
 
 test_if_ly :: Test
 test_if_ly = do
-    let run = LilypondTest.derive_measures [] . UiTest.note_track
+    let run = LilypondTest.deriveMeasures [] . UiTest.noteTrack
     equal (run [(0, 1, "if-ly +accent +mute -- 4a")])
         (Right "a'4 -> r4 r2", [])
     equal (run [(0, 1, "if-ly \"(+mute) \"(+accent) -- 4a")])
@@ -85,34 +85,34 @@ test_if_ly = do
 
 test_8va :: Test
 test_8va = do
-    let run = LilypondTest.derive_measures ["ottava"]
-    equal (run $ UiTest.note_track [(0, 1, "8va 1 | -- 4a"), (1, 1, "4b")])
+    let run = LilypondTest.deriveMeasures ["ottava"]
+    equal (run $ UiTest.noteTrack [(0, 1, "8va 1 | -- 4a"), (1, 1, "4b")])
         (Right "\\ottava #1 a'4 \\ottava #0 b'4 r2", [])
-    equal (run $ (">", [(0, 1, "8va 1")]) : UiTest.regular_notes 2)
+    equal (run $ (">", [(0, 1, "8va 1")]) : UiTest.regularNotes 2)
         (Right "\\ottava #1 c4 \\ottava #0 d4 r2", [])
 
 test_xstaff_around :: Test
 test_xstaff_around = do
     let run = LilypondTest.measures ["change"]
-             . LilypondTest.derive_tracks_linear
-    equal (run $ UiTest.note_track [(0, 1, "xstaff-a u | -- 3a")])
+             . LilypondTest.deriveTracksLinear
+    equal (run $ UiTest.noteTrack [(0, 1, "xstaff-a u | -- 3a")])
         ( Right "\\change Staff = \"up\" a4 \\change Staff = \"down\" r4 r2"
         , []
         )
-    equal (run $ (">", [(1, 0, "xstaff-a u")]) : UiTest.regular_notes 2)
+    equal (run $ (">", [(1, 0, "xstaff-a u")]) : UiTest.regularNotes 2)
         (Right "c4 \\change Staff = \"up\" d4 \\change Staff = \"down\" r2", [])
 
 test_clef_dyn :: Test
 test_clef_dyn = do
-    let run = LilypondTest.derive_measures ["clef", "f"]
-        tracks = (">", [(0, 0, "clef treble | dyn f")]) : UiTest.regular_notes 2
+    let run = LilypondTest.deriveMeasures ["clef", "f"]
+        tracks = (">", [(0, 0, "clef treble | dyn f")]) : UiTest.regularNotes 2
     equal (run tracks) (Right "\\clef treble c4 \\f d4 r2", [])
 
-    let extract e = (Score.event_start e, DeriveTest.e_pitch e,
-            LilypondTest.e_ly_env e)
-        pre = Constants.free_code_key Constants.FreePrepend
-        app = Constants.free_code_key Constants.FreeAppend
-    equal (DeriveTest.extract extract $ LilypondTest.derive_tracks tracks)
+    let extract e = (Score.eventStart e, DeriveTest.ePitch e,
+            LilypondTest.eLyEnv e)
+        pre = Constants.freeCodeKey Constants.FreePrepend
+        app = Constants.freeCodeKey Constants.FreeAppend
+    equal (DeriveTest.extract extract $ LilypondTest.deriveTracks tracks)
         ( [ (0, "?", [(pre, "'\\clef treble'")])
           , (0, "?", [(app, "'\\f'")])
           , (0, "3c", []), (1, "3d", [])
@@ -122,22 +122,22 @@ test_clef_dyn = do
 
 test_articulation :: Test
 test_articulation = do
-    let run = measures_linear []
-    equal (run $ (">", [(0, 3, "ly- '>'")]) : UiTest.regular_notes 3)
+    let run = measuresLinear []
+    equal (run $ (">", [(0, 3, "ly- '>'")]) : UiTest.regularNotes 3)
         (Right "c4 -> d4 -> e4 -> r4", [])
 
 test_ly_notes_attach :: Test
 test_ly_notes_attach = do
-    let run = measures_linear ["down"]
-    equal (run $ (">", [(0, 3, "ly-attach down")]) : UiTest.regular_notes 3)
+    let run = measuresLinear ["down"]
+    equal (run $ (">", [(0, 3, "ly-attach down")]) : UiTest.regularNotes 3)
         (Right "c4 down d4 down e4 down r4", [])
     equal (run $ (">", [(0, 3, "ly-attach down chord-prepend-first")])
-            : UiTest.regular_notes 3)
+            : UiTest.regularNotes 3)
         (Right "down c4 down d4 down e4 r4", [])
 
 test_reminder_accidental :: Test
 test_reminder_accidental = do
-    let run = LilypondTest.derive_measures [] . UiTest.note_track
+    let run = LilypondTest.deriveMeasures [] . UiTest.noteTrack
     equal (run [(0, 1, "ly-! -- 4a"), (1, 1, "ly-? -- 4b")])
         (Right "a'!4 b'?4 r2", [])
     equal (run [(0, 8, "ly-! -- 4a")])
@@ -145,7 +145,7 @@ test_reminder_accidental = do
 
 test_tie_direction :: Test
 test_tie_direction = do
-    let run = LilypondTest.derive_measures [] . concatMap UiTest.note_track
+    let run = LilypondTest.deriveMeasures [] . concatMap UiTest.noteTrack
     equal (run [[(0, 8, "ly-^~ -- 4a"), (8, 8, "ly-_~ -- 4b")]])
         (Right "a'1^~ | a'1 | b'1_~ | b'1", [])
     equal (run [[(0, 8, "ly-^~ -- 4a")], [(0, 8, "ly-_~ -- 4b")]])
@@ -153,36 +153,36 @@ test_tie_direction = do
 
 test_hairpin :: Test
 test_hairpin = do
-    let run = LilypondTest.derive_measures ["<", ">", "!"]
+    let run = LilypondTest.deriveMeasures ["<", ">", "!"]
     equal (run $ (">", [(1, 1, "ly-<"), (3, 0, "ly->")])
-            : UiTest.regular_notes 4)
+            : UiTest.regularNotes 4)
         (Right "c4 d4 \\< e4 \\! f4 \\>", [])
 
 test_ly_text :: Test
 test_ly_text = do
-    let run = LilypondTest.derive_measures []
-    equal (run $ UiTest.note_track [(0, 1, "ly^ hi | -- 4a")])
+    let run = LilypondTest.deriveMeasures []
+    equal (run $ UiTest.noteTrack [(0, 1, "ly^ hi | -- 4a")])
         (Right "a'4 ^\"hi\" r4 r2", [])
     -- It only goes on the first one.
-    equal (measures_linear [] $
-            (">", [(0, 2, "ly_ hi")]) : UiTest.regular_notes 2)
+    equal (measuresLinear [] $
+            (">", [(0, 2, "ly_ hi")]) : UiTest.regularNotes 2)
         (Right "c4 _\"hi\" d4 r2", [])
 
 test_ly_slur_beam :: Test
 test_ly_slur_beam = do
-    let run = LilypondTest.derive_measures []
+    let run = LilypondTest.deriveMeasures []
     -- Works both as a generator and transformer.
-    equal (run $ UiTest.note_track
+    equal (run $ UiTest.noteTrack
             [(0, 2, "ly-( -- 3a"), (2, 6, "ly-) | -- 3b")])
         (Right "a2 ( b2~ | b1 )", [])
-    equal (run $ UiTest.note_track
+    equal (run $ UiTest.noteTrack
             [(0, 2, "ly-[ | -- 3a"), (2, 6, "ly-] | -- 3b")])
         (Right "a2 [ b2~ ] | b1", [])
 
 test_subdivision :: Test
 test_subdivision = do
-    let run = LilypondTest.staves [] . LilypondTest.derive_tracks
-            . concatMap (uncurry UiTest.inst_note_track)
+    let run = LilypondTest.staves [] . LilypondTest.deriveTracks
+            . concatMap (uncurry UiTest.instNoteTrack)
     equal (run [("i1", [(0, 4, "4c")]), ("i2", [(0, 4, "4d")]) ])
         (Right [("i1", ["c'1"]), ("i2", ["d'1"])], [])
 
@@ -200,16 +200,16 @@ test_subdivision = do
         (Right [("i1", ["c4. d8~ d4"])], [])
 
     let subdivision t s = [(t, 0, "subdivision '" <> s <> "' --")]
-    let one_measure subdiv =
+    let oneMeasure subdiv =
             [ meter34
             , ("i1", [(1.5, 1.5, "3c")])
             , ("i2", maybe [] (subdivision 0) subdiv ++  [(1.5, 1.5, "4c")])
             ]
-    equal (run (one_measure Nothing))
+    equal (run (oneMeasure Nothing))
         (Right [("i1", ["r4. c8~ c4"]), ("i2", ["r4. c'8~ c'4"])], [])
-    equal (run (one_measure (Just "6/8")))
+    equal (run (oneMeasure (Just "6/8")))
         (Right [("i1", ["r4. c8~ c4"]), ("i2", ["r4. c'4."])], [])
-    left_like (fst $ run (one_measure (Just "4/4"))) "incompatible with meter"
+    leftLike (fst $ run (oneMeasure (Just "4/4"))) "incompatible with meter"
 
     -- rests also follow subdivision
     equal (run [meter68, ("i1", [(0, 1.5, "3c")])])
@@ -218,8 +218,8 @@ test_subdivision = do
         (Right [("i1", ["c4. r8 r4"])], [])
     -- if it has a duration, cancel at the end
     let run skel = LilypondTest.staves []
-            . LilypondTest.derive_tracks_setup (DeriveTest.with_skel skel)
-            . concatMap (uncurry UiTest.inst_note_track)
+            . LilypondTest.deriveTracksSetup (DeriveTest.withSkel skel)
+            . concatMap (uncurry UiTest.instNoteTrack)
     equal (run [(3, 4)]
             [ meter34
             , ("i1", [(0, 3, "subdivision '6/8' --")])
@@ -229,11 +229,11 @@ test_subdivision = do
 
 test_movement :: Test
 test_movement = do
-    let run = LilypondTest.convert_score . LilypondTest.derive_blocks
+    let run = LilypondTest.convertScore . LilypondTest.deriveBlocks
     -- Movements split up properly.
-    let (ly, logs) = run [(UiTest.default_block_name,
+    let (ly, logs) = run [(UiTest.defaultBlockName,
             ("> | ly-global", [(0, 0, "movement I"), (4, 0, "movement II")])
-            : UiTest.regular_notes 8)]
+            : UiTest.regularNotes 8)]
     equal logs []
     match ly "piece = \"I\" *c4 d4 e4 f4 * piece = \"II\" * g4 a4 b4 c'4"
 
@@ -244,8 +244,8 @@ test_movement = do
                     [(0, 0, "movement I"), (4, 0, "movement II")])
                 , (">", [(0, 4, "mvt1"), (4, 4, "mvt2")])
                 ])
-            , ("mvt1=ruler", UiTest.regular_notes 4)
-            , ("mvt2=ruler", ("tempo", [(0, 0, "2")]) : UiTest.regular_notes 4)
+            , ("mvt1=ruler", UiTest.regularNotes 4)
+            , ("mvt2=ruler", ("tempo", [(0, 0, "2")]) : UiTest.regularNotes 4)
             ]
     equal logs []
     match ly "piece = \"I\" *c4 d4 e4 f4 * piece = \"II\" * c4 d4 e4 f4"
@@ -254,40 +254,40 @@ test_attach_and_emit :: Test
 test_attach_and_emit = do
     -- Ensure that attach calls doesn't try to attach code to emit's code
     -- events.
-    let run = DeriveTest.extract extract . LilypondTest.derive_tracks_linear
+    let run = DeriveTest.extract extract . LilypondTest.deriveTracksLinear
         extract e =
-            ( DeriveTest.e_note e
-            , LilypondTest.e_ly_env e
-            , Score.event_flags e
+            ( DeriveTest.eNote e
+            , LilypondTest.eLyEnv e
+            , Score.eventFlags e
             )
-    let key pos dist = Constants.position_key $
+    let key pos dist = Constants.positionKey $
             Constants.CodePosition Constants.Chord pos dist
-        free_append = Constants.free_code_key Constants.FreeAppend
-    let run_ly = LilypondTest.measures ["a", "b"]
-            . LilypondTest.derive_tracks_linear
+        freeAppend = Constants.freeCodeKey Constants.FreeAppend
+    let runLy = LilypondTest.measures ["a", "b"]
+            . LilypondTest.deriveTracksLinear
 
     let tracks = (">", [(0, 2, "(")])
-            : UiTest.note_track1 ["ly-post a | -- 3c", "ly-post b | -- 3d"]
+            : UiTest.noteTrack1 ["ly-post a | -- 3c", "ly-post b | -- 3d"]
     equal (run tracks)
-        ( [ ((0, 0, "?"), [(free_append, "'\\a'")], Flags.ly_code)
+        ( [ ((0, 0, "?"), [(freeAppend, "'\\a'")], Flags.lyCode)
           , ((0, 1, "3c"), [(key Constants.Append Constants.First, "'('")],
                 mempty)
-          , ((1, 0, "?"), [(free_append, "'\\b'")], Flags.ly_code)
+          , ((1, 0, "?"), [(freeAppend, "'\\b'")], Flags.lyCode)
           , ((1, 1, "3d"), [(key Constants.Append Constants.Last, "')'")],
                 mempty)
           ]
         , []
         )
 
-    equal (run_ly tracks) (Right "c4 ( \\a d4 ) \\b r2", [])
-    equal (run_ly $ (">", [(0, 2, "(")])
-            : UiTest.note_track1 ["ly-pre a | -- 3c", "ly-pre b | -- 3d"])
+    equal (runLy tracks) (Right "c4 ( \\a d4 ) \\b r2", [])
+    equal (runLy $ (">", [(0, 2, "(")])
+            : UiTest.noteTrack1 ["ly-pre a | -- 3c", "ly-pre b | -- 3d"])
         (Right "\\a c4 ( \\b d4 ) r2", [])
 
 test_code_position :: Test
 test_code_position = do
     let runc call pos = LilypondTest.measures ["a"] $
-            LilypondTest.derive_tracks $ concatMap UiTest.note_track
+            LilypondTest.deriveTracks $ concatMap UiTest.noteTrack
                 [ [(0, 8, call <> " a " <> pos <> " | -- 3c")]
                 , [(0, 8, "3d")]
                 ]
@@ -307,6 +307,6 @@ test_code_position = do
 
 -- * util
 
-measures_linear :: [Text] -> [UiTest.TrackSpec] -> (Either Text Text, [Text])
-measures_linear wanted =
-    LilypondTest.measures wanted . LilypondTest.derive_tracks_linear
+measuresLinear :: [Text] -> [UiTest.TrackSpec] -> (Either Text Text, [Text])
+measuresLinear wanted =
+    LilypondTest.measures wanted . LilypondTest.deriveTracksLinear

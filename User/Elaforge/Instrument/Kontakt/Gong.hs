@@ -4,8 +4,8 @@
 
 -- | Miscellaneous gong instruments.
 module User.Elaforge.Instrument.Kontakt.Gong (
-    patches, write_ksp
-    , kajar_resolve_errors
+    patches, writeKsp
+    , kajarResolveErrors
 ) where
 import qualified Cmd.Instrument.CUtil as CUtil
 import qualified Cmd.Instrument.Drums as Drums
@@ -30,62 +30,62 @@ import           Global
 
 
 patches :: [MidiInst.Patch]
-patches = [kajar_patch]
+patches = [kajarPatch]
 
 patch :: InstT.Name -> MidiInst.Patch
-patch name = MidiInst.named_patch (-24, 24) name []
+patch name = MidiInst.namedPatch (-24, 24) name []
 
-kajar_patch :: MidiInst.Patch
-kajar_patch =
+kajarPatch :: MidiInst.Patch
+kajarPatch =
     MidiInst.code #= code $
-        CUtil.pitched_drum_patch kajar_pitched_strokes $ patch "kajar"
+        CUtil.pitchedDrumPatch kajarPitchedStrokes $ patch "kajar"
     where
-    code = MidiInst.cmd (CUtil.insert_call CUtil.MidiThru char_to_call)
-        <> MidiInst.note_generators generators
+    code = MidiInst.cmd (CUtil.insertCall CUtil.MidiThru charToCall)
+        <> MidiInst.noteGenerators generators
     generators = concat
-        [ CUtil.drum_calls (map (,config) strokes)
-        , [(sym, call) | (_, sym, call) <- kajar_special]
-        , [("k", Gong.make_cycle "kajar" (Just (Left "o"))
+        [ CUtil.drumCalls (map (,config) strokes)
+        , [(sym, call) | (_, sym, call) <- kajarSpecial]
+        , [("k", Gong.makeCycle "kajar" (Just (Left "o"))
             (Just (Left Meter.Q)))]
         ]
-    config = CUtil.call_config { CUtil._tuning_control = Just "kajar-tune" }
-    char_to_call = concat
+    config = CUtil.callConfig { CUtil._tuningControl = Just "kajar-tune" }
+    charToCall = concat
         [ [(c, _name) | Drums.Stroke { _char = Just c, _name } <- strokes]
-        , [(char, sym) | (char, sym, _) <- kajar_special]
+        , [(char, sym) | (char, sym, _) <- kajarSpecial]
         ]
-    strokes = map fst kajar_pitched_strokes
+    strokes = map fst kajarPitchedStrokes
 
-kajar_pitched_strokes :: CUtil.PitchedStrokes
-(kajar_pitched_strokes, kajar_resolve_errors) =
-    CUtil.resolve_strokes 0.35 keymap kajar_strokes
+kajarPitchedStrokes :: CUtil.PitchedStrokes
+(kajarPitchedStrokes, kajarResolveErrors) =
+    CUtil.resolveStrokes 0.35 keymap kajarStrokes
 
-kajar_special :: [(Char, Expr.Symbol, Derive.Generator Derive.Note)]
-kajar_special =
-    [ ('c', "oo", DUtil.doubled_call "o" "oo" DUtil.After
+kajarSpecial :: [(Char, Expr.Symbol, Derive.Generator Derive.Note)]
+kajarSpecial =
+    [ ('c', "oo", DUtil.doubledCall "o" "oo" DUtil.After
         (RealTime.seconds 0.09) 0.75)
-    , ('f', "o..", c_nruk)
+    , ('f', "o..", cNruk)
     ]
 
-c_nruk :: Derive.Generator Derive.Note
-c_nruk = Gong.nruk_generator Module.instrument "nruk" "Nruktuk on `o`." $
+cNruk :: Derive.Generator Derive.Note
+cNruk = Gong.nrukGenerator Module.instrument "nruk" "Nruktuk on `o`." $
     Sub.inverting $ \args -> do
-        gen <- Eval.get_generator "o"
-        Eval.apply_generator (Derive.passed_ctx args) gen []
+        gen <- Eval.getGenerator "o"
+        Eval.applyGenerator (Derive.passedCtx args) gen []
 
-kajar_strokes :: [(Char, Expr.Symbol, Attrs.Attributes, Drums.Group)]
-kajar_stops :: [(Drums.Group, [Drums.Group])]
-(kajar_stops, kajar_strokes) = (,) stops
-    [ ('q', "P", rim <> closed,             s_closed)
+kajarStrokes :: [(Char, Expr.Symbol, Attrs.Attributes, Drums.Group)]
+kajarStops :: [(Drums.Group, [Drums.Group])]
+(kajarStops, kajarStrokes) = (,) stops
+    [ ('q', "P", rim <> closed,             sClosed)
 
-    , ('a', "+/", rim <> Attrs.staccato,    s_open)
-    , ('z', "+", rim <> open,               s_open)
-    , ('s', ".", center <> closed <> soft,  s_closed)
-    , ('x', "o", center <> closed,          s_closed)
+    , ('a', "+/", rim <> Attrs.staccato,    sOpen)
+    , ('z', "+", rim <> open,               sOpen)
+    , ('s', ".", center <> closed <> soft,  sClosed)
+    , ('x', "o", center <> closed,          sClosed)
     -- 'c' is for oo
 
     -- This is not commonly used.
-    , ('v', "c", center <> open,            s_open)
-    , ('m', "m", Attrs.damp,                s_closed)
+    , ('v', "c", center <> open,            sOpen)
+    , ('m', "m", Attrs.damp,                sClosed)
     ]
     where
     rim = Attrs.rim
@@ -93,12 +93,12 @@ kajar_stops :: [(Drums.Group, [Drums.Group])]
     soft = Attrs.soft
     open = Attrs.open
     closed = Attrs.closed
-    s_closed = "closed"
-    s_open = "open"
-    stops = [(s_closed, [s_open])]
+    sClosed = "closed"
+    sOpen = "open"
+    stops = [(sClosed, [sOpen])]
 
 keymap :: Map Attrs.Attributes CUtil.KeyswitchRange
-keymap = CUtil.make_keymap2 Nothing 24 6 12 Key.c4
+keymap = CUtil.makeKeymap2 Nothing 24 6 12 Key.c4
     [ [Attrs.center <> Attrs.closed]
     , [Attrs.center <> Attrs.open]
     , [Attrs.rim <> Attrs.closed]
@@ -107,8 +107,8 @@ keymap = CUtil.make_keymap2 Nothing 24 6 12 Key.c4
     , [Attrs.damp]
     ]
 
-write_ksp :: IO ()
-write_ksp = mapM_ (uncurry Util.write)
+writeKsp :: IO ()
+writeKsp = mapM_ (uncurry Util.write)
     [ ("kajar.ksp.txt",
-        Util.drum_mute_ksp "kajar" kajar_pitched_strokes kajar_stops)
+        Util.drumMuteKsp "kajar" kajarPitchedStrokes kajarStops)
     ]

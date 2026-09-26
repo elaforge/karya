@@ -64,13 +64,13 @@ type Track = UiTest.TrackSpec
 type Events = [(ScoreTime, ScoreTime, Text)]
 
 -- | Random length track of \"\" notes with pitches.
-simple_pitch :: Q.Gen Block
-simple_pitch = do
+simplePitch :: Q.Gen Block
+simplePitch = do
     ranges <- granges
     pitches <- Q.vectorOf (length ranges) gpitch
-    let ptrack = [(p, 0, Pitch.note_text n)
+    let ptrack = [(p, 0, Pitch.noteText n)
             | (p, n) <- zip (map fst ranges) pitches]
-    pure (("block", [(">", map (to_spec "") ranges), ("*", ptrack)]),
+    pure (("block", [(">", map (toSpec "") ranges), ("*", ptrack)]),
         [(1, 2)])
 
 granges :: Q.Gen [(ScoreTime, ScoreTime)]
@@ -85,11 +85,11 @@ granges = Q.sized $ \n -> go 0 =<< Q.choose (0, n)
         pure $ (start, start + dur) : rest
 
 gpitch :: Q.Gen Pitch.Note
-gpitch = Q.oneof $ map pure (Map.keys note_to_nn)
+gpitch = Q.oneof $ map pure (Map.keys noteToNn)
 
 -- | Random list of non-overlapping events, some of which are adjacent.
 gevents :: Q.Gen [Event.Event]
-gevents = Events.ascending . Events.from_list <$> Q.listOf (gevent "")
+gevents = Events.ascending . Events.fromList <$> Q.listOf (gevent "")
 
 gevent :: Text -> Q.Gen Event.Event
 gevent text = do
@@ -97,20 +97,20 @@ gevent text = do
     dur <- Q.arbitrarySizedFractional
     pure $ Event.event (abs start) (abs dur) text
 
-to_spec :: Text -> (ScoreTime, ScoreTime) -> (ScoreTime, ScoreTime, Text)
-to_spec text (start, dur) = (start, dur, text)
+toSpec :: Text -> (ScoreTime, ScoreTime) -> (ScoreTime, ScoreTime, Text)
+toSpec text (start, dur) = (start, dur, text)
 
 instance Q.Arbitrary ScoreTime where
-    arbitrary = ScoreTime.from_double <$> Q.arbitrarySizedFractional
+    arbitrary = ScoreTime.fromDouble <$> Q.arbitrarySizedFractional
 
 
 -- * simple derive
 
 -- | Simplified deriver.
-simple_derive :: [Block] -> [Score.Event]
-simple_derive [] = []
-simple_derive (((_, tracks), skel) : blocks) =
-    derive_block initial_state (mkblocks blocks) (Skeleton.make skel) tracks
+simpleDerive :: [Block] -> [Score.Event]
+simpleDerive [] = []
+simpleDerive (((_, tracks), skel) : blocks) =
+    deriveBlock initialState (mkblocks blocks) (Skeleton.make skel) tracks
 
 type Blocks = Map Text Block
 
@@ -119,81 +119,81 @@ mkblocks blocks = Map.fromList $ zip (map (fst . fst) blocks) blocks
 
 -- | Derive a block.  Use the skeleton to make a tree, then find the pitch and
 -- control tracks by looking up and down the tree.
-derive_block :: State -> Blocks -> Skeleton.Skeleton -> [Track]
+deriveBlock :: State -> Blocks -> Skeleton.Skeleton -> [Track]
     -> [Score.Event]
-derive_block state blocks skel tracks =
-    concatMap (derive_note_track state blocks) (extract_notes skel tracks)
+deriveBlock state blocks skel tracks =
+    concatMap (deriveNoteTrack state blocks) (extractNotes skel tracks)
 
 -- TODO why is blocks unused?
-derive_note_track :: State -> Blocks -> NoteTrack -> [Score.Event]
-derive_note_track state blocks (notes, samples) =
-    Lists.mergeLists Score.event_start $ snd $
-        List.mapAccumL go (state, samples) (map to_score notes)
+deriveNoteTrack :: State -> Blocks -> NoteTrack -> [Score.Event]
+deriveNoteTrack state blocks (notes, samples) =
+    Lists.mergeLists Score.eventStart $ snd $
+        List.mapAccumL go (state, samples) (map toScore notes)
     where
-    to_score (start, dur, text) =
-        (RealTime.from_score start, RealTime.from_score dur, text)
-    go (prev_state, prev_samples) (start, dur, text)
+    toScore (start, dur, text) =
+        (RealTime.fromScore start, RealTime.fromScore dur, text)
+    go (prevState, prevSamples) (start, dur, text)
         | text == "" = ((state, samples), [event state start dur])
         | otherwise = error $ "call not supported: " ++ show text
-        where (state, samples) = update_state prev_samples start prev_state
-    event state start dur = Score.empty_event
-        { Score.event_start = start
-        , Score.event_duration = dur
-        , Score.event_environ = Env.from_controls $ state_control_map state
-        , Score.event_pitch = state_psignal state
+        where (state, samples) = updateState prevSamples start prevState
+    event state start dur = Score.emptyEvent
+        { Score.eventStart = start
+        , Score.eventDuration = dur
+        , Score.eventEnviron = Env.fromControls $ stateControlMap state
+        , Score.eventPitch = statePsignal state
         }
 
 data Sample = Sample
-    { sample_name :: Text -- ^ @*@ for pitch
-    , sample_pos :: RealTime
-    , sample_val :: Text
+    { sampleName :: Text -- ^ @*@ for pitch
+    , samplePos :: RealTime
+    , sampleVal :: Text
     } deriving (Show)
 
 -- | (note track, pitch track, controls)
 type NoteTrack = (Events, [Sample])
 
 data State = State
-    { state_pitch :: Pitch.NoteNumber
-    , state_controls :: Map ScoreT.Control Signal.Y
+    { statePitch :: Pitch.NoteNumber
+    , stateControls :: Map ScoreT.Control Signal.Y
     } deriving (Show)
 
-initial_state :: State
-initial_state = State 0 mempty
+initialState :: State
+initialState = State 0 mempty
 
-state_control_map :: State -> ScoreT.ControlMap
-state_control_map = Map.map (ScoreT.untyped . Signal.constant) . state_controls
+stateControlMap :: State -> ScoreT.ControlMap
+stateControlMap = Map.map (ScoreT.untyped . Signal.constant) . stateControls
 
-state_psignal :: State -> PSignal.PSignal
-state_psignal = PSignal.constant . mknote . state_pitch
+statePsignal :: State -> PSignal.PSignal
+statePsignal = PSignal.constant . mknote . statePitch
     where
-    scale = PSignal.Scale Twelve.scale_id
-        (Scale.scale_transposers Twelve.scale)
+    scale = PSignal.Scale Twelve.scaleId
+        (Scale.scaleTransposers Twelve.scale)
     mknote nn = PSignal.pitch scale (const (pure nn))
         (const $ pure $ Pitch.Note $ showt nn) mempty
 
-update_state :: [Sample] -> RealTime -> State -> (State, [Sample])
-update_state samples pos state = (foldl' go state pre, post)
+updateState :: [Sample] -> RealTime -> State -> (State, [Sample])
+updateState samples pos state = (foldl' go state pre, post)
     where
-    (pre, post) = break ((>pos) . sample_pos) samples
+    (pre, post) = break ((>pos) . samplePos) samples
     go state (Sample name _ val)
-        | name == "*" = state { state_pitch = parse_pitch val }
+        | name == "*" = state { statePitch = parsePitch val }
         | otherwise = state
-            { state_controls = Map.insert (ScoreT.Control name)
-                (parse_control val) (state_controls state)
+            { stateControls = Map.insert (ScoreT.Control name)
+                (parseControl val) (stateControls state)
             }
 
-parse_pitch :: Text -> Pitch.NoteNumber
-parse_pitch text =
+parsePitch :: Text -> Pitch.NoteNumber
+parsePitch text =
     fromMaybe (error $ "unparseable pitch: " ++ show text) $
-        Map.lookup (Pitch.Note text) note_to_nn
+        Map.lookup (Pitch.Note text) noteToNn
 
-note_to_nn :: Map Pitch.Note Pitch.NoteNumber
-note_to_nn = Map.fromList
-    [(note, nn) | (Just note, nn) <- zip (map Twelve.show_nn nns) nns]
+noteToNn :: Map Pitch.Note Pitch.NoteNumber
+noteToNn = Map.fromList
+    [(note, nn) | (Just note, nn) <- zip (map Twelve.showNn nns) nns]
     where nns = Lists.range 1 127 1
 
-parse_control :: Text -> Signal.Y
-parse_control text = fromMaybe (error $ "unparseable control: " ++ show text)
+parseControl :: Text -> Signal.Y
+parseControl text = fromMaybe (error $ "unparseable control: " ++ show text)
     (ParseText.float text)
 
 block1 =
@@ -203,27 +203,27 @@ block1 =
     ]
 skel1 = [(0, 1), (1, 2), (0, 3), (3, 4)]
 
-extract_notes :: Skeleton.Skeleton -> [Track] -> [NoteTrack]
-extract_notes skel tracks
+extractNotes :: Skeleton.Skeleton -> [Track] -> [NoteTrack]
+extractNotes skel tracks
     | not (null missing) = error $ "extract_notes: skel " ++ show skel
         ++ " has missing tracknums: " ++ show missing
     | otherwise = do
         (track, parents, children) <- Trees.flatPaths trees
-        guard (is_note track)
+        guard (isNote track)
         let tracks = children ++ parents
-        let pitch = fromMaybe ("*", []) (List.find is_pitch tracks)
-        pure (snd track, make_samples (pitch : filter is_control tracks))
+        let pitch = fromMaybe ("*", []) (List.find isPitch tracks)
+        pure (snd track, makeSamples (pitch : filter isControl tracks))
     where
-    (trees, missing) = TrackTree.resolve_track_tree
+    (trees, missing) = TrackTree.resolveTrackTree
         (Map.fromList (zip [0..] tracks))
-        (Skeleton.to_forest (length tracks) skel)
-    is_note = (==">") . fst
-    is_pitch = (=="*") . fst
-    is_control = (`notElem` [">", "*", "tempo"]) . fst
+        (Skeleton.toForest (length tracks) skel)
+    isNote = (==">") . fst
+    isPitch = (=="*") . fst
+    isControl = (`notElem` [">", "*", "tempo"]) . fst
 
-make_samples :: [Track] -> [Sample]
-make_samples = Lists.mergeLists sample_pos . map make
+makeSamples :: [Track] -> [Sample]
+makeSamples = Lists.mergeLists samplePos . map make
     where
-    make (title, events) = [Sample title (RealTime.from_score pos) val
+    make (title, events) = [Sample title (RealTime.fromScore pos) val
         | (pos, _, val) <- events]
 

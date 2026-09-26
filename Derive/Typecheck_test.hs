@@ -34,7 +34,7 @@ import           Util.Test
 test_typecheck :: Test
 test_typecheck = do
     let f :: Typecheck.Typecheck a => Text -> Either Text (Maybe a)
-        f = fmap Typecheck.from_val_simple . Parse.parse_val
+        f = fmap Typecheck.fromValSimple . Parse.parseVal
     equal (f "1nn") (Right (Just (Pitch.NoteNumber 1)))
     equal (f "1nn") (Right (Just (Pitch.Nn 1)))
     equal (f "1") (Right (Just (Typecheck.DefaultDiatonic (Pitch.Diatonic 1))))
@@ -46,26 +46,26 @@ test_typecheck = do
 test_coerce_numeric :: Test
 test_coerce_numeric = do
     let d = Proxy @Double
-    equal (run_type d [("c", [(0, 0, "3")])] "%c")
+    equal (runType d [("c", [(0, 0, "3")])] "%c")
         (Just "3", [])
     -- This winds up at resolve_function, which then gets evaluated at event
     -- time.
-    equal (run_type d [("c", [(0, 0, "3"), (1, 0, "4")])] "%c")
+    equal (runType d [("c", [(0, 0, "3"), (1, 0, "4")])] "%c")
         (Just "4", [])
     -- This winds up being defaulted direcly to the signal, and evaluated at
     -- event time.
-    equal (run_type d [("capture-val", [(0, 0, "3"), (1, 0, "4")])] "_")
+    equal (runType d [("capture-val", [(0, 0, "3"), (1, 0, "4")])] "_")
         (Just "4", [])
     -- Same, without the defaulting.
-    equal (run_type d [] "(signal 0 3 1 4)") (Just "4", [])
+    equal (runType d [] "(signal 0 3 1 4)") (Just "4", [])
 
 test_coerce_nn :: Test
 test_coerce_nn = do
     -- Various things can be coerced to numeric types.
     let nn = Proxy :: Proxy Pitch.NoteNumber
-    equal (run_type nn [] "42") (Just "42nn", [])
-    equal (run_type nn [] "42nn") (Just "42nn", [])
-    strings_like (snd $ run_type nn [] "42c")
+    equal (runType nn [] "42") (Just "42nn", [])
+    equal (runType nn [] "42nn") (Just "42nn", [])
+    stringsLike (snd $ runType nn [] "42c")
         ["expected Maybe Signal (NN) but got Signal (Transposition"]
 
     -- TODO need to evaluate a pitch in Typecheck for this.
@@ -77,52 +77,52 @@ test_coerce_nn = do
 test_coerce_pitch :: Test
 test_coerce_pitch = do
     let pitch = Proxy :: Proxy PSignal.Pitch
-    equal (run_type pitch [] "(4c)") (Just "<pitch: 60nn,4c(twelve)>", [])
-    equal (run_type pitch [("*", [(0, 0, "4c")])] "#")
+    equal (runType pitch [] "(4c)") (Just "<pitch: 60nn,4c(twelve)>", [])
+    equal (runType pitch [("*", [(0, 0, "4c")])] "#")
         (Just "<pitch: 60nn,4c(twelve)>", [])
     -- It gets the default pitch but there's no pitch signal there.
-    strings_like (snd $ run_type pitch [] "#")
+    stringsLike (snd $ runType pitch [] "#")
         [ "expected Maybe Pitch but couldn't convert PControlRef #:\
           \ no pitch at 1s"
         ]
-    strings_like (snd $ run_type pitch [] "#x")
+    stringsLike (snd $ runType pitch [] "#x")
         ["named pitch not found and no default"]
-    strings_like (snd $ run_type pitch [] "(# x)")
+    stringsLike (snd $ runType pitch [] "(# x)")
         ["named pitch not found and no default"]
-    equal (run_type pitch [] "(# x (4c))")
+    equal (runType pitch [] "(# x (4c))")
         (Just "<pitch: 60nn,4c(twelve)>", [])
 
 test_coerce_control :: Test
 test_coerce_control = do
     let double = Proxy :: Proxy Double
     -- controls can be coerced to numbers
-    equal (run_type double [("c", [(0, 0, "42")])] "%c") (Just "42", [])
-    equal (run_type double [("c", [(0, 0, "42"), (2, 0, "i 43")])] "%c")
+    equal (runType double [("c", [(0, 0, "42")])] "%c") (Just "42", [])
+    equal (runType double [("c", [(0, 0, "42"), (2, 0, "i 43")])] "%c")
         (Just "42.5", [])
 
 test_resolve_signal :: Test
 test_resolve_signal = do
     let f with ref = DeriveTest.eval Ui.empty
-            (with (Typecheck.resolve_signal ref))
+            (with (Typecheck.resolveSignal ref))
     let mksig = ScoreT.untyped . Signal.constant
-    let ref_sig c sig = DeriveT.Ref c (Just (mksig sig)) :: DeriveT.ControlRef
+    let refSig c sig = DeriveT.Ref c (Just (mksig sig)) :: DeriveT.ControlRef
     let ref c = DeriveT.Ref c Nothing :: DeriveT.ControlRef
-    let withc = Derive.with_constant_control "c" 2
-    right_equal (f id (ref "c")) Nothing
-    right_equal (f id (ref_sig "c" 42)) $ Just (mksig 42)
-    right_equal (f withc (ref "c")) $
+    let withc = Derive.withConstantControl "c" 2
+    rightEqual (f id (ref "c")) Nothing
+    rightEqual (f id (refSig "c" 42)) $ Just (mksig 42)
+    rightEqual (f withc (ref "c")) $
         Just (mksig 2)
-    right_equal (f withc (ref_sig "c" 42)) $ Just (mksig 2)
+    rightEqual (f withc (refSig "c" 42)) $ Just (mksig 2)
     -- multiple levels of refs
     -- An intermediate lookup failure throws instead of returning Nothing,
     -- which is irregular, but I think I don't mind it for now, since something
     -- fishy may be going on.
-    left_like
-        (f (Derive.with_val "a" (ref "b") . withc) (ref "a")) $
+    leftLike
+        (f (Derive.withVal "a" (ref "b") . withc) (ref "a")) $
         "control not found: %b"
     -- a->b->c works even though I'm not sure if it should.
-    right_equal
-        (f (Derive.with_val "a" (ref "b") . Derive.with_val "b" (ref "c")
+    rightEqual
+        (f (Derive.withVal "a" (ref "b") . Derive.withVal "b" (ref "c")
                 . withc)
             (ref "a")) $
         Just (mksig 2)
@@ -135,11 +135,11 @@ test_resolve_signal = do
 test_val_to_function :: Test
 test_val_to_function = do
     let result = DeriveTest.eval Ui.empty $ do
-            fs <- mapM (to_function . make_cf) [42, 43]
+            fs <- mapM (toFunction . makeCf) [42, 43]
             pure $ map (fmap (fmap ($ 0))) fs
-    right_equal result [Just (ScoreT.untyped 42), Just (ScoreT.untyped 43)]
+    rightEqual result [Just (ScoreT.untyped 42), Just (ScoreT.untyped 43)]
     where
-    to_function cf = case Typecheck.val_to_function cf of
+    toFunction cf = case Typecheck.valToFunction cf of
         Nothing -> pure Nothing
         Just (Left dtf) -> Just <$> dtf
         Just (Right tf) -> pure $ Just tf
@@ -147,38 +147,38 @@ test_val_to_function = do
 test_val_to_function_dyn :: Test
 test_val_to_function_dyn = do
     let result = DeriveTest.eval Ui.empty $ do
-            cf_dyn <- Internal.get_control_function_dynamic
-            fs <- mapM (to_function cf_dyn . make_cf) [42, 43]
+            cfDyn <- Internal.getControlFunctionDynamic
+            fs <- mapM (toFunction cfDyn . makeCf) [42, 43]
             pure $ map (fmap (fmap ($ 0))) fs
-    right_equal result [Just (ScoreT.untyped 42), Just (ScoreT.untyped 43)]
+    rightEqual result [Just (ScoreT.untyped 42), Just (ScoreT.untyped 43)]
     where
-    to_function cf_dyn val = case Typecheck.val_to_function_dyn cf_dyn val of
+    toFunction cfDyn val = case Typecheck.valToFunctionDyn cfDyn val of
         Nothing -> pure Nothing
         Just (Left dtf) -> Just <$> dtf
         Just (Right tf) -> pure $ Just tf
 
-make_cf :: Double -> DeriveT.Val
-make_cf = DeriveT.VSignal . ScoreT.untyped . Signal.constant
+makeCf :: Double -> DeriveT.Val
+makeCf = DeriveT.VSignal . ScoreT.untyped . Signal.constant
 
-run_type :: forall arg. (ShowVal.ShowVal arg, Typecheck.Typecheck arg)
+runType :: forall arg. (ShowVal.ShowVal arg, Typecheck.Typecheck arg)
     => Proxy arg -> [UiTest.TrackSpec] -> Text -> (Maybe Text, [Text])
-run_type _ = capture (ShowVal.show_val :: arg -> Text)
+runType _ = capture (ShowVal.showVal :: arg -> Text)
 
 capture :: Typecheck.Typecheck arg => (arg -> Text) -> [UiTest.TrackSpec]
     -> Text -> (Maybe Text, [Text])
-capture show_val controls arg =
-    extract $ DeriveTest.derive_tracks_setup
-        (CallTest.with_note_generator "capture" c_capture) ""
+capture showVal controls arg =
+    extract $ DeriveTest.deriveTracksSetup
+        (CallTest.withNoteGenerator "capture" cCapture) ""
         (controls ++ [(">", [(1, 1, "capture " <> arg)])])
     where
-    from_str (DeriveT.VStr (Expr.Str str)) = Just str
-    from_str _ = Nothing
-    extract = first (from_str <=< Monad.join . Lists.head)
-        . DeriveTest.extract (Env.lookup "capture" . Score.event_environ)
-    c_capture :: Derive.Generator Derive.Note
-    c_capture = Derive.generator CallTest.module_ "capture" mempty "" $
+    fromStr (DeriveT.VStr (Expr.Str str)) = Just str
+    fromStr _ = Nothing
+    extract = first (fromStr <=< Monad.join . Lists.head)
+        . DeriveTest.extract (Env.lookup "capture" . Score.eventEnviron)
+    cCapture :: Derive.Generator Derive.Note
+    cCapture = Derive.generator CallTest.module_ "capture" mempty "" $
         Sig.call (Sig.required "val" "Val.") $ \val _args -> do
             -- srate <- Call.get_srate
             -- srate <- Derive.get_val EnvKey.srate
             -- Debug.traceM "srate" (srate :: Double)
-            Derive.with_val "capture" (maybe "?" show_val val) Call.note
+            Derive.withVal "capture" (maybe "?" showVal val) Call.note

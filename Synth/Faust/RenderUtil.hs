@@ -80,7 +80,7 @@ renderControl controlRate start = case Audio.someNat controlRate of
         -- Audio.linear gets its breakpoints in seconds, so I have to do this
         -- little dance.  Maybe it could use frames?
         Audio.castRate . Audio.linear @_ @cRate False . shiftBack
-    where shiftBack = map $ first $ subtract $ RealTime.to_seconds start
+    where shiftBack = map $ first $ subtract $ RealTime.toSeconds start
 
 controlBreakpoints :: Audio.Frames -> Control.Control
     -> [(RealTime, Map Control.Control Signal.Signal)]
@@ -91,21 +91,21 @@ controlBreakpoints controlSize control =
     get ((start, controls), next) = do
         signal <- Map.lookup control controls
         pure $ (if controlSize == 1 then id else tweak) $
-            roundBreakpoints controlSize $ Signal.to_pairs $
-            maybe id (Signal.clip_after_keep_last . fst) next $
-            Signal.clip_before start signal
-    controlSizeS = RealTime.to_seconds $ AUtil.toSeconds controlSize
+            roundBreakpoints controlSize $ Signal.toPairs $
+            maybe id (Signal.clipAfterKeepLast . fst) next $
+            Signal.clipBefore start signal
+    controlSizeS = RealTime.toSeconds $ AUtil.toSeconds controlSize
     -- See NOTE [faust-controls].
     tweak = map $ first $ subtract controlSizeS
 
 -- | Round controls to controlSize boundaries.  See NOTE [faust-controls].
 roundBreakpoints :: Audio.Frames -> [(RealTime, Signal.Y)] -> [(Double, Double)]
 roundBreakpoints controlSize
-    | controlSize == 1 = map (first RealTime.to_seconds)
-    | otherwise = map (first (RealTime.to_seconds . roundTo size))
+    | controlSize == 1 = map (first RealTime.toSeconds)
+    | otherwise = map (first (RealTime.toSeconds . roundTo size))
     where
     size = AUtil.toSeconds controlSize
 
 roundTo :: RealTime -> RealTime -> RealTime
 roundTo factor = RealTime.seconds
-    . Num.roundToD (RealTime.to_seconds factor) . RealTime.to_seconds
+    . Num.roundToD (RealTime.toSeconds factor) . RealTime.toSeconds

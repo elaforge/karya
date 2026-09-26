@@ -21,10 +21,10 @@ import           Global
 
 data Module = Module
     { _instruments :: IntMap Instrument
-    , _default_tempo :: !Tempo
+    , _defaultTempo :: !Tempo
     , _blocks :: [Block]
     -- | Name of sequence, '_blocks' indices.
-    , _block_order :: Map Text [Int]
+    , _blockOrder :: Map Text [Int]
     } deriving (Eq, Show)
 
 data Tempo = Tempo
@@ -33,20 +33,20 @@ data Tempo = Tempo
     } deriving (Eq, Show)
 
 data Instrument = Instrument
-    { _instrument_name :: !ScoreT.Instrument
+    { _instrumentName :: !ScoreT.Instrument
     , _volume :: !(Maybe Double)
     } deriving (Eq, Show)
 
 data Block = Block
-    { _block_length :: !Int
+    { _blockLength :: !Int
     , _tracks :: [Track]
     } deriving (Eq, Show)
 
 -- | Empty lines are common, so this uses IntMap as a sparse array.
 type Track = IntMap Line
 
-make_track :: [(Int, Line)] -> Track
-make_track = carry_zeroes . IntMap.fromList
+makeTrack :: [(Int, Line)] -> Track
+makeTrack = carryZeroes . IntMap.fromList
 
 data Line = Line
     { _pitch :: !(Maybe Pitch.NoteNumber)
@@ -75,11 +75,11 @@ commands :: [(Int, Int)] -> [Command]
 commands = mapMaybe make
     where
     make (0, _) = Nothing
-    make (cmd, val) = Just $ med_command (fromIntegral cmd) (fromIntegral val)
+    make (cmd, val) = Just $ medCommand (fromIntegral cmd) (fromIntegral val)
 
 -- | Parse a Command.
-med_command :: Word8 -> Word8 -> Command
-med_command cmd val = case cmd of
+medCommand :: Word8 -> Word8 -> Command
+medCommand cmd val = case cmd of
     0x0c -> Volume $ volume val
     0x0d
         | val .&. 0x0f /= 0 -> VolumeSlide $ negate $ int $ val .&. 0x0f
@@ -97,13 +97,13 @@ med_command cmd val = case cmd of
         0xfe -> Command "end song" 0
         0xff -> CutNote
         _ -> Command "set tempo" val
-    _ | Just name <- Map.lookup cmd med_command_names -> Command name val
+    _ | Just name <- Map.lookup cmd medCommandNames -> Command name val
     _ | otherwise -> Command ("0x" <> Num.hex 2 cmd) val
     where
     int = fromIntegral
 
-med_command_names :: Map Word8 Text
-med_command_names = Map.fromList
+medCommandNames :: Map Word8 Text
+medCommandNames = Map.fromList
     [ (0x01, "slide up")
     , (0x02, "slide down") -- 0 uses previous value
     , (0x03, "portamento") -- 0 uses previous value
@@ -145,53 +145,53 @@ split4 w = (fromIntegral $ Bits.shiftR w 4 .&. 0xf, fromIntegral $ w .&. 0xf)
 
 -- | A Command arg of 0 is often a shorthand to carry forward the previous
 -- value.  Eliminate this by doing the carry.
-carry_zeroes :: Track -> Track
-carry_zeroes =
+carryZeroes :: Track -> Track
+carryZeroes =
     IntMap.fromAscList . snd . List.mapAccumL set (0, []) . IntMap.toAscList
     where
-    set (inst, prev_cmds) (row, line) =
+    set (inst, prevCmds) (row, line) =
         ((_instrument line2, cmds), (row, line2 { _commands = cmds }))
         where
-        line2 = set_inst inst line
-        cmds = map (set_default prev_cmds) (_commands line)
-    set_default prev_cmds cmd =
-        fromMaybe cmd $ msum (map (flip carry_arg cmd) prev_cmds)
+        line2 = setInst inst line
+        cmds = map (setDefault prevCmds) (_commands line)
+    setDefault prevCmds cmd =
+        fromMaybe cmd $ msum (map (flip carryArg cmd) prevCmds)
     -- If the prev_cmd was the same type, and this one has a 0, then
     -- replace with the prev_cmd.
-    carry_arg (Command c1 arg) (Command c2 0) | c1 == c2 = Just $ Command c1 arg
-    carry_arg (VolumeSlide arg) (VolumeSlide 0) = Just $ VolumeSlide arg
-    carry_arg _ _ = Nothing
-    set_inst inst line
+    carryArg (Command c1 arg) (Command c2 0) | c1 == c2 = Just $ Command c1 arg
+    carryArg (VolumeSlide arg) (VolumeSlide 0) = Just $ VolumeSlide arg
+    carryArg _ _ = Nothing
+    setInst inst line
         | _instrument line == 0 = line { _instrument = inst }
         | otherwise = line
 
 -- * transform
 
-map_instruments :: Map Text Text -> Module -> Module
-map_instruments inst_map mod = mod { _instruments = set <$> _instruments mod }
+mapInstruments :: Map Text Text -> Module -> Module
+mapInstruments instMap mod = mod { _instruments = set <$> _instruments mod }
     where
     set inst = inst
-        { _instrument_name =
-            ScoreT.Instrument $ Map.findWithDefault inst_name inst_name inst_map
-        } where inst_name = ScoreT.instrument_name $ _instrument_name inst
+        { _instrumentName =
+            ScoreT.Instrument $ Map.findWithDefault instName instName instMap
+        } where instName = ScoreT.instrumentName $ _instrumentName inst
 
-transpose_instruments :: Map ScoreT.Instrument Pitch.NoteNumber
+transposeInstruments :: Map ScoreT.Instrument Pitch.NoteNumber
     -> Module -> Module
-transpose_instruments transpose mod = flip modify_lines mod $ \line ->
-    case (_pitch line, Map.lookup (_instrument line) by_num) of
+transposeInstruments transpose mod = flip modifyLines mod $ \line ->
+    case (_pitch line, Map.lookup (_instrument line) byNum) of
         (Just nn, Just steps) -> line { _pitch = Just $ nn + steps }
         _ -> line
     where
-    by_num = Map.fromList $ Lists.mapMaybeFst (flip Map.lookup inst_to_num) $
+    byNum = Map.fromList $ Lists.mapMaybeFst (flip Map.lookup instToNum) $
         Map.toList transpose
-    inst_to_num = Map.fromList
-        [ (_instrument_name inst, n)
+    instToNum = Map.fromList
+        [ (_instrumentName inst, n)
         | (n, inst) <- IntMap.toList (_instruments mod)
         ]
 
-modify_lines :: (Line -> Line) -> Module -> Module
-modify_lines f = modify_tracks (fmap f)
+modifyLines :: (Line -> Line) -> Module -> Module
+modifyLines f = modifyTracks (fmap f)
 
-modify_tracks :: (Track -> Track) -> Module -> Module
-modify_tracks f mod = mod { _blocks = map tracks (_blocks mod) }
+modifyTracks :: (Track -> Track) -> Module -> Module
+modifyTracks f mod = mod { _blocks = map tracks (_blocks mod) }
     where tracks block = block { _tracks = map f (_tracks block) }

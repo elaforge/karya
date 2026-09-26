@@ -304,10 +304,10 @@ makeFrets height open nns =
     map (Fret height) (map (pitchLocation open) nns)
 
 pitchLocation :: Pitch.NoteNumber -> Pitch.NoteNumber -> Location
-pitchLocation f0 f = 1 - 1 / (Pitch.nn_to_hz f / Pitch.nn_to_hz f0)
+pitchLocation f0 f = 1 - 1 / (Pitch.nnToHz f / Pitch.nnToHz f0)
 
 sActualNn :: String -> Pitch.NoteNumber
-sActualNn s = Pitch.hz_to_nn $ sqrt (sTension s / mu) / (2 * sLength s)
+sActualNn s = Pitch.hzToNn $ sqrt (sTension s / mu) / (2 * sLength s)
     where mu = pi * sRadius s ^ 2 * mDensity (sMaterial s)
 
 freq harmonic = sqrt (tension / (density * area)) * (harmonic / (2 * length))

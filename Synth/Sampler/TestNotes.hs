@@ -38,12 +38,12 @@ notes = map make
     -- , (2.4, Nothing,        vel 1,      ["cek"])
     ]
     where
-    env = Signal.from_pairs
+    env = Signal.fromPairs
     vel = Signal.constant
-    pcurve = Just . Signal.from_pairs . map (second Pitch.nn_to_double)
+    pcurve = Just . Signal.fromPairs . map (second Pitch.nnToDouble)
 
 nn :: Pitch.NoteNumber -> Maybe Signal.Signal
-nn = Just . Signal.constant . Pitch.nn_to_double
+nn = Just . Signal.constant . Pitch.nnToDouble
 
 make :: (RealTime, Maybe Signal.Signal, Signal.Signal, [Text]) -> Note.Note
 make (start, pitch, dyn, attrs) = Note.Note

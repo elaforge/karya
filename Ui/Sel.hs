@@ -7,14 +7,14 @@ module Ui.Sel (
     Ui.Sel.Num
     , Selection(..)
     , Orientation(..)
-    , point, is_point
-    , modify_tracks
-    , expand_tracks
-    , track_range
+    , point, isPoint
+    , modifyTracks
+    , expandTracks
+    , trackRange
     , tracknums
     , min, max
     , range
-    , event_orientation
+    , eventOrientation
     , duration
     , merge
     , union
@@ -38,8 +38,8 @@ data Selection = Selection
     -- | The position the selection was established at.  Since a selection can
     -- logically go off the edge of a block, this is not necessarily a valid
     -- TrackNum!
-    { start_track :: !TrackNum
-    , start_pos :: !TrackTime
+    { startTrack :: !TrackNum
+    , startPos :: !TrackTime
 
     -- | The position the selection is now at.  The tracks are an inclusive
     -- range, the pos are half-open.  This is because these pairs are meant to
@@ -48,8 +48,8 @@ data Selection = Selection
     --
     -- Unlike 'start_track', this should be a valid TrackNum, because cmds want
     -- to use it as the focused track.
-    , cur_track :: !TrackNum
-    , cur_pos :: !TrackTime
+    , curTrack :: !TrackNum
+    , curPos :: !TrackTime
     , orientation :: !Orientation
     } deriving (Eq, Ord, Show, Read)
 
@@ -70,32 +70,32 @@ data Orientation = None | Positive | Negative
 -- | A point is a selection with no duration.
 point :: TrackNum -> TrackTime -> Orientation -> Selection
 point tracknum pos orientation = Selection
-    { start_track = tracknum, start_pos = pos
-    , cur_track = tracknum, cur_pos = pos
+    { startTrack = tracknum, startPos = pos
+    , curTrack = tracknum, curPos = pos
     , orientation = orientation
     }
 
-is_point :: Selection -> Bool
-is_point sel = start_pos sel == cur_pos sel
+isPoint :: Selection -> Bool
+isPoint sel = startPos sel == curPos sel
 
-modify_tracks :: (TrackNum -> TrackNum) -> Selection -> Selection
-modify_tracks f sel = sel
-    { start_track = f (start_track sel)
-    , cur_track = f (cur_track sel)
+modifyTracks :: (TrackNum -> TrackNum) -> Selection -> Selection
+modifyTracks f sel = sel
+    { startTrack = f (startTrack sel)
+    , curTrack = f (curTrack sel)
     }
 
-expand_tracks :: TrackNum -> Selection -> Selection
-expand_tracks n sel
-    | cur > start = sel { cur_track = cur + n }
-    | otherwise = sel { start_track = start + n }
+expandTracks :: TrackNum -> Selection -> Selection
+expandTracks n sel
+    | cur > start = sel { curTrack = cur + n }
+    | otherwise = sel { startTrack = start + n }
     where
-    start = start_track sel
-    cur = cur_track sel
+    start = startTrack sel
+    cur = curTrack sel
 
 -- | Start and end tracks, from small to large.
-track_range :: Selection -> (TrackNum, TrackNum)
-track_range sel = (Prelude.min track0 track1, Prelude.max track0 track1)
-    where (track0, track1) = (start_track sel, cur_track sel)
+trackRange :: Selection -> (TrackNum, TrackNum)
+trackRange sel = (Prelude.min track0 track1, Prelude.max track0 track1)
+    where (track0, track1) = (startTrack sel, curTrack sel)
 
 -- | TrackNums covered by the selection.  Since Selections may have out of
 -- range tracks, I need the number of tracks to generate a list of valid
@@ -104,25 +104,25 @@ tracknums :: TrackNum -> Selection -> [TrackNum]
 tracknums tracks sel
     | tracks <= 0 = []
     | otherwise = [Num.clamp 0 (tracks-1) start .. Num.clamp 0 (tracks-1) end]
-    where (start, end) = track_range sel
+    where (start, end) = trackRange sel
 
 min :: Selection -> TrackTime
-min sel = Prelude.min (start_pos sel) (cur_pos sel)
+min sel = Prelude.min (startPos sel) (curPos sel)
 
 max :: Selection -> TrackTime
-max sel = Prelude.max (start_pos sel) (cur_pos sel)
+max sel = Prelude.max (startPos sel) (curPos sel)
 
 -- | Start and end points, from small to large.
 range :: Selection -> (TrackTime, TrackTime)
 range sel = (min sel, max sel)
 
-event_orientation :: Selection -> Types.Orientation
-event_orientation sel = case orientation sel of
+eventOrientation :: Selection -> Types.Orientation
+eventOrientation sel = case orientation sel of
     Negative -> Types.Negative
     _ -> Types.Positive
 
 duration :: Selection -> TrackTime
-duration sel = abs (start_pos sel - cur_pos sel)
+duration sel = abs (startPos sel - curPos sel)
 
 -- | Extend the current track and pos, but keep the start track and pos the
 -- same.
@@ -137,16 +137,16 @@ union :: Selection -> Selection -> Selection
 union sel1 sel2 = Selection strack spos ctrack cpos (orientation sel2)
     where
     (strack, ctrack) =
-        if cur_track sel2 >= cur_track sel1 then se else Tuple.swap se
+        if curTrack sel2 >= curTrack sel1 then se else Tuple.swap se
         where
         se = (Prelude.min s1 s2, Prelude.max e1 e2)
-        (s1, e1) = track_range sel1
-        (s2, e2) = track_range sel2
-    (spos, cpos) = if cur_pos sel2 >= cur_pos sel1 then se else Tuple.swap se
+        (s1, e1) = trackRange sel1
+        (s2, e2) = trackRange sel2
+    (spos, cpos) = if curPos sel2 >= curPos sel1 then se else Tuple.swap se
         where
         se = (Prelude.min s1 s2, Prelude.max e1 e2)
         (s1, e1) = range sel1
         (s2, e2) = range sel2
 
 move :: TrackTime -> Selection -> Selection
-move t sel = sel { start_pos = start_pos sel + t, cur_pos = cur_pos sel + t }
+move t sel = sel { startPos = startPos sel + t, curPos = curPos sel + t }

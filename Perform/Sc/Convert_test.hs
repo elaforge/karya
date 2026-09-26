@@ -19,12 +19,12 @@ import           Util.Test
 
 test_convert :: Test
 test_convert = do
-    let f = Convert.convert_event 1 patch False . DeriveTest.mkevent
+    let f = Convert.convertEvent 1 patch False . DeriveTest.mkevent
     equal (f (2, 2, "4c", [("c", [(0, 0), (8, 8)])], "inst"))
         [ LEvent.Event $ mknote 2
-            [ (Note.gate_id, [(2, 1), (4, 0)])
+            [ (Note.gateId, [(2, 1), (4, 0)])
             , (cc, [(2, 2), (3, 3), (4, 4)])
-            , (c_pitch, [(2, 60)])
+            , (cPitch, [(2, 60)])
             ]
         ]
 
@@ -37,17 +37,17 @@ mknote start controls = Note.Note
 
 mkcontrols :: [(Note.ControlId, [(RealTime, Double)])]
     -> Map Note.ControlId MSignal.Signal
-mkcontrols = Map.fromList . map (second MSignal.from_pairs)
+mkcontrols = Map.fromList . map (second MSignal.fromPairs)
 
 cc :: Note.ControlId
 cc = Note.ControlId 2
 
-c_pitch :: Note.ControlId
-c_pitch = Note.ControlId 3
+cPitch :: Note.ControlId
+cPitch = Note.ControlId 3
 
 patch :: Patch.Patch
 patch = Patch.Patch
     { name = "patch"
     , filename = "patch"
-    , controls = Map.fromList [("c", cc), ("pitch", c_pitch)]
+    , controls = Map.fromList [("c", cc), ("pitch", cPitch)]
     }

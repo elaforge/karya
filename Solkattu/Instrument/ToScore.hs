@@ -40,14 +40,14 @@ toScore strokes = (events, [])
         -- Debug.traceM "s, d, n" (start, dur, note)
         -- Debug.tracepM "expr" expr
         let d = if S.hasSustain note then dur else 0
-        pure (start, d, ShowVal.show_val expr)
+        pure (start, d, ShowVal.showVal expr)
     starts = scanl (+) 0 durs
     (durs, notes) = unzip strokes
 
 toExpr :: Expr.ToExpr (Realize.Stroke stroke) => Realize.Note stroke
     -> Maybe (Expr.Expr Expr.MiniVal)
 toExpr s = case s of
-    Realize.Note stroke -> Just $ Expr.to_expr stroke
+    Realize.Note stroke -> Just $ Expr.toExpr stroke
     Realize.Abstract meta -> Just $ Expr.generator $ metaExpr meta
     Realize.Space Solkattu.Rest -> Nothing
     Realize.Space Solkattu.Offset -> Nothing
@@ -59,7 +59,7 @@ metaExpr (Solkattu.Meta matras name gtype) =
         Solkattu.GSarva -> []
         _ -> case matras of
             Nothing -> []
-            Just matras -> [Expr.to_val matras]
+            Just matras -> [Expr.toVal matras]
 
     where
     call = Expr.Symbol $ fromMaybe (Realize.typeName gtype) name

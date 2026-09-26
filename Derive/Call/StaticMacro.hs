@@ -48,48 +48,48 @@ call :: Derive.ValCall -> [Arg] -> Arg
 call c args = Given $ ValCall c args
 
 literal :: Typecheck.ToVal a => a -> Arg
-literal = Given . Literal . Typecheck.to_val
+literal = Given . Literal . Typecheck.toVal
 
 -- | Check the output of 'generator', 'transformer', or 'val' and crash if
 -- it had a statically-detectable error.  Of course I'd much rather this
 -- were a type error, but it's not worth breaking out TH for it.
 check :: HasCallStack => Text -> Either Text a -> a
-check call_name (Left err) = errorStack $ call_name <> ": " <> err
+check callName (Left err) = errorStack $ callName <> ": " <> err
 check _ (Right val) = val
 
 -- TODO implement it
-require_val :: Sig.Arg -> Derive.Deriver DeriveT.Val
-require_val (Sig.SubTrack {}) =
+requireVal :: Sig.Arg -> Derive.Deriver DeriveT.Val
+requireVal (Sig.SubTrack {}) =
     Derive.throw "child tracks don't work for macros yet"
-require_val (Sig.LiteralArg arg) = pure arg
+requireVal (Sig.LiteralArg arg) = pure arg
 
 -- | Create a generator macro from a list of transformers and a generator.
 generator :: Derive.CallableExpr d => Module.Module -> Derive.CallName
     -> Tags.Tags -> Doc.Doc -> [Call (Derive.Transformer d)]
     -> Call (Derive.Generator d) -> Either Text (Derive.Generator d)
 generator module_ name tags doc trans gen = do
-    trans_args <- concatMapM extract_args trans
-    gen_args <- extract_args gen
-    let args = trans_args ++ gen_args
-    pure $ Derive.generator module_ name tags (make_doc doc call_docs) $
-        Sig.call (Sig.required_vals args) $ \vals args -> do
-            vals <- mapM require_val vals
-            generator_macro trans gen vals (Derive.passed_ctx args)
-    where call_docs = map call_doc trans ++ [call_doc gen]
+    transArgs <- concatMapM extractArgs trans
+    genArgs <- extractArgs gen
+    let args = transArgs ++ genArgs
+    pure $ Derive.generator module_ name tags (makeDoc doc callDocs) $
+        Sig.call (Sig.requiredVals args) $ \vals args -> do
+            vals <- mapM requireVal vals
+            generatorMacro trans gen vals (Derive.passedCtx args)
+    where callDocs = map callDoc trans ++ [callDoc gen]
 
-generator_macro :: Derive.CallableExpr d => [Call (Derive.Transformer d)]
+generatorMacro :: Derive.CallableExpr d => [Call (Derive.Transformer d)]
     -> Call (Derive.Generator d) -> [DeriveT.Val] -> Derive.Context d
     -> Derive.Deriver (Stream.Stream d)
-generator_macro trans gen vals ctx = do
-    let (tcalls, trans_args) = unzip (map split trans)
-    (vals, trans_args) <- pure $
-        List.mapAccumL substitute_vars vals trans_args
-    (vals, gen_args) <- pure $ substitute_vars vals (snd (split gen))
+generatorMacro trans gen vals ctx = do
+    let (tcalls, transArgs) = unzip (map split trans)
+    (vals, transArgs) <- pure $
+        List.mapAccumL substituteVars vals transArgs
+    (vals, genArgs) <- pure $ substituteVars vals (snd (split gen))
     unless (null vals) $ Derive.throw "more args than $vars"
-    trans_args <- mapM (mapM (eval_term ctx)) trans_args
-    gen_args <- mapM (eval_term ctx) gen_args
-    Eval.apply_transformers ctx (zip tcalls trans_args) $
-        Eval.apply_generator ctx (fst (split gen)) gen_args
+    transArgs <- mapM (mapM (evalTerm ctx)) transArgs
+    genArgs <- mapM (evalTerm ctx) genArgs
+    Eval.applyTransformers ctx (zip tcalls transArgs) $
+        Eval.applyGenerator ctx (fst (split gen)) genArgs
     where
     split (Call call args) = (call, args)
 
@@ -99,47 +99,47 @@ transformer :: Derive.CallableExpr d => Module.Module -> Derive.CallName
     -- is applied first.
     -> Either Text (Derive.Transformer d)
 transformer module_ name tags doc trans = do
-    args <- concatMapM extract_args trans
-    pure $ Derive.transformer module_ name tags (make_doc doc call_docs) $
-        Sig.callt (Sig.required_vals args) $ \vals args deriver -> do
-            vals <- mapM require_val vals
-            transformer_macro trans vals (Derive.passed_ctx args) deriver
-    where call_docs = map call_doc trans
+    args <- concatMapM extractArgs trans
+    pure $ Derive.transformer module_ name tags (makeDoc doc callDocs) $
+        Sig.callt (Sig.requiredVals args) $ \vals args deriver -> do
+            vals <- mapM requireVal vals
+            transformerMacro trans vals (Derive.passedCtx args) deriver
+    where callDocs = map callDoc trans
 
-transformer_macro :: Derive.CallableExpr d => [Call (Derive.Transformer d)]
+transformerMacro :: Derive.CallableExpr d => [Call (Derive.Transformer d)]
     -> [DeriveT.Val] -> Derive.Context d
     -> Derive.Deriver (Stream.Stream d) -> Derive.Deriver (Stream.Stream d)
-transformer_macro trans vals ctx deriver = do
-    let (tcalls, trans_args) = unzip (map split trans)
-    (vals, trans_args) <- pure $
-        List.mapAccumL substitute_vars vals trans_args
+transformerMacro trans vals ctx deriver = do
+    let (tcalls, transArgs) = unzip (map split trans)
+    (vals, transArgs) <- pure $
+        List.mapAccumL substituteVars vals transArgs
     unless (null vals) $ Derive.throw "more args than $vars"
-    trans_args <- mapM (mapM (eval_term ctx)) trans_args
-    Eval.apply_transformers ctx (zip tcalls trans_args) deriver
+    transArgs <- mapM (mapM (evalTerm ctx)) transArgs
+    Eval.applyTransformers ctx (zip tcalls transArgs) deriver
     where
     split (Call call args) = (call, args)
 
-eval_term :: Derive.Taggable a => Derive.Context a -> ResolvedTerm
+evalTerm :: Derive.Taggable a => Derive.Context a -> ResolvedTerm
     -> Derive.Deriver DeriveT.Val
-eval_term _ (RLiteral val) = pure val
-eval_term ctx (RValCall call terms) = do
-    vals <- mapM (eval_term ctx) terms
+evalTerm _ (RLiteral val) = pure val
+evalTerm ctx (RValCall call terms) = do
+    vals <- mapM (evalTerm ctx) terms
     let passed = Derive.PassedArgs
-            { passed_vals = vals
-            , passed_call_name = Derive.call_name call
-            , passed_ctx = Derive.tag_context ctx
+            { passedVals = vals
+            , passedCallName = Derive.callName call
+            , passedCtx = Derive.tagContext ctx
             }
-    Derive.call_func call passed
+    Derive.callFunc call passed
 
 -- | Substitute the given Vals into the non-'Given' Args.
-substitute_vars :: [DeriveT.Val] -> [Arg] -> ([DeriveT.Val], [ResolvedTerm])
+substituteVars :: [DeriveT.Val] -> [Arg] -> ([DeriveT.Val], [ResolvedTerm])
     -- ^ (remaining_vals, substituted)
-substitute_vars all_vals args = run (mapM subst_arg args)
+substituteVars allVals args = run (mapM substArg args)
     where
-    subst_arg arg = case arg of
+    substArg arg = case arg of
         Var -> RLiteral <$> pop
         Given (Literal val) -> pure (RLiteral val)
-        Given (ValCall call args) -> RValCall call <$> mapM subst_arg args
+        Given (ValCall call args) -> RValCall call <$> mapM substArg args
     pop = do
         vals <- Monad.State.get
         case vals of
@@ -147,42 +147,42 @@ substitute_vars all_vals args = run (mapM subst_arg args)
             [] -> pure DeriveT.VNotGiven
             v : vs -> Monad.State.put vs >> pure v
     run = Tuple.swap . Identity.runIdentity
-        . flip Monad.State.runStateT all_vals
+        . flip Monad.State.runStateT allVals
 
 -- Look for Vars, and get the corresponding ArgDoc.
-extract_args :: Call (Derive.Call f) -> Either Text [Derive.ArgDoc]
-extract_args (Call call args) = extract (Derive.call_doc call) args
+extractArgs :: Call (Derive.Call f) -> Either Text [Derive.ArgDoc]
+extractArgs (Call call args) = extract (Derive.callDoc call) args
     where
     extract :: Derive.CallDoc -> [Arg] -> Either Text [Derive.ArgDoc]
     extract cdoc args
         | length args > length docs = Left $
             "call can take up to " <> showt (length docs)
             <> " args, but was given " <> showt (length args)
-        | otherwise = concatMapM extract_arg (zip docs args)
+        | otherwise = concatMapM extractArg (zip docs args)
         where
-        docs = Derive.cdoc_args cdoc
-        extract_arg (doc, arg) = case arg of
+        docs = Derive.cdocArgs cdoc
+        extractArg (doc, arg) = case arg of
             Var -> Right [doc]
             Given (Literal _) -> Right []
-            Given (ValCall call args) -> extract (Derive.call_doc call) args
+            Given (ValCall call args) -> extract (Derive.callDoc call) args
 
 -- ** doc
 
-make_doc :: Doc.Doc -> [Doc.Doc] -> Doc.Doc
-make_doc doc calls = Texts.unlines2 doc $
+makeDoc :: Doc.Doc -> [Doc.Doc] -> Doc.Doc
+makeDoc doc calls = Texts.unlines2 doc $
     "A static macro for: `" <> Texts.join " | " calls <> "`.\
     \\nEach `$` is lifted to be an argument of this macro.\
     \\nThis directly calls the underlying sub-calls, so it's not dependent on\
     \ the names they are bound to, which also means the macro text may not be a\
     \ valid expression."
 
-call_doc :: Call (Derive.Call f) -> Doc.Doc
-call_doc (Call call args) = Doc.Doc $ Text.unwords $ name : map arg_doc args
-    where Derive.CallName name = Derive.call_name call
+callDoc :: Call (Derive.Call f) -> Doc.Doc
+callDoc (Call call args) = Doc.Doc $ Text.unwords $ name : map argDoc args
+    where Derive.CallName name = Derive.callName call
 
-arg_doc :: Arg -> Text
-arg_doc (Given (Literal val)) = ShowVal.show_val val
-arg_doc (Given (ValCall call args)) =
-    "(" <> Text.unwords (name : map arg_doc args) <> ")"
-    where Derive.CallName name = Derive.call_name call
-arg_doc Var = "$"
+argDoc :: Arg -> Text
+argDoc (Given (Literal val)) = ShowVal.showVal val
+argDoc (Given (ValCall call args)) =
+    "(" <> Text.unwords (name : map argDoc args) <> ")"
+    where Derive.CallName name = Derive.callName call
+argDoc Var = "$"

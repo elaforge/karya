@@ -12,21 +12,21 @@
 -}
 module Cmd.Save (
     -- * quit
-    soft_quit, hard_quit
+    softQuit, hardQuit
     -- * universal
-    , save, save_as, load, load_force, read, read_, load_template
-    , infer_save_type
+    , save, saveAs, load, loadForce, read, read_, loadTemplate
+    , inferSaveType
     -- * state
-    , save_state, save_state_as, load_state
-    , read_state, read_state_, write_state
-    , write_current_state
+    , saveState, saveStateAs, loadState
+    , readState, readState_, writeState
+    , writeCurrentState
     -- ** path
-    , get_state_path, state_path_for_repo
+    , getStatePath, statePathForRepo
     -- * git
-    , save_git, save_git_as, load_git, revert
-    , get_git_path
+    , saveGit, saveGitAs, loadGit, revert
+    , getGitPath
     -- * misc
-    , save_views
+    , saveViews
 ) where
 import           Prelude hiding (read)
 import qualified Control.Exception as Exception
@@ -67,104 +67,104 @@ import           Global
 -- * quit
 
 -- | Warn and abort if there is unsaved data, otherwise quit.
-soft_quit :: Cmd.CmdT IO Cmd.Status
-soft_quit = check_unsaved_data >>= \case
+softQuit :: Cmd.CmdT IO Cmd.Status
+softQuit = checkUnsavedData >>= \case
     Just msg -> do
         Log.warn $ "refusing to quit: " <> msg
         pure Cmd.Done
-    Nothing -> hard_quit
+    Nothing -> hardQuit
 
-check_unsaved_data :: Cmd.M m => m (Maybe Text)
-check_unsaved_data = Cmd.gets Cmd.state_saved >>= \case
+checkUnsavedData :: Cmd.M m => m (Maybe Text)
+checkUnsavedData = Cmd.gets Cmd.stateSaved >>= \case
     Cmd.Saved Cmd.UnsavedChanges _ -> pure $ Just "unsaved changes"
     Cmd.Saved _ True ->
         pure $ Just "repl editor is open, possibly with unsaved changes"
     _ -> pure Nothing
 
 -- | Quit.  If there is unsaved data, it will be discarded!
-hard_quit :: Cmd.CmdT IO Cmd.Status
-hard_quit = Play.cmd_stop >> pure Cmd.Quit
+hardQuit :: Cmd.CmdT IO Cmd.Status
+hardQuit = Play.cmdStop >> pure Cmd.Quit
 
 -- * universal
 
 -- | Save to the current 'Cmd.state_save_file', or create a new git repo if
 -- there is none.
 save :: Cmd.CmdT IO ()
-save = Cmd.gets Cmd.state_save_file >>= \case
-    Nothing -> save_git
+save = Cmd.gets Cmd.stateSaveFile >>= \case
+    Nothing -> saveGit
     -- Try to override Cmd.Writable on an explicit save.  If it's still
     -- read only, this should throw an exception.
-    Just (_, Cmd.SaveRepo repo) -> save_git_as (Path.to_path repo)
-    Just (_, Cmd.SaveState fn) -> save_state_as (Path.to_path fn)
+    Just (_, Cmd.SaveRepo repo) -> saveGitAs (Path.toPath repo)
+    Just (_, Cmd.SaveState fn) -> saveStateAs (Path.toPath fn)
 
-save_as :: FilePath -> Cmd.CmdT IO ()
-save_as path = Cmd.gets Cmd.state_save_file >>= \case
-    Nothing -> save_git_as path
-    Just (_, Cmd.SaveRepo _) -> save_git_as path
-    Just (_, Cmd.SaveState _) -> save_state_as path
+saveAs :: FilePath -> Cmd.CmdT IO ()
+saveAs path = Cmd.gets Cmd.stateSaveFile >>= \case
+    Nothing -> saveGitAs path
+    Just (_, Cmd.SaveRepo _) -> saveGitAs path
+    Just (_, Cmd.SaveState _) -> saveStateAs path
 
 -- | Like 'read', but replace the current state and set 'Cmd.state_save_file'.
 load :: FilePath -> Cmd.CmdT IO ()
-load path = check_unsaved_data >>= \case
+load path = checkUnsavedData >>= \case
     Just msg -> Log.warn $ "refusing to load a new score: " <> msg
-    Nothing -> load_force path
+    Nothing -> loadForce path
 
-load_force :: FilePath -> Cmd.CmdT IO ()
-load_force path = do
-    (state, save_file) <- read path
-    set_loaded_state save_file state
+loadForce :: FilePath -> Cmd.CmdT IO ()
+loadForce path = do
+    (state, saveFile) <- read path
+    setLoadedState saveFile state
 
 -- | Try to guess whether the given path is a git save or state save.  If it's
 -- a directory, look inside for a .git or .state save.
 read :: FilePath -> Cmd.CmdT IO (Ui.State, StateSaveFile)
 read path = do
-    path <- expand_filename path
-    save <- Cmd.require_right ("read: "<>) =<< liftIO (infer_save_type path)
+    path <- expandFilename path
+    save <- Cmd.requireRight ("read: "<>) =<< liftIO (inferSaveType path)
     case save of
-        Cmd.SaveRepo repo -> read_git (Path.to_path repo) Nothing
-        Cmd.SaveState fn -> read_state (Path.to_path fn)
+        Cmd.SaveRepo repo -> readGit (Path.toPath repo) Nothing
+        Cmd.SaveState fn -> readState (Path.toPath fn)
 
 -- | Low level 'read'.
 read_ :: FilePath -> IO (Either Text Ui.State)
-read_ path = infer_save_type path >>= \case
+read_ path = inferSaveType path >>= \case
     Left err -> pure $ Left $ "read " <> showt path <> ": " <> err
     Right save -> case save of
-        Cmd.SaveState fname -> first pretty <$> read_state_ (Path.to_path fname)
+        Cmd.SaveState fname -> first pretty <$> readState_ (Path.toPath fname)
         Cmd.SaveRepo repo ->
-            fmap extract <$> read_git_ (Path.to_path repo) Nothing
+            fmap extract <$> readGit_ (Path.toPath repo) Nothing
             where extract (state, _, _) = state
 
 -- | Like 'load', but don't set SaveFile, so you can't overwrite the loaded
 -- file when you save.
-load_template :: FilePath -> Cmd.CmdT IO ()
-load_template fn = do
+loadTemplate :: FilePath -> Cmd.CmdT IO ()
+loadTemplate fn = do
     (state, _) <- read fn
-    set_loaded_state Nothing state
+    setLoadedState Nothing state
     now <- liftIO $ Time.getCurrentTime
-    Ui.modify_config $ UiConfig.meta#UiConfig.creation #= now
+    Ui.modifyConfig $ UiConfig.meta#UiConfig.creation #= now
 
 -- | Given a path, which is either a file or a directory, try to figure out
 -- what to load.  Saves can be either a plain saved state, or a directory
 -- containing either a git repo @save.git@, or a state @save.state@.  If
 -- both are present, the git repo is preferred.
-infer_save_type :: FilePath -> IO (Either Text Cmd.SaveFile)
-infer_save_type path = fmap prepend $ condM
-    [ (pure $ SaveGit.is_git path,
+inferSaveType :: FilePath -> IO (Either Text Cmd.SaveFile)
+inferSaveType path = fmap prepend $ condM
+    [ (pure $ SaveGit.isGit path,
         Right . Cmd.SaveRepo <$> Path.canonical path)
-    , (is_dir path, condM
-        [ (is_dir git_fn, Right . Cmd.SaveRepo <$> Path.canonical git_fn)
-        , (is_file state_fn, Right . Cmd.SaveState <$> Path.canonical state_fn)
-        ] $ pure $ Left $ "directory contains neither " <> txt git_fn
-            <> " nor " <> txt state_fn)
-    , (is_file path, Right . Cmd.SaveState <$> Path.canonical path)
+    , (isDir path, condM
+        [ (isDir gitFn, Right . Cmd.SaveRepo <$> Path.canonical gitFn)
+        , (isFile stateFn, Right . Cmd.SaveState <$> Path.canonical stateFn)
+        ] $ pure $ Left $ "directory contains neither " <> txt gitFn
+            <> " nor " <> txt stateFn)
+    , (isFile path, Right . Cmd.SaveState <$> Path.canonical path)
     ] $ pure $ Left "file not found"
     where
     prepend (Left err) = Left $ txt path <> ": " <> err
     prepend (Right val) = Right val
-    git_fn = path </> default_git
-    state_fn = path </> default_state
-    is_dir = Directory.doesDirectoryExist
-    is_file = Directory.doesFileExist
+    gitFn = path </> defaultGit
+    stateFn = path </> defaultState
+    isDir = Directory.doesDirectoryExist
+    isFile = Directory.doesFileExist
 
 -- | Like guard cases but with monadic conditions.
 condM :: Monad m => [(m Bool, m a)] -> m a -> m a
@@ -178,26 +178,26 @@ condM ((condition, result) : rest) consequent =
 -- Config.save_dir if it isn't already.
 --
 -- TODO: These are relative to app_dir but I don't use Path.Relative yet.
-expand_filename :: FilePath -> Cmd.CmdT IO FilePath
-expand_filename =
+expandFilename :: FilePath -> Cmd.CmdT IO FilePath
+expandFilename =
     fmap (prefix . untxt) . Texts.mapDelimitedM False '`' expand . txt
     where
-    expand text = case lookup text filename_macros of
+    expand text = case lookup text filenameMacros of
         Just get -> get
         Nothing -> Cmd.throw $ "unknown macro " <> showt text
             <> ", known macros are: "
-            <> Text.intercalate ", " (map fst filename_macros)
+            <> Text.intercalate ", " (map fst filenameMacros)
     prefix path
         -- I have the habit of putting on "save/" manually.
-        | path `Path.in_dir` Path.unrelative Config.save_dir = path
-        | path `Path.in_dir` "save" = path
-        | otherwise = Path.unrelative Config.save_dir </> path
+        | path `Path.inDir` Path.unrelative Config.saveDir = path
+        | path `Path.inDir` "save" = path
+        | otherwise = Path.unrelative Config.saveDir </> path
 
-filename_macros :: [(Text, Cmd.CmdT IO Text)]
-filename_macros =
+filenameMacros :: [(Text, Cmd.CmdT IO Text)]
+filenameMacros =
     [ ("y-m-d", liftIO date)
     , ("d", fmap txt $ Cmd.require "`d` requires a save dir"
-        =<< Cmd.gets Cmd.state_save_dir)
+        =<< Cmd.gets Cmd.stateSaveDir)
     ]
 
 date :: IO Text
@@ -208,125 +208,125 @@ date = do
 
 -- * plain serialize
 
-save_state :: Cmd.CmdT IO ()
-save_state = save_state_as =<< Cmd.require "can't save, no save file"
-    =<< get_state_path
+saveState :: Cmd.CmdT IO ()
+saveState = saveStateAs =<< Cmd.require "can't save, no save file"
+    =<< getStatePath
 
 -- | Save the state to the given file and set 'Cmd.state_save_file'.
 --
 -- The directory of the filename will become the project directory, so things
 -- like the saved REPL history and the ly subdirectory will go there.
-save_state_as :: FilePath -> Cmd.CmdT IO ()
-save_state_as fname = do
-    fname <- write_current_state fname
-    set_save_file (Just (Cmd.ReadWrite, SaveState fname)) Save
+saveStateAs :: FilePath -> Cmd.CmdT IO ()
+saveStateAs fname = do
+    fname <- writeCurrentState fname
+    setSaveFile (Just (Cmd.ReadWrite, SaveState fname)) Save
 
-write_current_state :: FilePath -> Cmd.CmdT IO FilePath
-write_current_state fname = do
-    fname <- expand_filename fname
+writeCurrentState :: FilePath -> Cmd.CmdT IO FilePath
+writeCurrentState fname = do
+    fname <- expandFilename fname
     state <- Ui.get
-    ((), metric) <- rethrow_io "write_current_state" $
-        Thread.timeAction $ write_state fname state
+    ((), metric) <- rethrowIo "write_current_state" $
+        Thread.timeAction $ writeState fname state
     Log.notice $ "wrote state to " <> showt fname
-        <> " " <> Transform.short_stats state
+        <> " " <> Transform.shortStats state
         <> ", took " <> Thread.showMetric metric
     pure fname
 
-write_state :: FilePath -> Ui.State -> IO ()
-write_state fname state = do
+writeState :: FilePath -> Ui.State -> IO ()
+writeState fname state = do
     now <- Time.getCurrentTime
-    void $ Serialize.serialize Cmd.Serialize.score_magic fname $
-        Ui.config#UiConfig.meta#UiConfig.last_save #= now $
+    void $ Serialize.serialize Cmd.Serialize.scoreMagic fname $
+        Ui.config#UiConfig.meta#UiConfig.lastSave #= now $
         Ui.clear state
 
-load_state :: FilePath -> Cmd.CmdT IO ()
-load_state fname = do
-    (state, save_file) <- read_state fname
-    set_loaded_state save_file state
+loadState :: FilePath -> Cmd.CmdT IO ()
+loadState fname = do
+    (state, saveFile) <- readState fname
+    setLoadedState saveFile state
 
-read_state :: FilePath -> Cmd.CmdT IO (Ui.State, StateSaveFile)
-read_state fname = do
+readState :: FilePath -> Cmd.CmdT IO (Ui.State, StateSaveFile)
+readState fname = do
     let mkmsg err = "load " <> txt fname <> ": " <> pretty err
     writable <- liftIO $ Files.writable fname
     (state, metric) <- Thread.timeAction $
-        Cmd.require_right mkmsg =<< liftIO (read_state_ fname)
+        Cmd.requireRight mkmsg =<< liftIO (readState_ fname)
     Log.notice $ "read state from " <> showt fname
         <> (if writable then " " else " (ro) ")
-        <> Transform.short_stats state
+        <> Transform.shortStats state
         <> ", took " <> Thread.showMetric metric
     pure (state, Just
         (if writable then Cmd.ReadWrite else Cmd.ReadOnly, SaveState fname))
 
 -- | Low level 'read_state'.
-read_state_ :: FilePath
+readState_ :: FilePath
     -> IO (Either Serialize.UnserializeError Ui.State)
-read_state_ = Serialize.unserialize Cmd.Serialize.score_magic
+readState_ = Serialize.unserialize Cmd.Serialize.scoreMagic
 
 -- | Low level 'read_git'.
-read_git_ :: SaveGit.Repo -> Maybe SaveGit.Commit
+readGit_ :: SaveGit.Repo -> Maybe SaveGit.Commit
     -> IO (Either Text (Ui.State, SaveGit.Commit, [Text]))
-read_git_ = SaveGit.load
+readGit_ = SaveGit.load
 
 
 -- ** path
 
-get_state_path :: Cmd.M m => m (Maybe FilePath)
-get_state_path = do
+getStatePath :: Cmd.M m => m (Maybe FilePath)
+getStatePath = do
     state <- Cmd.get
-    pure $ make_state_path . snd <$> Cmd.state_save_file state
+    pure $ makeStatePath . snd <$> Cmd.stateSaveFile state
 
-make_state_path :: Cmd.SaveFile -> FilePath
-make_state_path (Cmd.SaveState fn) = Path.to_path fn
-make_state_path (Cmd.SaveRepo repo) = state_path_for_repo (Path.to_path repo)
+makeStatePath :: Cmd.SaveFile -> FilePath
+makeStatePath (Cmd.SaveState fn) = Path.toPath fn
+makeStatePath (Cmd.SaveRepo repo) = statePathForRepo (Path.toPath repo)
 
 -- | Get a state save path based on a repo path.  This is for saving a backup
 -- state, or when switching from SaveRepo to SaveState.
-state_path_for_repo :: SaveGit.Repo -> FilePath
-state_path_for_repo repo = FilePath.replaceExtension repo ".state"
+statePathForRepo :: SaveGit.Repo -> FilePath
+statePathForRepo repo = FilePath.replaceExtension repo ".state"
 
-default_state :: FilePath
-default_state = "save.state"
+defaultState :: FilePath
+defaultState = "save.state"
 
 -- * git serialize
 
 -- | Save a SavePoint to the git repo in 'Cmd.state_save_file', or start a new
 -- one.  Set the 'Cmd.state_save_file' to the repo, so I'll keep saving to
 -- that repo.
-save_git :: Cmd.CmdT IO ()
-save_git = save_git_as =<< get_git_path
+saveGit :: Cmd.CmdT IO ()
+saveGit = saveGitAs =<< getGitPath
 
-save_git_as :: SaveGit.Repo -- ^ Save to this repo, or create it.
+saveGitAs :: SaveGit.Repo -- ^ Save to this repo, or create it.
     -- 'Cmd.Undo.maintain_history' will start checkpointing to it.
     -- @.git@ is appended if it doesn't already have that suffix.
     -> Cmd.CmdT IO ()
-save_git_as repo = do
-    repo <- expand_filename repo
-    repo <- pure $ if SaveGit.git_suffix `List.isSuffixOf` repo then repo
-        else repo ++ SaveGit.git_suffix
-    cmd_state <- Cmd.get
-    let rethrow = Cmd.require_right (("save git " <> txt repo <> ": ") <>)
-    commit <- case Cmd.hist_last_commit $ Cmd.state_history_config cmd_state of
+saveGitAs repo = do
+    repo <- expandFilename repo
+    repo <- pure $ if SaveGit.gitSuffix `List.isSuffixOf` repo then repo
+        else repo ++ SaveGit.gitSuffix
+    cmdState <- Cmd.get
+    let rethrow = Cmd.requireRight (("save git " <> txt repo <> ": ") <>)
+    commit <- case Cmd.histLastCommit $ Cmd.stateHistoryConfig cmdState of
         Just commit -> pure commit
         Nothing -> do
-            let user = Cmd.config_git_user $ Cmd.state_config cmd_state
+            let user = Cmd.configGitUser $ Cmd.stateConfig cmdState
             state <- Ui.get
             rethrow =<< liftIO (SaveGit.checkpoint user repo
                 (SaveGitT.SaveHistory state Nothing [] ["save"]))
-    save <- rethrow =<< liftIO (SaveGit.set_save_tag repo commit)
+    save <- rethrow =<< liftIO (SaveGit.setSaveTag repo commit)
     Log.notice $ "wrote save " <> showt save <> " to " <> showt repo
-    set_save_file (Just (Cmd.ReadWrite, SaveRepo repo commit Nothing)) Save
+    setSaveFile (Just (Cmd.ReadWrite, SaveRepo repo commit Nothing)) Save
 
-load_git :: FilePath -> Maybe SaveGit.Commit -> Cmd.CmdT IO ()
-load_git repo maybe_commit = do
-    (state, save_file) <- read_git repo maybe_commit
-    set_loaded_state save_file state
+loadGit :: FilePath -> Maybe SaveGit.Commit -> Cmd.CmdT IO ()
+loadGit repo maybeCommit = do
+    (state, saveFile) <- readGit repo maybeCommit
+    setLoadedState saveFile state
 
-read_git :: FilePath -> Maybe SaveGit.Commit
+readGit :: FilePath -> Maybe SaveGit.Commit
     -> Cmd.CmdT IO (Ui.State, StateSaveFile)
-read_git repo maybe_commit = do
-    (state, commit, names) <- Cmd.require_right
+readGit repo maybeCommit = do
+    (state, commit, names) <- Cmd.requireRight
         (("load git " <> txt repo <> ": ") <>)
-        =<< liftIO (read_git_ repo maybe_commit)
+        =<< liftIO (readGit_ repo maybeCommit)
     writable <- liftIO $ Files.writable repo
     Log.notice $ "read from " <> showt repo <> ", at " <> pretty commit
         <> " names: " <> showt names
@@ -336,54 +336,54 @@ read_git repo maybe_commit = do
 
 -- | Revert to given save point, or the last one.
 revert :: Maybe String -> Cmd.CmdT IO ()
-revert maybe_ref = do
-    save_file <- Cmd.require "can't revert when there is no save file"
-        =<< Cmd.gets Cmd.state_save_file
-    case save_file of
+revert maybeRef = do
+    saveFile <- Cmd.require "can't revert when there is no save file"
+        =<< Cmd.gets Cmd.stateSaveFile
+    case saveFile of
         (_, Cmd.SaveState fn) -> do
-            whenJust maybe_ref $ \ref -> Cmd.throw $
+            whenJust maybeRef $ \ref -> Cmd.throw $
                 "can't revert to a commit when the save file isn't git: "
                 <> txt ref
-            load (Path.to_path fn)
-        (_, Cmd.SaveRepo repo) -> revert_git (Path.to_path repo)
-    Log.notice $ "revert to " <> showt save_file
+            load (Path.toPath fn)
+        (_, Cmd.SaveRepo repo) -> revertGit (Path.toPath repo)
+    Log.notice $ "revert to " <> showt saveFile
     where
-    revert_git repo = do
-        save <- case maybe_ref of
+    revertGit repo = do
+        save <- case maybeRef of
             Nothing -> fmap fst $ Cmd.require "no last save"
-                =<< liftIO (SaveGit.read_last_save repo Nothing)
+                =<< liftIO (SaveGit.readLastSave repo Nothing)
             Just ref -> Cmd.require ("unparseable SavePoint: " <> showt ref)
-                (SaveGit.ref_to_save ref)
+                (SaveGit.refToSave ref)
         commit <- Cmd.require ("save ref not found: " <> showt save)
-            =<< rethrow_git "revert" (SaveGit.read_save_ref repo save)
-        load_git repo (Just commit)
+            =<< rethrowGit "revert" (SaveGit.readSaveRef repo save)
+        loadGit repo (Just commit)
 
-rethrow_git :: Text -> IO a -> Cmd.CmdT IO a
-rethrow_git caller io = Cmd.require_right id =<< liftIO (SaveGit.try caller io)
+rethrowGit :: Text -> IO a -> Cmd.CmdT IO a
+rethrowGit caller io = Cmd.requireRight id =<< liftIO (SaveGit.try caller io)
 
-rethrow_io :: Text -> IO a -> Cmd.CmdT IO a
-rethrow_io caller io = Cmd.require_right
+rethrowIo :: Text -> IO a -> Cmd.CmdT IO a
+rethrowIo caller io = Cmd.requireRight
     (\exc -> caller <> ": " <> showt (exc :: Exception.IOException))
         =<< liftIO (Exception.try io)
 
 -- ** path
 
-get_git_path :: Cmd.M m => m Git.Repo
-get_git_path = do
-    ns <- Ui.get_namespace
+getGitPath :: Cmd.M m => m Git.Repo
+getGitPath = do
+    ns <- Ui.getNamespace
     state <- Cmd.get
-    pure $ make_git_path ns state
+    pure $ makeGitPath ns state
 
-make_git_path :: Id.Namespace -> Cmd.State -> Git.Repo
-make_git_path ns state = case Cmd.state_save_file state of
-    Nothing -> Cmd.to_absolute state Config.save_dir
-        </> untxt (Id.un_namespace ns) </> default_git
+makeGitPath :: Id.Namespace -> Cmd.State -> Git.Repo
+makeGitPath ns state = case Cmd.stateSaveFile state of
+    Nothing -> Cmd.toAbsolute state Config.saveDir
+        </> untxt (Id.unNamespace ns) </> defaultGit
     Just (_, Cmd.SaveState fn) ->
-        FilePath.replaceExtension (Path.to_path fn) SaveGit.git_suffix
-    Just (_, Cmd.SaveRepo repo) -> Path.to_path repo
+        FilePath.replaceExtension (Path.toPath fn) SaveGit.gitSuffix
+    Just (_, Cmd.SaveRepo repo) -> Path.toPath repo
 
-default_git :: FilePath
-default_git = "save" <> SaveGit.git_suffix
+defaultGit :: FilePath
+defaultGit = "save" <> SaveGit.gitSuffix
 
 -- * misc
 
@@ -396,10 +396,10 @@ default_git = "save" <> SaveGit.git_suffix
 -- They could theoretically checkpoint view changes, but it would be
 -- complicated (they mostly come from the GUI, not diff) and inefficient
 -- (scrolling emits tons of them).
-save_views :: Cmd.State -> Ui.State -> IO ()
-save_views cmd_state ui_state = case Cmd.state_save_file cmd_state of
+saveViews :: Cmd.State -> Ui.State -> IO ()
+saveViews cmdState uiState = case Cmd.stateSaveFile cmdState of
     Just (Cmd.ReadWrite, Cmd.SaveRepo repo) ->
-        SaveGit.save_views (Path.to_path repo) $ Ui.state_views ui_state
+        SaveGit.saveViews (Path.toPath repo) $ Ui.stateViews uiState
     _ -> pure ()
 
 -- | This is just like 'Cmd.SaveFile', except SaveRepo has more data.
@@ -414,27 +414,27 @@ type StateSaveFile = Maybe (Cmd.Writable, SaveFile)
 data SaveDirection = Save | Load deriving (Show)
 
 -- | Do the necessary housekeeping after loading a new Ui.State.
-set_loaded_state :: StateSaveFile -> Ui.State -> Cmd.CmdT IO ()
-set_loaded_state save_file state = do
-    set_save_file save_file Load
-    Play.cmd_stop
-    Cmd.modify $ Cmd.reinit_state (Cmd.empty_history_entry state)
+setLoadedState :: StateSaveFile -> Ui.State -> Cmd.CmdT IO ()
+setLoadedState saveFile state = do
+    setSaveFile saveFile Load
+    Play.cmdStop
+    Cmd.modify $ Cmd.reinitState (Cmd.emptyHistoryEntry state)
     -- Names is only set on a git load.  This will cause "Cmd.Undo" to clear
     -- out the history.
-    case save_file of
+    case saveFile of
         Just (_, SaveRepo _ commit (Just names)) -> Cmd.modify $ \st -> st
-            { Cmd.state_history = (Cmd.state_history st)
-                { Cmd.hist_last_cmd = Just $ Cmd.Load (Just commit) names }
+            { Cmd.stateHistory = (Cmd.stateHistory st)
+                { Cmd.histLastCmd = Just $ Cmd.Load (Just commit) names }
             }
         _ -> pure ()
     old <- Ui.get
     Ui.put $ Ui.clear $
-        Transform.replace_namespace Clip.clip_namespace old state
-    root <- case UiConfig.config_root (Ui.state_config state) of
+        Transform.replaceNamespace Clip.clipNamespace old state
+    root <- case UiConfig.configRoot (Ui.stateConfig state) of
         Nothing -> pure Nothing
-        Just root -> Lists.head . Map.keys <$> Ui.views_of root
+        Just root -> Lists.head . Map.keys <$> Ui.viewsOf root
     -- Try to focus on the root block, for consistency.
-    let focused = msum [root, Lists.head $ Map.keys (Ui.state_views state)]
+    let focused = msum [root, Lists.head $ Map.keys (Ui.stateViews state)]
     whenJust focused Cmd.focus
 
 -- | If I switch away from a repo (either to another repo or to a plain state),
@@ -443,9 +443,9 @@ set_loaded_state save_file state = do
 --
 -- It's really important to call this whenever you change
 -- 'Cmd.state_save_file'!
-set_save_file :: StateSaveFile -> SaveDirection -> Cmd.CmdT IO ()
-set_save_file save_file direction = do
-    (maybe_commit, file) <- case save_file of
+setSaveFile :: StateSaveFile -> SaveDirection -> Cmd.CmdT IO ()
+setSaveFile saveFile direction = do
+    (maybeCommit, file) <- case saveFile of
         Nothing -> pure (Nothing, Nothing)
         Just (writable, save) -> case save of
             SaveState fname -> do
@@ -454,34 +454,34 @@ set_save_file save_file direction = do
             SaveRepo repo commit _ -> do
                 path <- liftIO $ Path.canonical repo
                 pure (Just commit, Just (writable, Cmd.SaveRepo path))
-    cmd_state <- Cmd.get
-    when (file /= Cmd.state_save_file cmd_state) $ do
-        ui_state <- Ui.get
-        liftIO $ save_views cmd_state ui_state
+    cmdState <- Cmd.get
+    when (file /= Cmd.stateSaveFile cmdState) $ do
+        uiState <- Ui.get
+        liftIO $ saveViews cmdState uiState
         Cmd.modify $ \state -> state
-            { Cmd.state_save_file = file
-            , Cmd.state_history = let hist = Cmd.state_history state in hist
-                { Cmd.hist_past = case direction of
+            { Cmd.stateSaveFile = file
+            , Cmd.stateHistory = let hist = Cmd.stateHistory state in hist
+                { Cmd.histPast = case direction of
                     Load -> []
-                    Save -> map clear (Cmd.hist_past hist)
-                , Cmd.hist_present = (Cmd.hist_present hist)
-                    { Cmd.hist_commit = maybe_commit }
-                , Cmd.hist_future = []
+                    Save -> map clear (Cmd.histPast hist)
+                , Cmd.histPresent = (Cmd.histPresent hist)
+                    { Cmd.histCommit = maybeCommit }
+                , Cmd.histFuture = []
                 }
-            , Cmd.state_history_config = (Cmd.state_history_config state)
-                { Cmd.hist_last_commit = maybe_commit }
+            , Cmd.stateHistoryConfig = (Cmd.stateHistoryConfig state)
+                { Cmd.histLastCommit = maybeCommit }
             }
         -- This is not needed for the MIDI backend, but if there is im cache,
         -- I need to trigger it to regenerate under the new name.
-        Cmd.invalidate_performances
+        Cmd.invalidatePerformances
     -- This is called both when saving and loading, so it's a good place to
     -- mark that the state is synced to disk.
     Cmd.modify $ \st -> st
-        { Cmd.state_saved = (Cmd.state_saved st)
-            { Cmd._saved_state = case direction of
+        { Cmd.stateSaved = (Cmd.stateSaved st)
+            { Cmd._savedState = case direction of
                 Load -> Cmd.JustLoaded
                 Save -> Cmd.SavedChanges
             }
         }
     where
-    clear entry = entry { Cmd.hist_commit = Nothing }
+    clear entry = entry { Cmd.histCommit = Nothing }

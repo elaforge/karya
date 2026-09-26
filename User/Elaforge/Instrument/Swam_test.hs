@@ -16,12 +16,12 @@ import           Util.Test
 test_bow :: Test
 test_bow = do
     let run title = DeriveTest.extract extract
-            . DeriveTest.derive_tracks_setup setup
+            . DeriveTest.deriveTracksSetup setup
                 ("inst=i | dyn=.75" <> title)
-            . UiTest.note_track1
+            . UiTest.noteTrack1
         extract e =
-            ( Score.event_start e
-            , DeriveTest.e_initial_control Controls.dynamic e
+            ( Score.eventStart e
+            , DeriveTest.eInitialControl Controls.dynamic e
             )
     equal (run "" ["4c"]) ([(0, Just 0.75)], [])
     equal (run "" ["bow down | -- 4c"]) ([(0, Just (-0.75))], [])
@@ -34,7 +34,7 @@ test_bow = do
         ([(0, Just (-0.75)), (1, Just (-0.75))], [])
 
 setup :: DeriveTest.Setup
-setup = DeriveTest.with_synths_simple allocs [Swam.synth]
+setup = DeriveTest.withSynthsSimple allocs [Swam.synth]
 
 allocs :: DeriveTest.SimpleAllocations
 allocs = [("i", "swam/violin")]

@@ -19,9 +19,9 @@ mixFloats minLen vs = V.create $ do
     let vsLen = maximum $ 0 : map V.length vs
     v <- VM.new (max minLen vsLen)
     VM.set v 0
-    ST.Unsafe.unsafeIOToST $ withFPtrM v $ \vp vp_len ->
+    ST.Unsafe.unsafeIOToST $ withFPtrM v $ \vp vpLen ->
         withFPtrs vs $ \inspp lenspp ->
-        c_mix_vectors (Foreign.castPtr vp) vp_len (Foreign.castPtr inspp) lenspp
+        cMixVectors (Foreign.castPtr vp) vpLen (Foreign.castPtr inspp) lenspp
             (fromIntegral (length vs))
     pure v
 
@@ -29,7 +29,7 @@ mixFloats minLen vs = V.create $ do
 -- mix_vectors(float *out, size_t out_len,
 --     const float **ins, size_t *in_lens, size_t ins_len)
 foreign import ccall "mix_vectors"
-    c_mix_vectors :: Ptr C.CFloat -> C.CSize
+    cMixVectors :: Ptr C.CFloat -> C.CSize
         -> Ptr (Ptr C.CFloat) -> Ptr C.CSize -> C.CSize -> IO ()
 
 

@@ -11,7 +11,7 @@ import qualified Perform.Signal as Signal
 
 test_sh_pitch :: Test
 test_sh_pitch = do
-    let run = CallTest.run_pitch ""
+    let run = CallTest.runPitch ""
     equal (run [(0, "4c"), (4, "sh .5 | i (5c)")])
         [(0, 60), (2, 60), (2, 66), (4, 66), (4, 72)]
     equal (run [(0, "4c"), (4, "sh 1 | i (5c)")])
@@ -21,7 +21,7 @@ test_sh_pitch = do
 
 test_sh_control :: Test
 test_sh_control = do
-    let run = CallTest.run_control
+    let run = CallTest.runControl
     equal (run [(0, "0"), (4, "sh .5 | i 4")])
         [(0, 0), (2, 0), (2, 2), (4, 2), (4, 4)]
     equal (run [(0, "0"), (3, "sh 1 | i 3")])
@@ -31,7 +31,7 @@ test_sh_control = do
 
 test_quantize :: Test
 test_quantize = do
-    let run = CallTest.run_control
+    let run = CallTest.runControl
     equal (run [(0, "0"), (4, "quantize .25 | i 1")])
         [(0, 0), (1, 0.25), (2, 0.5), (3, 0.75), (4, 1)]
 
@@ -43,8 +43,8 @@ test_quantize = do
 
 test_slew_limiter :: Test
 test_slew_limiter = do
-    let f slope = Signal.to_pairs
-            . SignalTransform.slew_limiter slope . Signal.from_pairs
+    let f slope = Signal.toPairs
+            . SignalTransform.slewLimiter slope . Signal.fromPairs
     equal (f 1 [(0, 2)]) [(0, 2)]
     equal (f 1 [(0, 0), (2, 2)]) [(0, 0), (2, 2)]
     equal (f 1 [(0, 2), (2, 0)]) [(0, 2), (2, 0)]

@@ -33,7 +33,7 @@ kanda_tani = tani
     ]
 
 kanda1 :: Korvai
-kanda1 = korvaiS Tala.kanda_chapu
+kanda1 = korvaiS Tala.kandaChapu
     [ "A___ ____ k_o_ D___ k_o_" . "D___ D___ k_o_ D___ ktpk"
     . "o_k_ o_o_ k_o_ D___ k_o_" . "D___ __N_ __N_ __u_ ____"
     , "D___ D___ k_o_ D___ ktpk" . "o_k_ o_o_ k_o_ D___ k_o_"
@@ -63,7 +63,7 @@ expand3 :: Sequence -> S.FMatra -> Sequence -> Sequence
 expand3 sep dur pat = join sep (expands 3 dur pat)
 
 kanda2 :: Korvai
-kanda2 = korvaiS Tala.kanda_chapu $ map sd
+kanda2 = korvaiS Tala.kandaChapu $ map sd
     [ k.__8 . su "kook" . "D_odDodDod" -- delay on second o
     , "d_d,n,nnd," & "/_o_/__o/" . rh_&o . krh
     , rh & "__/_/__o/"  . rh_ & "/_o_/__o/"
@@ -83,7 +83,7 @@ kanda2 = korvaiS Tala.kanda_chapu $ map sd
     ktok = su "ktok"
 
 kanda3 :: Korvai
-kanda3 = korvaiS Tala.kanda_chapu
+kanda3 = korvaiS Tala.kandaChapu
     [ sd $ "N_D_kd_n_k d_n_kd_n_k" . "D_N_kd_n_kA_A_kd_n_k"
     , sd "D_N_kd_n_k" . "o_o" & r4 "d_n_k"
     , sd (p&"d_n_kd_n_k") . "o_o" & r4 "d_n_k"
@@ -94,7 +94,7 @@ kanda3 = korvaiS Tala.kanda_chapu
     ]
 
 kanda3_tisram :: Korvai
-kanda3_tisram = korvaiS Tala.kanda_chapu $ map (nadai 3) $
+kanda3_tisram = korvaiS Tala.kandaChapu $ map (nadai 3) $
     [ "o_o" & r3 rh . p & r3 rh . r3 p5
     , "U__N_kD_kN_kDok"
     , r2 "D_kn_kd_kn_kDok" . "D_kD_kN_kD_kDok"
@@ -106,7 +106,7 @@ kanda3_tisram = korvaiS Tala.kanda_chapu $ map (nadai 3) $
     rh = "d_n_k"
 
 kanda_korvai3 :: Korvai
-kanda_korvai3 = korvaiS Tala.kanda_chapu $ map (nadai 3)
+kanda_korvai3 = korvaiS Tala.kandaChapu $ map (nadai 3)
     [ r3 (g "k__ ktknpuookookD__") . r3 (p5.p7)
     , tri122
         (g "k__ktknpuookoo_oo_")
@@ -117,7 +117,7 @@ kanda_korvai3 = korvaiS Tala.kanda_chapu $ map (nadai 3)
     ]
 
 kanda4_farans :: Korvai
-kanda4_farans = korvaiS Tala.kanda_chapu
+kanda4_farans = korvaiS Tala.kandaChapu
     [ sd "u__N_N_N_k" . sd "d__n_n_n_k"
     . sd "u_oNkTkNok" . sd "d_knktknpk"
     -- first nakatiku is npupktokD
@@ -132,7 +132,7 @@ kanda4_farans = korvaiS Tala.kanda_chapu
     ]
 
 kanda5_mohra :: Korvai
-kanda5_mohra = mohra $ korvaiS1 Tala.kanda_chapu $ Mohra.make id Mohra.A1
+kanda5_mohra = mohra $ korvaiS1 Tala.kandaChapu $ Mohra.make id Mohra.A1
     ( sd "ktknok_N_" . "ktktpk"
     , "t_o_ktpk".nakatiku
     , sd "oktknokN_" . "ktktpk"
@@ -143,7 +143,7 @@ kanda5_mohra = mohra $ korvaiS1 Tala.kanda_chapu $ Mohra.make id Mohra.A1
     )
 
 kanda5_mohra_raw :: Korvai
-kanda5_mohra_raw = korvaiS Tala.kanda_chapu
+kanda5_mohra_raw = korvaiS Tala.kandaChapu
     [ "k_t_k_n_ o_k___N_ __kt" . "ktpkt_o_ktpk" . nakatiku
     . "o_k_t_k_ n_o_k_N_ __kt" . "ktpkN_k_o__k N_k_o___"
     , "k_t_k_n_ o_k___N_ __kt" . "ktpkt_o_ktpk" . nakatiku
@@ -155,7 +155,7 @@ kanda5_mohra_raw = korvaiS Tala.kanda_chapu
     ]
 
 kanda_korvai4 :: Korvai
-kanda_korvai4 = korvai Tala.kanda_chapu
+kanda_korvai4 = korvai Tala.kandaChapu
     [ x3 $ s $ reduceTo3 4 2 "p_k_t_k_kto_" . r2 (r2 "D___" . r3 "kto_")
     , s $ "N___ ____ n_o_ D___ n_o_"
     . r3 (g "k_kto_") . "N___" . r3 (g "k_k_kto_") . "N___"
@@ -183,7 +183,7 @@ misra_tani = tani
     ]
 
 misra1 :: Korvai
-misra1 = korvaiS Tala.misra_chapu
+misra1 = korvaiS Tala.misraChapu
     [ sd $ "k_D_ __ N_ N_ d_ nk" . "koD_ __ N_ N_ u_ __"
     . "koD_ __ N_ N_ u_ __" . "kkoD __ N_ N_ D_ nk"
     . "koD_ __ N_N_u___" . su "okko" . "o_ __ N_ N_ D_ nk"
@@ -205,7 +205,7 @@ misra1 = korvaiS Tala.misra_chapu
     ]
 
 misra_korvai1 :: Korvai
-misra_korvai1 = korvaiS Tala.misra_chapu
+misra_korvai1 = korvaiS Tala.misraChapu
     [ utarangam . spread 6 ktkno . r2 (spread 4 ktkno) . r3 (g (spread 2 ktkno))
     , utarangam . spread 6 ktkno . r2 (spread 4 ktkno) . r3 (g "ktktpkpto_")
     , utarangam . spread 6 ktkno . r2 (spread 4 ktkno) . r3 (g "oktpupkto_")
@@ -218,7 +218,7 @@ misra_korvai1 = korvaiS Tala.misra_chapu
     theme = g "p_k_kook"
 
 misra2_tisram :: Korvai
-misra2_tisram = korvaiS Tala.misra_chapu $
+misra2_tisram = korvaiS Tala.misraChapu $
     [ "N___ __k_ k_o_ o_k_ k_o_ o_k_ ktoo" --
     . "k___ N___ ktoo k___ N_k_ __N_ k___"
     , "N_d_ __k_ n_k_ n_d_ __k_ n_o_ ktpk" --
@@ -245,7 +245,7 @@ misra2_tisram = korvaiS Tala.misra_chapu $
     ]
 
 misra_korvai3 :: Korvai
-misra_korvai3 = korvaiS Tala.misra_chapu $ map (nadai 3) $
+misra_korvai3 = korvaiS Tala.misraChapu $ map (nadai 3) $
     [ r3 theme . tri (od.__6) p6
     , tri122 theme (ton theme) . tri (u.__6) p6 -- p6 = kt_k_kto
     , tri122 theme2 (ton theme2) . tri (u.__6) p6
@@ -256,7 +256,7 @@ misra_korvai3 = korvaiS Tala.misra_chapu $ map (nadai 3) $
     ton = replaceStart "on"
 
 misra_farans :: Korvai
-misra_farans = korvaiS Tala.misra_chapu $
+misra_farans = korvaiS Tala.misraChapu $
     [ "u___ __k_ p_k_ t_k_ N_pk".nakatiku
     . "N_kd _kN_ kd_k N_kd _ktk tkoo".ktok."Tk"
     . "N_kd _kn_ kd_k n_kd _ktk tkoo".ktok."Tk"
@@ -276,7 +276,7 @@ misra_farans = korvaiS Tala.misra_chapu $
     ktktpk = "ktktpk"
 
 misra_mohra :: Korvai
-misra_mohra = mohra $ korvaiS1 Tala.misra_chapu $ Mohra.make id Mohra.A2
+misra_mohra = mohra $ korvaiS1 Tala.misraChapu $ Mohra.make id Mohra.A2
     ( "upkto_k_ __N_ __npktpk".nakatiku
     , "tpupkt_o k_N_ __npktpk".nakatiku
     , "upkto_k_ __N_ __npktpk".nakatiku
@@ -288,7 +288,7 @@ misra_mohra = mohra $ korvaiS1 Tala.misra_chapu $ Mohra.make id Mohra.A2
     )
 
 misra_mohra_korvai :: Korvai
-misra_mohra_korvai = korvai Tala.misra_chapu $
+misra_mohra_korvai = korvai Tala.misraChapu $
     [ x2 $ s $ purvangam . sd (sd (sd p5)) . sd (sd p5) . sd p5
     , s $ purvangam . sd (sd (sd p5)) . sd (r3 p5)
     , s $ sd $ od.__8 . "kkkook" . "D_" . r4 "ND_"
@@ -596,7 +596,7 @@ adi_tirmanams = rohan $ tirmanam $ date 2026 1 10 $ korvaiV adi
     ]
 
 rupaka_tirmanams :: Korvai
-rupaka_tirmanams = rohan $ tirmanam $ date 2026 1 10 $ korvaiV Tala.rupaka_fast
+rupaka_tirmanams = rohan $ tirmanam $ date 2026 1 10 $ korvaiV Tala.rupakaFast
     [ nadai 3 $ __M (3*5) . tri "N_k" "kkook"
     , __D 5 . "k___" . tri2 "Dk" "DkDk" (r2 "D_k_D_k")
     ]
@@ -676,14 +676,14 @@ adi_misra = rohan $ date 2026 1 10 $ korvaiV adi $ map (nadai 7)
     ]
 
 kanda_chapu :: Korvai
-kanda_chapu = rohan $ date 2026 1 10 $ korvaiV Tala.kanda_chapu
+kanda_chapu = rohan $ date 2026 1 10 $ korvaiV Tala.kandaChapu
     -- irregular reduction
     [ "p_k_kooko_k_o___ k_kooko_k_o_ k_kooko_k_o___"
     . "oko_k_o___ o_k_o___" . "k_o___o___" . tri "N___N___" (r3 p6)
     ]
 
 misra_3_eddupu :: Korvai
-misra_3_eddupu = rohan $ date 2026 1 10 $ korvaiV Tala.misra_chapu
+misra_3_eddupu = rohan $ date 2026 1 10 $ korvaiV Tala.misraChapu
     [ sd $ (r3 "kotknpk") . "k_p_kt_p_k" . "k_p_kn_p_k" . "o_p_k"
         . sd p5 . r3 p5
     , tri "D___" p6 . sd "pp_D_"
@@ -692,7 +692,7 @@ misra_3_eddupu = rohan $ date 2026 1 10 $ korvaiV Tala.misra_chapu
     ]
 
 misra_tirmanams :: Korvai
-misra_tirmanams = rohan $ date 2026 1 10 $ korvaiV Tala.misra_chapu
+misra_tirmanams = rohan $ date 2026 1 10 $ korvaiV Tala.misraChapu
     [ reduceTo 4 2 ("t_k_kooko_k_o___") . tri "N___N___" (r3 p6)
     ]
 

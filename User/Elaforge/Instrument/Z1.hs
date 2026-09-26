@@ -31,34 +31,34 @@ import           Global
 import           User.Elaforge.Instrument.Z1Spec
 
 
-synth_name :: InstT.SynthName
-synth_name = "z1"
+synthName :: InstT.SynthName
+synthName = "z1"
 
 load :: Path.AppDir -> IO (Maybe MidiInst.Synth)
-load = MidiInstDb.load_synth (const mempty) synth_name "Korg Z1"
+load = MidiInstDb.loadSynth (const mempty) synthName "Korg Z1"
 
-make_db :: Path.AppDir -> IO ()
-make_db app_dir = do
-    let dir = Path.to_absolute app_dir Config.instrument_dir
-            </> untxt synth_name
-    bank_a <- Sysex.parse_builtins 0 program_dump (dir </> "bank_a.syx")
-    bank_b <- Sysex.parse_builtins 1 program_dump (dir </> "bank_b.syx")
-    sysex <- Sysex.parse_dir [current_program_dump, program_dump, sysex_manager]
+makeDb :: Path.AppDir -> IO ()
+makeDb appDir = do
+    let dir = Path.toAbsolute appDir Config.instrumentDir
+            </> untxt synthName
+    bankA <- Sysex.parseBuiltins 0 programDump (dir </> "bank_a.syx")
+    bankB <- Sysex.parseBuiltins 1 programDump (dir </> "bank_b.syx")
+    sysex <- Sysex.parseDir [currentProgramDump, programDump, sysexManager]
         (dir </> "sysex")
-    MidiInstDb.save_synth app_dir synth_name $
-        map (override_pb . MidiInst.patch_from_pair) $
-        concat [bank_a, bank_b, sysex]
+    MidiInstDb.saveSynth appDir synthName $
+        map (overridePb . MidiInst.patchFromPair) $
+        concat [bankA, bankB, sysex]
     where
-    current_program_dump =
-        fmap (:[]) . (rmap_to_patch <=< decode_current_program)
-    program_dump = mapM rmap_to_patch <=< decode_program_dump
+    currentProgramDump =
+        fmap (:[]) . (rmapToPatch <=< decodeCurrentProgram)
+    programDump = mapM rmapToPatch <=< decodeProgramDump
     -- Each patch has its own pb range, but you can override them in the
     -- multiset.
-    override_pb = MidiInst.patch#Patch.defaults#Patch.pitch_bend_range
+    overridePb = MidiInst.patch#Patch.defaults#Patch.pitchBendRange
         #= Just (-24, 24)
 
-synth_controls :: [(Midi.Control, ScoreT.Control)]
-synth_controls =
+synthControls :: [(Midi.Control, ScoreT.Control)]
+synthControls =
     -- The PE controls are the "performance expression" knobs whose effect
     -- depends on the instrument.
     [ (19, "knob1"), (20, "knob2"), (21, "knob3"), (22, "knob4"), (23, "knob5")
@@ -80,32 +80,32 @@ synth_controls =
 
 -- * decode sysex
 
-decode_current_program :: ByteString -> Either String Sysex.RMap
-decode_current_program bytes = do
-    (header, bytes) <- decode current_program_dump_header bytes
-    (rmap, _) <- decode patch_spec (dekorg bytes)
+decodeCurrentProgram :: ByteString -> Either String Sysex.RMap
+decodeCurrentProgram bytes = do
+    (header, bytes) <- decode currentProgramDumpHeader bytes
+    (rmap, _) <- decode patchSpec (dekorg bytes)
     pure $ header <> rmap
 
 -- | Decode a dump for a program at a certain memory location.  This also
 -- parses bank dumps, which are just encoded as a bunch of dumps at consecutive
 -- memory locations.
-decode_program_dump :: ByteString -> Either String [Sysex.RMap]
-decode_program_dump bytes = do
+decodeProgramDump :: ByteString -> Either String [Sysex.RMap]
+decodeProgramDump bytes = do
     -- If there is just one, then the bank and unit fields are valid.
     -- Otherwise, they are 0.
-    (rmap, bytes) <- decode program_dump_header bytes
-    let syxs = exact_chunks
-            (spec_bytes patch_spec) (dekorg bytes)
-    mapM (fmap ((rmap <>) . fst) . decode patch_spec) syxs
+    (rmap, bytes) <- decode programDumpHeader bytes
+    let syxs = exactChunks
+            (specBytes patchSpec) (dekorg bytes)
+    mapM (fmap ((rmap <>) . fst) . decode patchSpec) syxs
 
-sysex_manager :: ByteString -> Either String [(Patch.Patch, Common.Common ())]
-sysex_manager bytes = do
-    bytes <- Sysex.expect_bytes bytes $ Char8.pack "Sysex Manager"
+sysexManager :: ByteString -> Either String [(Patch.Patch, Common.Common ())]
+sysexManager bytes = do
+    bytes <- Sysex.expectBytes bytes $ Char8.pack "Sysex Manager"
     -- The first sysex is something else.
-    let sysexes = drop 1 $ Sysex.extract_sysex bytes
-    patches <- mapM (rmap_to_patch <=< decode_current_program) sysexes
+    let sysexes = drop 1 $ Sysex.extractSysex bytes
+    patches <- mapM (rmapToPatch <=< decodeCurrentProgram) sysexes
     -- Add the initialize here, since 'bytes' isn't actually a valid sysex.
-    pure [(Sysex.initialize_sysex sysex patch, common)
+    pure [(Sysex.initializeSysex sysex patch, common)
         | (sysex, (patch, common)) <- zip sysexes patches]
 
 test_decode = do
@@ -113,7 +113,7 @@ test_decode = do
     -- let fn = "inst_db/z1/sysex/lib1/z1 o00o00 Syncapacitor.syx"
     -- let fn = "inst_db/z1/sysex/lib1/z1 o00o05 Composite Synth.syx"
     let fn = "inst_db/z1/sysex/lib1/z1 o00o00 .C.H.A.O.S..syx"
-    decode_current_program <$> B.readFile fn
+    decodeCurrentProgram <$> B.readFile fn
 
 -- * encode sysex
 
@@ -122,69 +122,69 @@ test_decode = do
 --     records <- require "parse" $ decode_program_dump bytes
 --     records <- require "set" $ mapM set records
 
-set_bank_pitch_bend :: Bank -> FilePath -> IO ()
-set_bank_pitch_bend bank fn = do
+setBankPitchBend :: Bank -> FilePath -> IO ()
+setBankPitchBend bank fn = do
     bytes <- B.readFile fn
-    records <- require "parse" $ decode_program_dump bytes
+    records <- require "parse" $ decodeProgramDump bytes
     records <- require "set" $ mapM set records
-    bytes <- require "unparse" $ encode_bank_dump All bank records
+    bytes <- require "unparse" $ encodeBankDump All bank records
     B.writeFile (fn ++ ".modified") bytes
     where
-    set = Sysex.put_rmap "pitch bend.intensity +" (24 :: Int)
-        <=< Sysex.put_rmap "pitch bend.intensity -" (-24 :: Int)
+    set = Sysex.putRmap "pitch bend.intensity +" (24 :: Int)
+        <=< Sysex.putRmap "pitch bend.intensity -" (-24 :: Int)
     require msg = either (errorIO . ((msg <> ": ") <>) . txt) pure
 
-encode_current_program :: Sysex.RMap -> Either String ByteString
-encode_current_program rmap =
-    encode_sysex (encode current_program_dump_header rmap)
-        (encode patch_spec rmap)
+encodeCurrentProgram :: Sysex.RMap -> Either String ByteString
+encodeCurrentProgram rmap =
+    encodeSysex (encode currentProgramDumpHeader rmap)
+        (encode patchSpec rmap)
 
-encode_program_dump :: Sysex.RMap -> Either String ByteString
-encode_program_dump rmap =
-    encode_sysex (encode program_dump_header rmap)
-        (encode patch_spec rmap)
+encodeProgramDump :: Sysex.RMap -> Either String ByteString
+encodeProgramDump rmap =
+    encodeSysex (encode programDumpHeader rmap)
+        (encode patchSpec rmap)
 
 data Unit = Program | Bank | All deriving (Show)
 data Bank = A | B deriving (Show)
 
-encode_bank_dump :: Unit -> Bank -> [Sysex.RMap] -> Either String ByteString
-encode_bank_dump unit bank rmaps = do
-    header_rmap <- set_bank $ Sysex.spec_to_rmap program_dump_header
-    encode_sysex (encode program_dump_header header_rmap)
-        (concatMapM (encode patch_spec) rmaps)
+encodeBankDump :: Unit -> Bank -> [Sysex.RMap] -> Either String ByteString
+encodeBankDump unit bank rmaps = do
+    headerRmap <- setBank $ Sysex.specToRmap programDumpHeader
+    encodeSysex (encode programDumpHeader headerRmap)
+        (concatMapM (encode patchSpec) rmaps)
     where
-    set_bank = Sysex.put_rmap "bank" (Text.toLower (showt bank))
-        <=< Sysex.put_rmap "unit" (Text.toLower (showt unit))
+    setBank = Sysex.putRmap "bank" (Text.toLower (showt bank))
+        <=< Sysex.putRmap "unit" (Text.toLower (showt unit))
 
-encode_sysex :: Either String ByteString -> Either String ByteString
+encodeSysex :: Either String ByteString -> Either String ByteString
     -> Either String ByteString
-encode_sysex encode_header encode_body = do
-    header <- encode_header
-    body <- encode_body
-    pure $ header <> enkorg body <> B.singleton Midi.Encode.eox_byte
+encodeSysex encodeHeader encodeBody = do
+    header <- encodeHeader
+    body <- encodeBody
+    pure $ header <> enkorg body <> B.singleton Midi.Encode.eoxByte
 
 -- ** record
 
-rmap_to_patch :: Sysex.RMap -> Either String (Patch.Patch, Common.Common ())
-rmap_to_patch rmap = do
+rmapToPatch :: Sysex.RMap -> Either String (Patch.Patch, Common.Common ())
+rmapToPatch rmap = do
     name <- get "name"
     category <- get "category"
-    pb_range <- (,) <$> get "pitch bend.intensity -"
+    pbRange <- (,) <$> get "pitch bend.intensity -"
         <*> get "pitch bend.intensity +"
     osc1 <- get "osc.0.type"
     osc2 <- get "osc.1.type"
     let tags = [("category", category), ("z1-osc", osc1), ("z1-osc", osc2)]
     let common = Common.tags #= tags $ Common.common ()
-    pure (Patch.patch pb_range name, common)
+    pure (Patch.patch pbRange name, common)
     where
     get :: (Sysex.RecordVal a) => String -> Either String a
-    get = flip Sysex.get_rmap rmap
+    get = flip Sysex.getRmap rmap
 
-current_multi_data_dump :: Word8
-current_multi_data_dump = 0x69
+currentMultiDataDump :: Word8
+currentMultiDataDump = 0x69
 
-multi_data_dump :: Word8
-multi_data_dump = 0x4d
+multiDataDump :: Word8
+multiDataDump = 0x4d
 
 -- | Z1 sysexes use a scheme where the eighth bits are packed into a single
 -- byte preceeding its 7 7bit bytes.
@@ -193,17 +193,17 @@ dekorg = mconcatMap smoosh . chunks 8
     where
     smoosh bs = case B.uncons bs of
         Just (b7, bytes) -> snd $
-            B.mapAccumL (\i to -> (i+1, copy_bit b7 i to)) 0 bytes
+            B.mapAccumL (\i to -> (i+1, copyBit b7 i to)) 0 bytes
         Nothing -> mempty
-    copy_bit from i to = if Bits.testBit from i
+    copyBit from i to = if Bits.testBit from i
         then Bits.setBit to 7 else Bits.clearBit to 7
 
 enkorg :: ByteString -> ByteString
 enkorg = mconcatMap expand . chunks 7
     where
     expand bs = B.cons bits (B.map (`Bits.clearBit` 7) bs)
-        where bits = B.foldr get_bits 0 bs
-    get_bits b accum =
+        where bits = B.foldr getBits 0 bs
+    getBits b accum =
         Bits.shiftL accum 1 .|. (if Bits.testBit b 7 then 1 else 0)
 
 chunks :: Int -> ByteString -> [ByteString]
@@ -212,33 +212,33 @@ chunks size bs
     | otherwise = pre : chunks size post
     where (pre, post) = B.splitAt size bs
 
-exact_chunks :: Int -> ByteString -> [ByteString]
-exact_chunks size bs
+exactChunks :: Int -> ByteString -> [ByteString]
+exactChunks size bs
     | B.length pre < size = []
-    | otherwise = pre : exact_chunks size post
+    | otherwise = pre : exactChunks size post
     where (pre, post) = B.splitAt size bs
 
 -- * test
 
 test_multiset = do
     bytes <- B.drop 9 <$> B.readFile "inst_db/multi1.syx"
-    pure $ decode multiset_spec (dekorg bytes)
+    pure $ decode multisetSpec (dekorg bytes)
 
 test_dump = do
     bytes <- B.readFile "inst_db/z1/bank_b.syx"
-    pure $ decode_program_dump bytes
+    pure $ decodeProgramDump bytes
 
 test_encode = do
     bytes <- B.readFile "inst_db/z1/bank_b.syx"
-    let Right recs = decode_program_dump bytes
-    pure $ encode patch_spec (head recs)
+    let Right recs = decodeProgramDump bytes
+    pure $ encode patchSpec (head recs)
 
 test_patch = do
     bytes <- B.readFile
         "inst_db/z1/sysex/lib1/z1 o00o00 ANALOG INIT.syx"
-    pure $ decode_current_program bytes
+    pure $ decodeCurrentProgram bytes
 
-read_patch = do
+readPatch = do
     b <- dekorg . B.drop 6 <$> B.readFile
         "inst_db/z1/sysex/lib1/z1 o00o00 ANALOG INIT.syx"
-    pure $ decode patch_spec b
+    pure $ decode patchSpec b

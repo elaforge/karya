@@ -25,7 +25,7 @@ import           Control.Monad
 -- | The edges of a forest, as (parent, child).
 edges :: [Tree a] -> [(a, a)]
 edges = concatMap $ \(Node val subs) ->
-    [(val, sub_val) | Node sub_val _ <- subs] ++ edges subs
+    [(val, subVal) | Node subVal _ <- subs] ++ edges subs
 
 -- | Get every element along with its parents.  The parents are closest first
 -- root last.

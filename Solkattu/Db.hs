@@ -217,7 +217,7 @@ writeHtmlTo dir = do
     clearDir dir
     writeWithStatus write1 All.scores
     Text.IO.writeFile (dir </> "index.html") $
-        Util.Html.un_html $ Html.indexHtml ((<>".html") . scoreFname) All.scores
+        Util.Html.unHtml $ Html.indexHtml ((<>".html") . scoreFname) All.scores
     writeCommit dir
     where
     write1 score = Html.writeAll (dir </> scoreFname score <> ".html") score

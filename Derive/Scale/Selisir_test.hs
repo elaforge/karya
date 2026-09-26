@@ -18,10 +18,10 @@ import           Util.Test
 
 test_note_to_call :: Test
 test_note_to_call = do
-    let f laras = ScaleTest.note_to_call "selisir" ("laras=" <> laras)
-    let nns n = take n . from_4i True
+    let f laras = ScaleTest.noteToCall "selisir" ("laras=" <> laras)
+    let nns n = take n . from4i True
     equal (f "rambat" ["4i", "4o", "4e", "4u"])
-        (map Just $ nns 4 Selisir.laras_rambat, [])
+        (map Just $ nns 4 Selisir.larasRambat, [])
     -- Selisir is a true 5 note scale, and shouldn't accept pemero.
     -- TODO fixing this will require a BaliScales overhaul
     -- equal (f "rambat" ["4e#"]) ([Nothing], [])
@@ -29,19 +29,19 @@ test_note_to_call = do
     equal (f "pegulingan-teges" ["4i", "4o", "4e", "4u", "4a", "5i"])
         (map Just $ nns 6 teges, [])
     equal (f "gong-peliatan" ["4i", "4o"])
-        (map (Just . Pitch.hz_to_nn) [280, 305], [])
+        (map (Just . Pitch.hzToNn) [280, 305], [])
 
 test_input_to_note :: Test
 test_input_to_note = do
-    let input_to_note = ScaleTest.input_to_note selisir mempty
+    let inputToNote = ScaleTest.inputToNote selisir mempty
         invalid = "invalid input"
-    equal (map (input_to_note) [(4, pc, acc) | pc <- [0, 1, 2], acc <- [0, 1]])
+    equal (map (inputToNote) [(4, pc, acc) | pc <- [0, 1, 2], acc <- [0, 1]])
         ["4i", invalid, "4o", invalid, "4e", invalid]
 
-from_4i :: Bool -> BaliScales.Laras -> [Pitch.NoteNumber]
-from_4i umbang laras = drop 5 $ Vector.toList (nns laras)
+from4i :: Bool -> BaliScales.Laras -> [Pitch.NoteNumber]
+from4i umbang laras = drop 5 $ Vector.toList (nns laras)
     where
-    nns = if umbang then BaliScales.laras_umbang else BaliScales.laras_isep
+    nns = if umbang then BaliScales.larasUmbang else BaliScales.larasIsep
 
 selisir :: Scale.Scale
-selisir = ScaleTest.get_scale Selisir.scales "selisir"
+selisir = ScaleTest.getScale Selisir.scales "selisir"

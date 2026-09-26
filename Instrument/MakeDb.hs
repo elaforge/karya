@@ -21,19 +21,19 @@ import Global
 
 main :: IO ()
 main = do
-    db_names <- map txt <$> Environment.getArgs
-    app_dir <- Path.get_app_dir
-    case db_names of
-        [] -> make app_dir LoadInstruments.all_loads
+    dbNames <- map txt <$> Environment.getArgs
+    appDir <- Path.getAppDir
+    case dbNames of
+        [] -> make appDir LoadInstruments.allLoads
         _ -> do
-            let makes = map (`lookup` LoadInstruments.all_loads) db_names
-                not_found = [name | (name, Nothing) <- zip db_names makes]
-                found = [(name, make) | (name, Just make) <- zip db_names makes]
-            unless (null not_found) $
-                errorIO $ "dbs not found: " <> showt not_found
-            make app_dir found
+            let makes = map (`lookup` LoadInstruments.allLoads) dbNames
+                notFound = [name | (name, Nothing) <- zip dbNames makes]
+                found = [(name, make) | (name, Just make) <- zip dbNames makes]
+            unless (null notFound) $
+                errorIO $ "dbs not found: " <> showt notFound
+            make appDir found
 
 make :: Path.AppDir -> [(InstT.SynthName, (MidiInst.MakeDb, a))] -> IO ()
-make app_dir = mapM_ $ \(name, (make, _)) -> do
+make appDir = mapM_ $ \(name, (make, _)) -> do
     Text.IO.putStrLn $ "-------- db: " <> name
-    make app_dir
+    make appDir

@@ -7,31 +7,31 @@
 module Derive.ScoreT (
     -- * Instrument
     Instrument(..)
-    , instrument_name
-    , empty_instrument
+    , instrumentName
+    , emptyInstrument
 
     -- * Control
     , Control(..)
-    , control_name
-    , checked_control
+    , controlName
+    , checkedControl
 
     -- * PControl
     , PControl(..)
-    , pcontrol_name
-    , default_pitch
-    , checked_pcontrol
-    , parse_generic_control
+    , pcontrolName
+    , defaultPitch
+    , checkedPcontrol
+    , parseGenericControl
 
     -- * Type
     , Type(..)
-    , all_types
-    , type_to_code, code_to_type
+    , allTypes
+    , typeToCode, codeToType
     , TimeT(..), TransposeT(..), Duration(..)
-    , time_t, transpose_t, duration
-    , Typed(..), type_of, val_of
-    , merge_typed
+    , timeT, transposeT, duration
+    , Typed(..), typeOf, valOf
+    , mergeTyped
     , untyped
-    , type_to_transpose
+    , typeToTranspose
 
     -- * type aliases
     , ControlValMap
@@ -79,15 +79,15 @@ newtype Instrument = Instrument Text
         , Aeson.ToJSON, Aeson.FromJSON
         )
 
-instrument_name :: Instrument -> Text
-instrument_name (Instrument s) = s
+instrumentName :: Instrument -> Text
+instrumentName (Instrument s) = s
 
-empty_instrument :: Instrument
-empty_instrument = Instrument ""
+emptyInstrument :: Instrument
+emptyInstrument = Instrument ""
 
-instance Pretty Instrument where pretty = ShowVal.show_val
+instance Pretty Instrument where pretty = ShowVal.showVal
 instance ShowVal.ShowVal Instrument where
-    show_val (Instrument inst) = ShowVal.show_val inst
+    showVal (Instrument inst) = ShowVal.showVal inst
 
 -- * Control
 
@@ -101,17 +101,17 @@ newtype Control = Control Text
     deriving (Eq, Ord, Read, Show, DeepSeq.NFData, Serialize.Serialize,
         String.IsString, ShowVal.ShowVal)
 
-instance Pretty Control where pretty = ShowVal.show_val
+instance Pretty Control where pretty = ShowVal.showVal
 
-control_name :: Control -> Text
-control_name (Control name) = name
+controlName :: Control -> Text
+controlName (Control name) = name
 
 -- | Use this constructor when making a Control from user input.  Literals
 -- can use the IsString instance.
-checked_control :: Text -> Either Text Control
-checked_control name
+checkedControl :: Text -> Either Text Control
+checkedControl name
     | Text.null name = Left "empty control name"
-    | Id.valid_symbol name = Right $ Control name
+    | Id.validSymbol name = Right $ Control name
     | otherwise = Left $ "invalid characters in control: " <> showt name
 
 -- * PControl
@@ -126,38 +126,38 @@ newtype PControl = PControl Text
     deriving (Eq, Ord, Read, Show, DeepSeq.NFData, Serialize.Serialize,
         String.IsString)
 
-pcontrol_name :: PControl -> Text
-pcontrol_name (PControl name) = name
+pcontrolName :: PControl -> Text
+pcontrolName (PControl name) = name
 
-default_pitch :: PControl
-default_pitch = ""
+defaultPitch :: PControl
+defaultPitch = ""
 
-instance Pretty PControl where pretty = ShowVal.show_val
+instance Pretty PControl where pretty = ShowVal.showVal
 instance ShowVal.ShowVal PControl where
-    show_val p@(PControl s)
+    showVal p@(PControl s)
         -- Invert the # -> default pitch mapping in
         -- Typecheck.lookup_pitch_signal.  This is kind of bogus because the #
         -- syntax belongs to the PControlRef, not the control name itself.
         -- But otherwise I get ''s which look confusing in errors?  I guess
         -- the issue is that there actually is a separate state_pitch, it's
         -- not in state_environ, so '' is not its actual name.
-        | p == default_pitch = "#"
-        | otherwise = ShowVal.show_val s
+        | p == defaultPitch = "#"
+        | otherwise = ShowVal.showVal s
 
 
 -- | Use this constructor when making a PControl from user input.  Literals
 -- can use the IsString instance.
-checked_pcontrol :: Text -> Either Text PControl
-checked_pcontrol name
-    | Text.null name || Id.valid_symbol name = Right $ PControl name
+checkedPcontrol :: Text -> Either Text PControl
+checkedPcontrol name
+    | Text.null name || Id.validSymbol name = Right $ PControl name
     | otherwise = Left $ "invalid characters in pitch control: " <> showt name
 
 -- | Parse either a Control or PControl.
-parse_generic_control :: Text
+parseGenericControl :: Text
     -> Either Text (Either Control PControl)
-parse_generic_control name = case Text.uncons name of
-    Just ('#', rest) -> Right <$> checked_pcontrol rest
-    _ -> Left <$> checked_control name
+parseGenericControl name = case Text.uncons name of
+    Just ('#', rest) -> Right <$> checkedPcontrol rest
+    _ -> Left <$> checkedControl name
 
 
 -- * Type
@@ -167,11 +167,11 @@ parse_generic_control name = case Text.uncons name of
 data Type = Chromatic | Diatonic | Nn | Score | Real | Untyped
     deriving (Eq, Enum, Ord, Bounded, Show)
 
-all_types :: [Type]
-all_types = [minBound ..]
+allTypes :: [Type]
+allTypes = [minBound ..]
 
-type_to_code :: Type -> Text
-type_to_code = \case
+typeToCode :: Type -> Text
+typeToCode = \case
     Untyped -> ""
     Chromatic -> "c"
     Diatonic -> "d"
@@ -179,9 +179,9 @@ type_to_code = \case
     Score -> Text.singleton ScoreTime.suffix -- t for time
     Real -> Text.singleton RealTime.suffix -- s for seconds
 
-code_to_type :: Text -> Maybe Type
-code_to_type = (`Map.lookup` enum_map)
-    where enum_map = Map.fromList $ Lists.keyOn ShowVal.show_val [minBound ..]
+codeToType :: Text -> Maybe Type
+codeToType = (`Map.lookup` enumMap)
+    where enumMap = Map.fromList $ Lists.keyOn ShowVal.showVal [minBound ..]
 
 instance Semigroup Type where
     Untyped <> typed = typed
@@ -197,7 +197,7 @@ instance Serialize.Serialize Type where
     get = toEnum <$> Serialize.get
 
 instance ShowVal.ShowVal Type where
-    show_val = type_to_code
+    showVal = typeToCode
 
 -- This feels clumsy.
 -- What I want to express is subtyping.
@@ -217,15 +217,15 @@ data Duration = RealDuration RealTime.RealTime
     | ScoreDuration ScoreTime.ScoreTime
     deriving (Eq, Show)
 
-time_t :: TimeT -> Type -> Maybe TimeT
-time_t deflt = \case
+timeT :: TimeT -> Type -> Maybe TimeT
+timeT deflt = \case
     Untyped -> Just deflt
     Real -> Just TReal
     Score -> Just TScore
     _ -> Nothing
 
-transpose_t :: TransposeT -> Type -> Maybe TransposeT
-transpose_t deflt = \case
+transposeT :: TransposeT -> Type -> Maybe TransposeT
+transposeT deflt = \case
     Untyped -> Just deflt
     Diatonic -> Just TDiatonic
     Chromatic -> Just TChromatic
@@ -234,10 +234,10 @@ transpose_t deflt = \case
 
 duration :: TimeT -> Typed Signal.Y -> Maybe Duration
 duration deflt (Typed typ val) = case typ of
-    Score -> Just $ ScoreDuration (ScoreTime.from_double val)
+    Score -> Just $ ScoreDuration (ScoreTime.fromDouble val)
     Real -> Just $ RealDuration (RealTime.seconds val)
     Untyped -> case deflt of
-        TScore -> Just $ ScoreDuration (ScoreTime.from_double val)
+        TScore -> Just $ ScoreDuration (ScoreTime.fromDouble val)
         TReal -> Just $ RealDuration (RealTime.seconds val)
     _ -> Nothing
 
@@ -272,11 +272,11 @@ data Typed a = Typed !Type !a
     deriving (Eq, Ord, Show, Functor, Foldable, Traversable)
     -- Not record syntax so Show is more concise.
 
-type_of :: Typed a -> Type
-type_of (Typed typ _) = typ
+typeOf :: Typed a -> Type
+typeOf (Typed typ _) = typ
 
-val_of :: Typed a -> a
-val_of (Typed _ a) = a
+valOf :: Typed a -> a
+valOf (Typed _ a) = a
 
 instance DeepSeq.NFData a => DeepSeq.NFData (Typed a) where
     rnf (Typed typ val) = typ `seq` DeepSeq.rnf val
@@ -290,23 +290,23 @@ instance Monoid a => Monoid (Typed a) where
 instance Pretty a => Pretty (Typed a) where
     format (Typed typ val) =
         Pretty.text (if Text.null c then "" else c <> ":") <> Pretty.format val
-        where c = type_to_code typ
+        where c = typeToCode typ
 
 instance ShowVal.ShowVal (Typed Control) where
-    show_val (Typed typ c) = ShowVal.show_val c <> ":" <> type_to_code typ
+    showVal (Typed typ c) = ShowVal.showVal c <> ":" <> typeToCode typ
 
 instance Serialize.Serialize a => Serialize.Serialize (Typed a) where
     put (Typed a b) = Serialize.put a >> Serialize.put b
     get = Typed <$> Serialize.get <*> Serialize.get
 
-merge_typed :: (a -> a -> a) -> Typed a -> Typed a -> Typed a
-merge_typed f (Typed typ1 v1) (Typed typ2 v2) = Typed (typ1<>typ2) (f v1 v2)
+mergeTyped :: (a -> a -> a) -> Typed a -> Typed a -> Typed a
+mergeTyped f (Typed typ1 v1) (Typed typ2 v2) = Typed (typ1<>typ2) (f v1 v2)
 
 untyped :: a -> Typed a
 untyped = Typed Untyped
 
-type_to_transpose :: Typed Signal.Y -> Maybe Pitch.Transpose
-type_to_transpose (Typed typ val) = case typ of
+typeToTranspose :: Typed Signal.Y -> Maybe Pitch.Transpose
+typeToTranspose (Typed typ val) = case typ of
     Diatonic -> Just $ Pitch.Diatonic val
     Chromatic -> Just $ Pitch.Chromatic val
     Nn -> Just $ Pitch.Nn val
@@ -316,7 +316,7 @@ type_to_transpose (Typed typ val) = case typ of
 -- * type aliases
 
 instance ShowVal.ShowVal (Typed Signal.Y) where
-    show_val (Typed typ val) = ShowVal.show_val val <> type_to_code typ
+    showVal (Typed typ val) = ShowVal.showVal val <> typeToCode typ
 
 -- | This is a snapshot of the control signals at a certain point in time.
 -- It's meant for 'Derive.PSignal.PitchConfig', so the values are expected to

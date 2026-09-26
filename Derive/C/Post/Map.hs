@@ -22,11 +22,11 @@ import           Global
 
 library :: Library.Library
 library = Library.transformers
-    [ ("mapc", c_mapc)
+    [ ("mapc", cMapc)
     ]
 
-c_mapc :: Derive.Transformer Derive.Note
-c_mapc = Derive.transformer Module.prelude "mapc" Tags.postproc
+cMapc :: Derive.Transformer Derive.Note
+cMapc = Derive.transformer Module.prelude "mapc" Tags.postproc
     "Apply a signal transformer to the pitch or control signals of each event."
     $ Sig.callt ((,)
     <$> Sig.required "control" "Apply to this control. Pitch signals start\
@@ -34,29 +34,29 @@ c_mapc = Derive.transformer Module.prelude "mapc" Tags.postproc
     <*> Sig.required "transformer" "Transformer to apply."
     ) $ \(control, transformer) args deriver -> do
         let mapper = case control of
-                Left control -> map_control
-                    (Derive.coerce_context (Args.context args)) control
+                Left control -> mapControl
+                    (Derive.coerceContext (Args.context args)) control
                     transformer
-                Right pcontrol -> map_pcontrol
-                    (Derive.coerce_context (Args.context args)) pcontrol
+                Right pcontrol -> mapPcontrol
+                    (Derive.coerceContext (Args.context args)) pcontrol
                     transformer
-        Post.emap_m_ id mapper =<< deriver
+        Post.emapM_ id mapper =<< deriver
 
-map_control :: Derive.Context Derive.Control -> ScoreT.Control
+mapControl :: Derive.Context Derive.Control -> ScoreT.Control
     -> DeriveT.Quoted -> Score.Event -> Derive.Deriver [Score.Event]
-map_control ctx control transformer event = do
+mapControl ctx control transformer event = do
     let ScoreT.Typed typ sig = fromMaybe mempty $
-            Score.event_control control event
-    sig <- (LEvent.write_snd =<<) $ Post.derive_signal $
-        Eval.eval_quoted_transformers ctx transformer $
-            pure $ Stream.from_event sig
-    pure [Score.set_control control (ScoreT.Typed typ sig) event]
+            Score.eventControl control event
+    sig <- (LEvent.writeSnd =<<) $ Post.deriveSignal $
+        Eval.evalQuotedTransformers ctx transformer $
+            pure $ Stream.fromEvent sig
+    pure [Score.setControl control (ScoreT.Typed typ sig) event]
 
-map_pcontrol :: Derive.Context Derive.Pitch -> ScoreT.PControl
+mapPcontrol :: Derive.Context Derive.Pitch -> ScoreT.PControl
     -> DeriveT.Quoted -> Score.Event -> Derive.Deriver [Score.Event]
-map_pcontrol ctx control transformer event = do
-    let sig = fromMaybe mempty $ Score.event_named_pitch control event
-    sig <- (LEvent.write_snd =<<) $ Post.derive_signal $
-        Eval.eval_quoted_transformers ctx transformer $
-            pure $ Stream.from_event sig
-    pure [Score.set_named_pitch control sig event]
+mapPcontrol ctx control transformer event = do
+    let sig = fromMaybe mempty $ Score.eventNamedPitch control event
+    sig <- (LEvent.writeSnd =<<) $ Post.deriveSignal $
+        Eval.evalQuotedTransformers ctx transformer $
+            pure $ Stream.fromEvent sig
+    pure [Score.setNamedPitch control sig event]

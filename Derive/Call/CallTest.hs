@@ -35,29 +35,29 @@ import           Types
 
 transform :: (Derive.NoteDeriver -> Derive.NoteDeriver) -> Derive.Result
 transform trans = DeriveTest.derive Ui.empty $
-    Derive.with_constant_pitch
-        (DeriveTest.mkpitch12 "4c") (trans (DeriveTest.c_note 0 1))
+    Derive.withConstantPitch
+        (DeriveTest.mkpitch12 "4c") (trans (DeriveTest.cNote 0 1))
 
-run_pitch_ :: Text -> [(ScoreTime, Text)] -> Derive.Result
-run_pitch_ title events = DeriveTest.derive_tracks title
+runPitch_ :: Text -> [(ScoreTime, Text)] -> Derive.Result
+runPitch_ title events = DeriveTest.deriveTracks title
     [ (">", [(0, 10, "")])
     , ("*", [(start, 0, text) | (start, text) <- events])
     ]
 
-run_pitch :: Text -> [(ScoreTime, Text)] -> [(RealTime, Pitch.NoteNumber)]
-run_pitch title = extract . run_pitch_ title
-    where extract = head . DeriveTest.extract_events DeriveTest.e_nns
+runPitch :: Text -> [(ScoreTime, Text)] -> [(RealTime, Pitch.NoteNumber)]
+runPitch title = extract . runPitch_ title
+    where extract = head . DeriveTest.extractEvents DeriveTest.eNns
 
 -- | Run a control track and extract the control signal it produces.
-run_control :: [(ScoreTime, Text)] -> [(Signal.X, Signal.Y)]
-run_control events = run_control_dur [(p, 0, t) | (p, t) <- events]
+runControl :: [(ScoreTime, Text)] -> [(Signal.X, Signal.Y)]
+runControl events = runControlDur [(p, 0, t) | (p, t) <- events]
 
-run_control_dur :: [UiTest.EventSpec] -> [(Signal.X, Signal.Y)]
-run_control_dur events = extract $
-    DeriveTest.derive_tracks "" [(">", [(0, 10, "")]), ("cont", events)]
+runControlDur :: [UiTest.EventSpec] -> [(Signal.X, Signal.Y)]
+runControlDur events = extract $
+    DeriveTest.deriveTracks "" [(">", [(0, 10, "")]), ("cont", events)]
     where
-    extract = Lists.dropDups id . head . DeriveTest.extract_events
-        (Signal.to_pairs . ScoreT.val_of . get . Score.event_controls)
+    extract = Lists.dropDups id . head . DeriveTest.extractEvents
+        (Signal.toPairs . ScoreT.valOf . get . Score.eventControls)
     get fm = case Map.lookup "cont" fm of
         Nothing -> error "expected a 'cont' control"
         Just c -> c
@@ -68,75 +68,75 @@ run_control_dur events = extract $
 --
 -- > DeriveTest.derive_tracks_setup (CallTest.with_note_generator "g" c_gen)
 -- > where c_gen = CallTest.generator $ \args -> do ...
-with_note_generator :: Expr.Symbol -> Derive.Generator Derive.Note
+withNoteGenerator :: Expr.Symbol -> Derive.Generator Derive.Note
     -> DeriveTest.SetupA a
-with_note_generator name call = DeriveTest.with_deriver $ Derive.with_scopes $
-    Derive.s_generator#Derive.s_note %= override (Derive.single_call name call)
+withNoteGenerator name call = DeriveTest.withDeriver $ Derive.withScopes $
+    Derive.sGenerator#Derive.sNote %= override (Derive.singleCall name call)
 
-with_pitch_generator :: Expr.Symbol -> Derive.Generator Derive.Pitch
+withPitchGenerator :: Expr.Symbol -> Derive.Generator Derive.Pitch
     -> DeriveTest.SetupA a
-with_pitch_generator name call = DeriveTest.with_deriver $ Derive.with_scopes $
-    Derive.s_generator#Derive.s_pitch %= override (Derive.single_call name call)
+withPitchGenerator name call = DeriveTest.withDeriver $ Derive.withScopes $
+    Derive.sGenerator#Derive.sPitch %= override (Derive.singleCall name call)
 
-with_control_generator :: Expr.Symbol -> Derive.Generator Derive.Control
+withControlGenerator :: Expr.Symbol -> Derive.Generator Derive.Control
     -> DeriveTest.SetupA a
-with_control_generator name call =
-    DeriveTest.with_deriver $ Derive.with_scopes $
-        Derive.s_generator#Derive.s_control
-            %= override (Derive.single_call name call)
+withControlGenerator name call =
+    DeriveTest.withDeriver $ Derive.withScopes $
+        Derive.sGenerator#Derive.sControl
+            %= override (Derive.singleCall name call)
 
-with_note_generators :: [(Expr.Symbol, Derive.Generator Derive.Note)]
+withNoteGenerators :: [(Expr.Symbol, Derive.Generator Derive.Note)]
     -> DeriveTest.SetupA a
-with_note_generators calls = DeriveTest.with_deriver $ Derive.with_scopes $
-    Derive.s_generator#Derive.s_note %= override (lookup_map calls)
+withNoteGenerators calls = DeriveTest.withDeriver $ Derive.withScopes $
+    Derive.sGenerator#Derive.sNote %= override (lookupMap calls)
 
-with_note_transformer :: Expr.Symbol -> Derive.Transformer Derive.Note
+withNoteTransformer :: Expr.Symbol -> Derive.Transformer Derive.Note
     -> DeriveTest.SetupA a
-with_note_transformer name call = DeriveTest.with_deriver $ Derive.with_scopes $
-    Derive.s_transformer#Derive.s_note
-        %= override (Derive.single_call name call)
+withNoteTransformer name call = DeriveTest.withDeriver $ Derive.withScopes $
+    Derive.sTransformer#Derive.sNote
+        %= override (Derive.singleCall name call)
 
-with_val_call :: Expr.Symbol -> Derive.ValCall -> DeriveTest.SetupA a
-with_val_call name call = DeriveTest.with_deriver $ Derive.with_scopes $
-    Derive.s_val %= override (Derive.single_call name call)
+withValCall :: Expr.Symbol -> Derive.ValCall -> DeriveTest.SetupA a
+withValCall name call = DeriveTest.withDeriver $ Derive.withScopes $
+    Derive.sVal %= override (Derive.singleCall name call)
 
 override :: Derive.CallMap call -> Derive.ScopePriority call
     -> Derive.ScopePriority call
-override = Derive.add_priority Derive.PrioOverride
+override = Derive.addPriority Derive.PrioOverride
 
-lookup_map :: [(Expr.Symbol, call)] -> Derive.CallMap call
-lookup_map calls = Derive.CallMap
-    { call_map = Map.fromList calls
-    , call_patterns = []
+lookupMap :: [(Expr.Symbol, call)] -> Derive.CallMap call
+lookupMap calls = Derive.CallMap
+    { callMap = Map.fromList calls
+    , callPatterns = []
     }
 
 -- * calls
 
 -- | Run a val call, and return what it returned.
-run_val :: Maybe Text -> Text -> (Maybe DeriveT.Val, [Text])
-run_val = run_val_tracks "" [] 0
+runVal :: Maybe Text -> Text -> (Maybe DeriveT.Val, [Text])
+runVal = runValTracks "" [] 0
 
 -- | 'run_val' with more knobs.
-run_val_tracks :: Text -> [UiTest.TrackSpec] -> ScoreTime -> Maybe Text -> Text
+runValTracks :: Text -> [UiTest.TrackSpec] -> ScoreTime -> Maybe Text -> Text
     -> (Maybe DeriveT.Val, [Text])
-run_val_tracks title tracks at transform call =
-    extract $ DeriveTest.derive_tracks_setup
-        (with_note_generator "capture" c_capture) title
+runValTracks title tracks at transform call =
+    extract $ DeriveTest.deriveTracksSetup
+        (withNoteGenerator "capture" cCapture) title
         (tracks ++ [(">", [(at, 0, event)])])
     where
     event = maybe "" (<> " | ") transform <> "capture (" <> call <> ")"
     extract = first (Monad.join . Lists.head) . DeriveTest.extract
-        (Env.lookup "capture" . Score.event_environ)
-    c_capture :: Derive.Generator Derive.Note
-    c_capture = Derive.generator module_ "capture" mempty "Capture env." $
+        (Env.lookup "capture" . Score.eventEnviron)
+    cCapture :: Derive.Generator Derive.Note
+    cCapture = Derive.generator module_ "capture" mempty "Capture env." $
         Sig.call (Sig.required "val" "Val.") $ \val _args ->
-            Derive.with_val "capture" (val :: DeriveT.Val) Call.note
+            Derive.withVal "capture" (val :: DeriveT.Val) Call.note
 
-c_show_args :: Derive.CallableExpr d => Derive.Generator d
-c_show_args = Derive.generator module_ "show-args" mempty "doc" $
-    Sig.call (Sig.many_vals "arg" "doc") $ \_ args -> do
+cShowArgs :: Derive.CallableExpr d => Derive.Generator d
+cShowArgs = Derive.generator module_ "show-args" mempty "doc" $
+    Sig.call (Sig.manyVals "arg" "doc") $ \_ args -> do
         Log.warn $ Text.intercalate ", " $
-            map ShowVal.show_val (Derive.passed_vals args)
+            map ShowVal.showVal (Derive.passedVals args)
         pure Stream.empty
 
 generator :: Derive.Taggable d =>
@@ -152,11 +152,11 @@ transformer :: Derive.Taggable d
     => (Derive.PassedArgs d -> Derive.Deriver (Stream.Stream d)
         -> Derive.Deriver (Stream.Stream d))
     -> Derive.Transformer d
-transformer = transformer_args . Sig.call0t
+transformer = transformerArgs . Sig.call0t
 
-transformer_args :: Derive.WithArgDoc (Derive.TransformerF d)
+transformerArgs :: Derive.WithArgDoc (Derive.TransformerF d)
     -> Derive.Transformer d
-transformer_args = Derive.transformer module_ "test" mempty "test doc"
+transformerArgs = Derive.transformer module_ "test" mempty "test doc"
 
 -- * PassedArgs
 
@@ -164,7 +164,7 @@ module_ :: Module.Module
 module_ = "test-module"
 
 expr :: Text -> DeriveT.Expr
-expr = either (error . untxt . ("CallTest.expr: " <>)) id . Parse.parse_expr
+expr = either (error . untxt . ("CallTest.expr: " <>)) id . Parse.parseExpr
 
 val :: Text -> DeriveT.Val
-val = either (error . untxt . ("CallTest.val: " <>)) id . Parse.parse_val
+val = either (error . untxt . ("CallTest.val: " <>)) id . Parse.parseVal

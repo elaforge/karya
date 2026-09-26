@@ -71,7 +71,7 @@ resample :: (KnownNat rate, KnownNat chan)
 resample config ratiosUnshifted start audio
     -- Don't do any work if it's close enough to 1.  This is likely to be
     -- common, so worth optimizing.
-    | Just val <- Signal.constant_val_from 0 ratios, ratioCloseEnough val =
+    | Just val <- Signal.constantValFrom 0 ratios, ratioCloseEnough val =
         Audio.assertIn (state == Nothing)
             ("expected no state for un-resampled, got " <> pretty state) $
         -- resampleBy synchronizes, but File.readFrom doesn't.
@@ -105,25 +105,25 @@ addNow frames config = config { Resample._now = frames + Resample._now config }
 applyEnvelope :: IO () -> RealTime -> Signal.Signal -> AUtil.Audio
     -> AUtil.Audio
 applyEnvelope close start sig
-    | Just val <- Signal.constant_val_from start sig =
+    | Just val <- Signal.constantValFrom start sig =
         if ApproxEq.eq 0.01 val 1 then id
             else Audio.gain (AUtil.dynToLinear (Num.d2f val))
     | otherwise = AUtil.volume $ clipEnd $ realizeSignal start sig
     where
     clipEnd = maybe id
-        (Audio.takeCloseS (liftIO close) . RealTime.to_seconds)
+        (Audio.takeCloseS (liftIO close) . RealTime.toSeconds)
         (envelopeDuration start sig)
 
 applyPan :: RealTime -> Signal.Signal -> AUtil.Audio -> AUtil.Audio
 applyPan start sig
-    | Just val <- Signal.constant_val_from start sig =
+    | Just val <- Signal.constantValFrom start sig =
         Audio.panConstant (Num.d2f val)
     | otherwise = Audio.pan (realizeSignal start sig)
 
 realizeSignal :: RealTime -> Signal.Signal -> AUtil.Audio1
 realizeSignal start sig = Audio.linear True $
-    map (first (RealTime.to_seconds . subtract start)) $
-    Signal.clip_before_pairs start sig
+    map (first (RealTime.toSeconds . subtract start)) $
+    Signal.clipBeforePairs start sig
 
 -- | Get the duration implied by the envelope, or Nothing if the envelope won't
 -- shorten the duration.
@@ -132,7 +132,7 @@ realizeSignal start sig = Audio.linear True $
 -- performance, but because checkpoints rely on the note durations being
 -- accurate.
 envelopeDuration :: RealTime -> Signal.Signal -> Maybe RealTime
-envelopeDuration start = go . Signal.to_pairs_desc
+envelopeDuration start = go . Signal.toPairsDesc
     where
     go [(_, 0)] = Just 0
     go ((_, 0) : xys@((_, 0) : _)) = go xys
@@ -179,13 +179,13 @@ toFramesF :: Audio.Frames -> FramesF
 toFramesF = fromIntegral
 
 predictDuration :: Signal.Signal -> Audio.Frames -> Audio.Frames
-predictDuration ratios sampleDur = case Signal.constant_val_from 0 ratios of
+predictDuration ratios sampleDur = case Signal.constantValFrom 0 ratios of
     -- I can also do this optimization if it's constant over the duration of
     -- the sample.  But to know if that's the case I have to do an integral
     -- intersection and I think that's the same as the non-optimized case.
     Just y -> toFrames $ toFramesF sampleDur * y
     Nothing -> toFrames $
-        go (toFramesF sampleDur) 0 (Signal.clip_before_segments 0 ratios)
+        go (toFramesF sampleDur) 0 (Signal.clipBeforeSegments 0 ratios)
     where
     toFrames = Audio.Frames . ceiling
     go !input !output segments@(Segment.Segment x1 y1 x2 y2 : rest)

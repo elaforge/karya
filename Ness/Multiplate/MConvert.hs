@@ -48,13 +48,13 @@ convertNote inst note = first ((pretty note <> ": ")<>) $ do
         Left $ "no object: " <> object
     let get c = tryJust ("no " <> pretty c) $ Map.lookup c (Note.controls note)
     let getStart c = tryJust ("no value: " <> pretty c)
-            . flip Signal.at_maybe (Note.start note) =<< get c
+            . flip Signal.atMaybe (Note.start note) =<< get c
     dyn <- getStart Control.dynamic
-    (x, y) <- (,) <$> getStart Patch.c_x <*> getStart Patch.c_y
-    dur <- getStart Patch.c_duration
+    (x, y) <- (,) <$> getStart Patch.cX <*> getStart Patch.cY
+    dur <- getStart Patch.cDuration
     pure $ Multiplate.Strike
         { sObject = object
-        , sStart = RealTime.to_seconds $ Note.start note
+        , sStart = RealTime.toSeconds $ Note.start note
         , sDuration = dur
         , sPosition = (x, y)
         , sForce = dyn * maxAmp

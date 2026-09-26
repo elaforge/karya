@@ -17,16 +17,16 @@ import qualified Perform.Signal as Signal
 import Types
 
 
-note_terminate :: ScoreT.Control -> RealTime -> Derive.Transformer Derive.Note
-note_terminate control decay = Derive.transformer Module.instrument
+noteTerminate :: ScoreT.Control -> RealTime -> Derive.Transformer Derive.Note
+noteTerminate control decay = Derive.transformer Module.instrument
     "note-terminate" (Tags.postproc <> Tags.inst)
     "Terminate a note with a control change."
     $ Sig.callt (
     Sig.defaulted "value" (0.1 :: Double) "Move to this value."
     ) $ \value _args -> fmap (Post.emap1_ (apply decay value))
     where
-    apply decay value event = Score.modify_signal control
-        (modify decay value (Score.event_end event)) event
-    modify decay value end = Signal.sig_multiply
-        (Signal.from_pairs
+    apply decay value event = Score.modifySignal control
+        (modify decay value (Score.eventEnd event)) event
+    modify decay value end = Signal.sigMultiply
+        (Signal.fromPairs
             [(Signal.beginning, 1), (end, 1), (end + decay, value)])

@@ -35,12 +35,12 @@ rincik = Patch.addCode code $
     Drum.patch dir "cengceng-rincik" rincikStrokeMap rincikConvertMap
         (const rincikCallConfig)
     where
-    code = ImInst.note_transformers [("infer-hands", c_inferHands)]
+    code = ImInst.noteTransformers [("infer-hands", cInferHands)]
     dir = "cengceng/rincik"
 
 rincikCallConfig :: CUtil.CallConfig
-rincikCallConfig = CUtil.call_config
-    { CUtil._tuning_control = Just "cengceng-rincik-tune"
+rincikCallConfig = CUtil.callConfig
+    { CUtil._tuningControl = Just "cengceng-rincik-tune"
     , CUtil._transform = Code.withVariation
     }
 
@@ -102,8 +102,8 @@ rincikStrokeMap = Drum.replaceSoft 0.75 $ Drum.strokeMapTable stops $
     muted = "muted"
     soft = Attrs.soft
 
-c_inferHands :: Derive.Transformer Derive.Note
-c_inferHands = Derive.transformer Module.instrument "infer-hands" mempty
+cInferHands :: Derive.Transformer Derive.Note
+cInferHands = Derive.transformer Module.instrument "infer-hands" mempty
     "Infer alternating +right and +left for notes without it.  Only applies\
     \ to +open, +closed, +mute."
     $ Sig.call0t $ \_ deriver -> snd . Post.emap1 assign HRight <$> deriver
@@ -112,10 +112,10 @@ c_inferHands = Derive.transformer Module.instrument "infer-hands" mempty
         | has Attrs.left = (HRight, event)
         | has Attrs.right = (HLeft, event)
         | any has [Attrs.open, Attrs.closed, Attrs.mute] =
-            (other hand, Score.add_attributes (handAttr hand) event)
+            (other hand, Score.addAttributes (handAttr hand) event)
         | otherwise = (hand, event)
         where
-        has a = Score.has_attribute a event
+        has a = Score.hasAttribute a event
     other HRight = HLeft
     other HLeft = HRight
     handAttr HRight = Attrs.right
@@ -196,8 +196,8 @@ kopyaks = map make [K1, K2, K3]
     make inst = Drum.patch
         (kopyakDir inst) ("cengceng-kopyak" <> txt (kopyakNum inst))
         kopyakStrokeMap (kopyakConvertMap inst) (const config)
-    config = CUtil.call_config
-        { CUtil._tuning_control = Just "cengceng-kopyak-tune" }
+    config = CUtil.callConfig
+        { CUtil._tuningControl = Just "cengceng-kopyak-tune" }
 
 data Inst = K1 | K2 | K3 deriving (Show)
 

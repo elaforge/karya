@@ -444,7 +444,7 @@ realizeSection tala toStrokes smap postproc section = do
         )
     where
     checkAlignment realized
-        | tala == Talas.Carnatic Tala.any_beats = Nothing
+        | tala == Talas.Carnatic Tala.anyBeats = Nothing
         | otherwise = Realize.checkAlignment
             (Talas.aksharas tala)
             (sectionStart section) (sectionEnd section)

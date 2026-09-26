@@ -4,7 +4,7 @@
 
 -- | Setup 'StaticConfig.StaticConfig'.  This is an empty example config, which
 -- you'll want to customize locally.
-module User.Generic.Config (load_static_config) where
+module User.Generic.Config (loadStaticConfig) where
 import qualified App.Config as Config
 import qualified App.LoadInstruments as LoadInstruments
 import qualified App.ParseArgs as ParseArgs
@@ -18,32 +18,32 @@ import qualified Derive.C.All as C.All
 import           Global
 
 
-load_static_config :: IO StaticConfig.StaticConfig
-load_static_config = do
-    app_dir <- Path.get_app_dir
-    instrument_db <- LoadInstruments.load app_dir
-    midi <- get_midi_config instrument_db
+loadStaticConfig :: IO StaticConfig.StaticConfig
+loadStaticConfig = do
+    appDir <- Path.getAppDir
+    instrumentDb <- LoadInstruments.load appDir
+    midi <- getMidiConfig instrumentDb
     pure $ StaticConfig.StaticConfig
-        { instrument_db = instrument_db
-        , global_cmds = global_cmds
+        { instrumentDb = instrumentDb
+        , globalCmds = globalCmds
         , builtins = C.All.builtins
-        , setup_cmd = ParseArgs.parse_args
-        , post_setup_cmd = pure ()
+        , setupCmd = ParseArgs.parseArgs
+        , postSetupCmd = pure ()
         , midi
-        , highlight_colors = Config.highlight_colors
+        , highlightColors = Config.highlightColors
         -- Set to True to play im via portaudio, instead of the play_cache vst.
-        , im_play_direct = False
+        , imPlayDirect = False
         , keycaps = True
         }
 
-global_cmds :: [Msg.Msg -> Cmd.CmdT IO Cmd.Status]
-global_cmds = []
+globalCmds :: [Msg.Msg -> Cmd.CmdT IO Cmd.Status]
+globalCmds = []
 
-get_midi_config :: Cmd.InstrumentDb -> IO StaticConfig.Midi
-get_midi_config _db = pure $ StaticConfig.Midi
-    { rdev_map = StaticConfig.make_rdev_map []
+getMidiConfig :: Cmd.InstrumentDb -> IO StaticConfig.Midi
+getMidiConfig _db = pure $ StaticConfig.Midi
+    { rdevMap = StaticConfig.makeRdevMap []
     -- This assumes OS X, and IAC ports named 1, 2, 3, 4.
-    , wdev_map = StaticConfig.make_wdev_map
+    , wdevMap = StaticConfig.makeWdevMap
         [("loop" <> showt n, "IAC Driver " <> showt n) | n <- [1..4]]
-    , read_devices = mempty
+    , readDevices = mempty
     }

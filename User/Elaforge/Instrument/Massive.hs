@@ -12,7 +12,7 @@ import           Global
 
 synth :: MidiInst.Synth
 synth = MidiInst.synth "massive" "Native Instrument Massive" $
-    MidiInst.synth_controls controls patches
+    MidiInst.synthControls controls patches
     where
     controls = (1, "macro1") :
         [ (18 + n, ScoreT.Control $ "macro" <> showt n)
@@ -20,4 +20,4 @@ synth = MidiInst.synth "massive" "Native Instrument Massive" $
         ]
 
 patches :: [MidiInst.Patch]
-patches = [MidiInst.default_patch (-24, 24) []]
+patches = [MidiInst.defaultPatch (-24, 24) []]

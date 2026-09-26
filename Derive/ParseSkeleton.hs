@@ -4,7 +4,7 @@
 
 module Derive.ParseSkeleton (
     Track(..)
-    , default_parser, note_bottom_parser
+    , defaultParser, noteBottomParser
 ) where
 import qualified Data.Text as Text
 import qualified Data.Tree as Tree
@@ -35,57 +35,57 @@ type Title = Text
 -- This should take arguments to apply to instrument and control tracks.
 --
 -- TODO do something special with embedded rulers and dividers
-default_parser :: [Track] -> Skeleton.Skeleton
-default_parser = make_skeleton . parse_to_tree False
+defaultParser :: [Track] -> Skeleton.Skeleton
+defaultParser = makeSkeleton . parseToTree False
 
 -- | The note-bottom parser puts note tracks at the bottom:
 --
 -- @[tempo c1 i1 c2 i2] -> [tempo1 (c1 i1) (c2 i2)]@
 --
 -- This is useful when you don't want to invoke slicing.
-note_bottom_parser :: [Track] -> Skeleton.Skeleton
-note_bottom_parser = make_skeleton . parse_to_tree True
+noteBottomParser :: [Track] -> Skeleton.Skeleton
+noteBottomParser = makeSkeleton . parseToTree True
 
-make_skeleton :: Tree.Forest Track -> Skeleton.Skeleton
-make_skeleton = Skeleton.make . Trees.edges . map (fmap _tracknum)
+makeSkeleton :: Tree.Forest Track -> Skeleton.Skeleton
+makeSkeleton = Skeleton.make . Trees.edges . map (fmap _tracknum)
 
 -- | [c0 tempo1 i1 c1 tempo2 c2 i2 c3] ->
 -- c0 (tempo1 (i1 (c1)) (tempo2 (c2 (i2 (c3)))))
 --
 -- [i1, c1, i2] -> (i1 c1) (i2)
 -- [i1, c1 -->, i2] -> i1 (c1 (i2))
-parse_to_tree :: Bool -> [Track] -> Tree.Forest Track
-parse_to_tree reversed tracks = concatMap parse groups
+parseToTree :: Bool -> [Track] -> Tree.Forest Track
+parseToTree reversed tracks = concatMap parse groups
     where
-    groups = split_title ParseTitle.is_tempo_track tracks
-    parse = if reversed then reverse_tempo_group else parse_tempo_group
+    groups = splitTitle ParseTitle.isTempoTrack tracks
+    parse = if reversed then reverseTempoGroup else parseTempoGroup
 
-parse_tempo_group :: [Track] -> Tree.Forest Track
-parse_tempo_group = concatMap parse_control_group . split_title is_cgroup
+parseTempoGroup :: [Track] -> Tree.Forest Track
+parseTempoGroup = concatMap parseControlGroup . splitTitle isCgroup
     where
-    is_cgroup t = ParseTitle.is_control_track t && "-->" `Text.isSuffixOf` t
+    isCgroup t = ParseTitle.isControlTrack t && "-->" `Text.isSuffixOf` t
     -- Use a --> "pragma" comment to make a control track associate to the
     -- right.
 
-parse_control_group :: [Track] -> Tree.Forest Track
-parse_control_group tracks = case split_title ParseTitle.is_note_track tracks of
+parseControlGroup :: [Track] -> Tree.Forest Track
+parseControlGroup tracks = case splitTitle ParseTitle.isNoteTrack tracks of
     [] -> []
-    non_note : ngroups -> descend non_note (concatMap parse_note_group ngroups)
+    nonNote : ngroups -> descend nonNote (concatMap parseNoteGroup ngroups)
 
-split_title :: (Title -> Bool) -> [Track] -> [[Track]]
-split_title f = Lists.splitBefore (f . _title)
+splitTitle :: (Title -> Bool) -> [Track] -> [[Track]]
+splitTitle f = Lists.splitBefore (f . _title)
 
-reverse_tempo_group :: [Track] -> Tree.Forest Track
-reverse_tempo_group [] = []
-reverse_tempo_group (track:tracks) =
-    [Tree.Node track $ concatMap parse_note_group (shift groups)]
+reverseTempoGroup :: [Track] -> Tree.Forest Track
+reverseTempoGroup [] = []
+reverseTempoGroup (track:tracks) =
+    [Tree.Node track $ concatMap parseNoteGroup (shift groups)]
     where
-    groups = split_title ParseTitle.is_note_track tracks
+    groups = splitTitle ParseTitle.isNoteTrack tracks
     shift (group : (note : rest) : gs) = (group ++ [note]) : shift (rest : gs)
     shift gs = gs
 
-parse_note_group :: [a] -> Tree.Forest a
-parse_note_group tracks = descend tracks []
+parseNoteGroup :: [a] -> Tree.Forest a
+parseNoteGroup tracks = descend tracks []
 
 descend :: [a] -> Tree.Forest a -> Tree.Forest a
 descend [] bottom = bottom

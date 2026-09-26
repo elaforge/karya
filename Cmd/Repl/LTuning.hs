@@ -69,65 +69,65 @@ table scale =
         : [oct : map (Num.showFloat 2) nns | (oct, nns) <- zip octaves groups]
     where
     octaves = map (("c"<>) . showt) [-1..]
-    groups = Lists.chunked 12 $ Unboxed.toList $ Patch.scale_key_to_nn scale
+    groups = Lists.chunked 12 $ Unboxed.toList $ Patch.scaleKeyToNn scale
 
 -- | Get a patch scale for the scale at the selection.
 selection :: Cmd.M m => Bool
     -- ^ False to throw if there are warnings or errors, True to ignore them.
     -> m Patch.Scale
-selection ignore_errors = do
-    (block_id, _, track_id, _) <- Selection.get_insert
-    (scale, errs) <- scale_at block_id track_id
-    unless (ignore_errors || null errs) $
+selection ignoreErrors = do
+    (blockId, _, trackId, _) <- Selection.getInsert
+    (scale, errs) <- scaleAt blockId trackId
+    unless (ignoreErrors || null errs) $
         Cmd.throw $ Text.unlines errs
     pure scale
 
 -- | Figure out a 'Patch.Scale' by enumerating all inputs to the scale in
 -- scope.
-scale_at :: Cmd.M m => BlockId -> TrackId -> m (Patch.Scale, [Text])
-scale_at block_id track_id = do
-    scale <- Perf.derive_at_throw block_id track_id Call.get_scale
-    (key_nns, errs) <- fmap unzip $ forM all_inputs $ \(key, input) -> do
-        let at_time = 0
-        (val, logs) <- Perf.derive_at block_id track_id $
-            Scale.scale_input_to_nn scale at_time input
+scaleAt :: Cmd.M m => BlockId -> TrackId -> m (Patch.Scale, [Text])
+scaleAt blockId trackId = do
+    scale <- Perf.deriveAtThrow blockId trackId Call.getScale
+    (keyNns, errs) <- fmap unzip $ forM allInputs $ \(key, input) -> do
+        let atTime = 0
+        (val, logs) <- Perf.deriveAt blockId trackId $
+            Scale.scaleInputToNn scale atTime input
         let prefix = (("key " <> pretty key <> ": ") <>)
         pure $ second (map prefix . (++ map pretty logs)) $ case val of
             Left err -> (Nothing, [err])
             Right (Left err) -> (Nothing, [pretty err])
             Right (Right nn) -> (Just (key, nn), [])
-    let name = pretty (Scale.scale_id scale)
-    pure (Patch.make_scale name (Maybe.catMaybes key_nns), concat errs)
+    let name = pretty (Scale.scaleId scale)
+    pure (Patch.makeScale name (Maybe.catMaybes keyNns), concat errs)
 
 -- | Create a Patch.Scale for the named scale.
 named :: Cmd.M m => Bool
     -- ^ False to check for warnings and errors, True to ignore them.
     -> Text -> Text -> m Patch.Scale
-named ignore_errors name transform = do
-    scale <- get_scale name
-    (scale, errs) <- make_patch_scale scale transform
-    unless (ignore_errors || null errs) $
+named ignoreErrors name transform = do
+    scale <- getScale name
+    (scale, errs) <- makePatchScale scale transform
+    unless (ignoreErrors || null errs) $
         Cmd.throw $ Text.unlines errs
     pure scale
 
-get_scale :: Cmd.M m => Text -> m Scale.Scale
-get_scale name =
+getScale :: Cmd.M m => Text -> m Scale.Scale
+getScale name =
     Cmd.require ("scale not found: " <> name)
-        =<< Perf.lookup_scale_env mempty (Pitch.ScaleId name)
+        =<< Perf.lookupScaleEnv mempty (Pitch.ScaleId name)
 
-make_patch_scale :: Cmd.M m => Scale.Scale -> Text -> m (Patch.Scale, [Text])
-make_patch_scale scale transform = do
-    (key_nns, errs) <- fmap unzip $ forM all_inputs $ \(key, input) -> do
-        let at_time = 0
-        (val, logs) <- derive $ Equal.transform_expr transform $
-            Scale.scale_input_to_nn scale at_time input
+makePatchScale :: Cmd.M m => Scale.Scale -> Text -> m (Patch.Scale, [Text])
+makePatchScale scale transform = do
+    (keyNns, errs) <- fmap unzip $ forM allInputs $ \(key, input) -> do
+        let atTime = 0
+        (val, logs) <- derive $ Equal.transformExpr transform $
+            Scale.scaleInputToNn scale atTime input
         let prefix = (("key " <> pretty key <> ": ") <>)
         pure $ second (map prefix . (++ logs)) $ case val of
             Nothing -> (Nothing, [])
             Just (Left err) -> (Nothing, [pretty err])
             Just (Right nn) -> (Just (key, nn), [])
-    let name = pretty (Scale.scale_id scale)
-    pure (Patch.make_scale name (Maybe.catMaybes key_nns), concat errs)
+    let name = pretty (Scale.scaleId scale)
+    pure (Patch.makeScale name (Maybe.catMaybes keyNns), concat errs)
 
 derive :: Cmd.M m => Derive.Deriver a -> m (Maybe a, [Text])
 derive deriver = do
@@ -136,28 +136,28 @@ derive deriver = do
         Left err -> (Nothing, pretty err : map pretty logs)
         Right val -> (Just val, map pretty logs)
 
-all_inputs :: [(Midi.Key, Pitch.Input)]
-all_inputs =
-    [(key, InputNote.nn_to_input (Midi.from_key key)) | key <- [0..127]]
+allInputs :: [(Midi.Key, Pitch.Input)]
+allInputs =
+    [(key, InputNote.nnToInput (Midi.fromKey key)) | key <- [0..127]]
 
 -- * retune
 
 -- | All instruments with initialization get the new scale.
 retune :: Cmd.M m => Patch.Scale -> m [Util.Instrument]
 retune scale = do
-    insts <- LInst.list_midi
-    inits <- mapM (LInst.inst_initialization . Util.instrument) insts
+    insts <- LInst.listMidi
+    inits <- mapM (LInst.instInitialization . Util.instrument) insts
     fmap concat $ forM (zip insts inits) $ \(inst, init) -> case init of
         Nothing -> pure []
         Just Patch.Tuning -> realtime inst scale >> pure [inst]
         Just Patch.NrpnTuning -> nrpn inst scale >> pure [inst]
 
 -- | Show tuning map for debugging.
-get_tuning :: Cmd.M m => Util.Instrument -> Patch.Scale -> m Text
-get_tuning inst scale = do
-    attr_map@(Common.AttributeMap amap) <- Patch.patch_attribute_map . fst <$>
-        Cmd.get_midi_instrument (Util.instrument inst)
-    let tuning = Patch.scale_tuning (Just attr_map) scale
+getTuning :: Cmd.M m => Util.Instrument -> Patch.Scale -> m Text
+getTuning inst scale = do
+    attrMap@(Common.AttributeMap amap) <- Patch.patchAttributeMap . fst <$>
+        Cmd.getMidiInstrument (Util.instrument inst)
+    let tuning = Patch.scaleTuning (Just attrMap) scale
     pure $ Text.unlines $ concat
         [ map pretty amap
         , [""]
@@ -171,44 +171,44 @@ get_tuning inst scale = do
 -- code to paste in.
 realtime :: Cmd.M m => Util.Instrument -> Patch.Scale -> m Text
 realtime inst scale = do
-    LInst.initialize_realtime_tuning (Util.instrument inst)
+    LInst.initializeRealtimeTuning (Util.instrument inst)
     pure $ Text.unlines
         [ ">" <> inst <> " ..."
         , "  { initialization: Tuning }"
-        , Instruments.un_scale scale
+        , Instruments.unScale scale
         ]
 
 -- | Just like 'realtime', but send tuning via 'LInst.initialize_nrpn_tuning'.
 nrpn :: Cmd.M m => Util.Instrument -> Patch.Scale -> m Text
 nrpn inst scale = do
-    LInst.initialize_nrpn_tuning (Util.instrument inst)
+    LInst.initializeNrpnTuning (Util.instrument inst)
     pure $ Text.unlines
         [ ">" <> inst <> " ..."
         , "  { initialization: NrpnTuning }"
-        , Instruments.un_scale scale
+        , Instruments.unScale scale
         ]
 
 -- | Write KSP to retune a 12TET patch.  Don't forget to do 'LInst.set_scale'
 -- to configure the instrument.
-write_ksp :: Maybe Util.Instrument -> FilePath -> Patch.Scale -> Cmd.CmdT IO ()
-write_ksp maybe_inst filename scale = do
-    attr_map <- case maybe_inst of
+writeKsp :: Maybe Util.Instrument -> FilePath -> Patch.Scale -> Cmd.CmdT IO ()
+writeKsp maybeInst filename scale = do
+    attrMap <- case maybeInst of
         Nothing -> pure Nothing
-        Just inst -> Just . Patch.patch_attribute_map . fst <$>
-            Cmd.get_midi_instrument (Util.instrument inst)
-    ksp <- Cmd.require_right id $ Kontakt.Util.tuning_ksp attr_map scale
+        Just inst -> Just . Patch.patchAttributeMap . fst <$>
+            Cmd.getMidiInstrument (Util.instrument inst)
+    ksp <- Cmd.requireRight id $ Kontakt.Util.tuningKsp attrMap scale
     liftIO $ Text.IO.writeFile filename ksp
     pure ()
 
-write_bali_scales_ksp :: Cmd.CmdT IO ()
-write_bali_scales_ksp = do
-    write_laras_ksp "wayang" (Wayang.instrument_scale True Wayang.laras_sawan)
-    write_laras_ksp "legong"
-        (Legong.complete_instrument_scale Legong.laras_rambat)
+writeBaliScalesKsp :: Cmd.CmdT IO ()
+writeBaliScalesKsp = do
+    writeLarasKsp "wayang" (Wayang.instrumentScale True Wayang.larasSawan)
+    writeLarasKsp "legong"
+        (Legong.completeInstrumentScale Legong.larasRambat)
 
-write_laras_ksp :: FilePath -> (BaliScales.Tuning -> Patch.Scale)
+writeLarasKsp :: FilePath -> (BaliScales.Tuning -> Patch.Scale)
     -> Cmd.CmdT IO ()
-write_laras_ksp name make = mapM_ (uncurry (write_ksp Nothing))
+writeLarasKsp name make = mapM_ (uncurry (writeKsp Nothing))
     [ (name <> "-umbang.ksp", make BaliScales.Umbang)
     , (name <> "-isep.ksp", make BaliScales.Isep)
     ]

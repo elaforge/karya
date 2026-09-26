@@ -23,27 +23,27 @@ import           Util.Test
 
 test_respond :: Test
 test_respond = do
-    let states = (bimap add_allocation set_db) $ ResponderTest.mkstates $
-            UiTest.note_spec
+    let states = (bimap addAllocation setDb) $ ResponderTest.mkstates $
+            UiTest.noteSpec
                 ( "im"
                 , [(0, 1, "4c"), (1, 1, "4d")]
                 , [("dyn", [(0, ".5")]), ("unsupported", [(0, ".25")])]
                 )
-        add_allocation = UiTest.set_instruments ">im im-synth/ [ms] im"
-        set_db state = state
-            { Cmd.state_config = (Cmd.state_config state)
-                { Cmd.config_instrument_db = db }
+        addAllocation = UiTest.setInstruments ">im im-synth/ [ms] im"
+        setDb state = state
+            { Cmd.stateConfig = (Cmd.stateConfig state)
+                { Cmd.configInstrumentDb = db }
             }
-        (db, warns) = Inst.db [DeriveTest.default_im_synth]
+        (db, warns) = Inst.db [DeriveTest.defaultImSynth]
     equal warns []
     results <- respond states (pure ())
-    ResponderTest.print_results results
-    let config = Cmd.config_im $ Cmd.state_config DeriveTest.default_cmd_state
-        Just synth_config = Map.lookup "im-synth" (Config.synths config)
+    ResponderTest.printResults results
+    let config = Cmd.configIm $ Cmd.stateConfig DeriveTest.defaultCmdState
+        Just synthConfig = Map.lookup "im-synth" (Config.synths config)
     notes <- Note.unserialize $ Config.notesFilename (Config.imDir config)
-        "#untitled" UiTest.default_block_id synth_config
-    right_equal (map Note.start <$> notes) [0, 1]
-    right_equal (map (Map.toAscList . Note.controls) <$> notes)
+        "#untitled" UiTest.defaultBlockId synthConfig
+    rightEqual (map Note.start <$> notes) [0, 1]
+    rightEqual (map (Map.toAscList . Note.controls) <$> notes)
         [ [ (Control.dynamic, Signal.constant  0.5)
           , (Control.pitch, Signal.constant (realToFrac NN.c4))
           ]
@@ -53,4 +53,4 @@ test_respond = do
         ]
 
 respond :: ResponderTest.States -> Cmd.CmdT IO a -> IO [ResponderTest.Result]
-respond = ResponderTest.respond_all [] 2
+respond = ResponderTest.respondAll [] 2

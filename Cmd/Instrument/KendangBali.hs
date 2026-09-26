@@ -25,71 +25,71 @@ import qualified Derive.Stream as Stream
 
 -- * code
 
-pasang_code :: MidiInst.Code
-pasang_code =
-    MidiInst.note_transformers [("realize", c_realize_kendang)]
-    <> MidiInst.note_generators c_pasang_calls
-    <> MidiInst.cmd pasang_cmd
+pasangCode :: MidiInst.Code
+pasangCode =
+    MidiInst.noteTransformers [("realize", cRealizeKendang)]
+    <> MidiInst.noteGenerators cPasangCalls
+    <> MidiInst.cmd pasangCmd
 
 -- * tunggal
 
 -- TODO the kontakt one uses CUtil.resolve_strokes, which also takes a keymap
 -- and checks for collisions... but I think I don't need it for im?
-tunggal_strokes :: [Drums.Stroke]
-tunggal_strokes = do
-    (key, note@(Note _ attrs), group) <- tunggal_table
+tunggalStrokes :: [Drums.Stroke]
+tunggalStrokes = do
+    (key, note@(Note _ attrs), group) <- tunggalTable
     pure $ Drums.Stroke
-        { _name = to_call note
+        { _name = toCall note
         , _attributes = attrs
         , _char = if key == ' ' then Nothing else Just key
-        , _dynamic = if Attrs.contain attrs Attrs.soft then soft_dyn else 1
+        , _dynamic = if Attrs.contain attrs Attrs.soft then softDyn else 1
         , _group = group
         }
 
-soft_dyn :: Double
-soft_dyn = 0.4
+softDyn :: Double
+softDyn = 0.4
 
-tunggal_table :: [(Char, Note, Drums.Group)]
+tunggalTable :: [(Char, Note, Drums.Group)]
 stops :: Drums.Stops
-(stops, tunggal_table) = (stops,) $ map to_note
+(stops, tunggalTable) = (stops,) $ map toNote
     [ ('b', Plak, plak,         both)
     -- left
-    , ('1', Pak, pak <> soft,   left_closed)
-    , ('q', Pak, pak,           left_closed)
-    , ('w', Pang, pang,         left_open)
-    , ('3', TutL, left <> tut <> soft,  left_open)
-    , ('e', TutL, left <> tut,  left_open)
-    , ('r', DeL, left <> de,    left_open)
+    , ('1', Pak, pak <> soft,   leftClosed)
+    , ('q', Pak, pak,           leftClosed)
+    , ('w', Pang, pang,         leftOpen)
+    , ('3', TutL, left <> tut <> soft,  leftOpen)
+    , ('e', TutL, left <> tut,  leftOpen)
+    , ('r', DeL, left <> de,    leftOpen)
     -- right
-    , ('a', De, de <> soft,     right_open)
-    , ('z', De, de,             right_open)
-    , ('s', De, de <> Attrs.thumb,    right_open)
-    , ('d', De, de <> Attrs.staccato, right_open)
-    , ('x', Tut, tut,           right_open)
-    , ('c', Ka, ka <> soft,     right_closed)
-    , ('f', Ka, ka,             right_closed)
-    , ('.', Dag, dag,           right_open)
-    , ('l', Dag, dag <> soft,   right_open)
-    , ('/', Tek, tek,           right_closed)
-    , (';', Tek, tek <> soft,   right_closed)
+    , ('a', De, de <> soft,     rightOpen)
+    , ('z', De, de,             rightOpen)
+    , ('s', De, de <> Attrs.thumb,    rightOpen)
+    , ('d', De, de <> Attrs.staccato, rightOpen)
+    , ('x', Tut, tut,           rightOpen)
+    , ('c', Ka, ka <> soft,     rightClosed)
+    , ('f', Ka, ka,             rightClosed)
+    , ('.', Dag, dag,           rightOpen)
+    , ('l', Dag, dag <> soft,   rightOpen)
+    , ('/', Tek, tek,           rightClosed)
+    , (';', Tek, tek <> soft,   rightClosed)
     ]
     where
-    to_note (key, stroke, attrs, group) = (key, Note stroke attrs, group)
+    toNote (key, stroke, attrs, group) = (key, Note stroke attrs, group)
     left = Attrs.left
     soft = Attrs.soft
     stops =
-        [ (both, [left_open, right_open])
-        , (left_closed, [left_open])
-        , (right_closed, [right_open])
+        [ (both, [leftOpen, rightOpen])
+        , (leftClosed, [leftOpen])
+        , (rightClosed, [rightOpen])
         ]
     both = "both"
-    left_closed = "left-closed"
-    left_open = "left-open"
-    right_closed = "right-closed"
-    right_open = "right-open"
+    leftClosed = "left-closed"
+    leftOpen = "left-open"
+    rightClosed = "right-closed"
+    rightOpen = "right-open"
 
-to_call :: Note -> Expr.Symbol
-to_call (Note stroke attrs) = Expr.Symbol $ case stroke of
+toCall :: Note -> Expr.Symbol
+toCall (Note stroke attrs) = Expr.Symbol $ case stroke of
     Plak -> "PL"
     -- left
     Pak -> if soft then "^" else "P"
@@ -115,48 +115,48 @@ to_call (Note stroke attrs) = Expr.Symbol $ case stroke of
 data Pasang = Pasang { wadon :: ScoreT.Instrument, lanang :: ScoreT.Instrument }
     deriving (Show)
 
-pasang_env :: Sig.Parser Pasang
-pasang_env = Pasang
-    <$> Sig.required_environ "wadon" Sig.Unprefixed "Wadon instrument."
-    <*> Sig.required_environ "lanang" Sig.Unprefixed "Lanang instrument."
+pasangEnv :: Sig.Parser Pasang
+pasangEnv = Pasang
+    <$> Sig.requiredEnviron "wadon" Sig.Unprefixed "Wadon instrument."
+    <*> Sig.requiredEnviron "lanang" Sig.Unprefixed "Lanang instrument."
 
-pasang_cmd :: Cmd.M m => Cmd.Handler m
-pasang_cmd = CUtil.insert_call CUtil.MidiThru
-    [(char, name) | (char, name, _) <- pasang_calls]
+pasangCmd :: Cmd.M m => Cmd.Handler m
+pasangCmd = CUtil.insertCall CUtil.MidiThru
+    [(char, name) | (char, name, _) <- pasangCalls]
 
-c_pasang_calls :: [(Expr.Symbol, Derive.Generator Derive.Note)]
-c_pasang_calls =
-    [ (name, c_pasang_stroke name stroke)
-    | (name, stroke) <- map (\(_, a, b) -> (a, b)) pasang_calls ++ both_calls
+cPasangCalls :: [(Expr.Symbol, Derive.Generator Derive.Note)]
+cPasangCalls =
+    [ (name, cPasangStroke name stroke)
+    | (name, stroke) <- map (\(_, a, b) -> (a, b)) pasangCalls ++ bothCalls
     ]
 
-c_pasang_stroke :: Expr.Symbol -> PasangStroke -> Derive.Generator Derive.Note
-c_pasang_stroke sym pstroke = Derive.generator Module.instrument
-    (Derive.sym_to_call_name sym) Tags.inst "Dispatch to wadon or lanang." $
-    Sig.call pasang_env call
+cPasangStroke :: Expr.Symbol -> PasangStroke -> Derive.Generator Derive.Note
+cPasangStroke sym pstroke = Derive.generator Module.instrument
+    (Derive.symToCallName sym) Tags.inst "Dispatch to wadon or lanang." $
+    Sig.call pasangEnv call
     where
     call pasang args = case pstroke of
         Wadon note -> dispatch wadon note
         Lanang note -> dispatch lanang note
         Both w l -> dispatch wadon w <> dispatch lanang l
         where
-        dispatch inst note = Derive.with_instrument (inst pasang) $
-            Eval.reapply_generator args (to_call note)
+        dispatch inst note = Derive.withInstrument (inst pasang) $
+            Eval.reapplyGenerator args (toCall note)
 
-both_calls :: [(Expr.Symbol, PasangStroke)]
-both_calls =
+bothCalls :: [(Expr.Symbol, PasangStroke)]
+bothCalls =
     ("PLPL", Both (Note Plak mempty) (Note Plak mempty)) :
     [ (wadon <> lanang, Both wnote lnote)
-    | (_, wadon, Wadon wnote) <- pasang_calls
-    , (_, lanang, Lanang lnote@(Note lstroke _)) <- pasang_calls
+    | (_, wadon, Wadon wnote) <- pasangCalls
+    , (_, lanang, Lanang lnote@(Note lstroke _)) <- pasangCalls
     , lstroke /= Plak
-    , Both wnote lnote `Set.notMember` already_bound
+    , Both wnote lnote `Set.notMember` alreadyBound
     ]
     where
-    already_bound = Set.fromList [stroke | (_, _, stroke) <- pasang_calls]
+    alreadyBound = Set.fromList [stroke | (_, _, stroke) <- pasangCalls]
 
-pasang_calls :: [(Char, Expr.Symbol, PasangStroke)]
-pasang_calls =
+pasangCalls :: [(Char, Expr.Symbol, PasangStroke)]
+pasangCalls =
     [ ('b', "PL", lanang Plak)
     , ('t', "Ø", lanang TutL)
     , ('5', "ø", Lanang (Note TutL soft))
@@ -186,52 +186,52 @@ pasang_calls =
 
 -- | Unicode has some kendang notation, but it's harder to type and I'm not
 -- sure if I'll wind up using it.
-balinese_pasang_calls :: [(Char, Expr.Symbol, PasangStroke)]
-balinese_pasang_calls =
+balinesePasangCalls :: [(Char, Expr.Symbol, PasangStroke)]
+balinesePasangCalls =
     [ ('b', "PL",           wadon Plak)
-    , ('t', open_ping,      lanang TutL)
+    , ('t', openPing,      lanang TutL)
     -- left
-    , ('q', closed_plak,    wadon Pak) -- ka
-    , ('w', closed_pluk,    lanang Pak) -- pak
-    , ('e', open_pang,      wadon Pang) -- kam
-    , ('r', open_pung,      lanang Pang) -- pang
+    , ('q', closedPlak,    wadon Pak) -- ka
+    , ('w', closedPluk,    lanang Pak) -- pak
+    , ('e', openPang,      wadon Pang) -- kam
+    , ('r', openPung,      lanang Pang) -- pang
     -- right
-    , ('z', open_dag,       wadon De) -- de
-    , ('a', quiet open_dag, Wadon (Note De soft)) -- de
-    , ('x', open_dug,       lanang De) -- tut
-    , ('c', closed_tak,     wadon Tut) -- kum
-    , ('v', closed_tuk,     lanang Tut) -- pung
+    , ('z', openDag,       wadon De) -- de
+    , ('a', quiet openDag, Wadon (Note De soft)) -- de
+    , ('x', openDug,       lanang De) -- tut
+    , ('c', closedTak,     wadon Tut) -- kum
+    , ('v', closedTuk,     lanang Tut) -- pung
     -- TODO since I use the same symbols for with and without panggul, there
     -- needs to be a separate attribute.
-    , ('m', open_dag,       wadon Dag) -- dag
-    , ('j', quiet open_dag, Wadon (Note Dag soft)) -- dag
-    , (',', open_dug,       lanang Dag) -- dug
-    , ('.', closed_tak,     wadon Tek) -- tak
-    , ('/', closed_tuk,     lanang Tek) -- tek
+    , ('m', openDag,       wadon Dag) -- dag
+    , ('j', quiet openDag, Wadon (Note Dag soft)) -- dag
+    , (',', openDug,       lanang Dag) -- dug
+    , ('.', closedTak,     wadon Tek) -- tak
+    , ('/', closedTuk,     lanang Tek) -- tek
     ]
     where
     soft = Attrs.soft
     -- left
-    open_pang = "᭸"     -- t kam
-    open_pung = "᭹"     -- T pang
-    closed_plak = "᭺"   -- k ka
-    closed_pluk = "᭻"   -- P pak
-    open_ping = "᭼"     -- Ø pung
+    openPang = "᭸"     -- t kam
+    openPung = "᭹"     -- T pang
+    closedPlak = "᭺"   -- k ka
+    closedPluk = "᭻"   -- P pak
+    openPing = "᭼"     -- Ø pung
     -- right
-    open_dag = "᭵"      -- < dag   + de
-    open_dug = "᭴"      -- > dug   o tut
-    closed_tak = "᭷"    -- ] tek   u kum
-    closed_tuk = "᭶"    -- [ tak   U pung
+    openDag = "᭵"      -- < dag   + de
+    openDug = "᭴"      -- > dug   o tut
+    closedTak = "᭷"    -- ] tek   u kum
+    closedTuk = "᭶"    -- [ tak   U pung
     quiet = ("," <>)
     wadon stroke = Wadon (Note stroke mempty)
     lanang stroke = Lanang (Note stroke mempty)
 
-c_realize_kendang :: Derive.Transformer Derive.Note
-c_realize_kendang = Derive.transformer Module.instrument "realize-kendang"
+cRealizeKendang :: Derive.Transformer Derive.Note
+cRealizeKendang = Derive.transformer Module.instrument "realize-kendang"
     (Tags.inst <> Tags.postproc)
     "Realize a composite kendang score into separate lanang and wadon parts."
-    $ Sig.callt pasang_env
-    $ \pasang _args deriver -> realize_kendang pasang <$> deriver
+    $ Sig.callt pasangEnv
+    $ \pasang _args deriver -> realizeKendang pasang <$> deriver
 
 {- | Given a composite part with lanang and wadon, fill in the secondary
     strokes.
@@ -263,9 +263,9 @@ c_realize_kendang = Derive.transformer Module.instrument "realize-kendang"
     > TP+.TP+.
     > .TP+.TP+
 -}
-realize_kendang :: Pasang -> Stream.Stream Score.Event
+realizeKendang :: Pasang -> Stream.Stream Score.Event
     -> Stream.Stream Score.Event
-realize_kendang _pasang events = events -- TODO
+realizeKendang _pasang events = events -- TODO
 
 
 -- * attrs
@@ -306,8 +306,8 @@ data Stroke
     | Ka | Tut | De | Dag | Tek -- right
     deriving (Eq, Ord, Show)
 
-notes_of :: PasangStroke -> [Note]
-notes_of pstroke = case pstroke of
+notesOf :: PasangStroke -> [Note]
+notesOf pstroke = case pstroke of
     Wadon note -> [note]
     Lanang note -> [note]
     Both w l -> [w, l]

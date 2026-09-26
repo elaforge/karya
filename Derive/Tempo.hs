@@ -5,9 +5,9 @@
 {-# LANGUAGE CPP #-}
 -- | Functions to handle tempo tracks.
 module Derive.Tempo (
-    with_tempo, with_absolute, with_hybrid
+    withTempo, withAbsolute, withHybrid
 #ifdef TESTING
-    , tempo_to_warp
+    , tempoToWarp
 #endif
 ) where
 import qualified Ui.ScoreTime as ScoreTime
@@ -28,7 +28,7 @@ import Types
 -- Tempo is the tempo signal, which is the standard musical definition of
 -- tempo: trackpos over time.  Warp is the time warping that the tempo
 -- implies, which is the integral of (1/tempo).
-with_tempo :: Monoid a => Bool -- ^ If this tempo track is the toplevel track,
+withTempo :: Monoid a => Bool -- ^ If this tempo track is the toplevel track,
     -- i.e. controls all other tracks in this block, then I noramlize to the
     -- block duration.  See comment below.
     -> Maybe (ScoreTime, ScoreTime)
@@ -39,14 +39,14 @@ with_tempo :: Monoid a => Bool -- ^ If this tempo track is the toplevel track,
     -- there's no explicit tempo track there's an implicit tempo around the
     -- whole block, but the implicit one doesn't have a track of course.
     -> Signal.Tempo -> Derive.Deriver a -> Derive.Deriver a
-with_tempo toplevel range maybe_track_id signal deriver = do
-    when (Signal.zero_or_below signal) $
+withTempo toplevel range maybeTrackId signal deriver = do
+    when (Signal.zeroOrBelow signal) $
         Derive.throw "tempo signal crosses zero"
-    let warp = tempo_to_warp signal
-    stretch_to_1 <- get_stretch_to_1 range $ \(start, end) -> do
-        let real_start = Warp.warp warp start
-            real_end = Warp.warp warp end
-            real_dur = real_end - real_start
+    let warp = tempoToWarp signal
+    stretchTo1 <- getStretchTo1 range $ \(start, end) -> do
+        let realStart = Warp.warp warp start
+            realEnd = Warp.warp warp end
+            realDur = realEnd - realStart
         -- This is tricky.  I want nested tempo tracks to be equivalent to
         -- nested blocks, so it would be as if the score starting at the tempo
         -- track below were in its own block.  However, in that case there
@@ -59,30 +59,30 @@ with_tempo toplevel range maybe_track_id signal deriver = do
         -- in the warp of the parent tempo track, which is not the same as the
         -- global warp, so I'd have to store that somewhere, and it seems a lot
         -- more complicated.
-        let stretch = 1 / RealTime.to_score real_dur
+        let stretch = 1 / RealTime.toScore realDur
                 * if toplevel then 1 else end - start
-        place <- require_nonzero (end - start) real_dur $
-            Derive.stretch stretch . Derive.at (- RealTime.to_score real_start)
-        pure (place, real_dur)
-    stretch_to_1 $ Internal.warp warp $ do
-        Internal.add_new_track_warp maybe_track_id
+        place <- requireNonzero (end - start) realDur $
+            Derive.stretch stretch . Derive.at (- RealTime.toScore realStart)
+        pure (place, realDur)
+    stretchTo1 $ Internal.warp warp $ do
+        Internal.addNewTrackWarp maybeTrackId
         deriver
 
-tempo_to_warp :: Signal.Tempo -> Warp.Warp
-tempo_to_warp sig
+tempoToWarp :: Signal.Tempo -> Warp.Warp
+tempoToWarp sig
     -- Optimize for a constant (or missing) tempo.
     -- Tempo tracks have to start at x=0, since they are integrated.
-    | Just y <- Signal.constant_val_from 0 sig =
-        Warp.stretch (ScoreTime.from_double $ 1 / y) Warp.identity
-    | otherwise = Warp.from_signal warp_sig
+    | Just y <- Signal.constantValFrom 0 sig =
+        Warp.stretch (ScoreTime.fromDouble $ 1 / y) Warp.identity
+    | otherwise = Warp.fromSignal warpSig
     where
-    warp_sig = Signal.integrate_inverse sig
+    warpSig = Signal.integrateInverse sig
 
-require_nonzero :: ScoreTime -> RealTime -> (a -> a) -> Derive.Deriver (a -> a)
-require_nonzero block_dur real_dur ok
-    | block_dur == 0 = pure id
-    | real_dur == 0 = Derive.throw $
-        "real time of block with dur " <> showt block_dur <> " was zero"
+requireNonzero :: ScoreTime -> RealTime -> (a -> a) -> Derive.Deriver (a -> a)
+requireNonzero blockDur realDur ok
+    | blockDur == 0 = pure id
+    | realDur == 0 = Derive.throw $
+        "real time of block with dur " <> showt blockDur <> " was zero"
     | otherwise = pure ok
 
 {- | If a tempo track is the block's topmost, it needs to do some special
@@ -108,25 +108,25 @@ require_nonzero block_dur real_dur ok
     TODO relying on the stack seems a little implicit, would it be better to
     have an explicit flag?
 -}
-get_stretch_to_1 :: Monoid a => Maybe (ScoreTime, ScoreTime)
+getStretchTo1 :: Monoid a => Maybe (ScoreTime, ScoreTime)
     -> ((ScoreTime, ScoreTime)
         -> Derive.Deriver (Derive.Deriver a -> Derive.Deriver a, RealTime))
     -- ^ Take the block range, and return a transformer to properly place the
     -- block, and the RealTime duration of the block.
     -> Derive.Deriver (Derive.Deriver a -> Derive.Deriver a)
-get_stretch_to_1 Nothing _ = pure id
-get_stretch_to_1 (Just range) compute =
-    ifM Internal.is_root_block (pure id) $ do
+getStretchTo1 Nothing _ = pure id
+getStretchTo1 (Just range) compute =
+    ifM Internal.isRootBlock (pure id) $ do
         (transform, dur) <- compute range
-        Derive.get_mode >>= \mode -> case mode of
+        Derive.getMode >>= \mode -> case mode of
             Derive.RealDurationQuery -> do
-                set_real_duration dur
+                setRealDuration dur
                 pure $ const $ pure mempty
             _ -> pure transform
 
-set_real_duration :: RealTime -> Derive.Deriver ()
-set_real_duration dur = Internal.modify_collect $ \collect ->
-    collect { Derive.collect_real_duration = Derive.CallDuration dur }
+setRealDuration :: RealTime -> Derive.Deriver ()
+setRealDuration dur = Internal.modifyCollect $ \collect ->
+    collect { Derive.collectRealDuration = Derive.CallDuration dur }
 
 
 -- * absolute
@@ -136,22 +136,22 @@ set_real_duration dur = Internal.modify_collect $ \collect ->
 --
 -- This can be used to isolate the tempo from any tempo effects that may be
 -- going on.
-with_absolute :: Monoid a => Bool -> Maybe (ScoreTime, ScoreTime)
+withAbsolute :: Monoid a => Bool -> Maybe (ScoreTime, ScoreTime)
     -> Maybe TrackId -> Signal.Tempo -> Derive.Deriver a -> Derive.Deriver a
-with_absolute toplevel range maybe_track_id signal deriver = do
+withAbsolute toplevel range maybeTrackId signal deriver = do
     unless toplevel $ Derive.throw
         "nested absolute tracks not supported yet, use 'with_tempo' as a model"
-    let warp = tempo_to_warp signal
-    place <- get_stretch_to_1 range $ \(block_start, block_end) -> do
-        start <- RealTime.to_score <$> Derive.real (0 :: ScoreTime)
-        end <- RealTime.to_score <$> Derive.real (1 :: ScoreTime)
-        let real_end = Warp.warp warp block_end
-        let real_dur = real_end - Warp.warp warp block_start
-        place <- require_nonzero (block_end - block_start) real_dur $
-            Internal.place start ((end - start) / RealTime.to_score real_dur)
-        pure (place, real_dur)
-    Internal.in_real_time $ place $ Internal.warp warp $ do
-        Internal.add_new_track_warp maybe_track_id
+    let warp = tempoToWarp signal
+    place <- getStretchTo1 range $ \(blockStart, blockEnd) -> do
+        start <- RealTime.toScore <$> Derive.real (0 :: ScoreTime)
+        end <- RealTime.toScore <$> Derive.real (1 :: ScoreTime)
+        let realEnd = Warp.warp warp blockEnd
+        let realDur = realEnd - Warp.warp warp blockStart
+        place <- requireNonzero (blockEnd - blockStart) realDur $
+            Internal.place start ((end - start) / RealTime.toScore realDur)
+        pure (place, realDur)
+    Internal.inRealTime $ place $ Internal.warp warp $ do
+        Internal.addNewTrackWarp maybeTrackId
         deriver
 
 -- * hybrid
@@ -160,9 +160,9 @@ with_absolute toplevel range maybe_track_id signal deriver = do
 -- time.  That is, they won't stretch along with the non-zero segments.  This
 -- means the output will always be at least as long as the absolute sections,
 -- so a block call may extend past the end of its event.
-with_hybrid :: Monoid a => Bool -> Maybe (ScoreTime, ScoreTime)
+withHybrid :: Monoid a => Bool -> Maybe (ScoreTime, ScoreTime)
     -> Maybe TrackId -> Signal.Tempo -> Derive.Deriver a -> Derive.Deriver a
-with_hybrid toplevel range maybe_track_id signal deriver = do
+withHybrid toplevel range maybeTrackId signal deriver = do
     unless toplevel $ Derive.throw
         "nested hybrid tracks not supported yet, use 'with_tempo' as a model"
     Derive.throw "not implemented"

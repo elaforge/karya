@@ -10,31 +10,31 @@
 -- in "Ui.State".
 module Ui.UiConfig (
     Config(..)
-    , empty_config
-    , namespace_, meta, root, allocations, lilypond, default_, saved_views
+    , emptyConfig
+    , namespace_, meta, root, allocations, lilypond, default_, savedViews
     , ky, tscore
-    , allocations_map
-    , verify_allocations
+    , allocationsMap
+    , verifyAllocations
     , Allocations(..), unallocations
-    , make_allocations
-    , midi_allocations
-    , modify_allocation
+    , makeAllocations
+    , midiAllocations
+    , modifyAllocation
     , Allocation(..)
     , allocation
-    , has_im, has_midi, has_sc
-    , is_im_allocation, is_midi_allocation
-    , play_cache
+    , hasIm, hasMidi, hasSc
+    , isImAllocation, isMidiAllocation
+    , playCache
 
-    , Backend(..), backend_name
-    , midi_config
-    , convert_backend
+    , Backend(..), backendName
+    , midiConfig
+    , convertBackend
     , Meta(..)
-    , empty_meta
-    , creation, last_save, notes, midi_performances, lilypond_performances
-    , im_performances
+    , emptyMeta
+    , creation, lastSave, notes, midiPerformances, lilypondPerformances
+    , imPerformances
     , MidiPerformance, LilypondPerformance, ImPerformance
     , Performance(..)
-    , make_performance
+    , makePerformance
     , Default(..)
     , tempo
     , SavedViews
@@ -76,86 +76,86 @@ import           Types
 data Config = Config
     -- | The default namespace is used for automatically created IDs, so each
     -- project can import other projects without clashes.
-    { config_namespace :: Id.Namespace
-    , config_meta :: Meta
+    { configNamespace :: Id.Namespace
+    , configMeta :: Meta
     -- | Derivation can start from any block, but it's useful to know which
     -- block represents the entire piece.  This way, given a position on some
     -- block I can determine where in the piece it lies, if anywhere.  This is
     -- useful for playing a block in proper context, or communicating with
     -- a program with a more absolute notion of time, like a DAW.
-    , config_root :: Maybe BlockId
+    , configRoot :: Maybe BlockId
 
-    , config_allocations :: Allocations
-    , config_lilypond :: Lilypond.Config
-    , config_default :: Default
-    , config_saved_views :: SavedViews
+    , configAllocations :: Allocations
+    , configLilypond :: Lilypond.Config
+    , configDefault :: Default
+    , configSavedViews :: SavedViews
     -- | Locally defined code in the ky language, as parsed by
     -- 'Derive.Parse.parse_ky'.  If the ky defines a note transformer called
     -- @GLOBAL@, it will be implicitly wrapped around every derivation.
-    , config_ky :: Text
-    , config_tscore :: Text
+    , configKy :: Text
+    , configTscore :: Text
     } deriving (Eq, Show)
 
-empty_config :: Config
-empty_config = Config
-    { config_namespace = Id.namespace "untitled"
-    , config_meta = empty_meta
-    , config_root = Nothing
-    , config_allocations = mempty
-    , config_lilypond = Lilypond.default_config
-    , config_default = empty_default
-    , config_saved_views = mempty
-    , config_ky = ""
-    , config_tscore = ""
+emptyConfig :: Config
+emptyConfig = Config
+    { configNamespace = Id.namespace "untitled"
+    , configMeta = emptyMeta
+    , configRoot = Nothing
+    , configAllocations = mempty
+    , configLilypond = Lilypond.defaultConfig
+    , configDefault = emptyDefault
+    , configSavedViews = mempty
+    , configKy = ""
+    , configTscore = ""
     }
 
 -- Ui.State already has a function called 'namespace'.
-namespace_ = Lens.lens config_namespace (\r a -> r { config_namespace = a })
-meta = Lens.lens config_meta (\r a -> r { config_meta = a })
-root = Lens.lens config_root (\r a -> r { config_root = a })
-allocations = Lens.lens config_allocations
-    (\r a -> r { config_allocations = a })
-lilypond = Lens.lens config_lilypond (\r a -> r { config_lilypond = a })
-default_ = Lens.lens config_default (\r a -> r { config_default = a })
-saved_views = Lens.lens config_saved_views
-    (\r a -> r { config_saved_views = a })
-ky = Lens.lens config_ky (\r a -> r { config_ky = a })
-tscore = Lens.lens config_tscore (\r a -> r { config_tscore = a })
+namespace_ = Lens.lens configNamespace (\r a -> r { configNamespace = a })
+meta = Lens.lens configMeta (\r a -> r { configMeta = a })
+root = Lens.lens configRoot (\r a -> r { configRoot = a })
+allocations = Lens.lens configAllocations
+    (\r a -> r { configAllocations = a })
+lilypond = Lens.lens configLilypond (\r a -> r { configLilypond = a })
+default_ = Lens.lens configDefault (\r a -> r { configDefault = a })
+savedViews = Lens.lens configSavedViews
+    (\r a -> r { configSavedViews = a })
+ky = Lens.lens configKy (\r a -> r { configKy = a })
+tscore = Lens.lens configTscore (\r a -> r { configTscore = a })
 
 -- | Unwrap the newtype for convenience.
-allocations_map :: Lens Config (Map ScoreT.Instrument Allocation)
-allocations_map = Lens.lens (open . config_allocations)
-    (\r a -> r { config_allocations = Allocations a })
+allocationsMap :: Lens Config (Map ScoreT.Instrument Allocation)
+allocationsMap = Lens.lens (open . configAllocations)
+    (\r a -> r { configAllocations = Allocations a })
     where open (Allocations a) = a
 
 -- | TODO Make this the Allocations constructor?  Probably not worth it.
-verify_allocations :: (InstT.Qualified -> Maybe Inst.Backend) -> Allocations
+verifyAllocations :: (InstT.Qualified -> Maybe Inst.Backend) -> Allocations
     -> [Text]
-verify_allocations lookup_backend allocs =
-    verify_backends_match lookup_backend allocs
-    ++ verify_no_overlapping_midi allocs
+verifyAllocations lookupBackend allocs =
+    verifyBackendsMatch lookupBackend allocs
+    ++ verifyNoOverlappingMidi allocs
 
-verify_backends_match :: (InstT.Qualified -> Maybe Inst.Backend) -> Allocations
+verifyBackendsMatch :: (InstT.Qualified -> Maybe Inst.Backend) -> Allocations
     -> [Text]
-verify_backends_match lookup_backend (Allocations allocs) =
+verifyBackendsMatch lookupBackend (Allocations allocs) =
     concatMap check (Map.toList allocs)
     where
     check (inst, alloc) = maybe [] ((:[]) . ((pretty inst <> ": ")<>)) $
-        case lookup_backend alloc_qualified of
+        case lookupBackend allocQualified of
             Nothing -> Just $
-                "patch not found: " <> pretty alloc_qualified
-            Just backend -> case (alloc_backend, backend) of
+                "patch not found: " <> pretty allocQualified
+            Just backend -> case (allocBackend, backend) of
                 (Midi {}, Inst.Midi {}) -> Nothing
                 (Im, Inst.Im {}) -> Nothing
                 (Sc, Inst.Sc {}) -> Nothing
                 (Dummy {}, Inst.Dummy {}) -> Nothing
-                _ -> Just $ "allocation type " <> backend_name alloc_backend
-                    <> " /= instrument type " <> Inst.backend_name backend
-        where Allocation { alloc_qualified, alloc_backend } = alloc
+                _ -> Just $ "allocation type " <> backendName allocBackend
+                    <> " /= instrument type " <> Inst.backendName backend
+        where Allocation { allocQualified, allocBackend } = alloc
 
-verify_no_overlapping_midi :: Allocations -> [Text]
-verify_no_overlapping_midi (Allocations allocs) =
-    concatMap check $ Lists.zipNexts inst_addrs
+verifyNoOverlappingMidi :: Allocations -> [Text]
+verifyNoOverlappingMidi (Allocations allocs) =
+    concatMap check $ Lists.zipNexts instAddrs
     where
     check (inst1, rest) = concatMap (overlaps inst1) rest
     overlaps (inst1, devs1) (inst2, devs2) = do
@@ -167,13 +167,13 @@ verify_no_overlapping_midi (Allocations allocs) =
             [ pretty inst1, "and", pretty inst2, "on", pretty dev
             , "overlap chans:"
             ] ++ map (showt . (+1)) (Set.toList overlap)
-    inst_addrs =
-        [ (inst, by_device config)
+    instAddrs =
+        [ (inst, byDevice config)
         | (inst, alloc) <- Map.toList allocs
-        , Midi config <- [alloc_backend alloc]
+        , Midi config <- [allocBackend alloc]
         ]
-    by_device = Map.fromList . Lists.groupFst . map fst
-        . Patch.config_allocation
+    byDevice = Map.fromList . Lists.groupFst . map fst
+        . Patch.configAllocation
 
 -- TODO I'm not a big fan of this name, since it's generic and not
 -- obviously related to instruments.  However the previous name,
@@ -188,27 +188,27 @@ unallocations (Allocations m) = m
 
 -- | Make Allocations with no verification.  This should probably only be used
 -- for tests, allocations from user input should use 'allocate'.
-make_allocations :: [(ScoreT.Instrument, Allocation)] -> Allocations
-make_allocations = Allocations . Map.fromList
+makeAllocations :: [(ScoreT.Instrument, Allocation)] -> Allocations
+makeAllocations = Allocations . Map.fromList
 
 -- | This is 'make_allocations' specialized for MIDI instruments.  Like
 -- 'make_allocations', it also does no verification.
-midi_allocations :: [(ScoreT.Instrument, (InstT.Qualified, Patch.Config))]
+midiAllocations :: [(ScoreT.Instrument, (InstT.Qualified, Patch.Config))]
     -> Allocations
-midi_allocations allocs = Allocations $ Map.fromList
+midiAllocations allocs = Allocations $ Map.fromList
     [ (inst, allocation qual (Midi config))
     | (inst, (qual, config)) <- allocs
     ]
 
-modify_allocation :: ScoreT.Instrument -> (Allocation -> Either Text Allocation)
+modifyAllocation :: ScoreT.Instrument -> (Allocation -> Either Text Allocation)
     -> Allocations -> Either Text Allocations
-modify_allocation instrument modify (Allocations allocs) = do
+modifyAllocation instrument modify (Allocations allocs) = do
     alloc <- justErr ("no allocation for " <> pretty instrument) $
         Map.lookup instrument allocs
-    new_alloc <- modify alloc
-    unless (same_backend (alloc_backend alloc) (alloc_backend new_alloc)) $
+    newAlloc <- modify alloc
+    unless (sameBackend (allocBackend alloc) (allocBackend newAlloc)) $
         Left "modify_allocation changed the backend"
-    pure $ Allocations $ Map.insert instrument new_alloc allocs
+    pure $ Allocations $ Map.insert instrument newAlloc allocs
 
 {- | This is the root of the dynamic (per-score) instrument config.  It's
     divided into common and backend-specific configuration.
@@ -251,16 +251,16 @@ modify_allocation instrument modify (Allocations allocs) = do
     from InstT.dummy, which will resolve to an empty Patch.
 -}
 data Allocation = Allocation
-    { alloc_qualified :: InstT.Qualified
-    , alloc_config :: Common.Config
-    , alloc_backend :: Backend
+    { allocQualified :: InstT.Qualified
+    , allocConfig :: Common.Config
+    , allocBackend :: Backend
     } deriving (Eq, Show)
 
 allocation :: InstT.Qualified -> Backend -> Allocation
 allocation qualified backend = Allocation
-    { alloc_qualified = qualified
-    , alloc_config = Common.empty_config
-    , alloc_backend = backend
+    { allocQualified = qualified
+    , allocConfig = Common.emptyConfig
+    , allocBackend = backend
     }
 
 instance Pretty Allocation where
@@ -270,31 +270,31 @@ instance Pretty Allocation where
         , ("backend", Pretty.format backend)
         ]
 
-has_im :: Allocations -> Bool
-has_im = any is_im_allocation . Map.elems . unallocations
+hasIm :: Allocations -> Bool
+hasIm = any isImAllocation . Map.elems . unallocations
 
-has_midi :: Allocations -> Bool
-has_midi = any is_midi_allocation
-    . filter ((/= play_cache) . alloc_qualified) . Map.elems . unallocations
+hasMidi :: Allocations -> Bool
+hasMidi = any isMidiAllocation
+    . filter ((/= playCache) . allocQualified) . Map.elems . unallocations
 
-has_sc :: Allocations -> Bool
-has_sc = any is_sc_allocation . Map.elems . unallocations
+hasSc :: Allocations -> Bool
+hasSc = any isScAllocation . Map.elems . unallocations
 
-play_cache :: InstT.Qualified
-play_cache = InstT.Qualified "play-cache" ""
+playCache :: InstT.Qualified
+playCache = InstT.Qualified "play-cache" ""
 
-is_im_allocation :: Allocation -> Bool
-is_im_allocation alloc = case alloc_backend alloc of
+isImAllocation :: Allocation -> Bool
+isImAllocation alloc = case allocBackend alloc of
     Im -> True
     _ -> False
 
-is_midi_allocation :: Allocation -> Bool
-is_midi_allocation alloc = case alloc_backend alloc of
+isMidiAllocation :: Allocation -> Bool
+isMidiAllocation alloc = case allocBackend alloc of
     Midi {} -> True
     _ -> False
 
-is_sc_allocation :: Allocation -> Bool
-is_sc_allocation alloc = case alloc_backend alloc of
+isScAllocation :: Allocation -> Bool
+isScAllocation alloc = case allocBackend alloc of
     Sc -> True
     _ -> False
 
@@ -324,27 +324,27 @@ instance Pretty Backend where
         Dummy msg -> "Dummy \"" <> Pretty.text msg <> "\""
 
 -- | Local 'Backend' version of 'Inst.backend_name', keep them consistent.
-backend_name :: Backend -> Text
-backend_name = \case
+backendName :: Backend -> Text
+backendName = \case
     Midi {} -> "midi"
     Im -> "im"
     Sc -> "sc"
     Dummy {} -> "dummy"
 
-same_backend :: Backend -> Backend -> Bool
-same_backend b1 b2 = case (b1, b2) of
+sameBackend :: Backend -> Backend -> Bool
+sameBackend b1 b2 = case (b1, b2) of
     (Midi {}, Midi {}) -> True
     (Im, Im) -> True
     (Sc, Sc) -> True
     (Dummy {}, Dummy {}) -> True
     _ -> False
 
-midi_config :: Backend -> Maybe Patch.Config
-midi_config (Midi config) = Just config
-midi_config _ = Nothing
+midiConfig :: Backend -> Maybe Patch.Config
+midiConfig (Midi config) = Just config
+midiConfig _ = Nothing
 
-convert_backend :: Inst.Backend -> Backend
-convert_backend = \case
+convertBackend :: Inst.Backend -> Backend
+convertBackend = \case
     Inst.Dummy {} -> Dummy ""
     Inst.Midi {} -> Midi $ Patch.config []
     Inst.Im {} -> Im
@@ -354,35 +354,35 @@ convert_backend = \case
 data Meta = Meta
     -- | The time the score was created.  This should be reset whenever
     -- the score is started, or copied from a template.
-    { meta_creation :: Time.UTCTime
+    { metaCreation :: Time.UTCTime
     -- | The last time the score was saved.  This is useful to determine which
     -- of several saves is the latest.
-    , meta_last_save :: Time.UTCTime
-    , meta_notes :: Text
-    , meta_midi_performances :: Map BlockId MidiPerformance
-    , meta_lilypond_performances :: Map BlockId LilypondPerformance
-    , meta_im_performances :: Map BlockId ImPerformance
+    , metaLastSave :: Time.UTCTime
+    , metaNotes :: Text
+    , metaMidiPerformances :: Map BlockId MidiPerformance
+    , metaLilypondPerformances :: Map BlockId LilypondPerformance
+    , metaImPerformances :: Map BlockId ImPerformance
     } deriving (Eq, Show, Generics.Generic)
 
-empty_meta :: Meta
-empty_meta = Meta
-    { meta_creation = Time.UTCTime (Time.ModifiedJulianDay 0) 0
-    , meta_last_save = Time.UTCTime (Time.ModifiedJulianDay 0) 0
-    , meta_notes = ""
-    , meta_midi_performances = mempty
-    , meta_lilypond_performances = mempty
-    , meta_im_performances = mempty
+emptyMeta :: Meta
+emptyMeta = Meta
+    { metaCreation = Time.UTCTime (Time.ModifiedJulianDay 0) 0
+    , metaLastSave = Time.UTCTime (Time.ModifiedJulianDay 0) 0
+    , metaNotes = ""
+    , metaMidiPerformances = mempty
+    , metaLilypondPerformances = mempty
+    , metaImPerformances = mempty
     }
 
-creation = Lens.lens meta_creation (\r a -> r { meta_creation = a })
-last_save = Lens.lens meta_last_save (\r a -> r { meta_last_save = a })
-notes = Lens.lens meta_notes (\r a -> r { meta_notes = a })
-midi_performances = Lens.lens meta_midi_performances
-    (\r a -> r { meta_midi_performances = a })
-lilypond_performances = Lens.lens meta_lilypond_performances
-    (\r a -> r { meta_lilypond_performances = a })
-im_performances = Lens.lens meta_im_performances
-    (\r a -> r { meta_im_performances = a })
+creation = Lens.lens metaCreation (\r a -> r { metaCreation = a })
+lastSave = Lens.lens metaLastSave (\r a -> r { metaLastSave = a })
+notes = Lens.lens metaNotes (\r a -> r { metaNotes = a })
+midiPerformances = Lens.lens metaMidiPerformances
+    (\r a -> r { metaMidiPerformances = a })
+lilypondPerformances = Lens.lens metaLilypondPerformances
+    (\r a -> r { metaLilypondPerformances = a })
+imPerformances = Lens.lens metaImPerformances
+    (\r a -> r { metaImPerformances = a })
 
 type MidiPerformance = Performance (Vector.Vector Midi.WriteMessage)
 type LilypondPerformance = Performance Text
@@ -399,21 +399,21 @@ type ImPerformance = Performance (Vector.Vector Shared.Note.Note)
 -- only save it when 'Config' changes.  I could also split it into its own
 -- file.
 data Performance a = Performance
-    { perf_events :: a
+    { perfEvents :: a
     -- | The time this performance was recorded.
-    , perf_creation :: Time.UTCTime
+    , perfCreation :: Time.UTCTime
     -- | Free text, containing the git commit when this performance was taken.
-    , perf_commit :: Text
+    , perfCommit :: Text
     } deriving (Eq, Show, Functor)
 
-make_performance :: a -> IO (Performance a)
-make_performance events = do
+makePerformance :: a -> IO (Performance a)
+makePerformance events = do
     time <- Time.getCurrentTime
     commit <- either (errorIO . txt) pure =<< SourceControl.current "."
     pure $ Performance
-        { perf_events = events
-        , perf_creation = time
-        , perf_commit = Text.unlines $ map ($ commit)
+        { perfEvents = events
+        , perfCreation = time
+        , perfCommit = Text.unlines $ map ($ commit)
             [ SourceControl._hash
             , SourceControl.showDate . SourceControl._date
             , SourceControl._summary
@@ -428,16 +428,16 @@ make_performance events = do
 -- (or rather, is undone automatically) for integrated blocks.
 newtype Default = Default {
     -- | A toplevel block without a tempo track will get this tempo.
-    default_tempo :: Signal.Y
+    defaultTempo :: Signal.Y
     } deriving (Eq, Read, Show)
 
-empty_default :: Default
-empty_default = Default { default_tempo = 1 }
+emptyDefault :: Default
+emptyDefault = Default { defaultTempo = 1 }
 
-tempo = Lens.lens default_tempo (\r a -> r { default_tempo = a })
+tempo = Lens.lens defaultTempo (\r a -> r { defaultTempo = a })
 
 instance Pretty Config where
-    format (Config namespace meta root allocations lily dflt saved_views ky
+    format (Config namespace meta root allocations lily dflt savedViews ky
             tscore) =
         Pretty.record "Config"
             [ ("namespace", Pretty.format namespace)
@@ -446,24 +446,24 @@ instance Pretty Config where
             , ("allocations", Pretty.format allocations)
             , ("lilypond", Pretty.format lily)
             , ("default", Pretty.format dflt)
-            , ("saved_views", Pretty.format saved_views)
+            , ("saved_views", Pretty.format savedViews)
             , ("ky", Pretty.format ky)
             , ("tscore", Pretty.format tscore)
             ]
 
 instance Pretty Meta where format = Pretty.formatG_
 instance Pretty MidiPerformance where
-    format = format_performance "MidiPerformance" Vector.length
+    format = formatPerformance "MidiPerformance" Vector.length
 instance Pretty LilypondPerformance where
-    format = format_performance "LilypondPerformance" (Text.count "\n")
+    format = formatPerformance "LilypondPerformance" (Text.count "\n")
 instance Pretty ImPerformance where
-    format = format_performance "ImPerformance" Vector.length
+    format = formatPerformance "ImPerformance" Vector.length
 
-format_performance :: Pretty b => Pretty.Doc -> (a -> b) -> Performance a
+formatPerformance :: Pretty b => Pretty.Doc -> (a -> b) -> Performance a
     -> Pretty.Doc
-format_performance name format_events (Performance events creation commit) =
+formatPerformance name formatEvents (Performance events creation commit) =
     Pretty.record name
-        [ ("events", Pretty.format $ format_events events)
+        [ ("events", Pretty.format $ formatEvents events)
         , ("creation", Pretty.text $ pretty creation)
         , ("commit", Pretty.text commit)
         ]

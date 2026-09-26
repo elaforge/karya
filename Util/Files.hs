@@ -103,8 +103,8 @@ list dir = do
 
 listRecursive :: (FilePath -> Bool) -> FilePath -> IO [FilePath]
 listRecursive descend dir = do
-    is_file <- Directory.doesFileExist dir
-    if is_file then pure [dir]
+    isFile <- Directory.doesFileExist dir
+    if isFile then pure [dir]
         else maybeDescend (dir == "." || descend dir) descend dir
     where
     maybeDescend True descend dir = do

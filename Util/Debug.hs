@@ -144,7 +144,7 @@ writeIO msg = Trans.liftIO $ do
     -- I could catch exceptions, but I don't want to catch async exceptions.
     -- `Exception.catch` \(exc :: Exception.SomeException) ->
     --     return $ prefix <> "<exception: " <> Text.pack (show exc) <> ">"
-    Log.with_stdio_lock $ case ok of
+    Log.withStdioLock $ case ok of
         Nothing ->
             Text.IO.hPutStrLn IO.stdout $ prefix <> "<evalutaion timed out>"
         Just msg -> Text.IO.hPutStrLn IO.stdout msg

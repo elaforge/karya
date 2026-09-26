@@ -36,58 +36,58 @@ scales = map Scale.Simple [scale]
 
 scale :: Scale.Scale
 scale = Scale.Scale
-    { scale_id = "ratio"
-    , scale_pattern = "[+-]?\\d+/\\d+ e.g. 2/5 or -4/3"
-    , scale_symbols = []
-    , scale_transposers = mempty
-    , scale_read = \_ _ -> Left DeriveT.NotImplemented
-    , scale_show = \_ _ -> Left DeriveT.NotImplemented
-    , scale_bottom = Pitch.pitch 0 0
-    , scale_layout = Scale.no_octaves
-    , scale_transpose = Scales.non_transposing
-    , scale_enharmonics = Scales.no_enharmonics
-    , scale_note_to_call = note_to_call
+    { scaleId = "ratio"
+    , scalePattern = "[+-]?\\d+/\\d+ e.g. 2/5 or -4/3"
+    , scaleSymbols = []
+    , scaleTransposers = mempty
+    , scaleRead = \_ _ -> Left DeriveT.NotImplemented
+    , scaleShow = \_ _ -> Left DeriveT.NotImplemented
+    , scaleBottom = Pitch.pitch 0 0
+    , scaleLayout = Scale.noOctaves
+    , scaleTranspose = Scales.nonTransposing
+    , scaleEnharmonics = Scales.noEnharmonics
+    , scaleNoteToCall = noteToCall
     -- Since this isn't a proper scale, I can't think of any sensible way to
     -- input this with a music keyboard, so we'll have to use the computer
     -- keyboard.
-    , scale_input_to_note = \_ _ -> Left DeriveT.InvalidInput
-    , scale_input_to_nn = Scales.direct_input_to_nn
-    , scale_call_doc = Derive.extract_doc $ note_call (Pitch.Note "1/1") id
+    , scaleInputToNote = \_ _ -> Left DeriveT.InvalidInput
+    , scaleInputToNn = Scales.directInputToNn
+    , scaleCallDoc = Derive.extractDoc $ noteCall (Pitch.Note "1/1") id
     }
 
-note_to_call :: Pitch.Note -> Maybe Derive.ValCall
-note_to_call note = note_call note <$>
-    ParseText.maybe_parse p_note (Pitch.note_text note)
+noteToCall :: Pitch.Note -> Maybe Derive.ValCall
+noteToCall note = noteCall note <$>
+    ParseText.maybeParse pNote (Pitch.noteText note)
 
-note_call :: Pitch.Note -> (Double -> Double) -> Derive.ValCall
-note_call note ratio = Derive.val_call Module.scale "ratio" mempty
+noteCall :: Pitch.Note -> (Double -> Double) -> Derive.ValCall
+noteCall note ratio = Derive.valCall Module.scale "ratio" mempty
     ( "Generate a frequency that is the ratio of the frequency of the "
-    <> ShowVal.doc pcontrol_ref
+    <> ShowVal.doc pcontrolRef
     <> " signal. A negative ratio divides, a positive one multiplies."
     ) $ Sig.call
     (defaulted "hz" (0 :: Double) "Add an absolute hz value to the output.") $
     \hz args -> do
-        start <- Args.real_start args
-        env <- Derive.get_environ
+        start <- Args.realStart args
+        env <- Derive.getEnviron
         nn <- Derive.require
-            ("ratio scale requires " <> ShowVal.show_val pcontrol_ref)
-            =<< Derive.named_nn_at pcontrol start
-        let out_nn = Pitch.hz_to_nn $ ratio (Pitch.nn_to_hz nn) + hz
+            ("ratio scale requires " <> ShowVal.showVal pcontrolRef)
+            =<< Derive.namedNnAt pcontrol start
+        let outNn = Pitch.hzToNn $ ratio (Pitch.nnToHz nn) + hz
         pure $ PSignal.pitch
-            pscale (const $ pure out_nn) (const $ pure note)
+            pscale (const $ pure outNn) (const $ pure note)
             (PSignal.PitchConfig env mempty)
     where
-    pcontrol_ref = DeriveT.Ref control Nothing :: DeriveT.PControlRef
+    pcontrolRef = DeriveT.Ref control Nothing :: DeriveT.PControlRef
     control = "ratio-source"
     pcontrol = "ratio-source" -- TODO remove
     pscale = Pitches.scale scale
 
 -- | Ratios look like @2/5@, @-4/3@.  A negative ratio divides, a positive one
 -- multiplies.
-p_note :: ParseText.Parser (Double -> Double)
-p_note = do
-    num <- ParseText.p_int
+pNote :: ParseText.Parser (Double -> Double)
+pNote = do
+    num <- ParseText.pInt
     A.char '/'
-    denom <- ParseText.p_nat
+    denom <- ParseText.pNat
     let ratio = fromIntegral (abs num) / fromIntegral denom
     pure $ if num < 0 then (/ ratio) else (* ratio)

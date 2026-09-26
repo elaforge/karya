@@ -261,7 +261,7 @@ c_17_10_23b = sarvalaghu $ date 2017 10 23 $ ganesh $ korvaiV adi
 -- * rupaka
 
 rupaka1 :: Korvai
-rupaka1 = sarvalaghu $ korvaiV Tala.rupaka_fast
+rupaka1 = sarvalaghu $ korvaiV Tala.rupakaFast
     [ "A_okkoNN_oNk" . "D_D_noD_nook"
     , "N_D_nkn_d___" . "__".p&d."_nkn_d___"
     . "N_NND,N,NND." . "__nnd,n,nnd."
@@ -271,12 +271,12 @@ rupaka1 = sarvalaghu $ korvaiV Tala.rupaka_fast
 -- * kanda chapu
 
 kanda1 :: Korvai
-kanda1 = sarvalaghu $ korvaiV Tala.kanda_chapu
+kanda1 = sarvalaghu $ korvaiV Tala.kandaChapu
     [ sd $ "D_pkkoD_n_" . "D_D_NND_n_"
     ]
 
 kanda2 :: Korvai
-kanda2 = sarvalaghu $ korvaiV Tala.kanda_chapu
+kanda2 = sarvalaghu $ korvaiV Tala.kandaChapu
     [ "n_d,n,nnd," & "/_o_/__o/" . "n,d,n,nND,"
       . "n,Tkn".su "ktok". "ND," . "n,d,n,nND,"
     , "D_N_kd_n_k" . "d_n_kd_n_k"
@@ -285,19 +285,19 @@ kanda2 = sarvalaghu $ korvaiV Tala.kanda_chapu
 -- * misra chapu
 
 kir_misra_1 :: Korvai
-kir_misra_1 = sarvalaghu $ date 2017 8 29 $ ganesh $ korvaiS1 Tala.misra_chapu $
+kir_misra_1 = sarvalaghu $ date 2017 8 29 $ ganesh $ korvaiS1 Tala.misraChapu $
     sd $ rh & thomLH rh . o1 rh
     where rh = n.l.n.n.d.l.n.l.d.l.n.n.d.l
 
 -- | Misra version of nddnnddn.
 kir_misra_2 :: Korvai
-kir_misra_2 = sarvalaghu $ date 2017 9 26 $ ganesh $ korvaiS1 Tala.misra_chapu $
+kir_misra_2 = sarvalaghu $ date 2017 9 26 $ ganesh $ korvaiS1 Tala.misraChapu $
     sd $ sd $ rh & thomLH rh . o1 rh
     where rh = n.d.n . su (n.n) . d.d.n
 
 -- from Vijayadashami concert
 c_24_10_23 :: Korvai
-c_24_10_23 = sarvalaghu $ date 2024 10 23 $ korvaiV Tala.misra_chapu
+c_24_10_23 = sarvalaghu $ date 2024 10 23 $ korvaiV Tala.misraChapu
     [ r2 "N_pkD_". "N_pkn_" . "pkd_pkd_pk"
     , r2 "N_pkD_". "N_pknookD_pkd_pk"
     , r2 "N_pkD_". "N_pknookD_pknook"
@@ -306,7 +306,7 @@ c_24_10_23 = sarvalaghu $ date 2024 10 23 $ korvaiV Tala.misra_chapu
     ]
 
 c_18_05_25 :: Korvai
-c_18_05_25 = sarvalaghu $ date 2018 5 25 $ ganesh $ korvaiS1 Tala.misra_chapu $
+c_18_05_25 = sarvalaghu $ date 2018 5 25 $ ganesh $ korvaiS1 Tala.misraChapu $
     sd $ o .k.on.on.od.__.on.k.od.k.on.on.od.__
        . on.k.on.on.od.__.on.k.od.k.on.on.od.__
        . on.k. n. n. d.__. n.k. d.k. n. n. d.__
@@ -399,7 +399,7 @@ candiramani_pakhawaj_adi = korvaiV adi
 -- 09-Thani Avarthanam, Aruna Sairam, Cleveland Aradhana 2004
 -- mridangam: Mannargudi Easwaran
 thani_24_03_26 :: Korvai
-thani_24_03_26 = date 2024 3 26 $ sarvalaghu $ korvaiV Tala.rupaka_fast $ map su
+thani_24_03_26 = date 2024 3 26 $ sarvalaghu $ korvaiV Tala.rupakaFast $ map su
     [ __M 4 . "k_k_t_k_u_" . "pkn,dNokon"
     , "D_ND_dn_" . r3 "d_nd_,n," . "d_nd_ktk" . su "n_ktok" . "okook"
     , r2 "D_ND_,N," . r2 ("tknd,dnk" & "o__o__o_") . r2 "tknd,dnk"
@@ -407,7 +407,7 @@ thani_24_03_26 = date 2024 3 26 $ sarvalaghu $ korvaiV Tala.rupaka_fast $ map su
     ]
 
 s_rupaka :: Korvai
-s_rupaka = date 2026 2 5 $ sarvalaghu $ korvaiV Tala.rupaka_fast
+s_rupaka = date 2026 2 5 $ sarvalaghu $ korvaiV Tala.rupakaFast
     [ "D_oknoD_D_N_"
     , "u___kktknook"
     , "nddnddndd" . su "np"."nd"
@@ -463,7 +463,7 @@ bhajan_o_nd = date 2026 7 23 $ sarvalaghu $ korvaiV Tala.adi
     where rh = "o_nd_oNd"
 
 s_bhajan_kanda :: Korvai
-s_bhajan_kanda = sarvalaghu $ korvaiV Tala.kanda_chapu
+s_bhajan_kanda = sarvalaghu $ korvaiV Tala.kandaChapu
     [ sd $ sd $ "d_n_k" . "D_N_k" . "d,n,n" . "D,N" . su "ktok"
         . r2 "D,N,D" . "d,n,n" . su ("k_t_".p6)
         . "Donok" . "NN".su p6
@@ -487,7 +487,7 @@ s_bhajan_kanda_nadai = sarvalaghu $ korvaiV adi $ map (nadai 5)
     ]
 
 s_bhajan_misra :: Korvai
-s_bhajan_misra = sarvalaghu $ korvaiV Tala.misra_chapu
+s_bhajan_misra = sarvalaghu $ korvaiV Tala.misraChapu
     -- https://www.youtube.com/watch?v=pIsrqyMtBg4
     -- 45:30
     [ sd $ "K_i_".u.__6 . "nnok"

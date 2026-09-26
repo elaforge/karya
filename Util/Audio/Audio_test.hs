@@ -174,7 +174,7 @@ test_linear_not_forever = do
     equal (f 2 [(0, 1), (1, 1)]) [1, 1]
     equal (f 6 [(0, 0), (0, 1), (2, 0)]) [1, 0.5, 0]
 
-_test_linear_big = do
+_testLinearBig = do
     let f wanted = toSamples @44100 @1 . Audio.takeS wanted
             . Audio.synchronizeToSize 0 Audio.blockSize
             . Audio.linear True

@@ -15,17 +15,17 @@ test_serialize :: Test
 test_serialize = do
     let roundtrip = Log.deserialize . Log.serialize
     let msg = Log.msg Log.Notice (Just stack) "hi"
-        stack = Stack.from_outermost
-            [ Stack.Block block_id, Stack.Track track_id, Stack.Region 1 2
+        stack = Stack.fromOutermost
+            [ Stack.Block blockId, Stack.Track trackId, Stack.Region 1 2
             , Stack.Call "call"
             ]
-        block_id = Id.BlockId $ Id.read_id "foo/bar"
-        track_id = Id.TrackId $ Id.read_id "t/t2"
+        blockId = Id.BlockId $ Id.readId "foo/bar"
+        trackId = Id.TrackId $ Id.readId "t/t2"
     equal (roundtrip msg) (Right msg)
 
 test_id :: Test
 test_id = do
-    let run_id = Identity.runIdentity . Log.run
-    let logs = snd $ run_id $ do
+    let runId = Identity.runIdentity . Log.run
+    let logs = snd $ runId $ do
         Log.debug "oh noes"
-    equal (map Log.msg_text logs) ["oh noes"]
+    equal (map Log.msgText logs) ["oh noes"]

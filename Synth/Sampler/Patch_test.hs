@@ -24,14 +24,14 @@ test_checkControls = do
             ((Patch.effect "effect")
                 { Patch._toEffectControl = Map.fromList renames })
     equal (f ["blah"] []) []
-    strings_like (f ["delay"] []) ["*controls overlap*"]
-    strings_like (f [] [("delay", "blah")]) ["*not in effect: {blah}"]
+    stringsLike (f ["delay"] []) ["*controls overlap*"]
+    stringsLike (f [] [("delay", "blah")]) ["*not in effect: {blah}"]
     -- e-delay is now mapped to delay, so a delay control on the patch is fine.
-    strings_like (f ["delay"] [("e-delay", "delay")]) []
+    stringsLike (f ["delay"] [("e-delay", "delay")]) []
 
 mkPatch :: [Control.Control] -> Patch.Patch
 mkPatch controls = (Patch.patch "patch")
-    { Patch._karyaPatch = ImInst.make_patch $ Im.Patch.patch
-        { Im.Patch.patch_controls = Map.fromList [(c, "") | c <- controls]
+    { Patch._karyaPatch = ImInst.makePatch $ Im.Patch.patch
+        { Im.Patch.patchControls = Map.fromList [(c, "") | c <- controls]
         }
     }

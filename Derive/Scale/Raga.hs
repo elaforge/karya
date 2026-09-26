@@ -27,8 +27,8 @@ import           Global
 
 scales :: [Scale.Definition]
 scales = map Scale.Simple
-    [ JustScales.make_scale "raga"
-        (scale_map (TheoryFormat.sargam relative_fmt)) doc doc_fields
+    [ JustScales.makeScale "raga"
+        (scaleMap (TheoryFormat.sargam relativeFmt)) doc docFields
     ]
 
 doc :: Doc.Doc
@@ -42,36 +42,36 @@ doc = "Carnatic ragas, from the melakarta system.\
     \\nSince latin orthography is inconsistent, they might be spelled slightly\
     \ differently from how you expect."
 
-doc_fields :: [(Doc.Doc, Doc.Doc)]
-doc_fields = JustScales.group_relative_keys melakarta_keys
+docFields :: [(Doc.Doc, Doc.Doc)]
+docFields = JustScales.groupRelativeKeys melakartaKeys
 
-scale_map :: TheoryFormat.Format -> JustScales.ScaleMap
-scale_map = JustScales.scale_map keys default_key Nothing
+scaleMap :: TheoryFormat.Format -> JustScales.ScaleMap
+scaleMap = JustScales.scaleMap keys defaultKey Nothing
 
-relative_fmt :: TheoryFormat.RelativeFormat TheoryFormat.Tonic
-relative_fmt = JustScales.make_relative_fmt keys default_key
+relativeFmt :: TheoryFormat.RelativeFormat TheoryFormat.Tonic
+relativeFmt = JustScales.makeRelativeFmt keys defaultKey
 
-default_key :: JustScales.Key
-Just default_key = Map.lookup (Pitch.Key "shankarabharanam") keys
+defaultKey :: JustScales.Key
+Just defaultKey = Map.lookup (Pitch.Key "shankarabharanam") keys
 
 keys :: Map Pitch.Key JustScales.Key
-keys = Map.fromList melakarta_keys
+keys = Map.fromList melakartaKeys
 
 
 -- * implementation
 
-melakarta_keys :: [(Pitch.Key, JustScales.Key)]
-melakarta_keys =
+melakartaKeys :: [(Pitch.Key, JustScales.Key)]
+melakartaKeys =
     [ (Pitch.Key alias, JustScales.Key 0 (Map.singleton "" ratios))
     | (name, ragam) <- ragams
-    , let ratios = ragam_ratios ragam
-    , alias <- name : aliases_of name
+    , let ratios = ragamRatios ragam
+    , alias <- name : aliasesOf name
     ]
     where
-    aliases_of name = Map.findWithDefault [] name aliases
+    aliasesOf name = Map.findWithDefault [] name aliases
 
-melakarta_ragams :: [(Name, Ragam)]
-melakarta_ragams = zip melakarta_names $ do
+melakartaRagams :: [(Name, Ragam)]
+melakartaRagams = zip melakartaNames $ do
     ma <- [Ma1, Ma2]
     ri <- [Ri1, Ri2, Ri3]
     ga <- [Ga1, Ga2, Ga3]
@@ -88,8 +88,8 @@ melakarta_ragams = zip melakarta_names $ do
 
 -- | This is the same as 'melakarta_ragams', but with intervals.  I should
 -- probably derive melakarta_ragams from this.
-melakarta_intervals :: [(Name, [Pitch.Semi])]
-melakarta_intervals = zip melakarta_names $ do
+melakartaIntervals :: [(Name, [Pitch.Semi])]
+melakartaIntervals = zip melakartaNames $ do
     ma <- [ma1, ma2]
     ri <- [ri1, ri2, ri3]
     ga <- [ga1, ga2, ga3]
@@ -117,8 +117,8 @@ data SwaramP = Sa | Ri1 | Ri2 | Ri3 | Ga1 | Ga2 | Ga3 | Ma1 | Ma2 | Pa
     | Da1 | Da2 | Da3 | Ni1 | Ni2 | Ni3
     deriving (Eq, Ord, Enum, Show)
 
-swaram_ratio :: SwaramP -> Ratio
-swaram_ratio = \case
+swaramRatio :: SwaramP -> Ratio
+swaramRatio = \case
     Sa -> sa
     Ri1 -> ri1
     Ri2 -> ri2
@@ -156,11 +156,11 @@ swaram_ratio = \case
     ni1 = da2
     ni2 = da3
 
-all_swarams :: [SwaramP]
-all_swarams = [Sa, Ri1, Ri2, Ga2, Ga3, Ma1, Ma2, Pa, Da1, Da2, Ni2, Ni3]
+allSwarams :: [SwaramP]
+allSwarams = [Sa, Ri1, Ri2, Ga2, Ga3, Ma1, Ma2, Pa, Da1, Da2, Ni2, Ni3]
 
-all_ratios :: [Ratio]
-all_ratios = map swaram_ratio all_swarams
+allRatios :: [Ratio]
+allRatios = map swaramRatio allSwarams
 
 unswaram :: SwaramP -> Swaram
 unswaram = \case
@@ -206,13 +206,13 @@ data RagamT a
     | Different [a] [a]
     deriving (Functor, Show)
 
-ragam_swarams :: Ragam -> ([SwaramP], Maybe [SwaramP])
-ragam_swarams = \case
+ragamSwarams :: Ragam -> ([SwaramP], Maybe [SwaramP])
+ragamSwarams = \case
     Same swarams -> (Sa : swarams, Nothing)
     Different arohana avarohana -> (Sa : arohana, Just $ avarohana ++ [Sa])
 
-ragam_ratios :: Ragam -> JustScales.Ratios
-ragam_ratios = Vector.fromList . map swaram_ratio . fst . ragam_swarams
+ragamRatios :: Ragam -> JustScales.Ratios
+ragamRatios = Vector.fromList . map swaramRatio . fst . ragamSwarams
     -- TODO this is just the arohanam, I don't have a way to support multiple
     -- swarams yet.
     -- TODO What's more, I can't even support missing swarams, so this will
@@ -246,14 +246,14 @@ janya = Map.fromList $ map get
     where
     get (parent, janyas) =
         ( parent
-        , [(name, get_swarams parent name ragam) | (name, ragam) <- janyas]
+        , [(name, getSwarams parent name ragam) | (name, ragam) <- janyas]
         )
     down = [N, D .. R]
 
-get_swarams :: Name -> Name -> RagamT Swaram -> RagamT SwaramP
-get_swarams parent name ragam = case lookup parent melakarta_ragams of
+getSwarams :: Name -> Name -> RagamT Swaram -> RagamT SwaramP
+getSwarams parent name ragam = case lookup parent melakartaRagams of
     Nothing -> error $ "no parent ragam " <> show parent <> " of " <> show name
-    Just parent -> get (fst (ragam_swarams parent)) <$> ragam
+    Just parent -> get (fst (ragamSwarams parent)) <$> ragam
     where
     -- Should not error, melakarta ragams are sampurna.
     get present swaram =
@@ -261,12 +261,12 @@ get_swarams parent name ragam = case lookup parent melakarta_ragams of
         List.find (`elem` present) (swaramps swaram)
 
 ragams :: [(Name, Ragam)]
-ragams = concatMap get melakarta_ragams
+ragams = concatMap get melakartaRagams
     where
     get (name, swarams) = (name, swarams) : Map.findWithDefault [] name janya
 
-melakarta_names :: [Name]
-melakarta_names =
+melakartaNames :: [Name]
+melakartaNames =
     -- shuddha madhyama
     [ "kanakanki", "ratnangi", "ganamurti" -- r1 g1
     , "vanaspati", "manavati", "tanarupi"
@@ -329,7 +329,7 @@ alternate alts = (\x -> if x == [[]] then [] else x) . go
 
 -- | Common aliases for ragam names.
 aliases :: Map Name [Name]
-aliases = Map.fromList $ map assert_valid_name
+aliases = Map.fromList $ map assertValidName
     [ ("dheerashankarabharanam", ["shankarabharanam"])
     , ("mechakalyani", ["kalyani"])
     , ("hanumatodi", ["todi"])
@@ -337,26 +337,26 @@ aliases = Map.fromList $ map assert_valid_name
     , ("natabhairavi", ["bhairavi"])
     ]
 
-assert_valid_name :: (Name, a) -> (Name, a)
-assert_valid_name val@(name, _)
-    | name `elem` melakarta_names = val
+assertValidName :: (Name, a) -> (Name, a)
+assertValidName val@(name, _)
+    | name `elem` melakartaNames = val
     | otherwise = errorStack $ "not in melakarta_names: " <> showt name
 
 -- * query
 
-print_all :: IO ()
-print_all = mapM_ Text.IO.putStrLn $ show_ragams ragams
+printAll :: IO ()
+printAll = mapM_ Text.IO.putStrLn $ showRagams ragams
 
-print_ragams :: Pattern -> IO ()
-print_ragams = mapM_ Text.IO.putStrLn . show_ragams . find_ragams
+printRagams :: Pattern -> IO ()
+printRagams = mapM_ Text.IO.putStrLn . showRagams . findRagams
 
-find_by_swarams :: [SwaramP] -> IO ()
-find_by_swarams swarams_ =
-    mapM_ Text.IO.putStrLn $ show_ragams $ filter (matches . snd) ragams
+findBySwarams :: [SwaramP] -> IO ()
+findBySwarams swarams_ =
+    mapM_ Text.IO.putStrLn $ showRagams $ filter (matches . snd) ragams
     where
     matches ragam = swarams `Set.isSubsetOf` rswarams
         where
-        (aro, avaro) = ragam_swarams ragam
+        (aro, avaro) = ragamSwarams ragam
         rswarams = Set.fromList $ Sa : aro ++ fromMaybe [] avaro
     swarams = Set.fromList swarams_
 
@@ -364,8 +364,8 @@ find_by_swarams swarams_ =
 
 type Pattern = String
 
-find_ragams :: Pattern -> [(Name, Ragam)]
-find_ragams pattern =
+findRagams :: Pattern -> [(Name, Ragam)]
+findRagams pattern =
     case List.partition fst (mapMaybe match (map (first untxt) ragams)) of
         (exact@(_:_), _) -> map snd exact
         ([], inexact) -> map snd inexact
@@ -376,11 +376,11 @@ find_ragams pattern =
         | otherwise = Nothing
     infixes = alternate alternates pattern
 
-show_ragams :: [(Name, Ragam)] -> [Text]
-show_ragams ragams = Texts.columns 1 $ header ++ concatMap show_ragam ragams
+showRagams :: [(Name, Ragam)] -> [Text]
+showRagams ragams = Texts.columns 1 $ header ++ concatMap showRagam ragams
 
-show_ragam :: (Name, Ragam) -> [[Text]]
-show_ragam (name, ragam) = Lists.mapHead (++[name]) (show_swarams ragam)
+showRagam :: (Name, Ragam) -> [[Text]]
+showRagam (name, ragam) = Lists.mapHead (++[name]) (showSwarams ragam)
 
 header :: [[Text]]
 header =
@@ -391,15 +391,15 @@ header =
 
 data Dir = Down | Up deriving (Eq)
 
-show_swarams :: Ragam -> [[Text]]
-show_swarams ragam = lines Up aro ++ maybe [] (lines Down) avaro
+showSwarams :: Ragam -> [[Text]]
+showSwarams ragam = lines Up aro ++ maybe [] (lines Down) avaro
     where
-    (aro, avaro) = ragam_swarams ragam
+    (aro, avaro) = ragamSwarams ragam
     lines dir = add dir . map line
         . Lists.splitBetween (if dir == Up then (>) else (<))
     add Up = Lists.mapInit (++[""]) . Lists.mapLast (++["S"])
     add Down = Lists.mapTail (++[""]) . Lists.mapHead (++["S", "<-"])
-    line = map cell . Lists.pairSortedOn id swaram_ratio all_ratios . List.sort
+    line = map cell . Lists.pairSortedOn id swaramRatio allRatios . List.sort
     cell = \case
         Lists.Both _ s -> showt (unswaram s)
         _ -> ""
