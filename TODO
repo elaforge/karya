@@ -3,10 +3,9 @@ LEGEND
   ? open question; . note; bug: marks bugs.
   Use indent folding with indent=2.
 
-big rocks:
-  * inst allocation in ky: branch ky-record:
-    Either commit to putting alloc in ky and make it all be there, or
-    abandon it and commit to repl operations.
+in progress:
+  + simplify rulers:
+  - extract ky and tscore to external file
   - scales
     . Heal the Derive.Scale.All and All2 split.  Decide if I want to set scale
       with scale= or with call `scale ...`.
@@ -31,6 +30,7 @@ big rocks:
       structure is quite awkward.  Especially figuring out how to propagate
       ruler.
       . tscore appears to offer a higher level way to express this.
+      . Can I make tscore more ergonomic for just block list?
 
 usability:
   - Is there a better way to write alternate-endings:
@@ -125,6 +125,7 @@ external:
 
 UNSORTED
   - change snake_case to camelCase
+    . tools/hs_id_transform.py -i Cmd/*.hs
   * switch all 'return' to 'pure'
   * im can't mute a track because it mutes the whole instrument
     and can't comment out the track:

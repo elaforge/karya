@@ -39,7 +39,7 @@ import           Global
 
 
 keycaps :: Bool
-keycaps = True
+keycaps = False
 
 im_play_direct :: Bool
 im_play_direct = False

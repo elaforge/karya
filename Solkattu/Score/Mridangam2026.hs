@@ -323,3 +323,37 @@ yt_kalyani_vinay = date 2026 9 13 $ korvaiV adi $ map (nadai 6)
     t4  = "k_ktkookok" . su ktok
     t4' = "kpktkookok" . su ktok
     p5b = g $ "TkN". su ktok
+
+-- https://www.facebook.com/reel/2474150239743181
+yt_balaji_9_22 :: Korvai
+yt_balaji_9_22 = date 2026 9 22 $ korvaiS adi $ map su $
+    -- Each time expand tdngt 5 by 3, expand karvai from 4 by 1:
+    -- +8 [5, 8, 11, 14] karvai: [4, 5, 6]
+    -- +7 [6, 9, 12, 13] karvai: [3, 4, 5]
+    -- +6 [7, 10, 13, 16] karvai: [2, 3, 4]
+    -- +5 [8, 11, 14, 17]
+    --
+    -- (8) 5 (4)  8 (5) 11 (6) 14 (3+ -- 3+6 = 9
+    -- (7) 6 (3)  9 (4) 12 (5) 13 (3+
+    -- (6) 7 (2) 10 (3) 13 (4) 16 (3+
+    -- (5) 8 (1) 11 (2) 14 (3) 17 (3+
+    -- (4) 9 (0) 12 (1) 15 (2) 18 (3+
+
+    [ od.__8 . seq "kt"     "D___" "kD___" "k_D___"
+    . od.__7 . seq "kt_"    "D__"  "kD__" "k_D__"
+    . od.__6 . seq "k_t_"   "D_" "kD_" "k_D_"
+    . od.__5 . seq "kD_kt"  "_" "k_" "U__"
+    . od.__4 . seq "k_D_kt" "" "k" "k_"
+    ]
+    where
+    seq prefix k1 k2 k3 =
+          pat prefix 1 . k1 . pat prefix 2 . k2
+        . pat prefix 3 . k3 . pat prefix 4 . k.__3
+    pat pre gap = pre . k.__n gap . n.__n gap . o.__n gap
+
+-- https://www.facebook.com/reel/4371730033050767
+yt_kalyani_vinay2 :: Korvai
+yt_kalyani_vinay2 = date 2026 9 22 $ korvaiV adi
+    -- TODO: utarangam
+    [ nadai 3 $ reduceTo 3 1 (k.su "okno"."DDkD_") . r3 (su (g "kpkD_ktkno"))
+    ]
