@@ -125,7 +125,10 @@ external:
 
 UNSORTED
   - change snake_case to camelCase
-    . tools/hs_id_transform.py -i Cmd/*.hs
+    . tools/hs_id_transform.py -i $(git ls-files '*.hs' '*.hsc')
+    . Omit from external modules: Process.std_in, std_out, std_err
+    . Util.Serialize.to_enum -> toEnumS
+    . Include SPECIALIZE, INLINEABLE, INLINE, SCC
   * switch all 'return' to 'pure'
   * im can't mute a track because it mutes the whole instrument
     and can't comment out the track:
