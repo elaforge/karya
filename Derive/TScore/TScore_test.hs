@@ -159,7 +159,7 @@ test_call_duration = do
         , bBlock
         ]
     -- CallDuration is carried like other durs.
-    rightEqual (f "a = %default-call [b/0 b]\nb = [s r]")
+    rightEqual (f "a = %order [b b]\nb = [s r]")
         [ ("a", [(">", [(0, 2, "b"), (2, 2, "b")])])
         , bBlock
         ]

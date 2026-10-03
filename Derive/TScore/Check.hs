@@ -56,14 +56,13 @@ import           Types
 
 
 data Config = Config
-    { configMeter :: Meter
-    , configScale :: Scale
-    , configDuration :: DurationMode
+    { configDuration :: DurationMode
     , configFrom :: Maybe From
-    -- | Use negative durations.  Notes arrive at beats instead of departing
-    -- from them.
-    , configNegative :: Bool
     , configKy :: Text
+    , configMeter :: Meter
+    , configNegative :: Bool -- ^ Notes arrive at beats instead of departing.
+    , configOrder :: Bool
+    , configScale :: Scale
     } deriving (Show)
 
 -- | The target of a 'T.CopyFrom'.
@@ -79,12 +78,13 @@ instance Pretty From where
 
 defaultConfig :: Config
 defaultConfig = Config
-    { configMeter = meter44
-    , configScale = scaleSargam
-    , configDuration = Multiplicative
+    { configDuration = Multiplicative
     , configFrom = Nothing
-    , configNegative = False
     , configKy = ""
+    , configMeter = meter44
+    , configNegative = False
+    , configOrder = False
+    , configScale = scaleSargam
     }
 
 parseDirectives :: Scope -> Config -> [T.Directive] -> Either T.Error Config
@@ -113,9 +113,10 @@ parseDirective scope (T.Directive pos name maybeVal) config =
             unless (configKy config == "") $
                 Left "should only be one %ky"
             setConfig (\c a -> c { configKy = a }) Just =<< withArg
-        -- default_call affects parsing, so I don't handle it here, but
-        -- I can make sure it doesn't have an argument.
-        _ | name == Parse.defaultCall -> withoutArg >> Right config
+        _ | name == Parse.defaultCall -> withoutArg >> pure config
+        _ | name == Parse.orderBlock -> do
+            withoutArg
+            Right $ config { configOrder = True }
         _ -> Left $ "unknown directive: " <> name
     where
     requireToplevel = case scope of
@@ -185,26 +186,27 @@ check :: GetCallDuration -> Config
             (T.Time, T.Note T.CallText (T.NPitch (Maybe T.PitchText)) T.Time)]
        , T.Time
        )
-check getDur (Config meter scale durMode _ negative _ky) =
+check getDur config =
     Tuple.swap
     . fmap (map EList.toEither)
-    . fmap (resolvePitch scale)
-    . (if negative then timeToNegative else id)
+    . fmap (resolvePitch (configScale config))
+    . (if configNegative config then timeToNegative else id)
     . resolveTime
-    . checkBarlines meter
-    . resolveDuration durMode
+    . checkBarlines (configMeter config)
+    . resolveDuration (configDuration config)
     . resolveCallDuration getDur
-    . carryCallDuration
+    . carryCallDuration (configOrder config)
     . resolveRepeats
     . map EList.Elt
 
 -- * time
 
 -- | Carry CallDuration if the next note has no duration, but does have a call.
-carryCallDuration
-    :: Stream (T.Token T.CallText pitch T.NDuration T.Duration)
+carryCallDuration :: Bool
     -> Stream (T.Token T.CallText pitch T.NDuration T.Duration)
-carryCallDuration = flip State.evalState False . EList.mapM (T.mapNote carry)
+    -> Stream (T.Token T.CallText pitch T.NDuration T.Duration)
+carryCallDuration defaultCallDuration =
+    flip State.evalState defaultCallDuration . EList.mapM (T.mapNote carry)
     where
     carry note = do
         dur <- case T.noteDuration note of
@@ -382,7 +384,7 @@ simpleMeter n1 n2 = do
             )
         }
 
--- ** resolve_time
+-- ** resolveTime
 
 timeToNegative ::
     (T.Time, Stream (T.Time, T.Note call pitch T.Time))
@@ -398,11 +400,11 @@ resolveTime :: (Eq pitch, Pretty pitch)
     -> (T.Time, Stream (T.Time, T.Note call pitch T.Time))
 resolveTime tokens = go (EList.zipPaddedSnd starts tokens)
     where
-    starts = scanl (\n -> (n+)) 0 (map durationOf (EList.elts tokens))
-    go (EList.Elt (start, Nothing) : ts)
+    starts = scanl (+) 0 (map durationOf (EList.elts tokens))
+    go (EList.Elt (!start, Nothing) : ts)
         | null ts = (start, [])
         | otherwise = go ts
-    go (EList.Elt (start, Just t) : ts) = case t of
+    go (EList.Elt (!start, Just t) : ts) = case t of
         T.TNote _ note
             | isTied t ->
                 case tiedNotes note (Lists.mapMaybeSnd id (EList.elts pre)) of
@@ -545,6 +547,7 @@ resolveDuration = \case
 -- This carrier both values or none.
 multiplicative
     :: Stream (T.Token call pitch (Either T.Time T.Duration) T.Duration)
+    -- ^ Dur is either an absolute dur, or a logical one to resolve.
     -> Stream (Token call pitch (T.Time, Bool))
 multiplicative =
     flip State.evalState (1, Nothing) . EList.mapEM (mapDuration carry timeOf)

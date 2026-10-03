@@ -7,8 +7,7 @@
 module Derive.TScore.Parse (
     -- * Parse
     parseScore
-    -- , parse_allocation, unparse_allocations
-    , defaultCall, defaultNamespace
+    , defaultCall, orderBlock, defaultNamespace
     , showBlock, showBlockTrack
     -- * Note
     , dotNote, tieNote
@@ -101,10 +100,15 @@ updateConfig directives config
 
 defaultCallSet :: [T.Directive] -> Bool
 defaultCallSet directives = not $ null
-    [() | T.Directive _ name _ <- directives, name == defaultCall]
+    [ () | T.Directive _ name _ <- directives
+    , name `elem` [orderBlock, defaultCall]
+    ]
 
 defaultCall :: Text
 defaultCall = "default-call"
+
+orderBlock :: Text
+orderBlock = "order"
 
 directivesOf :: T.Toplevel -> [T.Directive]
 directivesOf (T.ToplevelDirective d) = [d]

@@ -124,6 +124,7 @@ test_resolve_time = do
             . parseCdur
         extract = map (bimap errorMsg (second T.noteDuration))
             . justErrors . map EList.toEither
+    equal (f "a/0 b/") (20, [Right (0, 10), Right (10, 10)])
     equal (f "a b c") (3, [Right (0, 1), Right (1, 1), Right (2, 1)])
     equal (f "a b _") (3, [Right (0, 1), Right (1, 1)])
     equal (f "a~ a b") (3, [Right (0, 2), Right (2, 1)])
@@ -136,6 +137,19 @@ test_resolve_time = do
     equal (f "a~ | a") (2, [Right (0, 2)])
     equal (f "_~ | _ a") (3, [Right (2, 1)])
     equal (f "a~") (0, [Left "final note has a tie"])
+
+test_score_block :: Test
+test_score_block = do
+    let f = parsedScore
+    -- pretty much the same test as TScore_test.test_call_duration
+    rightEqual (f "b = %order [x x /1g4]\nx = [s r]")
+        [ ( "b",
+            [ (">", [(0, 2, "x"), (2, 2, "x"), (4, 0.25, "")])
+            , ("*", [(4, 0, "1g")])
+            ]
+          )
+        , ("x", UiTest.noteTrack1 ["4s", "4r"])
+        ]
 
 test_check_barlines :: Test
 test_check_barlines = do
@@ -221,10 +235,11 @@ eNdur = \case
 parseCdur :: Text
     -> Check.Stream (T.Token T.CallText (T.NPitch T.Pitch)
         (Either T.Time T.Duration) T.Duration)
-parseCdur = resolveCallDuration . parse
+parseCdur = resolveCallDuration . Check.carryCallDuration False . map EList.Elt
+    . parse
 
 parsedScore :: Text -> Either Text [UiTest.BlockSpec]
-parsedScore = fmap (UiTest.extractBlocks) . parseScore
+parsedScore = fmap UiTest.extractBlocks . parseScore
 
 -- | TScore.parse_score with make_ext_dur stubbed out.  Tests exercise tscore,
 -- not the deriver, so don't give them a derive environment.
@@ -252,13 +267,13 @@ check config = map (fmap (fmap stripNpitch)) . justErrors . fst
 -- Strip out some complications that I don't want to deal with at the Check
 -- level.  Since they interact with the TScore level, they get tested there.
 
-resolveCallDuration :: [T.Token T.CallText pitch T.NDuration rdur]
+resolveCallDuration :: Check.Stream (T.Token T.CallText pitch T.NDuration rdur)
     -> Check.Stream (T.Token T.CallText pitch (Either T.Time T.Duration) rdur)
 resolveCallDuration =
-    map (EList.Elt . Identity.runIdentity . T.mapNoteDuration resolve)
+    EList.map (Identity.runIdentity . T.mapNoteDuration resolve)
     where
     resolve (T.NDuration dur) = pure $ Right dur
-    resolve T.CallDuration = pure $ Left 0
+    resolve T.CallDuration = pure $ Left 10
 
 stripNpitch :: T.Note call (T.NPitch pitch) dur -> T.Note call pitch dur
 stripNpitch note = note

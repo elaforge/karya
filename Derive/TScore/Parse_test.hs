@@ -94,11 +94,11 @@ test_score = do
     equal normalized (f =<< normalized)
     Text.IO.putStrLn $ either txt id normalized
 
-test_default_call :: Test
-test_default_call = do
+test_order :: Test
+test_order = do
     let f = fmap (\(T.Score defs) -> defs) . parse
 
-    let score = "%default-call\nb = [b1/0 b2 b3]\n"
+    let score = "%order\nb = [b1/0 b2 b3]\n"
     rightEqual (unparse . T.Score <$> f score) score
     rightEqual (eScoreTokens <$> f score)
         [ tnote "b1" noOct "" T.CallDuration
@@ -106,7 +106,7 @@ test_default_call = do
         , tnote "b3" noOct "" noDur
         ]
 
-    let score = "b = %default-call [a > b]\n"
+    let score = "b = %order [a > b]\n"
     rightEqual (unparse . T.Score <$> f score) score
     rightEqual (eScoreTokens <$> f score)
         [ tnote "a" noOct "" noDur
