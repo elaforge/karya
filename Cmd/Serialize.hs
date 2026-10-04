@@ -227,24 +227,32 @@ instance Serialize MidiConfigs where
         v -> badVersion "Patch.MidiConfigs" v
 
 instance Serialize UiConfig.Meta where
-    put (UiConfig.Meta a b c d e f) = putVersion 4
-        >> put a >> put b >> put c >> put d >> put e >> put f
+    put (UiConfig.Meta a b c d e) = putVersion 5
+        >> put a >> put b >> put c >> put d >> put e
     get = getVersion >>= \case
         3 -> do
             creation :: Time.UTCTime <- get
             lastSave :: Time.UTCTime <- get
-            notes :: Text <- get
+            _notes :: Text <- get
             midi :: Map BlockId UiConfig.MidiPerformance <- get
             lily :: Map BlockId UiConfig.LilypondPerformance <- get
-            pure $ UiConfig.Meta creation lastSave notes midi lily mempty
+            pure $ UiConfig.Meta creation lastSave midi lily mempty
         4 -> do
             creation :: Time.UTCTime <- get
             lastSave :: Time.UTCTime <- get
-            notes :: Text <- get
+            _notes :: Text <- get
             midi :: Map BlockId UiConfig.MidiPerformance <- get
             lily :: Map BlockId UiConfig.LilypondPerformance <- get
             im :: Map BlockId UiConfig.ImPerformance <- get
-            pure $ UiConfig.Meta creation lastSave notes midi lily im
+            pure $ UiConfig.Meta creation lastSave midi lily im
+        -- I dropped metaNotes, I don't think I ever put anything in there.
+        5 -> do
+            creation :: Time.UTCTime <- get
+            lastSave :: Time.UTCTime <- get
+            midi :: Map BlockId UiConfig.MidiPerformance <- get
+            lily :: Map BlockId UiConfig.LilypondPerformance <- get
+            im :: Map BlockId UiConfig.ImPerformance <- get
+            pure $ UiConfig.Meta creation lastSave midi lily im
         v -> badVersion "UiConfig.Meta" v
 
 instance Serialize a => Serialize (UiConfig.Performance a) where

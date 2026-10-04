@@ -5,7 +5,7 @@ LEGEND
 
 in progress:
   + simplify rulers:
-  - extract ky and tscore to external file
+  - extract ky and tscore to external file: ky separate file:
   - scales
     . Heal the Derive.Scale.All and All2 split.  Decide if I want to set scale
       with scale= or with call `scale ...`.
@@ -120,6 +120,25 @@ external:
     . using tscore, especially standalone
 
 UNSORTED
+  - bali: how to cancel finals if they coincide?
+    cancel-pasang?  cancel?  Should be cancel-pasang, but it makes finals too
+    long.
+  - bali: gangsa should have ngorek, but without the gender damping.
+  - edit block name from the UI, no need to LBlock.rename?
+    . Would be nice to edit in the window title, but probably can't.
+    . Or edit by clicking the text in skeleton area.  Shift and cmd taken,
+      maybe shift+cmd click?
+  - can I make OS X omit the jellybeans?
+    . Yes, remove all with win->clear_border(), but can maybe make it
+      draggable like:
+      NSWindow *nsWin = (NSWindow*)fl_xid(window);
+      [nsWin setMovableByWindowBackground:YES];
+    . I do this for keycaps!  Can drag it.
+    . Also could have key to expand or contract tracks.  If I can't get
+      auto-size to work with wrapped words.
+    . I think the blank space on the right is useless.
+      Also I almost never want horizontal scrolling.
+
   - I want some kind of automatically dump to text, so eg I can print out
     kendang parts.  Or at least display them in a compact way.
   - This in turn is revealing that horizontal really is more compact when
@@ -470,10 +489,10 @@ UNSORTED
     - waveform display seems broken?
       Seems to inconsistently miss strokes?
       They come back when adding a new track, gone again on next update.
-  - im playback seems to be cutting off the starts again
+  * im playback seems to be cutting off the starts again
   - No thru for im kendang pasang
     Known issue: refactor thru:
-  - LInst.add_im "k" "sampler/kendang-bali-pasang"
+  / LInst.add_im "k" "sampler/kendang-bali-pasang"
     Cmd/Repl/LInst.hs:260 - switched non-dummy alloc
       sampler/kendang-bali-pasang (音) to dummy
     . But it's already dummy?
@@ -489,8 +508,8 @@ UNSORTED
     . I could also save only on ^s... but then I don't get undo back.
     . Will it be slow?
   build on new mac:
-    - ld: warning: ignoring duplicate libraries: '-lc++', '-lpthread'
-    - From repl:
+    * ld: warning: ignoring duplicate libraries: '-lc++', '-lpthread'
+    * From repl:
       ld: warning: -single_module is obsolete
       . Is ghc adding it?  Maybe a newer version of ghc will omit?
       . -- We encode this information into the toolchain field
@@ -521,7 +540,7 @@ UNSORTED
     . symbolize can also use pointer compare to look up, but Expr.Symbol
       must also use it in Derive.Library.
   new osx:
-    - window for seq doesn't come to front when run
+    * window for seq doesn't come to front when run
       . try upgrading fltk
       . now all but seq.app
     - hold down key repeat doesn't work
@@ -605,7 +624,7 @@ UNSORTED
       module.
     . Move EventTrack.cc rank_brightness negative_duration_brightness
       to color config.
-  - I still have the out of sync problem with ky inst allocs vs UiConfig
+  * I still have the out of sync problem with ky inst allocs vs UiConfig
   - mridangam-d doesn't seem to want to do sub halfsteps
     . But it's now around d4 (62nn) while 4i is 62.5
       (62.50, 63.00) -> 62.75
@@ -625,7 +644,7 @@ UNSORTED
     ? is there the same in im-sampler?
     . 71-65-108-calung2.ncw
   - I keep looking for LBlock.doc in LDoc, should I move it there?
-  - ^z on vi from a repl messes up tty state
+  / ^z on vi from a repl messes up tty state
     . Probably have to stty restore or something?
     . If I'm making ky more central, then maybe I have a way to edit it
       separately from the repl?
@@ -639,6 +658,8 @@ UNSORTED
       wait for it.
     . On quit, send a Response like RQuit, which will then make editor save
       and quit, which sends back to to seq, which can then exit.
+    . Do separate file instead.
+  - ky separate file:
     . What if instead of storing ky inside seq, it was a separate file?
       Then no need to send it around, seq just has to monitor it for changes.
       Then we wind up with two files, but it seems not bad.  If there is
@@ -648,19 +669,28 @@ UNSORTED
       is.  Is there haskell binding for cross platform notify library?
     . Ky.check_cache already does this, for external .ky files.  It just polls
       on every response.  I guess I can still have the editor poke?
+    . For tscore I can either do the same $base.tscore, or I could have
+      a tscore: section.
+      . Con of the latter is harder to do syntax highlighting.
+        Maybe I can merge syntax highlighting though, mostly just keyword
+        underlines.
     . The annoyance is I can no longer just copy files.  Maybe switch to
-      directories?
-    . What about using a text format and git?  I could get rid of the libgit2
-      bindings and use a checked out repo, using the CLI commands directly.
-  - why do I need UiConfig.meta_notes when I could put it in a comment in
+      directories?  I guess this could just be that save_state_as makes
+      a directory by default.  I already do this with dir/save.state.
+      Also a place to put the backup and .repl file.
+  * why do I need UiConfig.meta_notes when I could put it in a comment in
     UiConfig.config_ky?
     . It would be a bit better for searching if I ever wanted to do that, but
       I could also just grep ky text.
-    . In fact I could put all UiConfig.Config stuff in there, such as
-      namespace, root, lilypond, default_tempo, etc.
+  - put other UiConfig.Conifg stuff in ky?
+    . namespace, root, lilypond, default_tempo, etc.
     . Why not merge ky and tscore too?  I would have a tscore: section.
       It's nice to have just a single file with everything.
-    . But have to solve the ky-record problem.
+  - text with git save backend:
+    . What about using a text format and git?  I could get rid of the libgit2
+      bindings and use a checked out repo, using the CLI commands directly.
+  - repl history per score is sometimes what I want, but often not, I want
+    a global history.
   - why do a get a short note when a track of the same instrument is muted?
     . LPerf.sel_midi_events has dur .25, but midi has:
       [ loop1 1.75s: chan:1 NoteOn e6(88) 64

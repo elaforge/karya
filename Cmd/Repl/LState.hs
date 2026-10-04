@@ -120,12 +120,6 @@ setCreationTime = do
     now <- liftIO Time.getCurrentTime
     Ui.modifyConfig $ UiConfig.meta#UiConfig.creation #= now
 
-getNotes :: Cmd.M m => m Text
-getNotes = Ui.config#UiConfig.meta#UiConfig.notes <#> Ui.get
-
-setNotes :: Cmd.M m => Text -> m ()
-setNotes = Ui.modifyConfig . (UiConfig.meta#UiConfig.notes #=)
-
 -- *** performance
 
 savePerf :: Cmd.CmdT IO Text

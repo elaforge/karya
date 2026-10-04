@@ -30,7 +30,7 @@ module Ui.UiConfig (
     , convertBackend
     , Meta(..)
     , emptyMeta
-    , creation, lastSave, notes, midiPerformances, lilypondPerformances
+    , creation, lastSave, midiPerformances, lilypondPerformances
     , imPerformances
     , MidiPerformance, LilypondPerformance, ImPerformance
     , Performance(..)
@@ -358,7 +358,6 @@ data Meta = Meta
     -- | The last time the score was saved.  This is useful to determine which
     -- of several saves is the latest.
     , metaLastSave :: Time.UTCTime
-    , metaNotes :: Text
     , metaMidiPerformances :: Map BlockId MidiPerformance
     , metaLilypondPerformances :: Map BlockId LilypondPerformance
     , metaImPerformances :: Map BlockId ImPerformance
@@ -368,7 +367,6 @@ emptyMeta :: Meta
 emptyMeta = Meta
     { metaCreation = Time.UTCTime (Time.ModifiedJulianDay 0) 0
     , metaLastSave = Time.UTCTime (Time.ModifiedJulianDay 0) 0
-    , metaNotes = ""
     , metaMidiPerformances = mempty
     , metaLilypondPerformances = mempty
     , metaImPerformances = mempty
@@ -376,7 +374,6 @@ emptyMeta = Meta
 
 creation = Lens.lens metaCreation (\r a -> r { metaCreation = a })
 lastSave = Lens.lens metaLastSave (\r a -> r { metaLastSave = a })
-notes = Lens.lens metaNotes (\r a -> r { metaNotes = a })
 midiPerformances = Lens.lens metaMidiPerformances
     (\r a -> r { metaMidiPerformances = a })
 lilypondPerformances = Lens.lens metaLilypondPerformances
