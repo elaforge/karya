@@ -660,24 +660,27 @@ UNSORTED
       and quit, which sends back to to seq, which can then exit.
     . Do separate file instead.
   - ky separate file:
-    . What if instead of storing ky inside seq, it was a separate file?
-      Then no need to send it around, seq just has to monitor it for changes.
-      Then we wind up with two files, but it seems not bad.  If there is
-      fancy tscore or imports, then already multiple files.
-    . How to do this?  Just look for .ky at $base.ky.  Then monitor for
-      changes.  This would replace the Send with an fsnotify or whatever it
-      is.  Is there haskell binding for cross platform notify library?
-    . Ky.check_cache already does this, for external .ky files.  It just polls
-      on every response.  I guess I can still have the editor poke?
-    . For tscore I can either do the same $base.tscore, or I could have
-      a tscore: section.
-      . Con of the latter is harder to do syntax highlighting.
-        Maybe I can merge syntax highlighting though, mostly just keyword
-        underlines.
-    . The annoyance is I can no longer just copy files.  Maybe switch to
-      directories?  I guess this could just be that save_state_as makes
-      a directory by default.  I already do this with dir/save.state.
-      Also a place to put the backup and .repl file.
+    - When saving a score, write ky to $base.ky
+    - Don't undo ky!  It's in a file now!
+    notes:
+      . What if instead of storing ky inside seq, it was a separate file?
+        Then no need to send it around, seq just has to monitor it for changes.
+        Then we wind up with two files, but it seems not bad.  If there is
+        fancy tscore or imports, then already multiple files.
+      . How to do this?  Just look for .ky at $base.ky.  Then monitor for
+        changes.  This would replace the Send with an fsnotify or whatever it
+        is.  Is there haskell binding for cross platform notify library?
+      . Ky.check_cache already does this, for external .ky files.  It just polls
+        on every response.  I guess I can still have the editor poke?
+      . For tscore I can either do the same $base.tscore, or I could have
+        a tscore: section.
+        . Con of the latter is harder to do syntax highlighting.
+          Maybe I can merge syntax highlighting though, mostly just keyword
+          underlines.
+      . The annoyance is I can no longer just copy files.  Maybe switch to
+        directories?  I guess this could just be that save_state_as makes
+        a directory by default.  I already do this with dir/save.state.
+        Also a place to put the backup and .repl file.
   * why do I need UiConfig.meta_notes when I could put it in a comment in
     UiConfig.config_ky?
     . It would be a bit better for searching if I ever wanted to do that, but

@@ -268,6 +268,11 @@ rupaka1 = sarvalaghu $ korvaiV Tala.rupakaFast
     . su "npktpk" . "nd,n,nnd." . "__nnd,N,NND."
     ]
 
+rupaka_mine :: Korvai
+rupaka_mine = elaforge $ sarvalaghu $ korvaiV Tala.rupakaFast
+    [ "D_kD_kD_n_n_" . "d_kd_kd_N_N_"
+    ]
+
 -- * kanda chapu
 
 kanda1 :: Korvai
@@ -280,6 +285,24 @@ kanda2 = sarvalaghu $ korvaiV Tala.kandaChapu
     [ "n_d,n,nnd," & "/_o_/__o/" . "n,d,n,nND,"
       . "n,Tkn".su "ktok". "ND," . "n,d,n,nND,"
     , "D_N_kd_n_k" . "d_n_kd_n_k"
+    ]
+
+-- https://www.facebook.com/academysrj/reels/
+yt_kanda_fast1 :: Korvai
+yt_kanda_fast1 = sarvalaghu $ date 2026 9 30 $ korvaiV Tala.kandaChapu
+    -- tangu dingu din, tangu dingu tangu dingu
+    [ let rh = "N_kD_kD_ N_kD_kN_kD_k"
+        in r2 rh . noThom rh . "n_kd_kd_" . "n_pk".nakatiku
+    -- thaka dingu thakadin, thaka dingu thakadin thakadin
+    , let rh = "n,d_"
+        in r3 (r5 rh & "o__o__o____p") . r3 rh & "o__o__o" . "pvoovoov"
+    -- taka taka din taka, taka taka din taka taka taka
+    , "N,^,D_^, N,^,D_^, N,^,N,^," . p & "n,^,d_^," . "tkoovook"
+    -- tangida dingida, takadinna dingida takadinna
+    , r2 $ "N_okD_pknookD_" . "pknook"
+    -- thom kita takadinna, thom kita takadinna takadinna
+    , r2 $ "N_oktook" . "N_oktooktook"
+    , tri (od.__8) "N_oktook"
     ]
 
 -- * misra chapu

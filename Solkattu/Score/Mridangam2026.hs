@@ -357,3 +357,14 @@ yt_kalyani_vinay2 = date 2026 9 22 $ korvaiV adi
     -- TODO: utarangam
     [ nadai 3 $ reduceTo 3 1 (k.su "okno"."DDkD_") . r3 (su (g "kpkD_ktkno"))
     ]
+
+improv1 :: Korvai
+improv1 = date 2026 9 26 $ korvaiV adi
+    [ "D_D_N_d_pnpndnd_" . "nd_d_n_d_nd_nd_n"
+    , "D_D_N_d_pnpndnd_" . "ndd_d_nd_nd_nd_n"
+    ]
+
+endings1 :: Korvai
+endings1 = korvaiV adi
+    [ __D 2 . o . reduceTo 3 1 (su "o_pkD_D_k_D___")
+    ]
