@@ -100,7 +100,7 @@ ky = do
     pure $ ReplProtocol.Edit $ (:| []) $ ReplProtocol.Editor
         { _file = ReplProtocol.Text ReplProtocol.Ky ky
         , _lineNumber = 0
-        , _onSave = Just "LState.set_ky %s"
+        , _onSave = Just "LState.setKy %s"
         , _onSend = Nothing
         }
 

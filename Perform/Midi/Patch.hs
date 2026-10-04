@@ -117,7 +117,7 @@ config alloc = Config
 mergeDefaults :: Patch -> Config -> Config
 mergeDefaults patch = settings %= (<> patchDefaults patch)
 
-instance Pretty Config where format = Pretty.formatG_
+instance Pretty Config where format = Pretty.formatGCamel
 
 -- | Document what kinds of initialization this instrument needs.  Each
 -- instrument is initialized once when the score is loaded.
@@ -159,7 +159,7 @@ data Settings = Settings
     , configControlDefaults :: Maybe ScoreT.ControlValMap
     } deriving (Eq, Show, Generics.Generic)
 
-instance Pretty Settings where format = Pretty.formatG_
+instance Pretty Settings where format = Pretty.formatGCamel
 
 instance Semigroup Settings where
     (<>)    (Settings flags1 scale1 decay1 pbRange1 cdefaults1)

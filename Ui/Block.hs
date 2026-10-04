@@ -92,7 +92,7 @@ data Block = Block
     , blockMeta :: !Meta
     } deriving (Eq, Show, Generics.Generic)
 
-instance Pretty Block where format = Pretty.formatG_
+instance Pretty Block where format = Pretty.formatGCamel
 
 instance DeepSeq.NFData Block where
     rnf = DeepSeq.rnf . blockTitle
@@ -304,7 +304,7 @@ defaultConfig = Config
     , configSkeleton = Implicit
     } where box = uncurry Box
 
-instance Pretty Config where format = Pretty.formatG_
+instance Pretty Config where format = Pretty.formatGCamel
 
 -- | One of those colored boxes wedged into the corners of the block window.
 data Box = Box { boxColor :: !Color.Color, boxChar :: !Char }

@@ -346,7 +346,7 @@ waitForCommand :: FilePath -> [String] -> IO Bool
 waitForCommand cmd args = do
     ttyState <- Text.strip <$> capture "stty" ["-g"]
     (_, _, _, pid) <- Process.createProcess $
-        (Process.proc cmd args) { Process.delegateCtlc = True }
+        (Process.proc cmd args) { Process.delegate_ctlc = True }
     Exception.try (Process.waitForProcess pid) >>= \case
         Left Haskeline.Interrupt -> do
             Process.terminateProcess pid

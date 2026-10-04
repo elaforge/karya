@@ -124,6 +124,8 @@ UNSORTED
     kendang parts.  Or at least display them in a compact way.
   - This in turn is revealing that horizontal really is more compact when
     I can fit into 1 or 2 chars.
+  - play from shift-/ sometimes plays a non focused block.
+    ? is it the root?
   * change snake_case to camelCase
     . tools/hs_id_transform.py -i $(git ls-files '*.hs' '*.hsc')
     . Omit from external modules: Process.std_in, std_out, std_err
@@ -149,6 +151,10 @@ UNSORTED
     . Also if I can automatically adjust track width.  That's more tricky
       since that's what I turned off symbol wrapping for, but should be
       possible.
+    . I still want a borderless tiling window manager for this.
+      I could write it myself internally, but I'll also want a terminal,
+      and possibly logview and instrument browser.
+    . Could still do it internally, if I embed a terminal emulator.
   - bali: kotekan can't do saih pitu!
     . The high level way would be switch key, but it seems like the key
       boundaries may be a bit fuzzy?
@@ -360,7 +366,7 @@ UNSORTED
       b2        FL_LEAVE        b1
       b2        FL_FOCUS        b1 <-- why!?
       b1        FL_UNFOCUS      b2
-  - bug:
+  - bug: ruler is broken
     . open save/complete/wayang/cerucuk-punyah.state
     . delete most of score block, and then trim ruler with :
     . ruler gets messed up
@@ -585,6 +591,7 @@ UNSORTED
       should suppress?
   - fltk: not wrapping by char is quite annoying
     I think I did this on purpose though?
+    . SymbolTable::do_wrap_glyphs
     . I think EventTrack.cc wrap_text -> SymbolTable::wrap
     . Previously, if words didn't wrap, I'd wrap individual glyphs.  However,
       that meant that Event::suggested_width would be sort of useless because it

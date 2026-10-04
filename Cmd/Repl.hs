@@ -131,11 +131,11 @@ command session expr = do
     (response, status) <- runCmdio $ Cmd.name ("repl: " <> expr) cmd
     pure (Just $ ReplProtocol.RCommand response, status)
 
--- | Replace \@some-id with @(make_id ns \"some-id\")@
+-- | Replace \@some-id with @(makeId ns \"some-id\")@
 expandMacros :: Id.Namespace -> Text -> Either Text Text
 expandMacros namespace expr = Parse.expandMacros replace expr
     where
-    replace ident = "(make_id " <> showt (Id.unNamespace namespace) <> " "
+    replace ident = "(makeId " <> showt (Id.unNamespace namespace) <> " "
         <> showt ident <> ")"
 
 -- | Run the Cmd under an IO exception handler.

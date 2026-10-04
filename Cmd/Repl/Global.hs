@@ -62,7 +62,7 @@ import           Types
 -- expected to be used from the REPL.
 --
 -- This is used by the REPL's macro feature, to replace @xyz@ with
--- (make_id "current-namespace" "xyz")
+-- (makeId "current-namespace" "xyz")
 makeId :: Id.Ident a => Text -> Text -> a
 makeId ns name =
     fromMaybe (error $ "invalid characters in id: " ++ show name) $

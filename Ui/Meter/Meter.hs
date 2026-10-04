@@ -213,7 +213,7 @@ data Config = Config
     , configStripDepth :: Int
     } deriving (Eq, Show, Generics.Generic)
 
-instance Pretty Config where format = Pretty.formatG_
+instance Pretty Config where format = Pretty.formatGCamel
 
 defaultConfig :: Config
 defaultConfig = Config

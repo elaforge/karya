@@ -426,9 +426,9 @@ makePerformance events = do
 -- 'ky' and the implicit GLOBAL call.  I haven't removed tempo yet because it's
 -- the only way to change the speed for tempo-less blocks, and doesn't affect
 -- (or rather, is undone automatically) for integrated blocks.
-newtype Default = Default {
+newtype Default = Default
     -- | A toplevel block without a tempo track will get this tempo.
-    defaultTempo :: Signal.Y
+    { defaultTempo :: Signal.Y
     } deriving (Eq, Read, Show)
 
 emptyDefault :: Default
@@ -451,7 +451,7 @@ instance Pretty Config where
             , ("tscore", Pretty.format tscore)
             ]
 
-instance Pretty Meta where format = Pretty.formatG_
+instance Pretty Meta where format = Pretty.formatGCamel
 instance Pretty MidiPerformance where
     format = formatPerformance "MidiPerformance" Vector.length
 instance Pretty LilypondPerformance where
