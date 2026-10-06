@@ -17,8 +17,8 @@ module Cmd.Save (
     , save, saveAs, load, loadForce, read, read_, loadTemplate
     , inferSaveType
     -- * state
-    , saveState, saveStateAs, loadState
-    , readState, readState_, writeState
+    , saveState, saveStateAs
+    , readState, readState_, writeStateDir
     , writeCurrentState
     -- ** path
     , getStatePath, statePathForRepo
@@ -33,6 +33,7 @@ import qualified Control.Exception as Exception
 import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Text as Text
+import qualified Data.Text.IO as Text.IO
 import qualified Data.Time as Time
 
 import qualified System.Directory as Directory
@@ -219,18 +220,27 @@ saveState = saveStateAs =<< Cmd.require "can't save, no save file"
 saveStateAs :: FilePath -> Cmd.CmdT IO ()
 saveStateAs fname = do
     fname <- writeCurrentState fname
+    copyKy (Cmd.kyPath fname)
     setSaveFile (Just (Cmd.ReadWrite, SaveState fname)) Save
 
 writeCurrentState :: FilePath -> Cmd.CmdT IO FilePath
 writeCurrentState fname = do
     fname <- expandFilename fname
     state <- Ui.get
-    ((), metric) <- rethrowIo "write_current_state" $
-        Thread.timeAction $ writeState fname state
+    (fname, metric) <- rethrowIo "write_current_state" $
+        Thread.timeAction $ writeStateDir fname state
     Log.notice $ "wrote state to " <> showt fname
         <> " " <> Transform.shortStats state
         <> ", took " <> Thread.showMetric metric
     pure fname
+
+writeStateDir :: FilePath -> Ui.State -> IO FilePath
+writeStateDir path state =
+    ifM (Directory.doesFileExist path) (writeState path state >> pure path) $ do
+    unlessM (Directory.doesDirectoryExist path) $
+        Directory.createDirectory path
+    writeState (path </> defaultState) state
+    pure $ path </> defaultState
 
 writeState :: FilePath -> Ui.State -> IO ()
 writeState fname state = do
@@ -238,11 +248,35 @@ writeState fname state = do
     void $ Serialize.serialize Cmd.Serialize.scoreMagic fname $
         Ui.config#UiConfig.meta#UiConfig.lastSave #= now $
         Ui.clear state
+    writeKy (Cmd.kyPath fname) $ UiConfig.configKy (Ui.stateConfig state)
 
-loadState :: FilePath -> Cmd.CmdT IO ()
-loadState fname = do
-    (state, saveFile) <- readState fname
-    setLoadedState saveFile state
+-- | New versions keep ky in a separate file, not in UiConfig.  So if this is
+-- an old score with internal ky, write it to the external file.
+writeKy :: FilePath -> Text -> IO ()
+writeKy kyPath ky =
+    unlessM (Directory.doesFileExist kyPath) $ unless (ky == "") $
+        Text.IO.writeFile kyPath $ Text.strip ky <> "\n"
+
+-- | If I'm saving under a new name, copy the current external ky file to go
+-- with it.  This has to be called before 'setSaveFile', while
+-- 'Cmd.stateSaveFile' still has the old name.
+copyKy :: FilePath -> Cmd.CmdT IO ()
+copyKy newKy = do
+    mbOldKy <- Cmd.gets $ fmap (Cmd.saveFileKyPath . snd) . Cmd.stateSaveFile
+    whenJust mbOldKy $ \oldKy -> liftIO $
+        whenM (Directory.doesFileExist oldKy) $ do
+            newKy <- Directory.canonicalizePath newKy
+            unless (oldKy == newKy) $ Directory.copyFile oldKy newKy
+
+-- loadStateDir :: FilePath -> Cmd.CmdT IO ()
+-- loadStateDir path =
+--     ifM (liftIO $ Directory.doesFileExist (path </> defaultState))
+--         (loadState (path </> defaultState)) (loadState path)
+--
+-- loadState :: FilePath -> Cmd.CmdT IO ()
+-- loadState fname = do
+--     (state, saveFile) <- readState fname
+--     setLoadedState saveFile state
 
 readState :: FilePath -> Cmd.CmdT IO (Ui.State, StateSaveFile)
 readState fname = do
@@ -257,12 +291,12 @@ readState fname = do
     pure (state, Just
         (if writable then Cmd.ReadWrite else Cmd.ReadOnly, SaveState fname))
 
--- | Low level 'read_state'.
+-- | Low level 'readState'.
 readState_ :: FilePath
     -> IO (Either Serialize.UnserializeError Ui.State)
 readState_ = Serialize.unserialize Cmd.Serialize.scoreMagic
 
--- | Low level 'read_git'.
+-- | Low level 'readGit'.
 readGit_ :: SaveGit.Repo -> Maybe SaveGit.Commit
     -> IO (Either Text (Ui.State, SaveGit.Commit, [Text]))
 readGit_ = SaveGit.load
@@ -296,7 +330,7 @@ saveGit :: Cmd.CmdT IO ()
 saveGit = saveGitAs =<< getGitPath
 
 saveGitAs :: SaveGit.Repo -- ^ Save to this repo, or create it.
-    -- 'Cmd.Undo.maintain_history' will start checkpointing to it.
+    -- 'Cmd.Undo.maintainHistory' will start checkpointing to it.
     -- @.git@ is appended if it doesn't already have that suffix.
     -> Cmd.CmdT IO ()
 saveGitAs repo = do
@@ -313,6 +347,10 @@ saveGitAs repo = do
             rethrow =<< liftIO (SaveGit.checkpoint user repo
                 (SaveGitT.SaveHistory state Nothing [] ["save"]))
     save <- rethrow =<< liftIO (SaveGit.setSaveTag repo commit)
+    uiState <- Ui.get
+    liftIO $ writeKy (Cmd.repoKyPath repo) $
+        UiConfig.configKy (Ui.stateConfig uiState)
+    copyKy (Cmd.repoKyPath repo)
     Log.notice $ "wrote save " <> showt save <> " to " <> showt repo
     setSaveFile (Just (Cmd.ReadWrite, SaveRepo repo commit Nothing)) Save
 

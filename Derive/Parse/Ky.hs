@@ -4,7 +4,8 @@
 
 {-# LANGUAGE CPP #-}
 module Derive.Parse.Ky (
-    Ky(..), Loaded(..)
+    Code
+    , Ky(..), Loaded(..)
     , Definitions(..), Definition
     , loadKy
     , parseKy

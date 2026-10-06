@@ -88,11 +88,10 @@ instance Serialize Ui.State where
 
 instance Serialize UiConfig.Config where
     put (UiConfig.Config ns meta root _insts lilypond defaults
-            savedViews ky tscore)
-        =  putVersion 15
-            >> put ns >> put meta >> put root -- >> put insts
-            >> put lilypond
-            >> put defaults >> put savedViews >> put ky >> put tscore
+            savedViews _ky _tscore)
+        =  putVersion 16
+            >> put ns >> put meta >> put root >> put lilypond
+            >> put defaults >> put savedViews
     get = getVersion >>= \v -> case v of
         11 -> do
             ns :: Id.Namespace <- get
@@ -153,13 +152,25 @@ instance Serialize UiConfig.Config where
             ns :: Id.Namespace <- get
             meta :: UiConfig.Meta <- get
             root :: Maybe BlockId <- get
-            -- _insts :: UiConfig.Allocations <- get
             let insts = mempty
             lilypond :: Lilypond.Config <- get
             defaults :: UiConfig.Default <- get
             savedViews :: UiConfig.SavedViews <- get
             ky :: Text <- get
             tscore :: Text <- get
+            pure $ UiConfig.Config ns meta root insts lilypond defaults
+                savedViews ky tscore
+        16 -> do
+            -- No more ky and tscore, but keep fields to load old scores.
+            ns :: Id.Namespace <- get
+            meta :: UiConfig.Meta <- get
+            root :: Maybe BlockId <- get
+            let insts = mempty
+            lilypond :: Lilypond.Config <- get
+            defaults :: UiConfig.Default <- get
+            savedViews :: UiConfig.SavedViews <- get
+            let ky = ""
+            let tscore = ""
             pure $ UiConfig.Config ns meta root insts lilypond defaults
                 savedViews ky tscore
         _ -> badVersion "UiConfig.Config" v

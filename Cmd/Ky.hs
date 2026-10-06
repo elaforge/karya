@@ -7,7 +7,7 @@
 -- The syntax is defined by 'Ky.parse_ky'.
 module Cmd.Ky (
     update
-    , set
+    , check
     , load
     , compile
     , compileDefinitions
@@ -20,6 +20,7 @@ import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Map as Map
 import qualified Data.Text as Text
 
+import qualified System.Directory as Directory
 import qualified System.FilePath as FilePath
 
 import qualified Util.Doc as Doc
@@ -48,15 +49,12 @@ import           Global
 
 -- | Check if ky files have changed, and if they have, update
 -- 'Cmd.state_ky_cache' and clear the performances.
-update :: Ui.State -> Cmd.State -> Text
+update :: Ui.State -> Cmd.State -> Maybe Ky.Code
     -> IO (Maybe (Ui.State, Cmd.State, [Log.Msg]))
-update uiState cmdState kyText =
-    justm (checkCache lookupBackend cache allocs paths kyText) $
+update uiState cmdState mbKyText =
+    justm (checkCache lookupBackend cache allocs mbKyPath paths mbKyText) $
     \((kyCache, allocs), logs) -> pure $ Just
-        ( Ui.config#UiConfig.allocations #= allocs $
-            -- Should already be set when Responder calls me, but not
-            -- when 'set' calls me.
-            Ui.config#UiConfig.ky #= kyText $ uiState
+        ( Ui.config#UiConfig.allocations #= allocs $ uiState
         , cmdState
             { Cmd.stateKyCache = Just kyCache
             , Cmd.statePlay = (Cmd.statePlay cmdState)
@@ -72,16 +70,15 @@ update uiState cmdState kyText =
     lookupBackend = fmap Inst.instBackend . Cmd.getLookupInst cmdState
     allocs = Ui.config#UiConfig.allocations #$ uiState
     cache = Cmd.stateKyCache cmdState
-    paths = stateKyPaths cmdState
+    (mbKyPath, paths) = stateKyPaths cmdState
 
--- | Directly replace the ky text.  This is used when it is explicitly updated,
--- and can synchronously return the error rather than waiting for play.
--- 'update' passively detects all other changes, eg undo/redo.
-set :: Text -> Cmd.CmdT IO Cmd.Error
-set kyText = do
+-- | Trigger a ky reload, but first check for an error and return it
+-- synchronously rather than waiting for play.
+check :: Cmd.CmdT IO Cmd.Error
+check = do
     cmdState <- Cmd.get
     uiState <- Ui.get
-    liftIO (update uiState cmdState kyText) >>= \case
+    liftIO (update uiState cmdState Nothing) >>= \case
         Nothing -> pure ""
         -- Logs are just boring stuff about reloaded files.
         Just (uiState, cmdState, _logs) ->
@@ -89,16 +86,29 @@ set kyText = do
                 Just (Cmd.KyCache (Left err) _) -> pure err
                 _ -> do
                     Cmd.put cmdState
+                    -- TODO This has allocs since they used to be saved with
+                    -- the main Ui.State, but now they should move to
+                    -- Cmd.State.
                     Ui.unsafePut uiState
                     pure ""
 
 -- | Reload the ky files if they're out of date, Nothing if no reload is
 -- needed.
 checkCache :: (InstT.Qualified -> Maybe Inst.Backend) -> Maybe Cmd.KyCache
-    -> UiConfig.Allocations -> [FilePath] -> Text
+    -> UiConfig.Allocations -> Maybe FilePath -> [FilePath] -> Maybe Ky.Code
     -> IO (Maybe ((Cmd.KyCache, UiConfig.Allocations), [Log.Msg]))
-checkCache lookupBackend prevCache oldAllocs paths kyText = run $ do
+checkCache lookupBackend prevCache oldAllocs mbKyPath paths mbKyText = run $ do
     when isPermanent abort
+    -- if $base.ky exists, kyText becomes 'import $base.ky'. mbKyText Nothing
+    -- means just check the file.  Just is the old internal ky path, for old
+    -- scores.
+    -- TODO Can I directly invoke the import machinery rather than constructing
+    -- a fake import source?
+    kyText <- case mbKyPath of
+        Nothing -> maybe abort pure mbKyText
+        Just kyPath -> ifM (liftIO $ Directory.doesFileExist kyPath)
+            (pure $ "import '" <> txt kyPath <> "'")
+            (maybe abort pure mbKyText)
     Ky.Ky defs imported allocs <- try . first ParseText.showError
         =<< liftIO (Ky.loadKy paths kyText)
     -- This uses the contents of all the files for the fingerprint, which
@@ -160,9 +170,12 @@ compile (Ky.Ky defs imported allocs) =
 loadedFnames :: [Ky.Loaded] -> [FilePath]
 loadedFnames loads = [fname | Ky.Loaded fname _ <- loads]
 
-stateKyPaths :: Cmd.State -> [FilePath]
-stateKyPaths cmdState = maybe id (:) (Cmd.stateSaveDir cmdState)
-    (Cmd.configKyPaths (Cmd.stateConfig cmdState))
+stateKyPaths :: Cmd.State -> (Maybe FilePath, [FilePath])
+stateKyPaths cmdState =
+    ( Cmd.saveFileKyPath . snd <$> Cmd.stateSaveFile cmdState
+    , maybe id (:) (Cmd.stateSaveDir cmdState)
+        (Cmd.configKyPaths (Cmd.stateConfig cmdState))
+    )
 
 compileLibrary :: [FilePath] -> Library.Library -> (Derive.Builtins, [Log.Msg])
 compileLibrary imports lib = Log.runId $ do

@@ -611,6 +611,26 @@ data State = State
     , stateDebug :: Bool
     } deriving (Show)
 
+data KeycapsUpdate
+    = KeycapsUpdate KeycapsState (Maybe ((Int, Int), KeycapsT.Layout))
+        KeycapsT.RawBindings
+    | KeycapsClose
+    deriving (Show)
+
+-- | The set of things that can affect a keycaps window.  So when this changes,
+-- the window has to be updated.  I assume the KeycapsT.Layout is constant, so
+-- it's not in here, which allows me to cache global keymaps in CAFs.
+data KeycapsState = KeycapsState
+    { kcMods :: Set Modifier
+    , kcOctave :: Pitch.Octave
+    , kcIsKbdEntry :: Bool
+    , kcTrackType :: Maybe ParseTitle.Type
+    , kcInstrument :: Maybe ScoreT.Instrument
+    , kcScaleId :: Maybe Pitch.ScaleId
+    } deriving (Show, Eq)
+
+-- ** SavedState
+
 data SaveFile = SaveState Path.Canonical | SaveRepo Path.Canonical
     deriving (Show, Eq)
 data Writable = ReadWrite | ReadOnly deriving (Show, Eq)
@@ -633,30 +653,24 @@ data SavedState
     | SavedChanges
     deriving (Eq, Show)
 
-data KeycapsUpdate
-    = KeycapsUpdate KeycapsState (Maybe ((Int, Int), KeycapsT.Layout))
-        KeycapsT.RawBindings
-    | KeycapsClose
-    deriving (Show)
-
--- | The set of things that can affect a keycaps window.  So when this changes,
--- the window has to be updated.  I assume the KeycapsT.Layout is constant, so
--- it's not in here, which allows me to cache global keymaps in CAFs.
-data KeycapsState = KeycapsState
-    { kcMods :: Set Modifier
-    , kcOctave :: Pitch.Octave
-    , kcIsKbdEntry :: Bool
-    , kcTrackType :: Maybe ParseTitle.Type
-    , kcInstrument :: Maybe ScoreT.Instrument
-    , kcScaleId :: Maybe Pitch.ScaleId
-    } deriving (Show, Eq)
-
 -- | Absolute directory of the save file.
 stateSaveDir :: State -> Maybe FilePath
 stateSaveDir state = case stateSaveFile state of
     Nothing -> Nothing
     Just (_, SaveState fn) -> Just $ FilePath.takeDirectory $ Path.toPath fn
     Just (_, SaveRepo repo) -> Just $ FilePath.takeDirectory $ Path.toPath repo
+
+-- | Given a saved state complete path, the path to its accompanying .ky file.
+kyPath :: FilePath -> FilePath
+kyPath fname = fname <> ".ky"
+
+-- | Like 'kyPath' for a repo, which is foo.git -> foo.ky.
+repoKyPath :: FilePath -> FilePath
+repoKyPath = kyPath . fst . Lists.dropSuffix ".git"
+
+saveFileKyPath :: SaveFile -> FilePath
+saveFileKyPath (SaveState fn) = kyPath $ Path.toPath fn
+saveFileKyPath (SaveRepo repo) = repoKyPath $ Path.toPath repo
 
 -- | Unique name for this score, for the global im cache.
 scorePath :: State -> FilePath
@@ -759,7 +773,7 @@ data Config = Config
     { configAppDir :: Path.AppDir
     , configSaveDir :: Path.Canonical
     , configMidiInterface :: Midi.Interface.Interface
-    -- | Search path for local definition files, from 'Config.definition_path'.
+    -- | Search path for local definition files, from 'Config.kyPaths'.
     , configKyPaths :: [FilePath]
     -- | Reroute MIDI inputs and outputs.  These come from
     -- 'App.StaticConfig.rdev_map' and 'App.StaticConfig.wdev_map' and probably

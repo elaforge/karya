@@ -7,24 +7,12 @@ module Cmd.Repl.LTScore where
 import qualified App.ReplProtocol as ReplProtocol
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Create as Create
-import qualified Cmd.Repl.LState as LState
-
 import qualified Derive.TScore.TScore as TScore
 import qualified Ui.Ui as Ui
 import qualified Ui.UiConfig as UiConfig
 
 import           Global
 
-
--- | Edit both ky and tscore together.
-both :: Ui.M m => m ReplProtocol.Result
-both = do
-    tscore <- edit
-    ky <- LState.ky
-    case (ky, tscore) of
-        (ReplProtocol.Edit ky, ReplProtocol.Edit tscore) ->
-            pure $ ReplProtocol.Edit (tscore <> ky)
-        _ -> Ui.throw "expected ReplProtocol.Edit"
 
 edit :: Ui.M m => m ReplProtocol.Result
 edit = do

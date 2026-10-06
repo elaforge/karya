@@ -294,10 +294,11 @@ updateMidi cmdConfig fname = do
     let cmdState = makeCmdState library aliases cmdConfig
     (msgs, _, _) <- performBlock fname cmdState uiState blockId
     perf <- liftIO $ UiConfig.makePerformance (Vector.fromList msgs)
-    uiState <- pure $ (Ui.config#UiConfig.meta#UiConfig.midiPerformances
+    uiState <- pure $
+        (Ui.config#UiConfig.meta#UiConfig.midiPerformances
             %= Map.insert blockId perf)
         uiState
-    liftIO $ Save.writeState fname uiState
+    void $ liftIO $ Save.writeStateDir fname uiState
 
 -- | Perform from the given state and compare it to the old MidiPerformance.
 verifyMidi :: FilePath -> FilePath -> Cmd.State -> Ui.State -> BlockId

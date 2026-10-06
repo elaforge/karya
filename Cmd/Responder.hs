@@ -314,7 +314,7 @@ postCmd state uiFrom uiTo cmdTo uiDamage status = do
     -- Load external definitions and cache them in Cmd.State, so cmds don't
     -- have a dependency on IO.
     (!uiTo, !cmdTo, logs) <- fromMaybe (uiTo, cmdTo, []) <$>
-        Ky.update uiTo cmdTo (Ui.config#UiConfig.ky #$ uiTo)
+        Ky.update uiTo cmdTo (Just (Ui.config#UiConfig.ky #$ uiTo))
     mapM_ Log.write logs
 
     Trace.trace "ky"

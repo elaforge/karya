@@ -22,7 +22,6 @@ import qualified Util.PPrint as PPrint
 import qualified Util.Pretty as Pretty
 
 import qualified App.Path as Path
-import qualified App.ReplProtocol as ReplProtocol
 import qualified Cmd.Clip as Clip
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Create as Create
@@ -94,21 +93,8 @@ getDefaultTempo = Ui.config#UiConfig.default_#UiConfig.tempo <#> Ui.get
 setDefaultTempo :: Signal.Y -> Cmd.CmdL ()
 setDefaultTempo t = Ui.modifyConfig $ UiConfig.default_#UiConfig.tempo #= t
 
-ky :: Ui.M m => m ReplProtocol.Result
-ky = do
-    ky <- getKy
-    pure $ ReplProtocol.Edit $ (:| []) $ ReplProtocol.Editor
-        { _file = ReplProtocol.Text ReplProtocol.Ky ky
-        , _lineNumber = 0
-        , _onSave = Just "LState.setKy %s"
-        , _onSend = Nothing
-        }
-
-getKy :: Ui.M m => m Text
-getKy = Ui.config#UiConfig.ky <#> Ui.get
-
-setKy :: Text -> Cmd.CmdT IO Text
-setKy = Ky.set
+checkKy :: Cmd.CmdT IO Text
+checkKy = Ky.check
 
 -- ** meta
 

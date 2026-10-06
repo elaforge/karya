@@ -4,7 +4,7 @@
 " work because I don't want to modify iskeyword to put in %.
 syn match tsDirective "%\(default-call|order\)\>"
 syn match tsDirective "%\(dur\|meter\|negative\|scale\|f\)\>"
-syn match tsDirective "%\(ky\|instruments\)\>"
+syn match tsDirective "%ky\>"
 " jscore only
 syn match tsDirective "%\(source\|piece\|section\|laras\|irama\|instrument\)\>"
 hi tsDirective cterm=underline
