@@ -161,8 +161,7 @@ runCmdio cmd = do
         Left (exc :: Exception.SomeException) -> pure
             (ReplProtocol.raw $ "IO exception: " <> showt exc, Cmd.Done)
         Right (cmdState, thru, cmdResult, logs) -> case cmdResult of
-            Left err -> pure
-                (ReplProtocol.raw $ "State error: " <> pretty err, Cmd.Done)
+            Left err -> pure (ReplProtocol.raw (pretty err), Cmd.Done)
             Right (ReplProtocol.CmdResult response evalLogs, uiState,
                     damage) -> do
                 mapM_ Cmd.writeThru thru

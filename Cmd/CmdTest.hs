@@ -247,14 +247,15 @@ defaultCmdState = mkCmdState UiTest.defaultDb
 
 mkCmdState :: Cmd.InstrumentDb -> Cmd.State
 mkCmdState db = (Cmd.initialState (DeriveTest.cmdConfig db))
+    -- TODO don't put it there unless I'm going to make the view, or
+    -- getFocusedView fails.  But if I use runMkview then it is created.
     { Cmd.stateFocusedView = Just UiTest.defaultViewId
     , Cmd.stateEdit = defaultEditState
     , Cmd.statePlay = defaultPlayState
     }
 
 defaultPlayState :: Cmd.PlayState
-defaultPlayState =
-    Cmd.initialPlayState { Cmd.statePlayStep = UiTest.step1 }
+defaultPlayState = Cmd.initialPlayState { Cmd.statePlayStep = UiTest.step1 }
 
 defaultEditState :: Cmd.EditState
 defaultEditState = Cmd.initialEditState

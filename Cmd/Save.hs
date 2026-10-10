@@ -27,6 +27,7 @@ module Cmd.Save (
     , getGitPath
     -- * misc
     , saveViews
+    , stripUnsaved
 ) where
 import           Prelude hiding (read)
 import qualified Control.Exception as Exception
@@ -52,11 +53,13 @@ import qualified App.Config as Config
 import qualified App.Path as Path
 import qualified Cmd.Clip as Clip
 import qualified Cmd.Cmd as Cmd
+import qualified Cmd.Ky as Ky
 import qualified Cmd.Play as Play
 import qualified Cmd.SaveGit as SaveGit
 import qualified Cmd.SaveGitT as SaveGitT
 import qualified Cmd.Serialize
 
+import qualified Ui.Block as Block
 import qualified Ui.Id as Id
 import qualified Ui.Transform as Transform
 import qualified Ui.Ui as Ui
@@ -247,15 +250,51 @@ writeState fname state = do
     now <- Time.getCurrentTime
     void $ Serialize.serialize Cmd.Serialize.scoreMagic fname $
         Ui.config#UiConfig.meta#UiConfig.lastSave #= now $
-        Ui.clear state
-    writeKy (Cmd.kyPath fname) $ UiConfig.configKy (Ui.stateConfig state)
+        stripUnsaved False state
+    writeKy (Cmd.kyPath fname)
+        (UiConfig.configKy (Ui.stateConfig state))
+        (UiConfig.configTscore (Ui.stateConfig state))
+
+-- | Clear out data that shouldn't be saved.
+stripUnsaved :: Bool -> Ui.State -> Ui.State
+stripUnsaved viewsOnly state = state
+    { Ui.stateViews = Map.map clearView (Ui.stateViews state)
+    , Ui.stateConfig = if viewsOnly then Ui.stateConfig state
+        else (Ui.stateConfig state)
+            { UiConfig.configKy = ""
+            , UiConfig.configTscore = ""
+            , UiConfig.configAllocations = mempty
+            }
+    }
+    where
+    clearView view = view
+        { Block.viewStatus = mempty
+        , Block.viewSelections =
+            -- Non-insert selections indicate ephemeral state.
+            maybe mempty (Map.singleton Config.insertSelnum) $
+                Map.lookup Config.insertSelnum (Block.viewSelections view)
+        }
 
 -- | New versions keep ky in a separate file, not in UiConfig.  So if this is
 -- an old score with internal ky, write it to the external file.
-writeKy :: FilePath -> Text -> IO ()
-writeKy kyPath ky =
-    unlessM (Directory.doesFileExist kyPath) $ unless (ky == "") $
-        Text.IO.writeFile kyPath $ Text.strip ky <> "\n"
+writeKy :: FilePath -> Text -> Text -> IO ()
+writeKy kyPath ky tscore =
+    unlessM (Directory.doesFileExist kyPath) $
+    unless (ky == "" && tscore == "") $
+        Text.IO.writeFile kyPath $ makeKy ky tscore
+
+makeKy :: Text -> Text -> Text
+makeKy ky tscore =
+    Text.strip ky <> "\n"
+    <> if tscore == "" then "" else Text.unlines
+        [ ""
+        , tscoreSection <> ":"
+        , Text.strip tscore
+        ]
+
+-- TODO copy paste from Parse.Ky to avoid import
+tscoreSection :: Text
+tscoreSection = "tscore"
 
 -- | If I'm saving under a new name, copy the current external ky file to go
 -- with it.  This has to be called before 'setSaveFile', while
@@ -348,8 +387,9 @@ saveGitAs repo = do
                 (SaveGitT.SaveHistory state Nothing [] ["save"]))
     save <- rethrow =<< liftIO (SaveGit.setSaveTag repo commit)
     uiState <- Ui.get
-    liftIO $ writeKy (Cmd.repoKyPath repo) $
-        UiConfig.configKy (Ui.stateConfig uiState)
+    liftIO $ writeKy (Cmd.repoKyPath repo)
+        (UiConfig.configKy (Ui.stateConfig uiState))
+        (UiConfig.configTscore (Ui.stateConfig uiState))
     copyKy (Cmd.repoKyPath repo)
     Log.notice $ "wrote save " <> showt save <> " to " <> showt repo
     setSaveFile (Just (Cmd.ReadWrite, SaveRepo repo commit Nothing)) Save
@@ -466,7 +506,9 @@ setLoadedState saveFile state = do
             }
         _ -> pure ()
     old <- Ui.get
-    Ui.put $ Ui.clear $
+    -- TODO This is for SaveGit, which doesn't stripUnsaved (but should).
+    -- And clip could have views, but who cares.
+    Ui.put $ stripUnsaved True $
         Transform.replaceNamespace Clip.clipNamespace old state
     root <- case UiConfig.configRoot (Ui.stateConfig state) of
         Nothing -> pure Nothing
@@ -474,6 +516,17 @@ setLoadedState saveFile state = do
     -- Try to focus on the root block, for consistency.
     let focused = msum [root, Lists.head $ Map.keys (Ui.stateViews state)]
     whenJust focused Cmd.focus
+    -- Old scores keep ky internally.  Don't integrate tscore, since it
+    -- should already be in the UI state, and only needs to be updated when it
+    -- changes.
+    let ky = UiConfig.configKy (Ui.stateConfig state)
+    let tscore = UiConfig.configTscore (Ui.stateConfig state)
+    mbResult <- Cmd.runCatch $ Ky.reload False $ if ky == "" && tscore == ""
+        then Nothing else Just $ makeKy ky tscore
+    case mbResult of
+        Right () -> pure ()
+        Left Nothing -> pure ()
+        Left (Just err) -> Log.warn $ "load ky failed: " <> pretty err
 
 -- | If I switch away from a repo (either to another repo or to a plain state),
 -- I have to clear out all the remains of the old repo, since its Commits are

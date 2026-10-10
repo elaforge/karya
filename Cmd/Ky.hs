@@ -6,8 +6,7 @@
 -- | Load ky files, which are separate files containing call definitions.
 -- The syntax is defined by 'Ky.parse_ky'.
 module Cmd.Ky (
-    update
-    , check
+    reload
     , load
     , compile
     , compileDefinitions
@@ -15,7 +14,7 @@ module Cmd.Ky (
     , module Cmd.Ky
 #endif
 ) where
-import qualified Control.Monad.Except as Except
+import qualified Data.Hashable as Hashable
 import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Map as Map
 import qualified Data.Text as Text
@@ -28,6 +27,7 @@ import qualified Util.Log as Log
 import qualified Util.ParseText as ParseText
 
 import qualified Cmd.Cmd as Cmd
+import qualified Cmd.Create as Create
 import qualified Derive.Call.Macro as Macro
 import qualified Derive.Call.Module as Module
 import qualified Derive.Derive as Derive
@@ -38,25 +38,76 @@ import qualified Derive.Library as Library
 import qualified Derive.Parse.Ky as Ky
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Sig as Sig
+import qualified Derive.TScore.T as TScore.T
+import qualified Derive.TScore.TScore as TScore
 
 import qualified Instrument.Inst as Inst
-import qualified Instrument.InstT as InstT
 import qualified Ui.Ui as Ui
 import qualified Ui.UiConfig as UiConfig
 
 import           Global
 
 
--- | Check if ky files have changed, and if they have, update
--- 'Cmd.state_ky_cache' and clear the performances.
-update :: Ui.State -> Cmd.State -> Maybe Ky.Code
-    -> IO (Maybe (Ui.State, Cmd.State, [Log.Msg]))
-update uiState cmdState mbKyText =
-    justm (checkCache lookupBackend cache allocs mbKyPath paths mbKyText) $
-    \((kyCache, allocs), logs) -> pure $ Just
+type Error = Text
+
+-- | Trigger a ky reload, update 'Cmd.stateKyCache', clear the performances.
+--
+-- Throw if there's an error parsing or interpreting.
+--
+-- If integrate is False, record the tscore fingerprint but don't integrate.
+-- This is for loading a score, where the tscore should already be integrated,
+-- and only needs to be integrated again when it changes.
+reload :: Bool -> Maybe Ky.Code -> Cmd.CmdT IO ()
+reload integrate mbKyCode = do
+    cmdState <- Cmd.get
+    uiState <- Ui.get
+    -- Nothing happens when PermanentKy or no file.
+    errKy <- Cmd.abortUnless =<< liftIO (checkLoadKy cmdState mbKyCode)
+    -- Omit the extra throwing line number, this is a reporting the ky parse
+    -- error, which already has provenance.
+    -- TODO maybe should be an expected vs unexpected distinction?
+    ky <- either Cmd.throw_ pure errKy
+    (uiState, cmdState, logs, mbTscore) <-
+        Cmd.requireRight id $ checkKy uiState cmdState ky
+    mapM_ Log.write logs
+    Cmd.put cmdState
+    -- TODO This has allocs since they used to be saved with the main Ui.State,
+    -- but now they should move to Cmd.State.
+    Ui.unsafePut uiState
+    when integrate $ whenJust mbTscore integrateTscore
+
+integrateTscore :: Cmd.M m => TScore.T.Score -> m ()
+integrateTscore tscore = do
+    cmdState <- Cmd.get
+    TScore.cmdIntegrate cmdState tscore >>= \case
+        Right newBlocks -> mapM_ Create.view newBlocks
+        Left errs -> Ui.throw $ pretty errs -- TODO show errors with sources
+
+checkLoadKy :: Cmd.State -> Maybe Ky.Code
+    -> IO (Maybe (Either Error (Ky.Ky Ky.Loaded)))
+checkLoadKy cmdState mbKyCode
+    -- PermanentKy is used only in tests, so we shouldn't see it here.
+    | Just (Cmd.PermanentKy {}) <- Cmd.stateKyCache cmdState = pure Nothing
+    | otherwise = loadKy mbKyPath paths mbKyCode
+    where (mbKyPath, paths) = stateKyPaths cmdState
+
+checkKy :: Ui.State -> Cmd.State -> Ky.Ky Ky.Loaded
+    -> Either Error (Ui.State, Cmd.State, [Log.Msg], Maybe TScore.T.Score)
+checkKy uiState cmdState ky = do
+    let (kyBuiltins, logs) = compileLibrary (loadedFnames imported) $
+            compileDefinitions defs
+    let errs = UiConfig.verifyAllocations lookupBackend allocs
+    unless (null errs) $
+        Left $ "instrument: " <> Text.intercalate "; " errs
+    let kyTscoreFingerprint = tscoreFingerprint tscoreLines
+    pure
         ( Ui.config#UiConfig.allocations #= allocs $ uiState
         , cmdState
-            { Cmd.stateKyCache = Just kyCache
+            { Cmd.stateKyCache = Just $ Cmd.KyCache $ Cmd.KyCached
+                { kyBuiltins
+                , kyAliases = Map.fromList (Ky.defAliases defs)
+                , kyTscoreFingerprint
+                }
             , Cmd.statePlay = (Cmd.statePlay cmdState)
                 -- TODO should I kill threads?
                 { Cmd.statePerformance = mempty
@@ -65,105 +116,58 @@ update uiState cmdState mbKyText =
                 }
             }
         , logs
+        , if kyTscoreFingerprint == oldTscoreFingerprint
+            then Nothing
+            else Just tscore
         )
     where
+    Ky.Ky defs imported allocs tscore tscoreLines = ky
     lookupBackend = fmap Inst.instBackend . Cmd.getLookupInst cmdState
-    allocs = Ui.config#UiConfig.allocations #$ uiState
-    cache = Cmd.stateKyCache cmdState
-    (mbKyPath, paths) = stateKyPaths cmdState
+    oldTscoreFingerprint = case Cmd.stateKyCache cmdState of
+        Just (Cmd.KyCache cache) -> Cmd.kyTscoreFingerprint cache
+        _ -> mempty
 
--- | Trigger a ky reload, but first check for an error and return it
--- synchronously rather than waiting for play.
-check :: Cmd.CmdT IO Cmd.Error
-check = do
-    cmdState <- Cmd.get
-    uiState <- Ui.get
-    liftIO (update uiState cmdState Nothing) >>= \case
-        Nothing -> pure ""
-        -- Logs are just boring stuff about reloaded files.
-        Just (uiState, cmdState, _logs) ->
-            case Cmd.stateKyCache cmdState of
-                Just (Cmd.KyCache (Left err) _) -> pure err
-                _ -> do
-                    Cmd.put cmdState
-                    -- TODO This has allocs since they used to be saved with
-                    -- the main Ui.State, but now they should move to
-                    -- Cmd.State.
-                    Ui.unsafePut uiState
-                    pure ""
+-- TODO Cmd.Fingerprint has file names, but I think no good reason, I can just
+-- put filenames in the hash.
 
--- | Reload the ky files if they're out of date, Nothing if no reload is
--- needed.
-checkCache :: (InstT.Qualified -> Maybe Inst.Backend) -> Maybe Cmd.KyCache
-    -> UiConfig.Allocations -> Maybe FilePath -> [FilePath] -> Maybe Ky.Code
-    -> IO (Maybe ((Cmd.KyCache, UiConfig.Allocations), [Log.Msg]))
-checkCache lookupBackend prevCache oldAllocs mbKyPath paths mbKyText = run $ do
-    when isPermanent abort
-    -- if $base.ky exists, kyText becomes 'import $base.ky'. mbKyText Nothing
+tscoreFingerprint :: [(FilePath, [Text])] -> Cmd.Fingerprint
+tscoreFingerprint tscores =
+    Cmd.Fingerprint fnames (foldl' Hashable.hashWithSalt 0 lines)
+    where (fnames, lines) = unzip tscores
+
+-- TODO rename to 'load'
+loadKy :: Maybe FilePath -> [FilePath] -> Maybe Ky.Code
+    -> IO (Maybe (Either Error (Ky.Ky Ky.Loaded)))
+loadKy mbKyPath paths mbKyCode = do
+    -- if $base.ky exists, kyText becomes 'import $base.ky'. mbKyCode Nothing
     -- means just check the file.  Just is the old internal ky path, for old
     -- scores.
-    -- TODO Can I directly invoke the import machinery rather than constructing
-    -- a fake import source?
-    kyText <- case mbKyPath of
-        Nothing -> maybe abort pure mbKyText
-        Just kyPath -> ifM (liftIO $ Directory.doesFileExist kyPath)
-            (pure $ "import '" <> txt kyPath <> "'")
-            (maybe abort pure mbKyText)
-    Ky.Ky defs imported allocs <- try . first ParseText.showError
-        =<< liftIO (Ky.loadKy paths kyText)
-    -- This uses the contents of all the files for the fingerprint, which
-    -- means it has to read and parse them on each respond cycle.  If this
-    -- turns out to be too expensive, I can go back to the modification time
-    -- like I had before.
-    let fingerprint = Cmd.fingerprint imported
-    when (oldFingerprint == fingerprint) abort
-    let (builtins, logs) = compileLibrary (loadedFnames imported) $
-            compileDefinitions defs
-    let errs = UiConfig.verifyAllocations lookupBackend allocs
-    unless (null errs) $
-        Except.throwError $ Just $ "instrument: " <> Text.intercalate "; " errs
-    pure
-        ( (builtins, Map.fromList (Ky.defAliases defs), fingerprint, allocs)
-        , logs
-        )
-    where
-    run = fmap apply . Except.runExceptT
-    apply (Left Nothing) = Nothing
-    apply (Left (Just err))
-        | failedPreviously err = Nothing
-        | otherwise = Just
-            ( (Cmd.KyCache (Left err) mempty, oldAllocs)
-            , [Log.msg Log.Warn Nothing $ "broken ky: " <> err]
-            )
-    apply (Right ((builtins, aliases, fingerprint, allocs), logs)) = Just
-        ((Cmd.KyCache (Right (builtins, aliases)) fingerprint, allocs), logs)
-    try = tryRight . first Just
-    abort = Except.throwError Nothing
-    oldFingerprint = case prevCache of
-        Just (Cmd.KyCache _ fprint) -> fprint
-        _ -> mempty
-    isPermanent = case prevCache of
-        Just (Cmd.PermanentKy {}) -> True
-        _ -> False
-    -- If it failed last time then don't replace the error.  Otherwise, I'll
-    -- continually clear the performance and get an endless loop.
-    failedPreviously err = case prevCache of
-        Just (Cmd.KyCache (Left oldErr) _) -> err == oldErr
-        _ -> False
+    -- TODO directly invoke import rather than constructing a fake import
+    -- source.  Then no corner case with ' in filename.
+    mbKyText <- case mbKyPath of
+        Nothing -> pure mbKyCode
+        Just kyPath -> ifM (Directory.doesFileExist kyPath)
+            (pure $ Just $ "import '" <> txt kyPath <> "'")
+            (pure mbKyCode)
+    case mbKyText of
+        Nothing -> pure Nothing
+        Just kyText -> do
+            result <- Ky.loadKy paths kyText
+            pure $ Just $ first ParseText.showError result
 
--- | Like 'check_cache', but assuming no existing cmd or ui state.
+-- | Like 'checkCache', but assuming no existing cmd or ui state.
 load :: [FilePath] -> Text
     -> IO (Either Text
         (Derive.Builtins, Derive.InstrumentAliases, UiConfig.Allocations))
 load paths kyText =
-    bimap ParseText.showError compile <$> liftIO (Ky.loadKy paths kyText)
+    bimap ParseText.showError compile <$> Ky.loadKy paths kyText
 
 compile :: Ky.Ky Ky.Loaded
     -> (Derive.Builtins, Derive.InstrumentAliases, UiConfig.Allocations)
-compile (Ky.Ky defs imported allocs) =
+compile (Ky.Ky defs imported allocs _tscores _tscoreLines) =
     (builtins, Map.fromList (Ky.defAliases defs), allocs)
     where
-    -- Logs are boring, just loaded this or that.
+    -- Logs will be about name collisions.
     (builtins, _logs) = compileLibrary (loadedFnames imported) $
         compileDefinitions defs
 
@@ -178,11 +182,9 @@ stateKyPaths cmdState =
     )
 
 compileLibrary :: [FilePath] -> Library.Library -> (Derive.Builtins, [Log.Msg])
-compileLibrary imports lib = Log.runId $ do
-    Log.notice $
-        "reloaded ky: [" <> Text.unwords (map showImport imports) <> "]"
-    Library.compileLog lib
+compileLibrary imports lib = Log.runId $ Library.compileLog lib
 
+showImport :: FilePath -> Text
 showImport "" = "<score>"
 showImport fname = txt (FilePath.takeFileName fname)
 
@@ -191,20 +193,20 @@ compileDefinitions (Ky.Definitions (gnote, tnote) (gcontrol, tcontrol)
         (gpitch, tpitch) val _aliases) =
     Derive.Scopes
         { scopesGenerator = Derive.Scope
-            { scopeNote = map (compile makeGenerator) gnote
-            , scopeControl = map (compile makeGenerator) gcontrol
-            , scopePitch = map (compile makeGenerator) gpitch
+            { scopeNote = map (compile1 makeGenerator) gnote
+            , scopeControl = map (compile1 makeGenerator) gcontrol
+            , scopePitch = map (compile1 makeGenerator) gpitch
             }
         , scopesTransformer = Derive.Scope
-            { scopeNote = map (compile makeTransformer) tnote
-            , scopeControl = map (compile makeTransformer) tcontrol
-            , scopePitch = map (compile makeTransformer) tpitch
+            { scopeNote = map (compile1 makeTransformer) tnote
+            , scopeControl = map (compile1 makeTransformer) tcontrol
+            , scopePitch = map (compile1 makeTransformer) tpitch
             }
         , scopesTrack = mempty
-        , scopesVal = map (compile makeValCall) val
+        , scopesVal = map (compile1 makeValCall) val
         }
     where
-    compile make (fname, (sym, expr)) =
+    compile1 make (fname, (sym, expr)) =
         Library.Single sym (make fname (symToName sym) expr)
     symToName (Expr.Symbol name) = Derive.CallName name
 

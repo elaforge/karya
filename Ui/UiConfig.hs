@@ -12,7 +12,7 @@ module Ui.UiConfig (
     Config(..)
     , emptyConfig
     , namespace_, meta, root, allocations, lilypond, default_, savedViews
-    , ky, tscore
+    , ky
     , allocationsMap
     , verifyAllocations
     , Allocations(..), unallocations
@@ -120,7 +120,6 @@ default_ = Lens.lens configDefault (\r a -> r { configDefault = a })
 savedViews = Lens.lens configSavedViews
     (\r a -> r { configSavedViews = a })
 ky = Lens.lens configKy (\r a -> r { configKy = a })
-tscore = Lens.lens configTscore (\r a -> r { configTscore = a })
 
 -- | Unwrap the newtype for convenience.
 allocationsMap :: Lens Config (Map ScoreT.Instrument Allocation)

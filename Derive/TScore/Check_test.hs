@@ -94,7 +94,7 @@ test_resolve_repeats = do
     equal (f "4s4 ~ ~") [sa (3/4)]
     equal (f "4s4 . .") [sa (1/4), sa (1/4), sa (1/4)]
     equal (f "4s4~ . .") [sa (2/4), sa (1/4)]
-    equal (f ".") [Left "0: repeat with no previous note"]
+    equal (f ".") [Left "Error:Pos 0:repeat with no previous note"]
 
 test_resolve_pitch_twelve :: Test
 test_resolve_pitch_twelve = do
@@ -245,7 +245,9 @@ parsedScore = fmap UiTest.extractBlocks . parseScore
 -- not the deriver, so don't give them a derive environment.
 -- 'TScore.standalone_duration' is the one that does.
 parseScore :: Text -> Either Text Ui.State
-parseScore = TScore.scoreToUi $ const $ Right TScore.noExternalDuration
+parseScore source = first (T.showErrors source) $ do
+    tscore <- first (:[]) $ Parse.parseScore source
+    TScore.scoreToUi (const $ Right TScore.noExternalDuration) tscore
 
 -- | Rather than actually doing a TScore.resolve_sub_block, I'll just fake it.
 convertCall :: T.Token T.Call pitch ndur rdur

@@ -7,7 +7,7 @@
 module Util.Test.Global (module Util.Test.Testing) where
 import           Util.Test.Testing
        (check, checkVal, equal, equalFmt, equalOn, equalf, expectRight,
-        failure, hedgehog, ioEqual, ioHuman, leftLike, match, notEqual,
+        failure, hedgehog, io, ioEqual, ioHuman, leftLike, match, notEqual,
         pause, pprint, prettyp, property, qEqual, quickcheck, rightEqual,
         stringsLike, success, throws, (/==), (===), Test, Profile,
         ModuleMeta(ModuleMeta))

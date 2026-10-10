@@ -6,8 +6,12 @@ module Derive.TScore.TScore_test where
 import qualified Data.Map as Map
 
 import qualified Util.Lists as Lists
+import qualified Cmd.Cmd as Cmd
 import qualified Cmd.CmdTest as CmdTest
+import qualified Derive.TScore.Parse as Parse
+import qualified Derive.TScore.T as T
 import qualified Derive.TScore.TScore as TScore
+
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
 import qualified Ui.GenId as GenId
@@ -23,7 +27,7 @@ import           Util.Test
 
 test_parse_score :: Test
 test_parse_score = do
-    let f = parsedScore
+    let f = scoreToSpecs
     rightEqual (f "top = \"block title\" [s r g]")
         [ ( "top -- block title"
           , [ (">", [(0, 1, ""), (1, 1, ""), (2, 1, "")])
@@ -67,13 +71,13 @@ test_parse_score = do
 
 test_skeleton :: Test
 test_skeleton = do
-    let f = fmap (Map.elems . UiTest.extractSkeletons) . parseScore
+    let f = fmap (Map.elems . UiTest.extractSkeletons) . scoreToUi
     rightEqual (f "top = [s r g]") [[(1, 2)]]
     rightEqual (f "top = [>i1 s r g >i2 m p d]") [[(1, 2), (3, 4)]]
 
 test_copy_from :: Test
 test_copy_from = do
-    let f = fmap (lookup "b1") . parsedScore
+    let f = fmap (lookup "b1") . scoreToSpecs
     let track = Just . UiTest.noteTrack1
         tracks = Just . concatMap UiTest.noteTrack1
     leftLike (f "%f=x\nb1 = [s]") "can't use at global scope"
@@ -104,7 +108,7 @@ test_copy_from = do
 
 test_assert_coincident :: Test
 test_assert_coincident = do
-    let f = fmap (const ()) . parseScore
+    let f = fmap (const ()) . scoreToUi
     leftLike (f "top = [s r > g ; m]") "got unexpected assert"
     leftLike (f "top = [s ; r > g m]") "expected assert here"
     rightEqual (f "top = [s ; r > g ; m]") ()
@@ -117,7 +121,7 @@ test_assert_coincident = do
 
 test_wrapped_tracks :: Test
 test_wrapped_tracks = do
-    let f = parsedScore
+    let f = scoreToSpecs
     rightEqual (f "top = [s r > g m] [p d > n s]")
         [ ("top", concat
             [ UiTest.noteTrack1 ["4g", "4m", "4n", "5s"]
@@ -148,7 +152,7 @@ test_wrapped_tracks = do
 
 test_call_duration :: Test
 test_call_duration = do
-    let f = parsedScore
+    let f = scoreToSpecs
     let bBlock = ("b", UiTest.noteTrack [(0, 1, "4s"), (1, 1, "4r")])
     rightEqual (f "a = [b/]\nb = [s r]")
         [ ("a", [(">", [(0, 1, "b")])])
@@ -184,7 +188,11 @@ test_call_duration = do
 test_ext_call_duration :: Test
 test_ext_call_duration = do
     let f blocks source = extract $
-            CmdTest.runBlocks blocks (TScore.cmdIntegrate source)
+            CmdTest.runBlocks blocks $ do
+                cmdState <- Cmd.get
+                tscore <- Ui.requireRight (T.showErrors source) $
+                    parseScore source
+                TScore.cmdIntegrate cmdState tscore
         extract = fmap (Lists.sortOn fst) . CmdTest.traceLogs
             . CmdTest.extractUiState UiTest.extractBlocks
     let blocks = [("top=ruler", UiTest.noteTrack [(0, 1, "4c"), (1, 1, "4d")])]
@@ -366,7 +374,7 @@ test_integrate_sub_block = do
 
 test_check_unique_track_keys :: Test
 test_check_unique_track_keys = do
-    let f = fmap (const ()) . parseScore
+    let f = fmap (const ()) . scoreToUi
     rightEqual (f "b1 = [>!i1 s >@i1 r]") ()
     rightEqual (f "b1 = [>i1 s >i2 r]") ()
     leftLike (f "b1 = [>i1 s >i1 r]") "non-unique track key"
@@ -375,28 +383,37 @@ test_check_unique_track_keys = do
 test_check_recursion :: Test
 test_check_recursion = do
     let f = TScore.checkRecursion . map (TScore.trackTokens <$>)
-            . parsedBlocks
+            . scoreToBlocks
     equal (f "b1 = [a]") Nothing
     equal (f "b1 = [b2/]") Nothing
-    equal (f "b1 = [b1/]") $ Just "recursive loop: b1, b1"
-    equal (f "b1 = [b2/]\nb2 = [b1/]") $ Just "recursive loop: b2, b1, b2"
+    equal (f "b1 = [b1/]") $ Just (T.Error Nothing "recursive loop: b1, b1")
+    equal (f "b1 = [b2/]\nb2 = [b1/]") $
+        Just (T.Error Nothing "recursive loop: b2, b1, b2")
 
 integrate :: Ui.M m => Text -> m [BlockId]
-integrate = TScore.integrate makeExtDur
+integrate source = do
+    tscore <- Ui.requireRight (T.showErrors source) $ parseScore source
+    Ui.requireRight (T.showErrors source) =<< TScore.integrate makeExtDur tscore
 
 -- | Tests exercise tscore, not the deriver, so don't give them a derive
 -- environment.  'TScore.standalone_duration' is the one that does.
 makeExtDur :: TScore.MakeExternalCallDuration
 makeExtDur = const $ Right TScore.noExternalDuration
 
-parseScore :: Text -> Either Text Ui.State
-parseScore = TScore.scoreToUi makeExtDur
+scoreToUi :: Text -> Either Text Ui.State
+scoreToUi source = first (T.showErrors source) $ do
+    tscore <- parseScore source
+    TScore.scoreToUi makeExtDur tscore
 
-parsedScore :: Text -> Either Text [UiTest.BlockSpec]
-parsedScore = fmap UiTest.extractBlocks . parseScore
+parseScore :: Text -> Either [T.Error] T.Score
+parseScore = first (:[]) . Parse.parseScore
 
-parsedBlocks :: Text -> [TScore.Block TScore.ParsedTrack]
-parsedBlocks = fst . expectRight . TScore.parseBlocks
+scoreToSpecs :: Text -> Either Text [UiTest.BlockSpec]
+scoreToSpecs = fmap UiTest.extractBlocks . scoreToUi
+
+scoreToBlocks :: Text -> [TScore.Block TScore.ParsedTrack]
+scoreToBlocks = fst . expectRight . TScore.parseBlocks
+    . expectRight . Parse.parseScore
 
 isIntegral :: RealFrac a => a -> Bool
 isIntegral = (==0) . snd . properFraction

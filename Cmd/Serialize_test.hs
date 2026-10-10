@@ -29,10 +29,15 @@ test_serialize = do
     let (_, state) =
             UiTest.runMkview [("track", [(0, 1, "e0"), (1, 1, "e1")])]
     let run f = (recode (f state), f state)
-    uncurry rightEqual $ run $
-        (\c -> c { UiConfig.configAllocations = mempty }) . Ui.stateConfig
-        -- config_allocations is now a cache where the source of truth is
-        -- the ky file, so it isn't saved.
+    let strip c = c
+            -- config_allocations is now a cache where the source of truth is
+            -- the ky file, so it isn't saved.
+            { UiConfig.configAllocations = mempty
+            -- And now ky and tscore are in an external file.
+            , UiConfig.configKy = ""
+            , UiConfig.configTscore = ""
+            }
+    uncurry rightEqual $ run $ strip . Ui.stateConfig
     uncurry rightEqual $ run Ui.stateViews
     uncurry rightEqual $ run Ui.stateBlocks
     uncurry rightEqual $ run Ui.stateTracks

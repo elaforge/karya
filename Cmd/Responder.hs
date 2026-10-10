@@ -49,7 +49,6 @@ import qualified Cmd.Cmd as Cmd
 import qualified Cmd.GlobalKeymap as GlobalKeymap
 import qualified Cmd.Integrate as Integrate
 import qualified Cmd.Internal as Internal
-import qualified Cmd.Ky as Ky
 import qualified Cmd.Msg as Msg
 import qualified Cmd.Performance as Performance
 import qualified Cmd.PlayC as PlayC
@@ -72,7 +71,6 @@ import qualified Ui.Fltk as Fltk
 import qualified Ui.Meter.Meter as Meter
 import qualified Ui.Sync as Sync
 import qualified Ui.Ui as Ui
-import qualified Ui.UiConfig as UiConfig
 import qualified Ui.UiMsg as UiMsg
 import qualified Ui.Update as Update
 
@@ -167,9 +165,8 @@ runSetupCmd cmd state = fmap snd $ runResponder state $ do
                 }
             }
         pure Cmd.Continue
-    whenJust result $ \(_, uiState, cmdState) -> do
-        Monad.State.modify $ \st ->
-            st { rstateUiTo = uiState, rstateCmdTo = cmdState }
+    whenJust result $ \(_, rstateUiTo, rstateCmdTo) -> do
+        Monad.State.modify $ \st -> st { rstateUiTo, rstateCmdTo }
         runSyncStatus
     pure $ Right Cmd.Continue
 
@@ -311,13 +308,6 @@ postCmd :: State -> Ui.State -> Ui.State -> Cmd.State
     -> Update.UiDamage -> Cmd.Status -> IO (Bool, State)
 postCmd state uiFrom uiTo cmdTo uiDamage status = do
     Trace.trace "cmd"
-    -- Load external definitions and cache them in Cmd.State, so cmds don't
-    -- have a dependency on IO.
-    (!uiTo, !cmdTo, logs) <- fromMaybe (uiTo, cmdTo, []) <$>
-        Ky.update uiTo cmdTo (Just (Ui.config#UiConfig.ky #$ uiTo))
-    mapM_ Log.write logs
-
-    Trace.trace "ky"
     !cmdTo <- handleSpecialStatus (stateUiChannel state) uiTo cmdTo
         (stateTransportInfo state) status
     !cmdTo <- pure $ fixCmdState uiTo cmdTo

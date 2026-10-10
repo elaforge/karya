@@ -93,8 +93,8 @@ getDefaultTempo = Ui.config#UiConfig.default_#UiConfig.tempo <#> Ui.get
 setDefaultTempo :: Signal.Y -> Cmd.CmdL ()
 setDefaultTempo t = Ui.modifyConfig $ UiConfig.default_#UiConfig.tempo #= t
 
-checkKy :: Cmd.CmdT IO Text
-checkKy = Ky.check
+reloadKy :: Cmd.CmdT IO ()
+reloadKy = Ky.reload True Nothing
 
 -- ** meta
 

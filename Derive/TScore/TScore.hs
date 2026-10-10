@@ -9,7 +9,14 @@
 -- Parse tscore, check and postprocess it, convert to Ui.State, and integrate.
 module Derive.TScore.TScore (
     cmdIntegrate
-    , parseScore
+    -- * for TScoreMain
+    , GetExternalCallDuration
+    , noExternalDuration
+    , MakeExternalCallDuration
+    , getExternalDuration
+    , scoreToUi
+    , uiBlock
+    , trackBlocks_
 #ifdef TESTING
     , module Derive.TScore.TScore
 #endif
@@ -24,7 +31,6 @@ import qualified Data.Text as Text
 import qualified Util.Lists as Lists
 import qualified Util.Log as Log
 import qualified Util.Logger as Logger
-import qualified Util.ParseText as ParseText
 import qualified Util.Pretty as Pretty
 import qualified Util.Texts as Texts
 
@@ -32,7 +38,6 @@ import qualified App.Config as Config
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Integrate.Convert as Convert
 import qualified Cmd.Integrate.Manual as Manual
-import qualified Cmd.Ky
 import qualified Cmd.Perf as Perf
 import qualified Cmd.Ruler.RulerUtil as RulerUtil
 
@@ -40,7 +45,6 @@ import qualified Derive.C.Prelude.Block as Prelude.Block
 import qualified Derive.Derive as Derive
 import qualified Derive.Eval as Eval
 import qualified Derive.Note
-import qualified Derive.Parse.Ky as Ky
 import qualified Derive.ParseTitle as ParseTitle
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Stack as Stack
@@ -106,8 +110,6 @@ data Track = Track
     , _events :: !Events.Events
     } deriving (Eq, Show)
 
-type Error = Text
-
 instance Pretty track => Pretty (Block track) where
     format (Block blockId blockTitle meter isSub tracks) =
         Pretty.record "Block"
@@ -131,23 +133,29 @@ instance Pretty Track where
 
 -- * toplevel
 
-cmdIntegrate :: Cmd.M m => Text -> m [BlockId]
-cmdIntegrate source = do
+-- | Errors in the tscore itself are returned as T.Errors, others thrown in
+-- Ui.M.
+cmdIntegrate :: Ui.M m => Cmd.State -> T.Score -> m (Either [T.Error] [BlockId])
+cmdIntegrate cmdState score = do
     uiState <- Ui.get
-    cmdState <- Cmd.get
     -- Embedded tscore isn't allowed its own %ky, it uses the one already in
     -- the Cmd.State, so ignore it.
-    integrate (const $ Right $ getExternalDuration uiState cmdState) source
+    integrate (const $ Right $ getExternalDuration uiState cmdState) score
 
-integrate :: Ui.M m => MakeExternalCallDuration -> Text -> m [BlockId]
-    -- ^ newly created blocks
-integrate makeExtDur source = do
+integrate :: Ui.M m => MakeExternalCallDuration -> T.Score
+    -> m (Either [T.Error] [BlockId]) -- ^ newly created blocks
+integrate makeExtDur score = do
     ns <- Ui.getNamespace
-    (blocks, config) <- Ui.requireRight id $
-        trackBlocks ns makeExtDur source
-    unless (config == ScoreConfig mempty) $
-        Ui.throw $ "instruments or ky are only for standalone tscore,\
-            \ put those in the Ui.State directly: " <> showt config
+    case trackBlocks ns makeExtDur score of
+        Left errs -> pure $ Left errs
+        Right (blocks, config) -> do
+            unless (config == ScoreConfig mempty) $
+                Ui.throw $ "ky is only for standalone tscore,\
+                    \ put those in the Ui.State directly: " <> showt config
+            Right <$> integrateBlocks blocks
+
+integrateBlocks :: Ui.M m => [Block NTrack] -> m [BlockId]
+integrateBlocks blocks = do
     let (subs, parents) = List.partition _isSub blocks
     -- Unlike normal blocks, sub-blocks aren't integrated, but deleted and
     -- created from scratch each time.  This is so I don't have to worry about
@@ -169,34 +177,31 @@ destroySubs = do
     mapM_ (Ui.destroyBlock . fst) blocks
     mapM_ Ui.destroyTrack $ concatMap (Block.blockTrackIds . snd) blocks
 
-trackBlocks :: Id.Namespace -> MakeExternalCallDuration -> Text
-    -> Either Error ([Block NTrack], ScoreConfig)
-trackBlocks namespace makeExtDur source = do
-    (errs, blocks, config) <- trackBlocks_ namespace makeExtDur source
-    unless (null errs) $
-        Left $ Text.intercalate "; " errs
+trackBlocks :: Id.Namespace -> MakeExternalCallDuration -> T.Score
+    -> Either [T.Error] ([Block NTrack], ScoreConfig)
+trackBlocks namespace makeExtDur score = do
+    (errs, blocks, config) <- trackBlocks_ namespace makeExtDur score
+    unless (null errs) $ Left errs
     pure (blocks, config)
 
 -- | Like 'track_blocks', but return the tracks that did resolve along with
 -- the errors, instead of failing entirely.  This is for 'standalone_duration',
 -- which wants whatever blocks it can get.
-trackBlocks_ :: Id.Namespace -> MakeExternalCallDuration -> Text
-    -> Either Error ([Error], [Block NTrack], ScoreConfig)
-trackBlocks_ namespace makeExtDur source = do
-    (blocks, config) <- first (T.showError source) $ parseBlocks source
-    whenJust (checkRecursion $ map (trackTokens <$>) blocks) Left
+trackBlocks_ :: Id.Namespace -> MakeExternalCallDuration -> T.Score
+    -> Either [T.Error] ([T.Error], [Block NTrack], ScoreConfig)
+trackBlocks_ namespace makeExtDur score = do
+    (blocks, config) <- first (:[]) $ parseBlocks score
+    whenJust (checkRecursion $ map (trackTokens <$>) blocks) $ Left . (:[])
     case checkRecursiveCopyFrom blocks of
         [] -> pure ()
-        errs -> Left $ "recursive %f: "
-            <> mconcat (map (T.showError source) errs)
+        errs -> Left errs
     case concatMap checkUniqueKeys blocks of
         [] -> pure ()
-        errs -> Left $ mconcat (map (T.showError source) errs)
+        errs -> Left errs
     -- Parsing doesn't need durations, so the %ky is available before
     -- 'resolve_blocks', which is what needs it.
     getExtDur <- makeExtDur (configKy config)
-    (errs, blocks) <- pure $
-        partitionErrors $ resolveBlocks getExtDur source blocks
+    (errs, blocks) <- pure $ partitionErrors $ resolveBlocks getExtDur blocks
     pure (errs, map (setNamespace namespace) blocks, config)
 
 checkUniqueKeys :: Block ParsedTrack -> [T.Error]
@@ -204,9 +209,9 @@ checkUniqueKeys block =
     concatMap mkerror $ Lists.findDups keyOf (_tracks block)
     where
     mkerror (track, tracks) =
-        T.Error (trackPos track)
+        T.err (trackPos track)
             ("non-unique track key " <> pretty (keyOf track))
-        : [T.Error (trackPos t) "" | t <- NonEmpty.toList tracks]
+        : [T.err (trackPos t) "" | t <- NonEmpty.toList tracks]
     keyOf t = (trackKey t, trackTitle t)
 
 -- | Replace the namespace.
@@ -231,6 +236,8 @@ partitionErrors = first concat . unzip . map partitionBlock
     partitionBlock block = (errs, block { _tracks = tracks })
         where (errs, tracks) = Either.partitionEithers (_tracks block)
 
+type Error = Text
+
 -- | Get the duration of a block call from the tracklang performance, not
 -- tscore.
 --
@@ -238,10 +245,16 @@ partitionErrors = first concat . unzip . map partitionBlock
 type GetExternalCallDuration =
     [Text] -> Text -> (Either Error TrackTime, [Log.Msg])
 
+-- | For when there's no deriver to ask, e.g. tests, and the first pass of
+-- 'standalone_duration'.
+noExternalDuration :: GetExternalCallDuration
+noExternalDuration _ _ = (Left "external call duration not supported", [])
+
 -- | Make a 'GetExternalCallDuration' given the score's %ky.  Standalone tscore
 -- has to build a derive environment out of that ky, while embedded tscore
 -- already has one in its Cmd.State and ignores the argument.
-type MakeExternalCallDuration = Text -> Either Error GetExternalCallDuration
+type MakeExternalCallDuration =
+    Text -> Either [T.Error] GetExternalCallDuration
 
 -- TODO I'll need some way to get the logs out, but I'd prefer to not make
 -- everything monadic.
@@ -274,51 +287,6 @@ lookupCallDuration transformers call = do
     transform = map (Eval.evalTransformExpr "lookup_call_duration") $
         filter (not . Text.null) transformers
     track = TrackTree.makeTrack "title" mempty 1
-
--- * standalone
-
--- | For when there's no deriver to ask, e.g. tests, and the first pass of
--- 'standalone_duration'.
-noExternalDuration :: GetExternalCallDuration
-noExternalDuration _ _ = (Left "external call duration not supported", [])
-
-{- | Standalone tscore has no Ui.State or Cmd.State, since it's in the middle
-    of creating them, so make them from the score itself.
-
-    The Cmd.State comes from the score's %ky, and there's no circularity there
-    because parsing doesn't need durations, so the ky is in hand before
-    'resolve_blocks' asks for any.
-
-    The Ui.State is trickier, because the calls whose durations I want are
-    usually transformers on a tscore block, e.g. @repeat=2 | b@, and the
-    deriver can only call @b@ if it's actually in the Ui.State.  So do a first
-    pass with 'no_external_duration', which resolves everything tscore can do
-    by itself.  That's exactly the blocks the external calls want to call, and
-    the tracks that fail are the ones I'm about to resolve here.  It means
-    parsing and resolving the score twice, but that's cheap next to deriving.
--}
-standaloneDuration :: Cmd.Config -> Text -> MakeExternalCallDuration
-standaloneDuration cmdConfig source ky = do
-    (builtins, aliases, allocs) <- parseKy ky
-    (_errs, blocks, _config) <- trackBlocks_ namespace
-        (const (Right noExternalDuration)) source
-    uiState <- first pretty $ Ui.exec Ui.empty $ do
-        mapM_ uiBlock blocks
-        Ui.modifyConfig $ UiConfig.allocations #= allocs
-    let cmdState = (Cmd.initialState cmdConfig)
-            { Cmd.stateKyCache = Just $ Cmd.PermanentKy (builtins, aliases) }
-    pure $ getExternalDuration uiState cmdState
-    where namespace = UiConfig.configNamespace UiConfig.emptyConfig
-
-parseKy :: Text -> Either Error
-    (Derive.Builtins, Derive.InstrumentAliases, UiConfig.Allocations)
-parseKy text = do
-    ky <- first ParseText.showError $ Ky.parseKy "" text
-    ky <- case Ky.kyImports ky of
-        [] -> Right $ ky { Ky.kyImports = [] }
-        imports -> Left $ "imports not supported for standalone tscore: "
-            <> Text.unwords (map showt imports)
-    pure $ Cmd.Ky.compile ky
 
 -- * detect moves
 
@@ -376,14 +344,14 @@ convertDestination (Block.NoteDestination _key note controls) =
 
 -- | Look for recursive block calls.  If there are none, it's safe to
 -- 'resolve_blocks'.
-checkRecursion :: [Block [Token pitch]] -> Maybe Error
+checkRecursion :: [Block [Token pitch]] -> Maybe T.Error
 checkRecursion blocks =
     either Just (const Nothing) $ mapM_ (checkBlock []) blocks
     where
     byBlockId = Map.fromList $ Lists.keyOn _blockId blocks
     checkBlock stack_ block
         | _blockId block `elem` stack_ =
-            Left $ "recursive loop: "
+            Left $ T.Error Nothing $ "recursive loop: "
                 <> Text.intercalate ", " (map Parse.showBlock (reverse stack))
         | otherwise =
             mapM_ (checkTrack stack (_blockId block)) (_tracks block)
@@ -407,13 +375,13 @@ type ResolvedNote = (T.Time, T.Note T.CallText (Maybe T.PitchText) T.Time)
 -- duration of a note can depend on the duration of other blocks, and so forth.
 -- I can get this interleaved and cached via a lazy memo table, but it's only
 -- safe because I previously did 'check_recursion'.
-resolveBlocks :: GetExternalCallDuration -> Text -> [Block ParsedTrack]
-    -> [Block (Either Error NTrack)]
-resolveBlocks getExtDur source blocks =
+resolveBlocks :: GetExternalCallDuration -> [Block ParsedTrack]
+    -> [Block (Either T.Error NTrack)]
+resolveBlocks getExtDur blocks =
     map (fmap (fmap makeTrack)) $ Map.elems resolvedNotes
     where
     resolvedNotes :: Map Id.BlockId
-        (Block (Either Error ((Bool, [ResolvedNote], Text, Text), T.Time)))
+        (Block (Either T.Error ((Bool, [ResolvedNote], Text, Text), T.Time)))
     resolvedNotes = Map.fromList
         [(_blockId block, resolveBlock block) | block <- blocks]
     -- Memoized duration of blocks.
@@ -445,7 +413,7 @@ resolveBlocks getExtDur source blocks =
         snd . List.mapAccumL (resolve blockId blockTitle) Nothing . zip [1..]
     resolve blockId blockTitle mbAsserts
             (tracknum, ParsedTrack config key title tokens _pos) =
-        (Just $ fromMaybe asserts mbAsserts,) $ first (T.showError source)$ do
+        (Just $ fromMaybe asserts mbAsserts,) $ do
             whenJust (Lists.head errs) Left
             let toTracks = map (fmap ((\(_, notes, _, _) -> notes) . fst))
                     . _tracks
@@ -453,8 +421,11 @@ resolveBlocks getExtDur source blocks =
                 Just from -> Just <$> do
                     fromTrack <- resolveFrom (toTracks <$> resolvedNotes)
                         blockId tracknum from
-                    first (T.Error (Check.fromPos from)
-                        . ("can't copy from a broken track: "<>)) fromTrack
+                    -- The broken track reports its own error with its
+                    -- position, so only the message is needed here.
+                    first (\(T.Error _ msg) -> T.err (Check.fromPos from) $
+                            "can't copy from a broken track: " <> msg)
+                        fromTrack
                 Nothing -> pure Nothing
             notes <- resolveCopyFrom mbFromTrack uncopied
             whenJust mbAsserts $ \prev ->
@@ -485,11 +456,13 @@ resolveBlocks getExtDur source blocks =
         : if trackTitle == "" then [] else [noteToTransform trackTitle]
     noteToTransform =
         either (const "") ShowVal.showVal . ParseTitle.parseNote
+    -- The broken track also reports its own error with its position, so this
+    -- only needs the message.
     blockDuration blockId block = do
         tracks <- forM (zip [1..] (_tracks block)) $
             \(tracknum, track) -> first
-                (("can't get duration of broken track: "
-                    <> pretty (blockId, tracknum :: TrackNum) <> ": ")<>)
+                (\(T.Error _ msg) -> "can't get duration of broken track: "
+                    <> pretty (blockId, tracknum :: TrackNum) <> ": " <> msg)
                 track
         pure $ maximum $ 0 : map snd tracks
 
@@ -498,14 +471,14 @@ resolveBlocks getExtDur source blocks =
 matchAsserts :: [Check.AssertCoincident] -> [Check.AssertCoincident]
     -> [(T.Time, T.Note call pitch dur)] -> Maybe T.Error
 matchAsserts [] (Check.AssertCoincident _ pos : _) _ =
-    Just $ T.Error pos "got unexpected assert"
+    Just $ T.err pos "got unexpected assert"
 matchAsserts (Check.AssertCoincident t1 _ : expected) asserts timeNotes =
     case asserts of
         Check.AssertCoincident t2 _ : asserts
             | t1 == t2 -> matchAsserts expected asserts timeNotes
         _ -> case findPos t1 timeNotes of
             Nothing -> Nothing
-            Just pos -> Just $ T.Error pos "expected assert here"
+            Just pos -> Just $ T.err pos "expected assert here"
 matchAsserts [] [] _ = Nothing
 
 findPos :: T.Time -> [(T.Time, T.Note call pitch dur)] -> Maybe T.Pos
@@ -533,8 +506,8 @@ checkRecursiveCopyFrom blocks = concatMap checkBlock blocks
         track2 <- either (const Nothing) Just $
             resolveFrom blockTracks blockId tracknum from
         from2 <- Check.configFrom (trackConfig track2)
-        pure $ T.Error (Check.fromPos from) $
-            Parse.showBlockTrack blockId tracknum
+        pure $ T.err (Check.fromPos from) $
+            "recursive %f: " <> Parse.showBlockTrack blockId tracknum
             <> " has %f=" <> pretty from <> ", which has %f="
             <> pretty from2
     blockTracks =
@@ -558,7 +531,7 @@ resolveFrom blocks currentBlock currentTracknum
             <> " doesn't have track " <> pretty tracknum) $
         Lists.at tracks (tracknum - 1)
     where
-    mkerror = T.Error pos
+    mkerror = T.err pos
 
 -- | Resolve T.CopyFrom.
 --
@@ -571,14 +544,14 @@ resolveCopyFrom Nothing = mapM (traverse noFrom)
     where
     noFrom note = case T.notePitch note of
         T.NPitch pitch -> Right $ note { T.notePitch = pitch }
-        T.CopyFrom -> Left $ T.Error (T.notePos note) "no %f for track"
+        T.CopyFrom -> Left $ T.err (T.notePos note) "no %f for track"
 resolveCopyFrom (Just fromTrack) = concatMapM resolve
     where
     resolve (t, note) = case T.notePitch note of
         T.NPitch pitch -> Right [(t, note { T.notePitch = pitch })]
         T.CopyFrom -> copyFrom (T.notePos note) t (t + T.noteDuration note)
     copyFrom pos start end
-        | null copied = Left $ T.Error pos $
+        | null copied = Left $ T.err pos $
             "no notes to copy in range " <> pretty start <> "--" <> pretty end
         | otherwise = Right copied
         where
@@ -617,16 +590,12 @@ sourceKey = "tscore"
 
 -- * ui_state
 
-parseScore :: Cmd.Config -> Text -> Either Error Ui.State
-parseScore cmdConfig source =
-    scoreToUi (standaloneDuration cmdConfig source) source
-
-scoreToUi :: MakeExternalCallDuration -> Text -> Either Error Ui.State
-scoreToUi makeExtDur source = do
+scoreToUi :: MakeExternalCallDuration -> T.Score -> Either [T.Error] Ui.State
+scoreToUi makeExtDur score = do
     (blocks, ScoreConfig ky) <- trackBlocks
         (UiConfig.configNamespace UiConfig.emptyConfig)
-        makeExtDur source
-    first pretty $ Ui.exec Ui.empty $ do
+        makeExtDur score
+    first (pure . T.Error Nothing . pretty) $ Ui.exec Ui.empty $ do
         mapM_ uiBlock blocks
         Ui.modifyConfig $ UiConfig.ky #= ky
 
@@ -646,14 +615,14 @@ uiBlock block = do
             | tid <- trackIds
             ]
     -- No longer necessary with Block.Implicit.
-    -- Ui.set_skeleton block_id $ ui_skeleton tracks
+    -- Ui.setSkeleton block_id $ uiSkeleton tracks
     Ui.createBlock (Id.unpackId (_blockId block))
         (_blockTitle block)
         (Block.track (Block.RId rulerId) Config.rulerWidth : btracks)
 
 -- This was obsoleted by Block.Implicit
--- ui_skeleton :: [NTrack] -> Skeleton.Skeleton
--- ui_skeleton = Skeleton.make . concat . snd . List.mapAccumL make 1
+-- uiSkeleton :: [NTrack] -> Skeleton.Skeleton
+-- uiSkeleton = Skeleton.make . concat . snd . List.mapAccumL make 1
 --     where
 --     make tracknum track = (tracknum+len, zip ns (drop 1 ns))
 --         where
@@ -672,9 +641,8 @@ uiRuler block = RulerUtil.replace (_blockId block) $ const $ Right $
 
 newtype ScoreConfig = ScoreConfig { configKy :: Text } deriving (Eq, Show)
 
-parseBlocks :: Text -> Either T.Error ([Block ParsedTrack], ScoreConfig)
-parseBlocks source = do
-    T.Score defs <- first (T.Error (T.Pos 0) . txt) $ Parse.parseScore source
+parseBlocks :: T.Score -> Either T.Error ([Block ParsedTrack], ScoreConfig)
+parseBlocks (T.Score defs) = do
     (blocks, config) <- foldM collect ([], Check.defaultConfig) defs
     pure
         ( blocks
@@ -708,7 +676,7 @@ unwrapTracks (T.WrappedTracks _ []) = Right $ T.Tracks []
 unwrapTracks (T.WrappedTracks _ [tracks]) = Right tracks
 unwrapTracks (T.WrappedTracks pos (T.Tracks tracks1 : wrapped))
     | Just different <- List.find (/= titles1) titles =
-        Left $ T.Error pos $ "wrapped track titles must match: "
+        Left $ T.err pos $ "wrapped track titles must match: "
             <> showt titles1 <> " /= " <> showt different
     | otherwise = Right $ T.Tracks $ zipWith merge tracks1 $ Lists.rotate $
         map T.untracks wrapped

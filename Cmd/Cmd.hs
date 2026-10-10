@@ -73,7 +73,6 @@ import qualified Cmd.TimeStep as TimeStep
 import qualified Derive.Attrs as Attrs
 import qualified Derive.Derive as Derive
 import qualified Derive.Expr as Expr
-import qualified Derive.Parse.Ky as Ky
 import qualified Derive.ParseTitle as ParseTitle
 import qualified Derive.REnv as REnv
 import qualified Derive.Scale as Scale
@@ -364,7 +363,7 @@ run abortVal ustate cstate cmd = do
             . Ui.run ustate . (\(CmdT m) -> m))
         cmd
     -- Any kind of error rolls back state and discards midi, but not log msgs.
-    -- Normally 'abort_val' will be Continue, but obviously if 'cmd' doesn't
+    -- Normally 'abortVal' will be Continue, but obviously if 'cmd' doesn't
     -- return Status it can't be.
     pure $ case uiResult of
         Left Ui.Abort -> (cstate, [], logs, Right (abortVal, ustate, mempty))
@@ -421,6 +420,24 @@ liftId cmd = do
                 Ui.damage damage
                 Ui.unsafePut uiState
                 pure val
+
+-- | Catch an exception or abort, rolling back the state if one was thrown.
+runCatch :: Monad m => CmdT m a -> CmdT m (Either (Maybe Ui.Error) a)
+runCatch cmd = do
+    (cmdState, thru, logs, result) <- do
+        cmdState <- get
+        uiState <- Ui.get
+        lift $ run Nothing uiState cmdState (Just <$> cmd)
+    mapM_ Log.write logs
+    case result of
+        Left err -> pure $ Left $ Just err
+        Right (Nothing, _, _) -> pure $ Left Nothing
+        Right (Just val, uiState, damage) -> do
+            put cmdState
+            mapM_ writeThru thru
+            Ui.damage damage
+            Ui.unsafePut uiState
+            pure $ Right val
 
 -- | Run a set of Cmds as a single Cmd.  The first one to return non-Continue
 -- will return.  Cmds can use this to dispatch to other Cmds.
@@ -507,6 +524,9 @@ instance Monad m => Ui.M (CmdT m) where
 -- always want to reuse State's exceptions, so they should call this one.
 throw :: (HasCallStack, M m) => Text -> m a
 throw = Ui.throw
+
+throw_ :: M m => Text -> m a
+throw_ = Ui.throw_
 
 -- | Run a subcomputation that is allowed to abort.
 ignoreAbort :: M m => m a -> m ()
@@ -688,14 +708,17 @@ type Error = Text
 -- | A loaded and parsed ky file, or an error string.  This also has the files
 -- loaded and their timestamps, to detect when one has changed.
 data KyCache
-    -- | Error marks a broken ky file.  Error reporting is delayed
-    -- until you try to play.  This is
-    = KyCache (Either Error (Derive.Builtins, Derive.InstrumentAliases))
-        Fingerprint
+    = KyCache KyCached
     -- | This disables the cache mechanism.  Tests use this to avoid having
     -- to set SaveFile.
     | PermanentKy (Derive.Builtins, Derive.InstrumentAliases)
     deriving (Show)
+
+data KyCached = KyCached
+    { kyBuiltins :: Derive.Builtins
+    , kyAliases :: Derive.InstrumentAliases
+    , kyTscoreFingerprint :: Fingerprint
+    } deriving (Show)
 
 -- | Keep track of loaded files and a fingerprint for their contents.  This is
 -- used to detect when they should be reloaded.
@@ -710,15 +733,6 @@ instance Monoid Fingerprint where
     mappend = (<>)
 instance Pretty Fingerprint where
     pretty (Fingerprint files word) = pretty files <> ":" <> pretty word
-
-fingerprint :: [Ky.Loaded] -> Fingerprint
-fingerprint imports =
-    -- The code in 'Ui.ky' gets "" for its filename.
-    Fingerprint (filter (not . null) fnames)
-        (foldl' Hashable.hashWithSalt 0 contents)
-    where
-    (fnames, contents) = unzip
-        [(fname, content) | Ky.Loaded fname content <- imports]
 
 initialState :: Config -> State
 initialState config = State
@@ -762,6 +776,7 @@ reinitState present cstate = cstate
     , stateFocusedView = Nothing
     , stateEdit = initialEditState
         { stateTimeStep = stateTimeStep (stateEdit cstate) }
+    , stateKyCache = Nothing
     }
 
 -- ** Config

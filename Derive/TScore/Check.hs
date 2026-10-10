@@ -96,7 +96,7 @@ data Scope = Global | Block | Track
 
 parseDirective :: Scope -> T.Directive -> Config -> Either T.Error Config
 parseDirective scope (T.Directive pos name maybeVal) config =
-    first (T.Error pos . ((name<>": ")<>)) $ case name of
+    first (T.err pos . ((name<>": ")<>)) $ case name of
         "dur" -> setConfig (\c a -> c { configDuration = a })
             (`Map.lookup` durationMap) =<< withArg
         -- f for from.  This is abbreviated because it shows up per-track.
@@ -175,7 +175,7 @@ type NPitch = T.NPitch T.Pitch
 type GetCallDuration = Text -> (Either Text T.Time, [Log.Msg])
 
 mkerror :: T.Pos -> Text -> EList.Elt Meta a
-mkerror pos msg = EList.Meta $ Left $ T.Error pos msg
+mkerror pos msg = EList.Meta $ Left $ T.err pos msg
 
 data AssertCoincident = AssertCoincident T.Time T.Pos
     deriving (Eq, Show)
@@ -439,12 +439,12 @@ tiedNotes :: (Eq pitch, Pretty pitch)
     -> Either T.Error T.Time
 tiedNotes note tied = case others of
     [] -> case Lists.last matches of
-        Nothing -> Left $ T.Error (T.notePos note) "final note has a tie"
+        Nothing -> Left $ T.err (T.notePos note) "final note has a tie"
         Just (s, n)
             | snd $ T.noteDuration n ->
-                Left $ T.Error (T.notePos n) "final note has a tie"
+                Left $ T.err (T.notePos n) "final note has a tie"
             | otherwise -> Right $ s + durOf n
-    (_, bad) : _ -> Left $ T.Error (T.tokenPos bad) $ case bad of
+    (_, bad) : _ -> Left $ T.err (T.tokenPos bad) $ case bad of
         T.TNote _ n -> "note tied to different pitch: "
             <> pretty (T.notePitch note) <> " ~ "
             <> pretty (T.notePitch n)
@@ -460,7 +460,7 @@ tiedRests :: [Token call pitch (T.Time, Bool)] -> Maybe T.Error
 tiedRests = fmap format . List.find (not . matches)
     where
     format token =
-        T.Error (T.tokenPos token) $ "rest tied to " <> T.tokenName token
+        T.err (T.tokenPos token) $ "rest tied to " <> T.tokenName token
     matches (T.TRest {}) = True
     matches (T.TBarline {}) = True
     matches _ = False

@@ -2,14 +2,14 @@
 " This is sourced by bin/vi for each *.ky buffer, so everything should be
 " buffer-local.
 
-" Hook saving to notify seq to check and reread the ky file.
+" Hook saving to notify seq to reload the ky file.
 " Even if you're editing an indirectly imported files, it should
 " notice the change.
 "
 " Alternately, seq could use fsevents to notice the edit itself, but
 " this seems lighter weight, but is vim-specific and less reliable.
-nmap <buffer> gz :call <SID>Send('LState.checkKy')<cr>
-nmap <buffer> ZZ :call <SID>Send('LState.checkKy')<cr>:q<cr>
+nmap <buffer> gz :call <SID>Send('LState.reloadKy')<cr>
+nmap <buffer> ZZ :call <SID>Send('LState.reloadKy')<cr>:q<cr>
 
 " Like :!, but don't do the "press ENTER to continue" prompt if it has no
 " output.

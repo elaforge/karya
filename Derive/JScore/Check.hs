@@ -79,7 +79,7 @@ convertLaras a b = case (a, b) of
 type CheckM a = Logger.Logger T.Error a
 
 warn :: T.Pos -> Text -> CheckM ()
-warn pos msg = Logger.log (T.Error pos msg)
+warn pos msg = Logger.log (T.err pos msg)
 
 data Bias = BiasStart | BiasEnd
     deriving (Show, Eq)

@@ -24,12 +24,12 @@
 -}
 module Ui.Ui (
     State(..), views, blocks, tracks, rulers, config
-    , empty, create, clear
+    , empty, create
     -- * address types
     , Track(..), Range(..), TrackInfo(..)
     -- * StateT monad
     , M, StateT, StateId, get, unsafePut, damage, getDamage
-    , throwError, throw
+    , throwError, throw, throw_
     , run, runId, eval, evalRethrow, exec, execRethrow
     , gets, unsafeModify, put, modify
     , updateAll
@@ -212,18 +212,6 @@ create = do
     now <- Time.getCurrentTime
     pure $ (config#UiConfig.meta#UiConfig.creation #= now) empty
 
--- | Clear out data that shouldn't be saved.
-clear :: State -> State
-clear state = state { stateViews = Map.map clearView (stateViews state) }
-    where
-    clearView view = view
-        { Block.viewStatus = mempty
-        , Block.viewSelections =
-            -- Non-insert selections indicate ephemeral state.
-            maybe mempty (Map.singleton Config.insertSelnum) $
-                Map.lookup Config.insertSelnum (Block.viewSelections view)
-        }
-
 instance Pretty State where
     format (State views blocks tracks rulers config) = Pretty.record "State"
         [ ("views", Pretty.format views)
@@ -334,6 +322,9 @@ instance M m => M (Except.ExceptT exc m) where
 
 throw :: (HasCallStack, M m) => Text -> m a
 throw msg = throwError $ Error GHC.Stack.callStack msg
+
+throw_ :: M m => Text -> m a
+throw_ msg = throwError $ Error GHC.Stack.callStack msg
 
 gets :: M m => (State -> a) -> m a
 gets f = fmap f get

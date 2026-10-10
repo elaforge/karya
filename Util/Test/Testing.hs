@@ -23,6 +23,7 @@ module Util.Test.Testing (
 
     -- ** io assertions
     , ioEqual, ioHuman, pause
+    , io
 
     -- ** low level
     , success, failure
@@ -342,6 +343,11 @@ ioEqual :: (HasCallStack, Eq a, Show a) => IO a -> a -> Test
 ioEqual ioVal expected = do
     val <- ioVal
     equal val expected
+
+io :: (a -> b -> IO c) -> IO a -> b -> IO c
+io op ioVal expected = do
+    val <- ioVal
+    op val expected
 
 -- | Only a human can check these things.
 ioHuman :: HasCallStack => String -> IO a -> IO a

@@ -10,6 +10,7 @@ import qualified Util.Ranges as Ranges
 import qualified Util.Test.Testing as Testing
 
 import qualified Cmd.Create as Create
+import qualified Cmd.Save as Save
 import qualified Cmd.SaveGit as SaveGit
 import qualified Cmd.SaveGitT as SaveGitT
 
@@ -19,7 +20,6 @@ import qualified Ui.Id as Id
 import qualified Ui.Ruler as Ruler
 import qualified Ui.Track as Track
 import qualified Ui.Ui as Ui
-import qualified Ui.UiConfig as UiConfig
 import qualified Ui.UiTest as UiTest
 import qualified Ui.Update as Update
 
@@ -126,8 +126,7 @@ loadFrom repo commitFrom maybeCommitTo state =
 
 -- | Strip fields that aren't saved.
 strip :: Ui.State -> Ui.State
-strip state = (Ui.config#UiConfig.allocations #= mempty) $
-    state { Ui.stateViews = mempty }
+strip state = Save.stripUnsaved False $ state { Ui.stateViews = mempty }
 
 checkLoad :: FilePath -> (Ui.State, SaveGit.Commit, [Text]) -> IO ()
 checkLoad repo (state, commit, names) =

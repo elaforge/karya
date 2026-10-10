@@ -155,7 +155,7 @@ test_infer_rests = do
     rightEqual (const () <$> f Check.BiasStart "12345 6") ()
 
 err :: Int -> Text -> T.Error
-err pos = T.Error (T.Pos pos)
+err pos = T.err (T.Pos pos)
 
 parseTokens :: Text -> [T.ParsedToken]
 parseTokens = Testing.expectRight . fmap T.trackTokens

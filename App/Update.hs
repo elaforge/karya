@@ -22,7 +22,6 @@ import qualified Util.Regex as Regex
 import qualified Cmd.Save as Save
 import qualified Ui.Transform as Transform
 import qualified Ui.Ui as Ui
-import qualified Ui.UiConfig as UiConfig
 
 import           Global
 
@@ -54,9 +53,11 @@ update mbModify fromFn toFn
         case result of
             Left err -> failWith $ "Reading " <> showt fromFn <> ": " <> err
             Right state -> do
-                state <- maybe (pure state) (\m -> upgradeScore m state)
+                state <- maybe (pure state)
+                    (\modify -> upgradeScore modify state)
                     mbModify
-                Save.writeState toFn state
+                out <- Save.writeStateDir toFn state
+                putStrLn $ "wrote: " <> out
 
 -- * upgrade
 
@@ -79,31 +80,7 @@ upgradeScore :: (Text -> Text) -> Ui.State -> IO Ui.State
 upgradeScore modify state = do
     (state, changes) <- pure $ Transform.mapCode modify state
     mapM_ Text.IO.putStrLn changes
-    (state, diff) <- pure $ mapKy modify state
-    when (diff /= "") $
-        Text.IO.putStrLn $ "ky:\n" <> diff
-    (state, diff) <- pure $ mapKy modify state
-    when (diff /= "") $
-        Text.IO.putStrLn $ "tscore:\n" <> diff
     pure state
-
-mapKy :: (Text -> Text) -> Ui.State -> (Ui.State, Text)
-mapKy modify state =
-    ( Ui.config#UiConfig.ky #= new $ state
-    , if new == old then "" else Diffs.colored1 old new
-    )
-    where
-    old = UiConfig.configKy (Ui.stateConfig state)
-    new = modify old
-
-mapTscore :: (Text -> Text) -> Ui.State -> (Ui.State, Text)
-mapTscore modify state =
-    ( Ui.config#UiConfig.tscore #= new $ state
-    , if new == old then "" else Diffs.colored1 old new
-    )
-    where
-    old = UiConfig.configTscore (Ui.stateConfig state)
-    new = modify old
 
 -- * util
 

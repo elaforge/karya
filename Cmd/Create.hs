@@ -232,7 +232,7 @@ sizedView blockId rect = do
             -- this and all its callers dependent on Cmd, or need another arg.
     pure viewId
 
--- | This is like 'unfitted_view', but tries to fit the view size to its
+-- | This is like 'unfittedView', but tries to fit the view size to its
 -- contents.
 --
 -- It's in Cmd.M since it needs the screen dimensions.

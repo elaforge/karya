@@ -5,6 +5,7 @@
 {-# LANGUAGE CPP #-}
 module Derive.Parse.Ky (
     Code
+    , Line
     , Ky(..), Loaded(..)
     , Definitions(..), Definition
     , loadKy
@@ -22,6 +23,7 @@ import qualified Control.Monad.Except as Except
 
 import qualified Data.Attoparsec.Text as A
 import qualified Data.Char as Char
+import qualified Data.List as List
 import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Map as Map
 import qualified Data.Set as Set
@@ -43,6 +45,8 @@ import qualified Derive.Parse.Instruments as Instruments
 import qualified Derive.ScoreT as ScoreT
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Symbols as Symbols
+import qualified Derive.TScore.Parse as TScore.Parse
+import qualified Derive.TScore.T as TScore.T
 
 import qualified Ui.Id as Id
 import qualified Ui.UiConfig as UiConfig
@@ -59,13 +63,15 @@ data Ky a = Ky
     { kyDefinitions :: Definitions
     , kyImports :: [a]
     , kyInstruments :: UiConfig.Allocations
+    , kyTscore :: TScore.T.Score
+    , kyTscoreText :: [(FilePath, [Text])] -- ^ unparsed to get fingerprint
     } deriving (Show)
 
 instance Semigroup (Ky a) where
-    Ky a1 b1 c1 <> Ky a2 b2 c2 = Ky (a1<>a2) (b1<>b2) (c1<>c2)
+    Ky a1 b1 c1 d1 e1 <> Ky a2 b2 c2 d2 e2 =
+        Ky (a1<>a2) (b1<>b2) (c1<>c2) (d1<>d2) (e1<>e2)
 instance Monoid (Ky a) where
-    mempty = Ky mempty mempty mempty
-    mappend = (<>)
+    mempty = Ky mempty mempty mempty mempty mempty
 
 -- | Record a loaded .ky file, with its path and content.
 -- A path of "" is used for the code directly in the UiConfig.
@@ -101,10 +107,10 @@ type Definition = (FilePath, (Expr.Symbol, Expr))
 
 -- | Parse ky text and load and parse all the files it imports.  'parse_ky'
 -- describes the format of the ky file.
-loadKy :: [FilePath] -> Code -> IO (Either ParseText.Error (Ky Loaded))
+loadKy :: [FilePath] -> Code
+    -> IO (Either ParseText.Error (Ky Loaded))
 loadKy paths content = Except.runExceptT $ do
-    ky <- tryRight $ first (ParseText.prefix "<score>: ") $
-        parseKy "" content
+    ky <- tryRight $ parseKy "<internal>" content
     kys <- loadKyFile paths Set.empty (kyImports ky)
     pure $ mconcat $ ky { kyImports = [Loaded "" content] } : kys
 
@@ -114,7 +120,7 @@ loadKyFile _ _ [] = pure []
 loadKyFile paths loaded (Import fname lib : imports)
     | lib `Set.member` loaded = pure []
     | otherwise = do
-        let prefix = txt lib <> ": "
+        let prefix = txt lib <> "?: "
         (fname, content) <- tryRight . first (ParseText.message . (prefix<>))
             =<< liftIO (findKy paths fname lib)
         ky <- tryRight . first (ParseText.prefix prefix) $
@@ -177,39 +183,45 @@ readKy fn = Exception.try (Text.IO.readFile fn) >>= pure . \case
 parseKy :: FilePath -> Code -> Either ParseText.Error (Ky Import)
 parseKy fname text = do
     (imports, sections) <- first ParseText.message $ checkedSections text
-    (instrumentSection, sections) <- pure
-        ( Map.lookup Instruments.instrumentSection sections
-        , Map.delete Instruments.instrumentSection sections
-        )
-    let extra = Set.toList $
-            Map.keysSet sections `Set.difference` Set.fromList validTitles
-    unless (null extra) $
+    (definitionSections, sections) <- pure $
+        partitionKeys (`Set.member` definitionSections) sections
+    (mbInstruments, sections) <- pure $
+        takeKey Instruments.instrumentSection sections
+    (mbTscores, sections) <- pure $ takeKey tscoreSection sections
+    unless (Map.null sections) $
         Left $ ParseText.message $
-            "unknown sections: " <> Text.intercalate ", " extra
+            "unknown sections: " <> Text.intercalate ", " (Map.keys sections)
     imports <- ParseText.parse pImports imports
-    parsed <- traverse parseSection sections
+    parsed <- traverse parseSection definitionSections
     let get header = Map.findWithDefault [] header parsed
         get2 kind =
             ( get (kind <> " " <> generator)
             , get (kind <> " " <> transformer)
             )
-    aliases <- first (ParseText.Error Nothing) $ mapM parseAlias (get alias)
-    allocs <- case instrumentSection of
+    defAliases <- first (ParseText.Error Nothing) $ mapM parseAlias (get alias)
+    kyInstruments <- case mbInstruments of
         Just lines@((lineno, _) : _) ->
             parseInstruments fname lineno $ map snd lines
         _ -> Right mempty
     let addFname = map (fname,)
         addFname2 = bimap addFname addFname
+    kyTscore <- case mbTscores of
+        Just lines@((lineno, _) : _) -> parseTscore fname lineno (map snd lines)
+        _ -> pure mempty
     pure $ Ky
         { kyDefinitions = Definitions
             { defNote = addFname2 $ get2 note
             , defControl = addFname2 $ get2 control
             , defPitch = addFname2 $ get2 pitch
             , defVal = addFname $ get val
-            , defAliases = aliases
+            , defAliases
             }
         , kyImports = map (Import fname) imports
-        , kyInstruments = allocs
+        , kyInstruments
+        , kyTscore
+        , kyTscoreText = case mbTscores of
+            Just lines -> [(fname, map snd lines)]
+            _ -> []
         }
     where
     val = "val"
@@ -219,7 +231,7 @@ parseKy fname text = do
     generator = "generator"
     transformer = "transformer"
     alias = "alias"
-    validTitles = val : alias :
+    definitionSections = Set.fromList $ val : alias :
         [ t1 <> " " <> t2
         | t1 <- [note, control, pitch], t2 <- [generator, transformer]
         ]
@@ -227,16 +239,6 @@ parseKy fname text = do
     parseSection ((lineno, line0) : lines) =
         first (ParseText.offset (lineno, 0)) $ ParseText.parse pSection $
             Text.unlines (line0 : map snd lines)
-
--- | The lineno is the 0-based line of the first line of the section, which
--- becomes the 1-based starting line for megaparsec.
-parseInstruments :: FilePath -> Line -> [Text]
-    -> Either ParseText.Error UiConfig.Allocations
-parseInstruments fname lineno lines =
-    -- TODO convert megaparsec line numbers back to ParseText._position?
-    first (ParseText.Error Nothing) $
-        Util.Parse.parseFromLine (lineno+1) fname Instruments.pInstruments
-            (Text.unlines lines)
 
 -- | The alias section allows only @alias = inst@ definitions.
 parseAlias :: (Expr.Symbol, Expr)
@@ -251,6 +253,30 @@ parseAlias (lhs, rhs) = first (msg<>) $ case rhs of
     where
     msg = "alias " <> ShowVal.showVal lhs <> " = " <> ShowVal.showVal rhs
         <> ": "
+
+-- | The lineno is the 0-based line of the first line of the section, which
+-- becomes the 1-based starting line for megaparsec.
+parseInstruments :: FilePath -> Line -> [Text]
+    -> Either ParseText.Error UiConfig.Allocations
+parseInstruments fname lineno lines =
+    -- TODO convert megaparsec line numbers back to ParseText._position?
+    first (ParseText.Error Nothing) $
+        Util.Parse.parseFromLine (lineno+1) fname Instruments.pInstruments
+            (Text.unlines lines)
+
+-- * tscore
+
+tscoreSection :: Text
+tscoreSection = "tscore"
+
+parseTscore :: FilePath -> Line -> [Text]
+    -> Either ParseText.Error TScore.T.Score
+parseTscore fname lineno lines =
+    -- TODO same as parseInstruments, convert megaparsec line numbers back to
+    -- ParseText._position?
+    first (ParseText.Error Nothing) $
+        Util.Parse.parseFromLine (lineno+1) fname TScore.Parse.score
+            (Text.unlines lines)
 
 -- * parse ky file
 
@@ -276,15 +302,15 @@ checkedSections = traverse check . extract . parseSections
 -- A title is a line that's all letters or spaces, ending with ':',
 -- enumerated in valid_titles.
 parseSections :: Code -> [Section]
-parseSections =
-    merge . Lists.splitWith parseHeader . zip [0..] . Text.lines
+parseSections = merge . Lists.splitWith parseHeader . zip [0..] . Text.lines
     where
-    merge (pre, sections) = ("", pre) : sections
+    merge (pre, sections) = map (fmap strip) $ ("", pre) : sections
     parseHeader (_, line)
         | Just (title, ':') <- Text.unsnoc line
         , Text.all (\c -> Char.isAsciiLower c || c == ' ') title =
             Just title
         | otherwise = Nothing
+    strip = dropWhile (Text.null . snd)
 
 unparseSection :: (Title, [Text]) -> Code
 unparseSection (section, lines) =
@@ -400,3 +426,12 @@ pVar = A.char '$' *> (Var <$> A.takeWhile1 isVarChar)
 
 isVarChar :: Char -> Bool
 isVarChar c = 'a' <= c || 'z' <= c || c == '-'
+
+-- * util
+
+partitionKeys :: Eq k => (k -> Bool) -> Map k a -> (Map k a, Map k a)
+partitionKeys f m = (Map.fromAscList yes, Map.fromAscList no)
+    where (yes, no) = List.partition (f . fst) (Map.toAscList m)
+
+takeKey :: Ord k => k -> Map k a -> (Maybe a, Map k a)
+takeKey k m = (Map.lookup k m, Map.delete k m)

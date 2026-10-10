@@ -25,10 +25,17 @@ newtype Time = Time Ratio.Rational
 instance Show Time where
     show (Time t) = prettys t
 
+type Code = Text
+
 -- * Score
 
 newtype Score = Score [(Pos, Toplevel)]
     deriving (Eq, Show)
+
+instance Semigroup Score where
+    Score a1 <> Score a2 = Score (a1<>a2)
+instance Monoid Score where
+    mempty = Score []
 
 data Toplevel
     = ToplevelDirective Directive
@@ -184,21 +191,29 @@ data Duration = Duration
 
 -- * error
 
+type Line = Int
+
 -- | Character position in the input.
 newtype Pos = Pos Int deriving (Eq, Show, Pretty)
 
-data Error = Error Pos Text
+data Error = Error (Maybe Pos) Text
     deriving (Eq, Show)
 
 instance Pretty Error where
-    pretty (Error (Pos pos) msg) = pretty pos <> ": " <> msg
+    pretty (Error mbPos msg) = "Error:" <> maybe "<>" showt mbPos <> ":" <> msg
 
 fakePos :: Pos
 fakePos = Pos (-1)
 
+err :: Pos -> Text -> Error
+err pos = Error (Just pos)
+
+showErrors :: Text -> [Error] -> Text
+showErrors source = Text.intercalate "\n" . map (showError source)
+
 showError :: Text -> Error -> Text
-showError source (Error pos msg) =
-    Texts.unlines2 msg $ fromMaybe "" $ showPos source pos
+showError source (Error mbPos msg) =
+    Texts.unlines2 msg $ fromMaybe "" $ showPos source =<< mbPos
 
 showPos :: Text -> Pos -> Maybe Text
 showPos source pos = fmt <$> findPos source pos
@@ -209,7 +224,7 @@ showPos source pos = fmt <$> findPos source pos
         ]
 
 -- | Find the line and position on that line.
-findPos :: Text -> Pos -> Maybe (Int, Int, Text) -- ^ (linenum, col, line)
+findPos :: Text -> Pos -> Maybe (Line, Int, Text) -- ^ (linenum, col, line)
 findPos source (Pos pos) =
     case Lists.dropBefore (fst . snd) pos (zip [1..] lines) of
         (lineNum, (start, line)) : _ -> Just (lineNum, pos - start, line)

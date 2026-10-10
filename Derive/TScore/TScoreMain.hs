@@ -26,6 +26,7 @@ import qualified Util.Audio.PortAudio as PortAudio
 import qualified Util.Lists as Lists
 import qualified Util.Log as Log
 import qualified Util.Maps as Maps
+import qualified Util.ParseText as ParseText
 import qualified Util.Pretty as Pretty
 import qualified Util.Texts as Texts
 import qualified Util.Thread as Thread
@@ -35,15 +36,19 @@ import qualified App.Path as Path
 import qualified App.StaticConfig as StaticConfig
 
 import qualified Cmd.Cmd as Cmd
-import qualified Cmd.Ky as Ky
+import qualified Cmd.Ky
 import qualified Cmd.Performance as Performance
 import qualified Cmd.SaveGitT as SaveGitT
 import qualified Cmd.Simple as Simple
 
+import qualified Derive.Derive as Derive
 import qualified Derive.DeriveSaved as DeriveSaved
 import qualified Derive.LEvent as LEvent
+import qualified Derive.Parse.Ky as Ky
 import qualified Derive.Score as Score
 import qualified Derive.ScoreT as ScoreT
+import qualified Derive.TScore.Parse as Parse
+import qualified Derive.TScore.T as T
 import qualified Derive.TScore.TScore as TScore
 
 import qualified Instrument.Inst as Inst
@@ -128,8 +133,9 @@ checkScore :: FilePath -> IO ()
 checkScore fname = do
     source <- Text.IO.readFile fname
     cmdConfig <- DeriveSaved.loadCmdConfig
-    case TScore.parseScore cmdConfig source of
-        Left err -> Text.IO.putStrLn $ txt fname <> ": " <> err
+    case parseScore cmdConfig source of
+        Left errs -> Text.IO.putStrLn $
+            txt fname <> ": " <> T.showErrors source errs
         Right uiState -> Text.IO.putStr $ Transform.showStats uiState
 
 listDevices :: IO ()
@@ -386,13 +392,59 @@ loadCmdConfig midiInterface = do
 
 loadScore :: Cmd.Config -> Text -> IO (Either Error (Ui.State, Cmd.State))
 loadScore cmdConfig source = Except.runExceptT $ do
-    uiState <- tryRight $ TScore.parseScore cmdConfig source
+    uiState <- tryRight $ first (T.showErrors source) $
+        parseScore cmdConfig source
     -- TODO adjust starting line in error
     (builtins, aliases, allocs) <- tryRight . first ("parsing %ky: "<>)
-        =<< liftIO (Ky.load kyPaths (Ui.config#UiConfig.ky #$ uiState))
+        =<< liftIO (Cmd.Ky.load kyPaths (Ui.config#UiConfig.ky #$ uiState))
     let cmdState = DeriveSaved.addLibrary builtins aliases $
             Cmd.initialState cmdConfig
     pure (Ui.config#UiConfig.allocations #= allocs $ uiState, cmdState)
     where
     -- For now, I don't support ky import.
     kyPaths = []
+
+-- * tscore
+
+parseScore :: Cmd.Config -> Text -> Either [T.Error] Ui.State
+parseScore cmdConfig source = do
+    tscore <- first (:[]) $ Parse.parseScore source
+    TScore.scoreToUi (standaloneDuration cmdConfig tscore) tscore
+
+{- | Standalone tscore has no Ui.State or Cmd.State, since it's in the middle
+    of creating them, so make them from the score itself.
+
+    The Cmd.State comes from the score's %ky, and there's no circularity there
+    because parsing doesn't need durations, so the ky is in hand before
+    'resolve_blocks' asks for any.
+
+    The Ui.State is trickier, because the calls whose durations I want are
+    usually transformers on a tscore block, e.g. @repeat=2 | b@, and the
+    deriver can only call @b@ if it's actually in the Ui.State.  So do a first
+    pass with 'no_external_duration', which resolves everything tscore can do
+    by itself.  That's exactly the blocks the external calls want to call, and
+    the tracks that fail are the ones I'm about to resolve here.  It means
+    parsing and resolving the score twice, but that's cheap next to deriving.
+-}
+standaloneDuration :: Cmd.Config -> T.Score -> TScore.MakeExternalCallDuration
+standaloneDuration cmdConfig tscore ky = do
+    (builtins, aliases, allocs) <- first (pure . T.Error Nothing) $ parseKy ky
+    (_errs, blocks, _config) <- TScore.trackBlocks_ namespace
+        (const (Right TScore.noExternalDuration)) tscore
+    uiState <- first (pure . T.Error Nothing . pretty) $ Ui.exec Ui.empty $ do
+        mapM_ TScore.uiBlock blocks
+        Ui.modifyConfig $ UiConfig.allocations #= allocs
+    let cmdState = (Cmd.initialState cmdConfig)
+            { Cmd.stateKyCache = Just $ Cmd.PermanentKy (builtins, aliases) }
+    pure $ TScore.getExternalDuration uiState cmdState
+    where namespace = UiConfig.configNamespace UiConfig.emptyConfig
+
+parseKy :: Text -> Either Text
+    (Derive.Builtins, Derive.InstrumentAliases, UiConfig.Allocations)
+parseKy text = do
+    ky <- first ParseText.showError $ Ky.parseKy "" text
+    ky <- case Ky.kyImports ky of
+        [] -> Right $ ky { Ky.kyImports = [] }
+        imports -> Left $ "imports not supported for standalone tscore: "
+            <> Text.unwords (map showt imports)
+    pure $ Cmd.Ky.compile ky

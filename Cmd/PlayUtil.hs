@@ -140,9 +140,12 @@ getConstant :: Cmd.M m => Ui.State -> Derive.Cache -> Derive.ScoreDamage
     -> m (Derive.Constant, Derive.InstrumentAliases)
 getConstant uiState cache damage = do
     cmdState <- Cmd.get
-    (builtins, aliases) <- case Cmd.stateKyCache cmdState of
-        Nothing -> pure (mempty, mempty)
-        Just kyCache -> Cmd.requireRight id $ kyBuiltins kyCache
+    let (builtins, aliases) = case Cmd.stateKyCache cmdState of
+            Nothing -> (mempty, mempty)
+            Just cached -> case cached of
+                Cmd.KyCache (Cmd.KyCached { Cmd.kyBuiltins, Cmd.kyAliases }) ->
+                    (kyBuiltins, kyAliases)
+                Cmd.PermanentKy builtinsAliases -> builtinsAliases
     pure
         ( initialConstant uiState (Cmd.stateConfig cmdState)
             builtins cache damage
@@ -160,13 +163,6 @@ initialConstant uiState cmdConfig builtins cache damage =
         (UiConfig.configAllocations (Ui.stateConfig uiState))
         (Cmd.configInstrumentDb cmdConfig)
     configBuiltins = Cmd.configBuiltins cmdConfig
-
-kyBuiltins :: Cmd.KyCache
-    -> Either Cmd.Error (Derive.Builtins, Derive.InstrumentAliases)
-kyBuiltins = \case
-    Cmd.KyCache (Left err) _ -> Left $ "parsing ky: " <> err
-    Cmd.KyCache (Right builtins) _ -> Right builtins
-    Cmd.PermanentKy builtins -> Right builtins
 
 initialDynamic :: Derive.InstrumentAliases -> Derive.Dynamic
 initialDynamic aliases = (Derive.initialDynamic initialEnviron)

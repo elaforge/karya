@@ -240,10 +240,10 @@ eval state m = case Ui.eval state m of
     Right val -> val
 
 runMkview :: [TrackSpec] -> ([TrackId], Ui.State)
-runMkview tracks = run Ui.empty $ mkblockView (defaultBlockName, tracks)
+runMkview tracks = run empty $ mkblockView (defaultBlockName, tracks)
 
 runMkblocks :: [BlockSpec] -> ([BlockId], Ui.State)
-runMkblocks = run Ui.empty . mkblocks
+runMkblocks = run empty . mkblocks
 
 mkblocks :: Ui.M m => [BlockSpec] -> m [BlockId]
 mkblocks blocks = mapM (fmap fst . mkblockNamed) blocks
@@ -252,7 +252,7 @@ mkviews :: Ui.M m => [BlockSpec] -> m [ViewId]
 mkviews blocks = mapM mkview =<< mkblocks blocks
 
 runMkblock :: [TrackSpec] -> ([TrackId], Ui.State)
-runMkblock = run Ui.empty . mkblock
+runMkblock = run empty . mkblock
 
 mkblock :: Ui.M m => [TrackSpec] -> m [TrackId]
 mkblock = fmap snd . mkblockNamed . (defaultBlockName,)
@@ -304,6 +304,9 @@ mkblockRulerId rulerId blockId title tracks = do
     -- there are some instruments defined.
     Ui.modify setDefaultAllocations
     pure (blockId, tids)
+
+empty :: Ui.State
+empty = Ui.config#UiConfig.namespace_ #= test_ns $ Ui.empty
 
 mkblockRuler :: Ui.M m => Ruler.Ruler -> BlockId -> Text -> [TrackSpec]
     -> m (BlockId, [TrackId])
