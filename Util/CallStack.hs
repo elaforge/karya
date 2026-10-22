@@ -54,7 +54,7 @@ showFrame (name, srcloc) =
 
 showCaller :: Caller -> Text
 showCaller (Caller fname line) = Text.pack fname <> ":" <> Text.pack (show line)
-showCaller NoCaller = "<no-caller>"
+showCaller NoCaller = ""
 
 -- | This is like 'Stack.prettyCallStack', except more compact.
 getStack :: HasCallStack => Text
