@@ -23,10 +23,12 @@ endfunction
 
 function! s:Send(cmd)
     silent w
-    call s:ExecuteQuietly('build/opt/send ''' . a:cmd . ''' < ' . expand('%'))
+    call s:ExecuteQuietly('build/opt/send --no-server-ok ''' . a:cmd
+        \ . ''' < ' . expand('%'))
 endfunction
 
 " Syntax highlighting for .ky files.
+
 syn clear
 syn match kySection "^\(note\|control\|pitch\) \(generator\|transformer\):$"
 syn match kySection "^\(val\|alias\|instrument\|tscore\):$"

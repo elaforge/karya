@@ -151,7 +151,7 @@ chooseInstrument qualified = do
 
 query :: Text -> IO Text
 query = fmap ReplProtocol.formatResult
-    . ReplProtocol.queryCmd (Network.Unix Config.replSocketName)
+    . ReplProtocol.queryCmd True (Network.Unix Config.replSocketName)
 
 -- | Find instruments that match the query, and update the UI incrementally.
 processQuery :: Fltk.Channel -> BrowserC.Window -> Db -> [InstT.Qualified]

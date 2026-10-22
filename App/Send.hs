@@ -24,7 +24,7 @@ import qualified App.ReplProtocol as ReplProtocol
 import           Global
 
 
-data Flag = Help | Timing
+data Flag = Help | Timing | NoServerOk
     deriving (Eq, Show)
 
 options :: [GetOpt.OptDescr Flag]
@@ -32,6 +32,8 @@ options =
     [ GetOpt.Option [] ["help"] (GetOpt.NoArg Help) "display usage"
     , GetOpt.Option [] ["timing"] (GetOpt.NoArg Timing)
         "show cmd completion time"
+    , GetOpt.Option [] ["no-server-ok"] (GetOpt.NoArg NoServerOk)
+        "not an error if I can't connect to the server"
     ]
 
 main :: IO ()
@@ -45,6 +47,7 @@ main = ReplProtocol.initialize $ do
     when (null args) (usage "usage:")
     args <- substitute $ map Text.strip $ Text.splitOn ";" $ mconcatMap txt args
 
+    let query = ReplProtocol.queryCmdSimple (NoServerOk `elem` flags)
     forM_ args $ \cmd -> do
         if Timing `elem` flags then do
             Text.IO.putStrLn $ "send: " <> cmd
@@ -69,9 +72,6 @@ substitute args
         content <- Text.IO.getContents
         pure $ map (Text.replace "%s" (showt content)) args
     | otherwise = pure args
-
-query :: Text -> IO Text
-query = ReplProtocol.queryCmdSimple
 
 timed :: DeepSeq.NFData a => IO a -> IO (a, Double)
 timed action = do

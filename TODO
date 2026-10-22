@@ -775,7 +775,7 @@ UNSORTED
           Also a place to put the backup and .repl file.
 
   ky separate file cleanup:
-    - save on ky with no socket should be silently ok
+    * save on ky with no socket should be silently ok
     - who uses Ky.load, and do they need tscore?
     - incorporate tscore into ky.vim
       . But I still want separate tscore-syntax.vim for *.tscore
@@ -787,9 +787,9 @@ UNSORTED
     - show tscore errors positions correctly
       . I think I need an offset for tscore section in .ky, and
         a filename for imported ones.
-    - syntax error shows filename twice
-      . State error: -- from Cmd.Repl, remove
-        Cmd/Ky.hs:135 -- from tryRight in Cmd.Ky
+    + syntax error shows filename twice
+      . State error: -- from Cmd.Repl, removed
+        Cmd/Ky.hs:135 -- from tryRight in Cmd.Ky, removed
         /Users/elaforge/src/seq/data/save/test/ky1/save.state.ky:
         /Users/elaforge/src/seq/data/save/test/ky1/save.state.ky:7:1:
           |

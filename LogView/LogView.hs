@@ -259,7 +259,7 @@ sendAction chan = liftIO . Fltk.action chan
 
 sendToSeq :: Text -> IO ()
 sendToSeq cmd = do
-    response <- ReplProtocol.queryCmdSimple cmd
+    response <- ReplProtocol.queryCmdSimple True cmd
     unless (Text.null response) $
         Text.IO.putStrLn $ "response: " <> response
 

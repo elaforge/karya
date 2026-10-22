@@ -182,7 +182,7 @@ sendCommand :: Network.Addr -> Text -> IO Status
 sendCommand addr expr
     | Text.null expr = pure Continue
     | otherwise = do
-        result <- ReplProtocol.queryCmd addr (Text.strip expr)
+        result <- ReplProtocol.queryCmd False addr (Text.strip expr)
         result <- printLogs result
         handleResult addr result
 

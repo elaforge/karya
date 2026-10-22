@@ -149,20 +149,21 @@ notify addr notify = Exception.try $ Network.withHandle addr $ \hdl -> do
     IO.hFlush hdl
 
 -- | Send a 'QCommand'.
-queryCmd :: Network.Addr -> Text -> IO CmdResult
-queryCmd addr cmd = query addr (QCommand cmd) >>= pure . \case
+queryCmd :: Bool -> Network.Addr -> Text -> IO CmdResult
+queryCmd noServerOk addr cmd = query addr (QCommand cmd) >>= pure . \case
     Right (RCommand result) -> result
     Right response -> raw $ "unexpected response: " <> showt response
     Left exc
         | IO.Error.isDoesNotExistError exc -> raw $
-            "addr (" <> showt addr <> ") threw ENOENT,\
-            \ this can happen if karya is not running, or it's stuck."
+            if noServerOk then "" else
+                "addr (" <> showt addr <> ") threw ENOENT,\
+                \ this can happen if karya is not running, or it's stuck."
         | otherwise -> raw $ "exception: " <> showt exc
 
 -- | A simple one-shot 'query_cmd'.
-queryCmdSimple :: Text -> IO Text
-queryCmdSimple cmd =
-    formatResult <$> queryCmd (Network.Unix Config.replSocketName) cmd
+queryCmdSimple :: Bool -> Text -> IO Text
+queryCmdSimple noServerOk cmd = formatResult <$>
+    queryCmd noServerOk (Network.Unix Config.replSocketName) cmd
 
 -- | Ask for the current save filename.  Nothing for an error, and Just Nothing
 -- for no save file.
