@@ -775,7 +775,12 @@ UNSORTED
           Also a place to put the backup and .repl file.
 
   ky separate file cleanup:
+    - save on ky with no socket should be silently ok
+    - who uses Ky.load, and do they need tscore?
     - incorporate tscore into ky.vim
+      . But I still want separate tscore-syntax.vim for *.tscore
+      . Also should I move the au commands to seq dir?
+      . Move vim files to a vim dir?
     - Allocs no longer belong in UiConfig, probably they should go into
       Cmd.State along with the loaded ky.
     - directly import kyPath rather than faking up 'import' line

@@ -123,14 +123,10 @@ eBuiltins = concatMap (Map.keys . Derive.callMap) . Map.elems
 
 putLibrary :: Cmd.M m => Text -> m ()
 putLibrary text = do
-    Parse.Ky.Ky defs imported _allocs _tscore _tscoreLines <-
+    Parse.Ky.Ky defs _imported _allocs _tscore _tscoreLines <-
         Cmd.requireRight ParseText.showError $
             Parse.Ky.parseKy "fname.ky" text
-    -- This is not right for compile_library because it's imports and not
-    -- imported paths, but it doesn't care because it's just for the error msg.
-    let imports = [imp | Parse.Ky.Import _ imp <- imported]
-    let (builtins, _logs) = Ky.compileLibrary imports $
-            Ky.compileDefinitions defs
+    let (builtins, _logs) = Ky.compileLibrary (Ky.compileDefinitions defs)
     Cmd.modify $ \st -> st
         { Cmd.stateKyCache = Just $ Cmd.KyCache $ Cmd.KyCached
             { kyBuiltins = builtins

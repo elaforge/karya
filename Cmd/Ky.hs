@@ -20,7 +20,6 @@ import qualified Data.Map as Map
 import qualified Data.Text as Text
 
 import qualified System.Directory as Directory
-import qualified System.FilePath as FilePath
 
 import qualified Util.Doc as Doc
 import qualified Util.Log as Log
@@ -94,8 +93,7 @@ checkLoadKy cmdState mbKyCode
 checkKy :: Ui.State -> Cmd.State -> Ky.Ky Ky.Loaded
     -> Either Error (Ui.State, Cmd.State, [Log.Msg], Maybe TScore.T.Score)
 checkKy uiState cmdState ky = do
-    let (kyBuiltins, logs) = compileLibrary (loadedFnames imported) $
-            compileDefinitions defs
+    let (kyBuiltins, logs) = compileLibrary (compileDefinitions defs)
     let errs = UiConfig.verifyAllocations lookupBackend allocs
     unless (null errs) $
         Left $ "instrument: " <> Text.intercalate "; " errs
@@ -121,7 +119,7 @@ checkKy uiState cmdState ky = do
             else Just tscore
         )
     where
-    Ky.Ky defs imported allocs tscore tscoreLines = ky
+    Ky.Ky defs _imported allocs tscore tscoreLines = ky
     lookupBackend = fmap Inst.instBackend . Cmd.getLookupInst cmdState
     oldTscoreFingerprint = case Cmd.stateKyCache cmdState of
         Just (Cmd.KyCache cache) -> Cmd.kyTscoreFingerprint cache
@@ -155,7 +153,7 @@ loadKy mbKyPath paths mbKyCode = do
             result <- Ky.loadKy paths kyText
             pure $ Just $ first ParseText.showError result
 
--- | Like 'checkCache', but assuming no existing cmd or ui state.
+-- | Like 'reload', but assuming no existing cmd or ui state.
 load :: [FilePath] -> Text
     -> IO (Either Text
         (Derive.Builtins, Derive.InstrumentAliases, UiConfig.Allocations))
@@ -164,15 +162,11 @@ load paths kyText =
 
 compile :: Ky.Ky Ky.Loaded
     -> (Derive.Builtins, Derive.InstrumentAliases, UiConfig.Allocations)
-compile (Ky.Ky defs imported allocs _tscores _tscoreLines) =
+compile (Ky.Ky defs _imported allocs _tscores _tscoreLines) =
     (builtins, Map.fromList (Ky.defAliases defs), allocs)
     where
     -- Logs will be about name collisions.
-    (builtins, _logs) = compileLibrary (loadedFnames imported) $
-        compileDefinitions defs
-
-loadedFnames :: [Ky.Loaded] -> [FilePath]
-loadedFnames loads = [fname | Ky.Loaded fname _ <- loads]
+    (builtins, _logs) = compileLibrary (compileDefinitions defs)
 
 stateKyPaths :: Cmd.State -> (Maybe FilePath, [FilePath])
 stateKyPaths cmdState =
@@ -181,12 +175,8 @@ stateKyPaths cmdState =
         (Cmd.configKyPaths (Cmd.stateConfig cmdState))
     )
 
-compileLibrary :: [FilePath] -> Library.Library -> (Derive.Builtins, [Log.Msg])
-compileLibrary imports lib = Log.runId $ Library.compileLog lib
-
-showImport :: FilePath -> Text
-showImport "" = "<score>"
-showImport fname = txt (FilePath.takeFileName fname)
+compileLibrary :: Library.Library -> (Derive.Builtins, [Log.Msg])
+compileLibrary lib = Log.runId $ Library.compileLog lib
 
 compileDefinitions :: Ky.Definitions -> Library.Library
 compileDefinitions (Ky.Definitions (gnote, tnote) (gcontrol, tcontrol)
