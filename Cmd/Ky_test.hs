@@ -84,7 +84,7 @@ test_reload = do
     -- parse error, line numbers correct
     io leftLike
         (f (const ()) "note generator:\n\nsyntax error blah\n")
-        "3:1: expected eof"
+        "<internal>:3:1:*| ^*expected eof"
     -- defs and instruments
     io rightEqual (f eDefs "note generator:\na = +a\n") ["a"]
     io rightEqual (f eInsts "instrument:\n>i1 s/1 [ms] d 1\n") ["i1"]

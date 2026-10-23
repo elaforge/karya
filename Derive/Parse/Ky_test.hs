@@ -48,6 +48,13 @@ test_loadKy = do
     io leftLike load "ky file not found: lib2"
 
     writeFile (lib </> "lib2") $ makeKy [] ["lib2-call"]
+    let bad = dir </> "bad"
+    writeFile bad "instrument:\n123\n"
+    write ["bad"]
+    io leftLike load (txt bad <> ":*| ^*unexpected '1'")
+    write ["lib1"]
+
+
     [lib1, lib2, defs] <- mapM Text.IO.readFile
         [lib </> "lib1", lib </> "lib2", dir </> "defs"]
     ioEqual load $ Right
@@ -81,7 +88,7 @@ test_parseKy = do
         [("a", ("b", ["c"])), ("d", ("e", []))]
     rightEqual (note "a = b\n c\n --comment\n\nd = e\n")
         [("a", ("b", ["c"])), ("d", ("e", []))]
-    leftLike (note "a = b\nc\n") "3:1: expected eof"
+    leftLike (note "a = b\nc\n") "fname.ky:3:1:*| ^*expected eof"
     rightEqual (note "a = b $c") [("a", ("b", ["$c"]))]
     rightEqual (f eNote "-- hi") []
     rightEqual (f eNote "-- note_generator:") []
@@ -93,7 +100,8 @@ test_parseKy = do
         [Ky.Import "fname.ky" "x", Ky.Import "fname.ky" "y"]
     rightEqual (f Ky.kyImports "import\n\t'x'\n")
         [Ky.Import "fname.ky" "x"]
-    leftLike (f Ky.kyImports "blort x\nimport y\n") "1:1: expected eof"
+    leftLike (f Ky.kyImports "blort x\nimport y\n")
+        "fname.ky:1:1:*| ^*expected eof"
 
     let aliases = Ky.defAliases . Ky.kyDefinitions
     rightEqual (f aliases "alias:\na = b\n") $
@@ -106,7 +114,7 @@ test_instruments = do
             . Ky.parseKy "fname.ky"
         extract = Ky.kyInstruments
     -- line offset to 4
-    leftLike (f ky1) "4:1:*unexpected '1'"
+    leftLike (f ky1) "fname.ky:4:1:*| ^*unexpected '1'"
     where
     ky1 =
         "-- blah\n\
@@ -126,7 +134,7 @@ test_p_definition = do
     let f = bimap ParseText.showError (second eExpr)
             . ParseText.parse Ky.pDefinition
     equal (f "a =\n b\n c\n") (Right ("a", [("b", ["c"])]))
-    leftLike (f "a =\n b\nc = d\n") "3:1: expected eof"
+    leftLike (f "a =\n b\nc = d\n") "3:1:*| ^*expected eof"
     equal (f "a = n +z\n") (Right ("a", [("n", ["+z"])]))
     equal (f "a = b $c") (Right ("a", [("b", ["$c"])]))
     equal (f "a = b = $c") (Right ("a", [("=", ["b", "$c"])]))

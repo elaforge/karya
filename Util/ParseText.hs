@@ -14,14 +14,21 @@
     need a little modification to switch libraries.
 -}
 module Util.ParseText (module Util.ParseText, many) where
-import Control.Applicative (many)
+import           Control.Applicative (many)
 import qualified Data.Attoparsec.Text as A
-import Data.Attoparsec.Text ((<?>))
+import           Data.Attoparsec.Text ((<?>))
 import qualified Data.List as List
+import qualified Data.List.NonEmpty as NonEmpty
+import qualified Data.Set as Set
 import qualified Data.Text as Text
 import qualified Data.Text.Read as Text.Read
+import qualified Data.Void as Void
 
-import Global
+import qualified Text.Megaparsec as P
+
+import qualified Util.Texts as Texts
+
+import           Global
 
 
 type Parser a = A.Parser a
@@ -31,44 +38,130 @@ type Parser a = A.Parser a
 parse1 :: Parser a -> Text -> Either Text a
 parse1 p text = first fmt $ parseAll p text
     where
-    fmt (rest, msg) = "parse error: " <> errorContext col text <> ": " <> msg
+    fmt (rest, msg) = "parse error: " <> shortContext col text <> ": " <> msg
         where col = inferColumn text rest
 
 -- | Parse all of the text, and annotate the error with line number and column.
 parse :: Parser a -> Text -> Either Error a
 parse p text = case parseAll p text of
     Right val -> Right val
-    Left (rest, msg) -> Left $ Error loc msg
-        where loc = inferLocation text rest
+    Left (rest, msg) -> Left $ case inferLocation text rest of
+        Nothing -> message msg
+        Just (line, position) ->
+            Error Nothing $ NonEmpty.singleton $
+                Diagnostic (Just line) (Just position) 1 msg
 
 data Error = Error
-    -- | Line with the error, and 1-based row and column.
-    { _position :: Maybe (Text, (Row, Column))
+    { _filename :: Maybe FilePath
+    , _diagnostics :: NonEmpty.NonEmpty Diagnostic
+    } deriving (Eq, Show)
+
+data Diagnostic = Diagnostic
+    { _line :: Maybe Text
+    , _position :: Maybe (Row, Column)
+    , _length :: Int
     , _message :: Text
     } deriving (Eq, Show)
+
 type Row = Int
 type Column = Int
 
-prefix :: Text -> Error -> Error
-prefix pref err = err { _message = pref <> _message err }
+-- | Convert Megaparsec diagnostics into the common error representation.
+fromMegaparsec :: P.ParseErrorBundle Text Void.Void -> Error
+fromMegaparsec bundle = case located of
+    (_filename, diagnostic) : rest -> Error
+        { _filename
+        , _diagnostics = diagnostic :| map snd rest
+        }
+    [] -> message "Megaparsec returned an empty error bundle"
+    where
+    located = snd $ List.mapAccumL convert (P.bundlePosState bundle)
+        (NonEmpty.toList (P.bundleErrors bundle))
+    convert posState0 err =
+        ( posState1
+        , ( if sourceName == "" then Nothing else Just sourceName
+          , Diagnostic
+                { _line = txt <$> line
+                , _position = Just
+                    ( P.unPos (P.sourceLine sourcePos)
+                    , P.unPos (P.sourceColumn sourcePos)
+                    )
+                , _length = errorLength err
+                , _message = Text.stripEnd $ txt $ P.parseErrorTextPretty err
+                }
+          )
+        )
+        where
+        (line, posState1) = P.reachOffset (P.errorOffset err) posState0
+        sourcePos = P.pstateSourcePos posState1
+        sourceName = P.sourceName sourcePos
+    errorLength (P.TrivialError _ unexpected _) =
+        maybe 1 errorItemLength unexpected
+    errorLength (P.FancyError _ errors) =
+        maximum (1 : map errorFancyLength (Set.toList errors))
+    errorItemLength (P.Tokens tokens) = NonEmpty.length tokens
+    errorItemLength _ = 1
+    errorFancyLength (P.ErrorCustom component) = P.errorComponentLen component
+    errorFancyLength _ = 1
 
-offset :: (Row, Column) -> Error -> Error
-offset (row, col) err =
-    err { _position = second (\(r, c) -> (r+row, c+col)) <$> _position err }
+prefix :: Text -> Error -> Error
+prefix pref (Error mbFilename (diag :| diags)) =
+    Error mbFilename $ diag { _message = pref <> _message diag } :| diags
+
+-- | Add a row offset.
+addRow :: Row -> Error -> Error
+addRow row err = err { _diagnostics = fmap shift (_diagnostics err) }
+    where shift diag = diag { _position = first (+row) <$> _position diag }
 
 message :: Text -> Error
-message = Error Nothing
+message msg = Error Nothing $
+    NonEmpty.singleton $ Diagnostic Nothing Nothing 1 msg
+
+-- | Set the filename unless the error already carries one.
+setFilename :: FilePath -> Error -> Error
+setFilename filename err
+    | filename == "" = err
+    | otherwise = case err of
+        Error Nothing diagnostics -> Error (Just filename) diagnostics
+        _ -> err
 
 showError :: Error -> Text
-showError (Error Nothing msg) = msg
-showError (Error (Just (line, (row, column))) msg) = mconcat
-    [ showt row, ":", showt column, ": ", msg, " in line "
-    , errorContext (Just column) line
-    ]
+showError (Error mbFilename diagnostics) =
+    Text.intercalate "\n\n" $
+        map (formatDiagnostic mbFilename) (NonEmpty.toList diagnostics)
 
-errorContext :: Maybe Int -> Text -> Text
-errorContext Nothing expr = "\"" <> expr <> "\""
-errorContext (Just i) expr = "\"" <> pre <> char <> post <> "\""
+formatDiagnostic :: Maybe FilePath -> Diagnostic -> Text
+formatDiagnostic mbFilename (Diagnostic line position length_ msg) =
+    case position of
+        Nothing -> Texts.join2 ": " (maybe "" txt mbFilename) msg
+        Just (row, column) -> mconcat
+            [ maybe "" ((<> ":") . txt) mbFilename
+            , showt row, ":", showt column, ":\n"
+            , maybe "" (formatLine row column) line
+            , msg
+            ]
+    where
+    formatLine row column sourceLine = mconcat
+        [ padding, "|\n"
+        , showt row, " | ", sourceLine, "\n"
+        , padding, "| "
+        , Text.replicate (max 0 (column - 1)) " "
+        , Text.replicate pointerLength "^"
+        , "\n"
+        ]
+        where
+        padding = Text.replicate (length (show row) + 1) " "
+        shift = max 0 (column - 1)
+        lineLength = Text.length sourceLine
+        pointerLength
+            | shift + length_ > lineLength = max 1 (lineLength - shift + 1)
+            | otherwise = length_
+
+-- ** shortContext
+
+shortContext :: Maybe Int -> Text -> Text
+shortContext Nothing expr = "\"" <> expr <> "\""
+shortContext (Just i) expr = "\"" <> pre <> char <> post <> "\""
     where
     (pre, post) = (Text.take i expr, Text.drop i expr)
     -- This just has to look distinctively not like ascii and stick out a bit.
@@ -88,15 +181,14 @@ parseAll p text = go (A.parse p text)
         | Text.null rest = Right val
         | otherwise = Left (rest, "expected eof")
 
-inferLocation :: Text -> Text -> Maybe (Text, (Int, Int))
-    -- ^ (line, row from 1, column from 1)
-inferLocation text rest = infer =<< inferColumn text rest
+inferLocation :: Text -> Text -> Maybe (Text, (Row, Column))
+inferLocation text rest = infer <$> inferColumn text rest
     where
-    infer i = extract i <$> List.find (\(_, end, _) -> end > i)
-        (zip3 sums (drop 1 sums) (zip [1..] lines))
-    extract i (start, _, (row, line)) = (line, (row, i - start + 1))
-    sums = scanl (+) 0 (map ((+1) . Text.length) lines)
-    lines = Text.lines text
+    infer i = (line, (length parts, Text.length (last parts) + 1))
+        where
+        (before, after) = Text.splitAt i text
+        parts = Text.splitOn "\n" before
+        line = last parts <> Text.takeWhile (/= '\n') after
 
 inferColumn :: Text -> Text -> Maybe Int
 inferColumn text rest

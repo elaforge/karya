@@ -105,7 +105,7 @@ type Definition = (FilePath, (Expr.Symbol, Expr))
 
 -- * parse ky
 
--- | Parse ky text and load and parse all the files it imports.  'parse_ky'
+-- | Parse ky text and load and parse all the files it imports.  'parseKy'
 -- describes the format of the ky file.
 loadKy :: [FilePath] -> Code
     -> IO (Either ParseText.Error (Ky Loaded))
@@ -123,8 +123,7 @@ loadKyFile paths loaded (Import fname lib : imports)
         let prefix = txt lib <> "?: "
         (fname, content) <- tryRight . first (ParseText.message . (prefix<>))
             =<< liftIO (findKy paths fname lib)
-        ky <- tryRight . first (ParseText.prefix prefix) $
-            parseKy fname content
+        ky <- tryRight $ parseKy fname content
         kys <- loadKyFile paths (Set.insert lib loaded)
             (imports ++ kyImports ky)
         pure $ ky { kyImports = [Loaded fname content] } : kys
@@ -181,7 +180,7 @@ readKy fn = Exception.try (Text.IO.readFile fn) >>= pure . \case
     $variables, which become arguments to the call.
 -}
 parseKy :: FilePath -> Code -> Either ParseText.Error (Ky Import)
-parseKy fname text = do
+parseKy fname text = first (ParseText.setFilename fname) $ do
     (imports, sections) <- first ParseText.message $ checkedSections text
     (definitionSections, sections) <- pure $
         partitionKeys (`Set.member` definitionSections) sections
@@ -198,7 +197,7 @@ parseKy fname text = do
             ( get (kind <> " " <> generator)
             , get (kind <> " " <> transformer)
             )
-    defAliases <- first (ParseText.Error Nothing) $ mapM parseAlias (get alias)
+    defAliases <- first ParseText.message $ mapM parseAlias (get alias)
     kyInstruments <- case mbInstruments of
         Just lines@((lineno, _) : _) ->
             parseInstruments fname lineno $ map snd lines
@@ -237,7 +236,7 @@ parseKy fname text = do
         ]
     parseSection [] = pure []
     parseSection ((lineno, line0) : lines) =
-        first (ParseText.offset (lineno, 0)) $ ParseText.parse pSection $
+        first (ParseText.addRow lineno) $ ParseText.parse pSection $
             Text.unlines (line0 : map snd lines)
 
 -- | The alias section allows only @alias = inst@ definitions.
@@ -259,8 +258,7 @@ parseAlias (lhs, rhs) = first (msg<>) $ case rhs of
 parseInstruments :: FilePath -> Line -> [Text]
     -> Either ParseText.Error UiConfig.Allocations
 parseInstruments fname lineno lines =
-    -- TODO convert megaparsec line numbers back to ParseText._position?
-    first (ParseText.Error Nothing) $
+    first ParseText.fromMegaparsec $
         Util.Parse.parseFromLine (lineno+1) fname Instruments.pInstruments
             (Text.unlines lines)
 
@@ -272,9 +270,7 @@ tscoreSection = "tscore"
 parseTscore :: FilePath -> Line -> [Text]
     -> Either ParseText.Error TScore.T.Score
 parseTscore fname lineno lines =
-    -- TODO same as parseInstruments, convert megaparsec line numbers back to
-    -- ParseText._position?
-    first (ParseText.Error Nothing) $
+    first ParseText.fromMegaparsec $
         Util.Parse.parseFromLine (lineno+1) fname TScore.Parse.score
             (Text.unlines lines)
 

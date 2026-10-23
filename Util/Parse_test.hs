@@ -3,9 +3,13 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Util.Parse_test where
+import qualified Data.Set as Set
+import qualified Text.Megaparsec as P
+
 import qualified Util.Parse as Parse
 import qualified Util.ParseText as ParseText
 
+import           Global
 import           Util.Test
 
 
@@ -24,3 +28,16 @@ test_attoparse = do
     leftLike (comma nat nat "a,2") "expecting nat"
     leftLike (comma anat nat "a,2") "expected anat"
     leftLike (comma nat anat "1,a") "expected anat"
+
+test_errorBundle :: Test
+test_errorBundle = do
+    match (render multiple "") "fname:1:1:*fname:1:1:*"
+    match (render multiToken "abcde") "fname:1:1:*^^^*"
+    where
+    render parser input = case Parse.parseFromLine 1 "fname" parser input of
+        Left bundle -> ParseText.showError $ ParseText.fromMegaparsec bundle
+        Right _ -> "parser unexpectedly succeeded"
+    multiple = do
+        P.registerFailure Nothing Set.empty
+        P.registerFailure Nothing Set.empty
+    multiToken = P.failure (Just $ P.Tokens ('a' :| "bc")) Set.empty

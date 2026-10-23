@@ -43,11 +43,13 @@ parseS state fname p = fst . flip State.runState state . parseM fname p
 
 -- | Like 'parse', but pretend the text starts at the given 1-based line, so
 -- error messages get the line numbers of the enclosing file.
-parseFromLine :: Int -> FilePath -> Parser a -> Text -> Either Text a
+--
+-- TODO perhaps no longer needed now that I have ParseText.addRow
+parseFromLine :: Int -> FilePath -> Parser a -> Text
+    -> Either (P.ParseErrorBundle Text Void.Void) a
 parseFromLine line fname p = Identity.runIdentity . parseLineM
     where
-    parseLineM text = first (txt . P.errorBundlePretty) . snd <$>
-        P.runParserT' (p <* P.eof) (state text)
+    parseLineM text = snd <$> P.runParserT' (p <* P.eof) (state text)
     state text = P.State
         { P.stateInput = text
         , P.stateOffset = 0

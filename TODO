@@ -784,10 +784,10 @@ UNSORTED
     - Allocs no longer belong in UiConfig, probably they should go into
       Cmd.State along with the loaded ky.
     - directly import kyPath rather than faking up 'import' line
-    - show tscore errors positions correctly
+    - Ky.integrateTscore: show tscore errors positions correctly
       . I think I need an offset for tscore section in .ky, and
         a filename for imported ones.
-    + syntax error shows filename twice
+    * syntax error shows filename twice
       . State error: -- from Cmd.Repl, removed
         Cmd/Ky.hs:135 -- from tryRight in Cmd.Ky, removed
         /Users/elaforge/src/seq/data/save/test/ky1/save.state.ky:
