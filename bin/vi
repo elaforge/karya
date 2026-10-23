@@ -1,15 +1,15 @@
 #!/usr/bin/env zsh
 # Wrapper around vim for editing ky files.
-#
-# This could be in the global or local .vimrc filetype.vim, but since
-# it calls send on save, it only makes sense to run when run from this
-# directory.
+# I :set exrc and let vim run the local .vimrc, but if you don't like
+# the security implications, run bin/vi.
 
 # TODO bring this back if I want to re-use vi name.
 # Find the next vi in PATH to avoid recursion.
 # next=($(whence -a $(basename $0)))
 # exec $next[2] -c "source ky.vim" "$@"
 
-exec vim --cmd \
-    "au BufRead,BufNewFile *.ky set filetype=ky | source ${0:A:h:h}/ky.vim" \
+exec vim \
+    --cmd "au BufRead,BufNewFile *.ky source ${0:A:h:h}/ky.vim" \
+    --cmd "au BufRead,BufNewFile *.tscore,*.jscore source \
+        ${0:A:h:h}/tscore-syntax.vim | runtime! ftplugin/tscore.vim" \
     "$@"

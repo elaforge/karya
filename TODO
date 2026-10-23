@@ -777,7 +777,7 @@ UNSORTED
   ky separate file cleanup:
     * save on ky with no socket should be silently ok
     - who uses Ky.load, and do they need tscore?
-    - incorporate tscore into ky.vim
+    * incorporate tscore into ky.vim
       . But I still want separate tscore-syntax.vim for *.tscore
       . Also should I move the au commands to seq dir?
       . Move vim files to a vim dir?

@@ -1,8 +1,14 @@
 " Syntax highlighting for .tscore and .jscore files.
 
+" Standard guard so loading twice is a no-op.  ky.vim unlets this to include
+" these rules.
+if exists('b:current_syntax')
+    finish
+endif
+
 " I have to use the awkward regexes because :syn match keyword doesn't
 " work because I don't want to modify iskeyword to put in %.
-syn match tsDirective "%\(default-call|order\)\>"
+syn match tsDirective "%\(default-call\|order\)\>"
 syn match tsDirective "%\(dur\|meter\|negative\|scale\|f\)\>"
 syn match tsDirective "%ky\>"
 " jscore only
@@ -20,3 +26,5 @@ hi tsComment cterm=bold
 
 " Turn off >80 column highlight.
 match none
+
+let b:current_syntax = 'tscore'
