@@ -13,6 +13,7 @@
 " but I think I like :w as a low level write.  But, I don't think other people
 " use gz like I do, and maybe :w is not really useful, so maybe switch some
 " day.
+
 nmap <buffer> gz :call <SID>Send()<cr>
 nmap <buffer> ZZ :call <SID>Send()<cr>:q<cr>
 
@@ -21,9 +22,40 @@ nmap <buffer> ZZ :call <SID>Send()<cr>:q<cr>
 function! s:ExecuteQuietly(cmd)
     " Without silent, the screen gets corrupted and needs redraw!
     silent let output = system(a:cmd)
-    if substitute(output, ' ', '', 'g') != ''
-        echo output
+
+    " This is the simpler way, just show the error as is.
+    " if substitute(output, ' ', '', 'g') != ''
+    "     echo output
+    " endif
+
+    " This is the fancy way, parse it into a qflist.
+    let has_items = s:SetQuickfix(output)
+    if has_items
+        cwindow
+    else
+        cclose
     endif
+endfunction
+
+" Parse errors from Ky.reload and put them in a quickfix list.
+function! s:SetQuickfix(output)
+    let lines = map(split(a:output, "\n", 1),
+        \ 'substitute(v:val, "\r$", "", "")')
+    " remove source context lines, we can just jump to the source
+    call filter(lines, 'v:val !~# ''^\s*$''')
+    call filter(lines, 'v:val !~# ''^[0-9 ]\+|''')
+
+    " Let Vim parse locations and associate them with existing buffers.
+    " errorformat maps filename:line:column:message to quickfix fields;
+    " cgetexpr applies it to an already captured list of output lines.
+    let errorformat = &l:errorformat
+    try
+        setlocal errorformat=%f:%l:%c:%m
+        cgetexpr lines
+    finally
+        let &l:errorformat = errorformat
+    endtry
+    return !empty(lines)
 endfunction
 
 function! s:Send()
