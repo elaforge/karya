@@ -26,43 +26,46 @@ import           Util.Test
 
 test_loadKy :: Test
 test_loadKy = do
-    let makeKy imports defs = unlines $
+    let makeKy imports defs = Text.unlines $
             ["import '" <> i <> "'" | i <- imports]
             ++ "note generator:" : [d <> " = z" | d <- defs]
     dir <- Testing.tmpDir "ky"
     let lib = dir </> "lib"
     Directory.createDirectory lib
-    writeFile (lib </> "lib1") $ makeKy ["lib2"] ["lib1-call"]
+    Text.IO.writeFile (lib </> "lib1") $ makeKy ["lib2"] ["lib1-call"]
 
     let write imports =
-            writeFile (dir </> "defs") (makeKy imports ["defs-call"])
+            Text.IO.writeFile (dir </> "defs") (makeKy imports ["defs-call"])
     let load = bimap ParseM.showError extract
-            <$> Ky.loadKy [dir, lib] "import 'defs'"
+            <$> Ky.loadKy [dir, lib] (dir </> "defs")
         extract (Ky.Ky defs imports allocs _tscore) =
             ( map (fst . snd) . fst . Ky.defNote $ defs
             , imports
             , allocs
             )
     write ["z1"]
-    io leftLike load "ky file not found: z"
-
+    io leftLike load "defs: ky file not found: z1"
     write ["lib1"]
-    io leftLike load "ky file not found: lib2"
+    io leftLike load "lib1: ky file not found: lib2"
+    -- cycle: defs imports itself
+    write ["defs"]
+    io rightEqual load
+        ( ["defs-call"]
+        , [Ky.Loaded (dir </> "defs") (makeKy ["defs"] ["defs-call"])]
+        , mempty
+        )
 
-    writeFile (lib </> "lib2") $ makeKy [] ["lib2-call"]
+    Text.IO.writeFile (lib </> "lib2") $ makeKy [] ["lib2-call"]
     let bad = dir </> "bad"
-    writeFile bad "instrument:\n123\n"
+    Text.IO.writeFile bad "instrument:\n123\n"
     write ["bad"]
     io leftLike load (txt bad <> ":2:1:unexpected '1'")
     write ["lib1"]
-
-
     [lib1, lib2, defs] <- mapM Text.IO.readFile
         [lib </> "lib1", lib </> "lib2", dir </> "defs"]
     ioEqual load $ Right
         ( ["defs-call", "lib1-call", "lib2-call"]
-        , [ Ky.Loaded "" "import 'defs'"
-          , Ky.Loaded (dir </> "defs") defs
+        , [ Ky.Loaded (dir </> "defs") defs
           , Ky.Loaded (lib </> "lib1") lib1
           , Ky.Loaded (lib </> "lib2") lib2
           ]

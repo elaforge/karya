@@ -9,6 +9,7 @@ module Derive.Parse.Ky (
     , Ky(..), Loaded(..)
     , TScore
     , Definitions(..), Definition
+    , loadKyCode
     , loadKy
     , parseKy
     , replaceSection
@@ -79,8 +80,8 @@ instance Monoid (Ky a) where
 -- A path of "" is used for the code directly in the UiConfig.
 data Loaded = Loaded !FilePath !Code
     deriving (Eq, Show)
--- | A requested import.  Path to .ky file, .ky files it imports.
-data Import = Import !FilePath !String
+-- | A requested import.  Importing path, path to import.
+data Import = Import !FilePath !FilePath
     deriving (Eq, Show)
 
 -- | This is a mirror of 'Derive.Library', but with expressions instead of
@@ -107,46 +108,55 @@ type Definition = (FilePath, (Expr.Symbol, Expr))
 
 -- * parse ky
 
+-- | Legacy path to read ky from a Text instead of a file.
+loadKyCode :: [FilePath] -> Code -> IO (Either ParseM.Error (Ky Loaded))
+loadKyCode paths code = Except.runExceptT $ do
+    ky <- tryRight $ parseKy "<internal>" code
+    kys <- importKy Set.empty paths (kyImports ky)
+    pure $ mconcat $ ky { kyImports = [Loaded "" code] } : kys
+
 -- | Parse ky text and load and parse all the files it imports.  'parseKy'
 -- describes the format of the ky file.
-loadKy :: [FilePath] -> Code
-    -> IO (Either ParseM.Error (Ky Loaded))
-loadKy paths content = Except.runExceptT $ do
-    ky <- tryRight $ parseKy "<internal>" content
-    kys <- loadKyFile paths Set.empty (kyImports ky)
-    pure $ mconcat $ ky { kyImports = [Loaded "" content] } : kys
+loadKy :: [FilePath] -> FilePath -> IO (Either ParseM.Error (Ky Loaded))
+loadKy paths fname = Except.runExceptT $
+    mconcat <$> importKy Set.empty paths [Import "" fname]
 
-loadKyFile :: [FilePath] -> Set FilePath -> [Import]
+importKy :: Set FilePath -> [FilePath] -> [Import]
     -> Except.ExceptT ParseM.Error IO [Ky Loaded]
-loadKyFile _ _ [] = pure []
-loadKyFile paths loaded (Import fname lib : imports)
-    | lib `Set.member` loaded = pure []
-    | otherwise = do
-        let prefix = txt lib <> "?: "
-        (fname, content) <- tryRight . first (ParseM.message . (prefix<>))
-            =<< liftIO (findKy paths fname lib)
-        ky <- tryRight $ parseKy fname content
-        kys <- loadKyFile paths (Set.insert lib loaded)
+importKy _ _ [] = pure []
+importKy loaded paths (Import importer fname : imports) = do
+    (fname, code) <- if importer == ""
+        then do
+            code <- tryRight . first (ParseM.setFilename fname) . extract
+                =<< liftIO (readKy fname)
+            pure (fname, code)
+        else tryRight . first (ParseM.setFilename importer . ParseM.message)
+            =<< liftIO (findKy paths fname)
+    if fname `Set.member` loaded then pure [] else do
+        ky <- tryRight $ parseKy fname code
+        kys <- importKy (Set.insert fname loaded) paths
             (imports ++ kyImports ky)
-        pure $ ky { kyImports = [Loaded fname content] } : kys
+        pure $ ky { kyImports = [Loaded fname code] } : kys
+    where
+    extract Nothing = Left $ ParseM.message "not found"
+    extract (Just (Left err)) = Left $ ParseM.message err
+    extract (Just (Right a)) = Right a
 
 -- | Find the file in the given paths and return its filename and contents.
-findKy :: [FilePath] -> FilePath -> FilePath
-    -> IO (Either Error (FilePath, Code))
-findKy paths from fname =
+findKy :: [FilePath] -> FilePath -> IO (Either Error (FilePath, Code))
+findKy paths fname =
     maybe (Left notFound) id <$>
         firstJusts (map (\dir -> get (dir </> fname)) paths)
     where
     notFound = "ky file not found: " <> txt fname
-        <> (if from == "" then "" else " from " <> txt from)
         <> " (searched " <> Text.intercalate ", " (map txt paths) <> ")"
     get fn = fmap (fmap (fn,)) <$> readKy fn
 
-readKy :: FilePath -> IO (Maybe (Either Error Text))
-readKy fn = Exception.try (Text.IO.readFile fn) >>= pure . \case
+readKy :: FilePath -> IO (Maybe (Either Error Code))
+readKy fname = Exception.try (Text.IO.readFile fname) >>= pure . \case
     Left exc
         | IO.Error.isDoesNotExistError exc -> Nothing
-        | otherwise -> Just $ Left $ txt $ fn <> ": " <> show exc
+        | otherwise -> Just $ Left $ txt (show exc)
     Right t -> Just $ Right t
 
 {- | Parse a ky file.  This file gives a way to define new calls in the
@@ -257,7 +267,7 @@ parseAlias (lhs, rhs) = first (msg<>) $ case rhs of
 
 -- | The lineno is the 0-based line of the first line of the section, which
 -- becomes the 1-based starting line for megaparsec.
-parseInstruments :: FilePath -> Line -> [Text]
+parseInstruments :: FilePath -> Line -> [Code]
     -> Either ParseM.Error UiConfig.Allocations
 parseInstruments fname lineno lines =
     first (ParseM.addRow lineno . ParseM.fromMegaparsec) $
@@ -269,7 +279,7 @@ parseInstruments fname lineno lines =
 tscoreSection :: Text
 tscoreSection = "tscore"
 
-parseTscore :: FilePath -> Line -> Text
+parseTscore :: FilePath -> Line -> Code
     -> Either ParseM.Error TScore.T.Score
 parseTscore fname lineno code =
     first (ParseM.addRow lineno . ParseM.fromMegaparsec) $
@@ -279,12 +289,12 @@ parseTscore fname lineno code =
 
 -- | Most of the sections are not line-oriented, but the instrument section is.
 -- Line numbers are used for to add as offsets to parsing errors.
-type Section = (Title, [(Line, Text)])
+type Section = (Title, [(Line, Code)])
 type Title = Text
 type Line = Int
 
 -- | Split sections into a Map with section name keys, and numbered lines.
-checkedSections :: Code -> Either Error (Code, Map Title [(Line, Text)])
+checkedSections :: Code -> Either Error (Code, Map Title [(Line, Code)])
 checkedSections = traverse check . extract . parseSections
     where
     check (sections, []) = Right sections
@@ -313,7 +323,7 @@ unparseSection :: (Title, [Text]) -> Code
 unparseSection (section, lines) =
     (if section == "" then "" else section <> ":\n") <> Text.unlines lines
 
-replaceSection :: Title -> (Text -> Text) -> Code -> Code
+replaceSection :: Title -> (Code -> Code) -> Code -> Code
 replaceSection title modify =
     mconcatMap unparseSection . map mod . parseSections
     where

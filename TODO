@@ -5,7 +5,7 @@ LEGEND
 
 in progress:
   + simplify rulers:
-  - extract ky and tscore to external file: ky separate file:
+  + extract ky and tscore to external file: ky separate file:
   - scales
     . Heal the Derive.Scale.All and All2 split.  Decide if I want to set scale
       with scale= or with call `scale ...`.
@@ -783,7 +783,7 @@ UNSORTED
       . Move vim files to a vim dir?
     - Allocs no longer belong in UiConfig, probably they should go into
       Cmd.State along with the loaded ky.
-    - directly import kyPath rather than faking up 'import' line
+    * directly import kyPath rather than faking up 'import' line
     * Ky.integrateTscore: show tscore errors positions correctly
       . I think I need an offset for tscore section in .ky, and
         a filename for imported ones.

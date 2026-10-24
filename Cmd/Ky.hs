@@ -143,32 +143,26 @@ tscoreFingerprint tscores =
     Cmd.Fingerprint fnames (foldl' Hashable.hashWithSalt 0 codes)
     where (fnames, _, codes, _) = List.unzip4 tscores
 
--- TODO rename to 'load'
+-- TODO rename to 'load'?
+-- | If $base.ky exists, import it.  mbKyCode Nothing means just check the
+-- file.  Just is the old internal ky path, for old scores.
 loadKy :: Maybe FilePath -> [FilePath] -> Maybe Ky.Code
     -> IO (Maybe (Either Error (Ky.Ky Ky.Loaded)))
 loadKy mbKyPath paths mbKyCode = do
-    -- if $base.ky exists, kyText becomes 'import $base.ky'. mbKyCode Nothing
-    -- means just check the file.  Just is the old internal ky path, for old
-    -- scores.
-    -- TODO directly invoke import rather than constructing a fake import
-    -- source.  Then no corner case with ' in filename.
-    mbKyText <- case mbKyPath of
-        Nothing -> pure mbKyCode
-        Just kyPath -> ifM (Directory.doesFileExist kyPath)
-            (pure $ Just $ "import '" <> txt kyPath <> "'")
-            (pure mbKyCode)
-    case mbKyText of
-        Nothing -> pure Nothing
-        Just kyText -> do
-            result <- Ky.loadKy paths kyText
-            pure $ Just $ first ParseM.showError result
+    exists <- maybe (pure False) Directory.doesFileExist mbKyPath
+    case mbKyPath of
+        Just kyPath | exists -> fmt <$> Ky.loadKy paths kyPath
+        _ -> case mbKyCode of
+            Nothing -> pure Nothing
+            Just code -> fmt <$> Ky.loadKyCode paths code
+    where fmt = Just . first ParseM.showError
 
 -- | Like 'reload', but assuming no existing cmd or ui state.
 load :: [FilePath] -> Text
     -> IO (Either Text
         (Derive.Builtins, Derive.InstrumentAliases, UiConfig.Allocations))
 load paths kyText =
-    bimap ParseM.showError compile <$> Ky.loadKy paths kyText
+    bimap ParseM.showError compile <$> Ky.loadKyCode paths kyText
 
 compile :: Ky.Ky Ky.Loaded
     -> (Derive.Builtins, Derive.InstrumentAliases, UiConfig.Allocations)

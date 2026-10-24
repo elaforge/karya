@@ -113,9 +113,9 @@ ioBindings = concat
     ]
 
 -- Previously a second space would contract the selection, but since then I
--- took over space for stop_or_play.
--- context_stop :: Cmd.CmdT IO ()
--- context_stop = unlessM Play.cmd_context_stop (Selection.to_point True)
+-- took over space for stopOrPlay
+-- contextStop :: Cmd.CmdT IO ()
+-- contextStop = unlessM Play.cmdContextStop (Selection.toPoint True)
 
 stopOrPlay :: Cmd.CmdT IO Cmd.Status
 stopOrPlay = Play.cmdContextStop >>= \case
