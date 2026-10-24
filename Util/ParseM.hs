@@ -3,10 +3,37 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 -- | Generic parsing utils for megaparsec.
-module Util.ParseM where
+module Util.ParseM (
+    -- * parse
+    Parser, ParserT, ParserS
+    , parse
+    , parseMaybe
+    , parseM, parseS, parseE
+    , file
+    -- * basic parsing
+    , Offset
+    , failAt
+    , getOffset
+    , offsetToSourcePos
+    , pInt, pNat, pPositive, pFloat, pUnsignedFloat
+    -- * attoparse
+    , attoparse
+    -- * errors
+    , Error(..)
+    , Diagnostic(..)
+    , Row, Column
+    , fromMegaparsec
+    , prefix
+    , addRow
+    , message
+    , setFilename
+    , showError
+) where
 import qualified Control.Monad.Identity as Identity
 import qualified Control.Monad.State.Strict as State
 import qualified Data.Attoparsec.Text as A
+import qualified Data.List as List
+import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Set as Set
 import qualified Data.Text as Text
 import qualified Data.Text.IO as Text.IO
@@ -18,11 +45,12 @@ import           Text.Megaparsec ((<?>))
 import qualified Text.Megaparsec.Char as P
 
 import qualified Util.Exceptions as Exceptions
+import qualified Util.Texts as Texts
 
 import           Global
 
 
--- * parsec
+-- * parse
 
 type Parser a = ParserT Identity.Identity a
 type ParserT m a = P.ParsecT Void.Void Text m a
@@ -45,6 +73,14 @@ parseE :: FilePath -> Parser a -> Text
     -> Either (P.ParseErrorBundle Text Void.Void) a
 parseE fname p = Identity.runIdentity . P.runParserT (p <* P.eof) fname
 
+-- | Try to parse a file, or return a default value if the file doesn't exist.
+file :: a -> ParserS st a -> st -> FilePath -> IO (Either Text a)
+file deflt parser state fname = do
+    mbText <- Exceptions.ignoreEnoent (Text.IO.readFile fname)
+    pure $ maybe (Right deflt) (parseS state fname parser) mbText
+
+-- * basic parsing
+
 type Offset = Int
 
 failAt :: Offset -> String -> Parser a
@@ -61,12 +97,6 @@ offsetToSourcePos offset = do
   pos <- P.getSourcePos
   P.setParserState state
   pure pos
-
--- | Try to parse a file, or return a default value if the file doesn't exist.
-file :: a -> ParserS st a -> st -> FilePath -> IO (Either Text a)
-file deflt parser state fname = do
-    mbText <- Exceptions.ignoreEnoent (Text.IO.readFile fname)
-    pure $ maybe (Right deflt) (parseS state fname parser) mbText
 
 pInt :: ParserT m Int
 pInt = do
@@ -137,3 +167,114 @@ attoparse msg p = do
             -- own.  E.g. it may be "Failed reading: takeWhile1".
             fail $ "expected " <> msg
         A.Partial cont -> go pre (cont "")
+
+-- * errors
+
+-- | A local simplification of P.ParseErrorBundle.  I use it because I also
+-- emit non-parse errors, and I want them to be reported in the same way.
+data Error = Error
+    { _filename :: Maybe FilePath
+    -- TODO This is only a list because some rare megaparsec condition I don't
+    -- use can emit multiple errors.  Maybe I can just have one and crash or
+    -- smash them together for multiple?
+    , _diagnostic :: Diagnostic
+    , _extraDiagnostics :: [Diagnostic]
+    } deriving (Eq, Show)
+
+data Diagnostic = Diagnostic
+    { _line :: Maybe Text -- ^ line where the error occurred
+    , _position :: Maybe (Row, Column)
+    , _length :: Int -- ^ length of caret highlight
+    , _message :: Text
+    } deriving (Eq, Show)
+
+type Row = Int
+type Column = Int
+
+-- | Convert Megaparsec diagnostics into the common error representation.
+fromMegaparsec :: P.ParseErrorBundle Text Void.Void -> Error
+fromMegaparsec bundle = case located of
+    (_filename, diagnostic) : rest -> Error
+        { _filename
+        , _diagnostic = diagnostic
+        , _extraDiagnostics = map snd rest
+        }
+    -- TODO because didn't use NonEmpty.mapAccumL?
+    [] -> message "Megaparsec returned an empty error bundle"
+    where
+    located = snd $ List.mapAccumL convert (P.bundlePosState bundle)
+        (NonEmpty.toList (P.bundleErrors bundle))
+    convert posState0 err =
+        ( posState1
+        , ( if sourceName == "" then Nothing else Just sourceName
+          , Diagnostic
+                { _line = txt <$> line
+                , _position = Just
+                    ( P.unPos (P.sourceLine sourcePos)
+                    , P.unPos (P.sourceColumn sourcePos)
+                    )
+                , _length = errorLength err
+                , _message = Text.stripEnd $ txt $ P.parseErrorTextPretty err
+                }
+          )
+        )
+        where
+        (line, posState1) = P.reachOffset (P.errorOffset err) posState0
+        sourcePos = P.pstateSourcePos posState1
+        sourceName = P.sourceName sourcePos
+    errorLength (P.TrivialError _ unexpected _) =
+        maybe 1 errorItemLength unexpected
+    errorLength (P.FancyError _ errors) =
+        maximum (1 : map errorFancyLength (Set.toList errors))
+    errorItemLength (P.Tokens tokens) = NonEmpty.length tokens
+    errorItemLength _ = 1
+    errorFancyLength (P.ErrorCustom component) = P.errorComponentLen component
+    errorFancyLength _ = 1
+
+prefix :: Text -> Error -> Error
+prefix prefix err = err { _diagnostic = add (_diagnostic err) }
+    where add diag = diag { _message = prefix <> _message diag }
+
+-- | Add a row offset.
+addRow :: Row -> Error -> Error
+addRow row err = err { _diagnostic = shift (_diagnostic err) }
+    where shift diag = diag { _position = first (+row) <$> _position diag }
+
+message :: Text -> Error
+message msg = Error Nothing (Diagnostic Nothing Nothing 1 msg) []
+
+-- | Set the filename unless the error already carries one.
+setFilename :: FilePath -> Error -> Error
+setFilename filename err = err { _filename = _filename err <|> Just filename }
+
+showError :: Error -> Text
+showError (Error mbFilename diagnostic diagnostics) =
+    Text.intercalate "\n\n" $
+        map (formatDiagnostic mbFilename) (diagnostic : diagnostics)
+
+formatDiagnostic :: Maybe FilePath -> Diagnostic -> Text
+formatDiagnostic mbFilename (Diagnostic line position length_ msg) =
+    case position of
+        Nothing -> Texts.join2 ": " (maybe "" txt mbFilename) msg
+        Just (row, column) -> mconcat
+            [ maybe "" ((<> ":") . txt) mbFilename
+            , showt row, ":", showt column, ":\n"
+            , maybe "" (formatLine row column) line
+            , msg
+            ]
+    where
+    formatLine row column sourceLine = mconcat
+        [ padding, "|\n"
+        , showt row, " | ", sourceLine, "\n"
+        , padding, "| "
+        , Text.replicate (max 0 (column - 1)) " "
+        , Text.replicate pointerLength "^"
+        , "\n"
+        ]
+        where
+        padding = Text.replicate (length (show row) + 1) " "
+        shift = max 0 (column - 1)
+        lineLength = Text.length sourceLine
+        pointerLength
+            | shift + length_ > lineLength = max 1 (lineLength - shift + 1)
+            | otherwise = length_

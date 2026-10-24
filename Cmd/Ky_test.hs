@@ -6,7 +6,7 @@ module Cmd.Ky_test where
 import qualified Data.Map as Map
 import qualified Data.Text as Text
 
-import qualified Util.ParseA as ParseA
+import qualified Util.ParseM as ParseM
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.CmdTest as CmdTest
 import qualified Cmd.Ky as Ky
@@ -124,7 +124,7 @@ eBuiltins = concatMap (Map.keys . Derive.callMap) . Map.elems
 putLibrary :: Cmd.M m => Text -> m ()
 putLibrary text = do
     Parse.Ky.Ky defs _imported _allocs _tscore _tscoreLines <-
-        Cmd.requireRight ParseA.showError $
+        Cmd.requireRight ParseM.showError $
             Parse.Ky.parseKy "fname.ky" text
     let (builtins, _logs) = Ky.compileLibrary (Ky.compileDefinitions defs)
     Cmd.modify $ \st -> st

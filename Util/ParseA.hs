@@ -16,16 +16,10 @@ module Util.ParseA (module Util.ParseA, many) where
 import           Control.Applicative (many)
 import qualified Data.Attoparsec.Text as A
 import           Data.Attoparsec.Text ((<?>))
-import qualified Data.List as List
-import qualified Data.List.NonEmpty as NonEmpty
-import qualified Data.Set as Set
 import qualified Data.Text as Text
 import qualified Data.Text.Read as Text.Read
-import qualified Data.Void as Void
 
-import qualified Text.Megaparsec as P
-
-import qualified Util.Texts as Texts
+import qualified Util.ParseM as ParseM
 
 import           Global
 
@@ -41,122 +35,19 @@ parse1 p text = first fmt $ parseAll p text
         where col = inferColumn text rest
 
 -- | Parse all of the text, and annotate the error with line number and column.
-parse :: Parser a -> Text -> Either Error a
+parse :: Parser a -> Text -> Either ParseM.Error a
 parse p text = case parseAll p text of
     Right val -> Right val
     Left (rest, msg) -> Left $ case inferLocation text rest of
-        Nothing -> message msg
-        Just (line, position) ->
-            Error Nothing (Diagnostic (Just line) (Just position) 1 msg) []
-
--- | A local simplification of P.ParseErrorBundle.  I use it because I also
--- emit non-parse errors, and I want them to be reported in the same way.
-data Error = Error
-    { _filename :: Maybe FilePath
-    -- TODO This is only a list because some rare megaparsec condition I don't
-    -- use can emit multiple errors.  Maybe I can just have one and crash or
-    -- smash them together for multiple?
-    , _diagnostic :: Diagnostic
-    , _extraDiagnostics :: [Diagnostic]
-    } deriving (Eq, Show)
-
-data Diagnostic = Diagnostic
-    { _line :: Maybe Text -- ^ line where the error occurred
-    , _position :: Maybe (Row, Column)
-    , _length :: Int -- ^ length of caret highlight
-    , _message :: Text
-    } deriving (Eq, Show)
+        Nothing -> ParseM.message msg
+        Just (line, position) -> ParseM.Error
+            { _filename = Nothing
+            , _diagnostic = ParseM.Diagnostic (Just line) (Just position) 1 msg
+            , _extraDiagnostics = []
+            }
 
 type Row = Int
 type Column = Int
-
--- | Convert Megaparsec diagnostics into the common error representation.
-fromMegaparsec :: P.ParseErrorBundle Text Void.Void -> Error
-fromMegaparsec bundle = case located of
-    (_filename, diagnostic) : rest -> Error
-        { _filename
-        , _diagnostic = diagnostic
-        , _extraDiagnostics = map snd rest
-        }
-    -- TODO because didn't use NonEmpty.mapAccumL?
-    [] -> message "Megaparsec returned an empty error bundle"
-    where
-    located = snd $ List.mapAccumL convert (P.bundlePosState bundle)
-        (NonEmpty.toList (P.bundleErrors bundle))
-    convert posState0 err =
-        ( posState1
-        , ( if sourceName == "" then Nothing else Just sourceName
-          , Diagnostic
-                { _line = txt <$> line
-                , _position = Just
-                    ( P.unPos (P.sourceLine sourcePos)
-                    , P.unPos (P.sourceColumn sourcePos)
-                    )
-                , _length = errorLength err
-                , _message = Text.stripEnd $ txt $ P.parseErrorTextPretty err
-                }
-          )
-        )
-        where
-        (line, posState1) = P.reachOffset (P.errorOffset err) posState0
-        sourcePos = P.pstateSourcePos posState1
-        sourceName = P.sourceName sourcePos
-    errorLength (P.TrivialError _ unexpected _) =
-        maybe 1 errorItemLength unexpected
-    errorLength (P.FancyError _ errors) =
-        maximum (1 : map errorFancyLength (Set.toList errors))
-    errorItemLength (P.Tokens tokens) = NonEmpty.length tokens
-    errorItemLength _ = 1
-    errorFancyLength (P.ErrorCustom component) = P.errorComponentLen component
-    errorFancyLength _ = 1
-
-prefix :: Text -> Error -> Error
-prefix prefix err = err { _diagnostic = add (_diagnostic err) }
-    where add diag = diag { _message = prefix <> _message diag }
-
--- | Add a row offset.
-addRow :: Row -> Error -> Error
-addRow row err = err { _diagnostic = shift (_diagnostic err) }
-    where shift diag = diag { _position = first (+row) <$> _position diag }
-
-message :: Text -> Error
-message msg = Error Nothing (Diagnostic Nothing Nothing 1 msg) []
-
--- | Set the filename unless the error already carries one.
-setFilename :: FilePath -> Error -> Error
-setFilename filename err = err { _filename = _filename err <|> Just filename }
-
-showError :: Error -> Text
-showError (Error mbFilename diagnostic diagnostics) =
-    Text.intercalate "\n\n" $
-        map (formatDiagnostic mbFilename) (diagnostic : diagnostics)
-
-formatDiagnostic :: Maybe FilePath -> Diagnostic -> Text
-formatDiagnostic mbFilename (Diagnostic line position length_ msg) =
-    case position of
-        Nothing -> Texts.join2 ": " (maybe "" txt mbFilename) msg
-        Just (row, column) -> mconcat
-            [ maybe "" ((<> ":") . txt) mbFilename
-            , showt row, ":", showt column, ":\n"
-            , maybe "" (formatLine row column) line
-            , msg
-            ]
-    where
-    formatLine row column sourceLine = mconcat
-        [ padding, "|\n"
-        , showt row, " | ", sourceLine, "\n"
-        , padding, "| "
-        , Text.replicate (max 0 (column - 1)) " "
-        , Text.replicate pointerLength "^"
-        , "\n"
-        ]
-        where
-        padding = Text.replicate (length (show row) + 1) " "
-        shift = max 0 (column - 1)
-        lineLength = Text.length sourceLine
-        pointerLength
-            | shift + length_ > lineLength = max 1 (lineLength - shift + 1)
-            | otherwise = length_
 
 -- ** shortContext
 

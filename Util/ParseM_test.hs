@@ -6,8 +6,8 @@ module Util.ParseM_test where
 import qualified Data.Set as Set
 import qualified Text.Megaparsec as P
 
-import qualified Util.ParseM as ParseM
 import qualified Util.ParseA as ParseA
+import qualified Util.ParseM as ParseM
 
 import           Global
 import           Util.Test
@@ -35,7 +35,7 @@ test_errorBundle = do
     match (render multiToken "abcde") "fname:1:1:*^^^*"
     where
     render parser input = case ParseM.parseE "fname" parser input of
-        Left bundle -> ParseA.showError $ ParseA.fromMegaparsec bundle
+        Left bundle -> ParseM.showError $ ParseM.fromMegaparsec bundle
         Right _ -> "parser unexpectedly succeeded"
     multiple = do
         P.registerFailure Nothing Set.empty

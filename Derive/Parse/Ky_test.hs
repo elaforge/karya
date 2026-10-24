@@ -11,7 +11,9 @@ import qualified System.Directory as Directory
 import           System.FilePath ((</>))
 
 import qualified Util.ParseA as ParseA
+import qualified Util.ParseM as ParseM
 import qualified Util.Test.Testing as Testing
+
 import qualified Derive.Expr as Expr
 import qualified Derive.Parse.Ky as Ky
 import qualified Derive.ScoreT as ScoreT
@@ -34,7 +36,7 @@ test_loadKy = do
 
     let write imports =
             writeFile (dir </> "defs") (makeKy imports ["defs-call"])
-    let load = bimap ParseA.showError extract
+    let load = bimap ParseM.showError extract
             <$> Ky.loadKy [dir, lib] "import 'defs'"
         extract (Ky.Ky defs imports allocs _tscore _tscoreLines) =
             ( map (fst . snd) . fst . Ky.defNote $ defs
@@ -73,7 +75,7 @@ eExpr (Ky.Expr (call :| calls)) = eCall call : map eCall calls
 
 test_parseKy :: Test
 test_parseKy = do
-    let f extract = bimap ParseA.showError extract
+    let f extract = bimap ParseM.showError extract
             . Ky.parseKy "fname.ky"
         note = f eNote . ("note generator:\n"<>)
         eNote = map (second (head . eExpr) . snd) . fst . Ky.defNote
@@ -110,7 +112,7 @@ test_parseKy = do
 
 test_instruments :: Test
 test_instruments = do
-    let f = bimap ParseA.showError extract
+    let f = bimap ParseM.showError extract
             . Ky.parseKy "fname.ky"
         extract = Ky.kyInstruments
     -- line offset to 4
@@ -124,7 +126,7 @@ test_instruments = do
 
 test_tscore :: Test
 test_tscore = do
-    let f = bimap ParseA.showError extract
+    let f = bimap ParseM.showError extract
             . Ky.parseKy "fname.ky"
         extract ky = Ky.kyTscore ky
     -- Properly on line 3 instead of 2.
@@ -133,7 +135,7 @@ test_tscore = do
 
 test_p_definition :: Test
 test_p_definition = do
-    let f = bimap ParseA.showError (second eExpr)
+    let f = bimap ParseM.showError (second eExpr)
             . ParseA.parse Ky.pDefinition
     equal (f "a =\n b\n c\n") (Right ("a", [("b", ["c"])]))
     leftLike (f "a =\n b\nc = d\n") "3:1:*| ^*expected eof"
