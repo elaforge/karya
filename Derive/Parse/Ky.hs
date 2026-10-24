@@ -258,8 +258,8 @@ parseAlias (lhs, rhs) = first (msg<>) $ case rhs of
 parseInstruments :: FilePath -> Line -> [Text]
     -> Either ParseText.Error UiConfig.Allocations
 parseInstruments fname lineno lines =
-    first ParseText.fromMegaparsec $
-        Util.Parse.parseFromLine (lineno+1) fname Instruments.pInstruments
+    first (ParseText.addRow lineno . ParseText.fromMegaparsec) $
+        Util.Parse.parseE fname Instruments.pInstruments
             (Text.unlines lines)
 
 -- * tscore
@@ -270,8 +270,8 @@ tscoreSection = "tscore"
 parseTscore :: FilePath -> Line -> [Text]
     -> Either ParseText.Error TScore.T.Score
 parseTscore fname lineno lines =
-    first ParseText.fromMegaparsec $
-        Util.Parse.parseFromLine (lineno+1) fname TScore.Parse.score
+    first (ParseText.addRow lineno . ParseText.fromMegaparsec) $
+        Util.Parse.parseE fname TScore.Parse.score
             (Text.unlines lines)
 
 -- * parse ky file

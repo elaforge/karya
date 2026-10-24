@@ -34,7 +34,7 @@ test_errorBundle = do
     match (render multiple "") "fname:1:1:*fname:1:1:*"
     match (render multiToken "abcde") "fname:1:1:*^^^*"
     where
-    render parser input = case Parse.parseFromLine 1 "fname" parser input of
+    render parser input = case Parse.parseE "fname" parser input of
         Left bundle -> ParseText.showError $ ParseText.fromMegaparsec bundle
         Right _ -> "parser unexpectedly succeeded"
     multiple = do

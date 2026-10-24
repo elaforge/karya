@@ -127,7 +127,9 @@ test_tscore = do
     let f = bimap ParseText.showError extract
             . Ky.parseKy "fname.ky"
         extract ky = Ky.kyTscore ky
-    leftLike (f "tscore:\nx = [ 4s1\n") "fname.ky:3:1:*unexpected end of input*"
+    -- Properly on line 3 instead of 2.
+    leftLike (f "tscore:\nx = [ \n")
+        "fname.ky:3:1:*unexpected end of input*"
 
 test_p_definition :: Test
 test_p_definition = do

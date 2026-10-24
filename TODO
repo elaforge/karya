@@ -787,6 +787,11 @@ UNSORTED
     - Ky.integrateTscore: show tscore errors positions correctly
       . I think I need an offset for tscore section in .ky, and
         a filename for imported ones.
+      . Seems I should be able to unify T.Pos in tscore, but it needs at least
+        source and filename.
+      . Does P.getParserState already have it?
+      . If so, ParseText.Error can be created
+    * Util.Parse.parseFromLine no longer needed, use ParseText.addRow
     * syntax error shows filename twice
       . State error: -- from Cmd.Repl, removed
         Cmd/Ky.hs:135 -- from tryRight in Cmd.Ky, removed
@@ -803,6 +808,7 @@ UNSORTED
       Alternately, parse standalone tscore as ky with a tscore section, not
       tscore with a %ky section.
     - Remove App/Repl.hs and protocol for invoking editor.
+      . I guess I still use it for :h?
     - App/Update.ky, I could have a thing to save .ky for everything.
 
   * why do I need UiConfig.meta_notes when I could put it in a comment in

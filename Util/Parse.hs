@@ -2,7 +2,7 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
--- | Generic parsing utils.
+-- | Generic parsing utils for megaparsec.
 module Util.Parse where
 import qualified Control.Monad.Identity as Identity
 import qualified Control.Monad.State.Strict as State
@@ -41,31 +41,9 @@ parseM fname p =
 parseS :: state -> FilePath -> ParserS state a -> Text -> Either Text a
 parseS state fname p = fst . flip State.runState state . parseM fname p
 
--- | Like 'parse', but pretend the text starts at the given 1-based line, so
--- error messages get the line numbers of the enclosing file.
---
--- TODO perhaps no longer needed now that I have ParseText.addRow
-parseFromLine :: Int -> FilePath -> Parser a -> Text
+parseE :: FilePath -> Parser a -> Text
     -> Either (P.ParseErrorBundle Text Void.Void) a
-parseFromLine line fname p = Identity.runIdentity . parseLineM
-    where
-    parseLineM text = snd <$> P.runParserT' (p <* P.eof) (state text)
-    state text = P.State
-        { P.stateInput = text
-        , P.stateOffset = 0
-        , P.statePosState = P.PosState
-            { P.pstateInput = text
-            , P.pstateOffset = 0
-            , P.pstateSourcePos = P.SourcePos
-                { P.sourceName = fname
-                , P.sourceLine = P.mkPos (max 1 line)
-                , P.sourceColumn = P.pos1
-                }
-            , P.pstateTabWidth = P.defaultTabWidth
-            , P.pstateLinePrefix = ""
-            }
-        , P.stateParseErrors = []
-        }
+parseE fname p = Identity.runIdentity . P.runParserT (p <* P.eof) fname
 
 type Offset = Int
 
@@ -89,22 +67,6 @@ file :: a -> ParserS st a -> st -> FilePath -> IO (Either Text a)
 file deflt parser state fname = do
     mbText <- Exceptions.ignoreEnoent (Text.IO.readFile fname)
     pure $ maybe (Right deflt) (parseS state fname parser) mbText
-
--- -- | Format a ParseError assuming the input is just one line.
--- format1 :: Text -> P.ParseError -> Text
--- format1 input err
---     | line == 1 = "col " <> showt col <> ": " <> msg
---     | otherwise = showt line <> ":" <> showt col <> ": " <> msg
---     where
---     msg = Text.intercalate "; " (show_error err) <> ": " <> showt input
---     pos = P.errorPos err
---     (line, col) = (P.sourceLine pos, P.sourceColumn pos)
---
--- show_error :: P.ParseError -> [Text]
--- show_error = filter (not . Text.null) . Text.lines . txt
---     . Error.showErrorMessages "or" "unknown parse error"
---         "expecting" "unexpected" "end of input"
---     . Error.errorMessages
 
 pInt :: ParserT m Int
 pInt = do
