@@ -83,7 +83,8 @@ checkResults times states mods = do
 loadFile :: FilePath -> IO ResponderTest.States
 loadFile fname = do
     cmdConfig <- DeriveSaved.loadCmdConfig
-    onlyDeriveRoot <$> DeriveSaved.loadScoreStates cmdConfig fname
+    onlyDeriveRoot <$>
+        (either errorIO pure =<< DeriveSaved.loadScore cmdConfig fname)
 
 -- | (msg, latency)
 type Latency = (Text, ResponderTest.Seconds)

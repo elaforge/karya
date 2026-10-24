@@ -717,7 +717,7 @@ UNSORTED
         a ky section.  Could move it to standalone.  But do I really want to
         put all of TScore under Cmd.Ky?  Or move to Cmd.Responder?
       / Now tscore has to parse as [(FilePath, Line, [Text])] instead of Text.
-      - To display errors I need the source, maybe it should be bundled with
+      * To display errors I need the source, maybe it should be bundled with
         the T.Error.
       . It seems awkward to run integrate and Create.view inside updateKy.
         Its original point was to do the file IO, so it's not in Cmd.M.
@@ -773,10 +773,10 @@ UNSORTED
           directories?  I guess this could just be that save_state_as makes
           a directory by default.  I already do this with dir/save.state.
           Also a place to put the backup and .repl file.
-
   ky separate file cleanup:
     * save on ky with no socket should be silently ok
-    - who uses Ky.load, and do they need tscore?
+    * who uses Ky.load, and do they need tscore?
+      . Now, just TScoreMain, which doesn't.
     * incorporate tscore into ky.vim
       . But I still want separate tscore-syntax.vim for *.tscore
       . Also should I move the au commands to seq dir?
@@ -813,8 +813,9 @@ UNSORTED
         has it again.
     * ky file write shows "reloaded ky" log msg every save
     - Disallow tscore: section inside ky of standalone tscore.
-      Alternately, parse standalone tscore as ky with a tscore section, not
-      tscore with a %ky section.
+      . Alternately, parse standalone tscore as ky with a tscore section, not
+        tscore with a %ky section.
+      . This could simplify tscore, see doc/tscore-to-ky
     - Remove App/Repl.hs and protocol for invoking editor.
       . I guess I still use it for :h?
     - App/Update.ky, I could have a thing to save .ky for everything.

@@ -389,14 +389,18 @@ loadCmdConfig midiInterface = do
     pure $ StaticConfig.cmdConfig appDir saveDir midiInterface
         staticConfig (SaveGitT.User "user" "name")
 
-loadScore :: FilePath -> Cmd.Config -> Text
+loadScore :: FilePath -> Cmd.Config -> T.Code
     -> IO (Either Error (Ui.State, Cmd.State))
-loadScore fname cmdConfig source = Except.runExceptT $ do
-    uiState <- tryRight $ first (T.showErrors fname source) $
-        parseScore cmdConfig source
+loadScore fname cmdConfig code = Except.runExceptT $ do
+    uiState <- tryRight $ first (T.showErrors fname code) $
+        parseScore cmdConfig code
     -- TODO adjust starting line in error
+    -- TODO This is a special case because it's ky-inside-tscore, where
+    -- ky also now has a tscore section.  I should probably make .tscore
+    -- files simply .ky ones with a tscore section, and remove the %ky
+    -- directive.
     (builtins, aliases, allocs) <- tryRight . first ("parsing %ky: "<>)
-        =<< liftIO (Cmd.Ky.load kyPaths (Ui.config#UiConfig.ky #$ uiState))
+        =<< liftIO (Cmd.Ky.compileKy kyPaths (Ui.config#UiConfig.ky #$ uiState))
     let cmdState = DeriveSaved.addLibrary builtins aliases $
             Cmd.initialState cmdConfig
     pure (Ui.config#UiConfig.allocations #= allocs $ uiState, cmdState)
@@ -406,9 +410,9 @@ loadScore fname cmdConfig source = Except.runExceptT $ do
 
 -- * tscore
 
-parseScore :: Cmd.Config -> Text -> Either [T.Error] Ui.State
-parseScore cmdConfig source = do
-    tscore <- first (:[]) $ Parse.parseScore source
+parseScore :: Cmd.Config -> T.Code -> Either [T.Error] Ui.State
+parseScore cmdConfig code = do
+    tscore <- first (:[]) $ Parse.parseScore code
     TScore.scoreToUi (standaloneDuration cmdConfig tscore) tscore
 
 {- | Standalone tscore has no Ui.State or Cmd.State, since it's in the middle
@@ -442,6 +446,9 @@ standaloneDuration cmdConfig tscore ky = do
 parseKy :: Text -> Either Text
     (Derive.Builtins, Derive.InstrumentAliases, UiConfig.Allocations)
 parseKy text = do
+    -- TODO this is basically duplicating Cmd.Ky.compileKy in 'loadScore'.
+    -- Why do I need it?
+    -- It's because ky-in-tscore, if I invert it, then this goes away.
     ky <- first ParseM.showError $ Ky.parseKy "" text
     ky <- case Ky.kyImports ky of
         [] -> Right $ ky { Ky.kyImports = [] }

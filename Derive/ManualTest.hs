@@ -3,7 +3,7 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 -- | Skeleton for one-off tests, presumably using the output of
--- LDebug.dump_block.
+-- LDebug.dumpBlock.
 module Derive.ManualTest where
 import qualified Data.Map as Map
 import qualified Data.Set as Set
@@ -43,14 +43,14 @@ dump = undefined
 
 -- * cache
 
+runCached :: IO ()
 runCached = do
     cmdConfig <- DeriveSaved.loadCmdConfig
-    let cstate = Cmd.initialState cmdConfig
-    (state, _builtins, _aliases) <- expectRight <$>
-        DeriveSaved.loadScore (Cmd.configInstrumentDb cmdConfig) "bug/cache"
+    (uiState, cmdState) <- either errorIO pure
+        =<< DeriveSaved.loadScore cmdConfig "bug/cache"
     let root = UiTest.bid "kendang-telek/telek1"
         tempot = UiTest.tid "kendang-telek/telek1.t1"
-    let (uncached, logs) = Performance.derive state cstate root
+    let (uncached, logs) = Performance.derive uiState cmdState root
     mapM_ Log.write logs
 
     let cache = Cmd.perfDeriveCache uncached
@@ -58,7 +58,7 @@ runCached = do
             (Map.fromList [(tempot, Ranges.range 200 200)])
             (Set.fromList [root]) mempty
     let (cached, logs) = expectRight $
-            DeriveSaved.runCmd state cstate $
+            DeriveSaved.runCmd uiState cmdState $
             PlayUtil.deriveBlock cache damage root
     mapM_ Log.write logs
     prettyp (Cache_test.rBlockLogs cached)

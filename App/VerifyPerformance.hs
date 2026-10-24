@@ -37,7 +37,6 @@ import qualified Cmd.Cmd as Cmd
 import qualified Cmd.DiffPerformance as DiffPerformance
 import qualified Cmd.Save as Save
 
-import qualified Derive.Derive as Derive
 import qualified Derive.DeriveSaved as DeriveSaved
 import qualified Derive.LEvent as LEvent
 import qualified Derive.Score as Score
@@ -132,7 +131,7 @@ main = Git.initialize $ do
             pure 0
         Save -> do
             when (null args) $ usage "no inputs"
-            runError $ concat <$> mapM (save outDir) args
+            runError $ concat <$> mapM (save cmdConfig outDir) args
         Profile -> do
             when (null args) $ usage "no inputs"
             runError $ mapM_ (perform Nothing cmdConfig) args >> pure []
@@ -201,10 +200,10 @@ requireRight io = tryRight =<< liftIO io
 -- * implementation
 
 -- | Extract saved performances and write them to disk.
-save :: FilePath -> FilePath -> ErrorM [Text]
-save outDir fname = do
-    (state, _defsLib, _aliases, blockId) <- load fname
-    let meta = Ui.config#UiConfig.meta #$ state
+save :: Cmd.Config -> FilePath -> FilePath -> ErrorM [Text]
+save cmdConfig outDir fname = do
+    ((uiState, _), blockId) <- load cmdConfig fname
+    let meta = Ui.config#UiConfig.meta #$ uiState
         look = Map.lookup blockId
     midi <- case look (UiConfig.metaMidiPerformances meta) of
         Nothing -> pure False
@@ -226,9 +225,8 @@ save outDir fname = do
 -- | Perform to MIDI and possibly write to disk.
 perform :: Maybe FilePath -> Cmd.Config -> FilePath -> ErrorM ()
 perform maybeOutDir cmdConfig fname = do
-    (state, library, aliases, blockId) <- load fname
-    (msgs, _, _) <- performBlock fname
-        (makeCmdState library aliases cmdConfig) state blockId
+    ((uiState, cmdState), blockId) <- load cmdConfig fname
+    (msgs, _, _) <- performBlock fname cmdState uiState blockId
     whenJust maybeOutDir $ \outDir -> liftIO $ do
         out <- getOutput outDir fname ".midi"
         putStrLn $ "write " <> out
@@ -238,10 +236,9 @@ perform maybeOutDir cmdConfig fname = do
 derive :: Maybe FilePath -> Cmd.Config -> FilePath
     -> ErrorM (Vector.Vector Score.Event, DeriveSaved.CPU)
 derive maybeOutDir cmdConfig fname = do
-    (state, library, aliases, blockId) <- load fname
-    let cmdState = makeCmdState library aliases cmdConfig
+    ((uiState, cmdState), blockId) <- load cmdConfig fname
     ((!events, logs), deriveCpu) <- liftIO $
-        DeriveSaved.timedDerive fname state cmdState blockId
+        DeriveSaved.timedDerive fname uiState cmdState blockId
     liftIO $ mapM_ Log.write logs
     liftIO $ Text.IO.putStrLn $ "derived " <> showt (Vector.length events)
         <> " in " <> Num.showFloat 2 (toSecs deriveCpu)
@@ -268,9 +265,8 @@ type Timings = [(Text, Thread.Seconds)]
 
 verifyPerformance :: FilePath -> Cmd.Config -> FilePath -> ErrorM [Text]
 verifyPerformance outDir cmdConfig fname = do
-    (uiState, library, aliases, blockId) <- load fname
+    ((uiState, cmdState), blockId) <- load cmdConfig fname
     let meta = Ui.config#UiConfig.meta #$ uiState
-    let cmdState = makeCmdState library aliases cmdConfig
     let verify1 verify field =
             maybe (pure (Nothing, []))
                 (verify outDir fname cmdState uiState blockId)
@@ -290,8 +286,7 @@ verifyPerformance outDir cmdConfig fname = do
 
 updateMidi :: Cmd.Config -> FilePath -> ErrorM ()
 updateMidi cmdConfig fname = do
-    (uiState, library, aliases, blockId) <- load fname
-    let cmdState = makeCmdState library aliases cmdConfig
+    ((uiState, cmdState), blockId) <- load cmdConfig fname
     (msgs, _, _) <- performBlock fname cmdState uiState blockId
     perf <- liftIO $ UiConfig.makePerformance (Vector.fromList msgs)
     uiState <- pure $
@@ -344,20 +339,20 @@ convertIm cmdState uiState blockId events =
 
 performBlock :: FilePath -> Cmd.State -> Ui.State -> BlockId
     -> ErrorM ([Midi.WriteMessage], DeriveSaved.CPU, DeriveSaved.CPU)
-performBlock fname cmdState state blockId = do
+performBlock fname cmdState uiState blockId = do
     ((events, logs), deriveCpu) <- liftIO $
-        DeriveSaved.timedDerive fname state cmdState blockId
+        DeriveSaved.timedDerive fname uiState cmdState blockId
     liftIO $ mapM_ Log.write logs
     ((msgs, logs), performCpu) <- liftIO $
-        DeriveSaved.timedPerform cmdState fname state events
+        DeriveSaved.timedPerform cmdState fname uiState events
     liftIO $ mapM_ Log.write logs
     pure (msgs, deriveCpu, performCpu)
 
 verifyLilypond :: FilePath -> FilePath -> Cmd.State -> Ui.State
     -> BlockId -> UiConfig.LilypondPerformance -> ErrorM (Maybe Text, Timings)
-verifyLilypond outDir fname cmdState state blockId performance = do
+verifyLilypond outDir fname cmdState uiState blockId performance = do
     ((result, logs), cpu) <- liftIO $
-        DeriveSaved.timedLilypond fname state cmdState blockId
+        DeriveSaved.timedLilypond fname uiState cmdState blockId
     liftIO $ mapM_ Log.write logs
     case result of
         Left err -> pure (Just $ "error deriving: " <> Log.formatMsg err, [])
@@ -373,20 +368,14 @@ verifyLilypond outDir fname cmdState state blockId performance = do
 -- * util
 
 -- | Load a score and get its root block id.
-load :: FilePath
-    -> ErrorM (Ui.State, Derive.Builtins, Derive.InstrumentAliases, BlockId)
-load fname = do
-     (state, builtins, aliases) <- requireRight $ DeriveSaved.loadScore fname
-     blockId <- requireRight $ pure $ getRoot state
-     pure (state, builtins, aliases, blockId)
-
-makeCmdState :: Derive.Builtins -> Derive.InstrumentAliases -> Cmd.Config
-    -> Cmd.State
-makeCmdState builtins aliases cmdConfig =
-    DeriveSaved.addLibrary builtins aliases $ Cmd.initialState cmdConfig
+load :: Cmd.Config -> FilePath -> ErrorM ((Ui.State, Cmd.State), BlockId)
+load cmdConfig fname = do
+    states <- tryRight =<< liftIO (DeriveSaved.loadScore cmdConfig fname)
+    blockId <- requireRight $ pure $ getRoot (fst states)
+    pure (states, blockId)
 
 getRoot :: Ui.State -> Either Text BlockId
-getRoot state = justErr "no root block" $ Ui.config#UiConfig.root #$ state
+getRoot uiState = justErr "no root block" $ Ui.config#UiConfig.root #$ uiState
 
 basename :: FilePath -> FilePath
 basename = FilePath.takeFileName . List.dropWhileEnd (=='/')

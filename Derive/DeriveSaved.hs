@@ -5,12 +5,10 @@
 -- | Utilities to directly perform a saved score.
 module Derive.DeriveSaved where
 import qualified Control.Exception as Exception
-import qualified Control.Monad.Except as Except
 import qualified Data.Text.IO as Text.IO
 import qualified Data.Text.Lazy as Lazy
 import qualified Data.Vector as Vector
 
-import qualified System.FilePath as FilePath
 import qualified System.IO as IO
 import qualified Text.Printf as Printf
 
@@ -23,13 +21,11 @@ import qualified App.Path as Path
 import qualified App.StaticConfig as StaticConfig
 
 import qualified Cmd.Cmd as Cmd
-import qualified Cmd.Ky as Ky
 import qualified Cmd.Lilypond
 import qualified Cmd.Msg as Msg
 import qualified Cmd.Performance as Performance
 import qualified Cmd.PlayUtil as PlayUtil
 import qualified Cmd.Save as Save
-import qualified Cmd.SaveGit as SaveGit
 import qualified Cmd.SaveGitT as SaveGitT
 
 import qualified Derive.C.All as C.All
@@ -53,7 +49,7 @@ import           Types
 
 performFile :: Cmd.Config -> FilePath -> IO [Midi.WriteMessage]
 performFile cmdConfig fname = do
-    (uiState, cmdState) <- loadScoreStates cmdConfig fname
+    (uiState, cmdState) <- either errorIO pure =<< loadScore cmdConfig fname
     rootId <- maybe (errorIO $ txt fname <> ": no root block") pure $
         Ui.config#UiConfig.root #$ uiState
     ((events, logs), _cpu) <- timedDerive fname uiState cmdState rootId
@@ -160,46 +156,22 @@ performMidi cmdState uiState events =
     extract (Left err) = [LEvent.Log $ Log.msg Log.Error Nothing err]
     extract (Right (levents, logs)) = map LEvent.Log logs ++ levents
 
-loadScoreStates :: Cmd.Config -> FilePath -> IO (Ui.State, Cmd.State)
-loadScoreStates cmdConfig fname = do
-    (uiState, library, aliases) <- either errorIO pure
-        =<< loadScore fname
-    pure (uiState, addLibrary library aliases cmdState)
+loadScore :: Cmd.Config -> FilePath -> IO (Either Text (Ui.State, Cmd.State))
+loadScore cmdConfig fname =
+    fmap fst $ time ("load " <> txt fname) (\_ _ -> "") $
+        (extract =<<) $ Cmd.run_ Ui.empty (Cmd.initialState cmdConfig) $
+            Save.loadDirect fname
     where
-    cmdState = Cmd.initialState cmdConfig
+    extract (val, logs) = do
+        mapM_ Log.write logs
+        pure $ case val of
+            Left err -> Left (txt err)
+            Right ((), cmdState, uiState) -> Right (uiState, cmdState)
 
 addLibrary :: Derive.Builtins -> Derive.InstrumentAliases
     -> Cmd.State -> Cmd.State
 addLibrary builtins aliases state =
     state { Cmd.stateKyCache = Just $ Cmd.PermanentKy (builtins, aliases) }
-
--- | Load a score and its accompanying local definitions library, if it has one.
-loadScore :: FilePath
-    -> IO (Either Text (Ui.State, Derive.Builtins, Derive.InstrumentAliases))
-loadScore fname =
-    fmap fst $ time ("load " <> txt fname) (\_ _ -> "") $ Except.runExceptT $ do
-        save <- requireRight $ Save.inferSaveType fname
-        (state, dir) <- case save of
-            Cmd.SaveRepo repo -> do
-                (state, _, _) <- requireRight $
-                    SaveGit.load (Path.toPath repo) Nothing
-                pure (state, FilePath.takeDirectory (Path.toPath repo))
-            Cmd.SaveState fname -> do
-                state <- requireRight $ first pretty <$>
-                    Save.readState_ (Path.toPath fname)
-                pure (state, FilePath.takeDirectory (Path.toPath fname))
-        appDir <- liftIO Path.getAppDir
-        let paths = dir : map (Path.toAbsolute appDir) Config.kyPaths
-        (builtins, aliases, allocs) <- requireRight $
-            Ky.load paths (Ui.config#UiConfig.ky #$ state)
-        pure
-            ( Ui.config#UiConfig.allocations #= allocs $ state
-            , builtins
-            , aliases
-            )
-
-requireRight :: IO (Either Text a) -> Except.ExceptT Text IO a
-requireRight io = tryRight =<< liftIO io
 
 -- | Load cmd config, which basically means the inst db.
 loadCmdConfig :: IO Cmd.Config

@@ -7,7 +7,7 @@
 -- The syntax is defined by 'Ky.parse_ky'.
 module Cmd.Ky (
     reload
-    , load
+    , compileKy
     , compile
     , compileDefinitions
 #ifdef TESTING
@@ -65,7 +65,7 @@ reload integrate mbKyCode = do
     errKy <- Cmd.abortUnless =<< liftIO (checkLoadKy cmdState mbKyCode)
     -- Omit the extra throwing line number, this is a reporting the ky parse
     -- error, which already has provenance.
-    -- TODO maybe should be an expected vs unexpected distinction?
+    -- TODO maybe there should be an expected vs unexpected distinction?
     ky <- either Cmd.throw_ pure errKy
     (uiState, cmdState, logs, mbTscore) <-
         Cmd.requireRight id $ checkKy uiState cmdState ky
@@ -75,6 +75,14 @@ reload integrate mbKyCode = do
     -- but now they should move to Cmd.State.
     Ui.unsafePut uiState
     when integrate $ whenJust mbTscore integrateTscore
+
+-- | Just compile the non-tscore parts of ky code.  This is for standalone
+-- tscore, which has a %ky section.
+compileKy :: [FilePath] -> Ky.Code
+    -> IO (Either Text
+        (Derive.Builtins, Derive.InstrumentAliases, UiConfig.Allocations))
+compileKy paths kyText =
+    bimap ParseM.showError compile <$> Ky.loadKyCode paths kyText
 
 integrateTscore :: Cmd.M m => Ky.TScore -> m ()
 integrateTscore (fname, row, code, score) = do
@@ -91,7 +99,7 @@ checkLoadKy :: Cmd.State -> Maybe Ky.Code
 checkLoadKy cmdState mbKyCode
     -- PermanentKy is used only in tests, so we shouldn't see it here.
     | Just (Cmd.PermanentKy {}) <- Cmd.stateKyCache cmdState = pure Nothing
-    | otherwise = loadKy mbKyPath paths mbKyCode
+    | otherwise = load mbKyPath paths mbKyCode
     where (mbKyPath, paths) = stateKyPaths cmdState
 
 checkKy :: Ui.State -> Cmd.State -> Ky.Ky Ky.Loaded
@@ -143,12 +151,11 @@ tscoreFingerprint tscores =
     Cmd.Fingerprint fnames (foldl' Hashable.hashWithSalt 0 codes)
     where (fnames, _, codes, _) = List.unzip4 tscores
 
--- TODO rename to 'load'?
--- | If $base.ky exists, import it.  mbKyCode Nothing means just check the
--- file.  Just is the old internal ky path, for old scores.
-loadKy :: Maybe FilePath -> [FilePath] -> Maybe Ky.Code
+-- | If $base.ky exists, always prefer it.  Otherwise, use explicitly given
+-- ky code, for old scores.  If none, then return Nothing.
+load :: Maybe FilePath -> [FilePath] -> Maybe Ky.Code
     -> IO (Maybe (Either Error (Ky.Ky Ky.Loaded)))
-loadKy mbKyPath paths mbKyCode = do
+load mbKyPath paths mbKyCode = do
     exists <- maybe (pure False) Directory.doesFileExist mbKyPath
     case mbKyPath of
         Just kyPath | exists -> fmt <$> Ky.loadKy paths kyPath
@@ -156,13 +163,6 @@ loadKy mbKyPath paths mbKyCode = do
             Nothing -> pure Nothing
             Just code -> fmt <$> Ky.loadKyCode paths code
     where fmt = Just . first ParseM.showError
-
--- | Like 'reload', but assuming no existing cmd or ui state.
-load :: [FilePath] -> Text
-    -> IO (Either Text
-        (Derive.Builtins, Derive.InstrumentAliases, UiConfig.Allocations))
-load paths kyText =
-    bimap ParseM.showError compile <$> Ky.loadKyCode paths kyText
 
 compile :: Ky.Ky Ky.Loaded
     -> (Derive.Builtins, Derive.InstrumentAliases, UiConfig.Allocations)

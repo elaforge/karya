@@ -14,7 +14,8 @@ module Cmd.Save (
     -- * quit
     softQuit, hardQuit
     -- * universal
-    , save, saveAs, load, loadForce, read, read_, loadTemplate
+    , save, saveAs, load, loadForce, loadDirect
+    , read, read_, loadTemplate
     , inferSaveType
     -- * state
     , saveState, saveStateAs
@@ -113,16 +114,26 @@ load path = checkUnsavedData >>= \case
     Just msg -> Log.warn $ "refusing to load a new score: " <> msg
     Nothing -> loadForce path
 
+-- | 'load' but don't check for unsaved data.
 loadForce :: FilePath -> Cmd.CmdT IO ()
 loadForce path = do
-    (state, saveFile) <- read path
-    setLoadedState saveFile state
+    (state, saveFile) <- read True path
+    mbErr <- setLoadedState saveFile state
+    whenJust mbErr Log.warn
+
+-- | Directly load the given path, no expansion.  Also, ky errors are fatal.
+-- This is for standalone loading, like DeriveSaved.
+loadDirect :: FilePath -> Cmd.CmdT IO ()
+loadDirect path = do
+    (state, saveFile) <- read False path
+    mbErr <- setLoadedState saveFile state
+    whenJust mbErr Cmd.throw_
 
 -- | Try to guess whether the given path is a git save or state save.  If it's
 -- a directory, look inside for a .git or .state save.
-read :: FilePath -> Cmd.CmdT IO (Ui.State, StateSaveFile)
-read path = do
-    path <- expandFilename path
+read :: Bool -> FilePath -> Cmd.CmdT IO (Ui.State, StateSaveFile)
+read expand path = do
+    path <- if expand then expandFilename path else pure path
     save <- Cmd.requireRight ("read: "<>) =<< liftIO (inferSaveType path)
     case save of
         Cmd.SaveRepo repo -> readGit (Path.toPath repo) Nothing
@@ -142,8 +153,9 @@ read_ path = inferSaveType path >>= \case
 -- file when you save.
 loadTemplate :: FilePath -> Cmd.CmdT IO ()
 loadTemplate fn = do
-    (state, _) <- read fn
-    setLoadedState Nothing state
+    (state, _) <- read True fn
+    mbErr <- setLoadedState Nothing state
+    whenJust mbErr Log.warn
     now <- liftIO $ Time.getCurrentTime
     Ui.modifyConfig $ UiConfig.meta#UiConfig.creation #= now
 
@@ -327,8 +339,8 @@ readState fname = do
         <> (if writable then " " else " (ro) ")
         <> Transform.shortStats state
         <> ", took " <> Thread.showMetric metric
-    pure (state, Just
-        (if writable then Cmd.ReadWrite else Cmd.ReadOnly, SaveState fname))
+    let mode = if writable then Cmd.ReadWrite else Cmd.ReadOnly
+    pure (state, Just (mode, SaveState fname))
 
 -- | Low level 'readState'.
 readState_ :: FilePath
@@ -397,7 +409,8 @@ saveGitAs repo = do
 loadGit :: FilePath -> Maybe SaveGit.Commit -> Cmd.CmdT IO ()
 loadGit repo maybeCommit = do
     (state, saveFile) <- readGit repo maybeCommit
-    setLoadedState saveFile state
+    mbErr <- setLoadedState saveFile state
+    whenJust mbErr Log.warn
 
 readGit :: FilePath -> Maybe SaveGit.Commit
     -> Cmd.CmdT IO (Ui.State, StateSaveFile)
@@ -492,7 +505,7 @@ type StateSaveFile = Maybe (Cmd.Writable, SaveFile)
 data SaveDirection = Save | Load deriving (Show)
 
 -- | Do the necessary housekeeping after loading a new Ui.State.
-setLoadedState :: StateSaveFile -> Ui.State -> Cmd.CmdT IO ()
+setLoadedState :: StateSaveFile -> Ui.State -> Cmd.CmdT IO (Maybe Text)
 setLoadedState saveFile state = do
     setSaveFile saveFile Load
     Play.cmdStop
@@ -523,10 +536,9 @@ setLoadedState saveFile state = do
     let tscore = UiConfig.configTscore (Ui.stateConfig state)
     mbResult <- Cmd.runCatch $ Ky.reload False $ if ky == "" && tscore == ""
         then Nothing else Just $ makeKy ky tscore
-    case mbResult of
-        Right () -> pure ()
-        Left Nothing -> pure ()
-        Left (Just err) -> Log.warn $ "load ky failed: " <> pretty err
+    pure $ case mbResult of
+        Left (Just err) -> Just $ "load ky failed: " <> pretty err
+        _ -> Nothing
 
 -- | If I switch away from a repo (either to another repo or to a plain state),
 -- I have to clear out all the remains of the old repo, since its Commits are

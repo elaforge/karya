@@ -249,7 +249,7 @@ loadAs = loadAs_ . Just . Id.namespace
 
 loadAs_ :: Maybe Id.Namespace -> Bool -> FilePath -> Cmd.CmdL ()
 loadAs_ maybeNs openViews fn = do
-    (newState, _) <- Save.read fn
+    (newState, _) <- Save.read True fn
     newState <- Ui.execRethrow "strip clip" newState $ do
         Transform.destroyNamespace Clip.clipNamespace
         whenJust maybeNs $ Transform.mapNamespace . const

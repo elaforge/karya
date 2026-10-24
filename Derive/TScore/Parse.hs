@@ -62,7 +62,7 @@ defaultConfig = Config False
 score :: Parser T.Score
 score = parse defaultConfig
 
-parseScore :: Text -> Either T.Error T.Score
+parseScore :: T.Code -> Either T.Error T.Score
 parseScore = first (T.Error Nothing . txt) . parseText (parse defaultConfig)
     -- TODO Nothing because the source location is already embedded in
     -- the text error.  Better to leave it in T.Error?
