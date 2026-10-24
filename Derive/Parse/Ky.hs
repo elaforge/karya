@@ -35,7 +35,7 @@ import qualified System.IO.Error as IO.Error
 
 import qualified Util.Lists as Lists
 import qualified Util.Maps as Maps
-import qualified Util.Parse
+import qualified Util.ParseM as ParseM
 import qualified Util.ParseA as ParseA
 
 import qualified Derive.DeriveT as DeriveT
@@ -259,7 +259,7 @@ parseInstruments :: FilePath -> Line -> [Text]
     -> Either ParseA.Error UiConfig.Allocations
 parseInstruments fname lineno lines =
     first (ParseA.addRow lineno . ParseA.fromMegaparsec) $
-        Util.Parse.parseE fname Instruments.pInstruments
+        ParseM.parseE fname Instruments.pInstruments
             (Text.unlines lines)
 
 -- * tscore
@@ -271,7 +271,7 @@ parseTscore :: FilePath -> Line -> [Text]
     -> Either ParseA.Error TScore.T.Score
 parseTscore fname lineno lines =
     first (ParseA.addRow lineno . ParseA.fromMegaparsec) $
-        Util.Parse.parseE fname TScore.Parse.score
+        ParseM.parseE fname TScore.Parse.score
             (Text.unlines lines)
 
 -- * parse ky file

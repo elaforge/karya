@@ -3,7 +3,7 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Derive.Parse.Record_test where
-import qualified Util.Parse
+import qualified Util.ParseM as ParseM
 import qualified Derive.DeriveT as DeriveT
 import qualified Derive.Expr as Expr
 import qualified Derive.Parse.Record as Record
@@ -99,7 +99,7 @@ test_roundtrip_text = do
     uncurry equal (roundtrip "['h i']")
 
 parseRval :: Text -> Either Text Record.RVal
-parseRval = Util.Parse.parse Record.pRval
+parseRval = ParseM.parse Record.pRval
 
 parseRecord :: Text -> Either Text [(Text, Record.RVal)]
-parseRecord = Util.Parse.parse Record.pRecord
+parseRecord = ParseM.parse Record.pRecord

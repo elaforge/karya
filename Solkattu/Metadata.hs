@@ -13,7 +13,7 @@ import           GHC.Stack (HasCallStack)
 
 import qualified Util.Lists as Lists
 import qualified Util.Num as Num
-import qualified Util.Parse as Parse
+import qualified Util.ParseM as ParseM
 import qualified Util.Regex as Regex
 
 import qualified Solkattu.Korvai as Korvai
@@ -90,7 +90,7 @@ parseTime s = case Regex.groups time s of
     where
     Right time = Regex.compile "(\\d+h)?(\\d+m)?(\\d+s)?"
     parse :: Text -> Int
-    parse = fromMaybe 0 . Parse.parseMaybe Parse.pNat . Text.dropEnd 1
+    parse = fromMaybe 0 . ParseM.parseMaybe ParseM.pNat . Text.dropEnd 1
 
 showTime :: HasCallStack => Time -> Text
 showTime (h, m, s)

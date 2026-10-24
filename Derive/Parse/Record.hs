@@ -7,7 +7,7 @@ import qualified Data.Char as Char
 import qualified Data.Text as Text
 
 import qualified Util.P as P
-import qualified Util.Parse
+import qualified Util.ParseM as ParseM
 import qualified Derive.DeriveT as DeriveT
 import qualified Derive.Parse as Parse
 import qualified Derive.ShowVal as ShowVal
@@ -31,7 +31,7 @@ pRval = Record <$> pRecord
     <|> Val <$> pVal
 
 pVal :: Parser DeriveT.Val
-pVal = Util.Parse.attoparse "val" (Parse.pVal Parse.UnquotedStrict)
+pVal = ParseM.attoparse "val" (Parse.pVal Parse.UnquotedStrict)
 
 type Indent = Int
 

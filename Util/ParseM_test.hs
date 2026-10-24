@@ -2,11 +2,11 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
-module Util.Parse_test where
+module Util.ParseM_test where
 import qualified Data.Set as Set
 import qualified Text.Megaparsec as P
 
-import qualified Util.Parse as Parse
+import qualified Util.ParseM as ParseM
 import qualified Util.ParseA as ParseA
 
 import           Global
@@ -15,9 +15,9 @@ import           Util.Test
 
 test_attoparse :: Test
 test_attoparse = do
-    let nat = Parse.pNat
-    let anat = Parse.attoparse "anat" ParseA.pNat
-    let parse = Parse.parse
+    let nat = ParseM.pNat
+    let anat = ParseM.attoparse "anat" ParseA.pNat
+    let parse = ParseM.parse
     let comma p1 p2 = parse ((,) <$> p1 <*> ("," *> p2))
     rightEqual (parse nat "42") 42
     rightEqual (parse anat "42") 42
@@ -34,7 +34,7 @@ test_errorBundle = do
     match (render multiple "") "fname:1:1:*fname:1:1:*"
     match (render multiToken "abcde") "fname:1:1:*^^^*"
     where
-    render parser input = case Parse.parseE "fname" parser input of
+    render parser input = case ParseM.parseE "fname" parser input of
         Left bundle -> ParseA.showError $ ParseA.fromMegaparsec bundle
         Right _ -> "parser unexpectedly succeeded"
     multiple = do

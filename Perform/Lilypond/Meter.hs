@@ -26,7 +26,7 @@ import           Data.Vector.Unboxed ((!))
 
 import qualified Util.Num as Num
 import qualified Util.P as P
-import qualified Util.Parse as Parse
+import qualified Util.ParseM as ParseM
 import qualified Util.Lists as Lists
 
 import qualified Perform.Lilypond.Types as Types
@@ -87,7 +87,7 @@ Right defaultMeter = parseMeter "4/4"
 
 parseMeter :: Text -> Either Text Meter
 parseMeter text = do
-    (nums, denom) <- first ("parsing meter: "<>) $ Parse.parse pMeter text
+    (nums, denom) <- first ("parsing meter: "<>) $ ParseM.parse pMeter text
     denom <- tryJust ("denominator not a valid duration: " <> showt denom) $
         Types.intDur denom
     makeMeter nums denom (abstractMeter nums denom)
@@ -119,9 +119,9 @@ defaultDivisions [num] denom = Map.findWithDefault [num] (num, denom) defaults
         ]
 defaultDivisions nums _ = nums
 
-pMeter :: Parse.Parser ([Int], Int)
-pMeter = (,) <$> P.sepBy1 Parse.pPositive (P.char '+')
-    <*> (P.char '/' *> Parse.pPositive)
+pMeter :: ParseM.Parser ([Int], Int)
+pMeter = (,) <$> P.sepBy1 ParseM.pPositive (P.char '+')
+    <*> (P.char '/' *> ParseM.pPositive)
 
 makeMeter :: [Int] -> Duration -> [AbstractMeter] -> Either Text Meter
 makeMeter nums denom meters = Meter nums denom <$> vector

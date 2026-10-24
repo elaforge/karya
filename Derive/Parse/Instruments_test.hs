@@ -7,7 +7,7 @@ import qualified Data.Map as Map
 import qualified Data.Text as Text
 import qualified Data.Vector.Unboxed as Vector.Unboxed
 
-import qualified Util.Parse as Parse
+import qualified Util.ParseM as ParseM
 import qualified Derive.Controls as Controls
 import qualified Derive.Parse.Instruments as I
 import qualified Derive.ScoreT as ScoreT
@@ -88,7 +88,7 @@ test_un_instruments = do
         \legong = [1, 2, 3, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1]\n"
 
 parseInstruments :: Text -> Either Text UiConfig.Allocations
-parseInstruments = Parse.parse I.pInstruments
+parseInstruments = ParseM.parse I.pInstruments
 
 config :: Common.Config
 config = Common.emptyConfig
@@ -137,4 +137,4 @@ test_alloc_line_roundtrip = do
         I.Allocation "i" syn (I.Config True False) (I.Midi dev [2])
 
 pAllocLine :: Text -> Either Text I.Allocation
-pAllocLine = Parse.parse I.pAllocLine
+pAllocLine = ParseM.parse I.pAllocLine

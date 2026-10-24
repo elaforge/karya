@@ -6,7 +6,7 @@ import qualified Data.Map as Map
 import qualified Data.Set as Set
 import qualified Data.Text as Text
 
-import qualified Util.Parse
+import qualified Util.ParseM as ParseM
 import qualified Derive.Controls as Controls
 import qualified Derive.Expr as Expr
 import qualified Derive.Parse.AllocRecord as AllocRecord
@@ -89,4 +89,4 @@ str :: Text -> REnv.Val
 str = REnv.VStr . Expr.Str
 
 pRecord :: Text -> Either Text [(Text, Record.RVal)]
-pRecord = Util.Parse.parse Record.pRecord
+pRecord = ParseM.parse Record.pRecord

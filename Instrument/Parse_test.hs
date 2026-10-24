@@ -3,22 +3,22 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Instrument.Parse_test where
-import qualified Util.Parse
-
-import Util.Test
-import qualified Midi.Midi as Midi
-import qualified Perform.Midi.Patch as Patch
+import qualified Util.ParseM as ParseM
 import qualified Instrument.Common as Common
 import qualified Instrument.InstT as InstT
 import qualified Instrument.Parse as Parse
 
-import Global
+import qualified Midi.Midi as Midi
+import qualified Perform.Midi.Patch as Patch
+
+import           Global
+import           Util.Test
 
 
 test_parse_annotations :: Test
 test_parse_annotations = do
     let f = second (map extract)
-            . Util.Parse.parseS () "" Parse.pAnnotationFile
+            . ParseM.parseS () "" Parse.pAnnotationFile
         extract (qualified, annots) =
             (InstT.showQualified qualified, annots)
     equal (f "s/1 there\n") $ Right [("s/1", [("there", "")])]
@@ -33,7 +33,7 @@ test_parse_annotations = do
 test_parse_patch_file :: Test
 test_parse_patch_file = do
     let parse ex = extract ex
-            . Util.Parse.parseS Parse.emptyState "" Parse.pPatchFile
+            . ParseM.parseS Parse.emptyState "" Parse.pPatchFile
         extract ex = second (map ex)
 
     let eInit (patch, _) = case Patch.patchInitialize patch of

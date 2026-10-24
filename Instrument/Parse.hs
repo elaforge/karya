@@ -12,7 +12,7 @@ import qualified Data.Maybe as Maybe
 
 import qualified Util.P as P
 import           Util.P ((<?>))
-import qualified Util.Parse as Parse
+import qualified Util.ParseM as ParseM
 
 import qualified Instrument.Common as Common
 import qualified Instrument.InstT as InstT
@@ -27,7 +27,7 @@ import qualified Ui.Id as Id
 import           Global
 
 
-type Parser st a = Parse.ParserS st a
+type Parser st a = ParseM.ParserS st a
 
 -- * annotation file
 
@@ -40,7 +40,7 @@ type Annotation = Tag.Tag
 parseAnnotations :: FilePath
     -> IO (Either String (Map InstT.Qualified [Annotation]))
 parseAnnotations fn = do
-    result <- Parse.file mempty pAnnotationFile () fn
+    result <- ParseM.file mempty pAnnotationFile () fn
     pure $ bimap show (Map.fromListWith (++)) result
 
 pAnnotationFile :: Parser st [(InstT.Qualified, [Annotation])]
@@ -95,7 +95,7 @@ patchFile fn = either (errorIO . ("parse patches: " <>)) pure
 parsePatchFile :: String -> IO (Either Text [Sysex.Patch])
 parsePatchFile fn =
     fmap (map (second (Sysex.addFile fn))) <$>
-        Parse.file mempty pPatchFile emptyState fn
+        ParseM.file mempty pPatchFile emptyState fn
 
 data State = State
     { stateBank :: Int
@@ -156,5 +156,5 @@ pBankDecl :: Parser State ()
 pBankDecl = do
     P.string "*bank"
     P.space1
-    n <- Parse.pNat
+    n <- ParseM.pNat
     State.modify' $ \st -> st { stateBank = n, statePatchNum = 0 }

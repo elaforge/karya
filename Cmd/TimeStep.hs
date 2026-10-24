@@ -36,7 +36,7 @@ import qualified Data.Text as Text
 
 import qualified Util.Lists as Lists
 import qualified Util.P as P
-import qualified Util.Parse as Parse
+import qualified Util.ParseM as ParseM
 
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
@@ -140,14 +140,14 @@ showTimeStep (TimeStep steps)
 
 -- | Parse that curiously somewhat readable representation back to a TimeStep.
 parseTimeStep :: Text -> Either Text TimeStep
-parseTimeStep = Parse.parse pTimeStep
+parseTimeStep = ParseM.parse pTimeStep
     where
     pTimeStep = TimeStep <$> P.sepBy pStep (P.char ';')
     -- P.choice must backtrack because AbsoluteMark parses can overlap.
     pStep = P.choice $ map P.try
         [ str "d:" *> (Duration <$>
             (ScoreTime.fromDouble
-                <$> (Parse.pFloat <* P.char ScoreTime.suffix)))
+                <$> (ParseM.pFloat <* P.char ScoreTime.suffix)))
         , str "r:" *> (RelativeMark <$> pMarklists <*> parseRank)
         , str "END" *> pure BlockEdge
         , str "start" *> (EventStart <$> pTracks)
@@ -161,10 +161,10 @@ parseTimeStep = Parse.parse pTimeStep
     pTracks = P.option CurrentTrack $
         P.try (TrackNums <$> (str "s:" *> pTracknums))
         <|> P.char 's' *> pure AllTracks
-    pTracknums = P.sepBy Parse.pNat (P.char ',')
+    pTracknums = P.sepBy ParseM.pNat (P.char ',')
     str = P.string
 
-parseRank :: Parse.Parser Meter.Rank
+parseRank :: ParseM.Parser Meter.Rank
 parseRank = P.choice $ map P.try
     [P.string name *> pure rank | (rank, name) <- Meter.rankNames]
 

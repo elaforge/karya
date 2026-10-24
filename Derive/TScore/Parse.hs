@@ -38,7 +38,7 @@ import qualified Data.Void as Void
 import qualified Util.Control as Control
 import qualified Util.P as P
 import           Util.P ((<?>))
-import qualified Util.Parse as Parse
+import qualified Util.ParseM as ParseM
 
 import qualified Derive.TScore.T as T
 import qualified Ui.Id as Id
@@ -516,7 +516,7 @@ instance Pretty T.Pitch where pretty = unparse defaultConfig
 
 instance Element T.Octave where
     parse _ =
-        T.Absolute <$> Parse.pInt <|> T.Relative <$> pRelative <?> "octave"
+        T.Absolute <$> ParseM.pInt <|> T.Relative <$> pRelative <?> "octave"
         where
         pRelative = Text.foldl' (\n c -> n + if c == ',' then -1 else 1) 0 <$>
             P.takeWhile (`elem` (",'" :: String))
@@ -538,8 +538,8 @@ instance Element T.NDuration where
 
 instance Element T.Duration where
     parse _ = T.Duration
-        <$> P.optional Parse.pNat
-        <*> P.optional (P.char ':' *> Parse.pNat)
+        <$> P.optional ParseM.pNat
+        <*> P.optional (P.char ':' *> ParseM.pNat)
         <*> (Text.length <$> P.takeWhile (=='.'))
         <*> P.option False (P.char '~' *> pure True)
         <?> "duration"

@@ -3,7 +3,7 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 -- | Generic parsing utils for megaparsec.
-module Util.Parse where
+module Util.ParseM where
 import qualified Control.Monad.Identity as Identity
 import qualified Control.Monad.State.Strict as State
 import qualified Data.Attoparsec.Text as A

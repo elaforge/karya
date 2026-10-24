@@ -43,7 +43,7 @@ import qualified Util.Lists as Lists
 import qualified Util.Maps as Maps
 import qualified Util.Num as Num
 import qualified Util.P as P
-import qualified Util.Parse as Parse
+import qualified Util.ParseM as ParseM
 
 import qualified Derive.DeriveT as DeriveT
 import qualified Derive.Expr as Expr
@@ -133,7 +133,7 @@ pInstruments = do
         pDefinitions
     insts <- mapM (substituteM env) records
     let (allocs, dups) = Maps.unique2 insts
-    dups <- mapM (traverse (mapM (firstM Parse.offsetToSourcePos))) dups
+    dups <- mapM (traverse (mapM (firstM ParseM.offsetToSourcePos))) dups
     unless (null dups) $
         fail $ "duplicate instrument names: " <> unlines (map showDup dups)
     pure $ UiConfig.Allocations $ snd <$> allocs
@@ -143,8 +143,8 @@ pInstruments = do
 
 type Record = Map Text Record.RVal
 
-substituteM :: Record -> (Parse.Offset, (Allocation, Record))
-    -> Parser (ScoreT.Instrument, (Parse.Offset, UiConfig.Allocation))
+substituteM :: Record -> (ParseM.Offset, (Allocation, Record))
+    -> Parser (ScoreT.Instrument, (ParseM.Offset, UiConfig.Allocation))
 substituteM env (offset, (allocLine, record)) = do
     record <- either die pure $ substitute env record
     uiAlloc <- either die pure $
@@ -152,7 +152,7 @@ substituteM env (offset, (allocLine, record)) = do
     either die (pure . (name,) . (offset,)) $
         merge config backend uiAlloc
     where
-    die = Parse.failAt offset . untxt
+    die = ParseM.failAt offset . untxt
     Allocation name qualified config backend = allocLine
 
 -- | Resolve variables parsed by p_equal.  So far it's just for scale.
@@ -181,12 +181,12 @@ unScale scale =
     Vector.Unboxed.toList scale.scaleKeyToNn
 
 pDefinitions :: Parser
-    [Either (Symbol, Record.RVal) (Parse.Offset, (Allocation, Record))]
+    [Either (Symbol, Record.RVal) (ParseM.Offset, (Allocation, Record))]
 pDefinitions = do
     spaces
     P.many $ lexeme $ (Left <$> pEqual <|> Right <$> pRecord)
 
-pRecord :: Parser (Parse.Offset, (Allocation, Record))
+pRecord :: Parser (ParseM.Offset, (Allocation, Record))
 pRecord = do
     offset <- P.getOffset
     alloc <- pAllocLine
@@ -299,7 +299,7 @@ pBackend =
 
 pRange :: Parser [Int]
 pRange = do
-    (low, mbHigh) <- (,) <$> Parse.pNat <*> P.optional (".." *> Parse.pNat)
+    (low, mbHigh) <- (,) <$> ParseM.pNat <*> P.optional (".." *> ParseM.pNat)
     pure $ case mbHigh of
         Nothing -> [low]
         Just high

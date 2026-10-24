@@ -15,7 +15,7 @@ import qualified Data.Text.IO as Text.IO
 import qualified Text.Megaparsec as P
 import qualified Text.Megaparsec.Char as P
 
-import qualified Util.Parse as Parse
+import qualified Util.ParseM as ParseM
 import qualified Cmd.Load.ModT as ModT
 import qualified Derive.ScoreT as ScoreT
 import qualified Perform.Pitch as Pitch
@@ -151,10 +151,10 @@ valType = \case
     VString {} -> "string"
     VNum {} -> "num"
 
-type Parser a = Parse.Parser a
+type Parser a = ParseM.Parser a
 
 parse :: Text -> Either Error Val
-parse = Parse.parse pVal
+parse = ParseM.parse pVal
 
 pVal :: Parser Val
 pVal = lexeme $ pList <|> pNum <|> pString <|> pSymbol
@@ -167,7 +167,7 @@ pSymbol :: Parser Val
 pSymbol = VSymbol <$> P.takeWhile1P Nothing (\c -> 'a' <= c && c <= 'z')
 
 pNum :: Parser Val
-pNum = VNum <$> Parse.pInt
+pNum = VNum <$> ParseM.pInt
 
 pString :: Parser Val
 pString = fmap VString $
