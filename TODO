@@ -784,13 +784,21 @@ UNSORTED
     - Allocs no longer belong in UiConfig, probably they should go into
       Cmd.State along with the loaded ky.
     - directly import kyPath rather than faking up 'import' line
-    - Ky.integrateTscore: show tscore errors positions correctly
+    * Ky.integrateTscore: show tscore errors positions correctly
       . I think I need an offset for tscore section in .ky, and
         a filename for imported ones.
       . Seems I should be able to unify T.Pos in tscore, but it needs at least
         source and filename.
       . Does P.getParserState already have it?
-      . If so, ParseText.Error can be created
+        No it doesn't.  Could add with arbitrary state, but it's constant
+        and would clutter up the Show output, so what about attaching it to
+        the whole score?
+      . I can, but then TScore.trackBlocks etc. does checks on one single
+        Score and emits T.Pos from it.
+      . This is all for imported tscores, which I never actually wanted.
+        So let's just ignore all but the first for now?
+      . Seems to work, but format is not right, and line is wrong.
+        Convert to ParseM.Error, and include line offset of tscore section.
     * Util.Parse.parseFromLine no longer needed, use ParseText.addRow
     * syntax error shows filename twice
       . State error: -- from Cmd.Repl, removed

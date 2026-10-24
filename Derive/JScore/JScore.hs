@@ -85,10 +85,11 @@ sourceKey = "jscore"
 
 integrateFile :: (MonadIO m, Ui.M m) => FilePath
     -> m (Either [Text] (Maybe BlockId, [BlockId]))
-integrateFile = integrate <=< liftIO . Text.IO.readFile
+integrateFile fname = integrate fname =<< liftIO (Text.IO.readFile fname)
 
-integrate :: Ui.M m => Text -> m (Either [Text] (Maybe BlockId, [BlockId]))
-integrate source = case convertSource source of
+integrate :: Ui.M m => FilePath -> Text
+    -> m (Either [Text] (Maybe BlockId, [BlockId]))
+integrate fname source = case convertSource fname source of
     Left errors -> pure $ Left errors
     Right (toplevel, blocks) -> do
         ns <- Ui.getNamespace
@@ -129,7 +130,7 @@ t2 = _printIntegrate "Example/jscore/pangkur.jscore"
 _printIntegrate :: FilePath -> IO ()
 _printIntegrate fname = do
     source <- Text.IO.readFile fname
-    case convertSource source of
+    case convertSource fname source of
         Left errors -> mapM_ Text.IO.putStrLn errors
         Right (toplevel, blocks) -> do
             mapM_ Text.IO.putStrLn $ List.intercalate [""] $ map ppBlock blocks
@@ -146,21 +147,25 @@ _printIntegrate fname = do
 
 type Block = T.Block T.Pitch [[(T.Time, T.Note T.Pitch T.Time)]]
 
-convertSource :: Text -> Either [Error] (ConvertedBlock, [ConvertedBlock])
-convertSource source = do
-    score <- first (:[]) $ Parse.parseScore source
+convertSource :: FilePath -> Text
+    -> Either [Error] (ConvertedBlock, [ConvertedBlock])
+convertSource fname code = do
+    score <- first (:[]) $ Parse.parseScore code
     let (blocks, errors) = Logger.runId $
             -- TODO gender barung <= tanggung uses BiasStart.
             -- >= Wiled uses BiasEnd, but also spells out every note, so not
             -- needed.
             Check.forIntegrate Check.BiasStart score
-    unless (null errors) $ Left $ map (T.showError source) errors
-    blocks <- first (map mkerror) $ resolveBlocks blocks
-    toplevel <- first ((:[]) . mkerror) $ generateToplevel blocks
+    unless (null errors) $ Left $ map (T.showError fname code) errors
+    blocks <- first (map mkError) $ resolveBlocks blocks
+    toplevel <- first ((:[]) . mkError) $ generateToplevel blocks
     pure (toplevel, map convertBlock blocks)
     where
-    mkerror (msg, pos) = msg <> if null pos then ""
-        else "\n" <> mconcat (mapMaybe (T.showPos source) pos)
+    mkError (msg, []) = T.showError fname code $ T.Error Nothing msg
+    -- Yes this will format weird, and ParseM does support multiple positions,
+    -- but not worth it right now.  Why do I have multiple positions?
+    mkError (msg, p:ps) = T.showErrors fname code $
+        T.Error (Just p) msg : [T.Error (Just p) "" | p <- ps]
 
 generateToplevel :: [(Check.Meta, Block)]
     -> Either (Error, [T.Pos]) ConvertedBlock

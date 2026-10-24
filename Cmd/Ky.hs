@@ -15,6 +15,7 @@ module Cmd.Ky (
 #endif
 ) where
 import qualified Data.Hashable as Hashable
+import qualified Data.List as List
 import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Map as Map
 import qualified Data.Text as Text
@@ -75,12 +76,15 @@ reload integrate mbKyCode = do
     Ui.unsafePut uiState
     when integrate $ whenJust mbTscore integrateTscore
 
-integrateTscore :: Cmd.M m => TScore.T.Score -> m ()
-integrateTscore tscore = do
+integrateTscore :: Cmd.M m => Ky.TScore -> m ()
+integrateTscore (fname, row, code, score) = do
     cmdState <- Cmd.get
-    TScore.cmdIntegrate cmdState tscore >>= \case
+    TScore.cmdIntegrate cmdState score >>= \case
         Right newBlocks -> mapM_ Create.view newBlocks
-        Left errs -> Ui.throw $ pretty errs -- TODO show errors with sources
+        Left errs ->
+            Cmd.throw_ $ Text.intercalate "\n" $
+                map (ParseM.showError . ParseM.addRow row) errors
+            where errors = map (TScore.T.convertError fname code) errs
 
 checkLoadKy :: Cmd.State -> Maybe Ky.Code
     -> IO (Maybe (Either Error (Ky.Ky Ky.Loaded)))
@@ -91,13 +95,19 @@ checkLoadKy cmdState mbKyCode
     where (mbKyPath, paths) = stateKyPaths cmdState
 
 checkKy :: Ui.State -> Cmd.State -> Ky.Ky Ky.Loaded
-    -> Either Error (Ui.State, Cmd.State, [Log.Msg], Maybe TScore.T.Score)
+    -> Either Error (Ui.State, Cmd.State, [Log.Msg], Maybe Ky.TScore)
 checkKy uiState cmdState ky = do
     let (kyBuiltins, logs) = compileLibrary (compileDefinitions defs)
     let errs = UiConfig.verifyAllocations lookupBackend allocs
     unless (null errs) $
         Left $ "instrument: " <> Text.intercalate "; " errs
-    let kyTscoreFingerprint = tscoreFingerprint tscoreLines
+    tscore <- case tscores of
+        [tscore] -> pure tscore
+        -- This happens if tscore section is removed.
+        [] -> pure ("", 0, "", mempty)
+        _ -> Left $ "imported tscores not supported yet: "
+            <> Text.unwords [txt fname | (fname, _, _, _) <- tscores]
+    let kyTscoreFingerprint = tscoreFingerprint tscores
     pure
         ( Ui.config#UiConfig.allocations #= allocs $ uiState
         , cmdState
@@ -119,7 +129,7 @@ checkKy uiState cmdState ky = do
             else Just tscore
         )
     where
-    Ky.Ky defs _imported allocs tscore tscoreLines = ky
+    Ky.Ky defs _imported allocs tscores = ky
     lookupBackend = fmap Inst.instBackend . Cmd.getLookupInst cmdState
     oldTscoreFingerprint = case Cmd.stateKyCache cmdState of
         Just (Cmd.KyCache cache) -> Cmd.kyTscoreFingerprint cache
@@ -128,10 +138,10 @@ checkKy uiState cmdState ky = do
 -- TODO Cmd.Fingerprint has file names, but I think no good reason, I can just
 -- put filenames in the hash.
 
-tscoreFingerprint :: [(FilePath, [Text])] -> Cmd.Fingerprint
+tscoreFingerprint :: [Ky.TScore] -> Cmd.Fingerprint
 tscoreFingerprint tscores =
-    Cmd.Fingerprint fnames (foldl' Hashable.hashWithSalt 0 lines)
-    where (fnames, lines) = unzip tscores
+    Cmd.Fingerprint fnames (foldl' Hashable.hashWithSalt 0 codes)
+    where (fnames, _, codes, _) = List.unzip4 tscores
 
 -- TODO rename to 'load'
 loadKy :: Maybe FilePath -> [FilePath] -> Maybe Ky.Code
@@ -162,7 +172,7 @@ load paths kyText =
 
 compile :: Ky.Ky Ky.Loaded
     -> (Derive.Builtins, Derive.InstrumentAliases, UiConfig.Allocations)
-compile (Ky.Ky defs _imported allocs _tscores _tscoreLines) =
+compile (Ky.Ky defs _imported allocs _tscores) =
     (builtins, Map.fromList (Ky.defAliases defs), allocs)
     where
     -- Logs will be about name collisions.

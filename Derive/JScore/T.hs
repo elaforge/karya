@@ -8,7 +8,7 @@ module Derive.JScore.T (
 import qualified Data.Text as Text
 
 import           Derive.TScore.T
-    (Error(..), Pos(..), Time(..), err, fakePos, findPos, showError, showPos)
+    (Error(..), Pos(..), Time(..), err, fakePos, findPos, showError, showErrors)
 
 import           Global
 

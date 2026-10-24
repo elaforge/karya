@@ -7,6 +7,7 @@ module Derive.Parse.Ky (
     Code
     , Line
     , Ky(..), Loaded(..)
+    , TScore
     , Definitions(..), Definition
     , loadKy
     , parseKy
@@ -63,15 +64,16 @@ data Ky a = Ky
     { kyDefinitions :: Definitions
     , kyImports :: [a]
     , kyInstruments :: UiConfig.Allocations
-    , kyTscore :: TScore.T.Score
-    , kyTscoreText :: [(FilePath, [Text])] -- ^ unparsed to get fingerprint
+    , kyTscores :: [TScore]
     } deriving (Show)
 
+type TScore = (FilePath, Line, TScore.T.Code, TScore.T.Score)
+
 instance Semigroup (Ky a) where
-    Ky a1 b1 c1 d1 e1 <> Ky a2 b2 c2 d2 e2 =
-        Ky (a1<>a2) (b1<>b2) (c1<>c2) (d1<>d2) (e1<>e2)
+    Ky a1 b1 c1 d1 <> Ky a2 b2 c2 d2 =
+        Ky (a1<>a2) (b1<>b2) (c1<>c2) (d1<>d2)
 instance Monoid (Ky a) where
-    mempty = Ky mempty mempty mempty mempty mempty
+    mempty = Ky mempty mempty mempty mempty
 
 -- | Record a loaded .ky file, with its path and content.
 -- A path of "" is used for the code directly in the UiConfig.
@@ -204,9 +206,12 @@ parseKy fname text = first (ParseM.setFilename fname) $ do
         _ -> Right mempty
     let addFname = map (fname,)
         addFname2 = bimap addFname addFname
-    kyTscore <- case mbTscores of
-        Just lines@((lineno, _) : _) -> parseTscore fname lineno (map snd lines)
-        _ -> pure mempty
+    kyTscores <- case mbTscores of
+        Just lines@((lineno, _) : _) -> do
+            tscore <- parseTscore fname lineno code
+            pure [(fname, lineno, code, tscore)]
+            where code = Text.unlines (map snd lines)
+        _ -> pure []
     pure $ Ky
         { kyDefinitions = Definitions
             { defNote = addFname2 $ get2 note
@@ -217,10 +222,7 @@ parseKy fname text = first (ParseM.setFilename fname) $ do
             }
         , kyImports = map (Import fname) imports
         , kyInstruments
-        , kyTscore
-        , kyTscoreText = case mbTscores of
-            Just lines -> [(fname, map snd lines)]
-            _ -> []
+        , kyTscores
         }
     where
     val = "val"
@@ -267,12 +269,11 @@ parseInstruments fname lineno lines =
 tscoreSection :: Text
 tscoreSection = "tscore"
 
-parseTscore :: FilePath -> Line -> [Text]
+parseTscore :: FilePath -> Line -> Text
     -> Either ParseM.Error TScore.T.Score
-parseTscore fname lineno lines =
+parseTscore fname lineno code =
     first (ParseM.addRow lineno . ParseM.fromMegaparsec) $
-        ParseM.parseE fname TScore.Parse.score
-            (Text.unlines lines)
+        ParseM.parseE fname TScore.Parse.score code
 
 -- * parse ky file
 

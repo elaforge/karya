@@ -188,7 +188,9 @@ data Diagnostic = Diagnostic
     , _message :: Text
     } deriving (Eq, Show)
 
+-- | 1-based line number.
 type Row = Int
+-- | 1-based column number.
 type Column = Int
 
 -- | Convert Megaparsec diagnostics into the common error representation.
@@ -249,27 +251,22 @@ setFilename filename err = err { _filename = _filename err <|> Just filename }
 
 showError :: Error -> Text
 showError (Error mbFilename diagnostic diagnostics) =
-    Text.intercalate "\n\n" $
+    Text.intercalate "\n" $
         map (formatDiagnostic mbFilename) (diagnostic : diagnostics)
 
 formatDiagnostic :: Maybe FilePath -> Diagnostic -> Text
-formatDiagnostic mbFilename (Diagnostic line position length_ msg) =
+formatDiagnostic mbFilename (Diagnostic mbLine position length_ msg) =
     case position of
-        Nothing -> Texts.join2 ": " (maybe "" txt mbFilename) msg
-        Just (row, column) -> mconcat
-            [ maybe "" ((<> ":") . txt) mbFilename
-            , showt row, ":", showt column, ":\n"
-            , maybe "" (formatLine row column) line
-            , msg
-            ]
+        Nothing -> Texts.join2 ": " filename msg
+        Just (row, column) -> Text.intercalate "\n" $
+            Text.intercalate ":" [filename, showt row, showt column, msg]
+            : maybe [] (formatLine row column) mbLine
     where
-    formatLine row column sourceLine = mconcat
-        [ padding, "|\n"
-        , showt row, " | ", sourceLine, "\n"
-        , padding, "| "
-        , Text.replicate (max 0 (column - 1)) " "
-        , Text.replicate pointerLength "^"
-        , "\n"
+    filename = maybe "<unknown>" txt mbFilename
+    formatLine row column sourceLine =
+        [ showt row <> " | " <> sourceLine
+        , padding <> "| " <> Text.replicate (column - 1) " "
+            <> Text.replicate pointerLength "^"
         ]
         where
         padding = Text.replicate (length (show row) + 1) " "

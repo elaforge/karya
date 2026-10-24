@@ -43,7 +43,7 @@ formatScore source = case Parse.parseScore source of
     Left err -> Left err
     Right score
         | not (null errs) ->
-            Left $ Text.unlines $ map (T.showError source) errs
+            Left $ Text.unlines $ map (T.showError "fn" source) errs
         | otherwise -> Right lines
         where (lines, errs) = Format.formatScore id score
 

@@ -134,8 +134,7 @@ checkScore fname = do
     source <- Text.IO.readFile fname
     cmdConfig <- DeriveSaved.loadCmdConfig
     case parseScore cmdConfig source of
-        Left errs -> Text.IO.putStrLn $
-            txt fname <> ": " <> T.showErrors source errs
+        Left errs -> Text.IO.putStrLn $ T.showErrors fname source errs
         Right uiState -> Text.IO.putStr $ Transform.showStats uiState
 
 listDevices :: IO ()
@@ -154,7 +153,7 @@ dumpScore :: FilePath -> IO ()
 dumpScore fname = do
     source <- Text.IO.readFile fname
     cmdConfig <- DeriveSaved.loadCmdConfig
-    (uiState, cmdState) <- either die pure =<< loadScore cmdConfig source
+    (uiState, cmdState) <- either die pure =<< loadScore fname cmdConfig source
     dump <- either (die . pretty) pure $ Ui.eval uiState Simple.dumpState
     Pretty.pprint dump
 
@@ -207,7 +206,7 @@ playScore mbDevice fname = PortAudio.initialize $ initializeMidi $
         \midiInterface -> do
     source <- Text.IO.readFile fname
     cmdConfig <- loadCmdConfig midiInterface
-    (uiState, cmdState) <- either die pure =<< loadScore cmdConfig source
+    (uiState, cmdState) <- either die pure =<< loadScore fname cmdConfig source
     initializeInstruments uiState cmdState
 
     blockId <- maybe (die "no root block") pure $
@@ -390,9 +389,10 @@ loadCmdConfig midiInterface = do
     pure $ StaticConfig.cmdConfig appDir saveDir midiInterface
         staticConfig (SaveGitT.User "user" "name")
 
-loadScore :: Cmd.Config -> Text -> IO (Either Error (Ui.State, Cmd.State))
-loadScore cmdConfig source = Except.runExceptT $ do
-    uiState <- tryRight $ first (T.showErrors source) $
+loadScore :: FilePath -> Cmd.Config -> Text
+    -> IO (Either Error (Ui.State, Cmd.State))
+loadScore fname cmdConfig source = Except.runExceptT $ do
+    uiState <- tryRight $ first (T.showErrors fname source) $
         parseScore cmdConfig source
     -- TODO adjust starting line in error
     (builtins, aliases, allocs) <- tryRight . first ("parsing %ky: "<>)

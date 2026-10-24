@@ -12,7 +12,7 @@ import qualified Data.String as String
 import qualified Data.Text as Text
 
 import qualified Util.Lists as Lists
-import qualified Util.Texts as Texts
+import qualified Util.ParseM as ParseM
 import qualified Ui.Id as Id
 
 import           Global
@@ -202,32 +202,37 @@ data Error = Error (Maybe Pos) Text
 instance Pretty Error where
     pretty (Error mbPos msg) = "Error:" <> maybe "<>" showt mbPos <> ":" <> msg
 
+convertError :: FilePath -> Code -> Error -> ParseM.Error
+convertError fname code (Error mbPos msg) = ParseM.Error
+    { _filename = Just fname
+    , _diagnostic = ParseM.Diagnostic
+        { _line = fst <$> mbLocation
+        , _position = snd <$> mbLocation
+        , _length = 1
+        , _message = msg
+        }
+    , _extraDiagnostics = []
+    }
+    where mbLocation = findPos code =<< mbPos
+
 fakePos :: Pos
 fakePos = Pos (-1)
 
 err :: Pos -> Text -> Error
 err pos = Error (Just pos)
 
-showErrors :: Text -> [Error] -> Text
-showErrors source = Text.intercalate "\n" . map (showError source)
+showErrors :: FilePath -> Code -> [Error] -> Text
+showErrors fname code = Text.intercalate "\n" . map (showError fname code)
 
-showError :: Text -> Error -> Text
-showError source (Error mbPos msg) =
-    Texts.unlines2 msg $ fromMaybe "" $ showPos source =<< mbPos
-
-showPos :: Text -> Pos -> Maybe Text
-showPos source pos = fmt <$> findPos source pos
-    where
-    fmt (lineNum, charNum, line) = Text.unlines
-        [ Text.justifyRight 3 ' ' (showt lineNum) <> " | " <> line
-        , Text.replicate (3 + 3 + charNum) " " <> "^"
-        ]
+showError :: FilePath -> Code -> Error -> Text
+showError fname code = ParseM.showError . convertError fname code
 
 -- | Find the line and position on that line.
-findPos :: Text -> Pos -> Maybe (Line, Int, Text) -- ^ (linenum, col, line)
-findPos source (Pos pos) =
+findPos :: Code -> Pos -> Maybe (Text, (Line, Int))
+findPos code (Pos pos) =
     case Lists.dropBefore (fst . snd) pos (zip [1..] lines) of
-        (lineNum, (start, line)) : _ -> Just (lineNum, pos - start, line)
+        -- +1 because column is 1-based.
+        (lineNum, (start, line)) : _ -> Just (line, (lineNum, pos - start + 1))
         _ -> Nothing
     where
-    lines = Lists.scanlOn (+) ((+1) . Text.length) 0 $ Text.lines source
+    lines = Lists.scanlOn (+) ((+1) . Text.length) 0 $ Text.lines code

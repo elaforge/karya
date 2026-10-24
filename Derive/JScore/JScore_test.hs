@@ -15,8 +15,8 @@ import           Types
 import           Util.Test.Global
 
 
-test_convert_source :: Test
-test_convert_source = do
+test_convertSource :: Test
+test_convertSource = do
     let header =
             "%laras = slendro-manyura\n\
             \%instrument = gender-barung\n\
@@ -163,7 +163,8 @@ type Track = (Text, [Event])
 type Event = (TrackTime, TrackTime, Text)
 
 convertSource :: Text -> Either Text ([Track], [[Track]])
-convertSource = bimap (Text.intercalate "; ") extract . JScore.convertSource
+convertSource =
+    bimap (Text.intercalate "; ") extract . JScore.convertSource "fn"
     where
     extract (top, bs) = (eBlock top, map eBlock bs)
     eBlock = map (eTrack . fst) . JScore.blockTracks

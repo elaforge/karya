@@ -31,14 +31,15 @@ type Block tracks = T.Block T.Pitch tracks
 type Token pos dur rest = T.Token pos (T.Note T.Pitch dur) rest
 
 formatFile :: Check.Transform -> FilePath -> IO ()
-formatFile transform = printScore transform <=< Text.IO.readFile
+formatFile transform fname =
+    printScore fname transform =<< Text.IO.readFile fname
 
-printScore :: Check.Transform -> Text -> IO ()
-printScore transform source = case Parse.parseScore source of
+printScore :: FilePath -> Check.Transform -> Text -> IO ()
+printScore fname transform source = case Parse.parseScore source of
     Left err -> Text.IO.putStrLn err
     Right score -> do
         mapM_ Text.IO.putStrLn lines
-        mapM_ (Text.IO.putStrLn . T.showError source) errs
+        mapM_ (Text.IO.putStrLn . T.showError fname source) errs
         where (lines, errs) = formatScore transform score
         -- TODO interleave the errs with the lines
 

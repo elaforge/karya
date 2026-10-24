@@ -84,7 +84,7 @@ test_reload = do
     -- parse error, line numbers correct
     io leftLike
         (f (const ()) "note generator:\n\nsyntax error blah\n")
-        "<internal>:3:1:*| ^*expected eof"
+        "<internal>:3:1:expected eof"
     -- defs and instruments
     io rightEqual (f eDefs "note generator:\na = +a\n") ["a"]
     io rightEqual (f eInsts "instrument:\n>i1 s/1 [ms] d 1\n") ["i1"]
@@ -113,9 +113,9 @@ test_reload = do
     fprint1 <- f eFprint "tscore:\nxyz = [ 4s1 ]\n"
     fprint2 <- f eFprint "tscore:\nxyz = [ 4s2 ]\n"
     notEqual fprint1 fprint2
-    -- TODO proper error
+    -- caret should be pointing at barline
     io leftLike (f eFprint "tscore:\nxyz = [ 4s4 | 4s4 ]\n")
-        "Error:Pos 12:barline check"
+        "<internal>:2:13:barline check"
 
 eBuiltins :: Derive.Builtins -> [Expr.Symbol]
 eBuiltins = concatMap (Map.keys . Derive.callMap) . Map.elems
@@ -123,7 +123,7 @@ eBuiltins = concatMap (Map.keys . Derive.callMap) . Map.elems
 
 putLibrary :: Cmd.M m => Text -> m ()
 putLibrary text = do
-    Parse.Ky.Ky defs _imported _allocs _tscore _tscoreLines <-
+    Parse.Ky.Ky defs _imported _allocs _tscores <-
         Cmd.requireRight ParseM.showError $
             Parse.Ky.parseKy "fname.ky" text
     let (builtins, _logs) = Ky.compileLibrary (Ky.compileDefinitions defs)
@@ -131,7 +131,6 @@ putLibrary text = do
         { Cmd.stateKyCache = Just $ Cmd.KyCache $ Cmd.KyCached
             { kyBuiltins = builtins
             , kyAliases = mempty
-            -- , kyFingerprint = mempty
             , kyTscoreFingerprint = mempty
             }
         }

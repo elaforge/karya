@@ -190,7 +190,7 @@ test_ext_call_duration = do
     let f blocks source = extract $
             CmdTest.runBlocks blocks $ do
                 cmdState <- Cmd.get
-                tscore <- Ui.requireRight (T.showErrors source) $
+                tscore <- Ui.requireRight (T.showErrors "fn" source) $
                     parseScore source
                 TScore.cmdIntegrate cmdState tscore
         extract = fmap (Lists.sortOn fst) . CmdTest.traceLogs
@@ -392,8 +392,9 @@ test_check_recursion = do
 
 integrate :: Ui.M m => Text -> m [BlockId]
 integrate source = do
-    tscore <- Ui.requireRight (T.showErrors source) $ parseScore source
-    Ui.requireRight (T.showErrors source) =<< TScore.integrate makeExtDur tscore
+    tscore <- Ui.requireRight (T.showErrors "fn" source) $ parseScore source
+    Ui.requireRight (T.showErrors "fn" source)
+        =<< TScore.integrate makeExtDur tscore
 
 -- | Tests exercise tscore, not the deriver, so don't give them a derive
 -- environment.  'TScore.standalone_duration' is the one that does.
@@ -401,7 +402,7 @@ makeExtDur :: TScore.MakeExternalCallDuration
 makeExtDur = const $ Right TScore.noExternalDuration
 
 scoreToUi :: Text -> Either Text Ui.State
-scoreToUi source = first (T.showErrors source) $ do
+scoreToUi source = first (T.showErrors "fn" source) $ do
     tscore <- parseScore source
     TScore.scoreToUi makeExtDur tscore
 

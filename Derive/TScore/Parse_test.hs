@@ -147,7 +147,7 @@ test_pos = do
             \    >inst1 a b\n\
             \]\n"
     let showPos pos = putStr $ untxt $
-            T.showError score (T.err (T.Pos pos) "some error")
+            T.showError "fn" score (T.err (T.Pos pos) "some error")
     let Right defs = f score
 
     showPos 0

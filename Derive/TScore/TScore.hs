@@ -493,7 +493,7 @@ findPos t timeNotes = case dropWhile ((<t) . fst) timeNotes of
 -- multiple levels of %f, which 'resolve_copy_from' would handle fine, but I
 -- don't mind forbidding those too.
 --
--- This does a redundant 'resolve_from' since 'resolve_blocks' will do it in
+-- This does a redundant 'resolveFrom' since 'resolveBlocks' will do it in
 -- again, but it seems like a hassle to try to stash the resolved froms in a
 -- Block.
 checkRecursiveCopyFrom :: [Block ParsedTrack] -> [T.Error]

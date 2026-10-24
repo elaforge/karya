@@ -38,7 +38,7 @@ test_loadKy = do
             writeFile (dir </> "defs") (makeKy imports ["defs-call"])
     let load = bimap ParseM.showError extract
             <$> Ky.loadKy [dir, lib] "import 'defs'"
-        extract (Ky.Ky defs imports allocs _tscore _tscoreLines) =
+        extract (Ky.Ky defs imports allocs _tscore) =
             ( map (fst . snd) . fst . Ky.defNote $ defs
             , imports
             , allocs
@@ -53,7 +53,7 @@ test_loadKy = do
     let bad = dir </> "bad"
     writeFile bad "instrument:\n123\n"
     write ["bad"]
-    io leftLike load (txt bad <> ":*| ^*unexpected '1'")
+    io leftLike load (txt bad <> ":2:1:unexpected '1'")
     write ["lib1"]
 
 
@@ -90,7 +90,7 @@ test_parseKy = do
         [("a", ("b", ["c"])), ("d", ("e", []))]
     rightEqual (note "a = b\n c\n --comment\n\nd = e\n")
         [("a", ("b", ["c"])), ("d", ("e", []))]
-    leftLike (note "a = b\nc\n") "fname.ky:3:1:*| ^*expected eof"
+    leftLike (note "a = b\nc\n") "fname.ky:3:1:expected eof"
     rightEqual (note "a = b $c") [("a", ("b", ["$c"]))]
     rightEqual (f eNote "-- hi") []
     rightEqual (f eNote "-- note_generator:") []
@@ -103,7 +103,7 @@ test_parseKy = do
     rightEqual (f Ky.kyImports "import\n\t'x'\n")
         [Ky.Import "fname.ky" "x"]
     leftLike (f Ky.kyImports "blort x\nimport y\n")
-        "fname.ky:1:1:*| ^*expected eof"
+        "fname.ky:1:1:expected eof"
 
     let aliases = Ky.defAliases . Ky.kyDefinitions
     rightEqual (f aliases "alias:\na = b\n") $
@@ -116,7 +116,7 @@ test_instruments = do
             . Ky.parseKy "fname.ky"
         extract = Ky.kyInstruments
     -- line offset to 4
-    leftLike (f ky1) "fname.ky:4:1:*| ^*unexpected '1'"
+    leftLike (f ky1) "fname.ky:4:1:unexpected '1'"
     where
     ky1 =
         "-- blah\n\
@@ -128,17 +128,17 @@ test_tscore :: Test
 test_tscore = do
     let f = bimap ParseM.showError extract
             . Ky.parseKy "fname.ky"
-        extract ky = Ky.kyTscore ky
+        extract ky = Ky.kyTscores ky
     -- Properly on line 3 instead of 2.
     leftLike (f "tscore:\nx = [ \n")
-        "fname.ky:3:1:*unexpected end of input*"
+        "fname.ky:3:1:unexpected end of input"
 
 test_p_definition :: Test
 test_p_definition = do
     let f = bimap ParseM.showError (second eExpr)
             . ParseA.parse Ky.pDefinition
     equal (f "a =\n b\n c\n") (Right ("a", [("b", ["c"])]))
-    leftLike (f "a =\n b\nc = d\n") "3:1:*| ^*expected eof"
+    leftLike (f "a =\n b\nc = d\n") "3:1:expected eof"
     equal (f "a = n +z\n") (Right ("a", [("n", ["+z"])]))
     equal (f "a = b $c") (Right ("a", [("b", ["$c"])]))
     equal (f "a = b = $c") (Right ("a", [("=", ["b", "$c"])]))

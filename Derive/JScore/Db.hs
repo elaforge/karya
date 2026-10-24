@@ -97,7 +97,7 @@ search laras tags = do
         mapMaybe (entryMatches laras (parseTags tags)) entries
 
 _load1 = either (error . untxt) id <$>
-    load "Example/tscore/java/balungan32.tscore"
+    load "Example/jscore/balungan32.jscore"
 
 entryMatches :: T.Laras -> Tags -> Entry -> Maybe Entry
 entryMatches laras tags entry
@@ -108,7 +108,7 @@ entryMatches laras tags entry
 
 loadDb :: IO [Entry]
 loadDb = do
-    (errors, entries) <- loadDir "Example/tscore/java"
+    (errors, entries) <- loadDir "Example/jscore"
     unless (null errors) $
         error $ "errors: " <> unlines (map untxt errors)
     pure entries
@@ -117,7 +117,7 @@ type Score = T.Score Check.Block
 
 loadDir :: FilePath -> IO ([Error], [Entry])
 loadDir dir = do
-    fnames <- filter (".tscore" `List.isSuffixOf`) <$> Files.list dir
+    fnames <- filter (".jscore" `List.isSuffixOf`) <$> Files.list dir
     entries <- mapM load fnames
     pure $ second concat $ Either.partitionEithers entries
 
@@ -129,7 +129,7 @@ parse fname source = first ((txt fname <> ": ") <>) $ do
     score <- Parse.parseScore source
     let (checked, errs) = Logger.runId $ Check.formatScore score
     unless (null errs) $
-        Left $ Text.unlines $ map (T.showError source) errs
+        Left $ Text.unlines $ map (T.showError fname source) errs
     pure $ scoreEntries fname source checked
 
 scoreEntries :: FilePath -> Text -> Score -> [Entry]
@@ -149,7 +149,7 @@ scoreEntries fname source (T.Score toplevels) = go [] (map snd toplevels)
         }
         where
         eMeta = Check.makeMeta eMetas
-        Just (line, _, _) = T.findPos source  (T.blockPos eBlock)
+        Just (_, (line, _)) = T.findPos source  (T.blockPos eBlock)
 
 makeTags :: FilePath -> [T.Meta] -> Check.Block -> Tags
 makeTags fname metas block = Map.unions

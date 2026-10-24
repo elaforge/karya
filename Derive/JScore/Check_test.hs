@@ -57,7 +57,7 @@ formatScore source = case Parse.parseScore source of
     Left err -> Left err
     Right score
         | null errs -> Right $ map snd toplevels
-        | otherwise -> Left $ Text.unwords $ map (T.showError source) errs
+        | otherwise -> Left $ Text.unwords $ map (T.showError "fn" source) errs
         where
         (T.Score toplevels, errs) = Logger.runId $ Check.formatScore score
 

@@ -245,7 +245,7 @@ parsedScore = fmap UiTest.extractBlocks . parseScore
 -- not the deriver, so don't give them a derive environment.
 -- 'TScore.standalone_duration' is the one that does.
 parseScore :: Text -> Either Text Ui.State
-parseScore source = first (T.showErrors source) $ do
+parseScore source = first (T.showErrors "fn" source) $ do
     tscore <- first (:[]) $ Parse.parseScore source
     TScore.scoreToUi (const $ Right TScore.noExternalDuration) tscore
 
