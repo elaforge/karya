@@ -3,7 +3,6 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE NondecreasingIndentation #-}
 {- | Parsing utilities for Text, using Attoparsec.
 
     This module also exports some basic combinators.  The idea is that modules
@@ -48,18 +47,23 @@ parse p text = case parseAll p text of
     Left (rest, msg) -> Left $ case inferLocation text rest of
         Nothing -> message msg
         Just (line, position) ->
-            Error Nothing $ NonEmpty.singleton $
-                Diagnostic (Just line) (Just position) 1 msg
+            Error Nothing (Diagnostic (Just line) (Just position) 1 msg) []
 
+-- | A local simplification of P.ParseErrorBundle.  I use it because I also
+-- emit non-parse errors, and I want them to be reported in the same way.
 data Error = Error
     { _filename :: Maybe FilePath
-    , _diagnostics :: NonEmpty.NonEmpty Diagnostic
+    -- TODO This is only a list because some rare megaparsec condition I don't
+    -- use can emit multiple errors.  Maybe I can just have one and crash or
+    -- smash them together for multiple?
+    , _diagnostic :: Diagnostic
+    , _extraDiagnostics :: [Diagnostic]
     } deriving (Eq, Show)
 
 data Diagnostic = Diagnostic
-    { _line :: Maybe Text
+    { _line :: Maybe Text -- ^ line where the error occurred
     , _position :: Maybe (Row, Column)
-    , _length :: Int
+    , _length :: Int -- ^ length of caret highlight
     , _message :: Text
     } deriving (Eq, Show)
 
@@ -71,8 +75,10 @@ fromMegaparsec :: P.ParseErrorBundle Text Void.Void -> Error
 fromMegaparsec bundle = case located of
     (_filename, diagnostic) : rest -> Error
         { _filename
-        , _diagnostics = diagnostic :| map snd rest
+        , _diagnostic = diagnostic
+        , _extraDiagnostics = map snd rest
         }
+    -- TODO because didn't use NonEmpty.mapAccumL?
     [] -> message "Megaparsec returned an empty error bundle"
     where
     located = snd $ List.mapAccumL convert (P.bundlePosState bundle)
@@ -105,30 +111,25 @@ fromMegaparsec bundle = case located of
     errorFancyLength _ = 1
 
 prefix :: Text -> Error -> Error
-prefix pref (Error mbFilename (diag :| diags)) =
-    Error mbFilename $ diag { _message = pref <> _message diag } :| diags
+prefix prefix err = err { _diagnostic = add (_diagnostic err) }
+    where add diag = diag { _message = prefix <> _message diag }
 
 -- | Add a row offset.
 addRow :: Row -> Error -> Error
-addRow row err = err { _diagnostics = fmap shift (_diagnostics err) }
+addRow row err = err { _diagnostic = shift (_diagnostic err) }
     where shift diag = diag { _position = first (+row) <$> _position diag }
 
 message :: Text -> Error
-message msg = Error Nothing $
-    NonEmpty.singleton $ Diagnostic Nothing Nothing 1 msg
+message msg = Error Nothing (Diagnostic Nothing Nothing 1 msg) []
 
 -- | Set the filename unless the error already carries one.
 setFilename :: FilePath -> Error -> Error
-setFilename filename err
-    | filename == "" = err
-    | otherwise = case err of
-        Error Nothing diagnostics -> Error (Just filename) diagnostics
-        _ -> err
+setFilename filename err = err { _filename = _filename err <|> Just filename }
 
 showError :: Error -> Text
-showError (Error mbFilename diagnostics) =
+showError (Error mbFilename diagnostic diagnostics) =
     Text.intercalate "\n\n" $
-        map (formatDiagnostic mbFilename) (NonEmpty.toList diagnostics)
+        map (formatDiagnostic mbFilename) (diagnostic : diagnostics)
 
 formatDiagnostic :: Maybe FilePath -> Diagnostic -> Text
 formatDiagnostic mbFilename (Diagnostic line position length_ msg) =
