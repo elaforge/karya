@@ -120,6 +120,10 @@ external:
     . using tscore, especially standalone
 
 UNSORTED
+  - bug: playback loses the playback marker.
+    . Seems like when that happens space doesn't stop, but just starts again.
+    . It thinks playing is done, but keeps playing.
+    . Can't reproduce it now, it used to happen constantly on sinom-ladrang
   - bali: how to cancel finals if they coincide?
     cancel-pasang?  cancel?  Should be cancel-pasang, but it makes finals too
     long.
@@ -128,16 +132,6 @@ UNSORTED
     . Would be nice to edit in the window title, but probably can't.
     . Or edit by clicking the text in skeleton area.  Shift and cmd taken,
       maybe shift+cmd click?
-  - can I make OS X omit the jellybeans?
-    . Yes, remove all with win->clear_border(), but can maybe make it
-      draggable like:
-      NSWindow *nsWin = (NSWindow*)fl_xid(window);
-      [nsWin setMovableByWindowBackground:YES];
-    . I do this for keycaps!  Can drag it.
-    . Also could have key to expand or contract tracks.  If I can't get
-      auto-size to work with wrapped words.
-    . I think the blank space on the right is useless.
-      Also I almost never want horizontal scrolling.
 
   - I want some kind of automatically dump to text, so eg I can print out
     kendang parts.  Or at least display them in a compact way.
@@ -145,26 +139,11 @@ UNSORTED
     I can fit into 1 or 2 chars.
   - play from shift-/ sometimes plays a non focused block.
     ? is it the root?
-  * change snake_case to camelCase
-    . tools/hs_id_transform.py -i $(git ls-files '*.hs' '*.hsc')
-    . Omit from external modules: Process.std_in, std_out, std_err
-      gcdetails_live_bytes
-      readS_to_P
-      c'git*
-    . is 'error' now the same as errorStack?
-    . Ambiguous:
-      Util.Serialize.to_enum -> toEnumS
-      dropWhile, takeWhile
-    . Include SPECIALIZE, INLINEABLE, INLINE, SCC
-    . Not everything in Solkattu!
-  * switch all 'return' to 'pure'
-  * im can't mute a track because it mutes the whole instrument
-    and can't comment out the track:
-      track title: parse error: "⎣-- >kw": 'Failed reading: empty'
-    . It messes up Implicit skeleton.
-  - but I only needed to do track commenting because im can only mute by
+  - I only needed to do track commenting because im can only mute by
     instrument, not track.  Now that I can more easily mute instruments in ky,
     can I change im to track mute?
+    . Actually, this is what disable was for, no?  It's still awkward that
+      mute and disable are different for MIDI and im.
   - all the window management is fussy.  I'd like more like automatic tiling,
     e.g. window expands automatically and retiles.
     . Also if I can automatically adjust track width.  That's more tricky
@@ -184,14 +163,6 @@ UNSORTED
       I actually ad-hoc define a mode?
     . Ad-hoc mode sounds cooler, I guess it would affect diatonic
       transposition.
-  * im thru not working suddenly.  Nothing in PlayCache.log
-    . MidiThru.cmd_midi_thru gets no msg, must be absorbed by someone?
-    . Actually it doesn't for kendang-bali-wadon, but does for rambat?
-    . AND it just works after restarting Reaper.  Maybe OSX sockets get stuck.
-    . I got 'Thru quit', then 'connect(): Connection refused'
-    . Looks like it was crashing on startup with
-      'Thru.cc:120: bind(): Address already in use'
-    . If I loop trying to open it, at least it'll spam the logs.
   - bug: Cmd/Internal.hs:116 keydown for MouseMod 1 (Just (3,Track 0.4))
       already in modifiers
     . I think it means I got two mouse downs, presumably the mouse up lost.
@@ -208,11 +179,6 @@ UNSORTED
   - transient error on startup:
     errorIO: App/Main.hs:90; getStack: Util/CallStack.hs:88:
       initializing midi: CoreMIDI (-304): smNoDir
-  * browser: query without = should be for name
-    . Or also for synth
-  * could I just infer a '>play-cache play-cache/ [ms] loop4 16'
-    if there are im instruments?  I lost LInst.add_play_cache.
-    Just hardcode it in StaticConfig and always use the same addr?
   - simplify rulers: meters:
     . doc/ruler.md
     . Eliminate RulerIds.  Instead, have a high level Meter specification that
@@ -376,15 +342,6 @@ UNSORTED
         Hs won't line up on anything.  It'll be awkward if I have to go up to
         W or down to Q to get "in phase".
       . So I think I come back to
-  * bug: if I do scrollwheel on an unfocused block, it eventually thinks
-    it has focus, even though it doesn't
-    . Happens when I scroll, then move pointer to the other window.
-    . window    event           focused
-      b1        FL_LEAVE        b1
-      b2        FL_MOUSEWHEEL   b1
-      b2        FL_LEAVE        b1
-      b2        FL_FOCUS        b1 <-- why!?
-      b1        FL_UNFOCUS      b2
   - bug: ruler is broken
     . open save/complete/wayang/cerucuk-punyah.state
     . delete most of score block, and then trim ruler with :
@@ -489,7 +446,6 @@ UNSORTED
     - waveform display seems broken?
       Seems to inconsistently miss strokes?
       They come back when adding a new track, gone again on next update.
-  * im playback seems to be cutting off the starts again
   - No thru for im kendang pasang
     Known issue: refactor thru:
   / LInst.add_im "k" "sampler/kendang-bali-pasang"
@@ -507,14 +463,6 @@ UNSORTED
     . What if I switch git save backend to text, and use CLI git?
     . I could also save only on ^s... but then I don't get undo back.
     . Will it be slow?
-  build on new mac:
-    * ld: warning: ignoring duplicate libraries: '-lc++', '-lpthread'
-    * From repl:
-      ld: warning: -single_module is obsolete
-      . Is ghc adding it?  Maybe a newer version of ghc will omit?
-      . -- We encode this information into the toolchain field
-        ...SupportsSingleModule
-      . But settings does have ("ld supports single module", "NO")
   - make selection more obvious, can't see it when clicking on errors
     . selections, both insert and subblock position, can be very hard to see
     . I think just make it larger?  Could also put triangle on both sides.
@@ -540,9 +488,6 @@ UNSORTED
     . symbolize can also use pointer compare to look up, but Expr.Symbol
       must also use it in Derive.Library.
   new osx:
-    * window for seq doesn't come to front when run
-      . try upgrading fltk
-      . now all but seq.app
     - hold down key repeat doesn't work
       . turns out I need
         defaults write -g ApplePressAndHoldEnabled -bool false
@@ -608,23 +553,11 @@ UNSORTED
   - bug: error in ky spams errors in logview
     . It should suppress after too many of them?  Or subsystems themselves
       should suppress?
-  - fltk: not wrapping by char is quite annoying
-    I think I did this on purpose though?
-    . SymbolTable::do_wrap_glyphs
-    . I think EventTrack.cc wrap_text -> SymbolTable::wrap
-    . Previously, if words didn't wrap, I'd wrap individual glyphs.  However,
-      that meant that Event::suggested_width would be sort of useless because it
-      uses wrapped text, and if text is always able to wrap then it doesn't
-      want to expand.  Also wrapped glyphs are not that readable.  So let's
-      disable it.
-    . Ok so I wanted this to enable track auto-width.  I think the theory was
-      I'd use auto width and just not have long words.
   - divide up App.Config
     . Move stuff that shouldn't be changed, like pixels from c++, to its own
       module.
     . Move EventTrack.cc rank_brightness negative_duration_brightness
       to color config.
-  * I still have the out of sync problem with ky inst allocs vs UiConfig
   - mridangam-d doesn't seem to want to do sub halfsteps
     . But it's now around d4 (62nn) while 4i is 62.5
       (62.50, 63.00) -> 62.75
@@ -659,175 +592,22 @@ UNSORTED
     . On quit, send a Response like RQuit, which will then make editor save
       and quit, which sends back to to seq, which can then exit.
     . Do separate file instead.
-  * ky separate file:
-    * When saving a score, write ky to $base.ky
-    * Read ky from $base.ky instead of internal.
-      It's as if it's just "import base.ky"
-      . Do I need to still use the internal one for compatibility?
-    * I want to clear local ky on save.
-      Could just omit from serialize, but I have to keep it on load,
-      because I can't guarantee it's been saved.
-    * saveStateAs should make a dir, and put as save.state inside.
-    / Don't undo ky!  It's in a file now!
-      . I think it should naturally not happen since it's not in the state
-        anywhere.
-    * I lose the synchronous error checking.  Also I need to poke on an
-      update.  Can be the same.
-      . Via onSave or onSend.
-      . Becomes: :nmap <buffer> gz :call Send('LState.setKy')
-                 :nmap <buffer> gs :call Send('LState.setKy')
-      . Send is in vim-functions.vim, but it's just build/opt/send.
-      . So I need a LState.checkKy, which is like set.
-        . Local .vimrc or something to do -c source vim-functions.vim
-        . I guess I have one!
-        . But I have to do it only on vi *.ky, and put ky-syntax.vim
-          and tscore-syntax.vim in syntax.  Can I do it locally, or must it
-          be installed in ~/.vim?
-        . Or how about a bin/vi that wraps it?
-    / Support for repo.
-    * Rather than return ky with an error, make Ky.update return Left error,
-      and not update Cmd.stateKyCache.
-    * Move tscore into ky file.
-      . Must do this because Serialize doesn't save tscore!
-      . parseKy needs a tscore: section.
-      . Must trigger integrate:
-        newBlocks <- TScore.cmdIntegrate =<< get
-        mapM_ Create.view newBlocks
-      . Can integrate by running a Ui.M, but I want to do only do it when
-        it changed.  Normally save is a proxy for that, but if it's inside
-        ky there are other reasons to save.
-        . I could make a fingerprint of the text, and reintegrate if it
-          changed?
-        . Alternately, always integrate but make it cheap by aborting if
-          no changed detected?  I'd have to store a fingerprint anyway.
-        . I can hardcode this for tscore, but what about jscore?
-        . I guess I could return generalized integrations to run, or
-          Ui.M transformations to run.
-        . TScore.integrate goes from source, not parsed TScore.
-          So I think I have to move integrate into checkKy?
-        . Can't, because it doesn't have ui state, need to put in Ky.update,
-          But then Ky.check should also have it.
-        . I think simpler if Ky.update returns Either instead of a broken
-          KyCache?  I think I couldn't do it before because I had to be able
-          to load ky text, now the text exists in the file, I can refuse to
-          load it.
-      * Have to extract tscore as text, then send to integrate with a line
-        number offset.  So parse must not parse it, which seems awkward.
-      * Integrate in Cmd.Ky makes a circular import, because TScore also has
-        a ky section.  Could move it to standalone.  But do I really want to
-        put all of TScore under Cmd.Ky?  Or move to Cmd.Responder?
-      / Now tscore has to parse as [(FilePath, Line, [Text])] instead of Text.
-      * To display errors I need the source, maybe it should be bundled with
-        the T.Error.
-      . It seems awkward to run integrate and Create.view inside updateKy.
-        Its original point was to do the file IO, so it's not in Cmd.M.
-        What if I return a Cmd.M to run in responder?
-        No need, just return mbTscore.
-      . Why is this so much more complicated than it used to be?
-        Previously it came in as a repl cmd via send, so it went into normal
-        cmd.  Now it's still send, but to poke ky reload, and the ky reload
-        is special non-cmd logic.  But it's actually just a Cmd.
-      . So move Ky.update to a Cmd IO, and put it in as a normal cmd?
-        It's currently in postCmd, must it be?  I guess it's one of the ones
-        that happens even when another cmd eats the event.  But reload ky
-        would have its own event, either the send to poke or a fsevents
-        signal.
-      . So make it CmdIO and move it to hardcodedIoCmds?
-        Or make 'send' directly do all this?
-        That's just Ky.check.
-      . But, I need to still support internal ky code.  So maybe there should
-        be an initialize cmd that triggers Ky.check with that?
-      . After all this, do I still want a tscore section?  What if I leave
-        separate, like jscore?
-        . No imports.
-        . No need to track fprint, it only loads when poked.
-        . In fact, why does tscore have fprint?  Don't I just load when poked?
-          The reason I used to have it was I checked files every respond.
-        . Have to have separate poke, but it could just look at extension.
-        . Separate vi syntax file.
-        . Have to switch buffers, this is mostly it.  But it's simpler to keep
-          one .ky file around than .ky + .tscore.
-        . Keep it, let's try it.  But then I want fingerprint back.
-      . ky has import, which means I could have multiple tscores, which are
-        combined.  This seems good actually?
-      * tscore syntax error
-      * move UiConfig.tscore out of Ui.State like ky
-      * Cmd.Ky_test implement test_check
-      * fix tests: TScore takes parsed T.Score now
-      notes:
-        . What if instead of storing ky inside seq, it was a separate file?
-          Then no need to send it around, seq just has to monitor it for
-          changes.  Then we wind up with two files, but it seems not bad.  If
-          there is fancy tscore or imports, then already multiple files.
-        . How to do this?  Just look for .ky at $base.ky.  Then monitor for
-          changes.  This would replace the Send with an fsnotify or whatever it
-          is.  Is there haskell binding for cross platform notify library?
-        . Ky.check_cache already does this, for external .ky files.  It just
-          polls on every response.  I guess I can still have the editor poke?
-        . For tscore I can either do the same $base.tscore, or I could have
-          a tscore: section.
-          . Con of the latter is harder to do syntax highlighting.
-            Maybe I can merge syntax highlighting though, mostly just keyword
-            underlines.
-        . The annoyance is I can no longer just copy files.  Maybe switch to
-          directories?  I guess this could just be that save_state_as makes
-          a directory by default.  I already do this with dir/save.state.
-          Also a place to put the backup and .repl file.
   ky separate file cleanup:
-    * save on ky with no socket should be silently ok
-    * who uses Ky.load, and do they need tscore?
-      . Now, just TScoreMain, which doesn't.
-    * incorporate tscore into ky.vim
-      . But I still want separate tscore-syntax.vim for *.tscore
-      . Also should I move the au commands to seq dir?
-      . Move vim files to a vim dir?
     - Allocs no longer belong in UiConfig, probably they should go into
       Cmd.State along with the loaded ky.
-    * directly import kyPath rather than faking up 'import' line
-    * Ky.integrateTscore: show tscore errors positions correctly
-      . I think I need an offset for tscore section in .ky, and
-        a filename for imported ones.
-      . Seems I should be able to unify T.Pos in tscore, but it needs at least
-        source and filename.
-      . Does P.getParserState already have it?
-        No it doesn't.  Could add with arbitrary state, but it's constant
-        and would clutter up the Show output, so what about attaching it to
-        the whole score?
-      . I can, but then TScore.trackBlocks etc. does checks on one single
-        Score and emits T.Pos from it.
-      . This is all for imported tscores, which I never actually wanted.
-        So let's just ignore all but the first for now?
-      . Seems to work, but format is not right, and line is wrong.
-        Convert to ParseM.Error, and include line offset of tscore section.
-    * Util.Parse.parseFromLine no longer needed, use ParseText.addRow
-    * syntax error shows filename twice
-      . State error: -- from Cmd.Repl, removed
-        Cmd/Ky.hs:135 -- from tryRight in Cmd.Ky, removed
-        /Users/elaforge/src/seq/data/save/test/ky1/save.state.ky:
-        /Users/elaforge/src/seq/data/save/test/ky1/save.state.ky:7:1:
-          |
-        7 | <empty line>
-          | ^
-        unexpected end of input
-      . It's because ParseText.Error has the prefix, then the parser error
-        has it again.
-    * ky file write shows "reloaded ky" log msg every save
     - Disallow tscore: section inside ky of standalone tscore.
       . Alternately, parse standalone tscore as ky with a tscore section, not
         tscore with a %ky section.
       . This could simplify tscore, see doc/tscore-to-ky
     - Remove App/Repl.hs and protocol for invoking editor.
-      . I guess I still use it for :h?
-    - App/Update.ky, I could have a thing to save .ky for everything.
-
-  * why do I need UiConfig.meta_notes when I could put it in a comment in
-    UiConfig.config_ky?
-    . It would be a bit better for searching if I ever wanted to do that, but
-      I could also just grep ky text.
+      . I guess I still use it for :h?  Nope, different.
+      . But LSol.edit uses it.  I've never really used that though.
+      . It jumps to the Korvai definition, so I can edit and then reintegrate
+        directly.  In theory it means I could use seq as a UI to korvai
+        editing.  In practice, I don't use it and maybe better to just print
+        the file and line and I can edit myself.
   - put other UiConfig.Conifg stuff in ky?
     . namespace, root, lilypond, default_tempo, etc.
-    . Why not merge ky and tscore too?  I would have a tscore: section.
-      It's nice to have just a single file with everything.
   - text with git save backend:
     . What about using a text format and git?  I could get rid of the libgit2
       bindings and use a checked out repo, using the CLI commands directly.
@@ -1922,15 +1702,41 @@ UNIFY:
 
 ----------------------------------------------------------------------
 
+window management:
+  - can I make OS X omit the jellybeans?
+    . Yes, remove all with win->clear_border(), but can maybe make it
+      draggable like:
+      NSWindow *nsWin = (NSWindow*)fl_xid(window);
+      [nsWin setMovableByWindowBackground:YES];
+    . I do this for keycaps!  Can drag it.
+    . Also could have key to expand or contract tracks.  If I can't get
+      auto-size to work with wrapped words.
+    . I think the blank space on the right is useless.
+      Also I almost never want horizontal scrolling.
+  - automatic window placement
+    . I can just do full vertical
+  - How about a key to exchange with neighbor window.
+  - automatic window width, no horizontal scroll or blank space
+  - automatic track widths
+    . Solve setSuggestedTrackWidths, and make it work with wrapped
+    . Or have a key to bump track width?
+
+  - ViewConfig.setSuggestedTrackWidths is too conservative
+    . Ultimately, I'd like it to be all automatic, and propagate to window
+      width, and propagate to tiling.
+  - fltk: not wrapping by char is quite annoying
+    I think I did this on purpose though?
+    . SymbolTable::do_wrap_glyphs
+    . I think EventTrack.cc wrap_text -> SymbolTable::wrap
+    . Previously, if words didn't wrap, I'd wrap individual glyphs.  However,
+      that meant that Event::suggested_width would be sort of useless because it
+      uses wrapped text, and if text is always able to wrap then it doesn't
+      want to expand.  Also wrapped glyphs are not that readable.  So let's
+      disable it.
+    . Ok so I wanted this to enable track auto-width.  I think the theory was
+      I'd use auto width and just not have long words.
+
 ghc:
-  * cabal build puts a non-existent directory in .ghc.environment, which
-    breaks ghc-pkg:
-    package-db dist-newstyle/packagedb/ghc-9.12.4
-    . Actually I think it's just fix-import not ignoring non-existent.
-    . Also missing
-      /Users/elaforge/.ghcup/ghc/9.12.4/lib/ghc-9.12.4/lib/package.conf.d
-    . Ah I should interpret global-package-db?
-    . Turns out these were bugs in fix-imports!
   ? Can I have different cabal.project.freeze for different ghc versions?
   9.6.7 recompilation avoidance buggy:
     - make simple repro

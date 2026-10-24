@@ -367,4 +367,9 @@ improv1 = date 2026 9 26 $ korvaiV adi
 endings1 :: Korvai
 endings1 = korvaiV adi
     [ __D 2 . o . reduceTo 3 1 (su "o_pkD_D_k_D___")
+    , nadai 6 $ tri "D_____" "k_pktk tkkook"
+    , nadai 6 $ "k_pktk tkkook" . "D_____" . "k_pktk tkkook"
+        . "D__" . "tkkookD__" . "ookD_" . "kD"
+    -- this is a 6
+    , __D 4 . nadai 6 (tri "D__" (su "ktpk" . "okno"))
     ]
