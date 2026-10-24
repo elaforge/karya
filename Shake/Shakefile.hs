@@ -1168,7 +1168,7 @@ dispatch modeConfig targets
             -- a debug one, but debug deriving is really slow.
             let opt = (modeToDir Opt </>)
             needEverything [opt "verify_performance", runTests, runProfileTest]
-            allTests
+            testsProfiles
             Util.shell $ opt "verify_performance --out=build/verify\
                 \ save/complete/*"
         , ("verify",) $ action $ do
@@ -1203,9 +1203,9 @@ dispatch modeConfig targets
                 [if withScc then "scc" else "no-scc"]
         , ("show-debug",) $ action $ liftIO $ PPrint.pprint (modeConfig Debug)
         , ("show-opt",) $ action $ liftIO $ PPrint.pprint (modeConfig Opt)
-        , ("tests",) $ action allTests
+        , ("tests-profiles",) $ action testsProfiles
         -- Run tests with no tags.
-        , ("tests-normal",) $ action fastTests
+        , ("tests",) $ action normalTests
         ]
     action act = Shake.action act >> pure True
     runTestsTarget tests = runTests ++ maybe "" ('-':) tests
@@ -1226,13 +1226,13 @@ dispatch modeConfig targets
         where
         cantBuild = [C.binName playCacheBinary]
 
-fastTests :: Shake.Action ()
-fastTests = do
+normalTests :: Shake.Action ()
+normalTests = do
     need [runTests]
     Util.system "tools/run_tests" [runTests, "^normal-"]
 
-allTests :: Shake.Action ()
-allTests = do
+testsProfiles :: Shake.Action ()
+testsProfiles = do
     need [runTests, runProfileTest]
     Util.system "tools/run_tests" [runTests, runProfileTest, "^normal-"]
 
