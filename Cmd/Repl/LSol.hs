@@ -19,7 +19,7 @@ import qualified Data.Map as Map
 import qualified Data.Text as Text
 
 import qualified Util.Lists as Lists
-import qualified Util.ParseText as ParseText
+import qualified Util.ParseA as ParseA
 import qualified App.ReplProtocol as ReplProtocol
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Create as Create
@@ -224,7 +224,7 @@ getByKey :: Block.SourceKey
 getByKey key = do
     -- (mod, variable, index) <- split3 key
     [mod, variable, index, instrument] <- pure $ Text.splitOn "/" key
-    index <- ParseText.maybeParse ParseText.pNat index
+    index <- ParseA.maybeParse ParseA.pNat index
     score <- List.find (matches mod variable) (map snd Db.scores)
     korvai <- case score of
         Korvai.Single k -> pure k

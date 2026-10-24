@@ -12,7 +12,7 @@ import Prelude hiding (min, (.))
 import qualified Data.Text as Text
 
 import qualified Util.Num as Num
-import qualified Util.ParseText as ParseText
+import qualified Util.ParseA as ParseA
 import qualified Util.Lists as Lists
 
 import qualified Midi.Key as Key
@@ -1774,7 +1774,7 @@ parseSec attrs = case Lists.partitionOn hasSec (Attrs.toList attrs) of
     where
     (.) = (Prelude..)
     hasSec = parse . Text.replace "-" "." <=< Text.stripPrefix "sec"
-    parse t = case ParseText.parse1 ParseText.pUnsignedFloat t of
+    parse t = case ParseA.parse1 ParseA.pUnsignedFloat t of
         Left _ -> Nothing
         Right val -> Just $ RealTime.seconds val
 

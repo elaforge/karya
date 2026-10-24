@@ -11,7 +11,7 @@ import qualified Data.Map as Map
 import qualified Data.Text as Text
 import qualified Data.Vector as Vector
 
-import qualified Util.ParseText as ParseText
+import qualified Util.ParseA as ParseA
 import qualified Util.Lists as Lists
 import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
@@ -82,7 +82,7 @@ makeScale scaleId degrees = Scale.Scale
 readPitch :: Pitch.PitchClass -> Pitch.Note
     -> Either DeriveT.PitchError Pitch.Pitch
 readPitch perOctave note = justErr (DeriveT.UnparseableNote note) $
-    ParseText.maybeParse (Pitch.pitch <$> ParseText.pInt <*> pDegree)
+    ParseA.maybeParse (Pitch.pitch <$> ParseA.pInt <*> pDegree)
         (Pitch.noteText note)
     where
     pDegree = do

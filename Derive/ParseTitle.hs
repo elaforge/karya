@@ -17,7 +17,7 @@ import           Data.Attoparsec.Text ((<?>))
 import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Text as Text
 
-import qualified Util.ParseText as ParseText
+import qualified Util.ParseA as ParseA
 import qualified Derive.DeriveT as DeriveT
 import qualified Derive.Expr as Expr
 import qualified Derive.Parse as Parse
@@ -56,14 +56,14 @@ trackType title
 -- TODO this is actually unused, and I think track-call is unimplemented?
 {-# SCC parseNoteTrack #-}
 parseNoteTrack :: Text -> Either Text (ScoreT.Instrument, Maybe TrackCall)
-parseNoteTrack = ParseText.parse1 pNoteTrack
+parseNoteTrack = ParseA.parse1 pNoteTrack
 
 -- > >inst !track-call
 pNoteTrack :: A.Parser (ScoreT.Instrument, Maybe TrackCall)
 pNoteTrack = (,)
     <$> lexeme (A.char '>'
         *> (ScoreT.Instrument <$> Parse.pIdentifier True ""))
-    <*> ParseText.optional pTrackCall
+    <*> ParseA.optional pTrackCall
 
 -- ** control track
 
@@ -74,7 +74,7 @@ parseControlType :: Text -> Either Text ControlType
 parseControlType = fmap fst . parseControlTitle
 
 parseControlTitle :: Text -> Either Text (ControlType, [DeriveT.Call])
-parseControlTitle = ParseText.parse1 pControlTitle
+parseControlTitle = ParseA.parse1 pControlTitle
 
 data ControlType
     -- | Tempo track with an optional modifying symbol.
@@ -103,7 +103,7 @@ pControlType = pTempo <|> pPitch <|> pControl
 
 pTempo :: A.Parser ControlType
 pTempo = Tempo <$>
-    (lexeme (A.string "tempo") *> ParseText.optional (lexeme pMerge))
+    (lexeme (A.string "tempo") *> ParseA.optional (lexeme pMerge))
 
 -- | *twelve (#name | !track-call) merge
 pPitch :: A.Parser ControlType
@@ -121,7 +121,7 @@ pControl = Control
         [ Left <$> pTrackCall
         , Right <$> (A.char '%' *> pure empty <|> pTypedControl)
         ])
-    <*> ParseText.optional (lexeme pMerge)
+    <*> ParseA.optional (lexeme pMerge)
     where
     empty = ScoreT.untyped $ ScoreT.Control ""
 

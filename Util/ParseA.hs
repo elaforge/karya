@@ -12,7 +12,7 @@
     may return a different type (ByteString vs. Text) so callers will still
     need a little modification to switch libraries.
 -}
-module Util.ParseText (module Util.ParseText, many) where
+module Util.ParseA (module Util.ParseA, many) where
 import           Control.Applicative (many)
 import qualified Data.Attoparsec.Text as A
 import           Data.Attoparsec.Text ((<?>))

@@ -36,7 +36,7 @@ import qualified System.IO.Error as IO.Error
 import qualified Util.Lists as Lists
 import qualified Util.Maps as Maps
 import qualified Util.Parse
-import qualified Util.ParseText as ParseText
+import qualified Util.ParseA as ParseA
 
 import qualified Derive.DeriveT as DeriveT
 import qualified Derive.Expr as Expr
@@ -108,20 +108,20 @@ type Definition = (FilePath, (Expr.Symbol, Expr))
 -- | Parse ky text and load and parse all the files it imports.  'parseKy'
 -- describes the format of the ky file.
 loadKy :: [FilePath] -> Code
-    -> IO (Either ParseText.Error (Ky Loaded))
+    -> IO (Either ParseA.Error (Ky Loaded))
 loadKy paths content = Except.runExceptT $ do
     ky <- tryRight $ parseKy "<internal>" content
     kys <- loadKyFile paths Set.empty (kyImports ky)
     pure $ mconcat $ ky { kyImports = [Loaded "" content] } : kys
 
 loadKyFile :: [FilePath] -> Set FilePath -> [Import]
-    -> Except.ExceptT ParseText.Error IO [Ky Loaded]
+    -> Except.ExceptT ParseA.Error IO [Ky Loaded]
 loadKyFile _ _ [] = pure []
 loadKyFile paths loaded (Import fname lib : imports)
     | lib `Set.member` loaded = pure []
     | otherwise = do
         let prefix = txt lib <> "?: "
-        (fname, content) <- tryRight . first (ParseText.message . (prefix<>))
+        (fname, content) <- tryRight . first (ParseA.message . (prefix<>))
             =<< liftIO (findKy paths fname lib)
         ky <- tryRight $ parseKy fname content
         kys <- loadKyFile paths (Set.insert lib loaded)
@@ -179,25 +179,25 @@ readKy fn = Exception.try (Text.IO.readFile fn) >>= pure . \case
     - Calls are defined as "Derive.Call.Macro"s, which means they can include
     $variables, which become arguments to the call.
 -}
-parseKy :: FilePath -> Code -> Either ParseText.Error (Ky Import)
-parseKy fname text = first (ParseText.setFilename fname) $ do
-    (imports, sections) <- first ParseText.message $ checkedSections text
+parseKy :: FilePath -> Code -> Either ParseA.Error (Ky Import)
+parseKy fname text = first (ParseA.setFilename fname) $ do
+    (imports, sections) <- first ParseA.message $ checkedSections text
     (definitionSections, sections) <- pure $
         partitionKeys (`Set.member` definitionSections) sections
     (mbInstruments, sections) <- pure $
         takeKey Instruments.instrumentSection sections
     (mbTscores, sections) <- pure $ takeKey tscoreSection sections
     unless (Map.null sections) $
-        Left $ ParseText.message $
+        Left $ ParseA.message $
             "unknown sections: " <> Text.intercalate ", " (Map.keys sections)
-    imports <- ParseText.parse pImports imports
+    imports <- ParseA.parse pImports imports
     parsed <- traverse parseSection definitionSections
     let get header = Map.findWithDefault [] header parsed
         get2 kind =
             ( get (kind <> " " <> generator)
             , get (kind <> " " <> transformer)
             )
-    defAliases <- first ParseText.message $ mapM parseAlias (get alias)
+    defAliases <- first ParseA.message $ mapM parseAlias (get alias)
     kyInstruments <- case mbInstruments of
         Just lines@((lineno, _) : _) ->
             parseInstruments fname lineno $ map snd lines
@@ -236,7 +236,7 @@ parseKy fname text = first (ParseText.setFilename fname) $ do
         ]
     parseSection [] = pure []
     parseSection ((lineno, line0) : lines) =
-        first (ParseText.addRow lineno) $ ParseText.parse pSection $
+        first (ParseA.addRow lineno) $ ParseA.parse pSection $
             Text.unlines (line0 : map snd lines)
 
 -- | The alias section allows only @alias = inst@ definitions.
@@ -256,9 +256,9 @@ parseAlias (lhs, rhs) = first (msg<>) $ case rhs of
 -- | The lineno is the 0-based line of the first line of the section, which
 -- becomes the 1-based starting line for megaparsec.
 parseInstruments :: FilePath -> Line -> [Text]
-    -> Either ParseText.Error UiConfig.Allocations
+    -> Either ParseA.Error UiConfig.Allocations
 parseInstruments fname lineno lines =
-    first (ParseText.addRow lineno . ParseText.fromMegaparsec) $
+    first (ParseA.addRow lineno . ParseA.fromMegaparsec) $
         Util.Parse.parseE fname Instruments.pInstruments
             (Text.unlines lines)
 
@@ -268,9 +268,9 @@ tscoreSection :: Text
 tscoreSection = "tscore"
 
 parseTscore :: FilePath -> Line -> [Text]
-    -> Either ParseText.Error TScore.T.Score
+    -> Either ParseA.Error TScore.T.Score
 parseTscore fname lineno lines =
-    first (ParseText.addRow lineno . ParseText.fromMegaparsec) $
+    first (ParseA.addRow lineno . ParseA.fromMegaparsec) $
         Util.Parse.parseE fname TScore.Parse.score
             (Text.unlines lines)
 
@@ -406,7 +406,7 @@ pEqualKy = do
     where literal = Literal . DeriveT.VStr
 
 pSubCallKy :: A.Parser Call
-pSubCallKy = ParseText.between (A.char '(') (A.char ')') pCallKy
+pSubCallKy = ParseA.between (A.char '(') (A.char ')') pCallKy
 
 pCallKy :: A.Parser Call
 pCallKy = Call <$> Parse.lexeme (Parse.pSymbol False) <*> many pTermKy

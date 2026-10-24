@@ -35,7 +35,7 @@ import qualified Text.Read as Read
 
 import qualified Util.Lists as Lists
 import qualified Util.Num as Num
-import qualified Util.ParseText as ParseText
+import qualified Util.ParseA as ParseA
 import qualified Util.Pretty as Pretty
 import qualified Util.Ranges as Ranges
 import qualified Util.Seed as Seed
@@ -369,13 +369,13 @@ unparseUiFrame_ (maybeBid, maybeTid, maybeRange) =
     float = Num.showFloat 2 . ScoreTime.toDouble
 
 parseUiFrame :: String -> Maybe UiFrame
-parseUiFrame = ParseText.maybeParseString $ do
-    bid <- optional $ ParseText.lexeme ParseText.pWord
-    tid <- optional $ ParseText.lexeme ParseText.pWord
+parseUiFrame = ParseA.maybeParseString $ do
+    bid <- optional $ ParseA.lexeme ParseA.pWord
+    tid <- optional $ ParseA.lexeme ParseA.pWord
     range <- optional $ do
-        from <- ParseText.pFloat
+        from <- ParseA.pFloat
         A.char '-'
-        to <- ParseText.pFloat
+        to <- ParseA.pFloat
         pure (ScoreTime.fromDouble from, ScoreTime.fromDouble to)
     pure
         ( Id.BlockId . Id.readId <$> bid

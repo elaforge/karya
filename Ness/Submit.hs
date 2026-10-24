@@ -16,7 +16,7 @@ import qualified System.Environment
 import qualified System.Exit as Exit
 import qualified System.Process as Process
 
-import qualified Util.ParseText as ParseText
+import qualified Util.ParseA as ParseA
 import qualified Util.Texts as Texts
 import qualified Util.Thread as Thread
 
@@ -184,5 +184,5 @@ parseJson json = do
                 time <- obj .: "runEstRunTime"
                 pure
                     ( dir <> "/output-mix.wav"
-                    , fromMaybe 0 $ ParseText.float time
+                    , fromMaybe 0 $ ParseA.float time
                     )

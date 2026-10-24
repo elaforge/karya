@@ -25,7 +25,7 @@ import qualified Data.Vector as Vector
 import           Data.Vector ((!))
 
 import qualified Util.Num as Num
-import qualified Util.ParseText as ParseText
+import qualified Util.ParseA as ParseA
 import qualified Derive.DeriveT as DeriveT
 import qualified Derive.Scale.Theory as Theory
 import qualified Perform.Pitch as Pitch
@@ -255,7 +255,7 @@ readRelativePitch :: Format -> Pitch.Note
     -> Either DeriveT.PitchError RelativePitch
 readRelativePitch fmt note = justErr (DeriveT.UnparseableNote note) $
     -- Debug.traceRet "read_rel" note $
-    ParseText.maybeParse (fmtRead fmt) $
+    ParseA.maybeParse (fmtRead fmt) $
     Pitch.noteText note
 
 -- ** make
@@ -438,14 +438,14 @@ showOctave oct = (showt oct <>)
 
 parseOctave :: ParseOctave
 parseOctave parse = do
-    oct <- ParseText.pInt
+    oct <- ParseA.pInt
     (pc, acc) <- parse
     pure $ RelativePitch oct pc acc
 
 -- | Require a single digit octave.
 parseOctave1 :: ParseOctave
 parseOctave1 parse = do
-    oct <- maybe mzero pure . Num.readDigit =<< A.satisfy ParseText.isDigit
+    oct <- maybe mzero pure . Num.readDigit =<< A.satisfy ParseA.isDigit
     (pc, acc) <- parse
     pure $ RelativePitch oct pc acc
 

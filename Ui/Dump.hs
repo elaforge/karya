@@ -18,7 +18,7 @@ import qualified Data.Attoparsec.Text as A
 import qualified Data.Text as Text
 
 import qualified Util.Lists as Lists
-import qualified Util.ParseText as ParseText
+import qualified Util.ParseA as ParseA
 
 import           Global
 
@@ -29,7 +29,7 @@ newtype Tree = Tree [(String, Val)] deriving (Show)
 data Val = Val String | Sub Tree deriving (Show)
 
 parse :: String -> Either Text Dump
-parse = fmap flatten . ParseText.parse1 pTree . Text.pack
+parse = fmap flatten . ParseA.parse1 pTree . Text.pack
 
 flatten :: Tree -> Dump
 flatten (Tree pairs) = concatMap (go []) pairs
@@ -42,10 +42,10 @@ pTree :: A.Parser Tree
 pTree = Tree <$> Applicative.many pPair
 
 pPair :: A.Parser (String, Val)
-pPair = (,) <$> ParseText.lexeme pWord <*> ParseText.lexeme (pSub <|> pVal)
+pPair = (,) <$> ParseA.lexeme pWord <*> ParseA.lexeme (pSub <|> pVal)
 
 pSub :: A.Parser Val
-pSub = Sub <$> ParseText.between (A.char '(') (A.char ')') pTree
+pSub = Sub <$> ParseA.between (A.char '(') (A.char ')') pTree
 
 pVal :: A.Parser Val
 pVal = Val <$> pWord
@@ -54,7 +54,7 @@ pWord :: A.Parser String
 pWord = Text.unpack <$> (pStr <|> A.takeWhile1 (`notElem` (" ()" :: [Char])))
 
 pStr :: A.Parser Text
-pStr = ParseText.between (A.char '"') (A.char '"')
+pStr = ParseA.between (A.char '"') (A.char '"')
         (mconcat <$> Applicative.many str)
     where
     str = do

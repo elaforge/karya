@@ -24,7 +24,7 @@ import qualified Util.Doc as Doc
 import qualified Util.Lists as Lists
 import qualified Util.Maps as Maps
 import qualified Util.Num as Num
-import qualified Util.ParseText as ParseText
+import qualified Util.ParseA as ParseA
 import qualified Util.Pretty as Pretty
 import qualified Util.Segment as Segment
 
@@ -353,7 +353,7 @@ evalDyn ((start, end), (Call (DynCall _ sig func, name) arg)) = do
 -- ** parse
 
 parseDynSequence :: Text -> Either Text [Call Char]
-parseDynSequence = ParseText.parse1 pDynCalls
+parseDynSequence = ParseA.parse1 pDynCalls
 
 pDynCalls :: Parser [Call Char]
 pDynCalls = A.skipSpace *> A.many1 (pDynCall <* A.skipSpace)
@@ -461,7 +461,7 @@ zipCalls :: [a] -> [Call b] -> [Call (a, b)]
 zipCalls xs calls = [Call (x, c) arg | (x, Call c arg) <- zip xs calls]
 
 parsePitchSequence :: Text -> Either Text [ParsedPitch]
-parsePitchSequence = ParseText.parse1 pExprs
+parsePitchSequence = ParseA.parse1 pExprs
 
 resolvePitchCalls :: [ParsedPitch] -> Either Text [Call (PitchCall, Char)]
 resolvePitchCalls = concatMapM resolve

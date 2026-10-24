@@ -35,7 +35,7 @@ import qualified Util.EList as EList
 import qualified Util.Lists as Lists
 import qualified Util.Log as Log
 import qualified Util.Num as Num
-import qualified Util.ParseText as ParseText
+import qualified Util.ParseA as ParseA
 import qualified Util.Then as Then
 
 import qualified Cmd.Ruler.Gong as Gong
@@ -139,7 +139,7 @@ parseFrom scope pos arg = case scope of
             , fromPos = pos
             }
     Track -> do
-        tracknum <- tryJust ("not a tracknum: " <> arg) $ ParseText.int arg
+        tracknum <- tryJust ("not a tracknum: " <> arg) $ ParseA.int arg
         when (tracknum <= 0) $ Left "tracknums start at 1"
         pure $ From
             { fromBlock = Nothing
@@ -332,7 +332,7 @@ parseMeter name = case untxt name of
     [n1, n2] | Just n1 <- Num.readDigit n1, Just n2 <- Num.readDigit n2 ->
         simpleMeter n1 n2
     'a':'d':'i' : n
-        | Just n <- ParseText.nat (txt n) -> meterAdi n
+        | Just n <- ParseA.nat (txt n) -> meterAdi n
         | null n -> meterAdi 4
     "gong" -> Just meterGong
     _ -> Nothing

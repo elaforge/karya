@@ -26,7 +26,7 @@ import qualified Util.Audio.PortAudio as PortAudio
 import qualified Util.Lists as Lists
 import qualified Util.Log as Log
 import qualified Util.Maps as Maps
-import qualified Util.ParseText as ParseText
+import qualified Util.ParseA as ParseA
 import qualified Util.Pretty as Pretty
 import qualified Util.Texts as Texts
 import qualified Util.Thread as Thread
@@ -442,7 +442,7 @@ standaloneDuration cmdConfig tscore ky = do
 parseKy :: Text -> Either Text
     (Derive.Builtins, Derive.InstrumentAliases, UiConfig.Allocations)
 parseKy text = do
-    ky <- first ParseText.showError $ Ky.parseKy "" text
+    ky <- first ParseA.showError $ Ky.parseKy "" text
     ky <- case Ky.kyImports ky of
         [] -> Right $ ky { Ky.kyImports = [] }
         imports -> Left $ "imports not supported for standalone tscore: "

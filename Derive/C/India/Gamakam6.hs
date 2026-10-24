@@ -12,7 +12,7 @@ import qualified Data.Text as Text
 import qualified Util.Doc as Doc
 import qualified Util.Lists as Lists
 import qualified Util.Num as Num
-import qualified Util.ParseText as ParseText
+import qualified Util.ParseA as ParseA
 import qualified Util.Segment as Segment
 
 import qualified Derive.Args as Args
@@ -331,7 +331,7 @@ callDuration (Move (Movement _ dur)) = case dur of
 -- * parse
 
 parse :: Code -> Either Text [Either Alias Call]
-parse = ParseText.parse1 pCalls
+parse = ParseA.parse1 pCalls
 
 pCalls :: Parser [Either Alias Call]
 pCalls = Applicative.many $

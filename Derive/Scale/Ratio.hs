@@ -15,7 +15,7 @@
 module Derive.Scale.Ratio where
 import qualified Data.Attoparsec.Text as A
 
-import qualified Util.ParseText as ParseText
+import qualified Util.ParseA as ParseA
 import qualified Derive.Args as Args
 import qualified Derive.Call.Module as Module
 import qualified Derive.Derive as Derive
@@ -57,7 +57,7 @@ scale = Scale.Scale
 
 noteToCall :: Pitch.Note -> Maybe Derive.ValCall
 noteToCall note = noteCall note <$>
-    ParseText.maybeParse pNote (Pitch.noteText note)
+    ParseA.maybeParse pNote (Pitch.noteText note)
 
 noteCall :: Pitch.Note -> (Double -> Double) -> Derive.ValCall
 noteCall note ratio = Derive.valCall Module.scale "ratio" mempty
@@ -84,10 +84,10 @@ noteCall note ratio = Derive.valCall Module.scale "ratio" mempty
 
 -- | Ratios look like @2/5@, @-4/3@.  A negative ratio divides, a positive one
 -- multiplies.
-pNote :: ParseText.Parser (Double -> Double)
+pNote :: ParseA.Parser (Double -> Double)
 pNote = do
-    num <- ParseText.pInt
+    num <- ParseA.pInt
     A.char '/'
-    denom <- ParseText.pNat
+    denom <- ParseA.pNat
     let ratio = fromIntegral (abs num) / fromIntegral denom
     pure $ if num < 0 then (/ ratio) else (* ratio)

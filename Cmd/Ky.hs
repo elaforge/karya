@@ -23,7 +23,7 @@ import qualified System.Directory as Directory
 
 import qualified Util.Doc as Doc
 import qualified Util.Log as Log
-import qualified Util.ParseText as ParseText
+import qualified Util.ParseA as ParseA
 
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Create as Create
@@ -151,14 +151,14 @@ loadKy mbKyPath paths mbKyCode = do
         Nothing -> pure Nothing
         Just kyText -> do
             result <- Ky.loadKy paths kyText
-            pure $ Just $ first ParseText.showError result
+            pure $ Just $ first ParseA.showError result
 
 -- | Like 'reload', but assuming no existing cmd or ui state.
 load :: [FilePath] -> Text
     -> IO (Either Text
         (Derive.Builtins, Derive.InstrumentAliases, UiConfig.Allocations))
 load paths kyText =
-    bimap ParseText.showError compile <$> Ky.loadKy paths kyText
+    bimap ParseA.showError compile <$> Ky.loadKy paths kyText
 
 compile :: Ky.Ky Ky.Loaded
     -> (Derive.Builtins, Derive.InstrumentAliases, UiConfig.Allocations)

@@ -7,7 +7,7 @@ import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Text as Text
 import qualified GHC.Stack as Stack
 
-import qualified Util.ParseText as ParseText
+import qualified Util.ParseA as ParseA
 import qualified Derive.Attrs as Attrs
 import qualified Derive.DeriveT as DeriveT
 import           Derive.DeriveT (Ref(..), Val(..))
@@ -199,7 +199,7 @@ test_p_equal :: Test
 test_p_equal = do
     let eq a b = Right (Call "=" [Literal (VStr a), b])
         num = Literal . DeriveT.num
-    let f = ParseText.parse1 Parse.pEqual
+    let f = ParseA.parse1 Parse.pEqual
     equal (f "a = b") (eq "a" (Literal (VStr "b")))
     equal (f "a=b") (eq "a" (Literal (VStr "b")))
     equal (f "a = 10") (eq "a" (num 10))

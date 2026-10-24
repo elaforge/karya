@@ -8,7 +8,7 @@ import qualified Data.Map as Map
 
 import qualified Util.Doc as Doc
 import qualified Util.Lists as Lists
-import qualified Util.ParseText as ParseText
+import qualified Util.ParseA as ParseA
 
 import qualified Derive.Args as Args
 import qualified Derive.Call as Call
@@ -220,12 +220,12 @@ getNameNn name =
 
 -- | c-1 is 0, g9 is 127.  The octave is optional, and defaults to 1.
 parsePitchName :: Text -> Maybe Pitch.NoteNumber
-parsePitchName = either (const Nothing) Just . ParseText.parse1 parse
+parsePitchName = either (const Nothing) Just . ParseA.parse1 parse
     where
     parse = do
         pc <- maybe mzero pure . (`Map.lookup` pcs) =<< A.anyChar
         sharp <- A.option 0 $ A.char 's' >> pure 1
-        oct <- A.option 1 $ ParseText.pInt
+        oct <- A.option 1 $ ParseA.pInt
         pure $ Pitch.nn $ pc + sharp + (oct+1) * 12
     pcs = Map.fromList $ zip "cdefgab" (scanl (+) 0 Theory.pianoIntervals)
 

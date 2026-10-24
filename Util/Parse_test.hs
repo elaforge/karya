@@ -7,7 +7,7 @@ import qualified Data.Set as Set
 import qualified Text.Megaparsec as P
 
 import qualified Util.Parse as Parse
-import qualified Util.ParseText as ParseText
+import qualified Util.ParseA as ParseA
 
 import           Global
 import           Util.Test
@@ -16,7 +16,7 @@ import           Util.Test
 test_attoparse :: Test
 test_attoparse = do
     let nat = Parse.pNat
-    let anat = Parse.attoparse "anat" ParseText.pNat
+    let anat = Parse.attoparse "anat" ParseA.pNat
     let parse = Parse.parse
     let comma p1 p2 = parse ((,) <$> p1 <*> ("," *> p2))
     rightEqual (parse nat "42") 42
@@ -35,7 +35,7 @@ test_errorBundle = do
     match (render multiToken "abcde") "fname:1:1:*^^^*"
     where
     render parser input = case Parse.parseE "fname" parser input of
-        Left bundle -> ParseText.showError $ ParseText.fromMegaparsec bundle
+        Left bundle -> ParseA.showError $ ParseA.fromMegaparsec bundle
         Right _ -> "parser unexpectedly succeeded"
     multiple = do
         P.registerFailure Nothing Set.empty

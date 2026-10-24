@@ -3,7 +3,7 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Derive.ParseTitle_test where
-import qualified Util.ParseText as ParseText
+import qualified Util.ParseA as ParseA
 import qualified Derive.ParseTitle as ParseTitle
 import           Derive.ParseTitle (ControlType(..))
 import qualified Derive.ScoreT as ScoreT
@@ -18,13 +18,13 @@ test_parse_control_title = do
 
 test_p_tempo :: Test
 test_p_tempo = do
-    let f = ParseText.parse1 ParseTitle.pControlType
+    let f = ParseA.parse1 ParseTitle.pControlType
     equal (f "tempo") $ Right (Tempo Nothing)
     equal (f "tempo blah  ") $ Right (Tempo (Just "blah"))
 
 test_p_pitch :: Test
 test_p_pitch = do
-    let f = ParseText.parse1 ParseTitle.pControlType
+    let f = ParseA.parse1 ParseTitle.pControlType
     equal (f "*") $ Right (Pitch "" (Right ""))
     equal (f "*hi") $ Right (Pitch "hi" (Right ""))
     equal (f "*hi #pc") $ Right (Pitch "hi" (Right "pc"))
@@ -32,7 +32,7 @@ test_p_pitch = do
 
 test_p_control :: Test
 test_p_control = do
-    let f = ParseText.parse1 ParseTitle.pControlType
+    let f = ParseA.parse1 ParseTitle.pControlType
     equal (f "c") $ Right $ Control (Right (ScoreT.untyped "c")) Nothing
     equal (f "c:nn") $ Right $
         Control (Right (ScoreT.Typed ScoreT.Nn "c")) Nothing

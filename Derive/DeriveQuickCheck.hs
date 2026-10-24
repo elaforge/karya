@@ -34,7 +34,7 @@ import qualified Data.Map as Map
 import qualified Test.QuickCheck as Q
 
 import qualified Util.Lists as Lists
-import qualified Util.ParseText as ParseText
+import qualified Util.ParseA as ParseA
 import qualified Util.Trees as Trees
 
 import qualified Derive.Env as Env
@@ -194,7 +194,7 @@ noteToNn = Map.fromList
 
 parseControl :: Text -> Signal.Y
 parseControl text = fromMaybe (error $ "unparseable control: " ++ show text)
-    (ParseText.float text)
+    (ParseA.float text)
 
 block1 =
     [ ("c1", [(0, 0, "1")])

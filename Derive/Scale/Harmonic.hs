@@ -10,7 +10,7 @@ import qualified Data.Map as Map
 import qualified Data.Text as Text
 
 import qualified Util.Lists as Lists
-import qualified Util.ParseText as ParseText
+import qualified Util.ParseA as ParseA
 import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveT as DeriveT
@@ -66,7 +66,7 @@ unityControl = "unity"
 
 readPitch :: Pitch.Note -> Either DeriveT.PitchError Pitch.Pitch
 readPitch note = justErr (DeriveT.UnparseableNote note) $
-    ParseText.maybeParse (Pitch.pitch <$> pOctave <*> ParseText.pInt)
+    ParseA.maybeParse (Pitch.pitch <$> pOctave <*> ParseA.pInt)
         (Pitch.noteText note)
     where
     pOctave = do

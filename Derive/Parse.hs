@@ -40,7 +40,7 @@ import qualified Data.Text as Text
 import qualified System.IO.Unsafe as Unsafe
 
 import qualified Util.Lists as Lists
-import qualified Util.ParseText as ParseText
+import qualified Util.ParseA as ParseA
 
 import qualified Derive.Attrs as Attrs
 import qualified Derive.DeriveT as DeriveT
@@ -102,7 +102,7 @@ parseExprRaw = parse (pExpr True)
 -- | Parse a single Val.
 {-# SCC parseVal #-}
 parseVal :: Text -> Either Text DeriveT.Val
-parseVal = ParseText.parse1 (lexeme (pVal UnquotedLoose))
+parseVal = ParseA.parse1 (lexeme (pVal UnquotedLoose))
 
 -- | Parse attributes in the form +a+b.
 parseAttrs :: String -> Either Text Attrs.Attributes
@@ -110,7 +110,7 @@ parseAttrs = parse pAttributes . Text.pack
 
 -- | Parse a number or hex code, without a type suffix.
 parseNum :: Text -> Either Text Signal.Y
-parseNum = ParseText.parse1 (lexeme (pHex <|> pUntypedNum))
+parseNum = ParseA.parse1 (lexeme (pHex <|> pUntypedNum))
 
 -- | Extract only the call part of the text.
 parseCall :: Text -> Maybe Text
@@ -120,7 +120,7 @@ parseCall text = case parseExprRaw text of
     _ -> Nothing
 
 parse :: A.Parser a -> Text -> Either Text a
-parse p = ParseText.parse1 (spaces >> p)
+parse p = ParseA.parse1 (spaces >> p)
 
 -- * lex
 
@@ -187,7 +187,7 @@ pLex1 =
 expandMacros :: (Text -> Text) -> Text -> Either Text Text
 expandMacros replacement text
     | not $ "@" `Text.isInfixOf` text = Right text
-    | otherwise = ParseText.parse1 (pMacros replacement) text
+    | otherwise = ParseA.parse1 (pMacros replacement) text
 
 pMacros :: (Text -> Text) -> A.Parser Text
 pMacros replace = do
@@ -216,7 +216,7 @@ pMacro replacement = do
 
 pHsString :: A.Parser Text
 pHsString =
-    ParseText.between (A.char '"') (A.char '"') $ mconcat <$> A.many chunk
+    ParseA.between (A.char '"') (A.char '"') $ mconcat <$> A.many chunk
     where
     chunk = (A.char '\\' >> Text.cons '\\' <$> A.take 1)
         <|> A.takeWhile1 (\c -> c /= '"' && c /= '\\')
@@ -308,7 +308,7 @@ pTerm = Expr.Literal <$> pVal UnquotedLoose <|> Expr.ValCall <$> pSubCall
     <?> "term"
 
 pSubCall :: A.Parser (Expr.Call DeriveT.Val)
-pSubCall = ParseText.between (A.char '(') (A.char ')') (pCall False)
+pSubCall = ParseA.between (A.char '(') (A.char ')') (pCall False)
 
 pVal :: UnquotedString -> A.Parser DeriveT.Val
 pVal unquoted =
@@ -333,7 +333,7 @@ pNum = do
     codes = zip ScoreT.allTypes $ map ScoreT.typeToCode ScoreT.allTypes
 
 pUntypedNum :: A.Parser Signal.Y
-pUntypedNum = pRatio <|> ParseText.pFloat
+pUntypedNum = pRatio <|> ParseA.pFloat
     -- It may seem as if this should include p_hex, but I don't want it
     -- for p_num, because none of the type codes make sense for a 0-1
     -- normalized value.
@@ -341,9 +341,9 @@ pUntypedNum = pRatio <|> ParseText.pFloat
 pRatio :: A.Parser Signal.Y
 pRatio = do
     sign <- A.option '+' (A.satisfy (\c -> c == '+' || c == '-'))
-    num <- ParseText.pNat
+    num <- ParseA.pNat
     A.char '/'
-    denom <- ParseText.pNat
+    denom <- ParseA.pNat
     pure $ (if sign == '-' then -1 else 1)
         * fromIntegral num / fromIntegral denom
 
@@ -373,7 +373,7 @@ pStr = Expr.Str <$> pSingleQuoteString
 pSingleQuoteString :: A.Parser Text
 pSingleQuoteString = do
     chunks <- A.many1 $
-        ParseText.between (A.char '\'') (A.char '\'') (A.takeTill (=='\''))
+        ParseA.between (A.char '\'') (A.char '\'') (A.takeTill (=='\''))
     pure $ Text.intercalate "'" chunks
 
 -- There's no particular reason to restrict attrs to idents, but this will
@@ -386,7 +386,7 @@ pControlRef :: A.Parser DeriveT.ControlRef
 pControlRef = do
     A.char '%'
     control <- ScoreT.Control <$> A.option "" (pIdentifier False ",")
-    deflt <- ParseText.optional (A.char ',' >> pNum)
+    deflt <- ParseA.optional (A.char ',' >> pNum)
     pure $ DeriveT.Ref control (fmap Signal.constant <$> deflt)
     <?> "control"
 
@@ -401,7 +401,7 @@ pPcontrolRef = DeriveT.Ref <$> pPcontrol <*> pure Nothing
         <?> "pitch control"
 
 pQuoted :: A.Parser DeriveT.Quoted
-pQuoted = ParseText.between "\"(" ")" (DeriveT.Quoted <$> pExpr False)
+pQuoted = ParseA.between "\"(" ")" (DeriveT.Quoted <$> pExpr False)
 
 data UnquotedString = UnquotedStrict | UnquotedLoose deriving (Eq, Show)
 

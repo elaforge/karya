@@ -29,7 +29,7 @@ import qualified Data.Vector as Vector
 import qualified Util.Doc as Doc
 import qualified Util.Lists as Lists
 import qualified Util.Num as Num
-import qualified Util.ParseText as ParseText
+import qualified Util.ParseA as ParseA
 
 import qualified Derive.Call.ScaleDegree as ScaleDegree
 import qualified Derive.Controls as Controls
@@ -401,7 +401,7 @@ toAbsolute layout (Pitch.Pitch oct degree) =
 
 parse :: A.Parser a -> Pitch.Note -> Either DeriveT.PitchError a
 parse p note = maybe (Left $ DeriveT.UnparseableNote note) Right $
-    ParseText.maybeParse p (Pitch.noteText note)
+    ParseA.maybeParse p (Pitch.noteText note)
 
 pPc :: Pitch.PitchClass -> A.Parser Pitch.PitchClass
 pPc pcPerOct = pDigit 1 (pcPerOct+1)
@@ -411,6 +411,6 @@ pOctave = pDigit 0 10
 
 pDigit :: Int -> Int -> A.Parser Int
 pDigit low high = do
-    n <- maybe mzero pure . Num.readDigit =<< A.satisfy ParseText.isDigit
+    n <- maybe mzero pure . Num.readDigit =<< A.satisfy ParseA.isDigit
     guard $ Num.inRange low high n
     pure n
