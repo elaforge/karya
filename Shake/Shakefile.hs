@@ -1481,7 +1481,7 @@ makeBundle_ makeWrapper bundleType hasIcon binary = case Util.platform of
 -- | Generate RunTests.hs and compile it.
 testRules :: Config -> Shake.Rules ()
 testRules config = do
-    runTests ++ "*.hs" %> generateTestHs "_test"
+    runTests ++ "*.hs" %> generateTestHs runTests "_test"
     runTestsBinary runTests ?> \fn -> do
         -- The UI tests use fltk.a.  It would be nicer to have it
         -- automatically added when any .o that uses it is linked in.
@@ -1493,7 +1493,7 @@ testRules config = do
 
 profileRules :: Config -> Shake.Rules ()
 profileRules config = do
-    runProfile ++ "*.hs" %> generateTestHs "_profile"
+    runProfile ++ "*.hs" %> generateTestHs runProfile "_profile"
     runTestsBinary runProfile ?> \fn ->
         buildHs config defaultRtsFlags [oDir config </> "fltk/fltk.a"]
             (fn ++ ".hs") fn
@@ -1508,12 +1508,13 @@ runTestsBinary :: FilePath -> FilePath -> Bool
 runTestsBinary prefix fn = prefix `List.isPrefixOf` fn
     && FilePath.takeExtension fn `notElem` [".hs", ".o", ".hi"]
 
-generateTestHs :: FilePath -> FilePath -> Shake.Action ()
-generateTestHs suffix fn = do
+-- | Generate build/(mode)/Run(Tests|Profile)(-A.B.Xyz)?.hs, given the runner
+-- path without .hs.
+generateTestHs :: FilePath -> FilePath -> FilePath -> Shake.Action ()
+generateTestHs runner suffix fn = do
     -- build/test/RunTests-A.B.Xyz.hs -> A/B/Xyz_test.hs
-    -- let testName = drop 1 $ dropWhile (/='-') $ FilePath.dropExtension fn
-    testName <- if fn == runTests <> ".hs" then pure ""
-        else liftIO $ dropPrefixError (runTests <> "-")
+    testName <- if fn == runner <> ".hs" then pure ""
+        else liftIO $ dropPrefixError (runner <> "-")
             =<< dropSuffixError ".hs" fn
     tests <- if null testName
         then filter wantsTest <$> Util.findHs ('*' : suffix ++ ".hs") "."

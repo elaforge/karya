@@ -3,6 +3,10 @@ all be multiples of 4 spaces), and there are no tabs.
 
 No line is longer than 80 columns.
 
+Logic generally goes top to bottom, so high level functions precede the lower
+level ones they call.  Consistent with this, prefer `where` over `let` within
+function bodies.
+
 The usual camelCase, except tests which start with `test_`.  Acrynyms are words,
 so MidiTest, not MIDITest, and NoteId, not NoteID.  It looks weird but it's
 consistent.
